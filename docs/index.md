@@ -35,8 +35,9 @@ The foundations land before any chemistry-specific or ML code.
 | 4 | Variant resolver (`variant/`) | done |
 | 5 | Off-target engine — population & haplotype aware (`offtarget/`) | done |
 | 6 | Scoring foundations: model zoo, embeddings, uncertainty (`scoring/`, `model_zoo/`) | done |
-| 7 | Chemistry: SpCas9 nuclease | next |
-| 8–15 | Base & prime editing → designer → report → CLI → web → benchmark → release | planned |
+| 7 | Chemistry: SpCas9 nuclease (`enumerate/`, `scoring/`, `design/`) | done |
+| 8 | Chemistry: base editing (ABE / CBE) | next |
+| 9–15 | Prime editing → designer → report → CLI → web → benchmark → release | planned |
 
 See [Data provenance](data.md) for the versioned, license-aware dataset registry.
 

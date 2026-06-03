@@ -38,6 +38,7 @@ nav:
       - Variant resolver: api/variant.md
       - Off-target engine: api/offtarget.md
       - Scoring foundations: api/scoring.md
+      - SpCas9 nuclease: api/cas9.md
   - Scope & responsible use: scope.md
 
 markdown_extensions:

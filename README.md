@@ -142,7 +142,8 @@ AlleleForge is built in ordered phases (see [`SPEC.md`](SPEC.md), the authoritat
 | 4 | Variant resolver (`variant/`) | ✅ done |
 | 5 | Off-target engine — population &amp; haplotype aware (`offtarget/`) | ✅ done |
 | 6 | Scoring foundations: model zoo, embeddings, uncertainty (`scoring/`, `model_zoo/`) | ✅ done |
-| 7–9 | Modalities: SpCas9 nuclease · base editing · prime editing | ⏳ next |
+| 7 | Chemistry: SpCas9 nuclease (`enumerate/`, `scoring/`, `design/`) | ✅ done |
+| 8–9 | Chemistries: base editing · prime editing | ⏳ next |
 | 10 | Designer: routing, candidate menu, ranking | ◻️ planned |
 | 11 | Reporting &amp; oligo output | ◻️ planned |
 | 12 | CLI (`aforge`) | ◻️ planned |
@@ -421,6 +422,39 @@ print(pred.value, pred.interval, pred.method, pred.in_distribution)   # honest b
 
 ---
 
+## The first chemistry: SpCas9 nuclease (Phase 7, shipping now)
+
+The most mature chemistry, and the right one to prove the **full vertical slice** end to end. From a
+resolved variant, `design_cas9` enumerates guides, scores efficiency and outcome with calibrated
+uncertainty, runs the population-aware off-target engine, and returns ranked candidates.
+
+```mermaid
+flowchart LR
+    V["ResolvedVariant<br/>+ intent"] --> EN["enumerate_cas9<br/>PAM-anchored · strand-aware ·<br/>cut 3 bp 5' of PAM · actionable window"]
+    EN --> EF["efficiency<br/>RS3 baseline / deep ensemble<br/>(80% interval + OOD)"]
+    EN --> OUT["outcome<br/>microhomology / MMEJ +<br/>1-bp insertion spectrum"]
+    EN --> OT["off-target<br/>(Phase 5 engine,<br/>ancestry-stratified)"]
+    EF & OUT & OT --> C["DesignCandidate[]<br/>ranked: efficiency then safety"]
+    EN -.precise intent.-> HDR["HDR donor template"]
+```
+
+**Defaults & decisions.** Primary PAM `NGG`; `NG` (SpCas9-NG) and `NRN`/`NYN` (SpRY) are emitted only
+when no `NGG` guide is actionable **and** opted in. Cut site 3 bp 5' of the PAM. The actionable window
+is tight around the edit for precise intents (HDR efficiency falls off with cut-to-edit distance) and
+the whole working interval for a knock-out, which marks frameshift outcomes as intended.
+
+| Axis | Default (CI, weight-free) | Trained alternative (model zoo, `ml` extra) |
+|---|---|---|
+| Efficiency | RS3-style feature baseline + backbone deep ensemble | Rule Set 3; fine-tuned NT v2 ensemble |
+| Outcome | microhomology/MMEJ + 1-bp insertion model | inDelphi (default) · Lindel · X-CRISP + agreement |
+| Off-target | Phase 5 engine (pure-Python fallback) | Phase 5 engine (Rust FM-index) |
+
+Every efficiency score carries an 80% interval and an OOD flag; every outcome is a normalized
+distribution over indel alleles; every candidate carries an ancestry-stratified off-target report —
+so a ranked menu is honest about what it does and does not know.
+
+---
+
 ## Defaults cheat-sheet
 
 Every default is overridable; these are the spec-mandated starting points.
@@ -456,8 +490,9 @@ alleleforge/
 │   ├── offtarget/            # Phase 5: population/haplotype-aware off-target
 │   ├── model_zoo/            # Phase 6: license-gated model cards + checkpoints
 │   ├── scoring/              # Phase 6: embeddings, uncertainty, Scorer (this release)
-│   ├── enumerate/            # Phases 7–9: per-chemistry guide/pegRNA enumeration
-│   ├── design/ report/ cli/ web/           # Phases 10–13 (orchestration + interfaces)
+│   ├── enumerate/            # Phase 7: SpCas9 guide enumeration (base/prime: 8–9)
+│   ├── design/               # Phase 7: SpCas9 design vertical (designer: Phase 10)
+│   ├── report/ cli/ web/                   # Phases 11–13 (interfaces)
 │   └── ...
 ├── tests/                    # mirrors src/; pytest + hypothesis
 ├── benchmark/                # CRISPR-Bench (Phase 14)

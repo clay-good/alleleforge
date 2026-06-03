@@ -94,5 +94,22 @@ acceptance.
   backbones are gated behind the `real_weights` marker. PyYAML joins the core
   dependencies for card parsing. Cites Hsu/Doench, Amini et al. *NeurIPS* 2020
   (deep evidential regression), and Dalla-Torre et al. *Nat Methods* 2024 (NT).
+- **Phase 7 — Chemistry: SpCas9 nuclease.** The first full vertical slice
+  (enumerate -> efficiency -> outcome -> off-target -> candidate).
+  `alleleforge.enumerate.cas9`: strand-aware enumeration of every PAM-anchored
+  guide whose blunt cut (3 bp 5' of the PAM) falls in the actionable window, with
+  `NG`/SpRY fallback only when no `NGG` guide is actionable, an HDR donor for
+  precise intents, and a guide-context helper. `alleleforge.scoring.cas9_efficiency`:
+  a transparent Rule-Set-3-style baseline (with the DeWeirdt-Doench tracrRNA-aware
+  term) and a backbone-fine-tuned deep-ensemble scorer with embedding-space OOD
+  flagging — both calibrated `Prediction`s, never bare floats.
+  `alleleforge.scoring.cas9_outcome`: a microhomology/MMEJ + templated-1-bp-insertion
+  indel-spectrum baseline (the inDelphi mechanism) plus license-gated inDelphi /
+  Lindel / X-CRISP adapters and an ensemble mode reporting inter-model top-allele
+  agreement. `alleleforge.design.cas9`: `design_cas9` wires the slice into ranked
+  `DesignCandidate`s, each with a calibrated efficiency interval, predicted outcome
+  distribution, and ancestry-stratified off-target report. Bundled model cards for
+  the efficiency ensemble and inDelphi. Cites DeWeirdt & Doench *Nat Commun* 2022
+  (Rule Set 3) and Shen et al. *Nature* 2018 (inDelphi).
 
 [Unreleased]: https://github.com/clay-good/alleleforge/commits/main

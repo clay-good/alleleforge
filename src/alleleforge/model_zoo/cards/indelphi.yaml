@@ -1,0 +1,22 @@
+# Model card — bundled with AlleleForge (Phase 7 default nuclease outcome).
+name: indelphi
+version: "1.0"
+chemistry: cas9_nuclease
+training_data: >-
+  Repair-outcome libraries at thousands of SpCas9 cut sites across cell lines
+  (mESC, U2OS, HEK293, HCT116), modeling microhomology-mediated deletions and
+  templated 1-bp insertions.
+metrics:
+  cell_types: 4.0
+intended_use: >-
+  Default nuclease edit-outcome (indel spectrum) prediction at a blunt cut.
+  Research use.
+out_of_scope_use: >-
+  Clinical decision-making; non-SpCas9 chemistries; cell types far from training.
+license: MIT
+citation: "Shen et al., Nature 2018 (inDelphi)"
+known_failure_modes:
+  - "Outcome spectra are cell-type dependent; cross-cell-type transfer is imperfect."
+  - "Models the dominant MMEJ deletions and 1-bp insertions, not every byproduct."
+checkpoint_sha256: null
+source_url: "https://github.com/maxwshen/indelphi-model"

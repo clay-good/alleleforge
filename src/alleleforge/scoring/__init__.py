@@ -21,6 +21,18 @@ from alleleforge.scoring.backbone import (
     sequence_hash,
 )
 from alleleforge.scoring.base import BareFloatError, Scorer, ensure_prediction
+from alleleforge.scoring.cas9_efficiency import (
+    EnsembleEfficiencyScorer,
+    RuleSet3Scorer,
+    TracrRNA,
+)
+from alleleforge.scoring.cas9_outcome import (
+    InDelphiAdapter,
+    LindelAdapter,
+    MicrohomologyOutcomePredictor,
+    XCrispAdapter,
+    ensemble_outcome,
+)
 from alleleforge.scoring.uncertainty import (
     DEFAULT_ENSEMBLE_SIZE,
     DEFAULT_INTERVAL_LEVEL,
@@ -44,15 +56,23 @@ __all__ = [
     "CaduceusEmbedder",
     "DeepEnsemble",
     "Embedding",
+    "EnsembleEfficiencyScorer",
     "EnsembleResult",
     "EvidentialParams",
     "Evo2Embedder",
+    "InDelphiAdapter",
     "IsotonicCalibrator",
+    "LindelAdapter",
+    "MicrohomologyOutcomePredictor",
     "NucleotideTransformerEmbedder",
     "OODDetector",
+    "RuleSet3Scorer",
     "Scorer",
     "SequenceEmbedder",
     "StubEmbedder",
+    "TracrRNA",
+    "XCrispAdapter",
+    "ensemble_outcome",
     "ensemble_prediction",
     "ensure_prediction",
     "evidential_prediction",

@@ -1,0 +1,24 @@
+# Model card — bundled with AlleleForge (Phase 7 default SpCas9 efficiency).
+name: cas9-efficiency-ensemble
+version: "0.1"
+chemistry: cas9_nuclease
+training_data: >-
+  Backbone-fine-tuned deep ensemble (N=5) over Nucleotide Transformer v2
+  embeddings of guide contexts; trained on pooled SpCas9 on-target activity
+  screens (DeepHF / DeepSpCas9 / Rule Set 3 validation). First-party weights.
+metrics:
+  ensemble_size: 5.0
+  spearman_validation: 0.0  # populated when CRISPR-Bench scores it (Phase 14)
+intended_use: >-
+  Default on-target SpCas9 efficiency prediction with calibrated uncertainty and
+  embedding-space OOD flagging. Research use.
+out_of_scope_use: >-
+  Clinical decision-making; non-SpCas9 chemistries; sequences far from the human
+  training distribution (the OOD flag fires, but treat such scores with caution).
+license: MIT
+citation: "AlleleForge contributors (first-party); backbone Dalla-Torre et al. 2024"
+known_failure_modes:
+  - "Out of distribution for non-human / synthetic contexts (flagged by the OOD detector)."
+  - "Cross-cell-type generalization is a field-wide limitation, not AlleleForge-specific."
+checkpoint_sha256: null
+source_url: null
