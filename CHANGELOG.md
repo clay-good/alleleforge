@@ -75,5 +75,24 @@ acceptance.
   Cancellieri & Pinello *Nat Genet* 2023.
 
 [`search`]: https://github.com/clay-good/alleleforge/blob/main/src/alleleforge/offtarget/engine.py
+- **Phase 6 — Scoring foundations (model zoo, embeddings, uncertainty).** The
+  reusable ML substrate before any chemistry-specific predictor.
+  `alleleforge.model_zoo`: a `ModelRegistry` over required, validated YAML
+  **model cards** that refuses a missing card, a license that forbids the use
+  (non-commercial cards block commercial use; unknown/proprietary refused), or an
+  unverifiable checkpoint, surfacing each as a Phase 1 `ModelCheckpoint`; bundled
+  cards for Nucleotide Transformer v2 (500M) and Rule Set 3.
+  `alleleforge.scoring`: a swappable `SequenceEmbedder` protocol (NT v2 default;
+  Caduceus and Evo 2 adapters; a deterministic weight-free `StubEmbedder` and a
+  hash-keyed embedding cache for CI); calibrated-uncertainty machinery — a
+  deep ensemble (N=5, the default) whose interval widens on disagreement, an
+  evidential (Normal-Inverse-Gamma) single-model fallback, quantile intervals,
+  isotonic post-hoc calibration with `expected_calibration_error`, and an
+  embedding-space `OODDetector`, all packaged into the Phase 1 `Prediction`; and
+  the `Scorer` protocol with a runtime `ensure_prediction` guard enforcing the
+  no-bare-float contract. Pure stdlib — no numpy/torch in the core path; real
+  backbones are gated behind the `real_weights` marker. PyYAML joins the core
+  dependencies for card parsing. Cites Hsu/Doench, Amini et al. *NeurIPS* 2020
+  (deep evidential regression), and Dalla-Torre et al. *Nat Methods* 2024 (NT).
 
 [Unreleased]: https://github.com/clay-good/alleleforge/commits/main

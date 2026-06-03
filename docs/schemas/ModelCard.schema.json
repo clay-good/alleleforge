@@ -1,0 +1,96 @@
+{
+  "description": "A required, validated model card (mirrors ``cards/*.yaml``).\n\nAttributes:\n    name: Model identifier.\n    version: Model version.\n    chemistry: The chemistry it scores, or ``None`` for a generic backbone.\n    training_data: A description of the training data.\n    metrics: Reported metrics (name -> value).\n    intended_use: What the model is for.\n    out_of_scope_use: What it must not be used for.\n    license: SPDX-style license identifier.\n    citation: Literature citation.\n    known_failure_modes: Documented ways the model fails.\n    checkpoint_sha256: Expected checkpoint hash (``None`` blocks download).\n    source_url: Where the checkpoint is fetched from.",
+  "properties": {
+    "checkpoint_sha256": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Checkpoint Sha256"
+    },
+    "chemistry": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Chemistry"
+    },
+    "citation": {
+      "title": "Citation",
+      "type": "string"
+    },
+    "intended_use": {
+      "title": "Intended Use",
+      "type": "string"
+    },
+    "known_failure_modes": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Known Failure Modes",
+      "type": "array"
+    },
+    "license": {
+      "title": "License",
+      "type": "string"
+    },
+    "metrics": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "default": {},
+      "title": "Metrics",
+      "type": "object"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "out_of_scope_use": {
+      "title": "Out Of Scope Use",
+      "type": "string"
+    },
+    "source_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Url"
+    },
+    "training_data": {
+      "title": "Training Data",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "version",
+    "chemistry",
+    "training_data",
+    "intended_use",
+    "out_of_scope_use",
+    "license",
+    "citation"
+  ],
+  "title": "ModelCard",
+  "type": "object"
+}

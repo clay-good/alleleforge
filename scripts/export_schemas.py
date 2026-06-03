@@ -20,6 +20,7 @@ from alleleforge.data.clinvar import ClinVarRecord
 from alleleforge.data.gnomad import PopulationFrequency
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.data.registry import DatasetDescriptor
+from alleleforge.model_zoo.registry import ModelCard
 from alleleforge.variant.effect import VariantEffect
 from alleleforge.variant.hgvs_adapter import ParsedGenomicHgvs
 from alleleforge.variant.resolver import RawTarget, ResolvedVariant, VcfRecord
@@ -61,6 +62,8 @@ _MODELS: list[type[BaseModel]] = [
     VcfRecord,
     RawTarget,
     ResolvedVariant,
+    # Phase 6 — model zoo.
+    ModelCard,
 ]
 
 

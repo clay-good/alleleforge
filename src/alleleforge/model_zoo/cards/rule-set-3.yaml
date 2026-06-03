@@ -1,0 +1,22 @@
+# Model card — bundled with AlleleForge (Phase 7 SpCas9 efficiency baseline).
+name: rule-set-3
+version: "1.0"
+chemistry: cas9_nuclease
+training_data: >-
+  Pooled SpCas9 on-target activity screens (Rule Set 3 / sgRNA designer),
+  including tracrRNA-aware features from DeWeirdt & Doench.
+metrics:
+  spearman_validation: 0.0  # populated when CRISPR-Bench scores it (Phase 14)
+intended_use: >-
+  No-large-download on-target SpCas9 efficiency baseline; always-available
+  fallback to the backbone-fine-tuned ensemble. Research use.
+out_of_scope_use: >-
+  Clinical decision-making; chemistries other than SpCas9 nuclease; a substitute
+  for experimental validation.
+license: BSD-3-Clause
+citation: "DeWeirdt & Doench et al., Nat Commun 2022 (Rule Set 3)"
+known_failure_modes:
+  - "Trained on lentiviral pooled screens; may not transfer to other delivery/contexts."
+  - "Reduced accuracy outside the trained spacer-length / scaffold assumptions."
+checkpoint_sha256: null
+source_url: "https://github.com/gpp-rnd/rs3"

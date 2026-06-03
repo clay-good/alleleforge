@@ -34,8 +34,9 @@ The foundations land before any chemistry-specific or ML code.
 | 3 | Data registry & population datasets (`data/`) | done |
 | 4 | Variant resolver (`variant/`) | done |
 | 5 | Off-target engine — population & haplotype aware (`offtarget/`) | done |
-| 6 | Scoring foundations: model zoo, embeddings, uncertainty | next |
-| 7–15 | Chemistries → designer → report → CLI → web → benchmark → release | planned |
+| 6 | Scoring foundations: model zoo, embeddings, uncertainty (`scoring/`, `model_zoo/`) | done |
+| 7 | Chemistry: SpCas9 nuclease | next |
+| 8–15 | Base & prime editing → designer → report → CLI → web → benchmark → release | planned |
 
 See [Data provenance](data.md) for the versioned, license-aware dataset registry.
 

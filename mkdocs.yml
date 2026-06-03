@@ -37,6 +37,7 @@ nav:
       - Data registry & datasets: api/data.md
       - Variant resolver: api/variant.md
       - Off-target engine: api/offtarget.md
+      - Scoring foundations: api/scoring.md
   - Scope & responsible use: scope.md
 
 markdown_extensions:

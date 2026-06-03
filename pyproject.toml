@@ -24,9 +24,12 @@ classifiers = [
 
 # Core stays deliberately light so the package installs fast and CI is reliable.
 # Heavy scientific / ML / web stacks live in optional groups, pulled in per phase.
+# PyYAML is core: the model-zoo license gate reads YAML model cards, and loading
+# any model checkpoint requires its card (Phase 6).
 dependencies = [
     "pydantic>=2.6",
     "pydantic-settings>=2.2",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -47,6 +50,7 @@ variant = [
 ]
 ml = [
     "torch>=2.3",
+    "transformers>=4.40",
     "lightning>=2.2",
     "scikit-learn>=1.4",
 ]
@@ -139,6 +143,12 @@ module = [
     "hgvs.*",
     "requests",
     "requests.*",
+    "yaml",
+    "yaml.*",
+    "torch",
+    "torch.*",
+    "transformers",
+    "transformers.*",
 ]
 ignore_missing_imports = true
 

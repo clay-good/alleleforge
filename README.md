@@ -141,8 +141,8 @@ AlleleForge is built in ordered phases (see [`SPEC.md`](SPEC.md), the authoritat
 | 3 | Data registry &amp; population datasets (`data/`) | ✅ done |
 | 4 | Variant resolver (`variant/`) | ✅ done |
 | 5 | Off-target engine — population &amp; haplotype aware (`offtarget/`) | ✅ done |
-| 6 | Scoring foundations: model zoo, embeddings, uncertainty | ⏳ next |
-| 7–9 | Modalities: SpCas9 nuclease · base editing · prime editing | ◻️ planned |
+| 6 | Scoring foundations: model zoo, embeddings, uncertainty (`scoring/`, `model_zoo/`) | ✅ done |
+| 7–9 | Modalities: SpCas9 nuclease · base editing · prime editing | ⏳ next |
 | 10 | Designer: routing, candidate menu, ranking | ◻️ planned |
 | 11 | Reporting &amp; oligo output | ◻️ planned |
 | 12 | CLI (`aforge`) | ◻️ planned |
@@ -158,7 +158,7 @@ AlleleForge is built in ordered phases (see [`SPEC.md`](SPEC.md), the authoritat
 > web stacks live in optional dependency groups so the base package installs fast and CI stays reliable.
 
 ```bash
-# Core library (pure-Python: pydantic types, config)
+# Core library (light: pydantic types, config, model-card parsing — no torch/numpy)
 pip install alleleforge            # once published to PyPI
 
 # From source, with the optional groups you need
@@ -174,7 +174,7 @@ pip install -e ".[core,genome,variant,ml,dev]"
 | `core` | polars, pyarrow, numpy | tabular I/O |
 | `genome` | pyfaidx, pysam, cyvcf2, mappy, pyliftover | reference access, indexing (Phase 2) |
 | `variant` | hgvs | HGVS resolution (Phase 4) |
-| `ml` | torch, lightning, scikit-learn | scoring &amp; uncertainty (Phase 6+) |
+| `ml` | torch, transformers, lightning, scikit-learn | real embedding backbones (Phase 6+); the uncertainty core needs none of these |
 | `web` | fastapi, uvicorn | API server (Phase 13) |
 | `docs` | mkdocs-material, mkdocstrings | documentation site |
 | `dev` | ruff, mypy, pytest, hypothesis, maturin | development |
@@ -372,6 +372,55 @@ without touching the engine. Reporting thresholds default to **CFD ≥ 0.20 or M
 
 ---
 
+## The scoring substrate (Phase 6, shipping now)
+
+Before any chemistry-specific predictor, AlleleForge establishes the reusable ML substrate: a
+**license-gated model zoo**, a **swappable embedding backbone**, and the **calibrated-uncertainty**
+machinery that realizes the honest-uncertainty principle. The whole substrate is pure stdlib in its
+core path — no numpy or torch — so it runs in CI on a weight-free stub embedder; real 500M-parameter
+backbones are gated behind the `real_weights` marker.
+
+```mermaid
+flowchart LR
+    SEQ["DNA sequence"] --> EMB["SequenceEmbedder<br/>(NT v2 · Caduceus · Evo 2 · Stub)"]
+    EMB --> CACHE["embedding cache<br/>(by sequence hash)"]
+    EMB --> OOD["OODDetector<br/>distance vs training reference"]
+    CACHE --> MODEL["scorer / ensemble"]
+    MODEL --> U{"uncertainty"}
+    U -->|N=5 default| ENS["deep ensemble<br/>mean ± z·σ (disagreement)"]
+    U -->|fallback| EV["evidential<br/>aleatoric + epistemic"]
+    U -->|if quantiles| QT["quantile interval"]
+    ENS & EV & QT --> CAL["isotonic calibration<br/>(reduces ECE)"]
+    OOD --> CAL
+    CAL --> PRED["Prediction[float]<br/>value · 80% interval · method ·<br/>in_distribution · calibrated"]
+```
+
+**No bare floats.** Every scorer returns a `Prediction`, never a number; `ensure_prediction` is the
+runtime guard at the orchestration seam. **No undocumented models.** Every checkpoint loads through the
+model zoo, which refuses a missing card, a license that forbids the use, or an unverifiable hash, and
+surfaces a `ModelCheckpoint` into result provenance.
+
+### Uncertainty method cheat-sheet
+
+| Method | Role | Interval |
+|---|---|---|
+| **Deep ensemble** (N=5) | default | `mean ± z·σ` from member disagreement — **widens on OOD** |
+| **Evidential** (NIG) | single-model fallback | splits aleatoric (data) vs epistemic (model) variance |
+| **Quantile** | when the model emits quantiles | read off the `(1±level)/2` quantiles |
+| **Isotonic calibration** | post-hoc, all of the above | PAV fit; `expected_calibration_error` quantifies the gain |
+
+```python
+from alleleforge.scoring import DeepEnsemble, ensemble_prediction, OODDetector, StubEmbedder
+
+ens = DeepEnsemble([m1, m2, m3, m4, m5])                 # five members
+emb = StubEmbedder().embed(["GACCATGCAACCTTGAACGT"])[0]   # NT v2 in production
+ood = OODDetector(training_reference)                     # embedding-space density
+pred = ensemble_prediction(ens.predict(features), in_distribution=ood.is_in_distribution(emb))
+print(pred.value, pred.interval, pred.method, pred.in_distribution)   # honest by construction
+```
+
+---
+
 ## Defaults cheat-sheet
 
 Every default is overridable; these are the spec-mandated starting points.
@@ -404,8 +453,10 @@ alleleforge/
 │   ├── genome/               # Phase 2: reference access, FM-index, liftover
 │   ├── data/                 # Phase 3: registry, ClinVar, gnomAD, 1000G/HGDP, dbSNP, annotations
 │   ├── variant/              # Phase 4: resolver, HGVS adapter, consequence
-│   ├── offtarget/            # Phase 5: population/haplotype-aware off-target (this release)
-│   ├── enumerate/ scoring/ model_zoo/      # Phases 6–9 (ML + modalities)
+│   ├── offtarget/            # Phase 5: population/haplotype-aware off-target
+│   ├── model_zoo/            # Phase 6: license-gated model cards + checkpoints
+│   ├── scoring/              # Phase 6: embeddings, uncertainty, Scorer (this release)
+│   ├── enumerate/            # Phases 7–9: per-chemistry guide/pegRNA enumeration
 │   ├── design/ report/ cli/ web/           # Phases 10–13 (orchestration + interfaces)
 │   └── ...
 ├── tests/                    # mirrors src/; pytest + hypothesis

@@ -1,0 +1,24 @@
+# Model card — bundled with AlleleForge (Phase 6 default backbone).
+name: nucleotide-transformer-v2-500m
+version: "2.0"
+chemistry: null  # a generic sequence backbone, not chemistry-specific
+training_data: >-
+  Multispecies genomic sequences (~850 species) plus the human reference and
+  1000 Genomes, masked-language-model pre-training on 6-mer tokens.
+metrics:
+  num_parameters_millions: 500.0
+  context_window_tokens: 1000.0
+intended_use: >-
+  Genomic sequence embedding for downstream guide-efficiency and edit-outcome
+  models in AlleleForge. Research use.
+out_of_scope_use: >-
+  Clinical decision-making; non-genomic sequence; any use implying experimental
+  validation has been performed.
+license: CC-BY-NC-SA-4.0
+citation: "Dalla-Torre et al., Nat Methods 2024 (The Nucleotide Transformer)"
+known_failure_modes:
+  - "Out of distribution for non-human, highly repetitive, or low-complexity regions."
+  - "Context window ~1000 6-mer tokens (~6 kb); longer inputs are truncated."
+  - "Non-commercial license: cannot be loaded for commercial use."
+checkpoint_sha256: null  # pinned when the data layer freezes the release artifact
+source_url: "https://huggingface.co/InstaDeepAI/nucleotide-transformer-v2-500m-multi-species"
