@@ -93,7 +93,7 @@ flowchart TB
         GA["Genome access<br/>(FASTA, FM-index)"]
         DR["Data registry<br/>(DVC, gnomAD, ClinVar)"]
         MZ["Model zoo<br/>(ckpt hashing)"]
-        CT["Core types &amp; schemas"]
+        CT["Core types and schemas"]
     end
     RUST["Rust / PyO3 — aforge_native: BWT off-target search · k-mer hashing · haplotype walking"]
 
@@ -117,7 +117,7 @@ sequenceDiagram
     U->>R: ClinVar / rsID / HGVS / VCF / coords
     R->>Rt: normalized Variant + consequence
     Rt->>E: eligible modalities (nuclease / base / prime)
-    E->>S: candidate guides &amp; pegRNAs
+    E->>S: candidate guides and pegRNAs
     S->>S: efficiency + outcome (calibrated Prediction)
     E->>X: spacers / nicks
     X->>X: reference → population → haplotype → patient VCF
