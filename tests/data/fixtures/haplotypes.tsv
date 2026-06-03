@@ -1,0 +1,7 @@
+#hap_id	chrom	start	end	population	frequency	variants
+H1	chr2	60000	60300	AFR	0.20	chr2:60149:C>G
+H1	chr2	60000	60300	EUR	0.02	chr2:60149:C>G
+H2	chr2	60000	60300	AFR	0.15	chr2:60149:C>G,chr2:60200:G>A
+H2	chr2	60000	60300	EUR	0.001	chr2:60149:C>G,chr2:60200:G>A
+HREF	chr2	60000	60300	AFR	0.60	.
+HREF	chr2	60000	60300	EUR	0.95	.

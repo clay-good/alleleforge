@@ -1,0 +1,109 @@
+{
+  "$defs": {
+    "Consequence": {
+      "description": "A Sequence-Ontology-style molecular consequence term.",
+      "enum": [
+        "transcript_ablation",
+        "splice_acceptor_variant",
+        "splice_donor_variant",
+        "stop_gained",
+        "frameshift_variant",
+        "stop_lost",
+        "start_lost",
+        "inframe_insertion",
+        "inframe_deletion",
+        "missense_variant",
+        "splice_region_variant",
+        "synonymous_variant",
+        "5_prime_UTR_variant",
+        "3_prime_UTR_variant",
+        "intron_variant",
+        "upstream_gene_variant",
+        "downstream_gene_variant",
+        "intergenic_variant",
+        "other"
+      ],
+      "title": "Consequence",
+      "type": "string"
+    },
+    "Impact": {
+      "description": "VEP impact tier (ordered so the most severe compares greatest).",
+      "enum": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "title": "Impact",
+      "type": "integer"
+    }
+  },
+  "description": "A variant's structured molecular consequence on one transcript.\n\nAttributes:\n    consequence: The most severe Sequence-Ontology consequence term.\n    impact: The VEP impact tier of ``consequence``.\n    gene: The affected gene symbol, if any.\n    transcript: The transcript the consequence is reported against.\n    hgvs_c: Coding HGVS string, if the variant is transcribed.\n    hgvs_p: Protein HGVS string, if the variant is translated.\n    is_canonical: Whether ``transcript`` is the MANE Select / canonical one.",
+  "properties": {
+    "consequence": {
+      "$ref": "#/$defs/Consequence"
+    },
+    "gene": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Gene"
+    },
+    "hgvs_c": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hgvs C"
+    },
+    "hgvs_p": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hgvs P"
+    },
+    "impact": {
+      "$ref": "#/$defs/Impact"
+    },
+    "is_canonical": {
+      "default": true,
+      "title": "Is Canonical",
+      "type": "boolean"
+    },
+    "transcript": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Transcript"
+    }
+  },
+  "required": [
+    "consequence",
+    "impact"
+  ],
+  "title": "VariantEffect",
+  "type": "object"
+}

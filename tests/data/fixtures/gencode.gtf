@@ -1,0 +1,5 @@
+##description: synthetic GENCODE-style fixture
+chr2	HAVANA	gene	60001	60600	.	+	.	gene_id "ENSG00000119866"; gene_name "BCL11A"; gene_type "protein_coding";
+chr2	HAVANA	transcript	60001	60600	.	+	.	gene_id "ENSG00000119866"; transcript_id "ENST00000335295";
+chr11	HAVANA	gene	5225464	5229395	.	-	.	gene_id "ENSG00000244734"; gene_name "HBB"; gene_type "protein_coding";
+chr11	HAVANA	gene	5226000	5226500	.	+	.	gene_id "ENSG00000223609"; gene_name "HBD"; gene_type "protein_coding";

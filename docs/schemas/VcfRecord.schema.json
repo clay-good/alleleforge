@@ -1,0 +1,41 @@
+{
+  "description": "A single VCF data record (1-based ``pos``, as VCF stores it).",
+  "properties": {
+    "alt": {
+      "title": "Alt",
+      "type": "string"
+    },
+    "chrom": {
+      "title": "Chrom",
+      "type": "string"
+    },
+    "pos": {
+      "title": "Pos",
+      "type": "integer"
+    },
+    "ref": {
+      "title": "Ref",
+      "type": "string"
+    },
+    "rsid": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rsid"
+    }
+  },
+  "required": [
+    "chrom",
+    "pos",
+    "ref",
+    "alt"
+  ],
+  "title": "VcfRecord",
+  "type": "object"
+}

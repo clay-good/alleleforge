@@ -30,8 +30,12 @@ nav:
   - Concepts:
       - Uncertainty contract: concepts/uncertainty.md
       - Population-aware safety: concepts/population.md
+  - Data provenance: data.md
   - Reference:
       - Core types: api/types.md
+      - Genome access: api/genome.md
+      - Data registry & datasets: api/data.md
+      - Variant resolver: api/variant.md
   - Scope & responsible use: scope.md
 
 markdown_extensions:

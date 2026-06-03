@@ -122,8 +122,24 @@ module = ["aforge_native", "aforge_native.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-# Genome libraries ship no type stubs / py.typed marker.
-module = ["pyfaidx", "pyfaidx.*", "pyliftover", "pyliftover.*"]
+# Genome / variant libraries ship no type stubs / py.typed marker, and the
+# heavy tabix/VCF/HGVS/VEP backends are imported lazily and may be absent in
+# the lint environment (the data and variant layers parse plain-text fixtures
+# in CI and only reach these on a real release).
+module = [
+    "pyfaidx",
+    "pyfaidx.*",
+    "pyliftover",
+    "pyliftover.*",
+    "pysam",
+    "pysam.*",
+    "cyvcf2",
+    "cyvcf2.*",
+    "hgvs",
+    "hgvs.*",
+    "requests",
+    "requests.*",
+]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------------------

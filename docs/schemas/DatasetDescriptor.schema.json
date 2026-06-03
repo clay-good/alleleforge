@@ -1,0 +1,85 @@
+{
+  "description": "A registry entry: a :class:`DatasetVersion` plus how to cache it.\n\nExtends the provenance-facing :class:`DatasetVersion` with the local cache\n``filename`` and an optional ``populations`` annotation for the\nancestry-stratified sources (gnomAD, 1000G, HGDP).\n\nAttributes:\n    filename: The basename the artifact is cached under.\n    populations: Population/ancestry labels this dataset stratifies by.",
+  "properties": {
+    "citation": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Citation"
+    },
+    "filename": {
+      "title": "Filename",
+      "type": "string"
+    },
+    "license": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "License"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "populations": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Populations",
+      "type": "array"
+    },
+    "redistributable": {
+      "default": false,
+      "title": "Redistributable",
+      "type": "boolean"
+    },
+    "sha256": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sha256"
+    },
+    "source_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Url"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "version",
+    "filename"
+  ],
+  "title": "DatasetDescriptor",
+  "type": "object"
+}

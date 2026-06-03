@@ -137,10 +137,10 @@ AlleleForge is built in ordered phases (see [`SPEC.md`](SPEC.md), the authoritat
 |---|---|:---:|
 | 0 | Repo bootstrap, CI, packaging, Rust toolchain | ✅ done |
 | 1 | Core domain types &amp; schemas (`types/`) | ✅ done |
-| 2 | Genome access &amp; indexing (`genome/`) | ⏳ next |
-| 3 | Data registry &amp; population datasets (`data/`) | ◻️ planned |
-| 4 | Variant resolver (`variant/`) | ◻️ planned |
-| 5 | Off-target engine — population &amp; haplotype aware (`offtarget/`) | ◻️ planned |
+| 2 | Genome access &amp; indexing (`genome/`) | ✅ done |
+| 3 | Data registry &amp; population datasets (`data/`) | ✅ done |
+| 4 | Variant resolver (`variant/`) | ✅ done |
+| 5 | Off-target engine — population &amp; haplotype aware (`offtarget/`) | ⏳ next |
 | 6 | Scoring foundations: model zoo, embeddings, uncertainty | ◻️ planned |
 | 7–9 | Modalities: SpCas9 nuclease · base editing · prime editing | ◻️ planned |
 | 10 | Designer: routing, candidate menu, ranking | ◻️ planned |
@@ -195,30 +195,50 @@ cd rust && maturin develop --release      # builds & installs aforge_native
 
 ## Quickstart
 
-> The end-to-end design pipeline lands incrementally across Phases 4–12. Today the package exposes the
-> stable **core vocabulary** and **configuration**; the snippets below are guaranteed to work now, with the
-> full `design()` call arriving as the modality phases complete.
+> The end-to-end design pipeline lands incrementally across the modality phases (6–12). Today the
+> package exposes the **core vocabulary**, **genome access**, the **data registry**, and the
+> **variant resolver** — the entire front half of the variant-first journey. The snippets below work
+> now; the full `design()` call arrives as the modality phases complete.
 
 ```python
-import alleleforge as af
+from alleleforge.types import DNASequence, Prediction, UncertaintyMethod
 
-print(af.__version__)
-
-# Resolve global settings (XDG cache, seed, reference build, MAF threshold).
-settings = af.get_settings()
-print(settings.reference, settings.seed, settings.maf_threshold)
-```
-
-```python
-from alleleforge.types import DNASequence, Strand, Prediction, UncertaintyMethod
-
-seq = DNASequence("ACGTRYN")          # validates IUPAC alphabet
+seq = DNASequence("ACGTRYN")           # validates IUPAC alphabet
 print(seq.reverse_complement())        # ambiguity-aware: R↔Y, N↔N → "NRYACGT"
 
 # Every numeric prediction carries a calibrated interval, never a bare float.
 p = Prediction(value=0.72, interval=(0.61, 0.83), method=UncertaintyMethod.ENSEMBLE,
                in_distribution=True, calibrated=True)
 print(p.interval_level)                # 0.80 by default
+```
+
+**Resolve a variant** — every input form normalizes to one canonical, left-aligned record:
+
+```python
+from alleleforge.variant import resolve, RawTarget
+from alleleforge.types import DNASequence
+
+# A raw target sequence with a marked edit — no reference file needed.
+rv = resolve(RawTarget(sequence=DNASequence("ACGTAACGTACGT"), position=4, ref="A", alt="G"))
+print(rv.variant)            # target:4:A>G
+print(rv.working_interval)   # 0-based half-open analysis window around it
+
+# With a reference genome, indels are left-aligned and the asserted ref is
+# validated against the build (a mismatch is a hard error — likely wrong build):
+#   resolve("chr2:g.5226001del", reference=hg38, dbsnp=dbsnp_db)
+#   resolve("VCV000012345", clinvar=clinvar_db)   # ClinVar accession → Variant
+```
+
+**Inspect the data registry** — every external dataset is versioned and license-aware:
+
+```python
+from alleleforge.data import DEFAULT_REGISTRY
+
+print(DEFAULT_REGISTRY.names)                 # ('1000g', 'clinvar', 'dbsnp', 'encode', ...)
+clinvar = DEFAULT_REGISTRY.get("clinvar")
+print(clinvar.version, clinvar.license)       # 2024-05  public-domain (NCBI)
+# Non-redistributable sources are never vendored; downloads are consent-gated
+# and checksum-verified. See docs/data.md for the full provenance table.
 ```
 
 The target journey (Phase 12 CLI):
@@ -233,6 +253,58 @@ aforge offtarget --spacer GACGGAGGCTAAGCGTCGCAA --pam NGG
 # Normalize any input form and show its consequence (debugging aid)
 aforge resolve --hgvs "NM_000518.5:c.20A>T"
 ```
+
+---
+
+## The variant-first front end (Phases 2–4, shipping now)
+
+Phases 2–4 implement everything from *an input* to *a validated, annotated variant with its genomic
+context* — the foundation every modality plugs into.
+
+```mermaid
+flowchart LR
+    subgraph IN["Accepted inputs"]
+        A1["ClinVar accession"]
+        A2["dbSNP rsID"]
+        A3["HGVS g./c./p."]
+        A4["VCF record"]
+        A5["raw coordinates"]
+        A6["raw target seq"]
+    end
+    R["resolve()"]
+    subgraph NORM["Normalize"]
+        N1["left-align + trim<br/>(bcftools-norm)"]
+        N2["validate ref vs build<br/>(hard error on mismatch)"]
+    end
+    OUT["ResolvedVariant<br/>variant · working interval ·<br/>consequence · T2T recommendation"]
+
+    A1 & A2 & A3 & A4 & A5 & A6 --> R --> NORM --> OUT
+    R -. ClinVar/dbSNP/HGVS lookups .- DATA["Data registry<br/>(versioned, license-aware)"]
+    NORM -. fetch + flag ambiguous loci .- GEN["Genome access<br/>(FASTA, FM-index, liftover)"]
+```
+
+**Coordinate convention cheat-sheet.** Internals are uniformly **0-based half-open**; only I/O
+boundaries are 1-based. Every parser converts on read.
+
+| Surface | System | Converted by |
+|---|---|---|
+| AlleleForge internals (`GenomicInterval`, `Variant.pos`) | **0-based half-open** | — (canonical) |
+| ClinVar / gnomAD / dbSNP VCF | 1-based | `pos − 1` on read |
+| GENCODE GTF | 1-based inclusive | `[start − 1, end)` on read |
+| ENCODE bedGraph | 0-based half-open | unchanged |
+| HGVS (`g.`), human-readable reports | 1-based | boundary helpers only |
+
+**Dataset provenance** (pinned, versioned, citation-stamped — full table in [`docs/data.md`](docs/data.md)):
+
+| Dataset | Version | License | Role |
+|---|---|---|---|
+| ClinVar | 2024-05 | Public domain | accession → variant + significance |
+| gnomAD | v4.1 | CC0-1.0 | per-population allele frequencies |
+| 1000 Genomes | phase 3 high-cov | Public (IGSR) | phased common haplotypes |
+| HGDP | gnomAD v3.1 | CC0-1.0 | ancestry breadth |
+| dbSNP | b156 | Public domain | rsID ↔ locus |
+| GENCODE | v47 | Open | gene models / transcripts |
+| ENCODE | 2024 | Open | chromatin tracks |
 
 ---
 
@@ -264,8 +336,11 @@ alleleforge/
 ├── src/alleleforge/
 │   ├── config.py             # typed Settings (pydantic-settings), defaults, paths
 │   ├── _native.py            # optional Rust bridge
-│   ├── types/                # Phase 1: core domain vocabulary (this release)
-│   ├── genome/ data/ variant/ offtarget/   # Phases 2–5 (foundations + safety core)
+│   ├── types/                # Phase 1: core domain vocabulary
+│   ├── genome/               # Phase 2: reference access, FM-index, liftover
+│   ├── data/                 # Phase 3: registry, ClinVar, gnomAD, 1000G/HGDP, dbSNP, annotations
+│   ├── variant/              # Phase 4: resolver, HGVS adapter, consequence (this release)
+│   ├── offtarget/            # Phase 5 (next): population/haplotype-aware off-target
 │   ├── enumerate/ scoring/ model_zoo/      # Phases 6–9 (ML + modalities)
 │   ├── design/ report/ cli/ web/           # Phases 10–13 (orchestration + interfaces)
 │   └── ...

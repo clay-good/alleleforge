@@ -1,0 +1,49 @@
+{
+  "$defs": {
+    "DNASequence": {
+      "description": "An IUPAC-validated DNA sequence with ambiguity-aware operations.\n\nAccepts a positional string (``DNASequence(\"ACGT\")``) or the keyword form\nused by deserialization (``DNASequence(sequence=\"ACGT\")``). The sequence is\nupper-cased and validated against the IUPAC alphabet on construction.",
+      "properties": {
+        "sequence": {
+          "title": "Sequence",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sequence"
+      ],
+      "title": "DNASequence",
+      "type": "object"
+    }
+  },
+  "description": "A raw target sequence with a marked edit position (its own reference).\n\nAttributes:\n    sequence: The local reference context, 5'->3' on the plus strand.\n    position: 0-based offset of ``ref`` within ``sequence``.\n    ref: Reference allele at ``position`` (validated against ``sequence``).\n    alt: Alternate allele.\n    chrom: A name for the synthetic contig the variant is placed on.",
+  "properties": {
+    "alt": {
+      "title": "Alt",
+      "type": "string"
+    },
+    "chrom": {
+      "default": "target",
+      "title": "Chrom",
+      "type": "string"
+    },
+    "position": {
+      "title": "Position",
+      "type": "integer"
+    },
+    "ref": {
+      "title": "Ref",
+      "type": "string"
+    },
+    "sequence": {
+      "$ref": "#/$defs/DNASequence"
+    }
+  },
+  "required": [
+    "sequence",
+    "position",
+    "ref",
+    "alt"
+  ],
+  "title": "RawTarget",
+  "type": "object"
+}

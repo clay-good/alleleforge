@@ -30,8 +30,13 @@ The foundations land before any chemistry-specific or ML code.
 |---|---|:---:|
 | 0 | Repo bootstrap, CI, packaging, Rust toolchain | done |
 | 1 | Core domain types & schemas (`types/`) | done |
-| 2 | Genome access & indexing | next |
-| 3–15 | Data registry → chemistries → designer → report → CLI → web → benchmark → release | planned |
+| 2 | Genome access & indexing (`genome/`) | done |
+| 3 | Data registry & population datasets (`data/`) | done |
+| 4 | Variant resolver (`variant/`) | done |
+| 5 | Off-target engine — population & haplotype aware | next |
+| 6–15 | Scoring → chemistries → designer → report → CLI → web → benchmark → release | planned |
+
+See [Data provenance](data.md) for the versioned, license-aware dataset registry.
 
 ## The uncertainty contract in one snippet
 

@@ -15,6 +15,14 @@ from typing import Any
 from pydantic import BaseModel
 
 import alleleforge.types as t
+from alleleforge.data.annotations import Gene
+from alleleforge.data.clinvar import ClinVarRecord
+from alleleforge.data.gnomad import PopulationFrequency
+from alleleforge.data.haplotypes import Haplotype
+from alleleforge.data.registry import DatasetDescriptor
+from alleleforge.variant.effect import VariantEffect
+from alleleforge.variant.hgvs_adapter import ParsedGenomicHgvs
+from alleleforge.variant.resolver import RawTarget, ResolvedVariant, VcfRecord
 
 #: Public models to emit schemas for. Generic models (Prediction) are
 #: parametrized so the schema is concrete.
@@ -41,6 +49,18 @@ _MODELS: list[type[BaseModel]] = [
     t.DatasetVersion,
     t.ModelCheckpoint,
     t.Provenance,
+    # Phase 3 — data registry & population datasets.
+    DatasetDescriptor,
+    ClinVarRecord,
+    PopulationFrequency,
+    Haplotype,
+    Gene,
+    # Phase 4 — variant resolver.
+    VariantEffect,
+    ParsedGenomicHgvs,
+    VcfRecord,
+    RawTarget,
+    ResolvedVariant,
 ]
 
 

@@ -1,0 +1,66 @@
+{
+  "$defs": {
+    "HgvsOp": {
+      "description": "The genomic edit operation a ``g.`` expression encodes.",
+      "enum": [
+        "sub",
+        "del",
+        "ins",
+        "dup",
+        "delins"
+      ],
+      "title": "HgvsOp",
+      "type": "string"
+    }
+  },
+  "description": "A parsed genomic HGVS expression in 0-based coordinates.\n\nAttributes:\n    reference: The RefSeq accession or contig prefix, if present.\n    op: The edit operation.\n    start: 0-based start of the affected reference span.\n    end: 0-based half-open end of the affected reference span.\n    ref_bases: Reference bases, if the expression stated them (else ``None``).\n    alt_bases: Inserted/replacement bases (``\"\"`` for a plain deletion).",
+  "properties": {
+    "alt_bases": {
+      "title": "Alt Bases",
+      "type": "string"
+    },
+    "end": {
+      "title": "End",
+      "type": "integer"
+    },
+    "op": {
+      "$ref": "#/$defs/HgvsOp"
+    },
+    "ref_bases": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Ref Bases"
+    },
+    "reference": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reference"
+    },
+    "start": {
+      "title": "Start",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "reference",
+    "op",
+    "start",
+    "end",
+    "ref_bases",
+    "alt_bases"
+  ],
+  "title": "ParsedGenomicHgvs",
+  "type": "object"
+}

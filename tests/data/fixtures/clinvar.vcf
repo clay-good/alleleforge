@@ -1,0 +1,12 @@
+##fileformat=VCFv4.2
+##INFO=<ID=CLNSIG,Number=.,Type=String,Description="Clinical significance">
+##INFO=<ID=CLNREVSTAT,Number=.,Type=String,Description="Review status">
+##INFO=<ID=GENEINFO,Number=1,Type=String,Description="Gene(s)">
+##INFO=<ID=CLNVC,Number=1,Type=String,Description="Variant type">
+##INFO=<ID=RS,Number=.,Type=String,Description="dbSNP rsID">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+2	60100	12	A	T	.	.	ALLELEID=24;CLNSIG=Pathogenic;CLNREVSTAT=criteria_provided,_multiple_submitters,_no_conflicts;GENEINFO=HBB:3043;CLNVC=single_nucleotide_variant;RS=334
+2	60201	17	G	A	.	.	ALLELEID=30;CLNSIG=Likely_pathogenic;CLNREVSTAT=criteria_provided,_single_submitter;GENEINFO=BCL11A:53335;CLNVC=single_nucleotide_variant;RS=114518452
+2	60300	21	C	.	.	.	ALLELEID=33;CLNSIG=Benign;GENEINFO=BCL11A:53335;CLNVC=single_nucleotide_variant
+2	60400	25	CTT	C	.	.	ALLELEID=40;CLNSIG=Uncertain_significance;CLNREVSTAT=no_assertion_criteria_provided;GENEINFO=BCL11A:53335;CLNVC=Deletion
+2	60450	28	C	G	.	.	ALLELEID=44;CLNSIG=Conflicting_classifications_of_pathogenicity;GENEINFO=BCL11A:53335

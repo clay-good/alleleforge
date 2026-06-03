@@ -1,0 +1,42 @@
+{
+  "description": "An allele's overall and per-population frequencies at one locus.\n\nAttributes:\n    chrom: Contig name.\n    pos: 0-based start coordinate of ``ref``.\n    ref: Reference allele.\n    alt: Alternate allele.\n    overall_af: Overall allele frequency (``AF``).\n    populations: Per-population allele frequency, keyed by ancestry label.",
+  "properties": {
+    "alt": {
+      "title": "Alt",
+      "type": "string"
+    },
+    "chrom": {
+      "title": "Chrom",
+      "type": "string"
+    },
+    "overall_af": {
+      "title": "Overall Af",
+      "type": "number"
+    },
+    "populations": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "default": {},
+      "title": "Populations",
+      "type": "object"
+    },
+    "pos": {
+      "title": "Pos",
+      "type": "integer"
+    },
+    "ref": {
+      "title": "Ref",
+      "type": "string"
+    }
+  },
+  "required": [
+    "chrom",
+    "pos",
+    "ref",
+    "alt",
+    "overall_af"
+  ],
+  "title": "PopulationFrequency",
+  "type": "object"
+}
