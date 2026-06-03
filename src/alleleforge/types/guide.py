@@ -127,6 +127,9 @@ class BaseEditWindow(BaseModel):
         window: The ``(start, end)`` 1-based inclusive activity window.
         target_positions: Protospacer positions intended to be edited.
         bystander_positions: Editable positions outside the intent (bystanders).
+        placement: The protospacer's genomic interval (strand-aware), if placed.
+        pam: The PAM pattern the spacer was enumerated against, if known.
+        pam_sequence: The concrete PAM read from the reference, if known.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -136,6 +139,9 @@ class BaseEditWindow(BaseModel):
     window: tuple[int, int]
     target_positions: tuple[int, ...] = ()
     bystander_positions: tuple[int, ...] = ()
+    placement: GenomicInterval | None = None
+    pam: PAM | None = None
+    pam_sequence: DNASequence | None = None
 
     @model_validator(mode="after")
     def _check_window(self) -> BaseEditWindow:
@@ -151,6 +157,12 @@ class BaseEditWindow(BaseModel):
     def has_bystanders(self) -> bool:
         """Return ``True`` if any bystander-editable position is present."""
         return len(self.bystander_positions) > 0
+
+    @property
+    def window_bases(self) -> str:
+        """Return the in-window base composition (the spacer over the window)."""
+        start, end = self.window
+        return str(self.spacer.sequence)[start - 1 : end]
 
 
 class NickingGuide(BaseModel):

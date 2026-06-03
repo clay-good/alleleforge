@@ -39,6 +39,7 @@ nav:
       - Off-target engine: api/offtarget.md
       - Scoring foundations: api/scoring.md
       - SpCas9 nuclease: api/cas9.md
+      - Base editing (ABE / CBE): api/base_editor.md
   - Scope & responsible use: scope.md
 
 markdown_extensions:

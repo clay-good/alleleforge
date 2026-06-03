@@ -12,7 +12,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict
 
 from alleleforge.types.edit import Chemistry, EditOutcome
-from alleleforge.types.guide import Guide, PegRNA
+from alleleforge.types.guide import BaseEditWindow, Guide, PegRNA
 from alleleforge.types.offtarget import OffTargetReport
 from alleleforge.types.prediction import Prediction
 from alleleforge.types.provenance import Provenance
@@ -23,7 +23,8 @@ class DesignCandidate(BaseModel):
 
     Attributes:
         chemistry: The chemistry this candidate uses.
-        guide: The reagent, when it is a Cas9/base-editor guide.
+        guide: The reagent, when it is a Cas9 nuclease guide.
+        base_edit_window: The reagent, when it is a base-editor sgRNA + window.
         pegrna: The reagent, when it is a prime-editing pegRNA.
         efficiency: Calibrated on-target efficiency prediction.
         outcome: Predicted edit-outcome distribution.
@@ -36,6 +37,7 @@ class DesignCandidate(BaseModel):
 
     chemistry: Chemistry
     guide: Guide | None = None
+    base_edit_window: BaseEditWindow | None = None
     pegrna: PegRNA | None = None
     efficiency: Prediction[float] | None = None
     outcome: EditOutcome | None = None
@@ -45,8 +47,10 @@ class DesignCandidate(BaseModel):
 
     @property
     def has_reagent(self) -> bool:
-        """Return ``True`` if a guide or pegRNA reagent is attached."""
-        return self.guide is not None or self.pegrna is not None
+        """Return ``True`` if a guide, base-edit window, or pegRNA is attached."""
+        return (
+            self.guide is not None or self.base_edit_window is not None or self.pegrna is not None
+        )
 
 
 class RankedMenu(BaseModel):

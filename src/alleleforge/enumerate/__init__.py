@@ -8,6 +8,12 @@ and outcome prediction live in :mod:`alleleforge.scoring`.
 
 from __future__ import annotations
 
+from alleleforge.enumerate.base_editor import (
+    BASE_EDITORS,
+    DEFAULT_WINDOW,
+    BaseEditor,
+    enumerate_base_edits,
+)
 from alleleforge.enumerate.cas9 import (
     DEFAULT_ACTIONABLE_RADIUS,
     DEFAULT_CUT_OFFSET,
@@ -18,9 +24,13 @@ from alleleforge.enumerate.cas9 import (
 )
 
 __all__ = [
+    "BASE_EDITORS",
     "DEFAULT_ACTIONABLE_RADIUS",
     "DEFAULT_CUT_OFFSET",
     "DEFAULT_HDR_ARM",
+    "DEFAULT_WINDOW",
+    "BaseEditor",
+    "enumerate_base_edits",
     "enumerate_cas9",
     "guide_context",
     "hdr_donor",

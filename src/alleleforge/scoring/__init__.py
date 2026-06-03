@@ -21,6 +21,13 @@ from alleleforge.scoring.backbone import (
     sequence_hash,
 )
 from alleleforge.scoring.base import BareFloatError, Scorer, ensure_prediction
+from alleleforge.scoring.base_outcome import (
+    BaseEditOutcomePredictor,
+    BeDictAdapter,
+    BeHiveAdapter,
+    WindowOutcome,
+    recommend_window,
+)
 from alleleforge.scoring.cas9_efficiency import (
     EnsembleEfficiencyScorer,
     RuleSet3Scorer,
@@ -52,6 +59,9 @@ __all__ = [
     "DEFAULT_ENSEMBLE_SIZE",
     "DEFAULT_INTERVAL_LEVEL",
     "BareFloatError",
+    "BaseEditOutcomePredictor",
+    "BeDictAdapter",
+    "BeHiveAdapter",
     "CachedEmbedder",
     "CaduceusEmbedder",
     "DeepEnsemble",
@@ -71,8 +81,10 @@ __all__ = [
     "SequenceEmbedder",
     "StubEmbedder",
     "TracrRNA",
+    "WindowOutcome",
     "XCrispAdapter",
     "ensemble_outcome",
+    "recommend_window",
     "ensemble_prediction",
     "ensure_prediction",
     "evidential_prediction",

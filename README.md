@@ -143,7 +143,8 @@ AlleleForge is built in ordered phases (see [`SPEC.md`](SPEC.md), the authoritat
 | 5 | Off-target engine — population &amp; haplotype aware (`offtarget/`) | ✅ done |
 | 6 | Scoring foundations: model zoo, embeddings, uncertainty (`scoring/`, `model_zoo/`) | ✅ done |
 | 7 | Chemistry: SpCas9 nuclease (`enumerate/`, `scoring/`, `design/`) | ✅ done |
-| 8–9 | Chemistries: base editing · prime editing | ⏳ next |
+| 8 | Chemistry: base editing — ABE / CBE (`enumerate/`, `scoring/`, `design/`) | ✅ done |
+| 9 | Chemistry: prime editing | ⏳ next |
 | 10 | Designer: routing, candidate menu, ranking | ◻️ planned |
 | 11 | Reporting &amp; oligo output | ◻️ planned |
 | 12 | CLI (`aforge`) | ◻️ planned |
@@ -455,6 +456,39 @@ so a ranked menu is honest about what it does and does not know.
 
 ---
 
+## Base editing: the bystander problem (Phase 8, shipping now)
+
+Base editors install a single transition (ABE: A·T→G·C; CBE: C·G→T·A) without a double-strand break,
+within a narrow activity window. The hard part is the **window outcome**: of the editable bases in the
+window, which get edited — and what *bystanders* ride along. AlleleForge enumerates every sgRNA placing
+the target base in-window per editor, predicts the window-allele distribution, and ranks by the
+probability of the **exact** intended allele while minimizing bystander burden.
+
+```mermaid
+flowchart LR
+    V["ResolvedVariant<br/>(transition SNV)"] --> EL{"editor eligible?<br/>ABE: A·T→G·C<br/>CBE: C·G→T·A"}
+    EL --> EN["enumerate_base_edits<br/>target base in window 4–8 ·<br/>strand-aware · bystanders flagged"]
+    EN --> WO["window outcome<br/>per-position p(edit) × motif →<br/>2ᵏ allele distribution"]
+    WO --> M["p_intended_exact<br/>+ bystander_burden"]
+    EN --> OT["off-target<br/>(Phase 5, ancestry-stratified)"]
+    M & OT --> C["DesignCandidate[]<br/>ranked: clean-edit then bystander<br/>cleanest = recommended"]
+```
+
+**Declarative editor registry.** ABE8e, CBE4max, and evoCDA1 ship as data; adding an editor (deaminase,
+chemistry, window, PAM, motif preference) is a one-descriptor change, not code.
+
+| Editor | Deaminase | Edit | Window | Motif preference |
+|---|---|---|:---:|---|
+| **ABE8e** | TadA-8e | A→G | 4–8 | none (broad) |
+| **CBE4max** | APOBEC1 | C→T | 4–8 | TC (prefers 5′ T) |
+| **evoCDA1** | evoCDA1 | C→T | 2–10 | none (broad window) |
+
+Every candidate carries the tradeoff explicitly — `bystander-present:N` / `clean`, a `bystander-burden`
+score, the full window-allele distribution, and an ancestry-stratified off-target report — so the
+recommendation is the cleanest editor/guide combination, not just the first one found.
+
+---
+
 ## Defaults cheat-sheet
 
 Every default is overridable; these are the spec-mandated starting points.
@@ -490,8 +524,8 @@ alleleforge/
 │   ├── offtarget/            # Phase 5: population/haplotype-aware off-target
 │   ├── model_zoo/            # Phase 6: license-gated model cards + checkpoints
 │   ├── scoring/              # Phase 6: embeddings, uncertainty, Scorer (this release)
-│   ├── enumerate/            # Phase 7: SpCas9 guide enumeration (base/prime: 8–9)
-│   ├── design/               # Phase 7: SpCas9 design vertical (designer: Phase 10)
+│   ├── enumerate/            # Phases 7–8: SpCas9 guide + base-editor window enumeration
+│   ├── design/               # Phases 7–8: SpCas9 + base-editor verticals (designer: Phase 10)
 │   ├── report/ cli/ web/                   # Phases 11–13 (interfaces)
 │   └── ...
 ├── tests/                    # mirrors src/; pytest + hypothesis

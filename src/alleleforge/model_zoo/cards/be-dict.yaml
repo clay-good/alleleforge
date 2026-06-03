@@ -1,0 +1,23 @@
+# Model card — bundled with AlleleForge (Phase 8 default base-edit outcome).
+name: be-dict
+version: "1.0"
+chemistry: base_abe
+training_data: >-
+  Per-position base-editing outcome libraries across ABE and CBE editors,
+  modeling window editing efficiency and bystander spectra as a function of
+  protospacer position and local sequence motif.
+metrics:
+  editors_covered: 2.0
+intended_use: >-
+  Default base-editing window-outcome prediction (which editable bases are edited
+  and the bystander spectrum). Research use.
+out_of_scope_use: >-
+  Clinical decision-making; chemistries other than base editing; editors or cell
+  contexts far from the training distribution.
+license: MIT
+citation: "Marquart et al., Nat Commun 2021 (BE-DICT)"
+known_failure_modes:
+  - "Bystander spectra are deaminase- and context-dependent; transfer is imperfect."
+  - "Treats editable positions as independent; correlated edits are approximate."
+checkpoint_sha256: null
+source_url: "https://github.com/uzh-dqbm-cmi/crispr-bedict"

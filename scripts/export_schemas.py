@@ -20,6 +20,7 @@ from alleleforge.data.clinvar import ClinVarRecord
 from alleleforge.data.gnomad import PopulationFrequency
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.data.registry import DatasetDescriptor
+from alleleforge.enumerate.base_editor import BaseEditor
 from alleleforge.model_zoo.registry import ModelCard
 from alleleforge.variant.effect import VariantEffect
 from alleleforge.variant.hgvs_adapter import ParsedGenomicHgvs
@@ -64,6 +65,8 @@ _MODELS: list[type[BaseModel]] = [
     ResolvedVariant,
     # Phase 6 — model zoo.
     ModelCard,
+    # Phase 8 — base editing.
+    BaseEditor,
 ]
 
 

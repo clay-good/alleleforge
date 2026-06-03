@@ -24,6 +24,88 @@
       "title": "AlleleOutcome",
       "type": "object"
     },
+    "BaseEditWindow": {
+      "description": "A base editor's activity window placed over a protospacer.\n\nPositions are 1-based within the protospacer, counting from the PAM-distal\nend (position 1) as the base-editing field conventionally does.\n\nAttributes:\n    spacer: The guide spacer.\n    editor: The editor name (e.g. ``\"ABE8e\"``).\n    window: The ``(start, end)`` 1-based inclusive activity window.\n    target_positions: Protospacer positions intended to be edited.\n    bystander_positions: Editable positions outside the intent (bystanders).\n    placement: The protospacer's genomic interval (strand-aware), if placed.\n    pam: The PAM pattern the spacer was enumerated against, if known.\n    pam_sequence: The concrete PAM read from the reference, if known.",
+      "properties": {
+        "bystander_positions": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Bystander Positions",
+          "type": "array"
+        },
+        "editor": {
+          "title": "Editor",
+          "type": "string"
+        },
+        "pam": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PAM"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "pam_sequence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DNASequence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "placement": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GenomicInterval"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "spacer": {
+          "$ref": "#/$defs/Spacer"
+        },
+        "target_positions": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Target Positions",
+          "type": "array"
+        },
+        "window": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "title": "Window",
+          "type": "array"
+        }
+      },
+      "required": [
+        "spacer",
+        "editor",
+        "window"
+      ],
+      "title": "BaseEditWindow",
+      "type": "object"
+    },
     "Chemistry": {
       "description": "The editing chemistries AlleleForge designs for.",
       "enum": [
@@ -131,8 +213,19 @@
       "type": "object"
     },
     "DesignCandidate": {
-      "description": "One scored design option for a variant.\n\nAttributes:\n    chemistry: The chemistry this candidate uses.\n    guide: The reagent, when it is a Cas9/base-editor guide.\n    pegrna: The reagent, when it is a prime-editing pegRNA.\n    efficiency: Calibrated on-target efficiency prediction.\n    outcome: Predicted edit-outcome distribution.\n    offtarget: Ancestry-stratified off-target report.\n    flags: Free-form annotations (e.g. ``\"ood\"``, ``\"bystander-risk\"``).\n    rationale: Human-readable note on this candidate's standing.",
+      "description": "One scored design option for a variant.\n\nAttributes:\n    chemistry: The chemistry this candidate uses.\n    guide: The reagent, when it is a Cas9 nuclease guide.\n    base_edit_window: The reagent, when it is a base-editor sgRNA + window.\n    pegrna: The reagent, when it is a prime-editing pegRNA.\n    efficiency: Calibrated on-target efficiency prediction.\n    outcome: Predicted edit-outcome distribution.\n    offtarget: Ancestry-stratified off-target report.\n    flags: Free-form annotations (e.g. ``\"ood\"``, ``\"bystander-risk\"``).\n    rationale: Human-readable note on this candidate's standing.",
       "properties": {
+        "base_edit_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BaseEditWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "chemistry": {
           "$ref": "#/$defs/Chemistry"
         },

@@ -1,0 +1,108 @@
+{
+  "$defs": {
+    "Chemistry": {
+      "description": "The editing chemistries AlleleForge designs for.",
+      "enum": [
+        "cas9_nuclease",
+        "base_abe",
+        "base_cbe",
+        "prime"
+      ],
+      "title": "Chemistry",
+      "type": "string"
+    },
+    "PAM": {
+      "description": "A protospacer-adjacent motif as an IUPAC pattern (e.g. ``NGG``).",
+      "properties": {
+        "pattern": {
+          "title": "Pattern",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pattern"
+      ],
+      "title": "PAM",
+      "type": "object"
+    }
+  },
+  "description": "A declarative base-editor descriptor.\n\nAttributes:\n    name: Editor name (e.g. ``\"ABE8e\"``).\n    deaminase: The deaminase domain (e.g. ``\"TadA-8e\"``, ``\"APOBEC1\"``).\n    chemistry: ``BASE_ABE`` (A->G) or ``BASE_CBE`` (C->T).\n    target_base: The editable base on the protospacer strand (``\"A\"``/``\"C\"``).\n    result_base: What the target base becomes (``\"G\"``/``\"T\"``).\n    window: The default ``(start, end)`` activity window (1-based).\n    pam: The editor's PAM.\n    motif_preference: The preferred 5' neighbor of the target base (e.g.\n        ``\"T\"`` for APOBEC1's TC motif), or ``None`` for a broad editor.\n    citation: Literature citation.",
+  "properties": {
+    "chemistry": {
+      "$ref": "#/$defs/Chemistry"
+    },
+    "citation": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Citation"
+    },
+    "deaminase": {
+      "title": "Deaminase",
+      "type": "string"
+    },
+    "motif_preference": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Motif Preference"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "pam": {
+      "$ref": "#/$defs/PAM",
+      "default": {
+        "pattern": "NGG"
+      }
+    },
+    "result_base": {
+      "title": "Result Base",
+      "type": "string"
+    },
+    "target_base": {
+      "title": "Target Base",
+      "type": "string"
+    },
+    "window": {
+      "default": [
+        4,
+        8
+      ],
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "integer"
+        }
+      ],
+      "title": "Window",
+      "type": "array"
+    }
+  },
+  "required": [
+    "name",
+    "deaminase",
+    "chemistry",
+    "target_base",
+    "result_base"
+  ],
+  "title": "BaseEditor",
+  "type": "object"
+}

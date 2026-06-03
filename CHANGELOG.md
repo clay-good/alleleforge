@@ -111,5 +111,24 @@ acceptance.
   distribution, and ancestry-stratified off-target report. Bundled model cards for
   the efficiency ensemble and inDelphi. Cites DeWeirdt & Doench *Nat Commun* 2022
   (Rule Set 3) and Shen et al. *Nature* 2018 (inDelphi).
+- **Phase 8 — Chemistry: base editing (ABE / CBE).** A declarative `BaseEditor`
+  registry (deaminase, chemistry, window, PAM, motif preference) seeded with
+  ABE8e, CBE4max, and evoCDA1 — adding an editor is a data change.
+  `alleleforge.enumerate.base_editor.enumerate_base_edits` finds, for the
+  transition a variant requires (only transition SNVs are base-editable;
+  strand-aware), every sgRNA placing the target base in the activity window,
+  annotated with target / bystander positions and the in-window composition.
+  `alleleforge.scoring.base_outcome`: a transparent window-outcome baseline (the
+  BE-DICT mechanism — per-position editing probability × motif preference,
+  enumerating the 2^k window alleles) yielding the allele distribution plus
+  calibrated `p_intended_exact` and `bystander_burden`, license-gated BE-DICT /
+  BE-Hive adapters, and a cross-editor recommendation. `alleleforge.design.base_editor.design_base_editor`
+  wires enumerate -> outcome -> off-target into `DesignCandidate`s ranked by exact-
+  intended probability then bystander burden, flagging the cleanest as
+  recommended and surfacing the tradeoff on every candidate. Phase 1
+  `BaseEditWindow` gains optional placement/PAM and a `window_bases` property;
+  `DesignCandidate` gains a `base_edit_window` reagent slot. Bundled BE-DICT
+  model card. Cites Richter et al. 2020 (ABE8e), Koblan et al. 2018 (BE4max),
+  Thuronyi et al. 2019 (evoCDA1), and Marquart et al. 2021 (BE-DICT).
 
 [Unreleased]: https://github.com/clay-good/alleleforge/commits/main
