@@ -140,8 +140,8 @@ AlleleForge is built in ordered phases (see [`SPEC.md`](SPEC.md), the authoritat
 | 2 | Genome access &amp; indexing (`genome/`) | ✅ done |
 | 3 | Data registry &amp; population datasets (`data/`) | ✅ done |
 | 4 | Variant resolver (`variant/`) | ✅ done |
-| 5 | Off-target engine — population &amp; haplotype aware (`offtarget/`) | ⏳ next |
-| 6 | Scoring foundations: model zoo, embeddings, uncertainty | ◻️ planned |
+| 5 | Off-target engine — population &amp; haplotype aware (`offtarget/`) | ✅ done |
+| 6 | Scoring foundations: model zoo, embeddings, uncertainty | ⏳ next |
 | 7–9 | Modalities: SpCas9 nuclease · base editing · prime editing | ◻️ planned |
 | 10 | Designer: routing, candidate menu, ranking | ◻️ planned |
 | 11 | Reporting &amp; oligo output | ◻️ planned |
@@ -308,6 +308,70 @@ boundaries are 1-based. Every parser converts on read.
 
 ---
 
+## The off-target engine (Phase 5, shipping now)
+
+AlleleForge's safety core, and its clearest point of novelty: off-target nomination that is
+**reference-, population-, and haplotype-aware** for every chemistry, behind one `search()` call that
+returns an **ancestry-stratified** report. Reference-only off-target analysis has a known blind spot —
+a minor allele can create a *de novo* PAM the reference never shows — and because allele frequencies
+differ by ancestry, that blind spot concentrates risk in under-represented populations.
+
+```mermaid
+flowchart TB
+    SP["spacer + PAM"] --> S1
+    subgraph ENG["search() — five stages"]
+        direction TB
+        S1["1 · Reference scan<br/>PAM-anchored · ≤4 mismatch · ≤1 DNA + ≤1 RNA bulge · both strands"]
+        S2["2 · Population augmentation<br/>gnomAD alt-allele re-scan → de-novo PAMs / strengthened seed sites"]
+        S3["3 · Haplotype walk<br/>common 1000G / HGDP haplotypes (variant combinations)"]
+        S4["4 · Patient VCF (optional)<br/>personalize to one genome"]
+        S5["5 · Score · threshold · de-dup · stratify"]
+        S1 --> S5
+        S2 --> S5
+        S3 --> S5
+        S4 --> S5
+    end
+    S5 --> R["OffTargetReport<br/>ancestry-stratified · every site tagged<br/>reference / population / patient + causal allele + freq"]
+```
+
+Every site records **where it came from** — the reference, a population variant (which allele, which
+populations, at what frequency), or a patient's VCF — so a nomination can be audited, not trusted
+blindly. The report's worst-case is computed against the **worst-affected ancestry**, never the
+average.
+
+### Reference bias, reproduced
+
+The canonical cautionary tale is the BCL11A enhancer variant `rs114518452` (Cancellieri &amp; Pinello,
+*Nat Genet* 2023). AlleleForge reproduces it as an integration test: a reference-only scan returns
+**zero** sites, while the population-aware scan nominates the high-CFD off-target the minor allele
+creates — ancestry-stratified, with its African-ancestry-enriched frequency recorded.
+
+```python
+from alleleforge.offtarget import search
+from alleleforge.types.guide import PAM
+
+report = search(spacer, PAM(pattern="NGG"), reference=hg38, gnomad=gnomad_db)
+for site in report.sites:
+    print(site.origin, round(site.score, 2), site.causal_allele, site.populations)
+worst = report.worst_ancestry()        # ('afr', 1.0) — flagged, not averaged away
+```
+
+### Specificity scoring cheat-sheet
+
+| Score | Source | Status in AlleleForge |
+|---|---|---|
+| **MIT / Hsu** | Hsu et al., *Nat Biotechnol* 2013 | Exact — published 20-position weight table |
+| **CFD** | Doench et al., *Nat Biotechnol* 2016 | Published PAM table; mismatch weights default to a transparent seed model, **injectable** with the exact Doench matrix |
+| **CFD-Cas12a** | analog | Seed at the PAM-proximal 5' end, `TTTV` PAM |
+
+All three sit behind one swappable `OffTargetScorer` protocol, so a Phase 6 ML scorer drops in
+without touching the engine. Reporting thresholds default to **CFD ≥ 0.20 or MIT ≥ 0.10**.
+
+> The genome-scale search is the Rust FM-index seed-and-extend kernel; until that crate is built,
+> AlleleForge ships a *correct* pure-Python linear-scan fallback (CI never blocks on the native build).
+
+---
+
 ## Defaults cheat-sheet
 
 Every default is overridable; these are the spec-mandated starting points.
@@ -339,8 +403,8 @@ alleleforge/
 │   ├── types/                # Phase 1: core domain vocabulary
 │   ├── genome/               # Phase 2: reference access, FM-index, liftover
 │   ├── data/                 # Phase 3: registry, ClinVar, gnomAD, 1000G/HGDP, dbSNP, annotations
-│   ├── variant/              # Phase 4: resolver, HGVS adapter, consequence (this release)
-│   ├── offtarget/            # Phase 5 (next): population/haplotype-aware off-target
+│   ├── variant/              # Phase 4: resolver, HGVS adapter, consequence
+│   ├── offtarget/            # Phase 5: population/haplotype-aware off-target (this release)
 │   ├── enumerate/ scoring/ model_zoo/      # Phases 6–9 (ML + modalities)
 │   ├── design/ report/ cli/ web/           # Phases 10–13 (orchestration + interfaces)
 │   └── ...

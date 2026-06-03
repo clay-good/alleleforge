@@ -33,8 +33,9 @@ The foundations land before any chemistry-specific or ML code.
 | 2 | Genome access & indexing (`genome/`) | done |
 | 3 | Data registry & population datasets (`data/`) | done |
 | 4 | Variant resolver (`variant/`) | done |
-| 5 | Off-target engine — population & haplotype aware | next |
-| 6–15 | Scoring → chemistries → designer → report → CLI → web → benchmark → release | planned |
+| 5 | Off-target engine — population & haplotype aware (`offtarget/`) | done |
+| 6 | Scoring foundations: model zoo, embeddings, uncertainty | next |
+| 7–15 | Chemistries → designer → report → CLI → web → benchmark → release | planned |
 
 See [Data provenance](data.md) for the versioned, license-aware dataset registry.
 

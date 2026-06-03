@@ -58,5 +58,22 @@ acceptance.
   dependency-free genomic-HGVS parser, an `HgvsAdapter` that projects coding /
   protein expressions through an injected backend, and a VEP-style
   `EffectPredictor` protocol with a deterministic static implementation.
+- **Phase 5 — Off-target engine (population & haplotype aware).**
+  `alleleforge.offtarget`: a five-stage [`search`][] — reference candidate
+  search (PAM-anchored, ≤4 mismatches, ≤1 DNA + ≤1 RNA bulge, both strands;
+  Rust FM-index with a correct linear-scan fallback), gnomAD **population
+  augmentation** that finds *de novo* PAMs and strengthened seed-mismatch sites,
+  **haplotype-aware** walking of common 1000G/HGDP haplotypes, an optional
+  patient-VCF pass, then CFD+MIT scoring, thresholding (CFD ≥ 0.20 or MIT ≥ 0.10),
+  de-duplication, and **ancestry stratification by default**. Published MIT/Hsu
+  and CFD scorers (the exact Doench PAM table; an injectable mismatch table) plus
+  a Cas12a CFD analog, behind a swappable `OffTargetScorer` protocol; an optional
+  Cas-OFFinder cross-check. The reference-bias / `rs114518452` finding is
+  reproduced as an integration test: a reference-only scan is blind to the
+  ancestry-enriched off-target the population-aware scan nominates. Cites
+  Hsu et al. *Nat Biotechnol* 2013, Doench et al. *Nat Biotechnol* 2016, and
+  Cancellieri & Pinello *Nat Genet* 2023.
+
+[`search`]: https://github.com/clay-good/alleleforge/blob/main/src/alleleforge/offtarget/engine.py
 
 [Unreleased]: https://github.com/clay-good/alleleforge/commits/main

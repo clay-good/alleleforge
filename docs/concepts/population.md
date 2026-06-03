@@ -23,5 +23,38 @@ in one population is correctly flagged instead of hidden behind a single global 
 The canonical cautionary tale is the BCL11A enhancer site `rs114518452` (Cancellieri & Pinello,
 *Nature Genetics*, 2023): a population variant creates a de-novo NGG PAM yielding a high-CFD
 off-target that reference-only analysis misses, with frequency concentrated in specific ancestries.
-AlleleForge reproduces this reference-bias case as an integration test and a documented example as
-the off-target engine lands (Phase 5).
+AlleleForge reproduces this reference-bias case as an integration test
+(`tests/offtarget/test_reference_bias.py`): a reference-only scan returns **zero** sites, while the
+population-aware scan nominates the high-CFD off-target, ancestry-stratified, with the causal allele
+and its African-ancestry-enriched frequency recorded.
+
+## How the engine works
+
+[`search`][alleleforge.offtarget.engine.search] runs five stages and returns one
+ancestry-stratified report:
+
+1. **Reference** — PAM-anchored, mismatch- and bulge-tolerant search over both strands (the Rust
+   FM-index seed-and-extend kernel; a correct linear-scan fallback until that crate is built).
+2. **Population augmentation** — for each gnomAD variant in range, re-scan the neighborhood on the
+   *alternate* allele and keep any hit the variant **creates or strengthens** versus the reference.
+3. **Haplotype-aware** — walk the common 1000G/HGDP haplotypes, applying each haplotype's full
+   variant set, so off-targets that need a *combination* of co-inherited variants are found.
+4. **Patient VCF** — optionally personalize the search to one genome.
+5. **Score & aggregate** — CFD and MIT, threshold (CFD ≥ 0.20 **or** MIT ≥ 0.10), de-duplicate by
+   placement keeping the strongest, sort, and stratify by ancestry.
+
+Every threshold is a parameter; the defaults are ≤ 4 mismatches, ≤ 1 DNA + ≤ 1 RNA bulge, and
+MAF ≥ 0.001 in any queried population.
+
+## Scoring
+
+Two published single-guide specificity scores are implemented behind one swappable
+[`OffTargetScorer`][alleleforge.offtarget.scoring.OffTargetScorer] protocol:
+
+- **MIT / Hsu** (Hsu et al., *Nat Biotechnol* 2013) — exact, from the published 20-position weight
+  table.
+- **CFD** (Doench et al., *Nat Biotechnol* 2016) — `∏ w(position, mismatch) · w(PAM)`. The PAM
+  dinucleotide weights are the published CFD values; the per-position mismatch weights default to a
+  transparent monotonic seed-tolerance model and accept the exact 400-value Doench matrix via
+  injection, so the published table drops in without code changes.
+- A **Cas12a CFD analog** with the seed at the PAM-proximal 5' end and a `TTTV` PAM model.
