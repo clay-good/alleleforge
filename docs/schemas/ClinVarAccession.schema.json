@@ -1,0 +1,14 @@
+{
+  "description": "A validated ClinVar accession (``VCV``/``RCV``/``SCV`` form).",
+  "properties": {
+    "value": {
+      "title": "Value",
+      "type": "string"
+    }
+  },
+  "required": [
+    "value"
+  ],
+  "title": "ClinVarAccession",
+  "type": "object"
+}

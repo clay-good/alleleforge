@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.env
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+.coverage
+coverage.xml
+htmlcov/
+
+# Rust
+rust/target/
+target/
+
+# Data / caches (never commit large genomes or model weights)
+*.fa
+*.fasta
+*.fai
+*.bam
+*.vcf.gz
+*.tbi
+.dvc/cache/
+data/cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Docs build
+site/
+
+# Allow small test fixtures despite the FASTA/VCF rules above
+!tests/**/fixtures/**

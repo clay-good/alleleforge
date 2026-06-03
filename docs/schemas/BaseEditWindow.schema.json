@@ -1,0 +1,78 @@
+{
+  "$defs": {
+    "DNASequence": {
+      "description": "An IUPAC-validated DNA sequence with ambiguity-aware operations.\n\nAccepts a positional string (``DNASequence(\"ACGT\")``) or the keyword form\nused by deserialization (``DNASequence(sequence=\"ACGT\")``). The sequence is\nupper-cased and validated against the IUPAC alphabet on construction.",
+      "properties": {
+        "sequence": {
+          "title": "Sequence",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sequence"
+      ],
+      "title": "DNASequence",
+      "type": "object"
+    },
+    "Spacer": {
+      "description": "A guide spacer (protospacer-matching sequence), stored 5'->3'.",
+      "properties": {
+        "sequence": {
+          "$ref": "#/$defs/DNASequence"
+        }
+      },
+      "required": [
+        "sequence"
+      ],
+      "title": "Spacer",
+      "type": "object"
+    }
+  },
+  "description": "A base editor's activity window placed over a protospacer.\n\nPositions are 1-based within the protospacer, counting from the PAM-distal\nend (position 1) as the base-editing field conventionally does.\n\nAttributes:\n    spacer: The guide spacer.\n    editor: The editor name (e.g. ``\"ABE8e\"``).\n    window: The ``(start, end)`` 1-based inclusive activity window.\n    target_positions: Protospacer positions intended to be edited.\n    bystander_positions: Editable positions outside the intent (bystanders).",
+  "properties": {
+    "bystander_positions": {
+      "default": [],
+      "items": {
+        "type": "integer"
+      },
+      "title": "Bystander Positions",
+      "type": "array"
+    },
+    "editor": {
+      "title": "Editor",
+      "type": "string"
+    },
+    "spacer": {
+      "$ref": "#/$defs/Spacer"
+    },
+    "target_positions": {
+      "default": [],
+      "items": {
+        "type": "integer"
+      },
+      "title": "Target Positions",
+      "type": "array"
+    },
+    "window": {
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "integer"
+        }
+      ],
+      "title": "Window",
+      "type": "array"
+    }
+  },
+  "required": [
+    "spacer",
+    "editor",
+    "window"
+  ],
+  "title": "BaseEditWindow",
+  "type": "object"
+}

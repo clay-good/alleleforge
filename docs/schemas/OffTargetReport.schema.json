@@ -1,0 +1,190 @@
+{
+  "$defs": {
+    "CoordinateSystem": {
+      "description": "Coordinate convention. Internal everything is 0-based half-open.",
+      "enum": [
+        "0-based-half-open",
+        "1-based-inclusive"
+      ],
+      "title": "CoordinateSystem",
+      "type": "string"
+    },
+    "GenomicInterval": {
+      "description": "A strand-aware genomic interval, 0-based half-open by default.\n\nAttributes:\n    chrom: Contig / chromosome name (e.g. ``\"chr2\"``).\n    start: Inclusive start coordinate.\n    end: Exclusive end coordinate (``start <= end``).\n    strand: The strand the interval is reported on.\n    coordinate_system: The coordinate convention of ``start``/``end``.",
+      "properties": {
+        "chrom": {
+          "title": "Chrom",
+          "type": "string"
+        },
+        "coordinate_system": {
+          "$ref": "#/$defs/CoordinateSystem",
+          "default": "0-based-half-open"
+        },
+        "end": {
+          "title": "End",
+          "type": "integer"
+        },
+        "start": {
+          "title": "Start",
+          "type": "integer"
+        },
+        "strand": {
+          "$ref": "#/$defs/Strand"
+        }
+      },
+      "required": [
+        "chrom",
+        "start",
+        "end",
+        "strand"
+      ],
+      "title": "GenomicInterval",
+      "type": "object"
+    },
+    "OffTargetSite": {
+      "description": "A single nominated off-target locus with provenance and scoring.\n\nAttributes:\n    locus: The genomic placement of the off-target protospacer.\n    mismatches: Number of base mismatches to the on-target spacer.\n    dna_bulges: Number of DNA bulges in the alignment.\n    rna_bulges: Number of RNA bulges in the alignment.\n    score: The specificity score under ``score_method``.\n    score_method: Which score ``score`` reports.\n    origin: Reference, population, or patient origin.\n    causal_allele: For population/patient sites, the allele that creates or\n        modifies the site (``chrom:pos:ref>alt`` form), else ``None``.\n    populations: Populations carrying the causal allele.\n    frequency: Allele frequency of the causal allele (max over populations).\n    ancestries: Per-ancestry frequency annotation for this site.",
+      "properties": {
+        "ancestries": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "default": {},
+          "title": "Ancestries",
+          "type": "object"
+        },
+        "causal_allele": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Causal Allele"
+        },
+        "dna_bulges": {
+          "default": 0,
+          "title": "Dna Bulges",
+          "type": "integer"
+        },
+        "frequency": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Frequency"
+        },
+        "locus": {
+          "$ref": "#/$defs/GenomicInterval"
+        },
+        "mismatches": {
+          "title": "Mismatches",
+          "type": "integer"
+        },
+        "origin": {
+          "$ref": "#/$defs/SiteOrigin",
+          "default": "reference"
+        },
+        "populations": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Populations",
+          "type": "array"
+        },
+        "rna_bulges": {
+          "default": 0,
+          "title": "Rna Bulges",
+          "type": "integer"
+        },
+        "score": {
+          "title": "Score",
+          "type": "number"
+        },
+        "score_method": {
+          "$ref": "#/$defs/ScoreMethod"
+        }
+      },
+      "required": [
+        "locus",
+        "mismatches",
+        "score",
+        "score_method"
+      ],
+      "title": "OffTargetSite",
+      "type": "object"
+    },
+    "ScoreMethod": {
+      "description": "The specificity score used to rank an off-target site.",
+      "enum": [
+        "cfd",
+        "mit",
+        "cfd_cas12a"
+      ],
+      "title": "ScoreMethod",
+      "type": "string"
+    },
+    "SiteOrigin": {
+      "description": "Where a candidate off-target site originates.",
+      "enum": [
+        "reference",
+        "population",
+        "patient"
+      ],
+      "title": "SiteOrigin",
+      "type": "string"
+    },
+    "Strand": {
+      "description": "Genomic strand. Always explicit; AlleleForge has no \"default strand\".",
+      "enum": [
+        "+",
+        "-"
+      ],
+      "title": "Strand",
+      "type": "string"
+    }
+  },
+  "description": "An aggregated, ancestry-stratified off-target nomination report.\n\nAttributes:\n    spacer: The on-target spacer the search was run for (5'->3').\n    pam: The PAM pattern searched.\n    sites: All nominated sites passing the reporting thresholds.\n    mismatch_threshold: Max mismatches allowed in the search.\n    reference_build: The reference build searched.",
+  "properties": {
+    "mismatch_threshold": {
+      "default": 4,
+      "title": "Mismatch Threshold",
+      "type": "integer"
+    },
+    "pam": {
+      "title": "Pam",
+      "type": "string"
+    },
+    "reference_build": {
+      "default": "hg38",
+      "title": "Reference Build",
+      "type": "string"
+    },
+    "sites": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/OffTargetSite"
+      },
+      "title": "Sites",
+      "type": "array"
+    },
+    "spacer": {
+      "title": "Spacer",
+      "type": "string"
+    }
+  },
+  "required": [
+    "spacer",
+    "pam"
+  ],
+  "title": "OffTargetReport",
+  "type": "object"
+}

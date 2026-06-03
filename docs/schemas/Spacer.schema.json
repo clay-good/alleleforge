@@ -1,0 +1,29 @@
+{
+  "$defs": {
+    "DNASequence": {
+      "description": "An IUPAC-validated DNA sequence with ambiguity-aware operations.\n\nAccepts a positional string (``DNASequence(\"ACGT\")``) or the keyword form\nused by deserialization (``DNASequence(sequence=\"ACGT\")``). The sequence is\nupper-cased and validated against the IUPAC alphabet on construction.",
+      "properties": {
+        "sequence": {
+          "title": "Sequence",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sequence"
+      ],
+      "title": "DNASequence",
+      "type": "object"
+    }
+  },
+  "description": "A guide spacer (protospacer-matching sequence), stored 5'->3'.",
+  "properties": {
+    "sequence": {
+      "$ref": "#/$defs/DNASequence"
+    }
+  },
+  "required": [
+    "sequence"
+  ],
+  "title": "Spacer",
+  "type": "object"
+}

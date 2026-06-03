@@ -1,0 +1,63 @@
+{
+  "$defs": {
+    "UncertaintyMethod": {
+      "description": "How a prediction's interval was produced.\n\nThe value is stored verbatim in provenance so a result can be audited.",
+      "enum": [
+        "ensemble",
+        "evidential",
+        "quantile",
+        "conformal",
+        "heuristic",
+        "agreement",
+        "none"
+      ],
+      "title": "UncertaintyMethod",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "calibrated": {
+      "default": false,
+      "title": "Calibrated",
+      "type": "boolean"
+    },
+    "in_distribution": {
+      "default": true,
+      "title": "In Distribution",
+      "type": "boolean"
+    },
+    "interval": {
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "title": "Interval",
+      "type": "array"
+    },
+    "interval_level": {
+      "default": 0.8,
+      "title": "Interval Level",
+      "type": "number"
+    },
+    "method": {
+      "$ref": "#/$defs/UncertaintyMethod"
+    },
+    "value": {
+      "title": "Value",
+      "type": "number"
+    }
+  },
+  "required": [
+    "value",
+    "interval",
+    "method"
+  ],
+  "title": "Prediction[float]",
+  "type": "object"
+}

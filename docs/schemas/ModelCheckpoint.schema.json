@@ -1,0 +1,67 @@
+{
+  "description": "A content-hashed model checkpoint with its card metadata.\n\nAttributes:\n    name: Model identifier (e.g. ``\"PRIDICT2.0\"``).\n    version: Model version.\n    sha256: Content hash of the checkpoint file.\n    chemistry: The chemistry this model scores, if applicable.\n    license: The model's license identifier.\n    citation: Literature citation for the model.",
+  "properties": {
+    "chemistry": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Chemistry"
+    },
+    "citation": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Citation"
+    },
+    "license": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "License"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "sha256": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sha256"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "version"
+  ],
+  "title": "ModelCheckpoint",
+  "type": "object"
+}

@@ -1,0 +1,72 @@
+{
+  "description": "A versioned, license-aware dataset descriptor.\n\nAttributes:\n    name: Dataset identifier (e.g. ``\"gnomad\"``).\n    version: Pinned dataset version (e.g. ``\"v4.1\"``).\n    source_url: Where the dataset is fetched from.\n    license: The dataset's license identifier.\n    sha256: Content hash of the pinned artifact.\n    citation: Literature citation for the dataset.\n    redistributable: Whether AlleleForge may vendor this dataset.",
+  "properties": {
+    "citation": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Citation"
+    },
+    "license": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "License"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "redistributable": {
+      "default": false,
+      "title": "Redistributable",
+      "type": "boolean"
+    },
+    "sha256": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sha256"
+    },
+    "source_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Url"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "version"
+  ],
+  "title": "DatasetVersion",
+  "type": "object"
+}

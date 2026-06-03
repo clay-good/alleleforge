@@ -1,0 +1,48 @@
+{
+  "$defs": {
+    "AlleleOutcome": {
+      "description": "One possible resulting allele and its predicted probability.",
+      "properties": {
+        "allele": {
+          "title": "Allele",
+          "type": "string"
+        },
+        "is_intended": {
+          "default": false,
+          "title": "Is Intended",
+          "type": "boolean"
+        },
+        "probability": {
+          "title": "Probability",
+          "type": "number"
+        }
+      },
+      "required": [
+        "allele",
+        "probability"
+      ],
+      "title": "AlleleOutcome",
+      "type": "object"
+    }
+  },
+  "description": "A distribution over resulting alleles for one edit.\n\nAttributes:\n    alleles: The (allele, probability) outcomes. Probabilities must sum to\n        ~1 unless the distribution is explicitly marked ``partial``.\n    partial: ``True`` when the listed alleles cover only part of the\n        outcome space (the remainder is unenumerated byproducts).",
+  "properties": {
+    "alleles": {
+      "items": {
+        "$ref": "#/$defs/AlleleOutcome"
+      },
+      "title": "Alleles",
+      "type": "array"
+    },
+    "partial": {
+      "default": false,
+      "title": "Partial",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "alleles"
+  ],
+  "title": "EditOutcome",
+  "type": "object"
+}

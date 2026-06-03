@@ -1,0 +1,161 @@
+{
+  "$defs": {
+    "CoordinateSystem": {
+      "description": "Coordinate convention. Internal everything is 0-based half-open.",
+      "enum": [
+        "0-based-half-open",
+        "1-based-inclusive"
+      ],
+      "title": "CoordinateSystem",
+      "type": "string"
+    },
+    "DNASequence": {
+      "description": "An IUPAC-validated DNA sequence with ambiguity-aware operations.\n\nAccepts a positional string (``DNASequence(\"ACGT\")``) or the keyword form\nused by deserialization (``DNASequence(sequence=\"ACGT\")``). The sequence is\nupper-cased and validated against the IUPAC alphabet on construction.",
+      "properties": {
+        "sequence": {
+          "title": "Sequence",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sequence"
+      ],
+      "title": "DNASequence",
+      "type": "object"
+    },
+    "GenomicInterval": {
+      "description": "A strand-aware genomic interval, 0-based half-open by default.\n\nAttributes:\n    chrom: Contig / chromosome name (e.g. ``\"chr2\"``).\n    start: Inclusive start coordinate.\n    end: Exclusive end coordinate (``start <= end``).\n    strand: The strand the interval is reported on.\n    coordinate_system: The coordinate convention of ``start``/``end``.",
+      "properties": {
+        "chrom": {
+          "title": "Chrom",
+          "type": "string"
+        },
+        "coordinate_system": {
+          "$ref": "#/$defs/CoordinateSystem",
+          "default": "0-based-half-open"
+        },
+        "end": {
+          "title": "End",
+          "type": "integer"
+        },
+        "start": {
+          "title": "Start",
+          "type": "integer"
+        },
+        "strand": {
+          "$ref": "#/$defs/Strand"
+        }
+      },
+      "required": [
+        "chrom",
+        "start",
+        "end",
+        "strand"
+      ],
+      "title": "GenomicInterval",
+      "type": "object"
+    },
+    "NickingGuide": {
+      "description": "A prime-editing nicking guide (PE3 / PE3b ngRNA).\n\nAttributes:\n    spacer: The ngRNA spacer.\n    placement: The ngRNA protospacer placement.\n    nick_offset: Signed distance (nt) from the pegRNA nick to this nick.\n    seed_disrupting: ``True`` for a PE3b guide whose nick lies in a\n        seed-disrupting position (preferred when available).",
+      "properties": {
+        "nick_offset": {
+          "title": "Nick Offset",
+          "type": "integer"
+        },
+        "placement": {
+          "$ref": "#/$defs/GenomicInterval"
+        },
+        "seed_disrupting": {
+          "default": false,
+          "title": "Seed Disrupting",
+          "type": "boolean"
+        },
+        "spacer": {
+          "$ref": "#/$defs/Spacer"
+        }
+      },
+      "required": [
+        "spacer",
+        "placement",
+        "nick_offset"
+      ],
+      "title": "NickingGuide",
+      "type": "object"
+    },
+    "Spacer": {
+      "description": "A guide spacer (protospacer-matching sequence), stored 5'->3'.",
+      "properties": {
+        "sequence": {
+          "$ref": "#/$defs/DNASequence"
+        }
+      },
+      "required": [
+        "sequence"
+      ],
+      "title": "Spacer",
+      "type": "object"
+    },
+    "Strand": {
+      "description": "Genomic strand. Always explicit; AlleleForge has no \"default strand\".",
+      "enum": [
+        "+",
+        "-"
+      ],
+      "title": "Strand",
+      "type": "string"
+    },
+    "ThreePrimeMotif": {
+      "description": "Structured 3' motifs that stabilize an epegRNA.",
+      "enum": [
+        "none",
+        "tevopreQ1",
+        "mpknot"
+      ],
+      "title": "ThreePrimeMotif",
+      "type": "string"
+    }
+  },
+  "description": "A prime-editing guide RNA with validated PBS/RTT geometry.\n\nAttributes:\n    spacer: The pegRNA spacer (defines the nick).\n    scaffold: The sgRNA scaffold sequence.\n    rtt: Reverse-transcriptase template (encodes the edit + 3' homology).\n    pbs: Primer-binding site.\n    three_prime_motif: Optional structured 3' motif (default tevopreQ1).\n    rtt_homology_3prime: Homology length (nt) the RTT places 3' of the edit.\n    nicking_guide: Optional PE3/PE3b nicking guide.",
+  "properties": {
+    "nicking_guide": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NickingGuide"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "pbs": {
+      "$ref": "#/$defs/DNASequence"
+    },
+    "rtt": {
+      "$ref": "#/$defs/DNASequence"
+    },
+    "rtt_homology_3prime": {
+      "default": 5,
+      "title": "Rtt Homology 3Prime",
+      "type": "integer"
+    },
+    "scaffold": {
+      "$ref": "#/$defs/DNASequence"
+    },
+    "spacer": {
+      "$ref": "#/$defs/Spacer"
+    },
+    "three_prime_motif": {
+      "$ref": "#/$defs/ThreePrimeMotif",
+      "default": "tevopreQ1"
+    }
+  },
+  "required": [
+    "spacer",
+    "scaffold",
+    "rtt",
+    "pbs"
+  ],
+  "title": "PegRNA",
+  "type": "object"
+}

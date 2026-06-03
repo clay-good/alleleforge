@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+title: "AlleleForge: a variant-driven, multi-modality, uncertainty-aware CRISPR guide & edit design framework"
+message: "If you use AlleleForge in your research, please cite it as below."
+type: software
+authors:
+  - family-names: "Good"
+    given-names: "Clay"
+  - name: "The AlleleForge contributors"
+repository-code: "https://github.com/clay-good/alleleforge"
+url: "https://github.com/clay-good/alleleforge"
+abstract: >-
+  AlleleForge is a computational framework that takes a sequence variant and
+  returns a ranked, uncertainty-annotated set of candidate CRISPR guide designs
+  across SpCas9 nuclease, base editing, and prime editing, with calibrated
+  uncertainty on every prediction and population- and haplotype-aware off-target
+  analysis. It wraps existing published open-source tools behind one typed
+  interface and is for research and educational use only.
+keywords:
+  - CRISPR
+  - gene editing
+  - prime editing
+  - base editing
+  - off-target
+  - bioinformatics
+  - uncertainty quantification
+license: MIT
+version: 0.1.0.dev0

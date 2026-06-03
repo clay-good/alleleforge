@@ -1,0 +1,14 @@
+{
+  "description": "A protospacer-adjacent motif as an IUPAC pattern (e.g. ``NGG``).",
+  "properties": {
+    "pattern": {
+      "title": "Pattern",
+      "type": "string"
+    }
+  },
+  "required": [
+    "pattern"
+  ],
+  "title": "PAM",
+  "type": "object"
+}

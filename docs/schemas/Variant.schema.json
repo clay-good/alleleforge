@@ -1,0 +1,122 @@
+{
+  "$defs": {
+    "ClinVarAccession": {
+      "description": "A validated ClinVar accession (``VCV``/``RCV``/``SCV`` form).",
+      "properties": {
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "ClinVarAccession",
+      "type": "object"
+    },
+    "DbSnpId": {
+      "description": "A validated dbSNP rsID (``rs`` followed by digits).",
+      "properties": {
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "DbSnpId",
+      "type": "object"
+    }
+  },
+  "description": "A normalized sequence variant in 0-based coordinates.\n\nAttributes:\n    chrom: Contig / chromosome name.\n    pos: 0-based start coordinate of the ``ref`` allele.\n    ref: Reference allele (may be empty for a pure insertion after trimming).\n    alt: Alternate allele (may be empty for a pure deletion after trimming).\n    build: Reference genome build (e.g. ``\"hg38\"``).\n    hgvs_g: Optional genomic HGVS string.\n    hgvs_c: Optional coding HGVS string.\n    hgvs_p: Optional protein HGVS string.\n    clinvar: Optional source ClinVar accession.\n    rsid: Optional source dbSNP rsID.",
+  "properties": {
+    "alt": {
+      "title": "Alt",
+      "type": "string"
+    },
+    "build": {
+      "default": "hg38",
+      "title": "Build",
+      "type": "string"
+    },
+    "chrom": {
+      "title": "Chrom",
+      "type": "string"
+    },
+    "clinvar": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ClinVarAccession"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "hgvs_c": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hgvs C"
+    },
+    "hgvs_g": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hgvs G"
+    },
+    "hgvs_p": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hgvs P"
+    },
+    "pos": {
+      "title": "Pos",
+      "type": "integer"
+    },
+    "ref": {
+      "title": "Ref",
+      "type": "string"
+    },
+    "rsid": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DbSnpId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "chrom",
+    "pos",
+    "ref",
+    "alt"
+  ],
+  "title": "Variant",
+  "type": "object"
+}

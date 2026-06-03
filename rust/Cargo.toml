@@ -1,0 +1,14 @@
+[package]
+name = "aforge_native"
+version = "0.1.0"
+edition = "2021"
+description = "Performance kernels for AlleleForge (FM-index off-target search, k-mer hashing, haplotype walking)."
+license = "MIT"
+repository = "https://github.com/clay-good/alleleforge"
+
+[lib]
+name = "aforge_native"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pyo3 = { version = "0.22", features = ["extension-module"] }

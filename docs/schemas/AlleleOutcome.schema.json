@@ -1,0 +1,24 @@
+{
+  "description": "One possible resulting allele and its predicted probability.",
+  "properties": {
+    "allele": {
+      "title": "Allele",
+      "type": "string"
+    },
+    "is_intended": {
+      "default": false,
+      "title": "Is Intended",
+      "type": "boolean"
+    },
+    "probability": {
+      "title": "Probability",
+      "type": "number"
+    }
+  },
+  "required": [
+    "allele",
+    "probability"
+  ],
+  "title": "AlleleOutcome",
+  "type": "object"
+}

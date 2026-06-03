@@ -1,0 +1,14 @@
+{
+  "description": "A validated dbSNP rsID (``rs`` followed by digits).",
+  "properties": {
+    "value": {
+      "title": "Value",
+      "type": "string"
+    }
+  },
+  "required": [
+    "value"
+  ],
+  "title": "DbSnpId",
+  "type": "object"
+}

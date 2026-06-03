@@ -1,0 +1,244 @@
+{
+  "$defs": {
+    "DatasetVersion": {
+      "description": "A versioned, license-aware dataset descriptor.\n\nAttributes:\n    name: Dataset identifier (e.g. ``\"gnomad\"``).\n    version: Pinned dataset version (e.g. ``\"v4.1\"``).\n    source_url: Where the dataset is fetched from.\n    license: The dataset's license identifier.\n    sha256: Content hash of the pinned artifact.\n    citation: Literature citation for the dataset.\n    redistributable: Whether AlleleForge may vendor this dataset.",
+      "properties": {
+        "citation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citation"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "License"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "redistributable": {
+          "default": false,
+          "title": "Redistributable",
+          "type": "boolean"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "DatasetVersion",
+      "type": "object"
+    },
+    "ModelCheckpoint": {
+      "description": "A content-hashed model checkpoint with its card metadata.\n\nAttributes:\n    name: Model identifier (e.g. ``\"PRIDICT2.0\"``).\n    version: Model version.\n    sha256: Content hash of the checkpoint file.\n    chemistry: The chemistry this model scores, if applicable.\n    license: The model's license identifier.\n    citation: Literature citation for the model.",
+      "properties": {
+        "chemistry": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chemistry"
+        },
+        "citation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citation"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "License"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "ModelCheckpoint",
+      "type": "object"
+    },
+    "ToolVersion": {
+      "description": "The pinned version of a wrapped third-party tool.",
+      "properties": {
+        "citation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citation"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "ToolVersion",
+      "type": "object"
+    }
+  },
+  "description": "The reproducibility block embedded in every top-level result.\n\nAttributes:\n    alleleforge_version: The AlleleForge version that produced the result.\n    reference_build: The reference genome build used.\n    seed: The global random seed in effect.\n    tools: Versions of every wrapped tool used.\n    datasets: Versions of every dataset accessed.\n    models: Checkpoints of every model invoked.\n    config_snapshot: A snapshot of the resolved settings.\n    timestamp: UTC time the result was produced.",
+  "properties": {
+    "alleleforge_version": {
+      "title": "Alleleforge Version",
+      "type": "string"
+    },
+    "config_snapshot": {
+      "additionalProperties": true,
+      "default": {},
+      "title": "Config Snapshot",
+      "type": "object"
+    },
+    "datasets": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/DatasetVersion"
+      },
+      "title": "Datasets",
+      "type": "array"
+    },
+    "models": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ModelCheckpoint"
+      },
+      "title": "Models",
+      "type": "array"
+    },
+    "reference_build": {
+      "default": "hg38",
+      "title": "Reference Build",
+      "type": "string"
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "title": "Timestamp",
+      "type": "string"
+    },
+    "tools": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ToolVersion"
+      },
+      "title": "Tools",
+      "type": "array"
+    }
+  },
+  "required": [
+    "alleleforge_version",
+    "seed",
+    "timestamp"
+  ],
+  "title": "Provenance",
+  "type": "object"
+}

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "aforge_native"
+description = "Performance kernels for AlleleForge."
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dynamic = ["version"]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+
+[tool.maturin]
+# Build the cdylib in this crate as the importable `aforge_native` module.
+bindings = "pyo3"
+manifest-path = "Cargo.toml"
+module-name = "aforge_native"

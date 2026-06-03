@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check src tests scripts
+      - run: ruff format --check src tests scripts
+
+  type-check:
+    name: Type-check (mypy --strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # The genome deps are installed so the genome package type-checks against
+      # the real pyfaidx / pyliftover modules.
+      - run: pip install -e ".[dev]" "pyfaidx>=0.8" "pyliftover>=0.4"
+      - run: mypy --strict src/alleleforge
+
+  test:
+    name: Test (py${{ matrix.python-version }} / ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      # Install the Phase 2 genome dependencies (pyfaidx for FASTA access,
+      # pyliftover for chain-file liftover) so tests/genome runs and counts
+      # toward the coverage gate. The heavier genome stack (pysam, cyvcf2,
+      # mappy) is pulled in by later phases that need it.
+      - run: pip install -e ".[dev]" "pyfaidx>=0.8" "pyliftover>=0.4"
+      - run: pytest
