@@ -1,0 +1,23 @@
+# Model card — bundled with AlleleForge (Phase 9 default prime efficiency).
+name: pridict2
+version: "2.0"
+chemistry: prime
+training_data: >-
+  Prime-editing efficiency libraries (PRIDICT2.0) measured predominantly in
+  HEK293T and K562, spanning pegRNA PBS/RTT geometries and edit types.
+metrics:
+  training_cell_lines: 2.0
+intended_use: >-
+  Default prime-editing efficiency prediction with calibrated uncertainty.
+  Research use. Predictions outside the HEK293T/K562 training distribution are
+  flagged out-of-distribution.
+out_of_scope_use: >-
+  Clinical decision-making; cell contexts far from HEK293T/K562 without honoring
+  the OOD flag; a substitute for experimental validation.
+license: MIT
+citation: "Mathis et al., Nat Biotechnol 2023/2024 (PRIDICT / PRIDICT2.0)"
+known_failure_modes:
+  - "Trained on HEK293T/K562; cross-cell-type generalization is limited (OOD-flagged)."
+  - "Chromatin context not modeled without ePRIDICT + a cell-type ENCODE track."
+checkpoint_sha256: null
+source_url: "https://github.com/Liam-Chen/PRIDICT2"

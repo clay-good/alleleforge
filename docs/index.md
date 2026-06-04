@@ -37,8 +37,9 @@ The foundations land before any chemistry-specific or ML code.
 | 6 | Scoring foundations: model zoo, embeddings, uncertainty (`scoring/`, `model_zoo/`) | done |
 | 7 | Chemistry: SpCas9 nuclease (`enumerate/`, `scoring/`, `design/`) | done |
 | 8 | Chemistry: base editing — ABE / CBE | done |
-| 9 | Chemistry: prime editing (the flagship gap) | next |
-| 10–15 | Designer → report → CLI → web → benchmark → release | planned |
+| 9 | Chemistry: prime editing — the flagship (`enumerate/`, `scoring/`, `design/`) | done |
+| 10 | Designer: routing, multi-chemistry candidate menu, ranking | next |
+| 11–15 | Report → CLI → web → benchmark → release | planned |
 
 See [Data provenance](data.md) for the versioned, license-aware dataset registry.
 

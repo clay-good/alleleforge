@@ -10,5 +10,6 @@ from __future__ import annotations
 
 from alleleforge.design.base_editor import design_base_editor
 from alleleforge.design.cas9 import design_cas9
+from alleleforge.design.prime import design_prime
 
-__all__ = ["design_base_editor", "design_cas9"]
+__all__ = ["design_base_editor", "design_cas9", "design_prime"]

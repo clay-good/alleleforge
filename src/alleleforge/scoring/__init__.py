@@ -40,6 +40,13 @@ from alleleforge.scoring.cas9_outcome import (
     XCrispAdapter,
     ensemble_outcome,
 )
+from alleleforge.scoring.prime_efficiency import (
+    PRIDICT_TRAINING_CONTEXTS,
+    DeepPrimeAdapter,
+    GenETAdapter,
+    PridictScorer,
+)
+from alleleforge.scoring.prime_outcome import PrimeOutcome, PrimeOutcomePredictor
 from alleleforge.scoring.uncertainty import (
     DEFAULT_ENSEMBLE_SIZE,
     DEFAULT_INTERVAL_LEVEL,
@@ -58,7 +65,13 @@ from alleleforge.scoring.uncertainty import (
 __all__ = [
     "DEFAULT_ENSEMBLE_SIZE",
     "DEFAULT_INTERVAL_LEVEL",
+    "PRIDICT_TRAINING_CONTEXTS",
     "BareFloatError",
+    "DeepPrimeAdapter",
+    "GenETAdapter",
+    "PridictScorer",
+    "PrimeOutcome",
+    "PrimeOutcomePredictor",
     "BaseEditOutcomePredictor",
     "BeDictAdapter",
     "BeHiveAdapter",

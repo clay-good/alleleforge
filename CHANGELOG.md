@@ -130,5 +130,26 @@ acceptance.
   `DesignCandidate` gains a `base_edit_window` reagent slot. Bundled BE-DICT
   model card. Cites Richter et al. 2020 (ABE8e), Koblan et al. 2018 (BE4max),
   Thuronyi et al. 2019 (evoCDA1), and Marquart et al. 2021 (BE-DICT).
+- **Phase 9 — Chemistry: prime editing (the flagship).** The chemistry where no
+  open-source tool combines all four axes — AlleleForge unifies them.
+  `alleleforge.enumerate.prime.enumerate_prime`: full pegRNA enumeration (both
+  strands via a reverse-complement frame) — for each PAM whose nick sits 5' of the
+  edit, it enumerates **PBS 8-17 nt** and **RTT 7-34 nt** (covering the edit + >= 5
+  nt 3' homology), attaches a **tevopreQ1** epegRNA motif by default, and selects a
+  **PE3/PE3b** nicking guide (preferring a seed-disrupting PE3b ngRNA). Emits
+  structurally-validated `PegRNA` + `NickingGuide` pairs.
+  `alleleforge.scoring.prime_efficiency`: a transparent PRIDICT2.0-style baseline
+  over the pegRNA geometry with an **ePRIDICT** chromatin adjustment (ENCODE
+  tracks) and **prominent OOD honesty** — any context outside PRIDICT's HEK293T /
+  K562 training distribution flags `in_distribution=False`; plus license-gated
+  DeepPrime / GenET cross-check adapters. `alleleforge.scoring.prime_outcome`: an
+  intended-vs-byproduct distribution (scaffold incorporation, partial RTT, indels)
+  with calibrated intended probability. `alleleforge.design.prime.design_prime`
+  wires enumerate -> efficiency -> outcome -> off-target into ranked
+  `DesignCandidate`s, running the off-target engine on **both** nicks and merging
+  them into one ancestry-stratified report. Phase 1 `PegRNA` gains optional
+  placement / nick-site fields. Bundled PRIDICT2.0 card; canonical example
+  `examples/01_clinvar_to_design.ipynb`. Cites Mathis et al. 2023/2024
+  (PRIDICT / PRIDICT2.0 / ePRIDICT).
 
 [Unreleased]: https://github.com/clay-good/alleleforge/commits/main

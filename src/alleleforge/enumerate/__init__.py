@@ -22,6 +22,7 @@ from alleleforge.enumerate.cas9 import (
     guide_context,
     hdr_donor,
 )
+from alleleforge.enumerate.prime import SCAFFOLD, enumerate_prime
 
 __all__ = [
     "BASE_EDITORS",
@@ -29,9 +30,11 @@ __all__ = [
     "DEFAULT_CUT_OFFSET",
     "DEFAULT_HDR_ARM",
     "DEFAULT_WINDOW",
+    "SCAFFOLD",
     "BaseEditor",
     "enumerate_base_edits",
     "enumerate_cas9",
+    "enumerate_prime",
     "guide_context",
     "hdr_donor",
 ]

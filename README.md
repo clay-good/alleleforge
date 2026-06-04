@@ -106,6 +106,7 @@ flowchart TB
 
 ```mermaid
 sequenceDiagram
+    autonumber
     actor U as User
     participant R as Resolver
     participant Rt as Router
@@ -115,15 +116,15 @@ sequenceDiagram
     participant K as Ranker
 
     U->>R: ClinVar / rsID / HGVS / VCF / coords
-    R->>Rt: normalized Variant + consequence
-    Rt->>E: eligible modalities (nuclease / base / prime)
+    R->>Rt: normalized Variant and consequence
+    Rt->>E: eligible chemistries (nuclease / base / prime)
     E->>S: candidate guides and pegRNAs
-    S->>S: efficiency + outcome (calibrated Prediction)
-    E->>X: spacers / nicks
-    X->>X: reference → population → haplotype → patient VCF
+    Note over S: efficiency and outcome (calibrated Prediction)
+    E->>X: spacers and nicks
+    Note over X: reference, then population, then haplotype, then patient VCF
     S->>K: scored candidates
     X->>K: ancestry-stratified off-target reports
-    K-->>U: RankedMenu (+ Pareto front, provenance, disclaimer)
+    K-->>U: RankedMenu (Pareto front, provenance, disclaimer)
 ```
 
 ---
@@ -144,8 +145,8 @@ AlleleForge is built in ordered phases (see [`SPEC.md`](SPEC.md), the authoritat
 | 6 | Scoring foundations: model zoo, embeddings, uncertainty (`scoring/`, `model_zoo/`) | ✅ done |
 | 7 | Chemistry: SpCas9 nuclease (`enumerate/`, `scoring/`, `design/`) | ✅ done |
 | 8 | Chemistry: base editing — ABE / CBE (`enumerate/`, `scoring/`, `design/`) | ✅ done |
-| 9 | Chemistry: prime editing | ⏳ next |
-| 10 | Designer: routing, candidate menu, ranking | ◻️ planned |
+| 9 | Chemistry: prime editing — the flagship (`enumerate/`, `scoring/`, `design/`) | ✅ done |
+| 10 | Designer: routing, candidate menu, ranking | ⏳ next |
 | 11 | Reporting &amp; oligo output | ◻️ planned |
 | 12 | CLI (`aforge`) | ◻️ planned |
 | 13 | Web UI &amp; API | ◻️ planned |
@@ -489,6 +490,41 @@ recommendation is the cleanest editor/guide combination, not just the first one 
 
 ---
 
+## Prime editing: the four-axis flagship (Phase 9, shipping now)
+
+Prime editing is the chemistry where AlleleForge contributes the most. PRIDICT2.0 is SOTA for
+efficiency but has no variant front-end and no off-target module; PrimeDesign/PrimeVar give
+ClinVar-to-pegRNA but only rule-based scoring and reference-only off-target; CRISPRme does population
+off-target but designs no pegRNAs. **AlleleForge stitches all four axes together and fills the seams.**
+
+```mermaid
+flowchart LR
+    V["ResolvedVariant + intent"] --> EN["enumerate_prime"]
+    EN --> G["pegRNA geometry:<br/>nick · PBS 8-17 · RTT 7-34 (edit + >=5 homology) ·<br/>tevopreQ1 epegRNA · PE3/PE3b nick"]
+    G --> EF["efficiency<br/>PRIDICT2.0-style + ePRIDICT<br/>(80% interval, OOD flag)"]
+    G --> OUT["outcome<br/>intended vs. byproduct<br/>(scaffold / partial RTT / indel)"]
+    G --> OT["off-target on BOTH nicks<br/>pegRNA nick + ngRNA nick<br/>merged, ancestry-stratified"]
+    EF --> C["DesignCandidate[] (ranked)"]
+    OUT --> C
+    OT --> C
+```
+
+| Axis | PRIDICT2.0 | PrimeDesign / PrimeVar | CRISPRme | **AlleleForge** |
+|---|:---:|:---:|:---:|:---:|
+| Therapeutic **variant** front-end | no | yes | no | **yes** |
+| **ML efficiency** + calibrated uncertainty | yes | no | no | **yes** |
+| **Outcome / byproduct** prediction | partial | no | no | **yes** |
+| **Population-aware** off-target | no | no | yes | **yes** |
+
+**Honest by construction.** PRIDICT2.0 is trained on HEK293T/K562; any other cell context flags the
+efficiency prediction out-of-distribution and raises an `ood` flag rather than hiding it. The
+off-target engine runs on the pegRNA nick **and** the ngRNA nick, merging into one ancestry-stratified
+report. The PE3b nicking guide is preferred when a seed-disrupting ngRNA exists (it nicks only the
+edited strand, suppressing indels). See the canonical journey end to end in
+[`examples/01_clinvar_to_design.ipynb`](examples/01_clinvar_to_design.ipynb).
+
+---
+
 ## Defaults cheat-sheet
 
 Every default is overridable; these are the spec-mandated starting points.
@@ -524,8 +560,8 @@ alleleforge/
 │   ├── offtarget/            # Phase 5: population/haplotype-aware off-target
 │   ├── model_zoo/            # Phase 6: license-gated model cards + checkpoints
 │   ├── scoring/              # Phase 6: embeddings, uncertainty, Scorer (this release)
-│   ├── enumerate/            # Phases 7–8: SpCas9 guide + base-editor window enumeration
-│   ├── design/               # Phases 7–8: SpCas9 + base-editor verticals (designer: Phase 10)
+│   ├── enumerate/            # Phases 7–9: SpCas9 guide · base-editor window · pegRNA enumeration
+│   ├── design/               # Phases 7–9: nuclease · base-editor · prime verticals (designer: Phase 10)
 │   ├── report/ cli/ web/                   # Phases 11–13 (interfaces)
 │   └── ...
 ├── tests/                    # mirrors src/; pytest + hypothesis

@@ -203,6 +203,8 @@ class PegRNA(BaseModel):
         three_prime_motif: Optional structured 3' motif (default tevopreQ1).
         rtt_homology_3prime: Homology length (nt) the RTT places 3' of the edit.
         nicking_guide: Optional PE3/PE3b nicking guide.
+        placement: The pegRNA protospacer's genomic interval, if placed.
+        nick_site: 0-based genomic coordinate of the pegRNA-induced nick, if placed.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -214,6 +216,8 @@ class PegRNA(BaseModel):
     three_prime_motif: ThreePrimeMotif = ThreePrimeMotif.TEVOPREQ1
     rtt_homology_3prime: int = MIN_RTT_3PRIME_HOMOLOGY
     nicking_guide: NickingGuide | None = None
+    placement: GenomicInterval | None = None
+    nick_site: int | None = None
 
     @model_validator(mode="after")
     def _check_geometry(self) -> PegRNA:
