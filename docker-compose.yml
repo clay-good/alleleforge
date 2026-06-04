@@ -1,0 +1,25 @@
+# One-command local deploy of the AlleleForge web API + served frontend.
+#
+#   docker compose up --build
+#   open http://localhost:8000
+#
+# Place your reference FASTA at ./data/reference.fa (and its .fai if present).
+# Everything runs locally: no telemetry, no external sequence transmission. The
+# async job worker is in-process (the default single-user deployment), so a
+# separate worker service is not needed; a multi-user deployment can add one
+# behind the same JobManager interface.
+services:
+  app:
+    build: .
+    image: alleleforge-api
+    ports:
+      - "8000:8000"
+    environment:
+      ALLELEFORGE_REFERENCE_FASTA: /data/reference.fa
+    volumes:
+      - ./data:/data:ro          # reference genome (read-only)
+      - aforge-cache:/cache      # XDG cache for datasets / embeddings
+    restart: unless-stopped
+
+volumes:
+  aforge-cache:

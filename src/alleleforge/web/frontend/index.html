@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AlleleForge — variant-first CRISPR design</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>AlleleForge</h1>
+      <p class="tagline">Variant in, corrective edit out.</p>
+    </header>
+
+    <div class="disclaimer" role="note">
+      <strong>Research use only.</strong> AlleleForge is not a medical device and does not
+      provide medical advice. Off-target nominations are computational and must be
+      experimentally validated. <strong>All compute is local</strong> — no sequence data is
+      transmitted off this deployment.
+    </div>
+
+    <main>
+      <form id="design-form" aria-label="Design a corrective edit">
+        <div class="field">
+          <label for="variant">Variant</label>
+          <input id="variant" name="variant" type="text" required
+                 placeholder="chr2:71:A&gt;C · VCV000012345 · rs1234 · NM_000518.5:c.20A&gt;T" />
+          <small>ClinVar accession, dbSNP rsID, HGVS, VCF record, or coordinates.</small>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="intent">Intent</label>
+            <select id="intent" name="intent">
+              <option value="correct">correct</option>
+              <option value="install">install</option>
+              <option value="revert">revert</option>
+              <option value="knock_out">knock_out</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="populations">Populations</label>
+            <input id="populations" name="populations" type="text"
+                   placeholder="afr,eur,eas" />
+          </div>
+          <div class="field">
+            <label for="max">Max / chemistry</label>
+            <input id="max" name="max" type="number" min="1" value="5" />
+          </div>
+        </div>
+
+        <div class="row">
+          <label class="checkbox">
+            <input id="offtarget" type="checkbox" checked /> run off-target search
+          </label>
+          <button type="submit" id="submit">Design edits</button>
+        </div>
+      </form>
+
+      <section id="status" class="status" aria-live="polite"></section>
+
+      <section id="actions" class="actions" hidden>
+        <button id="download-pdf" type="button">Download PDF</button>
+        <button id="download-json" type="button">Download JSON</button>
+      </section>
+
+      <iframe id="report" title="Design report" hidden></iframe>
+    </main>
+
+    <footer>
+      <span id="health"></span>
+      <a href="/docs">OpenAPI docs</a>
+    </footer>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

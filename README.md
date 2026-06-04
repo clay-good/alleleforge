@@ -149,8 +149,8 @@ AlleleForge is built in ordered phases (see [`SPEC.md`](SPEC.md), the authoritat
 | 10 | Designer: routing, candidate menu, ranking (`design/`) | ✅ done |
 | 11 | Reporting &amp; oligo output (`report/`) | ✅ done |
 | 12 | CLI (`aforge`) (`cli/`) | ✅ done |
-| 13 | Web UI &amp; API | ⏳ next |
-| 14 | CRISPR-Bench: benchmark, splits, leaderboard | ◻️ planned |
+| 13 | Web UI &amp; API (`web/`) | ✅ done |
+| 14 | CRISPR-Bench: benchmark, splits, leaderboard | ⏳ next |
 | 15 | Docs, examples, release | ◻️ planned |
 
 ---
@@ -178,6 +178,7 @@ pip install -e ".[core,genome,variant,cli,ml,dev]"
 | `genome` | pyfaidx, pysam, cyvcf2, mappy, pyliftover | reference access, indexing (Phase 2) |
 | `variant` | hgvs | HGVS resolution (Phase 4) |
 | `cli` | typer | the `aforge` command-line interface (Phase 12) |
+| `web` | fastapi, uvicorn, httpx | the web API + served frontend (Phase 13) |
 | `ml` | torch, transformers, lightning, scikit-learn | real embedding backbones (Phase 6+); the uncertainty core needs none of these |
 | `web` | fastapi, uvicorn | API server (Phase 13) |
 | `docs` | mkdocs-material, mkdocstrings | documentation site |
@@ -203,9 +204,10 @@ cd rust && maturin develop --release      # builds & installs aforge_native
 > to every eligible chemistry, enumerates and scores candidates, runs population-aware off-target, and
 > returns a ranked, explained menu (see [the designer section](#the-designer-one-variant-every-chemistry-one-ranking-phase-10-shipping-now)),
 > and [reporting & oligo output](#from-menu-to-bench-reporting--oligo-output-phase-11-shipping-now) renders it to
-> cloning-ready oligos, HTML, PDF, JSON, and TSV. The whole pipeline is also driven from the
-> [`aforge` CLI](#the-aforge-cli-phase-12-shipping-now). The only remaining phase is the web UI (13). The
-> snippets below show the lower-level building blocks the designer composes.
+> cloning-ready oligos, HTML, PDF, JSON, and TSV. The whole pipeline is driven from the
+> [`aforge` CLI](#the-aforge-cli-phase-12-shipping-now) and the
+> [web API + browser UI](#web-ui--api-phase-13-shipping-now). What remains is CRISPR-Bench (14) and
+> release (15). The snippets below show the lower-level building blocks the designer composes.
 
 ```python
 from alleleforge.types import DNASequence, Prediction, UncertaintyMethod
@@ -682,6 +684,59 @@ aforge --seed 20240501 design chr2:71:A>C \
 
 ---
 
+## Web UI & API (Phase 13, shipping now)
+
+The accessible front door for users who will not touch a terminal: a **FastAPI** backend that exposes the
+library over HTTP, and a **dependency-free served single-page frontend** that drives the variant-first
+journey in the browser. The app is a thin async layer with **no business logic of its own** — it validates
+each request with a pydantic model, calls the same functions the Python API and CLI use, and returns a
+Phase 1 / Phase 11 schema-validated response, with OpenAPI auto-generated at `/docs`.
+
+```mermaid
+flowchart LR
+    B["Browser SPA<br/>(served, no Node build)"] -->|POST /api/design| API
+    CURL["curl / httpx / any client"] -->|JSON| API
+    subgraph API["FastAPI app (local)"]
+        EP["resolve · design · offtarget<br/>data · health · jobs"]
+        JQ["in-process async job queue<br/>(thread worker + progress)"]
+        EP --> LIB
+        JQ --> LIB
+    end
+    LIB["library: resolve → design → report"] --> OUT["JSON · HTML · PDF<br/>(Phase 1 / Phase 11 schemas)"]
+```
+
+> [!IMPORTANT]
+> **Local, private, no egress.** All compute is local and user-controlled. The app makes **no outbound
+> network call** and transmits **no sequence data externally** — a guarantee enforced by a test that fails
+> if any socket connects during a design request. The served frontend says so prominently and loads no
+> third-party scripts.
+
+| Method & path | Purpose |
+|---|---|
+| `GET /api/health` | Liveness, reference status, disclaimer |
+| `POST /api/resolve` | Normalize any input form to a canonical variant |
+| `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf` |
+| `POST /api/jobs/design` → `GET /api/jobs/{id}` | Async job submit + status/progress/result |
+| `POST /api/offtarget` | Standalone population-aware off-target search |
+| `GET /api/data` · `/api/data/{name}` | Inspect the dataset registry |
+| `GET /` | The served single-page frontend |
+
+```bash
+# One-command local deploy (reference FASTA mounted at ./data/reference.fa)
+docker compose up --build          # → http://localhost:8000  ·  /docs for OpenAPI
+
+# Or run directly
+pip install "alleleforge[web]"
+ALLELEFORGE_REFERENCE_FASTA=hg38.fa uvicorn alleleforge.web.api.app:app --port 8000
+```
+
+The async job worker is **in-process** (the default deployment is single-user and local), so no broker or
+separate worker container is needed; a multi-user deployment can swap in a real broker behind the same
+`JobManager` interface. The served vanilla-JS frontend ships inside the wheel and is exercised end to end by
+the API tests; a production Next.js + JBrowse 2 frontend can replace it behind the same API unchanged.
+
+---
+
 ## Defaults cheat-sheet
 
 Every default is overridable; these are the spec-mandated starting points.
@@ -721,7 +776,7 @@ alleleforge/
 │   ├── design/               # Phases 7–10: nuclease · base · prime verticals + designer (routing · ranking)
 │   ├── report/               # Phase 11: oligos · report builder · JSON/TSV/Parquet · HTML · PDF
 │   ├── cli/                   # Phase 12: the aforge Typer CLI (resolve · design · offtarget · data)
-│   ├── web/                                 # Phase 13 (interface)
+│   ├── web/                   # Phase 13: FastAPI api/ + served frontend/ (variant-first journey)
 │   └── ...
 ├── tests/                    # mirrors src/; pytest + hypothesis
 ├── benchmark/                # CRISPR-Bench (Phase 14)

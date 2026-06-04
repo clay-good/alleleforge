@@ -208,5 +208,28 @@ acceptance.
   the echoed seed + config modulo timestamp. The `aforge` entry point now
   resolves to the real Typer app; the CI test and type-check jobs install the
   `cli` extra. CLI usage page added to the docs.
+- **Phase 13 — Web UI & API.** A FastAPI backend (`alleleforge.web.api`) exposing
+  the library over HTTP and a dependency-free served single-page frontend
+  (`alleleforge.web.frontend`). `create_app(...)` builds a thin async layer with
+  **no business logic beyond orchestration**: `resolve`, `design`
+  (`?format=json|html|pdf`), `offtarget`, `data` list/show, `bench`, and
+  `health` endpoints, each validating requests/responses against the Phase 1 /
+  Phase 11 pydantic schemas with auto-generated OpenAPI. Long design runs go
+  through an **in-process async job queue** (`POST /api/jobs/design` →
+  `GET /api/jobs/{id}`) that runs work in a worker thread with a state/progress
+  status endpoint. The reference genome is supplied by the deployment
+  (`create_app(reference=...)` or `ALLELEFORGE_REFERENCE_FASTA`); endpoints that
+  need it return `503` until one is configured. The served frontend implements
+  the variant-first journey (entry → ranked menu with interactive Plotly +
+  ancestry-stratified off-target → oligo/report export) by embedding the
+  server-rendered HTML report, with a prominent research-use disclaimer and a
+  no-egress notice. **All compute is local: the app makes no outbound network
+  call and transmits no sequence data externally**, asserted by a test that
+  fails if any socket connects during a design request. New `Dockerfile` and
+  `docker-compose.yml` for one-command local deploy; `httpx` added to the `web`
+  extra and `pytest-asyncio` to `dev`; `GenomicInterval` gains a clean
+  `chrom:start-end(strand)` `__str__`. 31 async endpoint tests (httpx +
+  ASGITransport) cover every route, schema validation, the job lifecycle, exit
+  paths, and the no-egress guarantee. Web API page added to the docs.
 
 [Unreleased]: https://github.com/clay-good/alleleforge/commits/main

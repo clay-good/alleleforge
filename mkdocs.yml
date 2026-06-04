@@ -44,6 +44,7 @@ nav:
       - Designer (routing & ranking): api/designer.md
       - Reporting & oligo output: api/report.md
       - CLI (aforge): api/cli.md
+      - Web UI & API: api/web.md
   - Scope & responsible use: scope.md
 
 markdown_extensions:

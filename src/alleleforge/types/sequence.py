@@ -180,6 +180,10 @@ class GenomicInterval(BaseModel):
         """Return the interval length in bases (coordinate-system aware)."""
         return self.length
 
+    def __str__(self) -> str:
+        """Return a compact ``chrom:start-end(strand)`` representation."""
+        return f"{self.chrom}:{self.start}-{self.end}({self.strand.value})"
+
     @property
     def length(self) -> int:
         """Return the interval length in bases.

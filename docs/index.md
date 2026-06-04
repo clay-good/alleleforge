@@ -41,8 +41,9 @@ The foundations land before any chemistry-specific or ML code.
 | 10 | Designer: routing, multi-chemistry candidate menu, ranking (`design/`) | done |
 | 11 | Reporting & oligo output (`report/`) | done |
 | 12 | CLI (`aforge`) (`cli/`) | done |
-| 13 | Web UI & API | next |
-| 14–15 | benchmark → release | planned |
+| 13 | Web UI & API (`web/`) | done |
+| 14 | CRISPR-Bench: benchmark, splits, leaderboard | next |
+| 15 | Documentation, examples, release | planned |
 
 See [Data provenance](data.md) for the versioned, license-aware dataset registry.
 

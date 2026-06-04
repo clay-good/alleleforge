@@ -32,7 +32,7 @@ jobs:
           python-version: "3.12"
       # The genome deps are installed so the genome package type-checks against
       # the real pyfaidx / pyliftover modules.
-      - run: pip install -e ".[dev,cli]" "pyfaidx>=0.8" "pyliftover>=0.4"
+      - run: pip install -e ".[dev,cli,web]" "pyfaidx>=0.8" "pyliftover>=0.4"
       - run: mypy --strict src/alleleforge
 
   test:
@@ -52,7 +52,7 @@ jobs:
       # pyliftover for chain-file liftover) so tests/genome runs and counts
       # toward the coverage gate. The heavier genome stack (pysam, cyvcf2,
       # mappy) is pulled in by later phases that need it.
-      - run: pip install -e ".[dev,cli]" "pyfaidx>=0.8" "pyliftover>=0.4"
+      - run: pip install -e ".[dev,cli,web]" "pyfaidx>=0.8" "pyliftover>=0.4"
       - run: pytest
 
   docs:
