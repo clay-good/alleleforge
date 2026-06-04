@@ -1,0 +1,159 @@
+{
+  "$defs": {
+    "SgRnaOligos": {
+      "description": "An annealed sgRNA oligo duplex for one spacer.\n\nAttributes:\n    kind: ``\"sgrna\"`` (Cas9), ``\"base-editor-sgrna\"``, or ``\"ngrna\"``.\n    spacer: The intended 5'->3' spacer (the reconstruction target).\n    top: The sense oligo to order (5'->3').\n    bottom: The antisense oligo to order (5'->3').\n    scheme: The cloning scheme used.",
+      "properties": {
+        "bottom": {
+          "title": "Bottom",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "scheme": {
+          "$ref": "#/$defs/VectorScheme"
+        },
+        "spacer": {
+          "title": "Spacer",
+          "type": "string"
+        },
+        "top": {
+          "title": "Top",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "spacer",
+        "top",
+        "bottom",
+        "scheme"
+      ],
+      "title": "SgRnaOligos",
+      "type": "object"
+    },
+    "ThreePrimeMotif": {
+      "description": "Structured 3' motifs that stabilize an epegRNA.",
+      "enum": [
+        "none",
+        "tevopreQ1",
+        "mpknot"
+      ],
+      "title": "ThreePrimeMotif",
+      "type": "string"
+    },
+    "VectorScheme": {
+      "description": "A named cloning scheme: enzyme, sticky-end overhangs, and the U6 ``G``.\n\nAttributes:\n    name: Human-readable scheme name (echoed into the oligo set).\n    enzyme: The Type IIS enzyme whose overhangs this scheme matches.\n    top_overhang: 5' overhang prepended to the sense oligo.\n    bottom_overhang: 5' overhang prepended to the antisense oligo.\n    prepend_g: Add a 5' ``G`` to the spacer for U6 transcription start.\n    citation: Protocol citation.",
+      "properties": {
+        "bottom_overhang": {
+          "title": "Bottom Overhang",
+          "type": "string"
+        },
+        "citation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citation"
+        },
+        "enzyme": {
+          "title": "Enzyme",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "prepend_g": {
+          "default": true,
+          "title": "Prepend G",
+          "type": "boolean"
+        },
+        "top_overhang": {
+          "title": "Top Overhang",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "enzyme",
+        "top_overhang",
+        "bottom_overhang"
+      ],
+      "title": "VectorScheme",
+      "type": "object"
+    }
+  },
+  "description": "The annealed oligo duplexes for one pegRNA (spacer + 3' extension).\n\nAttributes:\n    spacer: The intended pegRNA spacer (reconstruction target).\n    rtt: The intended RTT (reconstruction target).\n    pbs: The intended PBS (reconstruction target).\n    motif: The 3' epegRNA motif attached to the extension.\n    scaffold: The constant sgRNA scaffold (cloned from the vector).\n    spacer_top: Sense spacer oligo (5'->3').\n    spacer_bottom: Antisense spacer oligo (5'->3').\n    ext_top: Sense 3'-extension oligo: RTT + PBS + motif (5'->3').\n    ext_bottom: Antisense 3'-extension oligo (5'->3').\n    nicking: The ngRNA oligo duplex, when a PE3/PE3b guide is present.\n    scheme: The cloning scheme used.",
+  "properties": {
+    "ext_bottom": {
+      "title": "Ext Bottom",
+      "type": "string"
+    },
+    "ext_top": {
+      "title": "Ext Top",
+      "type": "string"
+    },
+    "motif": {
+      "$ref": "#/$defs/ThreePrimeMotif"
+    },
+    "nicking": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SgRnaOligos"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "pbs": {
+      "title": "Pbs",
+      "type": "string"
+    },
+    "rtt": {
+      "title": "Rtt",
+      "type": "string"
+    },
+    "scaffold": {
+      "title": "Scaffold",
+      "type": "string"
+    },
+    "scheme": {
+      "$ref": "#/$defs/VectorScheme"
+    },
+    "spacer": {
+      "title": "Spacer",
+      "type": "string"
+    },
+    "spacer_bottom": {
+      "title": "Spacer Bottom",
+      "type": "string"
+    },
+    "spacer_top": {
+      "title": "Spacer Top",
+      "type": "string"
+    }
+  },
+  "required": [
+    "spacer",
+    "rtt",
+    "pbs",
+    "motif",
+    "scaffold",
+    "spacer_top",
+    "spacer_bottom",
+    "ext_top",
+    "ext_bottom",
+    "nicking",
+    "scheme"
+  ],
+  "title": "PegRNAOligos",
+  "type": "object"
+}

@@ -1,0 +1,81 @@
+{
+  "$defs": {
+    "VectorScheme": {
+      "description": "A named cloning scheme: enzyme, sticky-end overhangs, and the U6 ``G``.\n\nAttributes:\n    name: Human-readable scheme name (echoed into the oligo set).\n    enzyme: The Type IIS enzyme whose overhangs this scheme matches.\n    top_overhang: 5' overhang prepended to the sense oligo.\n    bottom_overhang: 5' overhang prepended to the antisense oligo.\n    prepend_g: Add a 5' ``G`` to the spacer for U6 transcription start.\n    citation: Protocol citation.",
+      "properties": {
+        "bottom_overhang": {
+          "title": "Bottom Overhang",
+          "type": "string"
+        },
+        "citation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citation"
+        },
+        "enzyme": {
+          "title": "Enzyme",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "prepend_g": {
+          "default": true,
+          "title": "Prepend G",
+          "type": "boolean"
+        },
+        "top_overhang": {
+          "title": "Top Overhang",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "enzyme",
+        "top_overhang",
+        "bottom_overhang"
+      ],
+      "title": "VectorScheme",
+      "type": "object"
+    }
+  },
+  "description": "An annealed sgRNA oligo duplex for one spacer.\n\nAttributes:\n    kind: ``\"sgrna\"`` (Cas9), ``\"base-editor-sgrna\"``, or ``\"ngrna\"``.\n    spacer: The intended 5'->3' spacer (the reconstruction target).\n    top: The sense oligo to order (5'->3').\n    bottom: The antisense oligo to order (5'->3').\n    scheme: The cloning scheme used.",
+  "properties": {
+    "bottom": {
+      "title": "Bottom",
+      "type": "string"
+    },
+    "kind": {
+      "title": "Kind",
+      "type": "string"
+    },
+    "scheme": {
+      "$ref": "#/$defs/VectorScheme"
+    },
+    "spacer": {
+      "title": "Spacer",
+      "type": "string"
+    },
+    "top": {
+      "title": "Top",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "spacer",
+    "top",
+    "bottom",
+    "scheme"
+  ],
+  "title": "SgRnaOligos",
+  "type": "object"
+}

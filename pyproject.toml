@@ -149,6 +149,8 @@ module = [
     "torch.*",
     "transformers",
     "transformers.*",
+    "polars",
+    "polars.*",
 ]
 ignore_missing_imports = true
 

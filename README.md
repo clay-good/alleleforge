@@ -147,8 +147,8 @@ AlleleForge is built in ordered phases (see [`SPEC.md`](SPEC.md), the authoritat
 | 8 | Chemistry: base editing — ABE / CBE (`enumerate/`, `scoring/`, `design/`) | ✅ done |
 | 9 | Chemistry: prime editing — the flagship (`enumerate/`, `scoring/`, `design/`) | ✅ done |
 | 10 | Designer: routing, candidate menu, ranking (`design/`) | ✅ done |
-| 11 | Reporting &amp; oligo output | ⏳ next |
-| 12 | CLI (`aforge`) | ◻️ planned |
+| 11 | Reporting &amp; oligo output (`report/`) | ✅ done |
+| 12 | CLI (`aforge`) | ⏳ next |
 | 13 | Web UI &amp; API | ◻️ planned |
 | 14 | CRISPR-Bench: benchmark, splits, leaderboard | ◻️ planned |
 | 15 | Docs, examples, release | ◻️ planned |
@@ -200,9 +200,10 @@ cd rust && maturin develop --release      # builds & installs aforge_native
 
 > The end-to-end design pipeline is **live**: `alleleforge.design.design()` resolves a variant, routes it
 > to every eligible chemistry, enumerates and scores candidates, runs population-aware off-target, and
-> returns a ranked, explained menu (see [the designer section](#the-designer-one-variant-every-chemistry-one-ranking-phase-10-shipping-now)).
-> The remaining phases add reporting/oligo export (11), the `aforge` CLI (12), and the web UI (13). The
-> snippets below show the lower-level building blocks the designer composes.
+> returns a ranked, explained menu (see [the designer section](#the-designer-one-variant-every-chemistry-one-ranking-phase-10-shipping-now)),
+> and [reporting & oligo output](#from-menu-to-bench-reporting--oligo-output-phase-11-shipping-now) renders it to
+> cloning-ready oligos, HTML, PDF, JSON, and TSV. The remaining phases add the `aforge` CLI (12) and the web
+> UI (13). The snippets below show the lower-level building blocks the designer composes.
 
 ```python
 from alleleforge.types import DNASequence, Prediction, UncertaintyMethod
@@ -588,6 +589,55 @@ print(menu.provenance.seed)                   # reproducible to the byte
 
 ---
 
+## From menu to bench: reporting & oligo output (Phase 11, shipping now)
+
+A ranked menu is only useful if a bench scientist can order it and a pipeline can
+parse it. Phase 11 turns a `RankedMenu` into the artifacts users actually consume —
+**cloning-ready oligos**, a structured report model, machine-readable exports, an
+**interactive HTML** page, and a **static print-ready PDF** — every render leading
+with the research-use disclaimer and ending with full provenance. The whole phase
+is **dependency-free**: no plotting library, no PDF toolchain, nothing for CI to
+flake on.
+
+```mermaid
+flowchart LR
+    M["RankedMenu"] --> B["build_report()"]
+    B --> R["DesignReport<br/>disclaimer · candidates · provenance"]
+    R --> OL["oligos_for()<br/>annealed duplexes, round-trip-checked"]
+    R --> J["JSON / TSV / Parquet<br/>(machine-readable)"]
+    R --> H["render_html()<br/>interactive Plotly, ancestry tables"]
+    R --> P["render_pdf()<br/>print-ready, pure-Python"]
+```
+
+**Cloning oligos round-trip by construction.** `oligos_for(candidate)` dispatches
+by chemistry; the cardinal invariant — enforced on build and re-checked by
+`reconstruct()` — is that the oligos rebuild the intended spacer / RTT / PBS. A
+design whose oligos do not reconstruct is a cloning error caught before synthesis.
+
+| Chemistry | Oligos emitted | Default scheme |
+|---|---|---|
+| SpCas9 sgRNA | one duplex (vector 5' overhangs + U6 `G`) | lentiGuide BsmBI |
+| Base-editor sgRNA | one duplex (standard sgRNA) | lentiGuide BsmBI |
+| pegRNA | spacer duplex + 3' extension (RTT + PBS + epegRNA motif) + ngRNA duplex | pegRNA GG BsaI |
+
+**Honest rendering.** HTML charts are interactive Plotly figures pulled from a CDN
+with each figure's spec inlined as JSON — so no Python plotting dependency is
+needed and **no sequence data leaves the page**. Off-target tables are
+ancestry-stratified, surfacing the worst-affected population per candidate. The PDF
+is a small self-contained writer (no weasyprint / reportlab) for a clean leave-behind.
+
+```python
+from alleleforge.report import build_report, render_html, render_pdf, report_to_tsv
+
+report = build_report(menu, variant="chr11:5226778:T>A", intent="correct")
+open("report.html", "w").write(render_html(report))     # interactive, self-contained
+open("report.pdf", "wb").write(render_pdf(report))      # static, print-ready
+open("menu.tsv", "w").write(report_to_tsv(report))      # one row per candidate
+report.best.oligos.reconstruct()                         # ('spacer', 'rtt', 'pbs')
+```
+
+---
+
 ## Defaults cheat-sheet
 
 Every default is overridable; these are the spec-mandated starting points.
@@ -625,7 +675,8 @@ alleleforge/
 │   ├── scoring/              # Phase 6: embeddings, uncertainty, Scorer (this release)
 │   ├── enumerate/            # Phases 7–9: SpCas9 guide · base-editor window · pegRNA enumeration
 │   ├── design/               # Phases 7–10: nuclease · base · prime verticals + designer (routing · ranking)
-│   ├── report/ cli/ web/                   # Phases 11–13 (interfaces)
+│   ├── report/               # Phase 11: oligos · report builder · JSON/TSV/Parquet · HTML · PDF
+│   ├── cli/ web/                            # Phases 12–13 (interfaces)
 │   └── ...
 ├── tests/                    # mirrors src/; pytest + hypothesis
 ├── benchmark/                # CRISPR-Bench (Phase 14)

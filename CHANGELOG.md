@@ -172,5 +172,27 @@ acceptance.
   and a full provenance block. **Degrades gracefully** — an unavailable model, a
   failing enumeration, or a chemistry that finds nothing is recorded with its
   reason in the menu rationale while the rest of the menu still returns.
+- **Phase 11 — Reporting & oligo output.** Turns a ranked menu into the
+  artifacts users consume, leading with the research-use disclaimer and ending
+  with full provenance on every render — **dependency-free**.
+  `alleleforge.report.oligos`: cloning-ready annealed oligo duplexes per
+  chemistry — SpCas9 / base-editor sgRNAs (vector overhangs + U6 `G`) and
+  pegRNAs (spacer duplex + 3' extension carrying RTT + PBS + the epegRNA motif,
+  plus the PE3/PE3b ngRNA duplex) — parameterized by named `VectorScheme`s
+  (lentiGuide BsmBI, pX330 BbsI, pegRNA GG BsaI). Every set `reconstruct()`s the
+  intended spacer / RTT / PBS, the headline round-trip invariant.
+  `alleleforge.report.builder`: assembles a `RankedMenu` into a serializable
+  `DesignReport` (per-candidate reagent summary, calibrated efficiency, top
+  outcome alleles, ancestry-stratified off-target table, oligos, flags,
+  rationale). `alleleforge.report.export`: JSON (full report, or the menu
+  validated against the Phase 1 schemas), one-row-per-candidate TSV, and
+  lazy-`polars` Parquet. `alleleforge.report.html`: a self-contained interactive
+  HTML page — Plotly charts pulled from a CDN with figure specs inlined as JSON
+  (no Python plotting dependency, no sequence data leaves the page) — and
+  `alleleforge.report.pdf`: a small pure-Python writer emitting a valid,
+  print-ready multi-page PDF. JSON Schemas emitted for the new report and oligo
+  models. Cites the lentiCRISPRv2 (Sanjana et al. 2014), pX330 (Ran et al.
+  2013), pegRNA GG-acceptor (Anzalone et al. 2019), and epegRNA motif (Nelson
+  et al. 2022) cloning protocols.
 
 [Unreleased]: https://github.com/clay-good/alleleforge/commits/main

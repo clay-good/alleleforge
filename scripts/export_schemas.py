@@ -22,6 +22,8 @@ from alleleforge.data.haplotypes import Haplotype
 from alleleforge.data.registry import DatasetDescriptor
 from alleleforge.enumerate.base_editor import BaseEditor
 from alleleforge.model_zoo.registry import ModelCard
+from alleleforge.report.builder import AncestryOffTarget, CandidateReport, DesignReport
+from alleleforge.report.oligos import PegRNAOligos, SgRnaOligos, VectorScheme
 from alleleforge.variant.effect import VariantEffect
 from alleleforge.variant.hgvs_adapter import ParsedGenomicHgvs
 from alleleforge.variant.resolver import RawTarget, ResolvedVariant, VcfRecord
@@ -67,6 +69,13 @@ _MODELS: list[type[BaseModel]] = [
     ModelCard,
     # Phase 8 — base editing.
     BaseEditor,
+    # Phase 11 — reporting & oligo output.
+    VectorScheme,
+    SgRnaOligos,
+    PegRNAOligos,
+    AncestryOffTarget,
+    CandidateReport,
+    DesignReport,
 ]
 
 

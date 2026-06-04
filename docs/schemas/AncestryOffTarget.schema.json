@@ -1,0 +1,19 @@
+{
+  "description": "The worst-case off-target score for one ancestry.",
+  "properties": {
+    "ancestry": {
+      "title": "Ancestry",
+      "type": "string"
+    },
+    "worst_score": {
+      "title": "Worst Score",
+      "type": "number"
+    }
+  },
+  "required": [
+    "ancestry",
+    "worst_score"
+  ],
+  "title": "AncestryOffTarget",
+  "type": "object"
+}
