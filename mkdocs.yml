@@ -43,6 +43,7 @@ nav:
       - Prime editing: api/prime.md
       - Designer (routing & ranking): api/designer.md
       - Reporting & oligo output: api/report.md
+      - CLI (aforge): api/cli.md
   - Scope & responsible use: scope.md
 
 markdown_extensions:

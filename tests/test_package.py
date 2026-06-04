@@ -1,10 +1,13 @@
-"""Tests for the top-level package, version, native bridge, and CLI."""
+"""Tests for the top-level package, version, and native bridge.
+
+The ``aforge`` CLI is exercised in ``tests/cli/`` (it requires the optional
+``cli`` extra); these tests stay dependency-free.
+"""
 
 from __future__ import annotations
 
 import alleleforge as af
 from alleleforge import _native
-from alleleforge.cli.main import app
 
 
 def test_version_is_exposed() -> None:
@@ -30,16 +33,3 @@ def test_native_version_consistency() -> None:
     if nv is not None:
         assert nv == af.__version__
     _native.assert_native_matches_python()  # no-op when not built
-
-
-def test_cli_version(capsys: object) -> None:
-    assert app(["--version"]) == 0
-    out = capsys.readouterr().out  # type: ignore[attr-defined]
-    assert "0.1.0.dev0" in out
-
-
-def test_cli_default_banner(capsys: object) -> None:
-    assert app([]) == 0
-    out = capsys.readouterr().out  # type: ignore[attr-defined]
-    assert "aforge" in out
-    assert "native extension" in out

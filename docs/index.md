@@ -40,8 +40,9 @@ The foundations land before any chemistry-specific or ML code.
 | 9 | Chemistry: prime editing — the flagship (`enumerate/`, `scoring/`, `design/`) | done |
 | 10 | Designer: routing, multi-chemistry candidate menu, ranking (`design/`) | done |
 | 11 | Reporting & oligo output (`report/`) | done |
-| 12 | CLI (`aforge`) | next |
-| 13–15 | web → benchmark → release | planned |
+| 12 | CLI (`aforge`) (`cli/`) | done |
+| 13 | Web UI & API | next |
+| 14–15 | benchmark → release | planned |
 
 See [Data provenance](data.md) for the versioned, license-aware dataset registry.
 

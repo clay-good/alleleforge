@@ -148,8 +148,8 @@ AlleleForge is built in ordered phases (see [`SPEC.md`](SPEC.md), the authoritat
 | 9 | Chemistry: prime editing — the flagship (`enumerate/`, `scoring/`, `design/`) | ✅ done |
 | 10 | Designer: routing, candidate menu, ranking (`design/`) | ✅ done |
 | 11 | Reporting &amp; oligo output (`report/`) | ✅ done |
-| 12 | CLI (`aforge`) | ⏳ next |
-| 13 | Web UI &amp; API | ◻️ planned |
+| 12 | CLI (`aforge`) (`cli/`) | ✅ done |
+| 13 | Web UI &amp; API | ⏳ next |
 | 14 | CRISPR-Bench: benchmark, splits, leaderboard | ◻️ planned |
 | 15 | Docs, examples, release | ◻️ planned |
 
@@ -167,7 +167,7 @@ pip install alleleforge            # once published to PyPI
 # From source, with the optional groups you need
 git clone https://github.com/clay-good/alleleforge
 cd alleleforge
-pip install -e ".[core,genome,variant,ml,dev]"
+pip install -e ".[core,genome,variant,cli,ml,dev]"
 ```
 
 ### Optional dependency groups
@@ -177,6 +177,7 @@ pip install -e ".[core,genome,variant,ml,dev]"
 | `core` | polars, pyarrow, numpy | tabular I/O |
 | `genome` | pyfaidx, pysam, cyvcf2, mappy, pyliftover | reference access, indexing (Phase 2) |
 | `variant` | hgvs | HGVS resolution (Phase 4) |
+| `cli` | typer | the `aforge` command-line interface (Phase 12) |
 | `ml` | torch, transformers, lightning, scikit-learn | real embedding backbones (Phase 6+); the uncertainty core needs none of these |
 | `web` | fastapi, uvicorn | API server (Phase 13) |
 | `docs` | mkdocs-material, mkdocstrings | documentation site |
@@ -202,8 +203,9 @@ cd rust && maturin develop --release      # builds & installs aforge_native
 > to every eligible chemistry, enumerates and scores candidates, runs population-aware off-target, and
 > returns a ranked, explained menu (see [the designer section](#the-designer-one-variant-every-chemistry-one-ranking-phase-10-shipping-now)),
 > and [reporting & oligo output](#from-menu-to-bench-reporting--oligo-output-phase-11-shipping-now) renders it to
-> cloning-ready oligos, HTML, PDF, JSON, and TSV. The remaining phases add the `aforge` CLI (12) and the web
-> UI (13). The snippets below show the lower-level building blocks the designer composes.
+> cloning-ready oligos, HTML, PDF, JSON, and TSV. The whole pipeline is also driven from the
+> [`aforge` CLI](#the-aforge-cli-phase-12-shipping-now). The only remaining phase is the web UI (13). The
+> snippets below show the lower-level building blocks the designer composes.
 
 ```python
 from alleleforge.types import DNASequence, Prediction, UncertaintyMethod
@@ -246,17 +248,18 @@ print(clinvar.version, clinvar.license)       # 2024-05  public-domain (NCBI)
 # and checksum-verified. See docs/data.md for the full provenance table.
 ```
 
-The target journey (Phase 12 CLI):
+The same journey from the `aforge` CLI (`pip install "alleleforge[cli]"`):
 
 ```bash
-# Variant → ranked, safety-annotated menu of candidate edits
-aforge design --clinvar VCV000012345 --intent correct --populations all
+# Variant → ranked, safety-annotated menu, rendered as an interactive HTML report
+aforge design VCV000012345 --reference-fasta hg38.fa \
+    --intent correct --populations afr,eur,eas --format html --out report.html
 
 # Standalone population/haplotype-aware off-target for a spacer
-aforge offtarget --spacer GACGGAGGCTAAGCGTCGCAA --pam NGG
+aforge offtarget GACGGAGGCTAAGCGTCGCAA --reference-fasta hg38.fa --pam NGG --json
 
-# Normalize any input form and show its consequence (debugging aid)
-aforge resolve --hgvs "NM_000518.5:c.20A>T"
+# Normalize any input form and show its class (debugging aid)
+aforge resolve chr2:100:A>G --json
 ```
 
 ---
@@ -638,6 +641,47 @@ report.best.oligos.reconstruct()                         # ('spacer', 'rtt', 'pb
 
 ---
 
+## The `aforge` CLI (Phase 12, shipping now)
+
+A thin, reproducible, config-driven [Typer](https://typer.tiangolo.com/) shell over the library — **no
+business logic of its own**. Every command resolves its inputs, calls the same functions the Python API
+exposes, and can emit machine-readable JSON. Install with `pip install "alleleforge[cli]"`.
+
+```mermaid
+flowchart LR
+    CFG["--config run.toml<br/>+ CLI flags + --seed"] --> CMD
+    CMD["aforge subcommand"] --> RES["resolve"]
+    CMD --> DES["design"]
+    CMD --> OT["offtarget"]
+    CMD --> DAT["data list/show"]
+    DES --> R["library: resolve → design → report"]
+    R --> OUT["JSON · TSV · HTML · PDF<br/>+ .provenance.json sidecar"]
+```
+
+| Command | Purpose |
+|---|---|
+| `aforge resolve <input>` | Normalize any input form; show the canonical variant + class. |
+| `aforge design <input>` | Variant → ranked, multi-chemistry menu rendered to JSON/TSV/HTML/PDF. |
+| `aforge offtarget <spacer>` | Standalone population/haplotype-aware off-target search. |
+| `aforge data list` / `show <name>` | Inspect the dataset registry (versions, licenses, provenance). |
+| `aforge bench` | Run CRISPR-Bench tasks (wired in Phase 14). |
+
+Global options sit before the subcommand (`--seed`, `--reference`, `--cache-dir`, `--verbose`,
+`--version`); every command takes `--json`. **Exit codes are distinct and scriptable**: `0` success,
+`2` usage/input error, `3` missing data (e.g. reference FASTA not found), `4` an unavailable model or
+feature. A run is reproducible from its echoed `--seed` + config (byte-identical modulo the UTC
+timestamp), and a `<output>.provenance.json` sidecar is written next to every file output.
+
+```bash
+# Reproducible design from a config file; CLI flags override the file
+aforge --seed 20240501 design chr2:71:A>C \
+    --reference-fasta hg38.fa --config run.toml \
+    --chemistry prime --weights 0.5,0.2,0.2,0.1 --format html --out report.html
+# → wrote report.html and report.html.provenance.json
+```
+
+---
+
 ## Defaults cheat-sheet
 
 Every default is overridable; these are the spec-mandated starting points.
@@ -676,7 +720,8 @@ alleleforge/
 │   ├── enumerate/            # Phases 7–9: SpCas9 guide · base-editor window · pegRNA enumeration
 │   ├── design/               # Phases 7–10: nuclease · base · prime verticals + designer (routing · ranking)
 │   ├── report/               # Phase 11: oligos · report builder · JSON/TSV/Parquet · HTML · PDF
-│   ├── cli/ web/                            # Phases 12–13 (interfaces)
+│   ├── cli/                   # Phase 12: the aforge Typer CLI (resolve · design · offtarget · data)
+│   ├── web/                                 # Phase 13 (interface)
 │   └── ...
 ├── tests/                    # mirrors src/; pytest + hypothesis
 ├── benchmark/                # CRISPR-Bench (Phase 14)

@@ -48,6 +48,9 @@ genome = [
 variant = [
     "hgvs>=1.5",
 ]
+cli = [
+    "typer>=0.12",
+]
 ml = [
     "torch>=2.3",
     "transformers>=4.40",

@@ -194,5 +194,19 @@ acceptance.
   models. Cites the lentiCRISPRv2 (Sanjana et al. 2014), pX330 (Ran et al.
   2013), pegRNA GG-acceptor (Anzalone et al. 2019), and epegRNA motif (Nelson
   et al. 2022) cloning protocols.
+- **Phase 12 — CLI (`aforge`).** A thin, reproducible, config-driven Typer shell
+  over the library (new optional `cli` extra) with **no business logic** of its
+  own. `aforge resolve` normalizes any input form; `aforge design` runs the full
+  variant→ranked-menu pipeline and renders JSON / TSV / HTML / PDF (writing a
+  `.provenance.json` sidecar next to file output); `aforge offtarget` runs a
+  standalone population-aware search for a spacer; `aforge data list`/`show`
+  inspects the dataset registry; `aforge bench` is wired for Phase 14. Global
+  `--seed` / `--reference` / `--cache-dir` / `--verbose` / `--version`, a
+  `--json` flag on every command, `--config run.toml` with CLI overrides, and
+  ranking-`--weights` parsing. Meaningful, distinct exit codes (`0` ok, `2`
+  usage, `3` missing data, `4` unavailable feature); runs are reproducible from
+  the echoed seed + config modulo timestamp. The `aforge` entry point now
+  resolves to the real Typer app; the CI test and type-check jobs install the
+  `cli` extra. CLI usage page added to the docs.
 
 [Unreleased]: https://github.com/clay-good/alleleforge/commits/main
