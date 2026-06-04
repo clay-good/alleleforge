@@ -41,6 +41,7 @@ nav:
       - SpCas9 nuclease: api/cas9.md
       - Base editing (ABE / CBE): api/base_editor.md
       - Prime editing: api/prime.md
+      - Designer (routing & ranking): api/designer.md
   - Scope & responsible use: scope.md
 
 markdown_extensions:

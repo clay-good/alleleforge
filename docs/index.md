@@ -38,8 +38,9 @@ The foundations land before any chemistry-specific or ML code.
 | 7 | Chemistry: SpCas9 nuclease (`enumerate/`, `scoring/`, `design/`) | done |
 | 8 | Chemistry: base editing — ABE / CBE | done |
 | 9 | Chemistry: prime editing — the flagship (`enumerate/`, `scoring/`, `design/`) | done |
-| 10 | Designer: routing, multi-chemistry candidate menu, ranking | next |
-| 11–15 | Report → CLI → web → benchmark → release | planned |
+| 10 | Designer: routing, multi-chemistry candidate menu, ranking (`design/`) | done |
+| 11 | Reporting & oligo output | next |
+| 12–15 | CLI → web → benchmark → release | planned |
 
 See [Data provenance](data.md) for the versioned, license-aware dataset registry.
 

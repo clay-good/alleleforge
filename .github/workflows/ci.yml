@@ -54,3 +54,17 @@ jobs:
       # mappy) is pulled in by later phases that need it.
       - run: pip install -e ".[dev]" "pyfaidx>=0.8" "pyliftover>=0.4"
       - run: pytest
+
+  docs:
+    name: Docs (mkdocs --strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # mkdocstrings imports the package to render the API reference, so the
+      # core install plus the genome deps (pyfaidx is a top-level import in the
+      # genome layer) are needed alongside the docs toolchain.
+      - run: pip install -e ".[docs]" "pyfaidx>=0.8" "pyliftover>=0.4"
+      - run: mkdocs build --strict

@@ -21,7 +21,7 @@ acceptance.
   benchmark, and first-party weights; `CITATION.cff`, Contributor
   Covenant 2.1 code of conduct, contributing guide, multi-stage `Dockerfile`,
   `docker-compose.yml` stub, conda environment file, and a GitHub Actions CI
-  matrix (lint, type-check, test, Rust build, docs).
+  matrix (lint, type-check, test, strict docs build).
 - **Phase 1 — Core domain types & schemas.** The typed vocabulary under
   `alleleforge.types`: strand-aware `DNASequence` with ambiguity-aware
   reverse-complement, `GenomicInterval` (0-based half-open), `Variant` with
@@ -151,5 +151,26 @@ acceptance.
   placement / nick-site fields. Bundled PRIDICT2.0 card; canonical example
   `examples/01_clinvar_to_design.ipynb`. Cites Mathis et al. 2023/2024
   (PRIDICT / PRIDICT2.0 / ePRIDICT).
+- **Phase 10 — Designer: routing, multi-chemistry menu, ranking.** The
+  orchestrator that turns one variant into a ranked, explained menu across every
+  eligible chemistry. `alleleforge.design.routing`: `eligible_chemistries` and
+  `route` over a small table of transparent, inspectable `RoutingRule`s — each a
+  chemistry paired with a one-line biological rationale and a pure
+  `(resolved, intent)` predicate (a transition SNV → base editing; any precise
+  small edit → prime; disruption intent → nuclease). Adding or relaxing a rule is
+  a one-line data change and every verdict is explained.
+  `alleleforge.design.ranking`: multi-objective ranking projecting every
+  candidate — regardless of chemistry — onto four shared, higher-is-better
+  objectives (calibrated efficiency, outcome cleanliness, off-target safety,
+  reagent simplicity), ordered by a transparent weighted sum (defaults 0.35 /
+  0.30 / 0.30 / 0.05, all overridable and echoed in output) **and** a Pareto
+  front. The safety term is computed against the **worst-affected ancestry**, not
+  the average, so a guide safe on average but dangerous in one population is
+  correctly down-ranked. `alleleforge.design.designer.design`: resolves any input
+  form (or an already-`ResolvedVariant`), routes, enumerates and scores per
+  chemistry, ranks across them, and returns a `RankedMenu` with the Pareto front
+  and a full provenance block. **Degrades gracefully** — an unavailable model, a
+  failing enumeration, or a chemistry that finds nothing is recorded with its
+  reason in the menu rationale while the rest of the menu still returns.
 
 [Unreleased]: https://github.com/clay-good/alleleforge/commits/main

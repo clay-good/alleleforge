@@ -146,8 +146,8 @@ AlleleForge is built in ordered phases (see [`SPEC.md`](SPEC.md), the authoritat
 | 7 | Chemistry: SpCas9 nuclease (`enumerate/`, `scoring/`, `design/`) | ✅ done |
 | 8 | Chemistry: base editing — ABE / CBE (`enumerate/`, `scoring/`, `design/`) | ✅ done |
 | 9 | Chemistry: prime editing — the flagship (`enumerate/`, `scoring/`, `design/`) | ✅ done |
-| 10 | Designer: routing, candidate menu, ranking | ⏳ next |
-| 11 | Reporting &amp; oligo output | ◻️ planned |
+| 10 | Designer: routing, candidate menu, ranking (`design/`) | ✅ done |
+| 11 | Reporting &amp; oligo output | ⏳ next |
 | 12 | CLI (`aforge`) | ◻️ planned |
 | 13 | Web UI &amp; API | ◻️ planned |
 | 14 | CRISPR-Bench: benchmark, splits, leaderboard | ◻️ planned |
@@ -198,10 +198,11 @@ cd rust && maturin develop --release      # builds & installs aforge_native
 
 ## Quickstart
 
-> The end-to-end design pipeline lands incrementally across the modality phases (6–12). Today the
-> package exposes the **core vocabulary**, **genome access**, the **data registry**, and the
-> **variant resolver** — the entire front half of the variant-first journey. The snippets below work
-> now; the full `design()` call arrives as the modality phases complete.
+> The end-to-end design pipeline is **live**: `alleleforge.design.design()` resolves a variant, routes it
+> to every eligible chemistry, enumerates and scores candidates, runs population-aware off-target, and
+> returns a ranked, explained menu (see [the designer section](#the-designer-one-variant-every-chemistry-one-ranking-phase-10-shipping-now)).
+> The remaining phases add reporting/oligo export (11), the `aforge` CLI (12), and the web UI (13). The
+> snippets below show the lower-level building blocks the designer composes.
 
 ```python
 from alleleforge.types import DNASequence, Prediction, UncertaintyMethod
@@ -525,6 +526,68 @@ edited strand, suppressing indels). See the canonical journey end to end in
 
 ---
 
+## The designer: one variant, every chemistry, one ranking (Phase 10, shipping now)
+
+The keystone that realizes the variant-first promise end to end. `design()` takes any input form, decides
+which chemistries can biologically make the edit, generates and scores candidates from each, ranks them on
+**one footing**, and returns an explained `RankedMenu` with a Pareto front and full provenance.
+
+```mermaid
+flowchart LR
+    V["variant input<br/>(any form)"] --> R["resolve()"]
+    R --> RT["route()<br/>transparent rules:<br/>variant class + intent"]
+    RT --> ABE["base ABE/CBE<br/>(transition SNV)"]
+    RT --> PE["prime<br/>(precise small edit)"]
+    RT --> NUC["nuclease<br/>(disruption intent)"]
+    ABE & PE & NUC --> RANK["rank_candidates()<br/>weighted sum + Pareto front"]
+    RANK --> M["RankedMenu<br/>ordered · rationale ·<br/>Pareto front · provenance"]
+```
+
+**Routing is transparent and inspectable.** Each rule is a chemistry paired with a one-line biological
+rationale and a pure `(resolved, intent)` predicate. Adding or relaxing a rule is a one-line data change,
+and `route()` explains every verdict — kept *and* dropped.
+
+| Chemistry | Eligible when | Biological reason |
+|---|---|---|
+| Base editing (ABE) | transition SNV, required change `A:T→G:C` | one in-window transition, no double-strand break — the cleanest fix |
+| Base editing (CBE) | transition SNV, required change `G:C→A:T` | same, complementary transition |
+| Prime editing | any precise small edit (≤ RTT length), non-disruptive intent | arbitrary substitutions / short indels from an RTT template, no break |
+| SpCas9 nuclease | disruption (knock-out) intent | a break repaired by NHEJ yields frameshifting indels |
+
+**Ranking puts every chemistry on one footing.** Candidates are projected onto four shared,
+higher-is-better objectives and ordered by a transparent weighted sum, with the Pareto front always
+exposed for users who weight differently.
+
+| Objective | Definition | Default weight |
+|---|---|:---:|
+| Efficiency | calibrated on-target efficiency point estimate | 0.35 |
+| Cleanliness | probability mass on the intended allele | 0.30 |
+| Safety | `1 − off-target score` of the **worst-affected ancestry** | 0.30 |
+| Simplicity | reagent simplicity (single sgRNA > pegRNA + nick + motif) | 0.05 |
+
+The safety term uses the **worst-affected ancestry**, never the average, so a guide safe on average but
+dangerous in one population is correctly down-ranked. The designer **degrades gracefully**: an unavailable
+model, a failing enumeration, or a chemistry that finds nothing is recorded with its reason in the menu
+rationale while the rest of the menu still returns.
+
+```python
+from alleleforge.design import design, eligible_chemistries
+from alleleforge.types.edit import EditIntent
+
+# Which chemistries can even make this edit?
+print(eligible_chemistries(resolved, EditIntent.CORRECT))   # [BASE_CBE, PRIME]
+
+# One call: resolve → route → enumerate → score → off-target → rank.
+menu = design("VCV000012345", reference=hg38, clinvar=clinvar_db,
+              intent=EditIntent.CORRECT, populations=["afr", "eur", "eas"])
+best = menu.best
+print(best.chemistry, best.rationale)        # includes the score breakdown
+print(menu.pareto_front)                      # trade-off-optimal candidates
+print(menu.provenance.seed)                   # reproducible to the byte
+```
+
+---
+
 ## Defaults cheat-sheet
 
 Every default is overridable; these are the spec-mandated starting points.
@@ -561,7 +624,7 @@ alleleforge/
 │   ├── model_zoo/            # Phase 6: license-gated model cards + checkpoints
 │   ├── scoring/              # Phase 6: embeddings, uncertainty, Scorer (this release)
 │   ├── enumerate/            # Phases 7–9: SpCas9 guide · base-editor window · pegRNA enumeration
-│   ├── design/               # Phases 7–9: nuclease · base-editor · prime verticals (designer: Phase 10)
+│   ├── design/               # Phases 7–10: nuclease · base · prime verticals + designer (routing · ranking)
 │   ├── report/ cli/ web/                   # Phases 11–13 (interfaces)
 │   └── ...
 ├── tests/                    # mirrors src/; pytest + hypothesis
@@ -582,8 +645,10 @@ pytest                         # tests + ≥85% coverage gate on core
 cd rust && cargo test && maturin develop   # native crate
 ```
 
-CI (GitHub Actions) runs lint, type-check, tests (Python 3.11 + 3.12 on Linux &amp; macOS), the Rust build,
-and a docs build on every push and PR. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+CI (GitHub Actions) runs lint, type-check (`mypy --strict`), tests (Python 3.11 + 3.12 on Linux &amp; macOS),
+and a strict docs build on every push and PR. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+The native Rust crate builds locally with maturin (`cd rust && maturin develop`); the library runs in
+pure-Python mode without it.
 
 Contributions are welcome — please read [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
 [Contributor Covenant 2.1](CODE_OF_CONDUCT.md) code of conduct.
