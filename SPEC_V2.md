@@ -82,15 +82,18 @@ published models, with the checkpoint recorded in every result's provenance.
     (no network, no torch); the actual tensor load stays `real_weights`-gated.
   - `model_checkpoint()` on the embedder so a scorer can stamp the backbone into
     provenance.
-- **Per-chemistry real scorers**, each behind its card and the same flow:
-  - Cas9 efficiency: load the fitted **Rule Set 3** coefficients (replace the
-    documented feature baseline) and the deep-ensemble heads.
-  - Cas9 outcome: **inDelphi / Lindel / FORECasT** weights into the existing
-    `predict()` stubs (currently `NotImplementedError`).
-  - Base-edit outcome: **BE-DICT / BE-Hive** weights.
-  - Prime efficiency: **DeepPrime / GenET** trained adapters now route their
-    weights through the consent/license/checksum gate (◐ landed — the forward
-    pass over the loaded weights remains the next step); PRIDICT2.0 trained
+- **Shared weight gate (◐ landed).** One `model_zoo.loader.WeightGate` mixin
+  implements the consent/license/checksum resolution for *every* trained model, so
+  the flow lives in one place rather than per chemistry.
+- **Per-chemistry real scorers**, each behind its card and the shared gate. The
+  **consent/license/checksum resolution is wired for all of them** (◐); the
+  trained **forward pass** over the loaded weights is the remaining step (needs
+  the real weights / `real_weights`):
+  - Cas9 efficiency: the backbone resolves through the gate; loading the fitted
+    **Rule Set 3** coefficients + deep-ensemble heads is next.
+  - Cas9 outcome: **inDelphi / Lindel / X-CRISP** adapters gated (◐); forward pass next.
+  - Base-edit outcome: **BE-DICT / BE-Hive** adapters gated (◐); forward pass next.
+  - Prime efficiency: **DeepPrime / GenET** adapters gated (◐); PRIDICT2.0 trained
     weights replace the heuristic next.
 - **ONNX export** path (`export_onnx`) for the backbone, for portable inference.
 

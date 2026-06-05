@@ -7,7 +7,6 @@ import math
 import pytest
 
 from alleleforge.enumerate.base_editor import BASE_EDITORS
-from alleleforge.model_zoo.registry import CardError
 from alleleforge.scoring.base_outcome import (
     BaseEditOutcomePredictor,
     BeDictAdapter,
@@ -111,6 +110,22 @@ def test_bedict_adapter_interface() -> None:
     assert BeDictAdapter().model_card().name == "be-dict"
 
 
-def test_behive_card_missing() -> None:
-    with pytest.raises(CardError, match="no model card"):
-        BeHiveAdapter().model_card()  # no 'be-hive' card is bundled
+def test_behive_card_now_bundled() -> None:
+    # BE-Hive ships a bundled, license-gated card (research-only).
+    assert BeHiveAdapter().model_card().name == "be-hive"
+
+
+def test_base_outcome_adapter_predict_requires_consent() -> None:
+    from alleleforge.model_zoo.registry import ConsentError
+
+    w = _window("TTTAAACGTTTTTTTTTTTT", target=6, bystanders=(4, 5))
+    with pytest.raises(ConsentError, match="consent"):
+        BeDictAdapter().predict(w, _ABE)
+
+
+def test_base_outcome_adapter_blocks_commercial_use() -> None:
+    from alleleforge.model_zoo.registry import LicenseError, ModelUse
+
+    # The trained adapters are research-only; commercial use is refused.
+    with pytest.raises(LicenseError, match="commercial"):
+        BeHiveAdapter(use=ModelUse.COMMERCIAL, consent=True).resolve_weights()

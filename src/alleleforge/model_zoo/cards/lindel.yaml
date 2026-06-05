@@ -1,0 +1,23 @@
+# Model card — trained SpCas9 repair-outcome adapter (Lindel, optional).
+name: lindel
+version: "1.0"
+chemistry: cas9_nuclease
+training_data: >-
+  Cas9-induced indel outcome libraries, a logistic-regression model over local
+  sequence features predicting the insertion/deletion length-and-sequence
+  distribution at a cut site.
+metrics:
+  outcome_classes: 557.0
+intended_use: >-
+  Trained SpCas9 repair-outcome (indel spectrum) prediction, as a cross-check
+  against the microhomology baseline and inDelphi. Research use.
+out_of_scope_use: >-
+  Clinical decision-making; chemistries other than SpCas9 nuclease; cell contexts
+  far from the training distribution.
+license: research-only
+citation: "Chen et al., Nucleic Acids Res 2019 (Lindel)"
+known_failure_modes:
+  - "Trained predominantly in one cell line; cross-cell-type transfer is imperfect."
+  - "Long or templated insertions are under-modeled relative to MMEJ deletions."
+checkpoint_sha256: null  # pinned when the model zoo freezes the release artifact
+source_url: "https://github.com/shendurelab/Lindel"

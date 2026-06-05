@@ -6,7 +6,6 @@ import math
 
 import pytest
 
-from alleleforge.model_zoo.registry import CardError
 from alleleforge.scoring.cas9_outcome import (
     InDelphiAdapter,
     LindelAdapter,
@@ -89,6 +88,45 @@ def test_indelphi_adapter_interface() -> None:
     assert adapter.model_card().name == "indelphi"
 
 
-def test_unbundled_adapter_card_missing() -> None:
-    with pytest.raises(CardError, match="no model card"):
-        LindelAdapter().model_card()  # no 'lindel' card is bundled
+def test_lindel_adapter_card_now_bundled() -> None:
+    # Lindel ships a bundled, license-gated card (research-only).
+    assert LindelAdapter().model_card().name == "lindel"
+
+
+def test_outcome_adapter_predict_requires_consent() -> None:
+    from alleleforge.model_zoo.registry import ConsentError
+
+    with pytest.raises(ConsentError, match="consent"):
+        InDelphiAdapter().predict("ACGTACGTACGTACGTACGTACGT", 17)
+
+
+def test_outcome_adapter_pinned_weights_download_and_verify(tmp_path: object) -> None:
+    import hashlib
+    from pathlib import Path
+
+    from alleleforge.model_zoo.registry import ModelCard, ModelRegistry
+
+    weights = b"trained-indelphi-weights"
+    sha = hashlib.sha256(weights).hexdigest()
+    card = ModelCard(
+        name="indelphi",
+        version="1.0",
+        chemistry="cas9_nuclease",
+        training_data="synthetic",
+        intended_use="testing the consent flow",
+        out_of_scope_use="anything real",
+        license="MIT",
+        citation="AlleleForge test suite",
+        checkpoint_sha256=sha,
+        source_url="https://example.invalid/indelphi.ckpt",
+    )
+    adapter = InDelphiAdapter(
+        registry=ModelRegistry({"indelphi": card}),
+        consent=True,
+        cache_dir=Path(str(tmp_path)),
+        downloader=lambda url, dest: dest.write_bytes(weights),
+    )
+    path = adapter.resolve_weights()
+    assert path is not None and Path(path).read_bytes() == weights
+    checkpoint = adapter.model_checkpoint()
+    assert checkpoint is not None and checkpoint.sha256 == sha

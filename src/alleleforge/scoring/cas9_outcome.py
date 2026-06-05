@@ -17,6 +17,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 
+from alleleforge.model_zoo.loader import WeightGate
 from alleleforge.model_zoo.registry import ModelCard, ModelRegistry, default_registry
 from alleleforge.types.edit import AlleleOutcome, EditOutcome
 
@@ -169,25 +170,33 @@ def _prob_of(outcome: EditOutcome, allele: str) -> float:
     return next((a.probability for a in outcome.alleles if a.allele == allele), 0.0)
 
 
-class _ModelZooAdapter:
-    """Shared base for the trained outcome adapters (lazy, license-gated)."""
+class _ModelZooAdapter(WeightGate):
+    """Shared base for the trained outcome adapters (lazy, license-gated).
+
+    Trained weights resolve through the **consent-gated, checksum-verified** model
+    zoo (:class:`~alleleforge.model_zoo.loader.WeightGate`); the forward pass over
+    those weights lands with the real-weights integration. Use
+    :class:`MicrohomologyOutcomePredictor` meanwhile.
+    """
 
     name = ""
-    card_name = ""
-
-    def __init__(self, *, registry: ModelRegistry | None = None) -> None:
-        """Configure the model-card registry."""
-        self._registry = registry or default_registry()
 
     def model_card(self) -> ModelCard:
         """Return the adapter's model card (raises if not registered)."""
         return self._registry.get(self.card_name)
 
-    def predict(self, context: str, cut: int) -> EditOutcome:  # pragma: no cover - needs weights
-        """Predict the indel spectrum (requires the trained model weights)."""
-        raise NotImplementedError(
-            f"{self.name} requires its trained weights; load them via the model zoo "
-            "or use MicrohomologyOutcomePredictor"
+    def predict(self, context: str, cut: int) -> EditOutcome:
+        """Resolve weights (consent-gated), then predict the indel spectrum.
+
+        Raises:
+            ConsentError / LicenseError / ChecksumError: From the weight gate.
+            NotImplementedError: The trained forward pass is not yet wired.
+        """
+        self.resolve_weights()
+        raise NotImplementedError(  # pragma: no cover - forward pass needs real weights
+            f"{self.name} weights resolved and verified; the trained forward pass is "
+            "wired alongside the real-weights integration. Use "
+            "MicrohomologyOutcomePredictor meanwhile."
         )
 
 

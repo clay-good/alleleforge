@@ -24,14 +24,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
-from alleleforge.config import get_settings
-from alleleforge.model_zoo.registry import (
-    Downloader,
-    ModelRegistry,
-    ModelUse,
-    default_registry,
-)
-from alleleforge.types.provenance import ModelCheckpoint
+from alleleforge.model_zoo.loader import WeightGate
+from alleleforge.model_zoo.registry import Downloader, ModelRegistry, ModelUse
 
 #: A single fixed-width embedding vector.
 Embedding = tuple[float, ...]
@@ -144,23 +138,21 @@ def _require_transformers() -> Any:  # pragma: no cover - requires the ml extra
     return torch, AutoModel, AutoTokenizer
 
 
-class _HuggingFaceEmbedder:
+class _HuggingFaceEmbedder(WeightGate):
     """Shared mean-pooled HuggingFace transformer embedder (lazy, optional).
 
     Weights are resolved through the **consent-gated, license-checked model zoo**
-    (:meth:`resolve_weights`), not a bare ``from_pretrained(model_id)``: loading a
-    real backbone requires explicit consent and a license that permits the use,
-    and the resolved :class:`ModelCheckpoint` is recorded for provenance. The
-    consent/license/checksum flow is exercisable without torch or the network (an
-    injected downloader); only the tensor load in :meth:`embed` needs the ``ml``
-    extra and real weights.
+    (:meth:`~alleleforge.model_zoo.loader.WeightGate.resolve_weights`), not a bare
+    ``from_pretrained(model_id)``: loading a real backbone requires explicit
+    consent and a license that permits the use, and the resolved
+    :class:`ModelCheckpoint` is recorded for provenance. The consent/license/checksum
+    flow is exercisable without torch or the network (an injected downloader); only
+    the tensor load in :meth:`embed` needs the ``ml`` extra and real weights.
     """
 
     name = "hf"
     version = "0"
     model_id = ""
-    #: The model-zoo card key gating this backbone (license + consent + checksum).
-    card_name = "hf"
     context_window = 1000
 
     def __init__(
@@ -185,53 +177,17 @@ class _HuggingFaceEmbedder:
             cache_dir: Override for the checkpoint cache (pinned-artifact path).
             downloader: Injected fetcher for the pinned-artifact path (tests).
         """
+        super().__init__(
+            registry=registry,
+            use=use,
+            consent=consent,
+            cache_dir=cache_dir,
+            downloader=downloader,
+        )
         self.device = device
         self.torch_compile = torch_compile
-        self._registry = registry
-        self._use = use
-        self._consent = consent
-        self._cache_dir = cache_dir
-        self._downloader = downloader
         self._model: Any = None
         self._tokenizer: Any = None
-        self._checkpoint: ModelCheckpoint | None = None
-
-    def resolve_weights(self) -> str | None:
-        """Resolve the backbone weights through the consent-gated model zoo.
-
-        When the card pins a ``checkpoint_sha256`` the full download+checksum flow
-        runs (returning a verified local path); otherwise the lighter
-        license+consent :meth:`~alleleforge.model_zoo.registry.ModelRegistry.authorize`
-        gate runs and the weights load from the hub by model id. Either way the
-        resolved :class:`ModelCheckpoint` is recorded for provenance.
-
-        Returns:
-            A verified local checkpoint path, or ``None`` to load by model id.
-
-        Raises:
-            ConsentError: If a download is needed but consent was not given.
-            LicenseError: If the card's license forbids the requested use.
-            ChecksumError: If a pinned artifact fails verification.
-        """
-        registry = self._registry or default_registry()
-        card = registry.get(self.card_name)
-        if card.checkpoint_sha256 is not None:
-            cache_dir = self._cache_dir or (get_settings().cache_dir / "models")
-            path, checkpoint = registry.checkpoint(
-                self.card_name,
-                cache_dir=cache_dir,
-                use=self._use,
-                consent=self._consent,
-                downloader=self._downloader,
-            )
-            self._checkpoint = checkpoint
-            return str(path)
-        self._checkpoint = registry.authorize(self.card_name, use=self._use, consent=self._consent)
-        return None
-
-    def model_checkpoint(self) -> ModelCheckpoint | None:
-        """Return the resolved checkpoint provenance, or ``None`` if not yet loaded."""
-        return self._checkpoint
 
     def _load(self) -> None:  # pragma: no cover - requires weights
         """Lazily resolve weights (consent-gated) and load the tokenizer + model."""

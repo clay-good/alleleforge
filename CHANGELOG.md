@@ -334,6 +334,17 @@ acceptance.
   The flow is CI-tested with an injected downloader (no ML stack); the trained
   forward pass stays gated behind real weights. The `PridictScorer` heuristic
   baseline remains the CI default.
+- **R1 — shared `WeightGate` + consent-gated outcome adapters.** Extracted the
+  consent/license/checksum weight-resolution flow into a single
+  `model_zoo.loader.WeightGate` mixin and refactored every trained model onto it
+  (the sequence backbone, the prime-efficiency adapters, and now the cas9-outcome
+  `InDelphi`/`Lindel`/`X-CRISP` and base-edit-outcome `BE-DICT`/`BE-Hive`
+  adapters), removing four copies of the same logic. Each outcome adapter's
+  `predict()` now runs the consent gate before inference. Adds bundled,
+  license-gated cards for `lindel`, `x-crisp`, and `be-hive` (all research-only).
+  The consent/license/checksum flow is CI-tested per chemistry with an injected
+  downloader (no ML stack); the trained forward passes stay behind real weights.
+  `loader.py` is at 100% coverage.
 
 ### Security
 

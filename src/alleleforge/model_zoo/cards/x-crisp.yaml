@@ -1,0 +1,23 @@
+# Model card — trained SpCas9 repair-outcome adapter (X-CRISP, optional).
+name: x-crisp
+version: "1.0"
+chemistry: cas9_nuclease
+training_data: >-
+  Cas9-induced indel outcome libraries, a neural model predicting the repair
+  outcome distribution (deletions via microhomology and templated insertions)
+  from local sequence context around the cut site.
+metrics:
+  modalities: 2.0
+intended_use: >-
+  Trained SpCas9 repair-outcome prediction, as an independent cross-check against
+  the microhomology baseline, inDelphi, and Lindel. Research use.
+out_of_scope_use: >-
+  Clinical decision-making; chemistries other than SpCas9 nuclease; targets far
+  from the training distribution.
+license: research-only
+citation: "Zhang et al., 2023 (X-CRISP repair-outcome prediction)"
+known_failure_modes:
+  - "Outcome priors transfer imperfectly across cell types and chromatin states."
+  - "Rare large deletions and complex indels are under-represented."
+checkpoint_sha256: null  # pinned when the model zoo freezes the release artifact
+source_url: "https://github.com/AhmedjBaqer/X-CRISP"

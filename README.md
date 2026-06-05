@@ -427,13 +427,16 @@ runtime guard at the orchestration seam. **No undocumented models.** Every check
 model zoo, which refuses a missing card, a license that forbids the use, or an unverifiable hash, and
 surfaces a `ModelCheckpoint` into result provenance.
 
-**Consent-gated real weights (R1).** A real backbone resolves its weights through the model zoo, not a
-bare `from_pretrained`: `SequenceEmbedder.resolve_weights()` runs the license gate (the default
-Nucleotide Transformer v2 is **CC-BY-NC-SA** — research-only, refused for commercial use), **requires
-explicit consent** before any download, **checksum-verifies** a pinned artifact, and records the
-backbone `ModelCheckpoint` for provenance (`EnsembleEfficiencyScorer.backbone_checkpoint()`). The whole
+**Consent-gated real weights (R1).** Every trained model — the sequence backbone **and** the
+per-chemistry adapters (cas9 efficiency/outcome, base-edit outcome, prime efficiency) — resolves its
+weights through one shared gate, `model_zoo.loader.WeightGate`, not a bare `from_pretrained`:
+`resolve_weights()` runs the **license gate** (the default Nucleotide Transformer v2 is **CC-BY-NC-SA**
+and the trained adapters are research-only — all refused for commercial use), **requires explicit
+consent** before any download, **checksum-verifies** a pinned artifact, and records the resolved
+`ModelCheckpoint` for provenance (e.g. `EnsembleEfficiencyScorer.backbone_checkpoint()`). The whole
 consent/license/checksum flow is exercised in CI with an injected downloader — no network, no torch;
-only the tensor load itself stays behind the `real_weights` marker. See [`SPEC_V2.md`](SPEC_V2.md) R1.
+only the tensor load / forward pass itself stays behind the `real_weights` marker. Every model ships a
+bundled, license-gated card. See [`SPEC_V2.md`](SPEC_V2.md) R1.
 
 ### Uncertainty method cheat-sheet
 

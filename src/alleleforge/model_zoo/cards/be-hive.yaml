@@ -1,0 +1,23 @@
+# Model card — trained base-edit outcome adapter (BE-Hive, optional).
+name: be-hive
+version: "1.0"
+chemistry: base_abe
+training_data: >-
+  Large base-editing outcome libraries across multiple ABE and CBE editors,
+  modeling per-position editing efficiency and the bystander spectrum as a
+  function of protospacer position and local sequence motif.
+metrics:
+  editors_covered: 11.0
+intended_use: >-
+  Trained base-editing window-outcome prediction, as a cross-check against the
+  BE-DICT default. Research use.
+out_of_scope_use: >-
+  Clinical decision-making; chemistries other than base editing; editors or cell
+  contexts far from the training distribution.
+license: research-only
+citation: "Arbab et al., Cell 2020 (BE-Hive)"
+known_failure_modes:
+  - "Bystander spectra are deaminase- and context-dependent; transfer is imperfect."
+  - "Editor coverage is broad but not exhaustive; novel editors are out of scope."
+checkpoint_sha256: null  # pinned when the model zoo freezes the release artifact
+source_url: "https://www.crisprbehive.design"
