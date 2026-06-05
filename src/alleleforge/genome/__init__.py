@@ -20,8 +20,10 @@ from alleleforge.genome.coordinates import (
 from alleleforge.genome.index import (
     SIZE_WARN_THRESHOLD,
     FMIndex,
+    GenomeIndex,
     PamHit,
     native_fm_available,
+    native_sais_available,
 )
 from alleleforge.genome.reference import (
     BUILTIN_BUILDS,
@@ -43,6 +45,7 @@ __all__ = [
     "ConsentError",
     "FMIndex",
     "FetchResult",
+    "GenomeIndex",
     "Liftover",
     "PamHit",
     "ReferenceGenome",
@@ -50,4 +53,5 @@ __all__ = [
     "RegionFlagKind",
     "flag_ambiguous_regions",
     "native_fm_available",
+    "native_sais_available",
 ]

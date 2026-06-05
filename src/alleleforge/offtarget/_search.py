@@ -312,6 +312,8 @@ def scan_sequence(
     seed: bool = True,
     use_fm_index: bool = False,
     fm_cache_dir: str | Path | None = None,
+    fm_plus: FMIndex | None = None,
+    fm_minus: FMIndex | None = None,
 ) -> list[Hit]:
     """Scan both strands of ``sequence`` for PAM-anchored hits to ``spacer``.
 
@@ -334,6 +336,10 @@ def scan_sequence(
             ``seed`` (the PAM is the index seed).
         fm_cache_dir: Override for the FM-index cache root (used only when
             ``use_fm_index``); defaults to the shared content-addressed cache.
+        fm_plus: A prebuilt plus-strand FM-index over ``sequence`` (e.g. a
+            persistent, memory-mapped contig index from a :class:`GenomeIndex`);
+            engages the FM path and skips rebuilding.
+        fm_minus: A prebuilt FM-index over the reverse complement of ``sequence``.
 
     Returns:
         All hits within budget, as plus-strand :class:`Hit` records.
@@ -343,13 +349,17 @@ def scan_sequence(
     n = len(seq)
     hits: list[Hit] = []
 
-    fm_plus = fm_minus = None
-    if use_fm_index and seq:
+    use_fm = use_fm_index or (fm_plus is not None and fm_minus is not None)
+    if use_fm and seq:
         from alleleforge.genome.index import FMIndex
 
-        rc_seq = str(DNASequence(seq).reverse_complement())
-        fm_plus = FMIndex.build(seq, cache_dir=fm_cache_dir, in_memory=True)
-        fm_minus = FMIndex.build(rc_seq, cache_dir=fm_cache_dir, in_memory=True)
+        if fm_plus is None:
+            fm_plus = FMIndex.build(seq, cache_dir=fm_cache_dir, in_memory=True)
+        if fm_minus is None:
+            rc_seq = str(DNASequence(seq).reverse_complement())
+            fm_minus = FMIndex.build(rc_seq, cache_dir=fm_cache_dir, in_memory=True)
+    else:
+        fm_plus = fm_minus = None
 
     def _plus() -> list[tuple[int, int, str, int, int, int, str, str]]:
         if fm_plus is not None:

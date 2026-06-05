@@ -443,6 +443,20 @@ acceptance.
     augmentation — so a stale entry can never be served for a query whose external
     data the content key does not capture. A changed budget/PAM/threshold/reference
     is a distinct key; a custom scorer or any augmentation bypasses the cache.
+- **R4 — whole-genome on-disk, memory-mapped FM-index (`genome.GenomeIndex`).**
+  Builds one content-addressed FM-index per contig (both strands) over a
+  reference, driven by **R2's native SA-IS**: the on-disk `FMIndex` build now uses
+  the linear-time kernel (`_suffix_array` → `fm_suffix_array` when the crate is
+  built), so the persistent + memory-mapped path scales to whole chromosomes
+  instead of being limited to the pure-Python direct sort. The index **survives
+  across runs** (a re-run memory-maps the cached contig index rather than
+  rebuilding) and is queried over its memory map without pinning it in RAM. The
+  off-target engine consumes it via `search(..., genome_index=...)` (and
+  `scan_sequence(..., fm_plus=, fm_minus=)`) for the reference scan — **identical
+  hits** to the per-call build (a parity test pins this across budgets and both
+  strands), but built once and reused. Validated in CI on a downsampled-chromosome
+  fixture in the rust job (native SA-IS build → mmap query → linear-scan parity →
+  cross-run reuse); full hg38 / T2T-CHM13 builds are an opt-in nightly.
 - **R0 — supply-chain hardening.** Dependabot now tracks all three dependency
   surfaces — `pip`, `cargo`, and `github-actions` (`.github/dependabot.yml`,
   grouped weekly PRs); a CI `security` job runs `pip-audit` (PyPI advisory DB)

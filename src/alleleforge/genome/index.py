@@ -29,10 +29,18 @@ from typing import TYPE_CHECKING, cast
 from alleleforge import _native
 from alleleforge.config import get_settings
 from alleleforge.types.guide import PAM
-from alleleforge.types.sequence import IUPAC_EXPAND, DNASequence
+from alleleforge.types.sequence import (
+    IUPAC_EXPAND,
+    CoordinateSystem,
+    DNASequence,
+    GenomicInterval,
+    Strand,
+)
 
 if TYPE_CHECKING:
     from types import TracebackType
+
+    from alleleforge.genome.reference import ReferenceGenome
 
 #: Allowed characters in an indexed reference sequence (the four bases + ``N``).
 _INDEX_ALPHABET = frozenset("ACGTN")
@@ -58,6 +66,24 @@ def native_fm_available() -> bool:
     """
     ext = getattr(_native, "_ext", None)
     return _native.NATIVE_AVAILABLE and ext is not None and hasattr(ext, "fm_locate")
+
+
+def native_sais_available() -> bool:
+    """Return ``True`` if the native crate exposes the SA-IS suffix-array kernel."""
+    ext = getattr(_native, "_ext", None)
+    return _native.NATIVE_AVAILABLE and ext is not None and hasattr(ext, "fm_suffix_array")
+
+
+def _suffix_array(s: str, data: str, n: int) -> list[int]:
+    """Return the suffix array of ``data`` (``s`` + sentinel), native when built.
+
+    The native SA-IS kernel builds it in linear time; the pure-Python fallback is
+    the direct sort. The unique sentinel makes every suffix distinct, so the two
+    are byte-identical (pinned by ``tests/genome/test_native.py``).
+    """
+    if native_sais_available():  # pragma: no cover - native not built in the CI test matrix
+        return list(_native._ext.fm_suffix_array(s))  # type: ignore[attr-defined]
+    return sorted(range(n), key=lambda i: data[i:])
 
 
 @dataclass(frozen=True)
@@ -182,10 +208,12 @@ class FMIndex:
         """Construct the BWT, rank table and sampled SA, and persist them."""
         data = s + _SENTINEL
         n = len(data)
-        # Suffix array by direct sort. O(n^2 log n); fine for the tiny synthetic
-        # references used in tests and small contigs — the genome-scale path is
-        # the Rust kernel, not this fallback.
-        suffix_array = sorted(range(n), key=lambda i: data[i:])
+        # Suffix array: the native SA-IS kernel (O(n)) when the crate is built —
+        # this is what makes the on-disk, memory-mapped index scale to whole
+        # chromosomes; otherwise the pure-Python direct sort (O(n^2 log n), fine for
+        # the small contigs CI builds without the crate). Both yield the identical
+        # SA (the unique sentinel makes every suffix distinct), pinned by parity.
+        suffix_array = _suffix_array(s, data, n)
         bwt = "".join(data[(i - 1) % n] for i in suffix_array)
 
         alphabet = sorted(set(data))
@@ -367,4 +395,122 @@ class FMIndex:
         tb: TracebackType | None,
     ) -> None:
         """Release the memory map on context exit."""
+        self.close()
+
+
+class GenomeIndex:
+    """A persistent, memory-mapped, per-contig FM-index over a reference genome.
+
+    Where :class:`FMIndex` indexes one sequence, ``GenomeIndex`` builds and holds
+    one content-addressed FM-index per contig **for both strands** (plus and
+    reverse-complement), so PAM-anchored candidate search over a whole genome:
+
+    * **survives across runs** — each contig index is keyed by its content hash on
+      disk, so a second run (or a fresh process) memory-maps the existing index
+      instead of rebuilding it;
+    * **does not pin the index in RAM** — the BWT is memory-mapped by default
+      (pass ``in_memory=True`` to load eagerly), so a multi-gigabyte genome index
+      is paged in on demand.
+
+    The expensive suffix-array construction is the **native SA-IS kernel** when the
+    crate is built (linear time); the query path is the memory-mapped pure-Python
+    :class:`FMIndex`. This is the genome-scale reference backend the off-target
+    engine consumes via ``search(..., genome_index=...)``.
+    """
+
+    def __init__(
+        self,
+        *,
+        plus: dict[str, FMIndex],
+        minus: dict[str, FMIndex],
+        build: str | None,
+    ) -> None:
+        """Hold the per-contig plus/minus indexes (see :meth:`build_genome`)."""
+        self._plus = plus
+        self._minus = minus
+        self.build = build
+
+    @classmethod
+    def build_genome(
+        cls,
+        reference: ReferenceGenome,
+        *,
+        contigs: list[str] | None = None,
+        cache_dir: str | Path | None = None,
+        in_memory: bool = False,
+    ) -> GenomeIndex:
+        """Build (or load from cache) a per-contig FM-index over ``reference``.
+
+        Args:
+            reference: The reference genome to index.
+            contigs: Restrict to these contigs; defaults to every contig.
+            cache_dir: Override for the index cache root.
+            in_memory: Load each BWT into RAM instead of memory-mapping it.
+
+        Returns:
+            A ready-to-query :class:`GenomeIndex`.
+        """
+        names = list(contigs) if contigs is not None else list(reference.contigs)
+        plus: dict[str, FMIndex] = {}
+        minus: dict[str, FMIndex] = {}
+        for chrom in names:
+            seq = str(
+                reference.fetch(
+                    GenomicInterval(
+                        chrom=chrom,
+                        start=0,
+                        end=reference.contig_length(chrom),
+                        strand=Strand.PLUS,
+                        coordinate_system=CoordinateSystem.ZERO_BASED_HALF_OPEN,
+                    )
+                )
+            )
+            rc = str(DNASequence(seq).reverse_complement())
+            # prefer_native=False forces the on-disk + memory-mapped path; the
+            # native SA-IS kernel still accelerates the build inside _build_to_disk.
+            plus[chrom] = FMIndex.build(
+                seq, cache_dir=cache_dir, in_memory=in_memory, prefer_native=False
+            )
+            minus[chrom] = FMIndex.build(
+                rc, cache_dir=cache_dir, in_memory=in_memory, prefer_native=False
+            )
+        return cls(plus=plus, minus=minus, build=reference.build)
+
+    @property
+    def contigs(self) -> tuple[str, ...]:
+        """Return the indexed contig names."""
+        return tuple(self._plus)
+
+    def plus(self, contig: str) -> FMIndex:
+        """Return the plus-strand index for ``contig``."""
+        return self._plus[contig]
+
+    def minus(self, contig: str) -> FMIndex:
+        """Return the reverse-complement (minus-strand) index for ``contig``."""
+        return self._minus[contig]
+
+    def locate(self, contig: str, pattern: str | DNASequence) -> list[int]:
+        """Return the sorted plus-strand start positions of ``pattern`` on ``contig``."""
+        return self._plus[contig].locate(pattern)
+
+    def pam_sites(self, contig: str, pam: PAM, spacer_length: int) -> list[PamHit]:
+        """Return PAM-anchored protospacer placements on ``contig``'s plus strand."""
+        return self._plus[contig].pam_sites(pam, spacer_length)
+
+    def close(self) -> None:
+        """Release every contig's memory map."""
+        for fm in (*self._plus.values(), *self._minus.values()):
+            fm.close()
+
+    def __enter__(self) -> GenomeIndex:
+        """Enter a context manager that releases all memory maps on exit."""
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        """Release all memory maps on context exit."""
         self.close()

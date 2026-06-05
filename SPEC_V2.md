@@ -153,8 +153,8 @@ dead code.
   byte-identical hits to the brute-force scan (pinned by a randomized parity test
   on both the low-level scan and the engine report), and **auto-engages per
   region** past `FM_INDEX_AUTO_THRESHOLD` (1 Mb) so genome-scale contigs take the
-  indexed path while small inputs stay on the linear scan. Building the
-  whole-genome on-disk index via SA-IS at scale is the remaining R4 step.
+  indexed path while small inputs stay on the linear scan. The persistent,
+  memory-mapped whole-genome variant of this index is R4's `GenomeIndex`.
 - **`haplotype` kernel (◐ landed).** A native Rust haplotype-walk kernel
   (`haplotype.rs`: `haplotype_apply_variants`) + pure-Python fallback
   (`offtarget._haplotype`) wired into the haplotype off-target engine
@@ -220,8 +220,17 @@ CI); a live-integration test is marked and opt-in.
 **Context.** Make the genome-scale and cohort-scale paths real.
 
 **Deliverables.**
-- Whole-genome FM-index build + on-disk index for hg38 / T2T-CHM13 (driven by
-  R2's SA-IS), with the memory-mapped query path validated at scale.
+- **Whole-genome on-disk FM-index (◐ landed).** `genome.GenomeIndex` builds one
+  content-addressed FM-index per contig (both strands) over a reference, driven by
+  **R2's native SA-IS** (the on-disk `FMIndex` build now uses the linear-time
+  kernel, so the persistent path scales to whole chromosomes). It **survives across
+  runs** (a re-run memory-maps the cached contig index instead of rebuilding) and
+  is queried over its **memory map** without pinning the index in RAM. The
+  off-target engine consumes it via `search(..., genome_index=...)` for the
+  reference scan — identical hits to the per-call build (a parity test pins this),
+  but built once and reused. Validated in CI on a **downsampled-chromosome** fixture
+  in the rust job (native SA-IS build → mmap query → linear-scan parity, plus
+  cross-run reuse). Full hg38 / T2T-CHM13 builds remain an opt-in nightly.
 - **Cohort throughput (◐ landed).** `design.design_many(variants, ...)` streams a
   whole cohort through `design`: the input is **consumed lazily** (any iterable —
   a `cyvcf2` stream, a generator, a list) and only the per-item working set is

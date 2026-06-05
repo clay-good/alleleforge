@@ -22,6 +22,7 @@ from collections.abc import Iterable, Sequence
 
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
+from alleleforge.genome.index import GenomeIndex
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.offtarget._search import Hit, SearchBudget, SiteProvenance, scan_sequence
 from alleleforge.offtarget.cache import OffTargetCache, search_signature
@@ -113,6 +114,22 @@ def _contig_regions(reference: ReferenceGenome) -> list[GenomicInterval]:
     ]
 
 
+def _is_whole_contig(
+    region: GenomicInterval, reference: ReferenceGenome, genome_index: GenomeIndex
+) -> bool:
+    """Return whether ``region`` is exactly an indexed whole contig.
+
+    The persistent index is built per whole contig, so its coordinates only line
+    up with a region that spans the entire contig (a sub-region would need its own
+    index). Anything else falls back to the per-call build.
+    """
+    return (
+        region.chrom in genome_index.contigs
+        and region.start == 0
+        and region.end == reference.contig_length(region.chrom)
+    )
+
+
 def search(
     spacer: Spacer | DNASequence | str,
     pam: PAM,
@@ -132,6 +149,7 @@ def search(
     mit_threshold: float = DEFAULT_MIT_THRESHOLD,
     use_fm_index: bool | None = None,
     cache: OffTargetCache | None = None,
+    genome_index: GenomeIndex | None = None,
 ) -> OffTargetReport:
     """Run the full off-target search and return an ancestry-stratified report.
 
@@ -161,6 +179,10 @@ def search(
             result is a pure function of the reference — the default scorer and no
             gnomAD/haplotype/patient augmentation — so a stale entry can never be
             served for a query whose external data the key does not capture.
+        genome_index: Optional persistent, memory-mapped :class:`GenomeIndex`. When
+            given, a whole-contig reference scan anchors PAMs through it instead of
+            rebuilding an in-memory index — identical hits (a parity test pins this),
+            but the (expensive) index is built once and reused across runs/guides.
 
     Returns:
         An :class:`OffTargetReport`, sorted by descending score and
@@ -212,10 +234,25 @@ def search(
     # bases unless the caller forces it on or off.
     for region in search_regions:
         seq = str(reference.fetch(region.model_copy(update={"strand": Strand.PLUS})))
-        fm = use_fm_index if use_fm_index is not None else len(seq) >= FM_INDEX_AUTO_THRESHOLD
-        for hit in scan_sequence(
-            region.chrom, seq, sp, scan_pam, offset=region.start, use_fm_index=fm, **kw
-        ):
+        if genome_index is not None and _is_whole_contig(region, reference, genome_index):
+            # Persistent memory-mapped path: reuse the prebuilt contig index
+            # (built once, survives runs) rather than rebuilding it per call.
+            region_hits = scan_sequence(
+                region.chrom,
+                seq,
+                sp,
+                scan_pam,
+                offset=0,
+                fm_plus=genome_index.plus(region.chrom),
+                fm_minus=genome_index.minus(region.chrom),
+                **kw,
+            )
+        else:
+            fm = use_fm_index if use_fm_index is not None else len(seq) >= FM_INDEX_AUTO_THRESHOLD
+            region_hits = scan_sequence(
+                region.chrom, seq, sp, scan_pam, offset=region.start, use_fm_index=fm, **kw
+            )
+        for hit in region_hits:
             tagged.append((hit, ref_prov))
 
     # Stage 2 — population augmentation (gnomAD de-novo PAM / seed changes).

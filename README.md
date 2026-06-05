@@ -186,9 +186,12 @@ skips recorded items), per-item failure isolation, and an optional thread-parall
 **content-addressed cross-run caches** (`alleleforge.cache`) that memoize embeddings
 (`CachedEmbedder.persistent`) and the reference off-target scan (`OffTargetCache` via
 `search(..., cache=...)`, safety-gated to the default-scorer reference-only case) to disk so a value
-computed in one run is reused by the next. The one remaining R0 item is pinning the real artifact
-hashes, which requires freezing the published upstream artifacts; the consent gate already refuses any
-`null`-hash fetch by design.
+computed in one run is reused by the next; and a **persistent, memory-mapped whole-genome FM-index**
+(`genome.GenomeIndex`) — driven by R2's native SA-IS so the on-disk build scales to whole
+chromosomes, consumed by the engine via `search(..., genome_index=...)`, built once and reused across
+runs (parity-tested vs the per-call build; scale-tested on a downsampled chromosome in CI). The one
+remaining R0 item is pinning the real artifact hashes, which requires freezing the published upstream
+artifacts; the consent gate already refuses any `null`-hash fetch by design.
 
 ---
 
@@ -250,6 +253,14 @@ repeats real genomes are full of; the unique sentinel keeps the suffix array uni
 stays byte-identical to the direct sort — pinned **directly** (the exposed `fm_suffix_array` vs the
 ground-truth direct sort, over textbook-pathological and fuzz inputs) and end-to-end (FM-index
 `count`/`locate` parity over low-complexity and random-long inputs).
+
+That linear-time build is what makes the **whole-genome index** practical:
+`genome.GenomeIndex.build_genome(reference)` persists one content-addressed FM-index per contig (both
+strands) to disk and **memory-maps** it, so a genome index is built once, **survives across runs**
+(a re-run maps the cache instead of rebuilding), and never pins itself in RAM. The off-target engine
+takes it directly — `search(spacer, pam, reference=ref, genome_index=gi)` — anchoring PAMs through the
+persistent index instead of rebuilding one per call, with hits identical to the per-call path
+(parity-tested) and the memory-mapped query path validated at scale on a downsampled chromosome in CI.
 
 ---
 
