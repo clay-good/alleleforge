@@ -207,7 +207,10 @@ cd rust && maturin develop --release      # builds & installs aforge_native
 
 `alleleforge._native.NATIVE_AVAILABLE` reports whether the compiled extension is present, and
 `alleleforge.genome.native_fm_available()` whether the FM-index kernels specifically are built. The
-suffix array is built by direct sort (parity with the fallback); SA-IS is the natural genome-scale
+native suffix array is built by **prefix doubling** (`O(n log² n)`) rather than the direct sort's
+`O(n² log n)`, which collapses on the long poly-A / poly-N runs real genomes are full of; the unique
+sentinel keeps the suffix array unique so the result stays byte-identical to the pure-Python fallback
+(pinned by parity tests over low-complexity and random inputs). True-linear SA-IS is a further
 optimization behind the same interface.
 
 ---

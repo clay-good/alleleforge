@@ -360,6 +360,15 @@ acceptance.
   native seed lookup **~5–6x**, and a transparent no-op at the default
   ≤4-mismatch+bulge budget (where the FM-index is the genome-scale path). The CI
   rust job runs the native k-mer parity suite.
+- **R2 — sub-quadratic FM-index build (prefix doubling).** The native FM-index
+  suffix array (`bwt.rs`) is now built by **prefix doubling** (`O(n log² n)`)
+  instead of the direct sort's `O(n² log n)`, which degrades badly on the long
+  poly-A / poly-N runs and tandem repeats real genomes contain. The unique
+  sentinel keeps the suffix array unique, so `count`/`locate`/`pam_sites` and the
+  content hash stay byte-identical to the pure-Python fallback — pinned by
+  expanded parity tests over low-complexity (poly-A/poly-N/repeat) and random
+  long inputs in the CI rust job. (True-linear SA-IS remains a further
+  optimization behind the same interface.)
 
 ### Security
 

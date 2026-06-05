@@ -119,9 +119,12 @@ the call sites that need them**, so the native build delivers real speedups — 
 dead code.
 
 **Deliverables.**
-- **SA-IS suffix-array construction** in `bwt.rs`, replacing the parity
-  direct-sort, so a genome-scale FM-index build is `O(n)` rather than
-  `O(n² log n)`. The parity test still pins identical output on small inputs.
+- **Sub-quadratic suffix-array construction (◐ landed).** `bwt.rs` now builds the
+  suffix array by **prefix doubling** (`O(n log² n)`) instead of the direct sort's
+  `O(n² log n)`, which collapsed on the long poly-A / poly-N runs real genomes
+  contain. Output is byte-identical to the fallback (unique sentinel ⇒ unique SA),
+  pinned by parity tests over low-complexity and random long inputs. **True-linear
+  SA-IS** (`O(n)`) is the remaining optimization behind the same interface.
 - **`kmer` kernel (◐ landed).** A native Rust k-mer kernel (`kmer.rs`) + pure
   -Python fallback (`offtarget._kmer`), wired into the off-target scan as a
   seed-and-extend prefilter (`scan_sequence(..., seed=...)`). It is a **proven

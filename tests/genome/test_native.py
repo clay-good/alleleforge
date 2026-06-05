@@ -9,6 +9,7 @@ pure-Python implementation, so the optimization can never silently diverge.
 
 from __future__ import annotations
 
+import random
 from pathlib import Path
 
 import pytest
@@ -91,3 +92,52 @@ def test_native_index_is_a_context_manager() -> None:
     with FMIndex.build("ACGTACGT", prefer_native=True) as idx:
         assert idx.count("ACGT") == 2
     idx.close()  # idempotent / no-op after the context exits
+
+
+# Large and low-complexity inputs: poly-A / poly-N runs and tandem repeats are
+# exactly where the old O(n^2 log n) direct sort degraded and where a
+# prefix-doubling suffix-array bug would surface. The unique sentinel keeps the
+# suffix array unique, so native must still match the Python fallback exactly.
+_STRESS_TEXTS = [
+    "A" * 300,
+    "AC" * 150,
+    "ACGT" * 80,
+    "N" * 60 + "ACGT" * 40,
+    "GGGG" + "A" * 100 + "TTTT" + "C" * 100,
+]
+
+
+@requires_native
+@pytest.mark.native
+@pytest.mark.parametrize("text", _STRESS_TEXTS)
+def test_native_matches_python_on_low_complexity(text: str, tmp_path: Path) -> None:
+    native = FMIndex.build(text, prefer_native=True)
+    py = _python_index(text, tmp_path)
+    assert native.content_hash == py.content_hash
+    for pat in ("A", "AA", "AAA", "ACGT", "GGGG", "NN", "ACGTACGT", "TTTT", "CCC"):
+        assert native.count(pat) == py.count(pat), (text[:8], pat)
+        assert native.locate(pat) == py.locate(pat), (text[:8], pat)
+    native.close()
+    py.close()
+
+
+@requires_native
+@pytest.mark.native
+def test_native_matches_python_on_random_long_inputs() -> None:
+    rng = random.Random(20240501)
+    for _ in range(20):
+        # bias toward repeats so the suffix array sees long shared prefixes
+        unit = "".join(rng.choice("ACGT") for _ in range(rng.randint(1, 4)))
+        text = (unit * rng.randint(20, 120))[: rng.randint(50, 400)]
+        text += "".join(rng.choice("ACGTN") for _ in range(rng.randint(0, 40)))
+        native = FMIndex.build(text, prefer_native=True)
+        import tempfile
+
+        py = FMIndex.build(text, prefer_native=False, cache_dir=tempfile.mkdtemp())
+        assert native.content_hash == py.content_hash
+        for _ in range(10):
+            j = rng.randint(0, len(text) - 1)
+            pat = text[j : j + rng.randint(1, 8)]
+            assert native.locate(pat) == py.locate(pat), (text[:12], pat)
+        native.close()
+        py.close()
