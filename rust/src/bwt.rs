@@ -85,7 +85,7 @@ fn suffix_array(data: &[u8]) -> Vec<usize> {
     let mut tmp = vec![0i64; n];
     let mut k = 1usize;
     loop {
-        sa.sort_by(|&a, &b| doubling_key(&rank, k, n, a).cmp(&doubling_key(&rank, k, n, b)));
+        sa.sort_by_key(|&i| doubling_key(&rank, k, n, i));
         tmp[sa[0]] = 0;
         for idx in 1..n {
             let prev = sa[idx - 1];
