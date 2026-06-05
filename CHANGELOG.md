@@ -430,6 +430,17 @@ acceptance.
   `reference_factory`, since a pyfaidx handle is not thread-safe to share)
   produces summaries identical to the sequential run. Returns a `CohortRunReport`
   with the run counts and provenance.
+- **R4 — `cyvcf2` fast path (`variant.iter_vcf`).** The streaming VCF adapter that
+  *produces* the lazy iterator `design_many` consumes: it reads a VCF with
+  `cyvcf2` (htslib-backed) and yields one `VcfRecord` per **concrete ALT allele**,
+  splitting multi-allelic rows, skipping symbolic/`<DEL>`/spanning-`*`/non-ACGTN
+  alleles, and dropping non-`PASS` records by default — so a whole-VCF cohort flows
+  through the designer with bounded memory. The reader is **injectable**: a path is
+  opened with `cyvcf2` lazily (a clear `RuntimeError` names the `genome` extra when
+  it is absent), but any iterable duck-typed to the cyvcf2 `Variant` shape works,
+  so the split/filter logic is fully CI-tested with a fake reader and **no native
+  dependency**. (Whole-genome scale validation on a real VCF remains an opt-in
+  nightly.)
 - **R4 — content-addressed cross-run caches.** A shared
   `alleleforge.cache.ContentAddressedCache` — a sharded, atomically-written
   (temp-file-then-rename) disk key/value store under the cache dir, keyed by the

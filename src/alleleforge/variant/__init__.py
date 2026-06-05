@@ -33,6 +33,7 @@ from alleleforge.variant.resolver import (
     VcfRecord,
     resolve,
 )
+from alleleforge.variant.vcf import VcfVariantLike, iter_vcf
 
 __all__ = [
     "Consequence",
@@ -48,9 +49,11 @@ __all__ = [
     "StaticEffectPredictor",
     "VariantEffect",
     "VcfRecord",
+    "VcfVariantLike",
     "VepFetcher",
     "VepRestPredictor",
     "impact_of",
+    "iter_vcf",
     "parse_genomic_hgvs",
     "parse_vep_response",
     "resolve",

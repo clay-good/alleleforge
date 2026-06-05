@@ -182,8 +182,10 @@ the real `hgvs`/UTA/SeqRepo stack) — with live network/binary calls factored b
 (`live_integration`-marked, opt-in, never run in CI). R4 — **cohort-scale batch design**
 (`design.design_many`) streams a whole VCF/iterable through `design` with **bounded memory** (each
 menu summarized then released; `O(1)` with `on_result`), a **resumable JSONL run manifest** (a re-run
-skips recorded items), per-item failure isolation, and an optional thread-parallel path; and
-**content-addressed cross-run caches** (`alleleforge.cache`) that memoize embeddings
+skips recorded items), per-item failure isolation, and an optional thread-parallel path — fed by the
+**`cyvcf2` fast path** (`variant.iter_vcf`) that streams a VCF into the cohort (one record per concrete
+ALT, multi-allelic split, non-`PASS`/symbolic dropped; injectable reader, CI-tested without htslib);
+and **content-addressed cross-run caches** (`alleleforge.cache`) that memoize embeddings
 (`CachedEmbedder.persistent`) and the reference off-target scan (`OffTargetCache` via
 `search(..., cache=...)`, safety-gated to the default-scorer reference-only case) to disk so a value
 computed in one run is reused by the next; and a **persistent, memory-mapped whole-genome FM-index**
@@ -720,13 +722,16 @@ print(menu.provenance.seed)                   # reproducible to the byte
 `design_many` is the cohort multiplier over `design`, built so a whole VCF is no different from three
 rows: it **streams** the input (bounded memory — each menu is summarized then released), is
 **resumable** (a JSONL run manifest a re-run skips past), and **isolates per-item failures** (an
-unresolvable variant is recorded, not fatal).
+unresolvable variant is recorded, not fatal). `variant.iter_vcf` is the **cyvcf2 fast path** that
+*produces* the lazy stream straight from a VCF.
 
 ```python
 from alleleforge.design import design_many
+from alleleforge.variant import iter_vcf
 
 report = design_many(
-    variants,                      # any lazy iterable: a cyvcf2 stream, generator, or list
+    iter_vcf("cohort.vcf.gz"),     # streams a VCF: one record per concrete ALT, multi-allelic split,
+                                   # symbolic/spanning alleles skipped, non-PASS dropped by default
     reference=hg38, intent=EditIntent.INSTALL,
     manifest_path="run.jsonl",     # resume point: a re-run skips items already recorded
     output_dir="menus/",           # durable per-sample menu JSON (survives the run)
@@ -735,12 +740,17 @@ report = design_many(
 print(report.succeeded, report.failed, report.skipped)
 ```
 
+`iter_vcf` also accepts any iterable duck-typed to the cyvcf2 `Variant` shape (a region query, a
+generator, a test list), so the whole pipeline is testable without the native htslib dependency; a
+path open names the `genome` extra in a clear error when `cyvcf2` is absent.
+
 | Guarantee | How |
 |---|---|
 | **Bounded memory** | input consumed lazily; only the per-item menu is held, then released (`on_result` ⇒ `O(1)`) |
 | **Resumable** | JSONL run manifest with a provenance header; a re-run skips recorded `item_id`s |
 | **Failure-isolated** | a per-variant error is captured in the manifest; the cohort continues |
 | **Parallel (safe)** | `max_workers` + a `reference_factory` (a pyfaidx handle is not thread-safe to share) |
+| **VCF fast path** | `iter_vcf(path)` streams a VCF (cyvcf2), splitting multi-allelic rows and dropping non-`PASS`/symbolic calls — injectable, so CI-tested without htslib |
 | **Auditable** | `CohortRunReport` carries run counts + provenance (version, seed, build, intent) |
 
 ### Content-addressed cross-run caches (R4)

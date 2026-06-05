@@ -240,8 +240,14 @@ CI); a live-integration test is marked and opt-in.
   already recorded) that opens with a provenance header, **isolates per-item
   failures** (an unresolvable variant is recorded, not fatal), and offers a
   thread-parallel path (`max_workers` + a `reference_factory`, since a pyfaidx
-  handle is not thread-safe to share). The `cyvcf2` fast path and whole-genome
-  scale validation remain.
+  handle is not thread-safe to share). The **`cyvcf2` fast path landed**
+  (`variant.iter_vcf`): a streaming adapter reads a VCF with `cyvcf2` and yields
+  one `VcfRecord` per concrete ALT allele (multi-allelic split; symbolic/spanning
+  /non-ACGTN alleles skipped; non-`PASS` dropped by default), feeding `design_many`
+  lazily. Its reader is injectable (duck-typed to the cyvcf2 `Variant` shape), so
+  the split/filter logic is CI-tested without the native library; a path open
+  raises a clear `RuntimeError` naming the `genome` extra when `cyvcf2` is absent.
+  Whole-genome scale validation on a real VCF remains an opt-in nightly.
 - **Content-addressed cross-run caches (◐ landed).** A shared
   `alleleforge.cache.ContentAddressedCache` (sharded, atomically-written disk
   K/V under the cache dir) backs two cross-run memos: `CachedEmbedder.persistent`
