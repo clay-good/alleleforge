@@ -10,6 +10,11 @@ from __future__ import annotations
 
 from alleleforge.design.base_editor import design_base_editor
 from alleleforge.design.cas9 import design_cas9
+from alleleforge.design.cohort import (
+    CohortItemResult,
+    CohortRunReport,
+    design_many,
+)
 from alleleforge.design.designer import design
 from alleleforge.design.prime import design_prime
 from alleleforge.design.ranking import (
@@ -33,12 +38,15 @@ __all__ = [
     "ROUTING_RULES",
     "CandidateScore",
     "ChemistryDecision",
+    "CohortItemResult",
+    "CohortRunReport",
     "RankingOutcome",
     "RankingWeights",
     "RoutingRule",
     "design",
     "design_base_editor",
     "design_cas9",
+    "design_many",
     "design_prime",
     "eligible_chemistries",
     "rank_candidates",

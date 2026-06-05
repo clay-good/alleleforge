@@ -162,7 +162,7 @@ in [`SPEC_V2.md`](SPEC_V2.md)**:
 | R1 | Real-weights model integration through the consent-gated model zoo | ◐ in progress |
 | R2 | Native `bwt`/`kmer`/`haplotype` kernels wired onto the off-target hot paths | ◐ in progress |
 | R3 | External-tool adapters (Cas-OFFinder, VEP, HGVS) behind the registry | ◐ in progress |
-| R4 | Scale: whole-genome on-disk FM-index (SA-IS), cohort throughput, cross-run caches | ☐ not started |
+| R4 | Scale: whole-genome on-disk FM-index (SA-IS), cohort throughput, cross-run caches | ◐ in progress |
 | R5 | Validation, calibration study (ECE on real data), methods preprint | ☐ not started |
 | R6 | v1.0 release criteria | ☐ not started |
 
@@ -179,9 +179,12 @@ recorded-fixture tests: **Cas-OFFinder** (input-deck builder + legacy/bulge outp
 injectable-runner cross-check), **VEP** (region-endpoint predictor with an injectable fetcher, MANE
 selection, and `(variant, assembly, transcript)` caching), and **HGVS** (`HgvsLibraryProjector` over
 the real `hgvs`/UTA/SeqRepo stack) — with live network/binary calls factored behind injection points
-(`live_integration`-marked, opt-in, never run in CI). The one remaining R0 item is pinning the real
-artifact hashes, which requires freezing the published upstream artifacts; the consent gate already
-refuses any `null`-hash fetch by design.
+(`live_integration`-marked, opt-in, never run in CI). R4 — **cohort-scale batch design**
+(`design.design_many`) streams a whole VCF/iterable through `design` with **bounded memory** (each
+menu summarized then released; `O(1)` with `on_result`), a **resumable JSONL run manifest** (a re-run
+skips recorded items), per-item failure isolation, and an optional thread-parallel path. The one
+remaining R0 item is pinning the real artifact hashes, which requires freezing the published upstream
+artifacts; the consent gate already refuses any `null`-hash fetch by design.
 
 ---
 
@@ -689,6 +692,34 @@ print(menu.pareto_front)                      # trade-off-optimal candidates
 print(menu.provenance.seed)                   # reproducible to the byte
 ```
 
+### Cohort-scale batch design (R4)
+
+`design_many` is the cohort multiplier over `design`, built so a whole VCF is no different from three
+rows: it **streams** the input (bounded memory — each menu is summarized then released), is
+**resumable** (a JSONL run manifest a re-run skips past), and **isolates per-item failures** (an
+unresolvable variant is recorded, not fatal).
+
+```python
+from alleleforge.design import design_many
+
+report = design_many(
+    variants,                      # any lazy iterable: a cyvcf2 stream, generator, or list
+    reference=hg38, intent=EditIntent.INSTALL,
+    manifest_path="run.jsonl",     # resume point: a re-run skips items already recorded
+    output_dir="menus/",           # durable per-sample menu JSON (survives the run)
+    on_result=print,               # stream results → O(1) memory in cohort size
+)
+print(report.succeeded, report.failed, report.skipped)
+```
+
+| Guarantee | How |
+|---|---|
+| **Bounded memory** | input consumed lazily; only the per-item menu is held, then released (`on_result` ⇒ `O(1)`) |
+| **Resumable** | JSONL run manifest with a provenance header; a re-run skips recorded `item_id`s |
+| **Failure-isolated** | a per-variant error is captured in the manifest; the cohort continues |
+| **Parallel (safe)** | `max_workers` + a `reference_factory` (a pyfaidx handle is not thread-safe to share) |
+| **Auditable** | `CohortRunReport` carries run counts + provenance (version, seed, build, intent) |
+
 ---
 
 ## From menu to bench: reporting & oligo output (Phase 11, shipping now)
@@ -970,7 +1001,7 @@ alleleforge/
 │   ├── model_zoo/            # Phase 6: license-gated model cards + checkpoints
 │   ├── scoring/              # Phase 6: embeddings, uncertainty, Scorer (this release)
 │   ├── enumerate/            # Phases 7–9: SpCas9 guide · base-editor window · pegRNA enumeration
-│   ├── design/               # Phases 7–10: nuclease · base · prime verticals + designer (routing · ranking)
+│   ├── design/               # Phases 7–10: nuclease · base · prime verticals + designer (routing · ranking) + cohort (R4 batch)
 │   ├── report/               # Phase 11: oligos · report builder · JSON/TSV/Parquet · HTML · PDF
 │   ├── cli/                   # Phase 12: the aforge Typer CLI (resolve · design · offtarget · data · bench)
 │   ├── web/                   # Phase 13: FastAPI api/ + served frontend/ (variant-first journey)

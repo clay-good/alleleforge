@@ -212,15 +212,24 @@ CI); a live-integration test is marked and opt-in.
 
 ---
 
-## R4 — Scale & performance
+## R4 — Scale & performance  ◐ in progress
 
 **Context.** Make the genome-scale and cohort-scale paths real.
 
 **Deliverables.**
 - Whole-genome FM-index build + on-disk index for hg38 / T2T-CHM13 (driven by
   R2's SA-IS), with the memory-mapped query path validated at scale.
-- Cohort throughput: a batched, parallel `design_many(vcf, ...)` over `cyvcf2`
-  streaming, with bounded memory and a resumable run manifest.
+- **Cohort throughput (◐ landed).** `design.design_many(variants, ...)` streams a
+  whole cohort through `design`: the input is **consumed lazily** (any iterable —
+  a `cyvcf2` stream, a generator, a list) and only the per-item working set is
+  held (each menu is summarized/optionally written to disk, then released), so
+  peak memory does not grow with cohort size — pass `on_result` for a truly
+  `O(1)` run. It is **resumable** via a JSONL run manifest (a re-run skips items
+  already recorded) that opens with a provenance header, **isolates per-item
+  failures** (an unresolvable variant is recorded, not fatal), and offers a
+  thread-parallel path (`max_workers` + a `reference_factory`, since a pyfaidx
+  handle is not thread-safe to share). The `cyvcf2` fast path and whole-genome
+  scale validation remain.
 - Embedding + off-target caches that survive across runs (content-addressed).
 
 **Defaults & decisions.** Streaming over materializing; bounded memory is a hard

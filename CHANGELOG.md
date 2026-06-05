@@ -415,6 +415,19 @@ acceptance.
     `HgvsProjector` interface, degrading to a clear `RuntimeError` when the
     optional library is absent.
   Adds the `live_integration` pytest marker for the opt-in live tests.
+- **R4 — cohort-scale batch design (`design.design_many`).** Streams a whole
+  cohort through `design`: the input is consumed lazily (a `cyvcf2` stream, a
+  generator, or a list), and only the per-item working set is held — each ranked
+  menu is summarized (and optionally written to `output_dir`), then released, so
+  peak memory does not grow with cohort size (`on_result` makes the run `O(1)` in
+  cohort size). Runs are **resumable** through a JSONL run manifest that opens
+  with a provenance header (version, seed, reference build, intent, start time)
+  and against which a re-run **skips items already recorded**; per-item failures
+  are **captured, not fatal** (an unresolvable variant is recorded with its error
+  and the cohort continues). A thread-parallel path (`max_workers` +
+  `reference_factory`, since a pyfaidx handle is not thread-safe to share)
+  produces summaries identical to the sequential run. Returns a `CohortRunReport`
+  with the run counts and provenance.
 - **R0 — supply-chain hardening.** Dependabot now tracks all three dependency
   surfaces — `pip`, `cargo`, and `github-actions` (`.github/dependabot.yml`,
   grouped weekly PRs); a CI `security` job runs `pip-audit` (PyPI advisory DB)
