@@ -381,6 +381,20 @@ acceptance.
   genome-scale contigs take the indexed path while small inputs stay on the
   linear scan. The native Rust `bwt` kernel and the pure-Python FM-index share
   the interface; CI exercises the Python path, the rust job the native parity.
+- **R2 — native haplotype-walk kernel wired into the haplotype engine.** A Rust
+  kernel (`haplotype.rs`: `haplotype_apply_variants`) with a pure-Python fallback
+  (`offtarget._haplotype`) materializes a common haplotype's alternative sequence
+  by applying its full variant set to the reference window — applied right-to-left
+  so indels keep later edits' coordinates valid, returning `None` on a
+  reference-base clash (a phasing/coordinate mismatch the engine skips rather than
+  mis-applying). It is wired into `offtarget.haplotype._apply_all` (the hot inner
+  step of stage 3) and is **byte-identical** to the Python path, pinned by a fuzz
+  parity test over lowercase refs, `N` bases, indels, overlaps, and
+  out-of-window positions. The R2 micro-benchmark
+  ([`scripts/native_speedup.py`](scripts/native_speedup.py)) measures **~4x**. With
+  this the three spec kernels — `bwt`, `kmer`, `haplotype` — are all on their hot
+  paths behind the fallback-plus-parity discipline; the CI rust job runs the
+  native parity suite for each.
 - **R0 — supply-chain hardening.** Dependabot now tracks all three dependency
   surfaces — `pip`, `cargo`, and `github-actions` (`.github/dependabot.yml`,
   grouped weekly PRs); a CI `security` job runs `pip-audit` (PyPI advisory DB)

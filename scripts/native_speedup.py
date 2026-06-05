@@ -14,6 +14,11 @@ import random
 import time
 from collections.abc import Callable
 
+from alleleforge.offtarget._haplotype import (
+    apply_variants,
+    native_haplotype_available,
+    python_apply_variants,
+)
 from alleleforge.offtarget._kmer import (
     native_kmer_available,
     python_seed_positions,
@@ -71,6 +76,21 @@ def main() -> None:
         print(f"  {label}")
         print(f"    brute force : {brute * 1e3:8.2f} ms")
         print(f"    seeded      : {seeded * 1e3:8.2f} ms  ({brute / seeded:.1f}x)")
+
+    # Haplotype-walk materialization: apply a dense variant set to a window many
+    # times (one per common haplotype per region, at cohort scale).
+    print(f"\nnative haplotype kernel built: {native_haplotype_available()}")
+    window = "".join(rng.choice("ACGT") for _ in range(2_000))
+    edits = [(i, window[i], rng.choice("ACGT")) for i in range(0, 2_000, 7)]
+    py_hap = _time(lambda: [python_apply_variants(window, 0, edits) for _ in range(2_000)])
+    nat_hap = _time(lambda: [apply_variants(window, 0, edits) for _ in range(2_000)])
+    print(f"haplotype materialization (2,000 windows × {len(edits)} edits)")
+    print(f"  python : {py_hap * 1e3:8.2f} ms")
+    print(
+        f"  native : {nat_hap * 1e3:8.2f} ms  ({py_hap / nat_hap:.1f}x)"
+        if native_haplotype_available()
+        else "  native : (not built) — dispatch == python"
+    )
 
 
 if __name__ == "__main__":

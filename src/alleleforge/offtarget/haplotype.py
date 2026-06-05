@@ -17,6 +17,7 @@ from collections.abc import Iterable, Sequence
 
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.genome.reference import ReferenceGenome
+from alleleforge.offtarget._haplotype import apply_variants
 from alleleforge.offtarget._search import Hit, SearchBudget, SiteProvenance, scan_sequence
 from alleleforge.types.guide import PAM
 from alleleforge.types.offtarget import SiteOrigin
@@ -25,16 +26,9 @@ from alleleforge.types.variant import Variant
 
 
 def _apply_all(seq: str, window_start: int, variants: Sequence[Variant]) -> str | None:
-    """Apply every variant (right-to-left) to ``seq``; ``None`` on a ref clash."""
-    out = seq
-    for var in sorted(variants, key=lambda v: v.pos, reverse=True):
-        rel = var.pos - window_start
-        if rel < 0 or rel + len(var.ref) > len(out):
-            return None
-        if out[rel : rel + len(var.ref)].upper() != var.ref.upper():
-            return None
-        out = out[:rel] + var.alt + out[rel + len(var.ref) :]
-    return out
+    """Apply every variant to ``seq`` via the haplotype kernel; ``None`` on clash."""
+    edits = [(var.pos, var.ref, var.alt) for var in variants]
+    return apply_variants(seq, window_start, edits)
 
 
 def enumerate_haplotype_sites(

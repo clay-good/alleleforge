@@ -5,13 +5,14 @@
 //! kernels (`bwt`): `fm_build`, `fm_count`, `fm_locate`, and a `NativeFmIndex`
 //! object whose `count` / `locate` / `pam_sites` results are byte-identical to the
 //! pure-Python fallback in `alleleforge.genome.index` (pinned by a parity test).
-//! The `kmer` and `haplotype` kernels named in the spec layout build on this same
-//! pattern.
+//! The `kmer` (off-target seeding) and `haplotype` (haplotype-walk
+//! materialization) kernels build on this same fallback-plus-parity pattern.
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 mod bwt;
+mod haplotype;
 mod kmer;
 
 /// Single-source version string, kept byte-identical to
@@ -130,6 +131,19 @@ fn kmer_seed_positions(sequence: &str, spacer: &str, k: usize) -> Vec<usize> {
     kmer::seed_positions(sequence, spacer, k)
 }
 
+/// Haplotype walking: materialize a haplotype's alternative sequence.
+///
+/// `variants` is a list of `(pos, ref, alt)` tuples (0-based `pos`). Returns the
+/// sequence with every variant applied, or `None` on a reference-base clash.
+#[pyfunction]
+fn haplotype_apply_variants(
+    seq: &str,
+    window_start: i64,
+    variants: Vec<(i64, String, String)>,
+) -> Option<String> {
+    haplotype::apply_variants(seq, window_start, &variants)
+}
+
 /// The `aforge_native` Python module.
 #[pymodule]
 fn aforge_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -138,6 +152,7 @@ fn aforge_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fm_count, m)?)?;
     m.add_function(wrap_pyfunction!(fm_locate, m)?)?;
     m.add_function(wrap_pyfunction!(kmer_seed_positions, m)?)?;
+    m.add_function(wrap_pyfunction!(haplotype_apply_variants, m)?)?;
     m.add_class::<NativeFmIndex>()?;
     m.add_class::<NativePamHit>()?;
     m.add("__version__", AFORGE_VERSION)?;

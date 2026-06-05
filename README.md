@@ -169,11 +169,14 @@ in [`SPEC_V2.md`](SPEC_V2.md)**:
 **Landed since v0.1.0.** R0 — Dependabot across pip/cargo/actions, a CI `pip-audit`+`cargo audit`
 job, a CycloneDX SBOM on release, and a `scripts/reproduce.py` reproducibility audit gated in CI.
 R1 — the consent/license/checksum resolution wired for the backbone and every trained scorer through
-a shared `WeightGate` (the trained forward pass stays `real_weights`-gated). R2 — sub-quadratic
-(prefix-doubling) FM-index build, a native k-mer seed kernel, and **FM-index seed-and-extend wired into
-the engine's reference scan** (auto-engaged past 1 Mb, byte-identical to the linear scan).
-The one remaining R0 item is pinning the real artifact hashes, which requires freezing the published
-upstream artifacts; the consent gate already refuses any `null`-hash fetch by design.
+a shared `WeightGate` (the trained forward pass stays `real_weights`-gated). R2 — **all three spec
+kernels (`bwt`/`kmer`/`haplotype`) are now on their hot paths**: a sub-quadratic (prefix-doubling)
+FM-index build, a native k-mer seed kernel, **FM-index seed-and-extend wired into the engine's
+reference scan** (auto-engaged past 1 Mb, byte-identical to the linear scan), and a **native
+haplotype-walk kernel** that materializes each common haplotype's alternative sequence (~4x, pinned
+byte-for-byte to the Python fallback). The one remaining R0 item is pinning the real artifact hashes,
+which requires freezing the published upstream artifacts; the consent gate already refuses any
+`null`-hash fetch by design.
 
 ---
 
@@ -209,11 +212,17 @@ pip install -e ".[core,genome,variant,cli,ml,dev]"
 ### Native acceleration (optional)
 
 The performance kernels live in a PyO3 crate (`aforge_native`) built with
-[maturin](https://github.com/PyO3/maturin). The **FM-index off-target search** kernel (`bwt`) is
-implemented: `FMIndex.build(prefer_native=True)` transparently uses the Rust index when the crate is
-present, and a [parity test](tests/genome/test_native.py) pins its `count` / `locate` / `pam_sites`
-output to be **byte-identical** to the pure-Python fallback (same BWT, C-table, checkpointed rank,
-sampled suffix array, and content hash). AlleleForge imports and runs cleanly **without** the crate
+[maturin](https://github.com/PyO3/maturin). **All three spec kernels are implemented**, each behind a
+correct pure-Python fallback and a byte-identical parity test, and each wired into its hot path:
+
+| Kernel | What it does | Hot path | Parity test | Speedup |
+|---|---|---|---|:---:|
+| `bwt` | FM-index `build`/`count`/`locate`/`pam_sites` | reference scan (PAM seed-and-extend) | [`test_native.py`](tests/genome/test_native.py) | genome-scale |
+| `kmer` | exact length-`k` seed positions | seed prefilter (high-stringency scans) | [`test_kmer.py`](tests/offtarget/test_kmer.py) | ~2–4x / ~5–6x lookup |
+| `haplotype` | apply a haplotype's variant set to a window | haplotype walk (stage 3 materialization) | [`test_haplotype_kernel.py`](tests/offtarget/test_haplotype_kernel.py) | ~4x |
+
+`FMIndex.build(prefer_native=True)` transparently uses the Rust index when the crate is present; the
+k-mer and haplotype dispatchers do the same. AlleleForge imports and runs cleanly **without** the crate
 (pure-Python mode); build it for the genome-scale path:
 
 ```bash
@@ -369,7 +378,7 @@ flowchart TB
         direction TB
         S1["1 · Reference scan<br/>PAM-anchored · ≤4 mismatch · ≤1 DNA + ≤1 RNA bulge · both strands<br/>FM-index seed-and-extend at genome scale (auto past 1 Mb)"]
         S2["2 · Population augmentation<br/>gnomAD alt-allele re-scan → de-novo PAMs / strengthened seed sites"]
-        S3["3 · Haplotype walk<br/>common 1000G / HGDP haplotypes (variant combinations)"]
+        S3["3 · Haplotype walk<br/>common 1000G / HGDP haplotypes (variant combinations)<br/>native haplotype kernel materializes each alt sequence (~4x)"]
         S4["4 · Patient VCF (optional)<br/>personalize to one genome"]
         S5["5 · Score · threshold · de-dup · stratify"]
         S1 --> S5

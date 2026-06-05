@@ -152,9 +152,18 @@ dead code.
   region** past `FM_INDEX_AUTO_THRESHOLD` (1 Mb) so genome-scale contigs take the
   indexed path while small inputs stay on the linear scan. Building the
   whole-genome on-disk index via SA-IS at scale is the remaining R4 step.
-- **`haplotype` kernel** wired into the population/haplotype off-target engine:
-  fast walking of phased common haplotypes (1000G/HGDP) to materialize the
-  ancestry-stratified alternative sequences the engine scans.
+- **`haplotype` kernel (◐ landed).** A native Rust haplotype-walk kernel
+  (`haplotype.rs`: `haplotype_apply_variants`) + pure-Python fallback
+  (`offtarget._haplotype`) wired into the haplotype off-target engine
+  (`haplotype.py::_apply_all`): it materializes a common haplotype's
+  alternative sequence by applying the haplotype's full variant set to the
+  reference window (right-to-left so indels keep coordinates valid; a
+  reference-base clash yields `None` and the engine skips it). It is
+  byte-identical to the Python path — pinned by a fuzz parity test (lowercase
+  refs, `N` bases, indels, overlaps, out-of-window positions) — and measures
+  **~4x** in the R2 micro-benchmark. With this the three spec kernels
+  (`bwt`/`kmer`/`haplotype`) are all on their hot paths behind the
+  fallback-plus-parity discipline.
 - A `bench/native_speedup.py` micro-benchmark recording native-vs-Python wall
   time per kernel (reported, not gated).
 
