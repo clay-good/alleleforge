@@ -12,7 +12,7 @@ Subcommands:
 * ``design`` — variant to a ranked, multi-chemistry menu (the headline command).
 * ``offtarget`` — standalone population/haplotype-aware off-target for a spacer.
 * ``data`` — inspect the dataset registry (versions, licenses, provenance).
-* ``bench`` — run CRISPR-Bench tasks (wired in Phase 14).
+* ``bench`` — list and run CRISPR-Bench tasks against frozen splits (Phase 14).
 
 Exit codes are meaningful and distinct: ``0`` success, ``2`` usage/input error
 (Typer default), ``3`` missing data, ``4`` an unavailable model or feature.
@@ -426,11 +426,88 @@ def data_show(
     _emit(payload, as_json=as_json, human=human)
 
 
-@app.command()
-def bench() -> None:
-    """Run CRISPR-Bench tasks (wired in Phase 14)."""
-    _echo_err("CRISPR-Bench is not yet available; it arrives in Phase 14.")
-    raise typer.Exit(ExitCode.UNAVAILABLE)
+bench_app = typer.Typer(
+    name="bench", help="Run CRISPR-Bench tasks (Phase 14).", no_args_is_help=True
+)
+app.add_typer(bench_app)
+
+
+@bench_app.command("list")
+def bench_list(
+    as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """List the CRISPR-Bench tasks, their datasets, and primary metrics."""
+    from alleleforge.benchmark.tasks import TASKS
+
+    tasks = [TASKS[name] for name in sorted(TASKS)]
+    rows: list[dict[str, Any]] = [
+        {
+            "task": t.name,
+            "kind": t.kind.value,
+            "chemistry": t.chemistry,
+            "dataset": t.dataset,
+            "primary_metric": t.primary_metric,
+            "metrics": list(t.metrics),
+        }
+        for t in tasks
+    ]
+    human = "\n".join(
+        f"{t.name:26s} {t.kind.value:14s} {t.dataset:22s} -> {t.primary_metric} "
+        f"(+ {', '.join(m for m in t.metrics if m != t.primary_metric)})"
+        for t in tasks
+    )
+    _emit({"tasks": rows}, as_json=as_json, human=human)
+
+
+@bench_app.command("run")
+def bench_run(
+    ctx: typer.Context,
+    task: Annotated[str, typer.Argument(help="Task name (see `aforge bench list`).")],
+    split_version: Annotated[str, typer.Option(help="Frozen split version to score.")] = "v1",
+    out: Annotated[Path | None, typer.Option(help="Write the signed result JSON here.")] = None,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="Print the full signed result JSON to stdout.")
+    ] = False,
+) -> None:
+    """Score the reference baseline on a task's frozen test split.
+
+    Emits a signed, provenance-stamped result. Real models plug in through the
+    Python API (``run_benchmark``) and the leaderboard submission format.
+    """
+    from alleleforge.benchmark.baseline import build_baseline
+    from alleleforge.benchmark.runner import run_benchmark
+    from alleleforge.benchmark.splits import SplitIntegrityError, load_split
+    from alleleforge.benchmark.tasks import get_task
+
+    state: GlobalState = ctx.obj
+    try:
+        task_obj = get_task(task)
+    except KeyError as exc:
+        _echo_err(f"error: {exc}")
+        raise typer.Exit(ExitCode.USAGE) from exc
+    try:
+        split, dataset = load_split(task, version=split_version)
+    except FileNotFoundError as exc:
+        _echo_err(f"error: {exc}")
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
+    except SplitIntegrityError as exc:
+        _echo_err(f"error: split integrity check failed: {exc}")
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
+
+    baseline = build_baseline(task_obj, split, dataset)
+    result = run_benchmark(baseline, task_obj, split=split, dataset=dataset, seed=state.seed)
+
+    if out is not None:
+        out.write_text(result.model_dump_json(indent=2))
+        typer.echo(f"wrote {out}")
+    if as_json:
+        typer.echo(result.model_dump_json(indent=2))
+    elif out is None:
+        typer.echo(
+            f"{result.task} @ {result.split_version}: {result.primary_metric}="
+            f"{result.primary_value:.4f}, ece={result.metrics['ece']:.4f} "
+            f"(n={result.n_test}, model={result.model.name})"
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover

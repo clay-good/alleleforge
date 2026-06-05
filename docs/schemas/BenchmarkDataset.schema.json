@@ -1,0 +1,85 @@
+{
+  "$defs": {
+    "Example": {
+      "description": "One scored row: an id, the scorer input(s), and the ground-truth label.\n\nAttributes:\n    example_id: Stable identifier, referenced by frozen splits.\n    inputs: Named inputs; the task's ``input_key`` selects what is passed to\n        :meth:`~alleleforge.scoring.base.Scorer.score`.\n    label: The ground truth \u2014 a float (regression), a 0/1 int\n        (classification), or a category\u2192frequency mapping (distribution).",
+      "properties": {
+        "example_id": {
+          "title": "Example Id",
+          "type": "string"
+        },
+        "inputs": {
+          "additionalProperties": true,
+          "title": "Inputs",
+          "type": "object"
+        },
+        "label": {
+          "title": "Label"
+        }
+      },
+      "required": [
+        "example_id",
+        "inputs",
+        "label"
+      ],
+      "title": "Example",
+      "type": "object"
+    }
+  },
+  "description": "A named, provenance-stamped collection of benchmark :class:`Example` rows.\n\nAttributes:\n    name: Dataset identifier, referenced by a :class:`~alleleforge.benchmark.tasks.Task`.\n    version: Pinned dataset version.\n    license: SPDX-style or descriptive license identifier.\n    citation: Literature citation for the source corpus.\n    source_url: Where the full corpus is fetched from.\n    redistributable: Whether the *full* corpus may be vendored (the shipped\n        fixture always may; this flag describes the upstream data).\n    synthetic: ``True`` when these rows are a synthetic CI stand-in.\n    examples: The scored rows.",
+  "properties": {
+    "citation": {
+      "title": "Citation",
+      "type": "string"
+    },
+    "examples": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Example"
+      },
+      "title": "Examples",
+      "type": "array"
+    },
+    "license": {
+      "title": "License",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "redistributable": {
+      "default": false,
+      "title": "Redistributable",
+      "type": "boolean"
+    },
+    "source_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Url"
+    },
+    "synthetic": {
+      "default": false,
+      "title": "Synthetic",
+      "type": "boolean"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "version",
+    "license",
+    "citation"
+  ],
+  "title": "BenchmarkDataset",
+  "type": "object"
+}

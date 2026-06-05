@@ -1,0 +1,52 @@
+{
+  "description": "One row on the board: a model's result on a single task.",
+  "properties": {
+    "ece": {
+      "title": "Ece",
+      "type": "number"
+    },
+    "metrics": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Metrics",
+      "type": "object"
+    },
+    "model_name": {
+      "title": "Model Name",
+      "type": "string"
+    },
+    "primary_metric": {
+      "title": "Primary Metric",
+      "type": "string"
+    },
+    "primary_value": {
+      "title": "Primary Value",
+      "type": "number"
+    },
+    "split_version": {
+      "title": "Split Version",
+      "type": "string"
+    },
+    "submitter": {
+      "title": "Submitter",
+      "type": "string"
+    },
+    "task": {
+      "title": "Task",
+      "type": "string"
+    }
+  },
+  "required": [
+    "task",
+    "submitter",
+    "model_name",
+    "split_version",
+    "primary_metric",
+    "primary_value",
+    "ece",
+    "metrics"
+  ],
+  "title": "LeaderboardEntry",
+  "type": "object"
+}

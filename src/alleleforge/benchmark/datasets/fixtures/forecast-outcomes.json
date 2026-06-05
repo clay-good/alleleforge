@@ -1,0 +1,347 @@
+{
+  "version": "synthetic-v1",
+  "license": "CC-BY-4.0",
+  "citation": "Allen et al., Nat Biotechnol 2019 (FORECasT) \u2014 synthetic stand-in",
+  "source_url": "https://partslab.sanger.ac.uk/FORECasT",
+  "redistributable": false,
+  "synthetic": true,
+  "name": "forecast-outcomes",
+  "examples": [
+    {
+      "example_id": "forecast-000",
+      "inputs": {
+        "context": "CTCAGCCGTTCAGAACTGCCATCGTTAGTTCTTAGGTAGC",
+        "cell_type": "K562"
+      },
+      "label": {
+        "ins_1bp": 0.238248,
+        "del_1bp": 0.149229,
+        "del_2bp": 0.228733,
+        "del_large": 0.161437,
+        "unmodified": 0.222352
+      }
+    },
+    {
+      "example_id": "forecast-001",
+      "inputs": {
+        "context": "GAGAGCGTCGTTATTACATGATGAAGTTGGGGCACCGCAG",
+        "cell_type": "HEK293T"
+      },
+      "label": {
+        "ins_1bp": 0.580104,
+        "del_1bp": 0.133912,
+        "del_2bp": 0.197478,
+        "del_large": 0.033528,
+        "unmodified": 0.054978
+      }
+    },
+    {
+      "example_id": "forecast-002",
+      "inputs": {
+        "context": "TGGTTGCAGGCGCTCAGGAGTAAGATTAACGGCTTACAAA",
+        "cell_type": "HepG2"
+      },
+      "label": {
+        "ins_1bp": 0.229182,
+        "del_1bp": 0.243928,
+        "del_2bp": 0.17839,
+        "del_large": 0.190876,
+        "unmodified": 0.157624
+      }
+    },
+    {
+      "example_id": "forecast-003",
+      "inputs": {
+        "context": "CCTAAGTAGAACGAGATGAGAATAGCGTTGCGGACGTTCA",
+        "cell_type": "K562"
+      },
+      "label": {
+        "ins_1bp": 0.101945,
+        "del_1bp": 0.281805,
+        "del_2bp": 0.247559,
+        "del_large": 0.324733,
+        "unmodified": 0.043958
+      }
+    },
+    {
+      "example_id": "forecast-004",
+      "inputs": {
+        "context": "TAATTACAATGACTCCACACCATTTTACAGCAGAGTACCT",
+        "cell_type": "HEK293T"
+      },
+      "label": {
+        "ins_1bp": 0.251315,
+        "del_1bp": 0.268914,
+        "del_2bp": 0.021374,
+        "del_large": 0.177952,
+        "unmodified": 0.280445
+      }
+    },
+    {
+      "example_id": "forecast-005",
+      "inputs": {
+        "context": "TCGTTCAGAAACCAAGGGACCGCCCGTGGGTATAAGGGTA",
+        "cell_type": "HepG2"
+      },
+      "label": {
+        "ins_1bp": 0.143525,
+        "del_1bp": 0.257204,
+        "del_2bp": 0.177766,
+        "del_large": 0.248283,
+        "unmodified": 0.173223
+      }
+    },
+    {
+      "example_id": "forecast-006",
+      "inputs": {
+        "context": "TAAAAACTGGAATCTCAATAGGCCAAGTGTCCGCCGGGGC",
+        "cell_type": "K562"
+      },
+      "label": {
+        "ins_1bp": 0.382721,
+        "del_1bp": 0.094276,
+        "del_2bp": 0.323521,
+        "del_large": 0.105337,
+        "unmodified": 0.094146
+      }
+    },
+    {
+      "example_id": "forecast-007",
+      "inputs": {
+        "context": "TGTTTAACCAACGAAGTGCCCACTCAACGGGGCAAGACTC",
+        "cell_type": "HEK293T"
+      },
+      "label": {
+        "ins_1bp": 0.349714,
+        "del_1bp": 0.196117,
+        "del_2bp": 0.028764,
+        "del_large": 0.151593,
+        "unmodified": 0.273812
+      }
+    },
+    {
+      "example_id": "forecast-008",
+      "inputs": {
+        "context": "CCTCCACGTGGGAGACCCGTCTTCTTCACTGCATCGATGG",
+        "cell_type": "HepG2"
+      },
+      "label": {
+        "ins_1bp": 0.241609,
+        "del_1bp": 0.099019,
+        "del_2bp": 0.302647,
+        "del_large": 0.278057,
+        "unmodified": 0.078668
+      }
+    },
+    {
+      "example_id": "forecast-009",
+      "inputs": {
+        "context": "TGGATGTCACGGTGCTGCACGGCTTGGTAAACTTAATCCT",
+        "cell_type": "K562"
+      },
+      "label": {
+        "ins_1bp": 0.125491,
+        "del_1bp": 0.251389,
+        "del_2bp": 0.042588,
+        "del_large": 0.530368,
+        "unmodified": 0.050164
+      }
+    },
+    {
+      "example_id": "forecast-010",
+      "inputs": {
+        "context": "AACATTTTAAGGGACGTTCGCGGGTAAGGTGCGCTGATCA",
+        "cell_type": "HEK293T"
+      },
+      "label": {
+        "ins_1bp": 0.304572,
+        "del_1bp": 0.057715,
+        "del_2bp": 0.074625,
+        "del_large": 0.298742,
+        "unmodified": 0.264346
+      }
+    },
+    {
+      "example_id": "forecast-011",
+      "inputs": {
+        "context": "CGGGATCACTGTCCGAAATTATAAAAGTAGCGTCTAAGTC",
+        "cell_type": "HepG2"
+      },
+      "label": {
+        "ins_1bp": 0.180127,
+        "del_1bp": 0.255485,
+        "del_2bp": 0.160223,
+        "del_large": 0.174094,
+        "unmodified": 0.23007
+      }
+    },
+    {
+      "example_id": "forecast-012",
+      "inputs": {
+        "context": "ATAGCAGATTTGCATCATTCCATACGATGTCCTATCACGG",
+        "cell_type": "K562"
+      },
+      "label": {
+        "ins_1bp": 0.162421,
+        "del_1bp": 0.219036,
+        "del_2bp": 0.18109,
+        "del_large": 0.386075,
+        "unmodified": 0.05138
+      }
+    },
+    {
+      "example_id": "forecast-013",
+      "inputs": {
+        "context": "AGTACCTAGGTAGGCGCATTTACCTGGTGCAATAATTCGG",
+        "cell_type": "HEK293T"
+      },
+      "label": {
+        "ins_1bp": 0.281272,
+        "del_1bp": 0.047469,
+        "del_2bp": 0.388973,
+        "del_large": 0.15478,
+        "unmodified": 0.127506
+      }
+    },
+    {
+      "example_id": "forecast-014",
+      "inputs": {
+        "context": "TAGTCATGACTTGTCGGGCGGACACTATGAATTTGCTATG",
+        "cell_type": "HepG2"
+      },
+      "label": {
+        "ins_1bp": 0.30939,
+        "del_1bp": 0.081297,
+        "del_2bp": 0.268763,
+        "del_large": 0.23695,
+        "unmodified": 0.103599
+      }
+    },
+    {
+      "example_id": "forecast-015",
+      "inputs": {
+        "context": "GACCTATGGACTCGGAGAATCTAGTTACTCAATATGAATG",
+        "cell_type": "K562"
+      },
+      "label": {
+        "ins_1bp": 0.211595,
+        "del_1bp": 0.201043,
+        "del_2bp": 0.267496,
+        "del_large": 0.118572,
+        "unmodified": 0.201295
+      }
+    },
+    {
+      "example_id": "forecast-016",
+      "inputs": {
+        "context": "GATATGCTGCTATTTTCGATTGTTGGGAGGAAAGTGCAAA",
+        "cell_type": "HEK293T"
+      },
+      "label": {
+        "ins_1bp": 0.048381,
+        "del_1bp": 0.09467,
+        "del_2bp": 0.174078,
+        "del_large": 0.384325,
+        "unmodified": 0.298545
+      }
+    },
+    {
+      "example_id": "forecast-017",
+      "inputs": {
+        "context": "ACGGGAGAACAGGCTGTCGCAGTGACCCACGTTATGCCGT",
+        "cell_type": "HepG2"
+      },
+      "label": {
+        "ins_1bp": 0.122147,
+        "del_1bp": 0.0538,
+        "del_2bp": 0.408186,
+        "del_large": 0.267437,
+        "unmodified": 0.14843
+      }
+    },
+    {
+      "example_id": "forecast-018",
+      "inputs": {
+        "context": "TGCATTCGCTGAGCGGACTAGAAGATTGCCTAACAGAGAT",
+        "cell_type": "K562"
+      },
+      "label": {
+        "ins_1bp": 0.302065,
+        "del_1bp": 0.295939,
+        "del_2bp": 0.027913,
+        "del_large": 0.108992,
+        "unmodified": 0.265091
+      }
+    },
+    {
+      "example_id": "forecast-019",
+      "inputs": {
+        "context": "TGGAACCGCATAACTCACTAGACTCTAAAGCCCTATCCTT",
+        "cell_type": "HEK293T"
+      },
+      "label": {
+        "ins_1bp": 0.05624,
+        "del_1bp": 0.297488,
+        "del_2bp": 0.096,
+        "del_large": 0.282407,
+        "unmodified": 0.267865
+      }
+    },
+    {
+      "example_id": "forecast-020",
+      "inputs": {
+        "context": "CCTGTGTCCCCACTTCTCGTAATTGACTTGGGCCTACTCA",
+        "cell_type": "HepG2"
+      },
+      "label": {
+        "ins_1bp": 0.18893,
+        "del_1bp": 0.194657,
+        "del_2bp": 0.151563,
+        "del_large": 0.234204,
+        "unmodified": 0.230647
+      }
+    },
+    {
+      "example_id": "forecast-021",
+      "inputs": {
+        "context": "GGGAGTGGCTAGTGAGGCGTGTGAGTATTGTTGAGTGTAC",
+        "cell_type": "K562"
+      },
+      "label": {
+        "ins_1bp": 0.346928,
+        "del_1bp": 0.230866,
+        "del_2bp": 0.157467,
+        "del_large": 0.116719,
+        "unmodified": 0.14802
+      }
+    },
+    {
+      "example_id": "forecast-022",
+      "inputs": {
+        "context": "CCGTATGGGTTGCGCCAATATCTGGGGGTTAGATGGTCTT",
+        "cell_type": "HEK293T"
+      },
+      "label": {
+        "ins_1bp": 0.289858,
+        "del_1bp": 0.040066,
+        "del_2bp": 0.396263,
+        "del_large": 0.233579,
+        "unmodified": 0.040234
+      }
+    },
+    {
+      "example_id": "forecast-023",
+      "inputs": {
+        "context": "GAGTGTTTCCAAAACGGACGCTAATACAAGGCCGTGGTCA",
+        "cell_type": "HepG2"
+      },
+      "label": {
+        "ins_1bp": 0.283334,
+        "del_1bp": 0.025605,
+        "del_2bp": 0.118465,
+        "del_large": 0.226895,
+        "unmodified": 0.345701
+      }
+    }
+  ]
+}

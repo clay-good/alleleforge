@@ -231,5 +231,36 @@ acceptance.
   `chrom:start-end(strand)` `__str__`. 31 async endpoint tests (httpx +
   ASGITransport) cover every route, schema validation, the job lifecycle, exit
   paths, and the no-egress guarantee. Web API page added to the docs.
+- **Phase 14 — CRISPR-Bench.** A standardized, calibration-first benchmark for
+  guide- and edit-design models under `alleleforge.benchmark` (an installed
+  subpackage, pure-Python and dependency-light, held to the same
+  `mypy --strict`/ruff/coverage gates as the rest of the library). Five fixed
+  task contracts (`tasks.py`): Cas9-efficiency and PE-efficiency (regression),
+  Cas9-outcome and BE-outcome (distribution), and off-target-classification.
+  Provenance-stamped, license-aware datasets (`datasets/`) shipped as small
+  **synthetic fixtures** for CI, with the real corpora (Rule Set 3, FORECasT,
+  BE-Hive, PRIDICT2, GUIDE-seq) fetched at runtime through the consent-gated
+  registry. **Frozen, content-hashed splits** (`splits/`) with deliberate
+  cross-cell-type test folds; `load_split()` re-verifies both the dataset content
+  hash and the split membership hash on read and raises `SplitIntegrityError` on
+  any drift — changing the data or the split requires a new version. A
+  pure-Python metric battery (`metrics.py`): Spearman/Pearson, KL/top-k,
+  AUROC/AUPRC, and **Expected Calibration Error required on every task**
+  (interval coverage for regression, binned reliability for classification,
+  predicted-mode reliability for distributions). A `runner.py` that evaluates any
+  `BenchScorer` (the library's efficiency `Scorer`s already conform), enforces
+  the no-bare-float contract at the seam, and emits a **signed** (content-hashed),
+  provenance-stamped `BenchmarkResult`. A model-card-gated `leaderboard.py`
+  (`Submission`/`Leaderboard`) that rejects unsigned, edited, or uncarded entries,
+  ranks by metric direction (KL/ECE ascending), and renders static
+  Markdown/HTML with calibration shown next to accuracy. A reference
+  `BaselineScorer` fit on the train-fold marginal so every task runs out of the
+  box. `aforge bench list` / `aforge bench run` wired over the runner. 63 tests
+  (metrics vs hand-computed values, split-integrity tamper/drift detection,
+  end-to-end runner across all kinds with signature reproducibility, leaderboard
+  gating, and CLI). New `benchmark/README.md` (datasets/licenses/citations, split
+  philosophy, submission format, launch plan), a CRISPR-Bench docs page,
+  benchmark JSON schemas, and a deterministic fixture generator
+  (`scripts/make_benchmark_fixtures.py`).
 
 [Unreleased]: https://github.com/clay-good/alleleforge/commits/main

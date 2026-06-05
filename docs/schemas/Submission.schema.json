@@ -1,0 +1,382 @@
+{
+  "$defs": {
+    "BenchmarkResult": {
+      "description": "A signed, provenance-stamped evaluation of one model on one (task, split).\n\nAttributes:\n    task: The task name.\n    split_version: The frozen split version evaluated against.\n    dataset: The dataset the split partitions.\n    n_test: Number of test-fold examples scored.\n    metrics: Metric name \u2192 value, including ``\"ece\"``.\n    primary_metric: The task's ranking metric.\n    primary_value: The value of the primary metric.\n    n_out_of_distribution: How many predictions the model self-flagged OOD.\n    model: The evaluated model's card facts.\n    provenance: The full reproducibility block.\n    signature: Content hash over this record (minus the signature itself).",
+      "properties": {
+        "dataset": {
+          "title": "Dataset",
+          "type": "string"
+        },
+        "metrics": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Metrics",
+          "type": "object"
+        },
+        "model": {
+          "$ref": "#/$defs/ModelInfo"
+        },
+        "n_out_of_distribution": {
+          "title": "N Out Of Distribution",
+          "type": "integer"
+        },
+        "n_test": {
+          "title": "N Test",
+          "type": "integer"
+        },
+        "primary_metric": {
+          "title": "Primary Metric",
+          "type": "string"
+        },
+        "primary_value": {
+          "title": "Primary Value",
+          "type": "number"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "signature": {
+          "title": "Signature",
+          "type": "string"
+        },
+        "split_version": {
+          "title": "Split Version",
+          "type": "string"
+        },
+        "task": {
+          "title": "Task",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task",
+        "split_version",
+        "dataset",
+        "n_test",
+        "metrics",
+        "primary_metric",
+        "primary_value",
+        "n_out_of_distribution",
+        "model",
+        "provenance",
+        "signature"
+      ],
+      "title": "BenchmarkResult",
+      "type": "object"
+    },
+    "DatasetVersion": {
+      "description": "A versioned, license-aware dataset descriptor.\n\nAttributes:\n    name: Dataset identifier (e.g. ``\"gnomad\"``).\n    version: Pinned dataset version (e.g. ``\"v4.1\"``).\n    source_url: Where the dataset is fetched from.\n    license: The dataset's license identifier.\n    sha256: Content hash of the pinned artifact.\n    citation: Literature citation for the dataset.\n    redistributable: Whether AlleleForge may vendor this dataset.",
+      "properties": {
+        "citation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citation"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "License"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "redistributable": {
+          "default": false,
+          "title": "Redistributable",
+          "type": "boolean"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "DatasetVersion",
+      "type": "object"
+    },
+    "ModelCheckpoint": {
+      "description": "A content-hashed model checkpoint with its card metadata.\n\nAttributes:\n    name: Model identifier (e.g. ``\"PRIDICT2.0\"``).\n    version: Model version.\n    sha256: Content hash of the checkpoint file.\n    chemistry: The chemistry this model scores, if applicable.\n    license: The model's license identifier.\n    citation: Literature citation for the model.",
+      "properties": {
+        "chemistry": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chemistry"
+        },
+        "citation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citation"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "License"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "ModelCheckpoint",
+      "type": "object"
+    },
+    "ModelInfo": {
+      "description": "The minimal model-card facts a leaderboard entry must carry.",
+      "properties": {
+        "chemistry": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Chemistry"
+        },
+        "citation": {
+          "title": "Citation",
+          "type": "string"
+        },
+        "license": {
+          "title": "License",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "license",
+        "citation"
+      ],
+      "title": "ModelInfo",
+      "type": "object"
+    },
+    "Provenance": {
+      "description": "The reproducibility block embedded in every top-level result.\n\nAttributes:\n    alleleforge_version: The AlleleForge version that produced the result.\n    reference_build: The reference genome build used.\n    seed: The global random seed in effect.\n    tools: Versions of every wrapped tool used.\n    datasets: Versions of every dataset accessed.\n    models: Checkpoints of every model invoked.\n    config_snapshot: A snapshot of the resolved settings.\n    timestamp: UTC time the result was produced.",
+      "properties": {
+        "alleleforge_version": {
+          "title": "Alleleforge Version",
+          "type": "string"
+        },
+        "config_snapshot": {
+          "additionalProperties": true,
+          "default": {},
+          "title": "Config Snapshot",
+          "type": "object"
+        },
+        "datasets": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DatasetVersion"
+          },
+          "title": "Datasets",
+          "type": "array"
+        },
+        "models": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ModelCheckpoint"
+          },
+          "title": "Models",
+          "type": "array"
+        },
+        "reference_build": {
+          "default": "hg38",
+          "title": "Reference Build",
+          "type": "string"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "timestamp": {
+          "format": "date-time",
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "tools": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ToolVersion"
+          },
+          "title": "Tools",
+          "type": "array"
+        }
+      },
+      "required": [
+        "alleleforge_version",
+        "seed",
+        "timestamp"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "ToolVersion": {
+      "description": "The pinned version of a wrapped third-party tool.",
+      "properties": {
+        "citation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citation"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "ToolVersion",
+      "type": "object"
+    }
+  },
+  "description": "A leaderboard submission: a carded model plus its signed results.\n\nThe model-card gate and signature checks run when the submission is admitted\nto a :class:`Leaderboard` (see :meth:`Leaderboard.add`) rather than at\nconstruction, so the container stays a plain, serializable record.\n\nAttributes:\n    submitter: Who is submitting (a name or handle).\n    model: The model-card facts; all of name/license/citation are required.\n    results: One or more signed :class:`BenchmarkResult` records.\n    submitted_at: UTC submission time.",
+  "properties": {
+    "model": {
+      "$ref": "#/$defs/ModelInfo"
+    },
+    "results": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkResult"
+      },
+      "title": "Results",
+      "type": "array"
+    },
+    "submitted_at": {
+      "format": "date-time",
+      "title": "Submitted At",
+      "type": "string"
+    },
+    "submitter": {
+      "title": "Submitter",
+      "type": "string"
+    }
+  },
+  "required": [
+    "submitter",
+    "model",
+    "results",
+    "submitted_at"
+  ],
+  "title": "Submission",
+  "type": "object"
+}

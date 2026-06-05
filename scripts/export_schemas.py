@@ -15,6 +15,11 @@ from typing import Any
 from pydantic import BaseModel
 
 import alleleforge.types as t
+from alleleforge.benchmark.datasets import BenchmarkDataset
+from alleleforge.benchmark.leaderboard import LeaderboardEntry, Submission
+from alleleforge.benchmark.runner import BenchmarkResult, ModelInfo
+from alleleforge.benchmark.splits import Split
+from alleleforge.benchmark.tasks import Example, Task
 from alleleforge.data.annotations import Gene
 from alleleforge.data.clinvar import ClinVarRecord
 from alleleforge.data.gnomad import PopulationFrequency
@@ -76,6 +81,15 @@ _MODELS: list[type[BaseModel]] = [
     AncestryOffTarget,
     CandidateReport,
     DesignReport,
+    # Phase 14 — CRISPR-Bench.
+    Task,
+    Example,
+    BenchmarkDataset,
+    Split,
+    ModelInfo,
+    BenchmarkResult,
+    Submission,
+    LeaderboardEntry,
 ]
 
 

@@ -1,0 +1,203 @@
+{
+  "version": "synthetic-v1",
+  "license": "CC-BY-4.0",
+  "citation": "Mathis et al., Nat Biotechnol 2023 (PRIDICT2) \u2014 synthetic stand-in",
+  "source_url": "https://www.pridict.it",
+  "redistributable": false,
+  "synthetic": true,
+  "name": "pridict2-library",
+  "examples": [
+    {
+      "example_id": "pridict2-000",
+      "inputs": {
+        "context": "TAAATCCGAACAGGGAGTCCCCCGGCTTTT",
+        "cell_type": "K562"
+      },
+      "label": 0.095906
+    },
+    {
+      "example_id": "pridict2-001",
+      "inputs": {
+        "context": "CTACACCGACTATGCCGTTAAGGTCCTCTT",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.357315
+    },
+    {
+      "example_id": "pridict2-002",
+      "inputs": {
+        "context": "GTATTCTGAGGAAGGCATGGCTTCCATTCA",
+        "cell_type": "HepG2"
+      },
+      "label": 0.553112
+    },
+    {
+      "example_id": "pridict2-003",
+      "inputs": {
+        "context": "GACAATATCAACACTAAGACAGGATTATCA",
+        "cell_type": "K562"
+      },
+      "label": 0.006441
+    },
+    {
+      "example_id": "pridict2-004",
+      "inputs": {
+        "context": "TCCTTAAACGGGTTTCTGCCGGGACGAAGC",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.513221
+    },
+    {
+      "example_id": "pridict2-005",
+      "inputs": {
+        "context": "GTTCGAAGTATGGCTTTACCCTGGAAGTAT",
+        "cell_type": "HepG2"
+      },
+      "label": 0.926744
+    },
+    {
+      "example_id": "pridict2-006",
+      "inputs": {
+        "context": "GCTGTATGAGGAGGTATCAGTTGATTGATG",
+        "cell_type": "K562"
+      },
+      "label": 0.258092
+    },
+    {
+      "example_id": "pridict2-007",
+      "inputs": {
+        "context": "GAGATTCCGCTCGTACTAGAGGAATTCCAT",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.713627
+    },
+    {
+      "example_id": "pridict2-008",
+      "inputs": {
+        "context": "TTGTACCTTAGCACCAGGCAGGTGGTACCC",
+        "cell_type": "HepG2"
+      },
+      "label": 0.758248
+    },
+    {
+      "example_id": "pridict2-009",
+      "inputs": {
+        "context": "ACAGGGCAATTATCTCACCAAGGAATGGGA",
+        "cell_type": "K562"
+      },
+      "label": 0.047203
+    },
+    {
+      "example_id": "pridict2-010",
+      "inputs": {
+        "context": "GCTCGATGACGTGCGAGCCAATTCCCAACG",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.056334
+    },
+    {
+      "example_id": "pridict2-011",
+      "inputs": {
+        "context": "GTAGAAGCAACACCGGACAAAAAGTGCACG",
+        "cell_type": "HepG2"
+      },
+      "label": 0.253324
+    },
+    {
+      "example_id": "pridict2-012",
+      "inputs": {
+        "context": "TACTTAATTATAACGTTCTGTACCCTCGTC",
+        "cell_type": "K562"
+      },
+      "label": 0.75111
+    },
+    {
+      "example_id": "pridict2-013",
+      "inputs": {
+        "context": "TCGCCTTTGTATTCAATATCTCAGTATGTC",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.125993
+    },
+    {
+      "example_id": "pridict2-014",
+      "inputs": {
+        "context": "CTCGTTGGGGATTCCCGGTCCAGGATACAT",
+        "cell_type": "HepG2"
+      },
+      "label": 0.86431
+    },
+    {
+      "example_id": "pridict2-015",
+      "inputs": {
+        "context": "GAACAAATGCGTCCCAGGTATGTGGACGAG",
+        "cell_type": "K562"
+      },
+      "label": 0.452202
+    },
+    {
+      "example_id": "pridict2-016",
+      "inputs": {
+        "context": "CGGACAACGGCACTGAATACACTTAGTCCT",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.389078
+    },
+    {
+      "example_id": "pridict2-017",
+      "inputs": {
+        "context": "AGAATGGAATAAGTAAAATAGAGGACTACA",
+        "cell_type": "HepG2"
+      },
+      "label": 0.873437
+    },
+    {
+      "example_id": "pridict2-018",
+      "inputs": {
+        "context": "AGCGATCTTCTTCCTTCCAACGGGGGTGAT",
+        "cell_type": "K562"
+      },
+      "label": 0.243336
+    },
+    {
+      "example_id": "pridict2-019",
+      "inputs": {
+        "context": "CTATCCGACGTACACGAGATGAGGAGAGAG",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.681227
+    },
+    {
+      "example_id": "pridict2-020",
+      "inputs": {
+        "context": "CCTTTTGAACGATTCCGTGGCTTTCAGACC",
+        "cell_type": "HepG2"
+      },
+      "label": 0.19952
+    },
+    {
+      "example_id": "pridict2-021",
+      "inputs": {
+        "context": "ACACGCGTAGCCATGCCTACGGAATAAGGA",
+        "cell_type": "K562"
+      },
+      "label": 0.271103
+    },
+    {
+      "example_id": "pridict2-022",
+      "inputs": {
+        "context": "GCGGATCATTAGCAGTGTTGACTGTGAAAC",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.30249
+    },
+    {
+      "example_id": "pridict2-023",
+      "inputs": {
+        "context": "GGCAGGTTCCAACATGTGAGGTCGGACTTA",
+        "cell_type": "HepG2"
+      },
+      "label": 0.565432
+    }
+  ]
+}

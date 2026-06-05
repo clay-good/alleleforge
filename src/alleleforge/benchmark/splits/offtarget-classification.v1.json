@@ -1,0 +1,50 @@
+{
+  "split_version": "v1",
+  "task": "offtarget-classification",
+  "dataset": "guideseq-offtarget",
+  "dataset_sha256": "e649c9701e8a2458eb19b96372383975aadda93663df08295d8b1044fd6b999a",
+  "train": [
+    "guideseq-001",
+    "guideseq-002",
+    "guideseq-003",
+    "guideseq-005",
+    "guideseq-006",
+    "guideseq-007",
+    "guideseq-009",
+    "guideseq-010",
+    "guideseq-011",
+    "guideseq-013",
+    "guideseq-014",
+    "guideseq-015",
+    "guideseq-017",
+    "guideseq-018",
+    "guideseq-019",
+    "guideseq-021",
+    "guideseq-022",
+    "guideseq-023"
+  ],
+  "val": [
+    "guideseq-000",
+    "guideseq-004",
+    "guideseq-008",
+    "guideseq-012",
+    "guideseq-016",
+    "guideseq-020"
+  ],
+  "test": [
+    "guideseq-024",
+    "guideseq-025",
+    "guideseq-026",
+    "guideseq-027",
+    "guideseq-028",
+    "guideseq-029",
+    "guideseq-030",
+    "guideseq-031",
+    "guideseq-032",
+    "guideseq-033",
+    "guideseq-034",
+    "guideseq-035"
+  ],
+  "rationale": "Held-out guides: the last third of guides form the test fold.",
+  "split_sha256": "f49c67d8d2584a048da67099bd80b27618988dc5081119fac7c41fb2ebc854c5"
+}

@@ -1,0 +1,65 @@
+{
+  "$defs": {
+    "TaskKind": {
+      "description": "The label shape of a task, which selects its metric battery.",
+      "enum": [
+        "regression",
+        "distribution",
+        "classification"
+      ],
+      "title": "TaskKind",
+      "type": "string"
+    }
+  },
+  "description": "A frozen task contract binding a dataset, input shape, and metrics.\n\nAttributes:\n    name: The task identifier (e.g. ``\"cas9-efficiency\"``).\n    kind: The label shape, which selects the metric battery.\n    description: One-line human description.\n    chemistry: The chemistry the task probes (``None`` for off-target).\n    dataset: The benchmark dataset name the examples are drawn from.\n    input_key: The :attr:`Example.inputs` key passed to a scorer.\n    metrics: The metric keys reported, ordered with the primary first.",
+  "properties": {
+    "chemistry": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Chemistry"
+    },
+    "dataset": {
+      "title": "Dataset",
+      "type": "string"
+    },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
+    "input_key": {
+      "title": "Input Key",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/TaskKind"
+    },
+    "metrics": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Metrics",
+      "type": "array"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "kind",
+    "description",
+    "chemistry",
+    "dataset",
+    "input_key",
+    "metrics"
+  ],
+  "title": "Task",
+  "type": "object"
+}

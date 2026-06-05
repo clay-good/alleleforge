@@ -21,7 +21,7 @@ pip install "alleleforge[cli]"
 | `aforge design` | Variant → ranked, multi-chemistry menu rendered to JSON/TSV/HTML/PDF. |
 | `aforge offtarget` | Standalone population-aware off-target search for a spacer. |
 | `aforge data list` / `show` | Inspect the dataset registry (versions, licenses, provenance). |
-| `aforge bench` | Run CRISPR-Bench tasks (wired in Phase 14). |
+| `aforge bench list` / `run` | List and run [CRISPR-Bench](benchmark.md) tasks against frozen splits. |
 
 Global options (before the subcommand): `--seed`, `--reference`, `--cache-dir`,
 `--verbose/-v`, `--version/-V`. Every command takes `--json` for machine-readable
@@ -35,8 +35,8 @@ Distinct, meaningful exit codes make the CLI scriptable:
 |---|---|
 | `0` | success |
 | `2` | usage / input error (bad flag, unparseable variant, bad intent) |
-| `3` | missing data (reference FASTA or config file not found, unknown dataset) |
-| `4` | an unavailable model or feature (e.g. `bench` before Phase 14) |
+| `3` | missing data (reference FASTA or config file not found, unknown dataset or split) |
+| `4` | an unavailable model or feature |
 
 ## Examples
 
@@ -62,6 +62,10 @@ aforge offtarget GACGGAGGCTAAGCGTCGCAA --reference-fasta hg38.fa --pam NGG --jso
 # Inspect the dataset registry
 aforge data list
 aforge data show gnomad --json
+
+# CRISPR-Bench: list the tasks, then score the reference baseline on a frozen split
+aforge bench list
+aforge bench run cas9-efficiency --out result.json --json
 ```
 
 !!! note "Reproducibility"

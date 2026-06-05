@@ -1,0 +1,256 @@
+"""CRISPR-Bench runner — score any ``Scorer`` against a (task, split) pair.
+
+The runner is the join point between AlleleForge's uncertainty contract and the
+benchmark: it feeds each test example to a :class:`~alleleforge.scoring.base.Scorer`,
+collects the calibrated :class:`~alleleforge.types.prediction.Prediction` it
+returns (never a bare float — the contract is enforced at the seam), computes the
+task's metric battery plus the required calibration metric, and emits a
+**signed, provenance-stamped** :class:`BenchmarkResult`.
+
+"Signed" means content-addressed: the ``signature`` is a SHA-256 over the whole
+result body (model card, metrics, split version, provenance) minus the signature
+field itself, so any later edit to a published result is detectable. With a fixed
+seed and timestamp the signature is reproducible, which is the point.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any, Protocol, runtime_checkable
+
+from pydantic import BaseModel, ConfigDict
+
+from alleleforge._version import __version__
+from alleleforge.benchmark._canon import content_hash
+from alleleforge.benchmark.datasets import BenchmarkDataset, load_dataset
+from alleleforge.benchmark.metrics import (
+    expected_calibration_error,
+    interval_calibration_error,
+    kl_divergence,
+    pearson,
+    pr_auc,
+    roc_auc,
+    spearman,
+    topk_accuracy,
+)
+from alleleforge.benchmark.splits import Split, load_split
+from alleleforge.benchmark.tasks import Example, Task, TaskKind, get_task
+from alleleforge.config import DEFAULT_SEED
+from alleleforge.model_zoo.registry import ModelCard
+from alleleforge.scoring.base import ensure_prediction
+from alleleforge.types.prediction import Prediction
+from alleleforge.types.provenance import Provenance
+
+
+@runtime_checkable
+class BenchScorer(Protocol):
+    """A scorer the benchmark can evaluate on any task kind.
+
+    Broader than the library's efficiency-only
+    :class:`~alleleforge.scoring.base.Scorer` (which fixes ``Prediction[float]``):
+    a benchmark scorer may return a ``Prediction`` whose value is a float
+    (regression / classification) or an outcome distribution (a category→mass
+    mapping). Every efficiency scorer in AlleleForge already conforms.
+    """
+
+    name: str
+
+    def model_card(self) -> ModelCard:
+        """Return the model card documenting this scorer."""
+        ...
+
+    def score(self, x: Any) -> Prediction[Any]:
+        """Return a calibrated prediction for input ``x``."""
+        ...
+
+
+class ModelInfo(BaseModel):
+    """The minimal model-card facts a leaderboard entry must carry."""
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    version: str
+    license: str
+    citation: str
+    chemistry: str | None = None
+
+
+class BenchmarkResult(BaseModel):
+    """A signed, provenance-stamped evaluation of one model on one (task, split).
+
+    Attributes:
+        task: The task name.
+        split_version: The frozen split version evaluated against.
+        dataset: The dataset the split partitions.
+        n_test: Number of test-fold examples scored.
+        metrics: Metric name → value, including ``"ece"``.
+        primary_metric: The task's ranking metric.
+        primary_value: The value of the primary metric.
+        n_out_of_distribution: How many predictions the model self-flagged OOD.
+        model: The evaluated model's card facts.
+        provenance: The full reproducibility block.
+        signature: Content hash over this record (minus the signature itself).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    task: str
+    split_version: str
+    dataset: str
+    n_test: int
+    metrics: dict[str, float]
+    primary_metric: str
+    primary_value: float
+    n_out_of_distribution: int
+    model: ModelInfo
+    provenance: Provenance
+    signature: str
+
+    def verify_signature(self) -> bool:
+        """Return ``True`` if the stored signature matches the recomputed one."""
+        body = self.model_dump(mode="json")
+        body.pop("signature", None)
+        return content_hash(body) == self.signature
+
+
+def _regression_metrics(
+    predictions: list[Prediction[Any]], labels: list[float]
+) -> dict[str, float]:
+    """Compute Spearman, Pearson, and interval-calibration ECE for regression."""
+    preds = [float(p.value) for p in predictions]
+    intervals = [p.interval for p in predictions]
+    nominal = predictions[0].interval_level if predictions else 0.80
+    return {
+        "spearman": spearman(labels, preds),
+        "pearson": pearson(labels, preds),
+        "ece": interval_calibration_error(intervals, labels, nominal=nominal),
+    }
+
+
+def _classification_metrics(
+    predictions: list[Prediction[Any]], labels: list[int]
+) -> dict[str, float]:
+    """Compute AUROC, AUPRC, and binned ECE for binary classification."""
+    scores = [float(p.value) for p in predictions]
+    confidences: list[float] = []
+    correct: list[int] = []
+    for s, y in zip(scores, labels, strict=True):
+        pred_class = 1 if s >= 0.5 else 0
+        confidences.append(s if pred_class == 1 else 1.0 - s)
+        correct.append(1 if pred_class == y else 0)
+    return {
+        "auroc": roc_auc(scores, labels),
+        "auprc": pr_auc(scores, labels),
+        "ece": expected_calibration_error(confidences, correct),
+    }
+
+
+def _distribution_metrics(
+    predictions: list[Prediction[Any]], labels: list[dict[str, float]]
+) -> dict[str, float]:
+    """Compute mean KL, top-1 mode accuracy, and predicted-mode reliability ECE."""
+    kls: list[float] = []
+    top1s: list[float] = []
+    confidences: list[float] = []
+    correct: list[int] = []
+    for p, observed in zip(predictions, labels, strict=True):
+        predicted: dict[str, float] = dict(p.value)
+        kls.append(kl_divergence(observed, predicted))
+        top1s.append(topk_accuracy(predicted, observed, k=1))
+        if predicted and observed:
+            mode = max(sorted(predicted), key=lambda c: predicted[c])
+            confidences.append(predicted[mode])
+            true_mode = max(sorted(observed), key=lambda c: observed[c])
+            correct.append(1 if mode == true_mode else 0)
+    n = len(kls)
+    return {
+        "kl": sum(kls) / n if n else 0.0,
+        "top1": sum(top1s) / n if n else 0.0,
+        "ece": expected_calibration_error(confidences, correct),
+    }
+
+
+def _compute_metrics(
+    task: Task, predictions: list[Prediction[Any]], examples: list[Example]
+) -> dict[str, float]:
+    """Dispatch to the metric battery for ``task.kind``."""
+    if task.kind is TaskKind.REGRESSION:
+        return _regression_metrics(predictions, [float(e.label) for e in examples])
+    if task.kind is TaskKind.CLASSIFICATION:
+        return _classification_metrics(predictions, [int(e.label) for e in examples])
+    return _distribution_metrics(predictions, [dict(e.label) for e in examples])
+
+
+def run_benchmark(
+    scorer: BenchScorer,
+    task: Task | str,
+    *,
+    split: Split | None = None,
+    dataset: BenchmarkDataset | None = None,
+    split_version: str = "v1",
+    seed: int = DEFAULT_SEED,
+    timestamp: datetime | None = None,
+) -> BenchmarkResult:
+    """Evaluate ``scorer`` on a task's frozen test split and return a signed result.
+
+    Args:
+        scorer: Any object satisfying the :class:`~alleleforge.scoring.base.Scorer`
+            protocol; its output is contract-checked to be a ``Prediction``.
+        task: The task, or its name.
+        split: A pre-loaded, pre-verified split (loaded from disk if omitted).
+        dataset: A pre-loaded dataset (loaded from the fixture if omitted).
+        split_version: Which frozen split version to load when ``split`` is None.
+        seed: The seed recorded in provenance.
+        timestamp: An explicit timestamp for a reproducible signature (tests).
+
+    Returns:
+        A signed, provenance-stamped :class:`BenchmarkResult`.
+    """
+    task_obj = task if isinstance(task, Task) else get_task(task)
+    if split is None:
+        split, dataset = load_split(task_obj.name, version=split_version, dataset=dataset)
+    else:
+        if dataset is None:
+            dataset = load_dataset(split.dataset)
+        split.verify(dataset)
+
+    examples = list(split.examples(dataset, "test"))
+    predictions = [
+        ensure_prediction(scorer.score(ex.scorer_input(task_obj.input_key)), who=scorer.name)
+        for ex in examples
+    ]
+    metrics = _compute_metrics(task_obj, predictions, examples)
+    n_ood = sum(1 for p in predictions if not p.in_distribution)
+
+    card = scorer.model_card()
+    provenance = Provenance.capture(
+        alleleforge_version=__version__,
+        seed=seed,
+        timestamp=timestamp,
+        datasets=(dataset.dataset_version(),),
+        models=(card.to_checkpoint(),),
+        config_snapshot={"task": task_obj.name, "split_version": split.split_version},
+    )
+    model_info = ModelInfo(
+        name=card.name,
+        version=card.version,
+        license=card.license,
+        citation=card.citation,
+        chemistry=card.chemistry,
+    )
+
+    body: dict[str, Any] = {
+        "task": task_obj.name,
+        "split_version": split.split_version,
+        "dataset": dataset.name,
+        "n_test": len(examples),
+        "metrics": metrics,
+        "primary_metric": task_obj.primary_metric,
+        "primary_value": metrics[task_obj.primary_metric],
+        "n_out_of_distribution": n_ood,
+        "model": model_info.model_dump(mode="json"),
+        "provenance": provenance.model_dump(mode="json"),
+    }
+    signature = content_hash(body)
+    return BenchmarkResult(**body, signature=signature)

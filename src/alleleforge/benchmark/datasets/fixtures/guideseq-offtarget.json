@@ -1,0 +1,407 @@
+{
+  "version": "synthetic-v1",
+  "license": "CC-BY-4.0",
+  "citation": "Tsai et al., Nat Biotechnol 2015 (GUIDE-seq) \u2014 synthetic stand-in",
+  "source_url": "https://github.com/tsailabSJ/guideseq",
+  "redistributable": false,
+  "synthetic": true,
+  "name": "guideseq-offtarget",
+  "examples": [
+    {
+      "example_id": "guideseq-000",
+      "inputs": {
+        "pair": {
+          "on": "GCAGAGCCCCAACTATCGTA",
+          "off": "GCAGAGCCCCAACTATCGTA",
+          "mismatches": 0
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-001",
+      "inputs": {
+        "pair": {
+          "on": "GCGAAGGAGAGTACCTGAGT",
+          "off": "GCGAAGGAGAGTACCTGAGT",
+          "mismatches": 0
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-002",
+      "inputs": {
+        "pair": {
+          "on": "ACGATGACTCACATAGCTAG",
+          "off": "ACTAAGACTCAGACAGCTAG",
+          "mismatches": 5
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-003",
+      "inputs": {
+        "pair": {
+          "on": "CAGACACAGCAACCACCCAT",
+          "off": "CAGACACAGCAACCACCCAT",
+          "mismatches": 0
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-004",
+      "inputs": {
+        "pair": {
+          "on": "ACGTGAAGCCCCATTTCCGA",
+          "off": "CCGTGAATTCGCATTTCCGA",
+          "mismatches": 5
+        }
+      },
+      "label": 0
+    },
+    {
+      "example_id": "guideseq-005",
+      "inputs": {
+        "pair": {
+          "on": "CTTGTGGGATGCGTATCCGC",
+          "off": "CTTGTGGGATGCGTATCCGC",
+          "mismatches": 0
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-006",
+      "inputs": {
+        "pair": {
+          "on": "ACGGATGTTTACACATACCC",
+          "off": "AGGGATGTTAATACATCCCC",
+          "mismatches": 5
+        }
+      },
+      "label": 0
+    },
+    {
+      "example_id": "guideseq-007",
+      "inputs": {
+        "pair": {
+          "on": "GAGCAGAGGCTCGAGATGAC",
+          "off": "TAGCAGAGGCTCTATCTGAC",
+          "mismatches": 4
+        }
+      },
+      "label": 0
+    },
+    {
+      "example_id": "guideseq-008",
+      "inputs": {
+        "pair": {
+          "on": "ACTGGTATCCGTGCTCCCAA",
+          "off": "ACTGGTATCCGTGCTCCCAA",
+          "mismatches": 0
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-009",
+      "inputs": {
+        "pair": {
+          "on": "GACTGTTTGAAAGTAGATCT",
+          "off": "GACTGTTTGCAAGTAGCTCT",
+          "mismatches": 2
+        }
+      },
+      "label": 0
+    },
+    {
+      "example_id": "guideseq-010",
+      "inputs": {
+        "pair": {
+          "on": "TGCACTAGGGATGACCAGCT",
+          "off": "TGGACAAGTGATGACCATCT",
+          "mismatches": 4
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-011",
+      "inputs": {
+        "pair": {
+          "on": "TAGTGGGCAGGTCCCGGGAA",
+          "off": "TAGTGGGCCGGTCCGGGTAC",
+          "mismatches": 4
+        }
+      },
+      "label": 0
+    },
+    {
+      "example_id": "guideseq-012",
+      "inputs": {
+        "pair": {
+          "on": "GAACCCAGGTGCGCAGTTGT",
+          "off": "GAACCCATTTGCGCCGTTGT",
+          "mismatches": 3
+        }
+      },
+      "label": 0
+    },
+    {
+      "example_id": "guideseq-013",
+      "inputs": {
+        "pair": {
+          "on": "TATGACTAGCATTGATTGGG",
+          "off": "TATGACTAGCATTGATTGGG",
+          "mismatches": 0
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-014",
+      "inputs": {
+        "pair": {
+          "on": "GTCTGTCACTTTCATAAAAC",
+          "off": "GTCTGTCACTTTCATAAAAC",
+          "mismatches": 0
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-015",
+      "inputs": {
+        "pair": {
+          "on": "TCCGTCGGCATAAGTTTACA",
+          "off": "TCCGTCGTCATACTTATACA",
+          "mismatches": 4
+        }
+      },
+      "label": 0
+    },
+    {
+      "example_id": "guideseq-016",
+      "inputs": {
+        "pair": {
+          "on": "CGCGTTCACAGGTTTACGCG",
+          "off": "CGCGTTCATCGGATTACGCG",
+          "mismatches": 4
+        }
+      },
+      "label": 0
+    },
+    {
+      "example_id": "guideseq-017",
+      "inputs": {
+        "pair": {
+          "on": "CGAACTTGGACATCACCAAA",
+          "off": "CGAAGTATGACAACACCCAA",
+          "mismatches": 5
+        }
+      },
+      "label": 0
+    },
+    {
+      "example_id": "guideseq-018",
+      "inputs": {
+        "pair": {
+          "on": "AACTGAAGCGATTGATTGAA",
+          "off": "AACTGAAGCGATTGATTTAA",
+          "mismatches": 1
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-019",
+      "inputs": {
+        "pair": {
+          "on": "ACGCATGAGGCTTTTCTGAC",
+          "off": "ACGGATGAGTCTTTTCTGAC",
+          "mismatches": 2
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-020",
+      "inputs": {
+        "pair": {
+          "on": "GCGGCCGACAGCCTTTGGCA",
+          "off": "GGGGGCGACAGCCTTTTGCA",
+          "mismatches": 3
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-021",
+      "inputs": {
+        "pair": {
+          "on": "GGGTGTTGTATCTCTCAGAC",
+          "off": "GGTTGTAGTATCACTCAGAC",
+          "mismatches": 3
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-022",
+      "inputs": {
+        "pair": {
+          "on": "TAATGAGGCCCCCAAGGTCG",
+          "off": "TAATGAGGCGCTCCAGGTCT",
+          "mismatches": 5
+        }
+      },
+      "label": 0
+    },
+    {
+      "example_id": "guideseq-023",
+      "inputs": {
+        "pair": {
+          "on": "CTTTGCCACGGTAATACACA",
+          "off": "CTTTGCGACGGTAATACACA",
+          "mismatches": 1
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-024",
+      "inputs": {
+        "pair": {
+          "on": "CTTGTTAATCGGAGGTGAGC",
+          "off": "CTTGTTAATCGGAGTTGAGC",
+          "mismatches": 1
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-025",
+      "inputs": {
+        "pair": {
+          "on": "TCAGAAAACGATTCTTGCGT",
+          "off": "TCAGAAAACGATTCTTGCGT",
+          "mismatches": 0
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-026",
+      "inputs": {
+        "pair": {
+          "on": "GGTAGATGGTTGACACGGCA",
+          "off": "GGTAGATGGTTGACAGGGCA",
+          "mismatches": 1
+        }
+      },
+      "label": 0
+    },
+    {
+      "example_id": "guideseq-027",
+      "inputs": {
+        "pair": {
+          "on": "CGCCGTCCTTAAGTCGATAA",
+          "off": "CGCGGTCCTTAAGTGGCTCA",
+          "mismatches": 4
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-028",
+      "inputs": {
+        "pair": {
+          "on": "CGCCCAATCTTCCGGTTTTC",
+          "off": "CGCCCAATCTTCCGGTTTTC",
+          "mismatches": 0
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-029",
+      "inputs": {
+        "pair": {
+          "on": "TGGCTAACCGAGTCTCTTTC",
+          "off": "TGGGTAACCTCGTCTCTTTC",
+          "mismatches": 3
+        }
+      },
+      "label": 0
+    },
+    {
+      "example_id": "guideseq-030",
+      "inputs": {
+        "pair": {
+          "on": "AAGAGACCGTTCAAAGGGGA",
+          "off": "CAGAGACCTTACAAAGGTGC",
+          "mismatches": 5
+        }
+      },
+      "label": 0
+    },
+    {
+      "example_id": "guideseq-031",
+      "inputs": {
+        "pair": {
+          "on": "CGCCACAATTCTGAGGCCGG",
+          "off": "CGCCAAACTTCTGAGGCCGG",
+          "mismatches": 4
+        }
+      },
+      "label": 1
+    },
+    {
+      "example_id": "guideseq-032",
+      "inputs": {
+        "pair": {
+          "on": "TTCATGCCCTGGGTGTCTAG",
+          "off": "TTCATGCCCATGGTGTCTCG",
+          "mismatches": 3
+        }
+      },
+      "label": 0
+    },
+    {
+      "example_id": "guideseq-033",
+      "inputs": {
+        "pair": {
+          "on": "GTGGAGAGTGGTTAAGACTT",
+          "off": "TTGGAGATTGGTTAAGCCTA",
+          "mismatches": 4
+        }
+      },
+      "label": 0
+    },
+    {
+      "example_id": "guideseq-034",
+      "inputs": {
+        "pair": {
+          "on": "AACCCGTGCGGAGGACTACG",
+          "off": "AACCCGCGCGGATGCCTACG",
+          "mismatches": 4
+        }
+      },
+      "label": 0
+    },
+    {
+      "example_id": "guideseq-035",
+      "inputs": {
+        "pair": {
+          "on": "TGTATTGGCACAACGTTATC",
+          "off": "TGTATTGGCACAACTTTATC",
+          "mismatches": 1
+        }
+      },
+      "label": 1
+    }
+  ]
+}

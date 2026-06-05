@@ -1,0 +1,63 @@
+{
+  "description": "A frozen train/val/test partition over a benchmark dataset.\n\nAttributes:\n    split_version: The split's immutable version tag (e.g. ``\"v1\"``).\n    task: The task this split is intended for.\n    dataset: The dataset name the example ids index into.\n    dataset_sha256: The expected :meth:`BenchmarkDataset.content_hash`.\n    rationale: How the test fold was held out (the generalization story).\n    train: Training-fold example ids.\n    val: Validation-fold example ids.\n    test: Test-fold example ids.\n    split_sha256: Hash over the membership + binding fields (self-integrity).",
+  "properties": {
+    "dataset": {
+      "title": "Dataset",
+      "type": "string"
+    },
+    "dataset_sha256": {
+      "title": "Dataset Sha256",
+      "type": "string"
+    },
+    "rationale": {
+      "title": "Rationale",
+      "type": "string"
+    },
+    "split_sha256": {
+      "title": "Split Sha256",
+      "type": "string"
+    },
+    "split_version": {
+      "title": "Split Version",
+      "type": "string"
+    },
+    "task": {
+      "title": "Task",
+      "type": "string"
+    },
+    "test": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Test",
+      "type": "array"
+    },
+    "train": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Train",
+      "type": "array"
+    },
+    "val": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Val",
+      "type": "array"
+    }
+  },
+  "required": [
+    "split_version",
+    "task",
+    "dataset",
+    "dataset_sha256",
+    "rationale",
+    "train",
+    "val",
+    "test",
+    "split_sha256"
+  ],
+  "title": "Split",
+  "type": "object"
+}

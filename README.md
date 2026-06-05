@@ -150,8 +150,8 @@ AlleleForge is built in ordered phases (see [`SPEC.md`](SPEC.md), the authoritat
 | 11 | Reporting &amp; oligo output (`report/`) | ✅ done |
 | 12 | CLI (`aforge`) (`cli/`) | ✅ done |
 | 13 | Web UI &amp; API (`web/`) | ✅ done |
-| 14 | CRISPR-Bench: benchmark, splits, leaderboard | ⏳ next |
-| 15 | Docs, examples, release | ◻️ planned |
+| 14 | CRISPR-Bench: tasks, frozen splits, metrics, runner, leaderboard (`benchmark/`) | ✅ done |
+| 15 | Docs, examples, release | ⏳ next |
 
 ---
 
@@ -206,8 +206,9 @@ cd rust && maturin develop --release      # builds & installs aforge_native
 > and [reporting & oligo output](#from-menu-to-bench-reporting--oligo-output-phase-11-shipping-now) renders it to
 > cloning-ready oligos, HTML, PDF, JSON, and TSV. The whole pipeline is driven from the
 > [`aforge` CLI](#the-aforge-cli-phase-12-shipping-now) and the
-> [web API + browser UI](#web-ui--api-phase-13-shipping-now). What remains is CRISPR-Bench (14) and
-> release (15). The snippets below show the lower-level building blocks the designer composes.
+> [web API + browser UI](#web-ui--api-phase-13-shipping-now), and the same scorers are graded by
+> [CRISPR-Bench](#crispr-bench-a-calibration-first-benchmark-phase-14-shipping-now). What remains is the
+> v0.1.0 release (15). The snippets below show the lower-level building blocks the designer composes.
 
 ```python
 from alleleforge.types import DNASequence, Prediction, UncertaintyMethod
@@ -666,7 +667,7 @@ flowchart LR
 | `aforge design <input>` | Variant → ranked, multi-chemistry menu rendered to JSON/TSV/HTML/PDF. |
 | `aforge offtarget <spacer>` | Standalone population/haplotype-aware off-target search. |
 | `aforge data list` / `show <name>` | Inspect the dataset registry (versions, licenses, provenance). |
-| `aforge bench` | Run CRISPR-Bench tasks (wired in Phase 14). |
+| `aforge bench list` / `run` | List and run CRISPR-Bench tasks against frozen splits. |
 
 Global options sit before the subcommand (`--seed`, `--reference`, `--cache-dir`, `--verbose`,
 `--version`); every command takes `--json`. **Exit codes are distinct and scriptable**: `0` success,
@@ -737,6 +738,71 @@ the API tests; a production Next.js + JBrowse 2 frontend can replace it behind t
 
 ---
 
+## CRISPR-Bench: a calibration-first benchmark (Phase 14, shipping now)
+
+The sister deliverable and a field-level contribution in its own right: a **common yardstick** for guide- and
+edit-design models — versioned datasets, **frozen content-hashed splits**, a fixed **five-task contract**, a
+metric battery where **calibration is required on every task**, a runner that turns any `Scorer` into a
+*signed* result, and a **model-card-gated leaderboard**. It is valuable independently of the rest of
+AlleleForge, and the same scorers the designer uses are graded by it.
+
+```mermaid
+flowchart LR
+    DS["datasets/<br/>provenance-stamped,<br/>content-hashed"] --> SP
+    SP["splits/<br/>frozen · cross-context<br/>hash-verified on read"] --> RUN
+    SC["any Scorer<br/>(returns a calibrated<br/>Prediction)"] --> RUN
+    RUN["runner<br/>metrics + ECE"] --> RES["signed, provenance-<br/>stamped result"]
+    RES --> LB["leaderboard<br/>(model-card gated)"]
+```
+
+**The five tasks** — every chemistry AlleleForge designs for, plus off-target. Each reports its accuracy
+metric **and** Expected Calibration Error, because a model that is accurate but overconfident is dangerous
+for edit design:
+
+| Task | Kind | Source corpus | Primary metric | + required |
+|---|---|---|---|---|
+| `cas9-efficiency` | regression | Rule Set 3, DeepHF/DeepSpCas9 | Spearman | Pearson, **ECE** |
+| `cas9-outcome` | distribution | FORECasT, inDelphi, Lindel | KL ↓ | top-1, **ECE** |
+| `be-outcome` | distribution | BE-Hive, BE-DICT | KL ↓ | top-1, **ECE** |
+| `pe-efficiency` | regression | PRIDICT2 Library-Diverse | Spearman | Pearson, **ECE** |
+| `offtarget-classification` | classification | GUIDE-seq / CHANGE-seq | AUROC | AUPRC, **ECE** |
+
+**Frozen, content-hashed, cross-context splits.** A split is immutable once published. Each split file pins
+its fold membership and two hashes — one over the **dataset content** it was cut from, one over its **own
+membership** — and `load_split()` re-verifies both on read, raising `SplitIntegrityError` on any drift.
+Changing the data, or the split, means minting a new *version*; you never edit a published one. Test folds
+hold out a whole cell context, so the benchmark measures **generalization, not memorization** — the known
+weak spot of guide models, made a headline feature instead of a footnote.
+
+**Honest by construction.** Results are content-addressed (`signature`) so a published number cannot be
+silently edited, and the leaderboard refuses any submission lacking a model card (name, license, citation) or
+carrying a bad signature. The shipped datasets are **small synthetic fixtures** so the whole benchmark runs in
+CI with no downloads; the real corpora are fetched at runtime through the same consent-gated registry as the
+population data. See [`src/alleleforge/benchmark/README.md`](src/alleleforge/benchmark/README.md).
+
+```bash
+aforge bench list                                  # the five tasks, datasets, and metrics
+aforge bench run cas9-efficiency                   # score the reference baseline on the frozen split
+aforge bench run pe-efficiency --out result.json   # signed, provenance-stamped result JSON
+```
+
+```python
+from alleleforge.benchmark import build_baseline, get_task, load_split, run_benchmark
+
+task = get_task("offtarget-classification")
+split, dataset = load_split(task.name)             # hash-verified on read
+result = run_benchmark(build_baseline(task, split, dataset), task, split=split, dataset=dataset)
+print(result.primary_metric, round(result.primary_value, 3), "ece", round(result.metrics["ece"], 3))
+assert result.verify_signature()
+```
+
+> [!NOTE]
+> The benchmark lives at `alleleforge.benchmark` (an installed subpackage) rather than the spec's sketched
+> top-level `benchmark/` tree, so it ships in the wheel, is reachable from `aforge bench`, and is held to the
+> same `mypy --strict` / ruff / coverage gates as the rest of the library.
+
+---
+
 ## Defaults cheat-sheet
 
 Every default is overridable; these are the spec-mandated starting points.
@@ -775,11 +841,12 @@ alleleforge/
 │   ├── enumerate/            # Phases 7–9: SpCas9 guide · base-editor window · pegRNA enumeration
 │   ├── design/               # Phases 7–10: nuclease · base · prime verticals + designer (routing · ranking)
 │   ├── report/               # Phase 11: oligos · report builder · JSON/TSV/Parquet · HTML · PDF
-│   ├── cli/                   # Phase 12: the aforge Typer CLI (resolve · design · offtarget · data)
+│   ├── cli/                   # Phase 12: the aforge Typer CLI (resolve · design · offtarget · data · bench)
 │   ├── web/                   # Phase 13: FastAPI api/ + served frontend/ (variant-first journey)
+│   ├── benchmark/             # Phase 14: CRISPR-Bench — tasks · datasets · frozen splits · runner · leaderboard
 │   └── ...
 ├── tests/                    # mirrors src/; pytest + hypothesis
-├── benchmark/                # CRISPR-Bench (Phase 14)
+├── scripts/                  # schema export · benchmark-fixture generator
 └── docs/                     # mkdocs-material site
 ```
 

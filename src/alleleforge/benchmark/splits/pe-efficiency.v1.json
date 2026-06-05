@@ -1,0 +1,38 @@
+{
+  "split_version": "v1",
+  "task": "pe-efficiency",
+  "dataset": "pridict2-library",
+  "dataset_sha256": "cac4b11cc27489e0ef79d442cda5dd3f72aa71db09a984bcfec9da30da78654e",
+  "train": [
+    "pridict2-001",
+    "pridict2-003",
+    "pridict2-004",
+    "pridict2-007",
+    "pridict2-009",
+    "pridict2-010",
+    "pridict2-013",
+    "pridict2-015",
+    "pridict2-016",
+    "pridict2-019",
+    "pridict2-021",
+    "pridict2-022"
+  ],
+  "val": [
+    "pridict2-000",
+    "pridict2-006",
+    "pridict2-012",
+    "pridict2-018"
+  ],
+  "test": [
+    "pridict2-002",
+    "pridict2-005",
+    "pridict2-008",
+    "pridict2-011",
+    "pridict2-014",
+    "pridict2-017",
+    "pridict2-020",
+    "pridict2-023"
+  ],
+  "rationale": "Cross-cell-type: HepG2 pegRNAs are held out into test.",
+  "split_sha256": "a19251fe7507e16dae9dcfa994f2eaf3f54e65bcda97b9bb6af885d8c5fa524b"
+}

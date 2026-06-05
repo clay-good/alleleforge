@@ -1,0 +1,24 @@
+{
+  "description": "One scored row: an id, the scorer input(s), and the ground-truth label.\n\nAttributes:\n    example_id: Stable identifier, referenced by frozen splits.\n    inputs: Named inputs; the task's ``input_key`` selects what is passed to\n        :meth:`~alleleforge.scoring.base.Scorer.score`.\n    label: The ground truth \u2014 a float (regression), a 0/1 int\n        (classification), or a category\u2192frequency mapping (distribution).",
+  "properties": {
+    "example_id": {
+      "title": "Example Id",
+      "type": "string"
+    },
+    "inputs": {
+      "additionalProperties": true,
+      "title": "Inputs",
+      "type": "object"
+    },
+    "label": {
+      "title": "Label"
+    }
+  },
+  "required": [
+    "example_id",
+    "inputs",
+    "label"
+  ],
+  "title": "Example",
+  "type": "object"
+}

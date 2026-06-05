@@ -1,0 +1,38 @@
+{
+  "split_version": "v1",
+  "task": "be-outcome",
+  "dataset": "be-hive-outcomes",
+  "dataset_sha256": "1c321304e62b4e5db0bb41ede92a8e1ad5be7c0d233f5868ab0de6bb1fd8d46f",
+  "train": [
+    "behive-001",
+    "behive-003",
+    "behive-004",
+    "behive-007",
+    "behive-009",
+    "behive-010",
+    "behive-013",
+    "behive-015",
+    "behive-016",
+    "behive-019",
+    "behive-021",
+    "behive-022"
+  ],
+  "val": [
+    "behive-000",
+    "behive-006",
+    "behive-012",
+    "behive-018"
+  ],
+  "test": [
+    "behive-002",
+    "behive-005",
+    "behive-008",
+    "behive-011",
+    "behive-014",
+    "behive-017",
+    "behive-020",
+    "behive-023"
+  ],
+  "rationale": "Cross-cell-type: HepG2 base-edit outcomes are held out into test.",
+  "split_sha256": "3e96518dc3eae2862635b3959b7ec1ecd7ff78907c9b3b7eb3bf4b2d17b2731b"
+}

@@ -45,6 +45,7 @@ nav:
       - Reporting & oligo output: api/report.md
       - CLI (aforge): api/cli.md
       - Web UI & API: api/web.md
+      - CRISPR-Bench: api/benchmark.md
   - Scope & responsible use: scope.md
 
 markdown_extensions:

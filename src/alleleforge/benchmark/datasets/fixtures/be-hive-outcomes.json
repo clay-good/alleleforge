@@ -1,0 +1,347 @@
+{
+  "version": "synthetic-v1",
+  "license": "CC-BY-4.0",
+  "citation": "Arbab et al., Cell 2020 (BE-Hive) \u2014 synthetic stand-in",
+  "source_url": "https://www.crisprbehive.design",
+  "redistributable": false,
+  "synthetic": true,
+  "name": "be-hive-outcomes",
+  "examples": [
+    {
+      "example_id": "behive-000",
+      "inputs": {
+        "context": "AAAGGGGAAAGACGGCCAACTTAATCGCGCAACCGCGTCT",
+        "cell_type": "K562"
+      },
+      "label": {
+        "C_to_T_p5": 0.022035,
+        "C_to_T_p6": 0.100054,
+        "C_to_G": 0.375008,
+        "C_to_A": 0.320962,
+        "unedited": 0.181941
+      }
+    },
+    {
+      "example_id": "behive-001",
+      "inputs": {
+        "context": "GTCACCAGATTTCCCGATACGTAGCTCCTTCAGCGCGTGA",
+        "cell_type": "HEK293T"
+      },
+      "label": {
+        "C_to_T_p5": 0.250708,
+        "C_to_T_p6": 0.098742,
+        "C_to_G": 0.137119,
+        "C_to_A": 0.284141,
+        "unedited": 0.22929
+      }
+    },
+    {
+      "example_id": "behive-002",
+      "inputs": {
+        "context": "AATTTCCAACACACATCATAGTCATTCCTTAGTCAAGGTT",
+        "cell_type": "HepG2"
+      },
+      "label": {
+        "C_to_T_p5": 0.321326,
+        "C_to_T_p6": 0.03314,
+        "C_to_G": 0.273614,
+        "C_to_A": 0.203539,
+        "unedited": 0.168381
+      }
+    },
+    {
+      "example_id": "behive-003",
+      "inputs": {
+        "context": "CGCGTGTCTTCCAGCCCCTATGGTCAGCATTGTCCAGGTC",
+        "cell_type": "K562"
+      },
+      "label": {
+        "C_to_T_p5": 0.180375,
+        "C_to_T_p6": 0.133579,
+        "C_to_G": 0.11977,
+        "C_to_A": 0.278539,
+        "unedited": 0.287737
+      }
+    },
+    {
+      "example_id": "behive-004",
+      "inputs": {
+        "context": "ACCGTAGAAACTTTTAAGATCGCGATTTGTTAGTAGACGC",
+        "cell_type": "HEK293T"
+      },
+      "label": {
+        "C_to_T_p5": 0.105439,
+        "C_to_T_p6": 0.318013,
+        "C_to_G": 0.177668,
+        "C_to_A": 0.035765,
+        "unedited": 0.363115
+      }
+    },
+    {
+      "example_id": "behive-005",
+      "inputs": {
+        "context": "CCTTTCCTGTACGATCTTCCCGATACCGGTCGGTACGATT",
+        "cell_type": "HepG2"
+      },
+      "label": {
+        "C_to_T_p5": 0.180107,
+        "C_to_T_p6": 0.240249,
+        "C_to_G": 0.34375,
+        "C_to_A": 0.199874,
+        "unedited": 0.03602
+      }
+    },
+    {
+      "example_id": "behive-006",
+      "inputs": {
+        "context": "TGATAAAGCTTGTATCATGTAAACATTATACCCCTACCGC",
+        "cell_type": "K562"
+      },
+      "label": {
+        "C_to_T_p5": 0.236914,
+        "C_to_T_p6": 0.045592,
+        "C_to_G": 0.248483,
+        "C_to_A": 0.263776,
+        "unedited": 0.205235
+      }
+    },
+    {
+      "example_id": "behive-007",
+      "inputs": {
+        "context": "ATCTATAAGATGGGCAGCGTAACTCAAAGATGTAACAAGT",
+        "cell_type": "HEK293T"
+      },
+      "label": {
+        "C_to_T_p5": 0.248649,
+        "C_to_T_p6": 0.206834,
+        "C_to_G": 0.329092,
+        "C_to_A": 0.098955,
+        "unedited": 0.116469
+      }
+    },
+    {
+      "example_id": "behive-008",
+      "inputs": {
+        "context": "AGTCCGGCCGAGCCAGGGGTTCGCATGTATTGTCGCCCTG",
+        "cell_type": "HepG2"
+      },
+      "label": {
+        "C_to_T_p5": 0.06526,
+        "C_to_T_p6": 0.370795,
+        "C_to_G": 0.123253,
+        "C_to_A": 0.385355,
+        "unedited": 0.055337
+      }
+    },
+    {
+      "example_id": "behive-009",
+      "inputs": {
+        "context": "TCCAGTGCATCCTATGCTGACGAACGAGTCCAGTTGGCGC",
+        "cell_type": "K562"
+      },
+      "label": {
+        "C_to_T_p5": 0.139914,
+        "C_to_T_p6": 0.182619,
+        "C_to_G": 0.11541,
+        "C_to_A": 0.297172,
+        "unedited": 0.264885
+      }
+    },
+    {
+      "example_id": "behive-010",
+      "inputs": {
+        "context": "TCCGGCCATCGACCCGCATTGGAACGTACTCGTCGGTCAC",
+        "cell_type": "HEK293T"
+      },
+      "label": {
+        "C_to_T_p5": 0.27574,
+        "C_to_T_p6": 0.279923,
+        "C_to_G": 0.19261,
+        "C_to_A": 0.120422,
+        "unedited": 0.131305
+      }
+    },
+    {
+      "example_id": "behive-011",
+      "inputs": {
+        "context": "TGGAGGAAAATCCCTGGTCACGGAATCTATATTTGAACTG",
+        "cell_type": "HepG2"
+      },
+      "label": {
+        "C_to_T_p5": 0.312346,
+        "C_to_T_p6": 0.339682,
+        "C_to_G": 0.115628,
+        "C_to_A": 0.193492,
+        "unedited": 0.038851
+      }
+    },
+    {
+      "example_id": "behive-012",
+      "inputs": {
+        "context": "GTCTGCAACCCCGCGTATTACCTACTGTATGTGCTAAAGA",
+        "cell_type": "K562"
+      },
+      "label": {
+        "C_to_T_p5": 0.278004,
+        "C_to_T_p6": 0.19865,
+        "C_to_G": 0.035032,
+        "C_to_A": 0.255598,
+        "unedited": 0.232716
+      }
+    },
+    {
+      "example_id": "behive-013",
+      "inputs": {
+        "context": "CGGATTCTACAGGCATCGCTTGAAGCTTAGGACCTCCGGA",
+        "cell_type": "HEK293T"
+      },
+      "label": {
+        "C_to_T_p5": 0.266679,
+        "C_to_T_p6": 0.196265,
+        "C_to_G": 0.191602,
+        "C_to_A": 0.037723,
+        "unedited": 0.307731
+      }
+    },
+    {
+      "example_id": "behive-014",
+      "inputs": {
+        "context": "TTGAGGGATAGAGCCGCTTTCGAGATCTGATAAGAACGTA",
+        "cell_type": "HepG2"
+      },
+      "label": {
+        "C_to_T_p5": 0.157772,
+        "C_to_T_p6": 0.157372,
+        "C_to_G": 0.145649,
+        "C_to_A": 0.416986,
+        "unedited": 0.122221
+      }
+    },
+    {
+      "example_id": "behive-015",
+      "inputs": {
+        "context": "CGGATCTGGCGAAGTCCAGGCGCGGGAAGATAGCACCTTC",
+        "cell_type": "K562"
+      },
+      "label": {
+        "C_to_T_p5": 0.032465,
+        "C_to_T_p6": 0.166097,
+        "C_to_G": 0.241852,
+        "C_to_A": 0.278067,
+        "unedited": 0.281519
+      }
+    },
+    {
+      "example_id": "behive-016",
+      "inputs": {
+        "context": "GTGAAAGCAAATGAGCTCACAGTTTGAACTTACGTTGCTC",
+        "cell_type": "HEK293T"
+      },
+      "label": {
+        "C_to_T_p5": 0.147478,
+        "C_to_T_p6": 0.311456,
+        "C_to_G": 0.093046,
+        "C_to_A": 0.315843,
+        "unedited": 0.132176
+      }
+    },
+    {
+      "example_id": "behive-017",
+      "inputs": {
+        "context": "CCCTCTTAACGTTGGTGATTCCCGGAAGGGGCCAGAGTTA",
+        "cell_type": "HepG2"
+      },
+      "label": {
+        "C_to_T_p5": 0.111977,
+        "C_to_T_p6": 0.215062,
+        "C_to_G": 0.339934,
+        "C_to_A": 0.138491,
+        "unedited": 0.194536
+      }
+    },
+    {
+      "example_id": "behive-018",
+      "inputs": {
+        "context": "CCATCAAAGGCACAATTCCTCGCGTTACGCAGGGCGATCG",
+        "cell_type": "K562"
+      },
+      "label": {
+        "C_to_T_p5": 0.174727,
+        "C_to_T_p6": 0.28622,
+        "C_to_G": 0.100306,
+        "C_to_A": 0.23119,
+        "unedited": 0.207557
+      }
+    },
+    {
+      "example_id": "behive-019",
+      "inputs": {
+        "context": "GGACCTGAATACGGAACGTCAGTCCAGCCTGAGGTTCGTA",
+        "cell_type": "HEK293T"
+      },
+      "label": {
+        "C_to_T_p5": 0.059952,
+        "C_to_T_p6": 0.19569,
+        "C_to_G": 0.227141,
+        "C_to_A": 0.146083,
+        "unedited": 0.371134
+      }
+    },
+    {
+      "example_id": "behive-020",
+      "inputs": {
+        "context": "ATGGAGCCGGTGCCAACGCTAAGCCTCGCGATGTCCGGTG",
+        "cell_type": "HepG2"
+      },
+      "label": {
+        "C_to_T_p5": 0.231381,
+        "C_to_T_p6": 0.132652,
+        "C_to_G": 0.100322,
+        "C_to_A": 0.150778,
+        "unedited": 0.384867
+      }
+    },
+    {
+      "example_id": "behive-021",
+      "inputs": {
+        "context": "CACTCTACTTTTTGTCGGGACCCATTGCCCGTCGGCAACA",
+        "cell_type": "K562"
+      },
+      "label": {
+        "C_to_T_p5": 0.193661,
+        "C_to_T_p6": 0.031542,
+        "C_to_G": 0.41816,
+        "C_to_A": 0.241274,
+        "unedited": 0.115363
+      }
+    },
+    {
+      "example_id": "behive-022",
+      "inputs": {
+        "context": "TCTCCGCACATCCGGGCGCGGACGAATAGGTTTGGTCGAA",
+        "cell_type": "HEK293T"
+      },
+      "label": {
+        "C_to_T_p5": 0.102727,
+        "C_to_T_p6": 0.099924,
+        "C_to_G": 0.250566,
+        "C_to_A": 0.170442,
+        "unedited": 0.376341
+      }
+    },
+    {
+      "example_id": "behive-023",
+      "inputs": {
+        "context": "CGCGACAAGGGCGGTTTCCTCACATCGGCAATACGATATA",
+        "cell_type": "HepG2"
+      },
+      "label": {
+        "C_to_T_p5": 0.234968,
+        "C_to_T_p6": 0.216902,
+        "C_to_G": 0.14922,
+        "C_to_A": 0.179866,
+        "unedited": 0.219044
+      }
+    }
+  ]
+}

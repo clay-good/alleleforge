@@ -1,0 +1,38 @@
+{
+  "split_version": "v1",
+  "task": "cas9-outcome",
+  "dataset": "forecast-outcomes",
+  "dataset_sha256": "67a14daa23b19f2e4f47871c5d7bfe1e821ad99f9a401305a5a8c1a4f4b4d778",
+  "train": [
+    "forecast-001",
+    "forecast-003",
+    "forecast-004",
+    "forecast-007",
+    "forecast-009",
+    "forecast-010",
+    "forecast-013",
+    "forecast-015",
+    "forecast-016",
+    "forecast-019",
+    "forecast-021",
+    "forecast-022"
+  ],
+  "val": [
+    "forecast-000",
+    "forecast-006",
+    "forecast-012",
+    "forecast-018"
+  ],
+  "test": [
+    "forecast-002",
+    "forecast-005",
+    "forecast-008",
+    "forecast-011",
+    "forecast-014",
+    "forecast-017",
+    "forecast-020",
+    "forecast-023"
+  ],
+  "rationale": "Cross-cell-type: HepG2 outcomes are held out into test.",
+  "split_sha256": "98298f9ea4b055332da799a2b60cd4ef7ef559c8a9ad417513004bef63bafaa9"
+}

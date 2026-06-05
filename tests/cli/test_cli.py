@@ -268,9 +268,11 @@ def test_data_show_unknown_is_missing_data(runner: CliRunner) -> None:
 # --- bench ------------------------------------------------------------------
 
 
-def test_bench_is_unavailable(runner: CliRunner) -> None:
+def test_bench_no_args_shows_help(runner: CliRunner) -> None:
+    # The bench sub-app lists its commands when invoked bare (Phase 14).
     result = runner.invoke(app, ["bench"])
-    assert result.exit_code == ExitCode.UNAVAILABLE
+    assert result.exit_code == ExitCode.USAGE
+    assert "list" in result.output and "run" in result.output
 
 
 # --- error paths & misc -----------------------------------------------------

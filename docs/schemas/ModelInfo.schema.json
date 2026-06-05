@@ -1,0 +1,41 @@
+{
+  "description": "The minimal model-card facts a leaderboard entry must carry.",
+  "properties": {
+    "chemistry": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Chemistry"
+    },
+    "citation": {
+      "title": "Citation",
+      "type": "string"
+    },
+    "license": {
+      "title": "License",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "version",
+    "license",
+    "citation"
+  ],
+  "title": "ModelInfo",
+  "type": "object"
+}

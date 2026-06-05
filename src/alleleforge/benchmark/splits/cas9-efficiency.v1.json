@@ -1,0 +1,44 @@
+{
+  "split_version": "v1",
+  "task": "cas9-efficiency",
+  "dataset": "rs3-validation",
+  "dataset_sha256": "0785f17309a9846e3dfffabb8a1758aa4500f69e312e06fba6f8f36f56e21492",
+  "train": [
+    "rs3-001",
+    "rs3-003",
+    "rs3-004",
+    "rs3-007",
+    "rs3-009",
+    "rs3-010",
+    "rs3-013",
+    "rs3-015",
+    "rs3-016",
+    "rs3-019",
+    "rs3-021",
+    "rs3-022",
+    "rs3-025",
+    "rs3-027",
+    "rs3-028"
+  ],
+  "val": [
+    "rs3-000",
+    "rs3-006",
+    "rs3-012",
+    "rs3-018",
+    "rs3-024"
+  ],
+  "test": [
+    "rs3-002",
+    "rs3-005",
+    "rs3-008",
+    "rs3-011",
+    "rs3-014",
+    "rs3-017",
+    "rs3-020",
+    "rs3-023",
+    "rs3-026",
+    "rs3-029"
+  ],
+  "rationale": "Cross-cell-type: the HepG2 context is held out entirely into test.",
+  "split_sha256": "670b013babb2baa7a090d430ad6d21bad090cf27aba7c4ce96c98046d406e991"
+}

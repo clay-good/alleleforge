@@ -1,0 +1,251 @@
+{
+  "version": "synthetic-v1",
+  "license": "CC-BY-4.0",
+  "citation": "DeWeirdt & Doench, Nat Commun 2022 (Rule Set 3) \u2014 synthetic stand-in",
+  "source_url": "https://github.com/gpp-rnd/rs3",
+  "redistributable": false,
+  "synthetic": true,
+  "name": "rs3-validation",
+  "examples": [
+    {
+      "example_id": "rs3-000",
+      "inputs": {
+        "context": "ATTTCCCAAGAGCCCCCCGGCTG",
+        "cell_type": "K562"
+      },
+      "label": 0.384368
+    },
+    {
+      "example_id": "rs3-001",
+      "inputs": {
+        "context": "TACATAAGAGAGGTCCCCCCGAC",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.658421
+    },
+    {
+      "example_id": "rs3-002",
+      "inputs": {
+        "context": "CCGGCTCTGGTTTGTCTCCCCTC",
+        "cell_type": "HepG2"
+      },
+      "label": 0.814274
+    },
+    {
+      "example_id": "rs3-003",
+      "inputs": {
+        "context": "AAGGGTCATGAAGTGCTAGCCTC",
+        "cell_type": "K562"
+      },
+      "label": 0.575247
+    },
+    {
+      "example_id": "rs3-004",
+      "inputs": {
+        "context": "TCGTGACATTGCTTCTTTTTATA",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.340159
+    },
+    {
+      "example_id": "rs3-005",
+      "inputs": {
+        "context": "ATCGGGACAGGGCCGCATCGCAC",
+        "cell_type": "HepG2"
+      },
+      "label": 0.097995
+    },
+    {
+      "example_id": "rs3-006",
+      "inputs": {
+        "context": "CTGCTAATGAAACTGCCTCCTTT",
+        "cell_type": "K562"
+      },
+      "label": 0.557762
+    },
+    {
+      "example_id": "rs3-007",
+      "inputs": {
+        "context": "ACTTGCCTTGTTAGGCTAGTAGA",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.806552
+    },
+    {
+      "example_id": "rs3-008",
+      "inputs": {
+        "context": "GCAGACGGTAGTCCCTTAACAAG",
+        "cell_type": "HepG2"
+      },
+      "label": 0.252703
+    },
+    {
+      "example_id": "rs3-009",
+      "inputs": {
+        "context": "TCGCGTAACCAAGAGTCGATTCC",
+        "cell_type": "K562"
+      },
+      "label": 0.132914
+    },
+    {
+      "example_id": "rs3-010",
+      "inputs": {
+        "context": "CCTAACGTGTTGTGTTTTTTGAA",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.004011
+    },
+    {
+      "example_id": "rs3-011",
+      "inputs": {
+        "context": "TTACGTCCCGTCGTGAGGTTCGC",
+        "cell_type": "HepG2"
+      },
+      "label": 0.352067
+    },
+    {
+      "example_id": "rs3-012",
+      "inputs": {
+        "context": "TGCAAAGGAGGTGTCCGCGGTAT",
+        "cell_type": "K562"
+      },
+      "label": 0.73094
+    },
+    {
+      "example_id": "rs3-013",
+      "inputs": {
+        "context": "AGGATTGGTGTTCCGGCCAGAAC",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.677929
+    },
+    {
+      "example_id": "rs3-014",
+      "inputs": {
+        "context": "CAGTATCTTATTGTTGACCCCAC",
+        "cell_type": "HepG2"
+      },
+      "label": 0.971223
+    },
+    {
+      "example_id": "rs3-015",
+      "inputs": {
+        "context": "TACCTCCTGGATCGAGCAGCCAG",
+        "cell_type": "K562"
+      },
+      "label": 0.213573
+    },
+    {
+      "example_id": "rs3-016",
+      "inputs": {
+        "context": "GTCGAGGTGCGCAAGCGATTCAG",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.334004
+    },
+    {
+      "example_id": "rs3-017",
+      "inputs": {
+        "context": "CATTCAGAAAAACGCGAGTCCAC",
+        "cell_type": "HepG2"
+      },
+      "label": 0.239892
+    },
+    {
+      "example_id": "rs3-018",
+      "inputs": {
+        "context": "TACGGCAGTGTAGACAGGGAATC",
+        "cell_type": "K562"
+      },
+      "label": 0.392612
+    },
+    {
+      "example_id": "rs3-019",
+      "inputs": {
+        "context": "TTTTTTGCATAAACTCACACCCA",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.997782
+    },
+    {
+      "example_id": "rs3-020",
+      "inputs": {
+        "context": "AATTCTCCGCTATCGCGTTATCA",
+        "cell_type": "HepG2"
+      },
+      "label": 0.019925
+    },
+    {
+      "example_id": "rs3-021",
+      "inputs": {
+        "context": "CCACGGGGGCGTTGATCTATATT",
+        "cell_type": "K562"
+      },
+      "label": 0.833839
+    },
+    {
+      "example_id": "rs3-022",
+      "inputs": {
+        "context": "CACCCATTCCATTACTTGCTAAC",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.998866
+    },
+    {
+      "example_id": "rs3-023",
+      "inputs": {
+        "context": "GGACCGCTATTTCAGCAAAGCAA",
+        "cell_type": "HepG2"
+      },
+      "label": 0.908341
+    },
+    {
+      "example_id": "rs3-024",
+      "inputs": {
+        "context": "CCAGATTAACATGACTCGCCAGG",
+        "cell_type": "K562"
+      },
+      "label": 0.479263
+    },
+    {
+      "example_id": "rs3-025",
+      "inputs": {
+        "context": "GATCAGCCTCAAGGAGACACACA",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.922706
+    },
+    {
+      "example_id": "rs3-026",
+      "inputs": {
+        "context": "AGGCAGATAGAATCTTAGGGCCA",
+        "cell_type": "HepG2"
+      },
+      "label": 0.682198
+    },
+    {
+      "example_id": "rs3-027",
+      "inputs": {
+        "context": "GTTGGCGCATGTTCATGTCTCGT",
+        "cell_type": "K562"
+      },
+      "label": 0.181511
+    },
+    {
+      "example_id": "rs3-028",
+      "inputs": {
+        "context": "GGATTAACCGGCGGGATCAATAC",
+        "cell_type": "HEK293T"
+      },
+      "label": 0.904186
+    },
+    {
+      "example_id": "rs3-029",
+      "inputs": {
+        "context": "TTCACATCGTGAACATTAAGTCA",
+        "cell_type": "HepG2"
+      },
+      "label": 0.422582
+    }
+  ]
+}
