@@ -182,9 +182,13 @@ the real `hgvs`/UTA/SeqRepo stack) — with live network/binary calls factored b
 (`live_integration`-marked, opt-in, never run in CI). R4 — **cohort-scale batch design**
 (`design.design_many`) streams a whole VCF/iterable through `design` with **bounded memory** (each
 menu summarized then released; `O(1)` with `on_result`), a **resumable JSONL run manifest** (a re-run
-skips recorded items), per-item failure isolation, and an optional thread-parallel path. The one
-remaining R0 item is pinning the real artifact hashes, which requires freezing the published upstream
-artifacts; the consent gate already refuses any `null`-hash fetch by design.
+skips recorded items), per-item failure isolation, and an optional thread-parallel path; and
+**content-addressed cross-run caches** (`alleleforge.cache`) that memoize embeddings
+(`CachedEmbedder.persistent`) and the reference off-target scan (`OffTargetCache` via
+`search(..., cache=...)`, safety-gated to the default-scorer reference-only case) to disk so a value
+computed in one run is reused by the next. The one remaining R0 item is pinning the real artifact
+hashes, which requires freezing the published upstream artifacts; the consent gate already refuses any
+`null`-hash fetch by design.
 
 ---
 
@@ -720,6 +724,22 @@ print(report.succeeded, report.failed, report.skipped)
 | **Parallel (safe)** | `max_workers` + a `reference_factory` (a pyfaidx handle is not thread-safe to share) |
 | **Auditable** | `CohortRunReport` carries run counts + provenance (version, seed, build, intent) |
 
+### Content-addressed cross-run caches (R4)
+
+A cohort recomputes the same embeddings and the same reference scans constantly. `alleleforge.cache`
+is the cross-run memo: a sharded, **atomically-written** (temp-then-rename) disk key/value store under
+the cache dir, keyed by the SHA-256 of the inputs that determine the result, so a value computed in
+one run is reused by the next.
+
+| Cache | Key | How to use | Safety |
+|---|---|---|---|
+| **Embeddings** | sequence hash, scoped per backbone identity | `CachedEmbedder.persistent(embedder)` | content-addressed; two backbones never collide |
+| **Off-target** | spacer · PAM · budget · thresholds · reference (build + contig lengths) · regions | `search(..., cache=OffTargetCache())` | **only** the default-scorer, reference-only case is cached — gnomAD/haplotype/patient or a custom scorer bypasses it, so a danger scan is never served stale |
+
+A wrong off-target report is a missed danger, so the off-target cache refuses to key anything it
+cannot fully capture: a changed budget/PAM/threshold/reference is a new key, and any
+population/haplotype/patient augmentation skips the cache entirely.
+
 ---
 
 ## From menu to bench: reporting & oligo output (Phase 11, shipping now)
@@ -992,6 +1012,7 @@ alleleforge/
 ├── rust/                     # PyO3 crate: aforge_native (BWT, k-mer, haplotype)
 ├── src/alleleforge/
 │   ├── config.py             # typed Settings (pydantic-settings), defaults, paths
+│   ├── cache.py              # R4: content-addressed cross-run disk cache (embeddings · off-target)
 │   ├── _native.py            # optional Rust bridge
 │   ├── types/                # Phase 1: core domain vocabulary
 │   ├── genome/               # Phase 2: reference access, FM-index, liftover

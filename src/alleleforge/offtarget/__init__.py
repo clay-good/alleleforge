@@ -12,6 +12,7 @@ CHANGE-seq confirmation.
 
 from __future__ import annotations
 
+from alleleforge.offtarget.cache import OffTargetCache, search_signature
 from alleleforge.offtarget.cas_offinder_adapter import CasOffinderAdapter
 from alleleforge.offtarget.engine import (
     DEFAULT_CFD_THRESHOLD,
@@ -45,6 +46,7 @@ __all__ = [
     "CasOffinderAdapter",
     "CfdScorer",
     "MitScorer",
+    "OffTargetCache",
     "OffTargetScorer",
     "cas12a_cfd_score",
     "cfd_score",
@@ -54,4 +56,5 @@ __all__ = [
     "low_stringency_pam",
     "mit_score",
     "search",
+    "search_signature",
 ]

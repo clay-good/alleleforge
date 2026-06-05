@@ -1,0 +1,107 @@
+"""Content-addressed caches that survive across runs (R4).
+
+A run recomputes the same embeddings and the same reference off-target scans far
+more often than it should — across a cohort, across re-runs, across a tuning
+loop. This module is the **cross-run memo**: a small, dependency-free, disk-backed
+key/value store, keyed by the SHA-256 of the inputs that determine the result, so
+a value computed in one process is reused by the next.
+
+Two properties make it safe to trust:
+
+* **Content-addressed.** The key is a digest of every input that affects the
+  result; a different input is a different key, never a stale hit. Callers that
+  cannot fully capture their inputs in a key must not cache (the off-target cache
+  enforces this — see :func:`alleleforge.offtarget.engine.search`).
+* **Atomic writes.** Each value is written to a temp file and then renamed into
+  place, so a crash or a concurrent writer can never leave a half-written entry a
+  later read would trust (the cohort's parallel path relies on this).
+
+Entries are sharded by the first two hex characters of the digest to keep any one
+directory small at cohort/genome scale.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from pathlib import Path
+from typing import Any
+
+from alleleforge.config import get_settings
+
+#: Bump to invalidate every cache after a breaking change to a stored format.
+CACHE_FORMAT_VERSION = "1"
+
+
+def hash_parts(*parts: Any) -> str:
+    """Return a stable SHA-256 hex digest over ``parts``.
+
+    The parts are serialized as canonical JSON (sorted keys, no whitespace), so
+    the digest is stable across processes and Python runs. Non-JSON values fall
+    back to their ``str`` — pass only values whose ``str`` is itself stable.
+    """
+    blob = json.dumps(
+        [CACHE_FORMAT_VERSION, *parts], sort_keys=True, separators=(",", ":"), default=str
+    )
+    return hashlib.sha256(blob.encode()).hexdigest()
+
+
+class ContentAddressedCache:
+    """A sharded, atomically-written disk key/value store under the cache dir.
+
+    Keys are hex digests (see :func:`hash_parts`); values are bytes (with JSON and
+    text convenience wrappers). Construct one per logical namespace so unrelated
+    caches never collide.
+    """
+
+    def __init__(self, namespace: str, *, root: str | Path | None = None) -> None:
+        """Open the cache for ``namespace`` under ``root`` (default: the cache dir)."""
+        base = Path(root) if root is not None else get_settings().cache_dir
+        self.root = base / "caches" / namespace
+
+    def _path(self, digest: str) -> Path:
+        """Return the sharded on-disk path for ``digest``."""
+        return self.root / digest[:2] / digest
+
+    def __contains__(self, digest: str) -> bool:
+        """Return ``True`` if ``digest`` is cached on disk."""
+        return self._path(digest).exists()
+
+    def get_bytes(self, digest: str) -> bytes | None:
+        """Return the cached bytes for ``digest``, or ``None`` on a miss."""
+        path = self._path(digest)
+        return path.read_bytes() if path.exists() else None
+
+    def put_bytes(self, digest: str, data: bytes) -> None:
+        """Write ``data`` for ``digest`` atomically (temp file then rename)."""
+        path = self._path(digest)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Unique temp name so concurrent writers of the same key never collide.
+        tmp = path.with_name(f"{path.name}.{os.getpid()}.{id(data)}.tmp")
+        tmp.write_bytes(data)
+        tmp.replace(path)  # atomic on POSIX and Windows
+
+    def get_text(self, digest: str) -> str | None:
+        """Return the cached UTF-8 text for ``digest``, or ``None``."""
+        data = self.get_bytes(digest)
+        return data.decode() if data is not None else None
+
+    def put_text(self, digest: str, text: str) -> None:
+        """Write UTF-8 ``text`` for ``digest``."""
+        self.put_bytes(digest, text.encode())
+
+    def get_json(self, digest: str) -> Any | None:
+        """Return the cached JSON value for ``digest``, or ``None``."""
+        text = self.get_text(digest)
+        return json.loads(text) if text is not None else None
+
+    def put_json(self, digest: str, obj: Any) -> None:
+        """Write ``obj`` as JSON for ``digest``."""
+        self.put_text(digest, json.dumps(obj, separators=(",", ":")))
+
+    def __len__(self) -> int:
+        """Return the number of cached entries (scans the namespace)."""
+        if not self.root.exists():
+            return 0
+        return sum(1 for p in self.root.rglob("*") if p.is_file() and not p.name.endswith(".tmp"))

@@ -24,6 +24,7 @@ from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.offtarget._search import Hit, SearchBudget, SiteProvenance, scan_sequence
+from alleleforge.offtarget.cache import OffTargetCache, search_signature
 from alleleforge.offtarget.haplotype import enumerate_haplotype_sites
 from alleleforge.offtarget.population import (
     enumerate_patient_sites,
@@ -130,6 +131,7 @@ def search(
     cfd_threshold: float = DEFAULT_CFD_THRESHOLD,
     mit_threshold: float = DEFAULT_MIT_THRESHOLD,
     use_fm_index: bool | None = None,
+    cache: OffTargetCache | None = None,
 ) -> OffTargetReport:
     """Run the full off-target search and return an ancestry-stratified report.
 
@@ -155,6 +157,10 @@ def search(
             region once the region reaches :data:`FM_INDEX_AUTO_THRESHOLD` bases.
             The path returns identical hits to the linear scan (a parity test
             pins this); it is the cached, content-addressed genome-scale path.
+        cache: Optional cross-run :class:`OffTargetCache`. Used **only** when the
+            result is a pure function of the reference — the default scorer and no
+            gnomAD/haplotype/patient augmentation — so a stale entry can never be
+            served for a query whose external data the key does not capture.
 
     Returns:
         An :class:`OffTargetReport`, sorted by descending score and
@@ -164,11 +170,39 @@ def search(
     primary = scorer if scorer is not None else CfdScorer()
     scan_pam = low_stringency_pam(pam)
     search_regions = list(regions) if regions is not None else _contig_regions(reference)
+    haplotype_list = list(haplotypes)
     kw: SearchBudget = {
         "mismatches": mismatches,
         "dna_bulges": dna_bulges,
         "rna_bulges": rna_bulges,
     }
+
+    # The cache is safe only for a reference-only search with the default scorer:
+    # population/haplotype/patient augmentation depends on data the key can't fully
+    # capture, and a custom scorer changes scores the signature does not see.
+    cache_eligible = (
+        cache is not None
+        and scorer is None
+        and gnomad is None
+        and not haplotype_list
+        and patient_vcf is None
+    )
+    signature: str | None = None
+    if cache is not None and cache_eligible:
+        signature = search_signature(
+            sp,
+            pam,
+            reference=reference,
+            mismatches=mismatches,
+            dna_bulges=dna_bulges,
+            rna_bulges=rna_bulges,
+            cfd_threshold=cfd_threshold,
+            mit_threshold=mit_threshold,
+            regions=search_regions,
+        )
+        cached = cache.get(signature)
+        if cached is not None:
+            return cached
 
     tagged: list[tuple[Hit, SiteProvenance]] = []
     ref_prov = SiteProvenance(origin=SiteOrigin.REFERENCE)
@@ -206,7 +240,7 @@ def search(
             sp,
             scan_pam,
             reference=reference,
-            haplotypes=haplotypes,
+            haplotypes=haplotype_list,
             populations=populations,
             min_freq=maf,
             **kw,
@@ -232,10 +266,13 @@ def search(
             best[key] = site
 
     sites = tuple(sorted(best.values(), key=lambda s: s.score, reverse=True))
-    return OffTargetReport(
+    report = OffTargetReport(
         spacer=sp,
         pam=pam.pattern,
         sites=sites,
         mismatch_threshold=mismatches,
         reference_build=reference.build or "hg38",
     )
+    if cache is not None and signature is not None:
+        cache.put(signature, report)
+    return report

@@ -24,6 +24,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
+from alleleforge.cache import ContentAddressedCache
 from alleleforge.model_zoo.loader import WeightGate
 from alleleforge.model_zoo.registry import Downloader, ModelRegistry, ModelUse
 
@@ -44,9 +45,67 @@ class SequenceEmbedder(Protocol):
         ...
 
 
+class EmbeddingCache(Protocol):
+    """The minimal mapping :class:`CachedEmbedder` needs from its backing store.
+
+    A plain ``dict[str, Embedding]`` satisfies it (the in-process default); the
+    cross-run :class:`PersistentEmbeddingCache` satisfies it too, so the embedder
+    is agnostic to where embeddings are memoized.
+    """
+
+    def __contains__(self, key: str) -> bool:
+        """Return ``True`` if ``key`` is cached."""
+        ...
+
+    def __getitem__(self, key: str) -> Embedding:
+        """Return the cached embedding for ``key``."""
+        ...
+
+    def __setitem__(self, key: str, value: Embedding) -> None:
+        """Cache ``value`` under ``key``."""
+        ...
+
+    def __len__(self) -> int:
+        """Return the number of cached embeddings."""
+        ...
+
+
 def sequence_hash(sequence: str) -> str:
     """Return the SHA-256 hex digest of an upper-cased sequence (cache key)."""
     return hashlib.sha256(sequence.upper().encode()).hexdigest()
+
+
+class PersistentEmbeddingCache:
+    """A cross-run embedding cache backed by the content-addressed disk store.
+
+    Keys are sequence hashes; values are stored as JSON float lists under a
+    namespace scoped to the embedder identity, so an embedding computed in one run
+    is reused by the next and two different backbones never collide. Satisfies
+    :class:`EmbeddingCache`.
+    """
+
+    def __init__(self, embedder_id: str, *, root: str | Path | None = None) -> None:
+        """Open the persistent cache for ``embedder_id`` (e.g. ``"stub-0"``)."""
+        self._store = ContentAddressedCache(f"embeddings/{embedder_id}", root=root)
+
+    def __contains__(self, key: str) -> bool:
+        """Return ``True`` if ``key``'s embedding is on disk."""
+        return key in self._store
+
+    def __getitem__(self, key: str) -> Embedding:
+        """Return the on-disk embedding for ``key`` (raises ``KeyError`` on miss)."""
+        data = self._store.get_json(key)
+        if data is None:
+            raise KeyError(key)
+        return tuple(data)
+
+    def __setitem__(self, key: str, value: Embedding) -> None:
+        """Persist ``value`` under ``key``."""
+        self._store.put_json(key, list(value))
+
+    def __len__(self) -> int:
+        """Return the number of cached embeddings on disk."""
+        return len(self._store)
 
 
 class StubEmbedder:
@@ -83,12 +142,24 @@ class StubEmbedder:
 
 
 class CachedEmbedder:
-    """Wrap a :class:`SequenceEmbedder`, memoizing results by sequence hash."""
+    """Wrap a :class:`SequenceEmbedder`, memoizing results by sequence hash.
 
-    def __init__(self, embedder: SequenceEmbedder, *, cache: dict[str, Embedding] | None = None):
-        """Wrap ``embedder``; share or seed an optional ``cache`` dict."""
+    The backing store is any :class:`EmbeddingCache` — an in-process ``dict`` by
+    default, or :meth:`persistent` for a cross-run, content-addressed disk cache.
+    """
+
+    def __init__(self, embedder: SequenceEmbedder, *, cache: EmbeddingCache | None = None):
+        """Wrap ``embedder``; share or seed an optional ``cache`` (default: dict)."""
         self._embedder = embedder
-        self._cache: dict[str, Embedding] = cache if cache is not None else {}
+        self._cache: EmbeddingCache = cache if cache is not None else {}
+
+    @classmethod
+    def persistent(
+        cls, embedder: SequenceEmbedder, *, root: str | Path | None = None
+    ) -> CachedEmbedder:
+        """Wrap ``embedder`` with a cross-run disk cache scoped to its identity."""
+        embedder_id = f"{embedder.name}-{embedder.version}"
+        return cls(embedder, cache=PersistentEmbeddingCache(embedder_id, root=root))
 
     @property
     def name(self) -> str:

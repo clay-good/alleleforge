@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from pathlib import Path
 
 import pytest
 
@@ -12,10 +13,23 @@ from alleleforge.scoring.backbone import (
     Embedding,
     Evo2Embedder,
     NucleotideTransformerEmbedder,
+    PersistentEmbeddingCache,
     SequenceEmbedder,
     StubEmbedder,
     sequence_hash,
 )
+
+
+class _CountingStub(StubEmbedder):
+    """A stub that counts how many sequences actually reach :meth:`embed`."""
+
+    def __init__(self, **kw: int) -> None:
+        super().__init__(**kw)
+        self.calls = 0
+
+    def embed(self, sequences: Sequence[str]) -> list[Embedding]:
+        self.calls += len(sequences)
+        return super().embed(sequences)
 
 
 class _CountingEmbedder:
@@ -74,6 +88,45 @@ def test_cache_preserves_order_and_values() -> None:
     seqs = ["GGGG", "CCCC", "AAAA"]
     assert cached.embed(seqs) == StubEmbedder(dim=4).embed(seqs)
     assert cached.name == "stub" and cached.version == "0" and cached.context_window == 512
+
+
+def test_in_memory_cache_computes_each_sequence_once() -> None:
+    stub = _CountingStub(dim=4)
+    cached = CachedEmbedder(stub)
+    cached.embed(["ACGT", "TTTT", "ACGT"])  # one repeat
+    assert stub.calls == 2  # only the two distinct sequences reached embed()
+    cached.embed(["ACGT", "TTTT"])  # both already cached
+    assert stub.calls == 2
+
+
+def test_persistent_cache_survives_across_runs(tmp_path: Path) -> None:
+    # Two CachedEmbedder instances sharing a cache root stand in for two runs.
+    stub1 = _CountingStub(dim=4)
+    run1 = CachedEmbedder.persistent(stub1, root=tmp_path)
+    first = run1.embed(["ACGT", "TTTT", "ACGT"])
+    assert stub1.calls == 2 and run1.cache_size == 2
+
+    stub2 = _CountingStub(dim=4)
+    run2 = CachedEmbedder.persistent(stub2, root=tmp_path)
+    second = run2.embed(["ACGT", "TTTT"])
+    assert stub2.calls == 0  # served entirely from the on-disk cache of run 1
+    assert second == first[:2]
+
+
+def test_persistent_cache_is_scoped_per_embedder_identity(tmp_path: Path) -> None:
+    # Different backbones must not read each other's embeddings for the same seq.
+    a = PersistentEmbeddingCache("stub-0", root=tmp_path)
+    b = PersistentEmbeddingCache("other-1", root=tmp_path)
+    key = sequence_hash("ACGT")
+    a[key] = (1.0, 2.0)
+    assert key in a and key not in b
+    assert a[key] == (1.0, 2.0)
+
+
+def test_persistent_cache_missing_key_raises(tmp_path: Path) -> None:
+    cache = PersistentEmbeddingCache("stub-0", root=tmp_path)
+    with pytest.raises(KeyError):
+        _ = cache["deadbeef"]
 
 
 @pytest.mark.parametrize(

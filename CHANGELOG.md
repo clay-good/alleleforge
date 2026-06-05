@@ -428,6 +428,19 @@ acceptance.
   `reference_factory`, since a pyfaidx handle is not thread-safe to share)
   produces summaries identical to the sequential run. Returns a `CohortRunReport`
   with the run counts and provenance.
+- **R4 — content-addressed cross-run caches.** A shared
+  `alleleforge.cache.ContentAddressedCache` — a sharded, atomically-written
+  (temp-file-then-rename) disk key/value store under the cache dir, keyed by the
+  SHA-256 of the inputs that determine a result — backs two cross-run memos:
+  - **Embeddings:** `CachedEmbedder.persistent(embedder)` reuses embeddings across
+    runs via a `PersistentEmbeddingCache` scoped per backbone identity (so two
+    backbones never collide); a sequence embedded in one run is free in the next.
+  - **Off-target:** `OffTargetCache` + `search(..., cache=...)` reuse the expensive
+    reference scan. It is **safety-gated**: used only when the result is a pure
+    function of the reference — the default scorer and no gnomAD/haplotype/patient
+    augmentation — so a stale entry can never be served for a query whose external
+    data the content key does not capture. A changed budget/PAM/threshold/reference
+    is a distinct key; a custom scorer or any augmentation bypasses the cache.
 - **R0 — supply-chain hardening.** Dependabot now tracks all three dependency
   surfaces — `pip`, `cargo`, and `github-actions` (`.github/dependabot.yml`,
   grouped weekly PRs); a CI `security` job runs `pip-audit` (PyPI advisory DB)

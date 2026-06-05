@@ -230,7 +230,14 @@ CI); a live-integration test is marked and opt-in.
   thread-parallel path (`max_workers` + a `reference_factory`, since a pyfaidx
   handle is not thread-safe to share). The `cyvcf2` fast path and whole-genome
   scale validation remain.
-- Embedding + off-target caches that survive across runs (content-addressed).
+- **Content-addressed cross-run caches (◐ landed).** A shared
+  `alleleforge.cache.ContentAddressedCache` (sharded, atomically-written disk
+  K/V under the cache dir) backs two cross-run memos: `CachedEmbedder.persistent`
+  reuses embeddings across runs (scoped per backbone identity), and
+  `OffTargetCache` (via `search(..., cache=...)`) reuses the reference scan. The
+  off-target cache is **safety-gated** — used only for a reference-only search
+  with the default scorer (no gnomAD/haplotype/patient augmentation, which the key
+  cannot fully capture), so a stale entry can never be served for a danger scan.
 
 **Defaults & decisions.** Streaming over materializing; bounded memory is a hard
 requirement; every batch run emits a provenance manifest.
