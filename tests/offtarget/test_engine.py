@@ -39,6 +39,15 @@ def test_reference_on_target(make_reference: MakeRef) -> None:
     assert report.reference_build == "hg38"
 
 
+def test_fm_index_reference_path_matches_linear(make_reference: MakeRef) -> None:
+    """Forcing the FM-index reference path yields the same report as the scan."""
+    ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD + SPACER[:5] + "CCC" + PAD})
+    linear = search(SPACER, NGG, reference=ref, use_fm_index=False)
+    indexed = search(SPACER, NGG, reference=ref, use_fm_index=True)
+    assert [s.locus for s in indexed.sites] == [s.locus for s in linear.sites]
+    assert indexed.n_sites == linear.n_sites
+
+
 def test_population_blind_spot(make_reference: MakeRef) -> None:
     ref = make_reference({"chr2": PAD + SPACER + "CGT" + PAD})
     gnomad = GnomadDB([_pf(populations={"afr": 0.10, "nfe": 0.01})])

@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import random
+from pathlib import Path
+
+import pytest
+
 from alleleforge.offtarget._search import scan_sequence
 from alleleforge.types.guide import PAM
 from alleleforge.types.sequence import DNASequence, Strand
@@ -76,3 +81,36 @@ def test_padded_n_region_is_skipped() -> None:
 def test_no_pam_no_hit() -> None:
     hits = _scan(PAD + SP + "CAT" + PAD)  # CAT is not NRG
     assert not any(h.mismatches == 0 and h.strand is Strand.PLUS for h in hits)
+
+
+def _random_reference(seed: int, length: int) -> str:
+    rng = random.Random(seed)
+    return "".join(rng.choice("ACGT") for _ in range(length))
+
+
+@pytest.mark.parametrize("ref_seed", [1, 7, 1234])
+@pytest.mark.parametrize(("mm", "dnab", "rnab"), [(4, 1, 1), (2, 0, 0), (1, 1, 0), (5, 0, 1)])
+def test_fm_index_path_matches_brute_force(
+    tmp_path: Path, ref_seed: int, mm: int, dnab: int, rnab: int
+) -> None:
+    """The FM-index seed-and-extend returns byte-identical hits to brute force.
+
+    The FM-index only changes how PAM anchors are *enumerated* (indexed lookup vs
+    linear pass); the alignment extension is shared, so every hit — coordinates,
+    strand, bulges, aligned strings — must match exactly. Embed a couple of exact
+    sites so the comparison covers real hits, not just the empty set.
+    """
+    ref = _random_reference(ref_seed, 1500)
+    ref = ref[:200] + SP + "TGG" + ref[223:]  # a clean plus-strand site
+    rc = str(DNASequence(SP).reverse_complement())
+    ref = ref[:600] + "CCA" + rc + ref[623:]  # a clean minus-strand site
+    kw = dict(mismatches=mm, dna_bulges=dnab, rna_bulges=rnab)
+
+    brute = scan_sequence("chr1", ref, SP, NRG, seed=False, **kw)
+    fm = scan_sequence("chr1", ref, SP, NRG, use_fm_index=True, fm_cache_dir=tmp_path, **kw)
+    assert fm == brute
+
+
+def test_fm_index_empty_sequence() -> None:
+    """The FM-index path tolerates an empty sequence (no index to build)."""
+    assert scan_sequence("chr1", "", SP, NRG, use_fm_index=True) == []

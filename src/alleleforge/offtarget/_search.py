@@ -18,12 +18,17 @@ each is evaluated independently; a single site is not given both at once.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TypedDict
+from itertools import product
+from pathlib import Path
+from typing import TYPE_CHECKING, TypedDict
 
 from alleleforge.offtarget._kmer import covered_prefix, seed_length, seed_positions
 from alleleforge.types.guide import PAM
 from alleleforge.types.offtarget import SiteOrigin
-from alleleforge.types.sequence import DNASequence, Strand
+from alleleforge.types.sequence import IUPAC_EXPAND, DNASequence, Strand
+
+if TYPE_CHECKING:
+    from alleleforge.genome.index import FMIndex
 
 
 class SearchBudget(TypedDict):
@@ -238,6 +243,62 @@ def _scan_one_strand(
     return hits
 
 
+def _expand_pam(pam: PAM) -> list[str]:
+    """Expand an IUPAC PAM pattern into its concrete ACGT instantiations."""
+    choices = [sorted(IUPAC_EXPAND[code]) for code in pam.pattern]
+    return ["".join(combo) for combo in product(*choices)]
+
+
+def _scan_one_strand_fm(
+    spacer: str,
+    seq: str,
+    pam: PAM,
+    fm: FMIndex,
+    *,
+    max_mm: int,
+    dna_bulges: int,
+    rna_bulges: int,
+) -> list[tuple[int, int, str, int, int, int, str, str]]:
+    """FM-index seed-and-extend equivalent of :func:`_scan_one_strand`.
+
+    The PAM is the *seed*: instead of testing ``pam.matches`` at every anchor,
+    each concrete PAM instantiation is **located** in ``fm`` (an FM-index built
+    over ``seq``), giving exactly the PAM-positive anchors directly. Each anchor
+    is then **extended** by the same :func:`_evaluate` alignment as the
+    brute-force scan, so the result is byte-identical to ``_scan_one_strand``
+    (pinned by a parity test) — only the anchor enumeration changes from an
+    ``O(n)`` linear pass to an indexed lookup over the genome-scale path.
+    """
+    pam_len = len(pam.pattern)
+    n = len(spacer)
+    lo_bound = n - 1  # the brute-force loop's first anchor (room for an RNA bulge)
+    hi_bound = len(seq) - pam_len  # last anchor with room for a full PAM
+    anchors: set[int] = set()
+    for concrete in _expand_pam(pam):
+        for pam_at in fm.locate(concrete):
+            if lo_bound <= pam_at <= hi_bound:
+                anchors.add(pam_at)
+    hits: list[tuple[int, int, str, int, int, int, str, str]] = []
+    for pam_at in sorted(anchors):
+        pam_seq = seq[pam_at : pam_at + pam_len]
+        result = _evaluate(
+            spacer,
+            seq,
+            pam_at,
+            pam_len,
+            max_mm=max_mm,
+            dna_bulges=dna_bulges,
+            rna_bulges=rna_bulges,
+        )
+        if result is None:
+            continue
+        start, mm, dnab, rnab, a_spacer, a_target = result
+        if "N" in seq[start:pam_at]:
+            continue  # never nominate a site over a padded / unknown region
+        hits.append((start, pam_at, pam_seq, mm, dnab, rnab, a_spacer, a_target))
+    return hits
+
+
 def scan_sequence(
     chrom: str,
     sequence: str | DNASequence,
@@ -249,6 +310,8 @@ def scan_sequence(
     rna_bulges: int = 1,
     offset: int = 0,
     seed: bool = True,
+    use_fm_index: bool = False,
+    fm_cache_dir: str | Path | None = None,
 ) -> list[Hit]:
     """Scan both strands of ``sequence`` for PAM-anchored hits to ``spacer``.
 
@@ -265,6 +328,12 @@ def scan_sequence(
         seed: Use the k-mer seed prefilter (default); the result is identical to
             the unseeded scan but skips windows that provably contain no hit. Set
             ``False`` to force the exhaustive brute-force scan.
+        use_fm_index: Anchor PAMs through a (content-addressed, cached) FM-index
+            seed-and-extend instead of the linear scan. Identical hits (a parity
+            test pins this); this is the genome-scale reference path. Ignores
+            ``seed`` (the PAM is the index seed).
+        fm_cache_dir: Override for the FM-index cache root (used only when
+            ``use_fm_index``); defaults to the shared content-addressed cache.
 
     Returns:
         All hits within budget, as plus-strand :class:`Hit` records.
@@ -273,9 +342,31 @@ def scan_sequence(
     sp = str(spacer).upper()
     n = len(seq)
     hits: list[Hit] = []
-    for local in _scan_one_strand(
-        sp, seq, pam, max_mm=mismatches, dna_bulges=dna_bulges, rna_bulges=rna_bulges, seed=seed
-    ):
+
+    fm_plus = fm_minus = None
+    if use_fm_index and seq:
+        from alleleforge.genome.index import FMIndex
+
+        rc_seq = str(DNASequence(seq).reverse_complement())
+        fm_plus = FMIndex.build(seq, cache_dir=fm_cache_dir, in_memory=True)
+        fm_minus = FMIndex.build(rc_seq, cache_dir=fm_cache_dir, in_memory=True)
+
+    def _plus() -> list[tuple[int, int, str, int, int, int, str, str]]:
+        if fm_plus is not None:
+            return _scan_one_strand_fm(
+                sp,
+                seq,
+                pam,
+                fm_plus,
+                max_mm=mismatches,
+                dna_bulges=dna_bulges,
+                rna_bulges=rna_bulges,
+            )
+        return _scan_one_strand(
+            sp, seq, pam, max_mm=mismatches, dna_bulges=dna_bulges, rna_bulges=rna_bulges, seed=seed
+        )
+
+    for local in _plus():
         start, pam_at, pam_seq, mm, dnab, rnab, a_sp, a_tg = local
         hits.append(
             Hit(
@@ -292,9 +383,23 @@ def scan_sequence(
             )
         )
     rc = str(DNASequence(seq).reverse_complement())
-    for local in _scan_one_strand(
-        sp, rc, pam, max_mm=mismatches, dna_bulges=dna_bulges, rna_bulges=rna_bulges, seed=seed
-    ):
+
+    def _minus() -> list[tuple[int, int, str, int, int, int, str, str]]:
+        if fm_minus is not None:
+            return _scan_one_strand_fm(
+                sp,
+                rc,
+                pam,
+                fm_minus,
+                max_mm=mismatches,
+                dna_bulges=dna_bulges,
+                rna_bulges=rna_bulges,
+            )
+        return _scan_one_strand(
+            sp, rc, pam, max_mm=mismatches, dna_bulges=dna_bulges, rna_bulges=rna_bulges, seed=seed
+        )
+
+    for local in _minus():
         start, pam_at, pam_seq, mm, dnab, rnab, a_sp, a_tg = local
         # Map the rc-local protospacer span [start, pam_at) back to plus coords.
         plus_start = n - pam_at

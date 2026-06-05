@@ -42,6 +42,12 @@ DEFAULT_MIT_THRESHOLD = 0.10
 #: Length of the canonical SpCas9 spacer the MIT score is defined for.
 _MIT_LENGTH = 20
 
+#: Auto-engage the FM-index reference path once a region reaches this many bases.
+#: Below it the linear scan wins (no index to build/cache); at and above it the
+#: content-addressed FM-index seed-and-extend is the genome-scale path. Override
+#: per call with ``use_fm_index``.
+FM_INDEX_AUTO_THRESHOLD = 1_000_000
+
 
 def low_stringency_pam(pam: PAM) -> PAM:
     """Broaden a primary PAM to include its low-stringency off-target PAM.
@@ -123,6 +129,7 @@ def search(
     scorer: OffTargetScorer | None = None,
     cfd_threshold: float = DEFAULT_CFD_THRESHOLD,
     mit_threshold: float = DEFAULT_MIT_THRESHOLD,
+    use_fm_index: bool | None = None,
 ) -> OffTargetReport:
     """Run the full off-target search and return an ancestry-stratified report.
 
@@ -143,6 +150,11 @@ def search(
         scorer: The primary specificity scorer (default :class:`CfdScorer`).
         cfd_threshold: Report a site at or above this CFD (default 0.20).
         mit_threshold: ...or at or above this MIT (default 0.10).
+        use_fm_index: Force (``True``) or forbid (``False``) the FM-index
+            seed-and-extend reference path; ``None`` (default) auto-engages it per
+            region once the region reaches :data:`FM_INDEX_AUTO_THRESHOLD` bases.
+            The path returns identical hits to the linear scan (a parity test
+            pins this); it is the cached, content-addressed genome-scale path.
 
     Returns:
         An :class:`OffTargetReport`, sorted by descending score and
@@ -161,10 +173,15 @@ def search(
     tagged: list[tuple[Hit, SiteProvenance]] = []
     ref_prov = SiteProvenance(origin=SiteOrigin.REFERENCE)
 
-    # Stage 1 — reference candidate search.
+    # Stage 1 — reference candidate search. The FM-index seed-and-extend is the
+    # genome-scale path: auto-engaged per region past FM_INDEX_AUTO_THRESHOLD
+    # bases unless the caller forces it on or off.
     for region in search_regions:
         seq = str(reference.fetch(region.model_copy(update={"strand": Strand.PLUS})))
-        for hit in scan_sequence(region.chrom, seq, sp, scan_pam, offset=region.start, **kw):
+        fm = use_fm_index if use_fm_index is not None else len(seq) >= FM_INDEX_AUTO_THRESHOLD
+        for hit in scan_sequence(
+            region.chrom, seq, sp, scan_pam, offset=region.start, use_fm_index=fm, **kw
+        ):
             tagged.append((hit, ref_prov))
 
     # Stage 2 — population augmentation (gnomAD de-novo PAM / seed changes).
