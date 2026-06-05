@@ -279,6 +279,18 @@ acceptance.
   metadata file (`.zenodo.json`) for DOI minting on first tag, and a bioconda-style
   recipe (`conda/meta.yaml`). README updated with the runnable-examples gallery and
   the release/packaging matrix; all fifteen build phases are now complete.
+- **v0.1.0 acceptance suite (`tests/test_acceptance.py`).** Encodes the
+  specification's §16 "definition of done" as six executable end-to-end checks,
+  complementing the per-component unit tests: a **ClinVar accession** flows
+  through `design()` to a complete menu (every candidate carrying a calibrated
+  efficiency interval, an outcome distribution, and an off-target report or an
+  explicit reason); the unified entry point **reaches every chemistry** (base,
+  prime, nuclease); a run is **reproducible from seed** (identical serialized
+  menu); the **reference-bias / `rs114518452`** off-target case is reproduced;
+  **prime editing unifies all four axes**; and **CRISPR-Bench publishes** the
+  Cas9-efficiency, PE-efficiency, and off-target tasks with frozen splits,
+  calibration, signed results, and a working leaderboard. All run against the stub
+  models, so the release contract is verified on every CI run.
 
 ### Security
 

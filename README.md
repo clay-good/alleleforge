@@ -912,6 +912,20 @@ with maturin (`cd rust && maturin develop`); the library runs in pure-Python mod
 Contributions are welcome — please read [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
 [Contributor Covenant 2.1](CODE_OF_CONDUCT.md) code of conduct.
 
+### Acceptance: the definition of done, as executable checks
+
+[`tests/test_acceptance.py`](tests/test_acceptance.py) encodes the v0.1.0 release contract — the
+specification's "definition of done" — as six end-to-end tests that run on every push:
+
+| Release criterion | Proven by |
+|---|---|
+| A **ClinVar accession** flows end to end to a complete, provenance-stamped menu | `test_clinvar_accession_to_complete_menu` |
+| The unified entry point **reaches every chemistry** (base · prime · nuclease) | `test_every_chemistry_reachable_through_one_entry_point` |
+| A run is **reproducible from config + seed** (identical serialized menu) | `test_run_is_reproducible_from_seed` |
+| The **reference-bias / `rs114518452`** off-target case is reproduced | `test_reference_bias_case_reproduced` |
+| **Prime editing unifies all four axes** | `test_prime_unifies_all_four_axes` |
+| **CRISPR-Bench publishes** the Cas9-/PE-efficiency + off-target tasks with calibration & a leaderboard | `test_crispr_bench_publishes_required_tasks` |
+
 ---
 
 ## Scope &amp; responsible use
