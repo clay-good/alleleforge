@@ -1,0 +1,23 @@
+# Model card — optional genomic foundation backbone (Evo 2).
+name: evo2
+version: "2.0"
+chemistry: null  # a generic genomic foundation backbone
+training_data: >-
+  Large multi-domain genomic corpus (prokaryotic and eukaryotic), autoregressive
+  foundation-model pre-training at single-nucleotide resolution.
+metrics:
+  parameters_billions: 7.0
+  context_window_tokens: 8192.0
+intended_use: >-
+  Genomic sequence embedding / scoring for downstream guide-efficiency and
+  edit-outcome models in AlleleForge. Research use.
+out_of_scope_use: >-
+  Clinical decision-making; generative design of harmful sequences; any use
+  implying experimental validation has been performed.
+license: Apache-2.0
+citation: "Brixi et al., 2025 (Evo 2: genome-scale foundation model)"
+known_failure_modes:
+  - "Large model; inference is resource-intensive (GPU strongly recommended)."
+  - "Foundation-scale priors do not guarantee calibrated point efficiency."
+checkpoint_sha256: null  # pinned when the model zoo freezes the release artifact
+source_url: "https://huggingface.co/arcinstitute/evo2_7b"

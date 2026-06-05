@@ -153,6 +153,12 @@ AlleleForge is built in ordered phases (see [`SPEC.md`](SPEC.md), the authoritat
 | 14 | CRISPR-Bench: tasks, frozen splits, metrics, runner, leaderboard (`benchmark/`) | ✅ done |
 | 15 | Docs, runnable examples, release engineering (`docs/`, `examples/`) | ✅ done |
 
+All fifteen v0.1.0 phases are complete. **Post-v0.1.0 work is tracked in [`SPEC_V2.md`](SPEC_V2.md)** —
+release hardening (pinning real artifact hashes), real-weights model integration through the
+consent-gated model zoo (in progress: the backbone download/consent flow has landed), wiring the
+native `kmer`/`haplotype` kernels and SA-IS onto the off-target hot paths, external-tool adapters, and
+the validation/calibration study for v1.0.
+
 ---
 
 ## Install
@@ -420,6 +426,14 @@ flowchart LR
 runtime guard at the orchestration seam. **No undocumented models.** Every checkpoint loads through the
 model zoo, which refuses a missing card, a license that forbids the use, or an unverifiable hash, and
 surfaces a `ModelCheckpoint` into result provenance.
+
+**Consent-gated real weights (R1).** A real backbone resolves its weights through the model zoo, not a
+bare `from_pretrained`: `SequenceEmbedder.resolve_weights()` runs the license gate (the default
+Nucleotide Transformer v2 is **CC-BY-NC-SA** — research-only, refused for commercial use), **requires
+explicit consent** before any download, **checksum-verifies** a pinned artifact, and records the
+backbone `ModelCheckpoint` for provenance (`EnsembleEfficiencyScorer.backbone_checkpoint()`). The whole
+consent/license/checksum flow is exercised in CI with an injected downloader — no network, no torch;
+only the tensor load itself stays behind the `real_weights` marker. See [`SPEC_V2.md`](SPEC_V2.md) R1.
 
 ### Uncertainty method cheat-sheet
 

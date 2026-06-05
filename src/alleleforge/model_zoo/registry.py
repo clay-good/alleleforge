@@ -255,6 +255,47 @@ class ModelRegistry:
             _verify_sha256(path, card.checkpoint_sha256)
         return path, card.to_checkpoint()
 
+    def authorize(
+        self,
+        name: str,
+        *,
+        use: ModelUse = ModelUse.RESEARCH,
+        consent: bool = False,
+    ) -> ModelCheckpoint:
+        """Run the license + consent gate for a hub-resolved model.
+
+        Some backbones (e.g. HuggingFace transformers) are fetched by their own
+        integrity-checked loader rather than as a single pinned artifact, so the
+        full :meth:`checkpoint` download/checksum step does not apply. This is the
+        lighter gate they share: it enforces the license for the requested use and
+        requires explicit consent before any (loader-driven) download, and returns
+        the provenance :class:`ModelCheckpoint` to stamp into the result.
+
+        Args:
+            name: The registered model name.
+            use: The use the model is loaded for (license gate).
+            consent: Must be ``True`` to authorize a download.
+
+        Returns:
+            The card's :class:`ModelCheckpoint` for the provenance block.
+
+        Raises:
+            CardError: If the model has no card.
+            LicenseError: If the license forbids ``use``.
+            ConsentError: If ``consent`` is ``False``.
+        """
+        card = self.get(name)
+        if not card.permits(use):
+            raise LicenseError(
+                f"license {card.license!r} forbids {use.value} use of model {name!r}"
+            )
+        if not consent:
+            raise ConsentError(
+                f"loading model {name!r} downloads weights from {card.source_url}; "
+                "pass consent=True to authorize the fetch"
+            )
+        return card.to_checkpoint()
+
 
 #: The default registry, populated from the bundled cards on first use.
 def default_registry() -> ModelRegistry:

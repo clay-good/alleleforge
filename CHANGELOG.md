@@ -304,6 +304,26 @@ acceptance.
   CI `rust` job now builds the wheel and runs the parity suite; the existing
   FM-index tests are pinned to the pure-Python path so they stay deterministic
   whether or not the crate is built. Adds the `sha2` crate dependency.
+- **Post-v0.1.0 roadmap (`SPEC_V2.md`).** A phase-structured contract for the work
+  to "bake" the release before v1.0: R0 release hardening (pin real artifact
+  hashes), R1 real-weights integration, R2 native `kmer`/`haplotype` kernels +
+  SA-IS wired onto the off-target hot paths, R3 external-tool adapters, R4 scale,
+  R5 validation/calibration + methods preprint, and the R6 v1.0 criteria.
+- **R1 — consent-gated real backbone weights (first slice).** Real
+  sequence-embedding backbones now resolve their weights through the
+  license-gated, consent-required, checksum-verified model zoo instead of a bare
+  `from_pretrained(model_id)`. Adds `ModelRegistry.authorize(name, *, use,
+  consent)` (the license + consent gate for hub-resolved models, returning the
+  provenance `ModelCheckpoint`); `SequenceEmbedder.resolve_weights()` (uses the
+  pinned-artifact download+checksum path when the card pins a hash, else the
+  authorize gate, recording the resolved checkpoint) and `model_checkpoint()`;
+  and `EnsembleEfficiencyScorer.backbone_checkpoint()` so the cas9 efficiency
+  chemistry stamps the backbone into provenance. Adds model cards for the
+  `caduceus` and `evo2` backbones. The full consent/license/checksum flow is
+  CI-tested with an injected downloader (no network, no torch — 8 new tests); the
+  real tensor load stays behind the `real_weights` marker. The default backbone
+  (Nucleotide Transformer v2, CC-BY-NC-SA) is loadable for research and refused
+  for commercial use by the license gate.
 
 ### Security
 

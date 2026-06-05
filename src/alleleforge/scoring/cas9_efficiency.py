@@ -36,6 +36,7 @@ from alleleforge.scoring.uncertainty import (
     ensemble_prediction,
 )
 from alleleforge.types.prediction import Prediction, UncertaintyMethod
+from alleleforge.types.provenance import ModelCheckpoint
 
 
 class TracrRNA(StrEnum):
@@ -144,6 +145,18 @@ class EnsembleEfficiencyScorer:
     def model_card(self) -> ModelCard:
         """Return the deep-ensemble model card."""
         return self._registry.get("cas9-efficiency-ensemble")
+
+    def backbone_checkpoint(self) -> ModelCheckpoint | None:
+        """Return the embedding backbone's resolved checkpoint, for provenance.
+
+        Returns ``None`` for a weight-free embedder (e.g. :class:`StubEmbedder`)
+        or before the backbone has resolved its weights through the model zoo.
+        """
+        getter = getattr(self._embedder, "model_checkpoint", None)
+        if getter is None:
+            return None
+        checkpoint: ModelCheckpoint | None = getter()
+        return checkpoint
 
     def _member_head(self, weights: Sequence[float]) -> Callable[[Embedding], float]:
         """Return one member's predictor: a squashed linear projection."""

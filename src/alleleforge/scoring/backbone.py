@@ -21,7 +21,17 @@ from __future__ import annotations
 import hashlib
 import struct
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
+
+from alleleforge.config import get_settings
+from alleleforge.model_zoo.registry import (
+    Downloader,
+    ModelRegistry,
+    ModelUse,
+    default_registry,
+)
+from alleleforge.types.provenance import ModelCheckpoint
 
 #: A single fixed-width embedding vector.
 Embedding = tuple[float, ...]
@@ -135,25 +145,100 @@ def _require_transformers() -> Any:  # pragma: no cover - requires the ml extra
 
 
 class _HuggingFaceEmbedder:
-    """Shared mean-pooled HuggingFace transformer embedder (lazy, optional)."""
+    """Shared mean-pooled HuggingFace transformer embedder (lazy, optional).
+
+    Weights are resolved through the **consent-gated, license-checked model zoo**
+    (:meth:`resolve_weights`), not a bare ``from_pretrained(model_id)``: loading a
+    real backbone requires explicit consent and a license that permits the use,
+    and the resolved :class:`ModelCheckpoint` is recorded for provenance. The
+    consent/license/checksum flow is exercisable without torch or the network (an
+    injected downloader); only the tensor load in :meth:`embed` needs the ``ml``
+    extra and real weights.
+    """
 
     name = "hf"
     version = "0"
     model_id = ""
+    #: The model-zoo card key gating this backbone (license + consent + checksum).
+    card_name = "hf"
     context_window = 1000
 
-    def __init__(self, *, device: str = "cpu", torch_compile: bool = False) -> None:
-        """Configure device and whether to ``torch.compile`` the model."""
+    def __init__(
+        self,
+        *,
+        device: str = "cpu",
+        torch_compile: bool = False,
+        registry: ModelRegistry | None = None,
+        use: ModelUse = ModelUse.RESEARCH,
+        consent: bool = False,
+        cache_dir: str | Path | None = None,
+        downloader: Downloader | None = None,
+    ) -> None:
+        """Configure device, the model-zoo gate, and consent for weight download.
+
+        Args:
+            device: Torch device for inference (``"cpu"``/``"cuda"``).
+            torch_compile: Whether to ``torch.compile`` the loaded model.
+            registry: Model-zoo registry (defaults to the bundled cards).
+            use: The use the weights are loaded for (drives the license gate).
+            consent: Must be ``True`` to authorize any weight download.
+            cache_dir: Override for the checkpoint cache (pinned-artifact path).
+            downloader: Injected fetcher for the pinned-artifact path (tests).
+        """
         self.device = device
         self.torch_compile = torch_compile
+        self._registry = registry
+        self._use = use
+        self._consent = consent
+        self._cache_dir = cache_dir
+        self._downloader = downloader
         self._model: Any = None
         self._tokenizer: Any = None
+        self._checkpoint: ModelCheckpoint | None = None
+
+    def resolve_weights(self) -> str | None:
+        """Resolve the backbone weights through the consent-gated model zoo.
+
+        When the card pins a ``checkpoint_sha256`` the full download+checksum flow
+        runs (returning a verified local path); otherwise the lighter
+        license+consent :meth:`~alleleforge.model_zoo.registry.ModelRegistry.authorize`
+        gate runs and the weights load from the hub by model id. Either way the
+        resolved :class:`ModelCheckpoint` is recorded for provenance.
+
+        Returns:
+            A verified local checkpoint path, or ``None`` to load by model id.
+
+        Raises:
+            ConsentError: If a download is needed but consent was not given.
+            LicenseError: If the card's license forbids the requested use.
+            ChecksumError: If a pinned artifact fails verification.
+        """
+        registry = self._registry or default_registry()
+        card = registry.get(self.card_name)
+        if card.checkpoint_sha256 is not None:
+            cache_dir = self._cache_dir or (get_settings().cache_dir / "models")
+            path, checkpoint = registry.checkpoint(
+                self.card_name,
+                cache_dir=cache_dir,
+                use=self._use,
+                consent=self._consent,
+                downloader=self._downloader,
+            )
+            self._checkpoint = checkpoint
+            return str(path)
+        self._checkpoint = registry.authorize(self.card_name, use=self._use, consent=self._consent)
+        return None
+
+    def model_checkpoint(self) -> ModelCheckpoint | None:
+        """Return the resolved checkpoint provenance, or ``None`` if not yet loaded."""
+        return self._checkpoint
 
     def _load(self) -> None:  # pragma: no cover - requires weights
-        """Lazily load the tokenizer and model (downloads weights on first use)."""
+        """Lazily resolve weights (consent-gated) and load the tokenizer + model."""
         torch, auto_model, auto_tokenizer = _require_transformers()
-        self._tokenizer = auto_tokenizer.from_pretrained(self.model_id)
-        model = auto_model.from_pretrained(self.model_id).to(self.device).eval()
+        target = self.resolve_weights() or self.model_id
+        self._tokenizer = auto_tokenizer.from_pretrained(target)
+        model = auto_model.from_pretrained(target).to(self.device).eval()
         self._model = torch.compile(model) if self.torch_compile else model
 
     def embed(self, sequences: Sequence[str]) -> list[Embedding]:  # pragma: no cover - needs ml
@@ -183,6 +268,7 @@ class NucleotideTransformerEmbedder(_HuggingFaceEmbedder):
     name = "nucleotide-transformer-v2-500m"
     version = "2.0"
     model_id = "InstaDeepAI/nucleotide-transformer-v2-500m-multi-species"
+    card_name = "nucleotide-transformer-v2-500m"
     context_window = 1000
 
 
@@ -192,6 +278,7 @@ class CaduceusEmbedder(_HuggingFaceEmbedder):
     name = "caduceus"
     version = "1.0"
     model_id = "kuleshov-group/caduceus-ps_seqlen-131k_d_model-256_n_layer-16"
+    card_name = "caduceus"
     context_window = 131072
 
 
@@ -201,4 +288,5 @@ class Evo2Embedder(_HuggingFaceEmbedder):
     name = "evo2"
     version = "2.0"
     model_id = "arcinstitute/evo2_7b"
+    card_name = "evo2"
     context_window = 8192

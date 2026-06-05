@@ -1,0 +1,226 @@
+# AlleleForge — SPEC v2: post-v0.1.0 roadmap
+
+`SPEC.md` is the v0.1.0 build contract and is **complete**: all fifteen phases are
+implemented, the §16 definition-of-done is backed by an executable acceptance
+suite, and CI is green across lint, type, test, docs, examples, and the Rust
+crate (with a native↔Python FM-index parity run).
+
+This document is the contract for what comes **after** v0.1.0 — the work to "bake"
+the release: turning the swappable interfaces and weight-free stubs into pinned,
+verified, real implementations, wiring the native kernels into the actual hot
+paths, and earning the validation a v1.0 deserves. It uses the same structure as
+`SPEC.md`: each phase lists **Context**, **Deliverables**, **Defaults &
+decisions**, and **Tests**, and a phase is "done" only when its deliverables exist,
+`ruff`/`mypy --strict` pass, CI is green, and its tests pass.
+
+The guiding rule from `SPEC.md` still holds: when a decision is unspecified, prefer
+the option that maximizes **reproducibility, honest uncertainty, and
+population-aware safety — in that order**. Nothing here promises clinical
+applicability; AlleleForge generates rigorously uncertain hypotheses.
+
+## Sequencing
+
+```
+R0 (release hardening) ─┬─> R1 (real weights) ──> R5 (validation) ──> R6 (v1.0)
+                        ├─> R2 (native kernels on hot paths)
+                        └─> R3 (external adapters)
+R4 (scale) draws on R1+R2 and feeds R5.
+```
+
+R0 gates a public v0.1.0. R1, R2, and R3 are independent and can proceed in
+parallel once R0 lands. R5 (validation) needs R1. R6 (v1.0) needs R1 + R5.
+
+Status legend: ☐ not started · ◐ in progress · ☑ done.
+
+---
+
+## R0 — Release hardening (gates the public v0.1.0)
+
+**Context.** Everything required to cut a trustworthy `v0.1.0` that others can
+install, reproduce, and cite. The code is done; this is the operational freeze.
+
+**Deliverables.**
+- **Pin every artifact.** Replace each `checkpoint_sha256: null` / dataset
+  `sha256: null` with the real content hash of a frozen release artifact, so the
+  consent-gated downloaders will actually fetch (an unverifiable artifact is
+  refused by design). Record the pinned versions in `docs/data.md` and each model
+  card.
+- **Supply-chain.** Enable Dependabot for `pip` + `cargo` + `github-actions`;
+  add `pip-audit` / `cargo audit` steps to CI; generate an SBOM on release.
+- **Reproducibility audit.** A `make reproduce` target (or `scripts/reproduce.py`)
+  that re-derives the acceptance-suite results from config + seed and diffs them.
+- **Version bump** to `0.1.0` (drop `.dev0`) at tag time; confirm the
+  `aforge_native` constant and `_version.py` agree.
+
+**Defaults & decisions.** First public tag is **v0.1.0**; PyPI Trusted Publishing
++ multi-arch Docker + Zenodo DOI are already wired in `release.yml`. Artifacts are
+pinned by content hash, never by mutable tag.
+
+**Tests.** A test asserts no bundled card/descriptor ships a `null` hash once R0
+closes; the reproduce target is exercised in CI against the stubs.
+
+---
+
+## R1 — Real-weights model integration  ◐ in progress
+
+**Context.** v0.1.0 ships correct, swappable interfaces exercised by weight-free
+stubs. R1 makes the real predictors load — through the **license-gated,
+consent-required, checksum-verified** model zoo — so a user who opts in gets the
+published models, with the checkpoint recorded in every result's provenance.
+
+**Deliverables.**
+- **Backbone download/consent flow (the first slice — landing with this spec).**
+  Route `_HuggingFaceEmbedder` (Nucleotide Transformer v2 / Caduceus / Evo 2)
+  through the model zoo instead of a bare `from_pretrained(model_id)`:
+  - `ModelRegistry.authorize(name, *, use, consent)` — the license + consent gate
+    for hub-resolved models, returning the provenance `ModelCheckpoint`.
+  - `SequenceEmbedder.resolve_weights(...)` — uses `registry.checkpoint(...)` to
+    fetch-and-checksum a pinned single artifact when the card pins a hash, else
+    `authorize(...)`; records the resolved `ModelCheckpoint`. No consent ⇒
+    `ConsentError`; wrong license-for-use ⇒ `LicenseError`; bad bytes ⇒
+    `ChecksumError`. The whole flow is CI-tested with an **injected downloader**
+    (no network, no torch); the actual tensor load stays `real_weights`-gated.
+  - `model_checkpoint()` on the embedder so a scorer can stamp the backbone into
+    provenance.
+- **Per-chemistry real scorers**, each behind its card and the same flow:
+  - Cas9 efficiency: load the fitted **Rule Set 3** coefficients (replace the
+    documented feature baseline) and the deep-ensemble heads.
+  - Cas9 outcome: **inDelphi / Lindel / FORECasT** weights into the existing
+    `predict()` stubs (currently `NotImplementedError`).
+  - Base-edit outcome: **BE-DICT / BE-Hive** weights.
+  - Prime efficiency: **PRIDICT2.0** weights (replace the heuristic; the
+    `NotImplementedError` real path).
+- **ONNX export** path (`export_onnx`) for the backbone, for portable inference.
+
+**Defaults & decisions.** Default backbone stays **Nucleotide Transformer v2
+(500M)**; it is **CC-BY-NC-SA** — loadable for research, refused for commercial
+use by the license gate. Real weights are **never vendored**; they are fetched at
+runtime with explicit consent and verified against the pinned card hash. The stub
+path remains the CI default so the suite needs no weights.
+
+**Tests.** Consent/license/checksum behavior is unit-tested with a fake downloader
+(CI). Real embedding/scoring parity-vs-published-numbers tests are marked
+`real_weights` (opt-in, skipped in CI). A provenance test asserts a real-backbone
+scorer records the backbone `ModelCheckpoint`.
+
+---
+
+## R2 — Native kernels wired to the hot paths
+
+**Context.** v0.1.0 ships the native **FM-index** (`bwt`) with a Python-parity
+test, but it is opt-in and not yet on a production hot path. The spec layout also
+reserves `kmer` and `haplotype` kernels. R2 implements them **and wires them into
+the call sites that need them**, so the native build delivers real speedups — not
+dead code.
+
+**Deliverables.**
+- **SA-IS suffix-array construction** in `bwt.rs`, replacing the parity
+  direct-sort, so a genome-scale FM-index build is `O(n)` rather than
+  `O(n² log n)`. The parity test still pins identical output on small inputs.
+- **`kmer` kernel** wired into off-target **candidate seeding**: a rolling-hash
+  k-mer index over the reference used to enumerate near-matches before the
+  CFD/MIT scoring stage. Replaces / accelerates the current pure-Python seed
+  enumeration in `offtarget/_search.py`, behind the same interface with a
+  pure-Python fallback.
+- **`haplotype` kernel** wired into the population/haplotype off-target engine:
+  fast walking of phased common haplotypes (1000G/HGDP) to materialize the
+  ancestry-stratified alternative sequences the engine scans.
+- A `bench/native_speedup.py` micro-benchmark recording native-vs-Python wall
+  time per kernel (reported, not gated).
+
+**Defaults & decisions.** Every native kernel keeps a **correct pure-Python
+fallback** and a **parity test** pinning byte-identical results; `prefer_native`
+selects it when built. The library never *requires* the crate.
+
+**Tests.** Parity tests per kernel (native == Python) run in the CI `rust` job;
+the off-target engine's existing tests run on both paths (fallback in the main
+matrix, native in the rust job).
+
+---
+
+## R3 — External tool adapters
+
+**Context.** Three `NotImplementedError` adapters are wired but inert:
+`cas_offinder_adapter` (off-target cross-check), `variant/effect` VEP REST, and
+the HGVS projection backend. R3 makes them real, behind the same consent/registry
+discipline as data and models.
+
+**Deliverables.**
+- **Cas-OFFinder** adapter: invoke the binary when present (discovered on `PATH`
+  or fetched with consent), parse its hits, and **cross-check** them against the
+  in-house engine — disagreements surfaced as flags, not hidden.
+- **VEP** consequence: a real REST/offline-cache `EffectPredictor` behind the
+  existing protocol, with response caching keyed by variant + assembly.
+- **HGVS** projection: wire a real `hgvs` backend (UTA/SeqRepo) behind
+  `HgvsAdapter` for `c.`/`p.` ⇄ `g.` projection.
+
+**Defaults & decisions.** External tools are **optional**; their absence degrades
+gracefully to the native engine with an explicit flag, never a crash. Network
+calls require explicit opt-in and are cached.
+
+**Tests.** Adapters are tested against **recorded fixtures** (no live network in
+CI); a live-integration test is marked and opt-in.
+
+---
+
+## R4 — Scale & performance
+
+**Context.** Make the genome-scale and cohort-scale paths real.
+
+**Deliverables.**
+- Whole-genome FM-index build + on-disk index for hg38 / T2T-CHM13 (driven by
+  R2's SA-IS), with the memory-mapped query path validated at scale.
+- Cohort throughput: a batched, parallel `design_many(vcf, ...)` over `cyvcf2`
+  streaming, with bounded memory and a resumable run manifest.
+- Embedding + off-target caches that survive across runs (content-addressed).
+
+**Defaults & decisions.** Streaming over materializing; bounded memory is a hard
+requirement; every batch run emits a provenance manifest.
+
+**Tests.** Scale tests run on a downsampled chromosome fixture in CI; full-genome
+runs are an opt-in nightly.
+
+---
+
+## R5 — Validation, calibration, and the methods preprint
+
+**Context.** The honesty claims must be earned on real data, not asserted.
+
+**Deliverables.**
+- Reproduce published efficiency/outcome numbers for each real scorer on its
+  source benchmark split (R1), recorded as signed CRISPR-Bench results.
+- **Calibration study:** measured ECE on real data per task; isotonic/conformal
+  recalibration where intervals are miscalibrated; the cross-cell-type
+  generalization gap quantified on the held-out-context splits.
+- Fill in `docs/paper/outline.md` into a methods preprint with the R5 results.
+
+**Defaults & decisions.** ECE is reported on every task (already enforced by
+CRISPR-Bench); a scorer whose intervals are miscalibrated on real data is
+recalibrated or shipped with the OOD flag dominant, never silently.
+
+**Tests.** Benchmark runner produces signed, provenance-stamped result JSON for
+each real scorer; leaderboard renders them; calibration figures regenerate from
+a script.
+
+---
+
+## R6 — v1.0 release criteria
+
+v1.0 is cut only when:
+- Every shipped card/descriptor pins a real, verified artifact hash (R0).
+- At least the Cas9-efficiency, PE-efficiency, and one outcome scorer load real
+  weights through the consent/checksum flow and reproduce their published
+  numbers within tolerance (R1 + R5).
+- The native `bwt`/`kmer`/`haplotype` kernels are on their hot paths with parity
+  tests and a recorded speedup (R2).
+- Calibration (ECE) is measured on real data and intervals are calibrated or
+  honestly flagged (R5); the cross-context generalization gap is documented.
+- The methods preprint is posted and the Zenodo DOI minted (R5 + R0).
+
+Until then the public release stays **v0.1.0**: three chemistries end to end with
+honest uncertainty and the benchmark, baked but not yet externally validated.
+
+---
+
+*This document extends `SPEC.md`. When v2 and v1 disagree, v2 wins for post-1.0
+work; otherwise `SPEC.md` remains the contract for the shipped surface.*

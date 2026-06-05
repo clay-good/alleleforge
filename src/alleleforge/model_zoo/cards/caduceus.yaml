@@ -1,0 +1,22 @@
+# Model card — optional long-context backbone (Caduceus).
+name: caduceus
+version: "1.0"
+chemistry: null  # a generic long-context sequence backbone
+training_data: >-
+  Human reference genome, bi-directional (reverse-complement-equivariant)
+  masked-language-model pre-training over long genomic windows.
+metrics:
+  context_window_tokens: 131072.0
+intended_use: >-
+  Long-context genomic sequence embedding for downstream guide-efficiency and
+  edit-outcome models in AlleleForge. Research use.
+out_of_scope_use: >-
+  Clinical decision-making; non-genomic sequence; any use implying experimental
+  validation has been performed.
+license: Apache-2.0
+citation: "Schiff et al., 2024 (Caduceus: bi-directional equivariant long-range DNA)"
+known_failure_modes:
+  - "Single-species (human) pre-training; out of distribution for other taxa."
+  - "Long-context strength is on regulatory/structural signal, not point efficiency."
+checkpoint_sha256: null  # pinned when the model zoo freezes the release artifact
+source_url: "https://huggingface.co/kuleshov-group/caduceus-ps_seqlen-131k_d_model-256_n_layer-16"
