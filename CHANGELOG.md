@@ -324,6 +324,16 @@ acceptance.
   real tensor load stays behind the `real_weights` marker. The default backbone
   (Nucleotide Transformer v2, CC-BY-NC-SA) is loadable for research and refused
   for commercial use by the license gate.
+- **R1 — consent-gated trained prime-efficiency adapters.** The trained
+  prime-editing efficiency adapters (`DeepPrimeAdapter`, `GenETAdapter`) now
+  resolve their weights through the same consent/license/checksum flow as the
+  backbone: `resolve_weights()` (pinned-artifact download+checksum or the
+  `authorize` gate) and `model_checkpoint()`, and `score()` runs the consent gate
+  before any inference. Adds bundled, license-gated model cards for `deepprime`
+  and `genet` (both research-only, so the license gate refuses commercial use).
+  The flow is CI-tested with an injected downloader (no ML stack); the trained
+  forward pass stays gated behind real weights. The `PridictScorer` heuristic
+  baseline remains the CI default.
 
 ### Security
 

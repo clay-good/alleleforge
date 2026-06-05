@@ -88,8 +88,10 @@ published models, with the checkpoint recorded in every result's provenance.
   - Cas9 outcome: **inDelphi / Lindel / FORECasT** weights into the existing
     `predict()` stubs (currently `NotImplementedError`).
   - Base-edit outcome: **BE-DICT / BE-Hive** weights.
-  - Prime efficiency: **PRIDICT2.0** weights (replace the heuristic; the
-    `NotImplementedError` real path).
+  - Prime efficiency: **DeepPrime / GenET** trained adapters now route their
+    weights through the consent/license/checksum gate (◐ landed — the forward
+    pass over the loaded weights remains the next step); PRIDICT2.0 trained
+    weights replace the heuristic next.
 - **ONNX export** path (`export_onnx`) for the backbone, for portable inference.
 
 **Defaults & decisions.** Default backbone stays **Nucleotide Transformer v2

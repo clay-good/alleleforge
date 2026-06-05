@@ -78,5 +78,68 @@ def test_model_card() -> None:
 
 def test_adapters_interface() -> None:
     assert DeepPrimeAdapter().name == "DeepPrime"
-    with pytest.raises(Exception, match="no model card"):
-        GenETAdapter().model_card()  # no 'genet' card is bundled
+    # Both trained adapters now ship a bundled, license-gated model card.
+    assert DeepPrimeAdapter().model_card().name == "deepprime"
+    assert GenETAdapter().model_card().name == "genet"
+
+
+# --- R1: the trained adapters resolve weights through the consent gate -----------
+
+
+def test_adapter_score_requires_consent() -> None:
+    from alleleforge.model_zoo.registry import ConsentError
+
+    peg = _peg(pbs="ACGTACGTACGTA", rtt="ACGTACGTACGTACGT")
+    with pytest.raises(ConsentError, match="consent"):
+        DeepPrimeAdapter().score(peg)
+
+
+def test_adapter_blocks_commercial_use() -> None:
+    from alleleforge.model_zoo.registry import LicenseError, ModelUse
+
+    # The trained adapters are research-only; the license gate refuses commercial use.
+    with pytest.raises(LicenseError, match="commercial"):
+        GenETAdapter(use=ModelUse.COMMERCIAL, consent=True).resolve_weights()
+
+
+def test_adapter_research_consent_records_checkpoint() -> None:
+    # The bundled card pins no hash, so research consent passes the authorize gate
+    # and the resolved checkpoint is recorded for provenance.
+    adapter = DeepPrimeAdapter(consent=True)
+    assert adapter.resolve_weights() is None  # load by source after the gate
+    checkpoint = adapter.model_checkpoint()
+    assert checkpoint is not None
+    assert checkpoint.name == "deepprime" and checkpoint.chemistry == "prime"
+
+
+def test_adapter_pinned_weights_download_and_verify(tmp_path: object) -> None:
+    import hashlib
+    from pathlib import Path
+
+    from alleleforge.model_zoo.registry import ModelCard, ModelRegistry
+
+    weights = b"trained-prime-weights"
+    sha = hashlib.sha256(weights).hexdigest()
+    card = ModelCard(
+        name="deepprime",
+        version="1.0",
+        chemistry="prime",
+        training_data="synthetic",
+        intended_use="testing the consent flow",
+        out_of_scope_use="anything real",
+        license="MIT",
+        citation="AlleleForge test suite",
+        checkpoint_sha256=sha,
+        source_url="https://example.invalid/deepprime.ckpt",
+    )
+    registry = ModelRegistry({"deepprime": card})
+    adapter = DeepPrimeAdapter(
+        registry=registry,
+        consent=True,
+        cache_dir=Path(str(tmp_path)),
+        downloader=lambda url, dest: dest.write_bytes(weights),
+    )
+    path = adapter.resolve_weights()
+    assert path is not None and Path(path).read_bytes() == weights
+    checkpoint = adapter.model_checkpoint()
+    assert checkpoint is not None and checkpoint.sha256 == sha and checkpoint.chemistry == "prime"

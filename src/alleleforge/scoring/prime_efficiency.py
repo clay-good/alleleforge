@@ -16,11 +16,20 @@ PRIDICT2.0 / DeepPrime / GenET models load through the license-gated model zoo.
 from __future__ import annotations
 
 import math
+from pathlib import Path
 
+from alleleforge.config import get_settings
 from alleleforge.data.annotations import EncodeTracks
-from alleleforge.model_zoo.registry import ModelCard, ModelRegistry, default_registry
+from alleleforge.model_zoo.registry import (
+    Downloader,
+    ModelCard,
+    ModelRegistry,
+    ModelUse,
+    default_registry,
+)
 from alleleforge.types.guide import PegRNA
 from alleleforge.types.prediction import Prediction, UncertaintyMethod
+from alleleforge.types.provenance import ModelCheckpoint
 from alleleforge.types.sequence import GenomicInterval
 
 #: Cell contexts PRIDICT2.0 is trained on; anything else is out-of-distribution.
@@ -109,24 +118,98 @@ class PridictScorer:
 
 
 class _ModelZooAdapter:
-    """Shared base for the trained prime-efficiency adapters (lazy, gated)."""
+    """Shared base for the trained prime-efficiency adapters (lazy, gated).
+
+    Trained weights resolve through the **consent-gated, license-checked,
+    checksum-verified** model zoo (:meth:`resolve_weights`), mirroring the
+    sequence-backbone path: loading requires explicit consent and a permitting
+    license, and the resolved :class:`ModelCheckpoint` is recorded for provenance.
+    The consent/license/checksum flow is exercisable without the ML stack; the
+    forward pass itself lands with the real weights (``real_weights``).
+    """
 
     name = ""
     card_name = ""
 
-    def __init__(self, *, registry: ModelRegistry | None = None) -> None:
-        """Configure the model-card registry."""
+    def __init__(
+        self,
+        *,
+        registry: ModelRegistry | None = None,
+        use: ModelUse = ModelUse.RESEARCH,
+        consent: bool = False,
+        cache_dir: str | Path | None = None,
+        downloader: Downloader | None = None,
+    ) -> None:
+        """Configure the model-zoo gate and consent for weight download.
+
+        Args:
+            registry: Model-card registry (defaults to the bundled cards).
+            use: The use the weights are loaded for (drives the license gate).
+            consent: Must be ``True`` to authorize any weight download.
+            cache_dir: Override for the checkpoint cache (pinned-artifact path).
+            downloader: Injected fetcher for the pinned-artifact path (tests).
+        """
         self._registry = registry or default_registry()
+        self._use = use
+        self._consent = consent
+        self._cache_dir = cache_dir
+        self._downloader = downloader
+        self._checkpoint: ModelCheckpoint | None = None
 
     def model_card(self) -> ModelCard:
         """Return the adapter's model card (raises if not registered)."""
         return self._registry.get(self.card_name)
 
-    def score(self, pegrna: PegRNA, **kwargs: object) -> Prediction[float]:  # pragma: no cover
-        """Predict efficiency (requires the trained model weights)."""
-        raise NotImplementedError(
-            f"{self.name} requires its trained weights; load them via the model zoo "
-            "or use PridictScorer"
+    def resolve_weights(self) -> str | None:
+        """Resolve the trained weights through the consent-gated model zoo.
+
+        Uses the pinned-artifact download+checksum path when the card pins a
+        ``checkpoint_sha256``, else the lighter license+consent ``authorize``
+        gate; records the resolved :class:`ModelCheckpoint` for provenance.
+
+        Returns:
+            A verified local checkpoint path, or ``None`` to load by source.
+
+        Raises:
+            ConsentError: If a download is needed but consent was not given.
+            LicenseError: If the card's license forbids the requested use.
+            ChecksumError: If a pinned artifact fails verification.
+        """
+        card = self._registry.get(self.card_name)
+        if card.checkpoint_sha256 is not None:
+            cache_dir = self._cache_dir or (get_settings().cache_dir / "models")
+            path, checkpoint = self._registry.checkpoint(
+                self.card_name,
+                cache_dir=cache_dir,
+                use=self._use,
+                consent=self._consent,
+                downloader=self._downloader,
+            )
+            self._checkpoint = checkpoint
+            return str(path)
+        self._checkpoint = self._registry.authorize(
+            self.card_name, use=self._use, consent=self._consent
+        )
+        return None
+
+    def model_checkpoint(self) -> ModelCheckpoint | None:
+        """Return the resolved checkpoint provenance, or ``None`` if not yet loaded."""
+        return self._checkpoint
+
+    def score(self, pegrna: PegRNA, **kwargs: object) -> Prediction[float]:
+        """Resolve weights (consent-gated), then predict efficiency.
+
+        The consent/license/checksum gate runs first; the forward pass over the
+        trained weights lands alongside the real-weights integration (R1/R5).
+
+        Raises:
+            ConsentError / LicenseError / ChecksumError: From the weight gate.
+            NotImplementedError: The trained forward pass is not yet wired.
+        """
+        self.resolve_weights()
+        raise NotImplementedError(  # pragma: no cover - forward pass needs real weights
+            f"{self.name} weights resolved and verified; the trained forward pass is "
+            "wired alongside the real-weights integration. Use PridictScorer meanwhile."
         )
 
 

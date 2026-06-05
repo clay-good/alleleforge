@@ -1,0 +1,22 @@
+# Model card — trained prime-editing efficiency adapter (GenET, cross-check).
+name: genet
+version: "1.0"
+chemistry: prime
+training_data: >-
+  Genome editing efficiency datasets spanning prime-editing pegRNA designs, with
+  features over pegRNA geometry, edit content, and target sequence context.
+metrics:
+  tasks_covered: 1.0
+intended_use: >-
+  Trained prime-editing efficiency prediction, used as an independent cross-check
+  against the PRIDICT2.0-style baseline and DeepPrime. Research use.
+out_of_scope_use: >-
+  Clinical decision-making; chemistries other than prime editing; targets far
+  from the training distribution.
+license: research-only
+citation: "Konstantakos et al., 2022 (GenET genome-editing efficiency)"
+known_failure_modes:
+  - "Efficiency priors do not transfer perfectly across cell contexts."
+  - "Rare edit types and extreme geometries are under-represented."
+checkpoint_sha256: null  # pinned when the model zoo freezes the release artifact
+source_url: "https://github.com/Goosang-Yu/genet"

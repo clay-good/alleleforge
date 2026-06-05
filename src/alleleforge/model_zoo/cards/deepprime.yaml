@@ -1,0 +1,23 @@
+# Model card — trained prime-editing efficiency adapter (DeepPrime, cross-check).
+name: deepprime
+version: "1.0"
+chemistry: prime
+training_data: >-
+  Large-scale prime-editing efficiency libraries (pegRNA + target features) across
+  PE2/PE3 systems, modeling edit efficiency as a function of PBS/RTT geometry,
+  edit type, and local sequence context.
+metrics:
+  systems_covered: 2.0
+intended_use: >-
+  Trained prime-editing efficiency prediction, used as a cross-check against the
+  PRIDICT2.0-style baseline. Research use.
+out_of_scope_use: >-
+  Clinical decision-making; chemistries other than prime editing; cell contexts
+  or edit types far from the training distribution.
+license: research-only
+citation: "Yu et al., Cell 2023 (DeepPrime / prime-editing efficiency)"
+known_failure_modes:
+  - "Trained on a limited set of cell lines; cross-cell-type transfer is imperfect."
+  - "Long or unusual RTT/PBS geometries are under-represented in training."
+checkpoint_sha256: null  # pinned when the model zoo freezes the release artifact
+source_url: "https://github.com/hkimlab/DeepPrime"
