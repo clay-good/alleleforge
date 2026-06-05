@@ -17,7 +17,7 @@ from collections.abc import Iterable, Sequence
 
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.genome.reference import ReferenceGenome
-from alleleforge.offtarget._search import Hit, SiteProvenance, scan_sequence
+from alleleforge.offtarget._search import Hit, SearchBudget, SiteProvenance, scan_sequence
 from alleleforge.types.guide import PAM
 from alleleforge.types.offtarget import SiteOrigin
 from alleleforge.types.sequence import CoordinateSystem, DNASequence, GenomicInterval, Strand
@@ -68,7 +68,11 @@ def enumerate_haplotype_sites(
     sp = str(spacer).upper()
     pam_len = len(pam.pattern)
     margin = len(sp) + pam_len + 1
-    kw = {"mismatches": mismatches, "dna_bulges": dna_bulges, "rna_bulges": rna_bulges}
+    kw: SearchBudget = {
+        "mismatches": mismatches,
+        "dna_bulges": dna_bulges,
+        "rna_bulges": rna_bulges,
+    }
     out: list[tuple[Hit, SiteProvenance]] = []
     for hap in haplotypes:
         if hap.is_reference or hap.max_freq(populations) < min_freq:

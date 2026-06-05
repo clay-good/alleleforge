@@ -345,6 +345,21 @@ acceptance.
   The consent/license/checksum flow is CI-tested per chemistry with an injected
   downloader (no ML stack); the trained forward passes stay behind real weights.
   `loader.py` is at 100% coverage.
+- **R2 — k-mer seed kernel on the off-target scan.** A native Rust k-mer kernel
+  (`kmer.rs`: `kmer_seed_positions`) with a pure-Python fallback
+  (`offtarget._kmer`) and a seed-and-extend prefilter wired into the off-target
+  scan (`scan_sequence(..., seed=...)`). By the pigeonhole bound (partition the
+  spacer into `E+1 = mismatches+dna_bulges+rna_bulges+1` blocks; ≥1 is uncut and
+  substitution-free) any in-budget alignment shares an exact length-`k` seed with
+  the spacer, so the prefilter is a **proven superset** — it never drops a hit.
+  Equivalence is pinned by an exhaustive randomized test (400+ cases, seeded ≡
+  brute-force across budgets/PAMs/strands), and the native seeding is pinned
+  byte-for-byte to the Python path. The prefilter **auto-engages only when the
+  seed is selective** (`k >= 5`); a micro-benchmark
+  (`scripts/native_speedup.py`) measures **~2–4x** for high-stringency scans, a
+  native seed lookup **~5–6x**, and a transparent no-op at the default
+  ≤4-mismatch+bulge budget (where the FM-index is the genome-scale path). The CI
+  rust job runs the native k-mer parity suite.
 
 ### Security
 

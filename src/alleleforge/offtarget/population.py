@@ -19,7 +19,7 @@ from collections.abc import Iterable, Sequence
 
 from alleleforge.data.gnomad import PopulationFrequency
 from alleleforge.genome.reference import ReferenceGenome
-from alleleforge.offtarget._search import Hit, SiteProvenance, scan_sequence
+from alleleforge.offtarget._search import Hit, SearchBudget, SiteProvenance, scan_sequence
 from alleleforge.types.guide import PAM
 from alleleforge.types.offtarget import SiteOrigin
 from alleleforge.types.sequence import CoordinateSystem, DNASequence, GenomicInterval, Strand
@@ -75,7 +75,11 @@ def _variant_window_hits(
         return []  # the variant's ref does not match this build; skip safely
     alt_seq = _apply(ref_seq, rel, ref, alt)
 
-    kw = {"mismatches": mismatches, "dna_bulges": dna_bulges, "rna_bulges": rna_bulges}
+    kw: SearchBudget = {
+        "mismatches": mismatches,
+        "dna_bulges": dna_bulges,
+        "rna_bulges": rna_bulges,
+    }
     ref_edits: dict[tuple[Strand, int, int], int] = {}
     for h in scan_sequence(chrom, ref_seq, spacer, pam, offset=start, **kw):
         key = (h.strand, h.start, h.end)

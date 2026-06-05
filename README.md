@@ -366,6 +366,16 @@ populations, at what frequency), or a patient's VCF — so a nomination can be a
 blindly. The report's worst-case is computed against the **worst-affected ancestry**, never the
 average.
 
+> [!NOTE]
+> **k-mer seed acceleration (R2).** The scan carries an optional, **proven-equivalent** k-mer
+> seed-and-extend prefilter (native Rust kernel + pure-Python fallback): by the pigeonhole bound, any
+> in-budget alignment shares an exact length-`k` seed with the spacer, so anchors whose window contains
+> no seed can be skipped without ever dropping a hit (an exhaustive randomized test pins seeded ≡
+> brute-force). It **auto-engages only when the seed is selective** (`k ≥ 5`, i.e. high-stringency / low
+> edit-budget scans) — measured **~2–4x** there ([`scripts/native_speedup.py`](scripts/native_speedup.py)) —
+> and is a transparent no-op at the default ≤4-mismatch+bulge budget, where the FM-index remains the
+> genome-scale path. See [`SPEC_V2.md`](SPEC_V2.md) R2.
+
 ### Reference bias, reproduced
 
 The canonical cautionary tale is the BCL11A enhancer variant `rs114518452` (Cancellieri &amp; Pinello,

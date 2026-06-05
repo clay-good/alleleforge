@@ -23,7 +23,7 @@ from collections.abc import Iterable, Sequence
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.genome.reference import ReferenceGenome
-from alleleforge.offtarget._search import Hit, SiteProvenance, scan_sequence
+from alleleforge.offtarget._search import Hit, SearchBudget, SiteProvenance, scan_sequence
 from alleleforge.offtarget.haplotype import enumerate_haplotype_sites
 from alleleforge.offtarget.population import (
     enumerate_patient_sites,
@@ -152,7 +152,11 @@ def search(
     primary = scorer if scorer is not None else CfdScorer()
     scan_pam = low_stringency_pam(pam)
     search_regions = list(regions) if regions is not None else _contig_regions(reference)
-    kw = {"mismatches": mismatches, "dna_bulges": dna_bulges, "rna_bulges": rna_bulges}
+    kw: SearchBudget = {
+        "mismatches": mismatches,
+        "dna_bulges": dna_bulges,
+        "rna_bulges": rna_bulges,
+    }
 
     tagged: list[tuple[Hit, SiteProvenance]] = []
     ref_prov = SiteProvenance(origin=SiteOrigin.REFERENCE)

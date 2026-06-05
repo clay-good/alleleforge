@@ -122,11 +122,19 @@ dead code.
 - **SA-IS suffix-array construction** in `bwt.rs`, replacing the parity
   direct-sort, so a genome-scale FM-index build is `O(n)` rather than
   `O(n² log n)`. The parity test still pins identical output on small inputs.
-- **`kmer` kernel** wired into off-target **candidate seeding**: a rolling-hash
-  k-mer index over the reference used to enumerate near-matches before the
-  CFD/MIT scoring stage. Replaces / accelerates the current pure-Python seed
-  enumeration in `offtarget/_search.py`, behind the same interface with a
-  pure-Python fallback.
+- **`kmer` kernel (◐ landed).** A native Rust k-mer kernel (`kmer.rs`) + pure
+  -Python fallback (`offtarget._kmer`), wired into the off-target scan as a
+  seed-and-extend prefilter (`scan_sequence(..., seed=...)`). It is a **proven
+  superset** (pigeonhole: ≥1 uncut, substitution-free block of length
+  `k = ⌊n/(E+1)⌋` survives any in-budget alignment), pinned by an exhaustive
+  randomized seeded ≡ brute-force test. **Honest finding** from the R2
+  micro-benchmark (`scripts/native_speedup.py`): the seed must run *before* the
+  PAM check to prune, and it only pays off when selective (`k ≥ 5`, i.e. low edit
+  budget) — measured ~2–4x there, a no-op at AlleleForge's default ≤4-mismatch+
+  bulge budget (the seed is too short to prune). So it auto-engages only when
+  `k ≥ 5`; the **FM-index seed-and-extend remains the genome-scale path** for the
+  default budget, and wiring the FM-index into the engine's reference scan is the
+  next R2 step.
 - **`haplotype` kernel** wired into the population/haplotype off-target engine:
   fast walking of phased common haplotypes (1000G/HGDP) to materialize the
   ancestry-stratified alternative sequences the engine scans.

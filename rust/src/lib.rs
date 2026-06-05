@@ -12,6 +12,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 mod bwt;
+mod kmer;
 
 /// Single-source version string, kept byte-identical to
 /// `src/alleleforge/_version.py::__version__` so the toolchain check passes.
@@ -123,6 +124,12 @@ fn fm_locate(text: &str, pattern: &str) -> PyResult<Vec<usize>> {
     Ok(index.locate(pattern))
 }
 
+/// Off-target seeding: reference offsets sharing an exact k-mer with `spacer`.
+#[pyfunction]
+fn kmer_seed_positions(sequence: &str, spacer: &str, k: usize) -> Vec<usize> {
+    kmer::seed_positions(sequence, spacer, k)
+}
+
 /// The `aforge_native` Python module.
 #[pymodule]
 fn aforge_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -130,6 +137,7 @@ fn aforge_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fm_build, m)?)?;
     m.add_function(wrap_pyfunction!(fm_count, m)?)?;
     m.add_function(wrap_pyfunction!(fm_locate, m)?)?;
+    m.add_function(wrap_pyfunction!(kmer_seed_positions, m)?)?;
     m.add_class::<NativeFmIndex>()?;
     m.add_class::<NativePamHit>()?;
     m.add("__version__", AFORGE_VERSION)?;

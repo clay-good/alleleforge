@@ -18,10 +18,20 @@ each is evaluated independently; a single site is not given both at once.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TypedDict
 
+from alleleforge.offtarget._kmer import covered_prefix, seed_length, seed_positions
 from alleleforge.types.guide import PAM
 from alleleforge.types.offtarget import SiteOrigin
 from alleleforge.types.sequence import DNASequence, Strand
+
+
+class SearchBudget(TypedDict):
+    """The mismatch/bulge budget shared by the off-target search call sites."""
+
+    mismatches: int
+    dna_bulges: int
+    rna_bulges: int
 
 
 @dataclass(frozen=True)
@@ -147,6 +157,33 @@ def _evaluate(
     return None
 
 
+#: Minimum seed length for the prefilter to be worth it. Below this the seed is
+#: too short to be selective (a 4-symbol alphabet saturates short k-mers, so
+#: almost every window contains one) and seeding only adds overhead; the scan
+#: then falls back to the full brute force. Calibrated from the R2 micro-benchmark
+#: (``scripts/native_speedup.py``): k>=5 gives a ~2-4x speedup, k<=4 does not.
+MIN_SELECTIVE_K = 5
+
+
+def _seed_filter(
+    spacer: str, seq: str, *, max_mm: int, dna_bulges: int, rna_bulges: int
+) -> list[int] | None:
+    """Return a covered-index prefix sum for the seed prefilter, or ``None``.
+
+    ``None`` means "do not seed — scan every anchor", which is always correct (a
+    full scan is a superset of any prefilter). Seeding is skipped when the seed
+    would not be guaranteed (``E + 1 > n``) **or** would not be selective
+    (``k < MIN_SELECTIVE_K``); otherwise the returned prefix sum lets the scan
+    skip anchors whose protospacer window provably contains no exact seed and
+    therefore no in-budget hit.
+    """
+    k = seed_length(len(spacer), max_mm + dna_bulges + rna_bulges)
+    if k < MIN_SELECTIVE_K:
+        return None
+    positions = seed_positions(seq, spacer, k)
+    return covered_prefix(len(seq), positions, k)
+
+
 def _scan_one_strand(
     spacer: str,
     seq: str,
@@ -155,15 +192,31 @@ def _scan_one_strand(
     max_mm: int,
     dna_bulges: int,
     rna_bulges: int,
+    seed: bool = True,
 ) -> list[tuple[int, int, str, int, int, int, str, str]]:
     """Scan ``seq`` (read 5'->3') for PAM-anchored hits to ``spacer``.
 
-    Returns tuples ``(proto_start, proto_end, pam_seq, mm, dnab, rnab,
-    aligned_spacer, aligned_target)`` in ``seq``-local coordinates.
+    With ``seed`` (the default), a k-mer seed prefilter skips anchors whose
+    protospacer window cannot contain an in-budget hit; the result is identical to
+    the unseeded brute-force scan (the prefilter is a proven superset). Returns
+    tuples ``(proto_start, proto_end, pam_seq, mm, dnab, rnab, aligned_spacer,
+    aligned_target)`` in ``seq``-local coordinates.
     """
     pam_len = len(pam.pattern)
+    n = len(spacer)
+    covered = (
+        _seed_filter(spacer, seq, max_mm=max_mm, dna_bulges=dna_bulges, rna_bulges=rna_bulges)
+        if seed
+        else None
+    )
     hits: list[tuple[int, int, str, int, int, int, str, str]] = []
     for pam_at in range(len(spacer) - 1, len(seq) - pam_len + 1):
+        if covered is not None:
+            # Skip before the PAM check: no exact seed in the widest protospacer
+            # window (ungapped/DNA-bulge/RNA-bulge) -> provably no in-budget hit.
+            lo = max(0, pam_at - (n + 1))
+            if covered[pam_at] - covered[lo] == 0:
+                continue
         pam_seq = seq[pam_at : pam_at + pam_len]
         if "N" in pam_seq or not pam.matches(pam_seq):
             continue
@@ -195,6 +248,7 @@ def scan_sequence(
     dna_bulges: int = 1,
     rna_bulges: int = 1,
     offset: int = 0,
+    seed: bool = True,
 ) -> list[Hit]:
     """Scan both strands of ``sequence`` for PAM-anchored hits to ``spacer``.
 
@@ -208,6 +262,9 @@ def scan_sequence(
         rna_bulges: Maximum RNA bulges (0 or 1).
         offset: Added to every coordinate so a scanned sub-window maps back to
             genome coordinates.
+        seed: Use the k-mer seed prefilter (default); the result is identical to
+            the unseeded scan but skips windows that provably contain no hit. Set
+            ``False`` to force the exhaustive brute-force scan.
 
     Returns:
         All hits within budget, as plus-strand :class:`Hit` records.
@@ -217,7 +274,7 @@ def scan_sequence(
     n = len(seq)
     hits: list[Hit] = []
     for local in _scan_one_strand(
-        sp, seq, pam, max_mm=mismatches, dna_bulges=dna_bulges, rna_bulges=rna_bulges
+        sp, seq, pam, max_mm=mismatches, dna_bulges=dna_bulges, rna_bulges=rna_bulges, seed=seed
     ):
         start, pam_at, pam_seq, mm, dnab, rnab, a_sp, a_tg = local
         hits.append(
@@ -236,7 +293,7 @@ def scan_sequence(
         )
     rc = str(DNASequence(seq).reverse_complement())
     for local in _scan_one_strand(
-        sp, rc, pam, max_mm=mismatches, dna_bulges=dna_bulges, rna_bulges=rna_bulges
+        sp, rc, pam, max_mm=mismatches, dna_bulges=dna_bulges, rna_bulges=rna_bulges, seed=seed
     ):
         start, pam_at, pam_seq, mm, dnab, rnab, a_sp, a_tg = local
         # Map the rc-local protospacer span [start, pam_at) back to plus coords.
