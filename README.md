@@ -151,7 +151,7 @@ AlleleForge is built in ordered phases (see [`SPEC.md`](SPEC.md), the authoritat
 | 12 | CLI (`aforge`) (`cli/`) | ✅ done |
 | 13 | Web UI &amp; API (`web/`) | ✅ done |
 | 14 | CRISPR-Bench: tasks, frozen splits, metrics, runner, leaderboard (`benchmark/`) | ✅ done |
-| 15 | Docs, examples, release | ⏳ next |
+| 15 | Docs, runnable examples, release engineering (`docs/`, `examples/`) | ✅ done |
 
 ---
 
@@ -207,8 +207,10 @@ cd rust && maturin develop --release      # builds & installs aforge_native
 > cloning-ready oligos, HTML, PDF, JSON, and TSV. The whole pipeline is driven from the
 > [`aforge` CLI](#the-aforge-cli-phase-12-shipping-now) and the
 > [web API + browser UI](#web-ui--api-phase-13-shipping-now), and the same scorers are graded by
-> [CRISPR-Bench](#crispr-bench-a-calibration-first-benchmark-phase-14-shipping-now). What remains is the
-> v0.1.0 release (15). The snippets below show the lower-level building blocks the designer composes.
+> [CRISPR-Bench](#crispr-bench-a-calibration-first-benchmark-phase-14-shipping-now). All fifteen build
+> phases are complete; three [runnable example notebooks](#runnable-examples-phase-15) execute in CI, and
+> the release pipeline (PyPI · multi-arch Docker · GitHub Release) is wired and tag-triggered. The snippets
+> below show the lower-level building blocks the designer composes.
 
 ```python
 from alleleforge.types import DNASequence, Prediction, UncertaintyMethod
@@ -803,6 +805,40 @@ assert result.verify_signature()
 
 ---
 
+## Runnable examples (Phase 15)
+
+Three notebooks walk the journey end to end. Each is **self-contained** — it builds a small synthetic
+locus and runs against the weight-free stub models — so they **execute in CI on every push** (`pytest
+--nbmake examples/`) and reproduce without downloading a genome or model weights. Point them at a real
+hg38 reference, a gnomAD database, and trained weights via the model zoo, and the call shapes are identical.
+
+| Notebook | What it demonstrates |
+|---|---|
+| [`01_clinvar_to_design`](examples/01_clinvar_to_design.ipynb) | The canonical journey: a variant → ranked **prime-editing** design across all four axes. |
+| [`02_population_offtarget`](examples/02_population_offtarget.ipynb) | The **reference-bias** case (`rs114518452`): a reference-only scan is blind to a population allele that creates a de-novo PAM; the population-aware engine nominates it and reports it **ancestry-stratified**. |
+| [`03_batch_vcf`](examples/03_batch_vcf.ipynb) | **Cohort-scale** design: resolve a batch of variants, design each, and reduce to one auditable summary with provenance. |
+
+Full docs (concept guides, deployment, CLI reference, CRISPR-Bench, a
+[methods-preprint outline](docs/paper/outline.md)) build with `mkdocs build --strict` in CI.
+
+## Release & packaging (Phase 15)
+
+The release pipeline is wired and **tag-triggered** ([`.github/workflows/release.yml`](.github/workflows/release.yml)) —
+it stays inert until `v0.1.0` is tagged, then it:
+
+| Target | Mechanism |
+|---|---|
+| **PyPI** | `python -m build` → `pypa/gh-action-pypi-publish` via OIDC Trusted Publishing (no stored token) |
+| **Docker** | multi-arch (`linux/amd64` + `linux/arm64`) image pushed to GHCR with buildx |
+| **GitHub Release** | sdist + wheel attached, notes auto-generated |
+| **Zenodo DOI** | minted on the tagged release ([`.zenodo.json`](.zenodo.json)) |
+| **conda** | bioconda-style recipe ([`conda/meta.yaml`](conda/meta.yaml)) |
+
+First public release is **v0.1.0** (three chemistries end to end with the benchmark); **v1.0.0** is reserved
+for after external validation and the methods preprint. `CITATION.cff` ships for citation.
+
+---
+
 ## Defaults cheat-sheet
 
 Every default is overridable; these are the spec-mandated starting points.
@@ -846,8 +882,11 @@ alleleforge/
 │   ├── benchmark/             # Phase 14: CRISPR-Bench — tasks · datasets · frozen splits · runner · leaderboard
 │   └── ...
 ├── tests/                    # mirrors src/; pytest + hypothesis
+├── examples/                 # Phase 15: runnable notebooks (executed in CI via nbmake)
 ├── scripts/                  # schema export · benchmark-fixture generator
-└── docs/                     # mkdocs-material site
+├── conda/                    # Phase 15: bioconda-style recipe
+├── docs/                     # mkdocs-material site (concepts · deployment · reference · paper outline)
+└── .github/workflows/        # ci.yml (lint·type·test·docs·examples) · release.yml (tag-triggered)
 ```
 
 ---
@@ -856,17 +895,19 @@ alleleforge/
 
 ```bash
 pip install -e ".[dev]"
-ruff check src tests           # lint + import order + docstrings
-ruff format --check src tests  # formatting
-mypy src                       # strict type-check
-pytest                         # tests + ≥85% coverage gate on core
+ruff check src tests scripts        # lint + import order + docstrings
+ruff format --check src tests scripts  # formatting
+mypy --strict src/alleleforge       # strict type-check
+pytest                              # tests + ≥85% coverage gate on core
+pytest --nbmake examples/ --no-cov  # execute the example notebooks
 cd rust && cargo test && maturin develop   # native crate
 ```
 
 CI (GitHub Actions) runs lint, type-check (`mypy --strict`), tests (Python 3.11 + 3.12 on Linux &amp; macOS),
-and a strict docs build on every push and PR. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
-The native Rust crate builds locally with maturin (`cd rust && maturin develop`); the library runs in
-pure-Python mode without it.
+a strict docs build, and notebook execution on every push and PR. See
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml); releases are cut on `v*` tags by
+[`.github/workflows/release.yml`](.github/workflows/release.yml). The native Rust crate builds locally with
+maturin (`cd rust && maturin develop`); the library runs in pure-Python mode without it.
 
 Contributions are welcome — please read [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
 [Contributor Covenant 2.1](CODE_OF_CONDUCT.md) code of conduct.

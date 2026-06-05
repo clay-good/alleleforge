@@ -1,0 +1,28 @@
+{
+  "title": "AlleleForge: a variant-driven, multi-modality, uncertainty-aware CRISPR guide & edit design framework",
+  "description": "AlleleForge takes a sequence variant and returns a ranked, uncertainty-annotated set of candidate CRISPR edit designs across SpCas9 nuclease, base editing, and prime editing, with calibrated uncertainty on every prediction and population- and haplotype-aware off-target analysis. It ships CRISPR-Bench, a frozen, calibration-first benchmark. Research and educational use only; not a medical device and not medical advice.",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "MIT",
+  "creators": [
+    { "name": "Good, Clay" },
+    { "name": "The AlleleForge contributors" }
+  ],
+  "keywords": [
+    "CRISPR",
+    "gene editing",
+    "prime editing",
+    "base editing",
+    "off-target",
+    "bioinformatics",
+    "uncertainty quantification",
+    "benchmark"
+  ],
+  "related_identifiers": [
+    {
+      "relation": "isSupplementTo",
+      "scheme": "url",
+      "identifier": "https://github.com/clay-good/alleleforge"
+    }
+  ]
+}

@@ -262,5 +262,22 @@ acceptance.
   philosophy, submission format, launch plan), a CRISPR-Bench docs page,
   benchmark JSON schemas, and a deterministic fixture generator
   (`scripts/make_benchmark_fixtures.py`).
+- **Phase 15 — Documentation, examples, and release.** Two new runnable example
+  notebooks: `examples/02_population_offtarget.ipynb` (reproduces the
+  reference-bias / `rs114518452` ancestry-stratified off-target finding;
+  Cancellieri & Pinello, *Nat Genet* 2023) and `examples/03_batch_vcf.ipynb`
+  (cohort-scale design reduced to one auditable summary with provenance). All
+  three notebooks are **self-contained against the stub models** and **executed in
+  CI** via a new `examples` job (`pytest --nbmake examples/ --no-cov`); `nbmake`
+  and `ipykernel` added to the `dev` extra, and `01_clinvar_to_design.ipynb`
+  normalized to nbformat 4.5 (cell ids). New docs pages: a deployment & operations
+  guide (`docs/deployment.md`), an examples/tutorials gallery (`docs/examples.md`),
+  and a methods-preprint outline (`docs/paper/outline.md`), all wired into the
+  mkdocs nav and built strictly in CI. Release engineering: a tag-triggered
+  `release.yml` workflow (build → PyPI via OIDC Trusted Publishing → multi-arch
+  `linux/amd64`+`linux/arm64` Docker image to GHCR → GitHub Release), a Zenodo
+  metadata file (`.zenodo.json`) for DOI minting on first tag, and a bioconda-style
+  recipe (`conda/meta.yaml`). README updated with the runnable-examples gallery and
+  the release/packaging matrix; all fifteen build phases are now complete.
 
 [Unreleased]: https://github.com/clay-good/alleleforge/commits/main

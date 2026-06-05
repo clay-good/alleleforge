@@ -30,7 +30,9 @@ nav:
   - Concepts:
       - Uncertainty contract: concepts/uncertainty.md
       - Population-aware safety: concepts/population.md
+  - Examples & tutorials: examples.md
   - Data provenance: data.md
+  - Deployment: deployment.md
   - Reference:
       - Core types: api/types.md
       - Genome access: api/genome.md
@@ -46,6 +48,7 @@ nav:
       - CLI (aforge): api/cli.md
       - Web UI & API: api/web.md
       - CRISPR-Bench: api/benchmark.md
+  - Methods preprint outline: paper/outline.md
   - Scope & responsible use: scope.md
 
 markdown_extensions:

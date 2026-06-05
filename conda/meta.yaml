@@ -1,0 +1,52 @@
+{% set name = "alleleforge" %}
+{% set version = "0.1.0" %}
+
+# Conda recipe for AlleleForge (bioconda-style). The sha256 is filled in from the
+# PyPI sdist at the first tagged release; the core deps mirror pyproject's runtime
+# requirements. Heavy optional stacks (genome/ml/web) are intentionally left to
+# pip extras and are not part of the core conda package.
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
+  sha256: 0000000000000000000000000000000000000000000000000000000000000000
+
+build:
+  noarch: python
+  number: 0
+  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  entry_points:
+    - aforge = alleleforge.cli.main:app
+
+requirements:
+  host:
+    - python >=3.11
+    - pip
+    - hatchling >=1.21
+  run:
+    - python >=3.11
+    - pydantic >=2.6
+    - pydantic-settings >=2.2
+    - pyyaml >=6.0
+
+test:
+  imports:
+    - alleleforge
+    - alleleforge.benchmark
+  commands:
+    - aforge --version
+
+about:
+  home: https://github.com/clay-good/alleleforge
+  license: MIT
+  license_file: LICENSE
+  summary: Variant-driven, multi-modality, uncertainty-aware CRISPR guide & edit design.
+  doc_url: https://github.com/clay-good/alleleforge#readme
+  dev_url: https://github.com/clay-good/alleleforge
+
+extra:
+  recipe-maintainers:
+    - clay-good

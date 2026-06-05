@@ -68,3 +68,18 @@ jobs:
       # genome layer) are needed alongside the docs toolchain.
       - run: pip install -e ".[docs]" "pyfaidx>=0.8" "pyliftover>=0.4"
       - run: mkdocs build --strict
+
+  examples:
+    name: Examples (notebooks, stub models)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Examples run end to end against the weight-free stub models; the same
+      # extras as the test job guarantee every transitive import resolves, and the
+      # notebook runner (nbmake) ships in the dev extra. --no-cov disables the
+      # library coverage gate for this notebook-only run.
+      - run: pip install -e ".[dev,cli,web]" "pyfaidx>=0.8" "pyliftover>=0.4"
+      - run: pytest --nbmake examples/ --no-cov
