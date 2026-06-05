@@ -280,4 +280,21 @@ acceptance.
   recipe (`conda/meta.yaml`). README updated with the runnable-examples gallery and
   the release/packaging matrix; all fifteen build phases are now complete.
 
+### Security
+
+- **Bumped PyO3 `0.22.6` → `0.24.2`** in the `aforge_native` crate, resolving
+  [GHSA / Dependabot #1](https://github.com/clay-good/alleleforge/security/dependabot/1)
+  (risk of buffer overflow in `PyString::from_object`, fixed in PyO3 0.24.1). The
+  crate's source already used the modern `Bound` API, so the upgrade was a clean
+  dependency bump — verified with `cargo check`, `cargo clippy`, and a full
+  `maturin develop` round-trip of `aforge_native.version()`.
+
+### Changed
+
+- **CI now gates the Rust crate.** A new `rust` job runs `cargo fmt --check`,
+  `cargo clippy --lib -D warnings`, and `maturin build --release`, so the native
+  toolchain (and its pinned, security-patched PyO3) is exercised on every push —
+  closing the "Rust" leg of the v0.1.0 definition-of-done CI matrix and catching
+  future dependency drift automatically.
+
 [Unreleased]: https://github.com/clay-good/alleleforge/commits/main

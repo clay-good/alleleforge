@@ -886,7 +886,7 @@ alleleforge/
 ├── scripts/                  # schema export · benchmark-fixture generator
 ├── conda/                    # Phase 15: bioconda-style recipe
 ├── docs/                     # mkdocs-material site (concepts · deployment · reference · paper outline)
-└── .github/workflows/        # ci.yml (lint·type·test·docs·examples) · release.yml (tag-triggered)
+└── .github/workflows/        # ci.yml (lint·type·test·docs·examples·rust) · release.yml (tag-triggered)
 ```
 
 ---
@@ -904,10 +904,10 @@ cd rust && cargo test && maturin develop   # native crate
 ```
 
 CI (GitHub Actions) runs lint, type-check (`mypy --strict`), tests (Python 3.11 + 3.12 on Linux &amp; macOS),
-a strict docs build, and notebook execution on every push and PR. See
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml); releases are cut on `v*` tags by
-[`.github/workflows/release.yml`](.github/workflows/release.yml). The native Rust crate builds locally with
-maturin (`cd rust && maturin develop`); the library runs in pure-Python mode without it.
+a strict docs build, notebook execution, and the Rust crate (`cargo fmt` · `clippy` · `maturin build`) on
+every push and PR. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml); releases are cut on `v*` tags
+by [`.github/workflows/release.yml`](.github/workflows/release.yml). The native Rust crate builds locally
+with maturin (`cd rust && maturin develop`); the library runs in pure-Python mode without it.
 
 Contributions are welcome — please read [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
 [Contributor Covenant 2.1](CODE_OF_CONDUCT.md) code of conduct.

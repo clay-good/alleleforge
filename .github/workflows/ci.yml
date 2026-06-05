@@ -83,3 +83,26 @@ jobs:
       # library coverage gate for this notebook-only run.
       - run: pip install -e ".[dev,cli,web]" "pyfaidx>=0.8" "pyliftover>=0.4"
       - run: pytest --nbmake examples/ --no-cov
+
+  rust:
+    name: Rust native crate (fmt · clippy · maturin)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      # fmt + clippy gate the source; `maturin build` exercises the full PyO3
+      # toolchain (and keeps the pinned, security-patched pyo3 building). The
+      # `extension-module` feature means a bare `cargo build` cannot link
+      # libpython, so maturin — not cargo — is the build of record.
+      - run: cargo fmt --check
+      - run: cargo clippy --lib -- -D warnings
+      - run: pip install "maturin>=1.5"
+      - run: maturin build --release
