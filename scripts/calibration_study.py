@@ -28,7 +28,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from alleleforge.benchmark import TASKS, build_baseline, get_task, load_split, run_benchmark
+from alleleforge.benchmark import (
+    TASKS,
+    build_baseline,
+    generalization_gap,
+    get_task,
+    load_split,
+    run_benchmark,
+)
 from alleleforge.scoring.uncertainty import (
     ConformalCalibrator,
     empirical_coverage,
@@ -61,6 +68,35 @@ def task_calibration_table() -> list[dict[str, Any]]:
                 "primary_metric": result.primary_metric,
                 "primary_value": round(result.primary_value, 4),
                 "ece": round(result.metrics["ece"], 4),
+            }
+        )
+    return rows
+
+
+def generalization_table() -> list[dict[str, Any]]:
+    """Quantify the cross-cell-type generalization gap for each stratified task."""
+    rows: list[dict[str, Any]] = []
+    for name in TASKS:
+        task = get_task(name)
+        split, dataset = load_split(name)
+        by_id = {e.example_id: e for e in dataset.examples}
+        # Only cell-type-stratified tasks have a cross-cell-type gap (off-target is
+        # stratified by sequence pair, not cellular context).
+        test_contexts = {by_id[i].inputs.get("cell_type") for i in split.test if i in by_id}
+        val_contexts = {by_id[i].inputs.get("cell_type") for i in split.val if i in by_id}
+        held_out = {c for c in test_contexts - val_contexts if c}
+        if not any(test_contexts):
+            continue
+        baseline = build_baseline(task, split, dataset)
+        gap = generalization_gap(baseline, task, split=split, dataset=dataset)
+        rows.append(
+            {
+                "task": name,
+                "metric": gap.primary_metric,
+                "in_context": round(gap.in_context, 4),
+                "held_out": round(gap.held_out, 4),
+                "gap": round(gap.gap, 4),
+                "held_out_context": ",".join(sorted(held_out)) or "(unlabeled)",
             }
         )
     return rows
@@ -101,7 +137,9 @@ def conformal_demo() -> list[dict[str, Any]]:
     return rows
 
 
-def render_markdown(tasks: list[dict[str, Any]], demo: list[dict[str, Any]]) -> str:
+def render_markdown(
+    tasks: list[dict[str, Any]], generalization: list[dict[str, Any]], demo: list[dict[str, Any]]
+) -> str:
     """Render the calibration report as markdown."""
     lines = [
         "# CRISPR-Bench calibration report",
@@ -117,6 +155,22 @@ def render_markdown(tasks: list[dict[str, Any]], demo: list[dict[str, Any]]) -> 
         lines.append(
             f"| {r['task']} | {r['kind']} | {r['primary_metric']} | "
             f"{r['primary_value']} | {r['ece']} |"
+        )
+    lines += [
+        "",
+        "## Cross-cell-type generalization gap",
+        "",
+        "Primary metric on an in-context fold (a training-seen cell type) vs the",
+        "held-out cell type. A positive gap means the model generalizes *worse* to",
+        "the unseen context — a field-wide reality, reported, not hidden.",
+        "",
+        "| Task | Metric | In-context | Held-out | Gap | Held-out context |",
+        "|---|---|---:|---:|---:|---|",
+    ]
+    for r in generalization:
+        lines.append(
+            f"| {r['task']} | {r['metric']} | {r['in_context']} | "
+            f"{r['held_out']} | {r['gap']:+} | {r['held_out_context']} |"
         )
     lines += [
         "",
@@ -143,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, default=None, help="also write the report to this path")
     args = parser.parse_args(argv)
 
-    report = render_markdown(task_calibration_table(), conformal_demo())
+    report = render_markdown(task_calibration_table(), generalization_table(), conformal_demo())
     if args.out is not None:
         args.out.write_text(report)
         print(f"wrote {args.out}")

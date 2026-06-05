@@ -16,6 +16,18 @@ def test_task_table_reports_ece_for_every_task() -> None:
         assert r["kind"] in {"regression", "distribution", "classification"}
 
 
+def test_generalization_table_covers_cell_type_tasks() -> None:
+    rows = calibration_study.generalization_table()
+    tasks = {r["task"] for r in rows}
+    # The four cell-type-stratified chemistry tasks are reported; off-target
+    # (sequence-pair stratified, no cell type) is excluded.
+    assert "offtarget-classification" not in tasks
+    assert {"cas9-efficiency", "pe-efficiency", "cas9-outcome", "be-outcome"} <= tasks
+    for r in rows:
+        assert r["held_out_context"]  # the held-out context is labeled
+        assert isinstance(r["gap"], float)
+
+
 def test_conformal_demo_restores_coverage() -> None:
     rows = calibration_study.conformal_demo()
     assert {r["level"] for r in rows} == set(calibration_study.LEVELS)
@@ -29,6 +41,7 @@ def test_main_writes_and_prints_report(tmp_path: Path, capsys: object) -> None:
     assert calibration_study.main(["--out", str(out)]) == 0
     report = out.read_text()
     assert "# CRISPR-Bench calibration report" in report
+    assert "Cross-cell-type generalization gap" in report
     assert "Conformal interval recalibration" in report
     for task in calibration_study.TASKS:
         assert task in report

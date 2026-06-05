@@ -471,6 +471,17 @@ acceptance.
   spec's 80%/90% levels) — deterministically from config + seed. The recalibration
   machinery and the report are CI-tested on the weight-free splits; the real-data
   ECE numbers fill in with R1.
+- **R5 — cross-cell-type generalization gap.** `benchmark.generalization_gap`
+  quantifies the drop in a model's primary metric from an in-context fold (a
+  training-seen cell type, default `val`) to the held-out cell type (default
+  `test`) — the field-wide reality that a model tuned on one cellular context
+  predicts an unseen one worse. The gap is **orientation-corrected** (positive
+  always means worse held-out generalization, whether the metric is higher- or
+  lower-is-better) via a `HIGHER_IS_BETTER` map, and computed through a shared
+  `evaluate_fold` primitive. `scripts/calibration_study.py` now reports the
+  per-task gap table (the cross-cell-type chemistry tasks; off-target, stratified
+  by sequence pair, is excluded). Pinned by a test where a scorer that memorizes
+  the in-context fold but is ignorant on the held-out one shows a positive gap.
 - **R0 — supply-chain hardening.** Dependabot now tracks all three dependency
   surfaces — `pip`, `cargo`, and `github-actions` (`.github/dependabot.yml`,
   grouped weekly PRs); a CI `security` job runs `pip-audit` (PyPI advisory DB)

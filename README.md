@@ -190,9 +190,11 @@ computed in one run is reused by the next; and a **persistent, memory-mapped who
 (`genome.GenomeIndex`) — driven by R2's native SA-IS so the on-disk build scales to whole
 chromosomes, consumed by the engine via `search(..., genome_index=...)`, built once and reused across
 runs (parity-tested vs the per-call build; scale-tested on a downsampled chromosome in CI). R5 — the
-**calibration machinery**: `scoring.ConformalCalibrator` recalibrates predictive *intervals* to a
-target coverage with the finite-sample split-conformal guarantee (the regression analog of isotonic),
-and `scripts/calibration_study.py` regenerates the per-task-ECE + recalibration report from
+**calibration & generalization machinery**: `scoring.ConformalCalibrator` recalibrates predictive
+*intervals* to a target coverage with the finite-sample split-conformal guarantee (the regression
+analog of isotonic), `benchmark.generalization_gap` quantifies the **cross-cell-type generalization
+gap** (in-context vs held-out cell type, oriented so positive = worse), and
+`scripts/calibration_study.py` regenerates the per-task-ECE + gap + recalibration report from
 CRISPR-Bench (the real-data numbers fill in with R1). The one remaining R0 item is pinning the real
 artifact hashes, which requires freezing the published upstream artifacts; the consent gate already
 refuses any `null`-hash fetch by design.
@@ -936,7 +938,9 @@ its fold membership and two hashes — one over the **dataset content** it was c
 membership** — and `load_split()` re-verifies both on read, raising `SplitIntegrityError` on any drift.
 Changing the data, or the split, means minting a new *version*; you never edit a published one. Test folds
 hold out a whole cell context, so the benchmark measures **generalization, not memorization** — the known
-weak spot of guide models, made a headline feature instead of a footnote.
+weak spot of guide models, made a headline feature instead of a footnote. `benchmark.generalization_gap`
+turns that into a number: a model's primary metric on an in-context fold vs the held-out cell type,
+oriented so a positive gap means worse generalization (R5; reported in the calibration study).
 
 **Honest by construction.** Results are content-addressed (`signature`) so a published number cannot be
 silently edited, and the leaderboard refuses any submission lacking a model card (name, license, citation) or

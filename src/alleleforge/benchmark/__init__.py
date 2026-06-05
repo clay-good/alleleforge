@@ -28,21 +28,27 @@ from alleleforge.benchmark.leaderboard import (
     SubmissionError,
 )
 from alleleforge.benchmark.runner import (
+    HIGHER_IS_BETTER,
     BenchmarkResult,
     BenchScorer,
+    GeneralizationGap,
     ModelInfo,
+    evaluate_fold,
+    generalization_gap,
     run_benchmark,
 )
 from alleleforge.benchmark.splits import Split, SplitIntegrityError, load_split
 from alleleforge.benchmark.tasks import TASKS, Example, Task, TaskKind, get_task
 
 __all__ = [
+    "HIGHER_IS_BETTER",
     "TASKS",
     "BaselineScorer",
     "BenchScorer",
     "BenchmarkDataset",
     "BenchmarkResult",
     "Example",
+    "GeneralizationGap",
     "Leaderboard",
     "ModelInfo",
     "Split",
@@ -52,6 +58,8 @@ __all__ = [
     "Task",
     "TaskKind",
     "build_baseline",
+    "evaluate_fold",
+    "generalization_gap",
     "get_task",
     "load_dataset",
     "load_split",

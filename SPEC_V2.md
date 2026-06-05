@@ -271,11 +271,15 @@ runs are an opt-in nightly.
   `scoring.ConformalCalibrator` recalibrates predictive *intervals* to a target
   coverage with the finite-sample split-conformal guarantee (the regression analog
   of `IsotonicCalibrator` for probabilities), preserving relative interval shape;
-  `empirical_coverage` measures whether intervals need it. `scripts/calibration_study.py`
-  regenerates the calibration report — per-task ECE from CRISPR-Bench plus a
-  conformal recalibration demonstration (coverage before/after at the spec levels).
-  Measured ECE *on real data* per task and the cross-cell-type generalization gap
-  on the held-out-context splits remain (need R1).
+  `empirical_coverage` measures whether intervals need it. The **cross-cell-type
+  generalization gap** is quantified by `benchmark.generalization_gap` — a task's
+  primary metric on an in-context fold (a training-seen cell type) vs the held-out
+  cell type, oriented so positive means worse generalization.
+  `scripts/calibration_study.py` regenerates the calibration report — per-task ECE
+  from CRISPR-Bench, the generalization-gap table, and a conformal recalibration
+  demonstration (coverage before/after at the spec levels). Measured ECE *on real
+  data* per task remains (needs R1); the gap machinery runs now on the weight-free
+  cross-context splits.
 - Fill in `docs/paper/outline.md` into a methods preprint with the R5 results.
 
 **Defaults & decisions.** ECE is reported on every task (already enforced by

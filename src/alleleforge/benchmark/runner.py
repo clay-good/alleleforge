@@ -182,6 +182,123 @@ def _compute_metrics(
     return _distribution_metrics(predictions, [dict(e.label) for e in examples])
 
 
+#: Whether each metric ranks better when larger. Lower-is-better metrics (an
+#: error or a divergence) flip the generalization-gap orientation so a positive
+#: gap always means *worse* held-out performance.
+HIGHER_IS_BETTER: dict[str, bool] = {
+    "spearman": True,
+    "pearson": True,
+    "auroc": True,
+    "auprc": True,
+    "top1": True,
+    "kl": False,
+    "ece": False,
+}
+
+
+def evaluate_fold(
+    scorer: BenchScorer,
+    task: Task | str,
+    split: Split,
+    dataset: BenchmarkDataset,
+    fold: str,
+) -> dict[str, float]:
+    """Run ``scorer`` over a split ``fold`` and return the task's metric battery.
+
+    The shared evaluation primitive behind :func:`run_benchmark` (which scores the
+    ``"test"`` fold) and :func:`generalization_gap` (which scores an in-context and
+    a held-out fold). Each prediction is contract-checked to be a ``Prediction``.
+    """
+    task_obj = task if isinstance(task, Task) else get_task(task)
+    examples = list(split.examples(dataset, fold))
+    predictions = [
+        ensure_prediction(scorer.score(ex.scorer_input(task_obj.input_key)), who=scorer.name)
+        for ex in examples
+    ]
+    return _compute_metrics(task_obj, predictions, examples)
+
+
+class GeneralizationGap(BaseModel):
+    """The drop in a model's primary metric from an in-context to a held-out fold.
+
+    Cross-cell-type generalization is a field-wide reality: a model tuned on one
+    cellular context usually predicts a held-out context worse. This quantifies it
+    on CRISPR-Bench's cross-context splits — the in-context fold (a cell type seen
+    in training, by default ``"val"``) vs the held-out fold (a cell type held out
+    entirely, by default ``"test"``).
+
+    Attributes:
+        task: The task name.
+        primary_metric: The task's ranking metric the gap is measured on.
+        in_context_fold / held_out_fold: The folds compared.
+        in_context / held_out: The primary-metric value on each fold.
+        gap: The signed gap, oriented so **positive means worse** held-out
+            generalization (``in_context - held_out`` for higher-is-better metrics,
+            negated for lower-is-better ones).
+        higher_is_better: Whether the primary metric ranks better when larger.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    task: str
+    primary_metric: str
+    in_context_fold: str
+    held_out_fold: str
+    in_context: float
+    held_out: float
+    gap: float
+    higher_is_better: bool
+
+
+def generalization_gap(
+    scorer: BenchScorer,
+    task: Task | str,
+    *,
+    split: Split | None = None,
+    dataset: BenchmarkDataset | None = None,
+    split_version: str = "v1",
+    in_context_fold: str = "val",
+    held_out_fold: str = "test",
+) -> GeneralizationGap:
+    """Quantify ``scorer``'s cross-context generalization gap on a task.
+
+    Args:
+        scorer: The scorer to evaluate (same protocol as :func:`run_benchmark`).
+        task: The task, or its name.
+        split: A pre-loaded, pre-verified split (loaded from disk if omitted).
+        dataset: A pre-loaded dataset (loaded from the fixture if omitted).
+        split_version: Which frozen split version to load when ``split`` is None.
+        in_context_fold: The fold drawn from a training-seen context (default
+            ``"val"``).
+        held_out_fold: The fold drawn from the held-out context (default ``"test"``).
+
+    Returns:
+        A :class:`GeneralizationGap` with the per-fold metric values and the
+        orientation-corrected gap.
+    """
+    task_obj = task if isinstance(task, Task) else get_task(task)
+    if split is None:
+        split, dataset = load_split(task_obj.name, version=split_version, dataset=dataset)
+    elif dataset is None:
+        dataset = load_dataset(split.dataset)
+
+    pm = task_obj.primary_metric
+    in_value = evaluate_fold(scorer, task_obj, split, dataset, in_context_fold)[pm]
+    held_value = evaluate_fold(scorer, task_obj, split, dataset, held_out_fold)[pm]
+    higher_is_better = HIGHER_IS_BETTER[pm]
+    gap = (in_value - held_value) if higher_is_better else (held_value - in_value)
+    return GeneralizationGap(
+        task=task_obj.name,
+        primary_metric=pm,
+        in_context_fold=in_context_fold,
+        held_out_fold=held_out_fold,
+        in_context=in_value,
+        held_out=held_value,
+        gap=gap,
+        higher_is_better=higher_is_better,
+    )
+
+
 def run_benchmark(
     scorer: BenchScorer,
     task: Task | str,
