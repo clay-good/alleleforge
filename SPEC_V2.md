@@ -124,12 +124,15 @@ the call sites that need them**, so the native build delivers real speedups — 
 dead code.
 
 **Deliverables.**
-- **Sub-quadratic suffix-array construction (◐ landed).** `bwt.rs` now builds the
-  suffix array by **prefix doubling** (`O(n log² n)`) instead of the direct sort's
-  `O(n² log n)`, which collapsed on the long poly-A / poly-N runs real genomes
-  contain. Output is byte-identical to the fallback (unique sentinel ⇒ unique SA),
-  pinned by parity tests over low-complexity and random long inputs. **True-linear
-  SA-IS** (`O(n)`) is the remaining optimization behind the same interface.
+- **True-linear suffix-array construction — SA-IS (◐ landed).** `bwt.rs` builds
+  the suffix array by **SA-IS** (`sais.rs`, induced sorting, `O(n)`), replacing
+  the prefix-doubling (`O(n log² n)`) build behind the same interface — no
+  degradation on the long poly-A / poly-N runs and tandem repeats real genomes
+  contain. Output is byte-identical to the direct sort (unique sentinel ⇒ unique
+  SA), pinned **directly** by a parity test of the exposed `fm_suffix_array`
+  against the ground-truth direct sort (pathological + fuzz inputs) *and*
+  end-to-end by the FM-index `count`/`locate` parity over low-complexity and
+  random-long inputs.
 - **`kmer` kernel (◐ landed).** A native Rust k-mer kernel (`kmer.rs`) + pure
   -Python fallback (`offtarget._kmer`), wired into the off-target scan as a
   seed-and-extend prefilter (`scan_sequence(..., seed=...)`). It is a **proven

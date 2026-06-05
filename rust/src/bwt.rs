@@ -7,14 +7,18 @@
 //! byte-identical results. A parity test in `tests/genome/test_native.py` pins
 //! that equivalence.
 //!
-//! The suffix array is built by a direct sort (as the Python fallback does). That
-//! is `O(n^2 log n)`, fine for the synthetic references in tests and small
-//! contigs; a genome-scale build would swap in SA-IS, which is the natural future
-//! optimization behind this same interface.
+//! The suffix array is built by **SA-IS** (`crate::sais`), the linear-time
+//! induced-sorting algorithm — replacing the earlier prefix-doubling
+//! (`O(n log² n)`) build behind this same interface. The unique sentinel makes
+//! every suffix distinct, so the result is byte-identical to the direct sort the
+//! Python fallback uses (pinned by a parity test against the ground-truth SA and
+//! by the FM-index `count`/`locate` parity over low-complexity and random inputs).
 
 use std::collections::HashMap;
 
 use sha2::{Digest, Sha256};
+
+use crate::sais::suffix_array;
 
 /// Sentinel terminator, sorted before every base (never appears in input).
 const SENTINEL: u8 = 0;
@@ -65,43 +69,6 @@ fn iupac_expand(code: u8) -> &'static [u8] {
     }
 }
 
-/// The doubling sort key for suffix ``i``: ``(rank[i], rank[i + k])``.
-///
-/// The second half is ``-1`` past the end, so shorter suffixes sort first — the
-/// sentinel-terminated convention that makes every suffix distinct.
-fn doubling_key(rank: &[i64], k: usize, n: usize, i: usize) -> (i64, i64) {
-    (rank[i], if i + k < n { rank[i + k] } else { -1 })
-}
-
-/// Build the suffix array of ``data`` by prefix doubling (``O(n log^2 n)``).
-///
-/// Ranks start from the bytes themselves and double the compared prefix length
-/// each round until every suffix has a distinct rank. ``data`` is expected to end
-/// in a unique sentinel, so the suffix array is unique.
-fn suffix_array(data: &[u8]) -> Vec<usize> {
-    let n = data.len();
-    let mut sa: Vec<usize> = (0..n).collect();
-    let mut rank: Vec<i64> = data.iter().map(|&b| b as i64).collect();
-    let mut tmp = vec![0i64; n];
-    let mut k = 1usize;
-    loop {
-        sa.sort_by_key(|&i| doubling_key(&rank, k, n, i));
-        tmp[sa[0]] = 0;
-        for idx in 1..n {
-            let prev = sa[idx - 1];
-            let cur = sa[idx];
-            let step = i64::from(doubling_key(&rank, k, n, cur) != doubling_key(&rank, k, n, prev));
-            tmp[cur] = tmp[prev] + step;
-        }
-        rank.copy_from_slice(&tmp);
-        if rank[sa[n - 1]] as usize == n - 1 {
-            break; // every suffix has a distinct rank -> fully sorted
-        }
-        k <<= 1;
-    }
-    sa
-}
-
 impl FmIndex {
     /// Build an FM-index over `text` (alphabet `ACGTN`).
     ///
@@ -126,11 +93,10 @@ impl FmIndex {
         data.push(SENTINEL);
         let n = data.len();
 
-        // Suffix array by prefix doubling — O(n log^2 n) rather than the direct
-        // sort's O(n^2 log n), which degrades on the long low-complexity runs
-        // (poly-A / poly-N) that real genomes are full of. The unique sentinel
-        // makes every suffix distinct, so the result is identical to the direct
-        // sort (and to the Python fallback) — a parity test pins that.
+        // Suffix array by SA-IS — linear time, no degradation on the long
+        // low-complexity runs (poly-A / poly-N) real genomes are full of. The
+        // unique sentinel makes every suffix distinct, so the result is identical
+        // to the direct sort (and to the Python fallback) — a parity test pins that.
         let sa = suffix_array(&data);
         let bwt: Vec<u8> = sa.iter().map(|&i| data[(i + n - 1) % n]).collect();
 

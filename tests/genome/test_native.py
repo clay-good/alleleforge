@@ -121,6 +121,49 @@ def test_native_matches_python_on_low_complexity(text: str, tmp_path: Path) -> N
     py.close()
 
 
+def _ground_truth_sa(text: str) -> list[int]:
+    """The suffix array of ``text`` + sentinel by the O(n^2 log n) direct sort."""
+    data = text.upper() + "\x00"
+    return sorted(range(len(data)), key=lambda i: data[i:])
+
+
+# SA-IS edge cases live in low-complexity and repeat structure: all-same runs,
+# alternating S/L runs, tandem repeats, and the textbook hard inputs.
+_SA_TEXTS = [
+    "A",
+    "N",
+    "AC",
+    "ACGT",
+    "A" * 200,
+    "N" * 200,
+    "AC" * 100,
+    "ACGT" * 64,
+    "GGGG" + "A" * 50 + "TTTT" + "C" * 50,
+    "ATATATATGCGCGC",
+    "AAAACAAAAC" * 10,
+    "ACACGTGTACAC",  # mapped 'mississippi'-like alternation
+]
+
+
+@requires_native
+@pytest.mark.native
+@pytest.mark.parametrize("text", _SA_TEXTS)
+def test_native_sais_matches_direct_sort(text: str) -> None:
+    # The linear-time SA-IS build is byte-identical to the ground-truth direct sort
+    # (the unique sentinel makes every suffix distinct, so the SA is unique).
+    assert list(_native._ext.fm_suffix_array(text)) == _ground_truth_sa(text)
+
+
+@requires_native
+@pytest.mark.native
+def test_native_sais_matches_direct_sort_fuzz() -> None:
+    rng = random.Random(12345)
+    for _ in range(500):
+        alphabet = rng.choice(["AC", "ACG", "ACGT", "ACGTN", "A", "AN"])
+        text = "".join(rng.choice(alphabet) for _ in range(rng.randint(1, 60)))
+        assert list(_native._ext.fm_suffix_array(text)) == _ground_truth_sa(text), text
+
+
 @requires_native
 @pytest.mark.native
 def test_native_matches_python_on_random_long_inputs() -> None:

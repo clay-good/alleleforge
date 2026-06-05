@@ -170,7 +170,7 @@ in [`SPEC_V2.md`](SPEC_V2.md)**:
 job, a CycloneDX SBOM on release, and a `scripts/reproduce.py` reproducibility audit gated in CI.
 R1 — the consent/license/checksum resolution wired for the backbone and every trained scorer through
 a shared `WeightGate` (the trained forward pass stays `real_weights`-gated). R2 — **all three spec
-kernels (`bwt`/`kmer`/`haplotype`) are now on their hot paths**: a sub-quadratic (prefix-doubling)
+kernels (`bwt`/`kmer`/`haplotype`) are now on their hot paths**: a **true-linear SA-IS**
 FM-index build, a native k-mer seed kernel, **FM-index seed-and-extend wired into the engine's
 reference scan** (auto-engaged past 1 Mb, byte-identical to the linear scan), and a **native
 haplotype-walk kernel** that materializes each common haplotype's alternative sequence (~4x, pinned
@@ -244,11 +244,12 @@ cd rust && maturin develop --release      # builds & installs aforge_native
 
 `alleleforge._native.NATIVE_AVAILABLE` reports whether the compiled extension is present, and
 `alleleforge.genome.native_fm_available()` whether the FM-index kernels specifically are built. The
-native suffix array is built by **prefix doubling** (`O(n log² n)`) rather than the direct sort's
-`O(n² log n)`, which collapses on the long poly-A / poly-N runs real genomes are full of; the unique
-sentinel keeps the suffix array unique so the result stays byte-identical to the pure-Python fallback
-(pinned by parity tests over low-complexity and random inputs). True-linear SA-IS is a further
-optimization behind the same interface.
+native suffix array is built by **SA-IS** (`sais.rs` — Nong–Zhang–Chan induced sorting, `O(n)`) rather
+than the direct sort's `O(n² log n)`, which collapses on the long poly-A / poly-N runs and tandem
+repeats real genomes are full of; the unique sentinel keeps the suffix array unique so the result
+stays byte-identical to the direct sort — pinned **directly** (the exposed `fm_suffix_array` vs the
+ground-truth direct sort, over textbook-pathological and fuzz inputs) and end-to-end (FM-index
+`count`/`locate` parity over low-complexity and random-long inputs).
 
 ---
 

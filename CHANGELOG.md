@@ -360,15 +360,17 @@ acceptance.
   native seed lookup **~5–6x**, and a transparent no-op at the default
   ≤4-mismatch+bulge budget (where the FM-index is the genome-scale path). The CI
   rust job runs the native k-mer parity suite.
-- **R2 — sub-quadratic FM-index build (prefix doubling).** The native FM-index
-  suffix array (`bwt.rs`) is now built by **prefix doubling** (`O(n log² n)`)
-  instead of the direct sort's `O(n² log n)`, which degrades badly on the long
-  poly-A / poly-N runs and tandem repeats real genomes contain. The unique
-  sentinel keeps the suffix array unique, so `count`/`locate`/`pam_sites` and the
-  content hash stay byte-identical to the pure-Python fallback — pinned by
-  expanded parity tests over low-complexity (poly-A/poly-N/repeat) and random
-  long inputs in the CI rust job. (True-linear SA-IS remains a further
-  optimization behind the same interface.)
+- **R2 — true-linear FM-index suffix array build (SA-IS).** The native FM-index
+  suffix array (`bwt.rs`) is built by **SA-IS** (`sais.rs`, Nong–Zhang–Chan
+  induced sorting, `O(n)`) — superseding the interim prefix-doubling
+  (`O(n log² n)`) build, which itself superseded the direct sort's `O(n² log n)`
+  that collapsed on the long poly-A / poly-N runs and tandem repeats real genomes
+  contain. The unique sentinel keeps the suffix array unique, so it is
+  byte-identical to the direct sort: pinned **directly** by a parity test of the
+  newly-exposed `fm_suffix_array` against the ground-truth direct sort (textbook
+  pathological inputs — all-same/alternating runs, tandem repeats — plus a 500-case
+  fuzz) *and* end-to-end by the FM-index `count`/`locate`/`pam_sites` parity over
+  low-complexity and random-long inputs. The CI rust job runs all of it.
 - **R2 — FM-index seed-and-extend wired into the reference scan.** The
   off-target engine's stage-1 reference search now runs FM-index seed-and-extend
   (`scan_sequence(..., use_fm_index=...)`, threaded from `engine.search`): each

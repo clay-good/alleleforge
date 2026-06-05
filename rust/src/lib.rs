@@ -14,6 +14,7 @@ use pyo3::prelude::*;
 mod bwt;
 mod haplotype;
 mod kmer;
+mod sais;
 
 /// Single-source version string, kept byte-identical to
 /// `src/alleleforge/_version.py::__version__` so the toolchain check passes.
@@ -125,6 +126,17 @@ fn fm_locate(text: &str, pattern: &str) -> PyResult<Vec<usize>> {
     Ok(index.locate(pattern))
 }
 
+/// The SA-IS suffix array of `text` upper-cased + the appended sentinel.
+///
+/// Exposed so a parity test can pin the linear-time build byte-for-byte against
+/// the ground-truth direct sort.
+#[pyfunction]
+fn fm_suffix_array(text: &str) -> Vec<usize> {
+    let mut data = text.to_ascii_uppercase().into_bytes();
+    data.push(0); // the FM-index sentinel: smaller than every base
+    sais::suffix_array(&data)
+}
+
 /// Off-target seeding: reference offsets sharing an exact k-mer with `spacer`.
 #[pyfunction]
 fn kmer_seed_positions(sequence: &str, spacer: &str, k: usize) -> Vec<usize> {
@@ -151,6 +163,7 @@ fn aforge_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fm_build, m)?)?;
     m.add_function(wrap_pyfunction!(fm_count, m)?)?;
     m.add_function(wrap_pyfunction!(fm_locate, m)?)?;
+    m.add_function(wrap_pyfunction!(fm_suffix_array, m)?)?;
     m.add_function(wrap_pyfunction!(kmer_seed_positions, m)?)?;
     m.add_function(wrap_pyfunction!(haplotype_apply_variants, m)?)?;
     m.add_class::<NativeFmIndex>()?;
