@@ -882,13 +882,15 @@ aforge --seed 20240501 design chr2:71:A>C \
 
 The accessible front door for users who will not touch a terminal: a **FastAPI** backend that exposes the
 library over HTTP, and a **dependency-free served single-page frontend** that drives the variant-first
-journey in the browser. The app is a thin async layer with **no business logic of its own** — it validates
-each request with a pydantic model, calls the same functions the Python API and CLI use, and returns a
-Phase 1 / Phase 11 schema-validated response, with OpenAPI auto-generated at `/docs`.
+journey in the browser — with a **single-variant** tab and a **cohort (batch)** tab that posts a variant
+list to `/api/batch` and renders the per-item summary table. The app is a thin async layer with **no
+business logic of its own** — it validates each request with a pydantic model, calls the same functions the
+Python API and CLI use, and returns a Phase 1 / Phase 11 schema-validated response, with OpenAPI
+auto-generated at `/docs`.
 
 ```mermaid
 flowchart LR
-    B["Browser SPA<br/>(served, no Node build)"] -->|POST /api/design| API
+    B["Browser SPA<br/>(served, no Node build)<br/>single · cohort tabs"] -->|POST /api/design · /api/batch| API
     CURL["curl / httpx / any client"] -->|JSON| API
     subgraph API["FastAPI app (local)"]
         EP["resolve · design · batch · offtarget<br/>data · bench · health · jobs"]
@@ -932,8 +934,9 @@ curl -s localhost:8000/api/batch -H 'content-type: application/json' \
 
 The async job worker is **in-process** (the default deployment is single-user and local), so no broker or
 separate worker container is needed; a multi-user deployment can swap in a real broker behind the same
-`JobManager` interface. The served vanilla-JS frontend ships inside the wheel and is exercised end to end by
-the API tests; a production Next.js + JBrowse 2 frontend can replace it behind the same API unchanged.
+`JobManager` interface. The served vanilla-JS frontend (single-variant + cohort tabs) ships inside the
+wheel and is exercised end to end by the API tests; a production Next.js + JBrowse 2 frontend can replace
+it behind the same API unchanged.
 
 ---
 

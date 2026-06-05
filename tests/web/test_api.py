@@ -37,10 +37,20 @@ async def test_frontend_is_served(client: httpx.AsyncClient) -> None:
     assert "research use only" in res.text.lower()
 
 
+async def test_frontend_has_cohort_ui(client: httpx.AsyncClient) -> None:
+    # The served SPA exposes both single-variant and cohort (batch) modes.
+    html = (await client.get("/")).text
+    assert 'id="tab-batch"' in html and "Cohort" in html
+    assert 'id="batch-variants"' in html  # the one-variant-per-line textarea
+    app_js = (await client.get("/app.js")).text
+    assert "/api/batch" in app_js  # the cohort form posts to the batch endpoint
+
+
 async def test_openapi_is_generated(client: httpx.AsyncClient) -> None:
     res = await client.get("/openapi.json")
     assert res.status_code == 200
     assert "/api/design" in res.json()["paths"]
+    assert "/api/batch" in res.json()["paths"]  # cohort endpoint documented in OpenAPI
 
 
 # --- resolve ----------------------------------------------------------------

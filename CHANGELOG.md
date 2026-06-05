@@ -461,6 +461,12 @@ acceptance.
   by both `/api/design` and `/api/batch`. Cohort design is now reachable from all
   three surfaces (library `design_many`, `aforge batch`, `POST /api/batch`) over one
   core.
+- **R4 / Phase 13 — browser cohort UI.** The served single-page frontend gains a
+  **cohort (batch) tab** beside the single-variant one: a one-variant-per-line
+  textarea (blank/`#`-comment lines skipped) posts to `/api/batch` and renders the
+  per-item summary table (status, best chemistry, efficiency, worst off-target,
+  candidate count), with a JSON download. It keeps the no-egress, no-third-party
+  -script guarantee — cohort design is now usable end to end from the browser.
 - **Phase 13 fix — `GET /api/bench` lists the CRISPR-Bench tasks.** The endpoint
   previously returned a stale `501 "arrives in Phase 14"`; Phase 14 has shipped, so
   it now returns the five tasks with their kind, chemistry, dataset, primary metric,

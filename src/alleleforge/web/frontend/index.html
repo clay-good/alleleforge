@@ -19,52 +19,108 @@
       transmitted off this deployment.
     </div>
 
+    <div class="tabs" role="tablist" aria-label="Design mode">
+      <button id="tab-single" class="tab active" role="tab" aria-selected="true"
+              aria-controls="panel-single" type="button">Single variant</button>
+      <button id="tab-batch" class="tab" role="tab" aria-selected="false"
+              aria-controls="panel-batch" type="button">Cohort (batch)</button>
+    </div>
+
     <main>
-      <form id="design-form" aria-label="Design a corrective edit">
-        <div class="field">
-          <label for="variant">Variant</label>
-          <input id="variant" name="variant" type="text" required
-                 placeholder="chr2:71:A&gt;C · VCV000012345 · rs1234 · NM_000518.5:c.20A&gt;T" />
-          <small>ClinVar accession, dbSNP rsID, HGVS, VCF record, or coordinates.</small>
-        </div>
-
-        <div class="row">
+      <section id="panel-single" role="tabpanel" aria-labelledby="tab-single">
+        <form id="design-form" aria-label="Design a corrective edit">
           <div class="field">
-            <label for="intent">Intent</label>
-            <select id="intent" name="intent">
-              <option value="correct">correct</option>
-              <option value="install">install</option>
-              <option value="revert">revert</option>
-              <option value="knock_out">knock_out</option>
-            </select>
+            <label for="variant">Variant</label>
+            <input id="variant" name="variant" type="text" required
+                   placeholder="chr2:71:A&gt;C · VCV000012345 · rs1234 · NM_000518.5:c.20A&gt;T" />
+            <small>ClinVar accession, dbSNP rsID, HGVS, VCF record, or coordinates.</small>
           </div>
-          <div class="field">
-            <label for="populations">Populations</label>
-            <input id="populations" name="populations" type="text"
-                   placeholder="afr,eur,eas" />
+
+          <div class="row">
+            <div class="field">
+              <label for="intent">Intent</label>
+              <select id="intent" name="intent">
+                <option value="correct">correct</option>
+                <option value="install">install</option>
+                <option value="revert">revert</option>
+                <option value="knock_out">knock_out</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="populations">Populations</label>
+              <input id="populations" name="populations" type="text"
+                     placeholder="afr,eur,eas" />
+            </div>
+            <div class="field">
+              <label for="max">Max / chemistry</label>
+              <input id="max" name="max" type="number" min="1" value="5" />
+            </div>
           </div>
-          <div class="field">
-            <label for="max">Max / chemistry</label>
-            <input id="max" name="max" type="number" min="1" value="5" />
+
+          <div class="row">
+            <label class="checkbox">
+              <input id="offtarget" type="checkbox" checked /> run off-target search
+            </label>
+            <button type="submit" id="submit">Design edits</button>
           </div>
-        </div>
+        </form>
 
-        <div class="row">
-          <label class="checkbox">
-            <input id="offtarget" type="checkbox" checked /> run off-target search
-          </label>
-          <button type="submit" id="submit">Design edits</button>
-        </div>
-      </form>
+        <section id="status" class="status" aria-live="polite"></section>
 
-      <section id="status" class="status" aria-live="polite"></section>
+        <section id="actions" class="actions" hidden>
+          <button id="download-pdf" type="button">Download PDF</button>
+          <button id="download-json" type="button">Download JSON</button>
+        </section>
 
-      <section id="actions" class="actions" hidden>
-        <button id="download-pdf" type="button">Download PDF</button>
-        <button id="download-json" type="button">Download JSON</button>
+        <iframe id="report" title="Design report" hidden></iframe>
       </section>
 
-      <iframe id="report" title="Design report" hidden></iframe>
+      <section id="panel-batch" role="tabpanel" aria-labelledby="tab-batch" hidden>
+        <form id="batch-form" aria-label="Design a cohort of variants">
+          <div class="field">
+            <label for="batch-variants">Variants (one per line)</label>
+            <textarea id="batch-variants" name="variants" rows="6" required
+                      placeholder="chr2:71:A&gt;C&#10;VCV000012345&#10;rs1234"></textarea>
+            <small>Each line is any accepted input form; blank lines and <code>#</code> comments are skipped.</small>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="batch-intent">Intent</label>
+              <select id="batch-intent" name="intent">
+                <option value="correct">correct</option>
+                <option value="install">install</option>
+                <option value="revert">revert</option>
+                <option value="knock_out">knock_out</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="batch-populations">Populations</label>
+              <input id="batch-populations" name="populations" type="text"
+                     placeholder="afr,eur,eas" />
+            </div>
+            <div class="field">
+              <label for="batch-max">Max / chemistry</label>
+              <input id="batch-max" name="max" type="number" min="1" value="5" />
+            </div>
+          </div>
+
+          <div class="row">
+            <label class="checkbox">
+              <input id="batch-offtarget" type="checkbox" checked /> run off-target search
+            </label>
+            <button type="submit" id="batch-submit">Design cohort</button>
+          </div>
+        </form>
+
+        <section id="batch-status" class="status" aria-live="polite"></section>
+
+        <section id="batch-actions" class="actions" hidden>
+          <button id="batch-download-json" type="button">Download JSON</button>
+        </section>
+
+        <div id="batch-results"></div>
+      </section>
     </main>
 
     <footer>
