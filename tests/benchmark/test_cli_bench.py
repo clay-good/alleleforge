@@ -66,3 +66,18 @@ def test_bench_run_unknown_task(runner: CliRunner) -> None:
 def test_bench_run_unknown_split(runner: CliRunner) -> None:
     result = runner.invoke(app, ["bench", "run", "cas9-efficiency", "--split-version", "v999"])
     assert result.exit_code == ExitCode.MISSING_DATA
+
+
+def test_bench_run_split_integrity_failure(
+    runner: CliRunner, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A tampered/drifted split surfaces as a MISSING_DATA exit, not a traceback.
+    from alleleforge.benchmark import splits as splits_mod
+
+    def _raise(*_args: object, **_kwargs: object) -> None:
+        raise splits_mod.SplitIntegrityError("membership hash mismatch")
+
+    monkeypatch.setattr(splits_mod, "load_split", _raise)
+    result = runner.invoke(app, ["bench", "run", "cas9-efficiency"])
+    assert result.exit_code == ExitCode.MISSING_DATA
+    assert "integrity" in result.output.lower()
