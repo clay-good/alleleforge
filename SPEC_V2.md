@@ -259,16 +259,23 @@ runs are an opt-in nightly.
 
 ---
 
-## R5 — Validation, calibration, and the methods preprint
+## R5 — Validation, calibration, and the methods preprint  ◐ in progress
 
 **Context.** The honesty claims must be earned on real data, not asserted.
 
 **Deliverables.**
 - Reproduce published efficiency/outcome numbers for each real scorer on its
   source benchmark split (R1), recorded as signed CRISPR-Bench results.
-- **Calibration study:** measured ECE on real data per task; isotonic/conformal
-  recalibration where intervals are miscalibrated; the cross-cell-type
-  generalization gap quantified on the held-out-context splits.
+- **Calibration study.** The **machinery and the regeneration script have landed
+  (◐)**, on the weight-free splits; the real-data numbers fill in with R1.
+  `scoring.ConformalCalibrator` recalibrates predictive *intervals* to a target
+  coverage with the finite-sample split-conformal guarantee (the regression analog
+  of `IsotonicCalibrator` for probabilities), preserving relative interval shape;
+  `empirical_coverage` measures whether intervals need it. `scripts/calibration_study.py`
+  regenerates the calibration report — per-task ECE from CRISPR-Bench plus a
+  conformal recalibration demonstration (coverage before/after at the spec levels).
+  Measured ECE *on real data* per task and the cross-cell-type generalization gap
+  on the held-out-context splits remain (need R1).
 - Fill in `docs/paper/outline.md` into a methods preprint with the R5 results.
 
 **Defaults & decisions.** ECE is reported on every task (already enforced by

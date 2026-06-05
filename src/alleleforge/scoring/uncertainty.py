@@ -17,6 +17,9 @@ the whole substrate runs in CI on a weight-free stub embedder:
 * :func:`quantile_prediction` reads an interval straight off predicted quantiles.
 * :class:`IsotonicCalibrator` + :func:`expected_calibration_error` provide
   post-hoc calibration that provably reduces ECE on a miscalibrated set.
+* :class:`ConformalCalibrator` + :func:`empirical_coverage` recalibrate predictive
+  *intervals* to a target coverage with the finite-sample split-conformal
+  guarantee (the regression analog), preserving relative interval shape.
 * :class:`OODDetector` flags inputs far from a stored training reference in
   embedding space.
 """
@@ -299,6 +302,105 @@ class IsotonicCalibrator:
     def predict(self, x: Sequence[float]) -> list[float]:
         """Return calibrated values for each score in ``x``."""
         return [self.predict_one(v) for v in x]
+
+
+def empirical_coverage(predictions: Sequence[Prediction[float]], truths: Sequence[float]) -> float:
+    """Return the fraction of truths that fall inside their prediction interval.
+
+    The regression analog of accuracy-vs-confidence: a well-calibrated set at level
+    ``L`` covers ``~L`` of its truths. Compare against ``interval_level`` to decide
+    whether intervals need :class:`ConformalCalibrator` recalibration.
+
+    Raises:
+        ValueError: If the inputs differ in length or are empty.
+    """
+    if len(predictions) != len(truths) or not predictions:
+        raise ValueError("coverage requires non-empty, equal-length inputs")
+    hits = sum(
+        1 for p, y in zip(predictions, truths, strict=True) if p.interval[0] <= y <= p.interval[1]
+    )
+    return hits / len(predictions)
+
+
+class ConformalCalibrator:
+    """Split-conformal recalibration of predictive intervals to a target coverage.
+
+    When a scorer's intervals are measured *miscalibrated* — empirical coverage off
+    the nominal level (see :func:`empirical_coverage`) — this learns a single
+    multiplicative **scale** from a held-out calibration set so the recalibrated
+    intervals achieve the requested marginal coverage. That is the finite-sample
+    split-conformal guarantee: on exchangeable data, recalibrated intervals cover
+    the truth with probability at least ``level``. The scale multiplies each
+    interval's half-width, so the model's *relative*, per-example uncertainty shape
+    (wider where it is less sure) is preserved — only the global width is corrected
+    (normalized/scaled conformal). Recalibrated predictions carry
+    :attr:`UncertaintyMethod.CONFORMAL` and ``calibrated=True``.
+
+    Calibration intervals must have positive width (the score normalizes by the
+    half-width); widen any degenerate interval before fitting.
+    """
+
+    def __init__(self, *, level: float = DEFAULT_INTERVAL_LEVEL) -> None:
+        """Create an unfitted calibrator targeting marginal coverage ``level``."""
+        if not 0.0 < level < 1.0:
+            raise ValueError(f"level must be in (0, 1); got {level}")
+        self.level = level
+        self._scale: float | None = None
+
+    @property
+    def scale(self) -> float:
+        """Return the fitted interval-width scale (raises if unfitted)."""
+        if self._scale is None:
+            raise ValueError("calibrator is not fitted")
+        return self._scale
+
+    def fit(
+        self, predictions: Sequence[Prediction[float]], truths: Sequence[float]
+    ) -> ConformalCalibrator:
+        """Learn the conformal scale from a calibration set.
+
+        Args:
+            predictions: Held-out calibration predictions (positive-width intervals).
+            truths: The observed values for those predictions.
+
+        Raises:
+            ValueError: If inputs differ in length / are empty, or any calibration
+                interval has non-positive width.
+        """
+        if len(predictions) != len(truths) or not predictions:
+            raise ValueError("fit requires non-empty, equal-length predictions and truths")
+        scores: list[float] = []
+        for p, y in zip(predictions, truths, strict=True):
+            half_width = (p.interval[1] - p.interval[0]) / 2.0
+            if half_width <= 0.0:
+                raise ValueError(
+                    "conformal scaling needs positive-width calibration intervals; "
+                    "widen degenerate intervals before fitting"
+                )
+            scores.append(abs(y - p.value) / half_width)
+        scores.sort()
+        n = len(scores)
+        # Finite-sample split-conformal quantile for coverage `level`: the
+        # ceil((n+1)*level)-th smallest normalized residual. When that rank exceeds
+        # n (too few points to strictly guarantee), fall back to the largest
+        # residual — the most conservative finite scale.
+        rank = min(math.ceil((n + 1) * self.level), n)
+        self._scale = scores[rank - 1]
+        return self
+
+    def calibrate(self, prediction: Prediction[float]) -> Prediction[float]:
+        """Return ``prediction`` with its interval scaled to the target coverage."""
+        scale = self.scale
+        half_width = (prediction.interval[1] - prediction.interval[0]) / 2.0
+        new_half = scale * half_width
+        return to_prediction(
+            prediction.value,
+            (prediction.value - new_half, prediction.value + new_half),
+            method=UncertaintyMethod.CONFORMAL,
+            level=self.level,
+            in_distribution=prediction.in_distribution,
+            calibrated=True,
+        )
 
 
 def expected_calibration_error(

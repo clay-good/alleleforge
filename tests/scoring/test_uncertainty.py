@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import random
+
 import pytest
 
 from alleleforge.scoring.backbone import StubEmbedder
 from alleleforge.scoring.uncertainty import (
+    ConformalCalibrator,
     DeepEnsemble,
     EnsembleResult,
     EvidentialParams,
     IsotonicCalibrator,
     OODDetector,
+    empirical_coverage,
     ensemble_prediction,
     evidential_prediction,
     expected_calibration_error,
@@ -145,3 +149,84 @@ def test_ood_derives_threshold_from_reference() -> None:
 def test_ood_empty_reference_rejected() -> None:
     with pytest.raises(ValueError, match="non-empty reference"):
         OODDetector([])
+
+
+# -- conformal interval recalibration -----------------------------------------
+
+
+def _interval(center: float, half: float) -> object:
+    return to_prediction(center, (center - half, center + half), method=UncertaintyMethod.ENSEMBLE)
+
+
+def _miscalibrated_intervals(
+    rng: random.Random, n: int, *, half: float, sigma: float
+) -> tuple[list, list]:
+    """Predictions whose intervals are far too narrow for the true spread."""
+    preds, truths = [], []
+    for _ in range(n):
+        center = rng.uniform(0.0, 1.0)
+        truths.append(center + rng.gauss(0.0, sigma))
+        preds.append(_interval(center, half))
+    return preds, truths
+
+
+def test_empirical_coverage_counts_hits() -> None:
+    preds = [_interval(0.5, 0.1), _interval(0.5, 0.1)]
+    assert empirical_coverage(preds, [0.55, 0.9]) == 0.5  # one inside, one outside
+
+
+def test_empirical_coverage_input_guard() -> None:
+    with pytest.raises(ValueError, match="equal-length"):
+        empirical_coverage([_interval(0.5, 0.1)], [0.5, 0.6])
+
+
+@pytest.mark.parametrize("level", [0.8, 0.9])
+def test_conformal_restores_coverage_to_nominal(level: float) -> None:
+    # A badly under-covering set (intervals far too narrow) is recalibrated to
+    # meet the target level — the finite-sample split-conformal guarantee.
+    rng = random.Random(7)
+    cal_p, cal_y = _miscalibrated_intervals(rng, 600, half=0.05, sigma=0.2)
+    test_p, test_y = _miscalibrated_intervals(rng, 2000, half=0.05, sigma=0.2)
+    assert empirical_coverage(test_p, test_y) < 0.4  # raw is badly miscalibrated
+
+    cal = ConformalCalibrator(level=level).fit(cal_p, cal_y)
+    recalibrated = [cal.calibrate(p) for p in test_p]
+    coverage = empirical_coverage(recalibrated, test_y)
+    assert coverage >= level - 0.03  # meets nominal (small finite-sample slack)
+
+
+def test_conformal_preserves_relative_interval_width() -> None:
+    rng = random.Random(11)
+    cal_p, cal_y = _miscalibrated_intervals(rng, 400, half=0.05, sigma=0.2)
+    cal = ConformalCalibrator(level=0.8).fit(cal_p, cal_y)
+    narrow = cal.calibrate(_interval(0.5, 0.05))
+    wide = cal.calibrate(_interval(0.5, 0.10))
+    w_narrow = narrow.interval[1] - narrow.interval[0]
+    w_wide = wide.interval[1] - wide.interval[0]
+    assert w_wide == pytest.approx(2 * w_narrow)  # multiplicative scale preserves shape
+
+
+def test_conformal_tags_method_and_calibrated_flag() -> None:
+    rng = random.Random(3)
+    cal_p, cal_y = _miscalibrated_intervals(rng, 200, half=0.05, sigma=0.2)
+    cal = ConformalCalibrator(level=0.8).fit(cal_p, cal_y)
+    out = cal.calibrate(_interval(0.5, 0.05))
+    assert out.method is UncertaintyMethod.CONFORMAL
+    assert out.calibrated is True and out.interval_level == 0.8
+
+
+def test_conformal_unfitted_raises() -> None:
+    with pytest.raises(ValueError, match="not fitted"):
+        ConformalCalibrator().calibrate(_interval(0.5, 0.1))
+
+
+def test_conformal_rejects_degenerate_calibration_interval() -> None:
+    with pytest.raises(ValueError, match="positive-width"):
+        ConformalCalibrator().fit([_interval(0.5, 0.0)], [0.5])
+
+
+def test_conformal_level_and_input_guards() -> None:
+    with pytest.raises(ValueError, match="level must be"):
+        ConformalCalibrator(level=1.5)
+    with pytest.raises(ValueError, match="equal-length"):
+        ConformalCalibrator().fit([_interval(0.5, 0.1)], [0.5, 0.6])

@@ -457,6 +457,20 @@ acceptance.
   strands), but built once and reused. Validated in CI on a downsampled-chromosome
   fixture in the rust job (native SA-IS build → mmap query → linear-scan parity →
   cross-run reuse); full hg38 / T2T-CHM13 builds are an opt-in nightly.
+- **R5 — conformal interval recalibration + calibration-study script.**
+  `scoring.ConformalCalibrator` recalibrates predictive *intervals* to a target
+  coverage with the finite-sample **split-conformal guarantee** — the regression
+  analog of `IsotonicCalibrator` for probabilities, and the first producer of the
+  long-reserved `UncertaintyMethod.CONFORMAL`. It learns a single multiplicative
+  width scale from a held-out calibration set, so recalibrated intervals meet the
+  nominal coverage while the model's *relative* per-example uncertainty shape is
+  preserved (normalized conformal). `empirical_coverage` measures interval coverage
+  to decide when recalibration is needed. `scripts/calibration_study.py`
+  regenerates the calibration report — every CRISPR-Bench task's primary metric and
+  ECE, plus a conformal recalibration demonstration (coverage before/after at the
+  spec's 80%/90% levels) — deterministically from config + seed. The recalibration
+  machinery and the report are CI-tested on the weight-free splits; the real-data
+  ECE numbers fill in with R1.
 - **R0 — supply-chain hardening.** Dependabot now tracks all three dependency
   surfaces — `pip`, `cargo`, and `github-actions` (`.github/dependabot.yml`,
   grouped weekly PRs); a CI `security` job runs `pip-audit` (PyPI advisory DB)

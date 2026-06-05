@@ -163,7 +163,7 @@ in [`SPEC_V2.md`](SPEC_V2.md)**:
 | R2 | Native `bwt`/`kmer`/`haplotype` kernels wired onto the off-target hot paths | ◐ in progress |
 | R3 | External-tool adapters (Cas-OFFinder, VEP, HGVS) behind the registry | ◐ in progress |
 | R4 | Scale: whole-genome on-disk FM-index (SA-IS), cohort throughput, cross-run caches | ◐ in progress |
-| R5 | Validation, calibration study (ECE on real data), methods preprint | ☐ not started |
+| R5 | Validation, calibration study (ECE on real data), methods preprint | ◐ in progress |
 | R6 | v1.0 release criteria | ☐ not started |
 
 **Landed since v0.1.0.** R0 — Dependabot across pip/cargo/actions, a CI `pip-audit`+`cargo audit`
@@ -189,9 +189,13 @@ skips recorded items), per-item failure isolation, and an optional thread-parall
 computed in one run is reused by the next; and a **persistent, memory-mapped whole-genome FM-index**
 (`genome.GenomeIndex`) — driven by R2's native SA-IS so the on-disk build scales to whole
 chromosomes, consumed by the engine via `search(..., genome_index=...)`, built once and reused across
-runs (parity-tested vs the per-call build; scale-tested on a downsampled chromosome in CI). The one
-remaining R0 item is pinning the real artifact hashes, which requires freezing the published upstream
-artifacts; the consent gate already refuses any `null`-hash fetch by design.
+runs (parity-tested vs the per-call build; scale-tested on a downsampled chromosome in CI). R5 — the
+**calibration machinery**: `scoring.ConformalCalibrator` recalibrates predictive *intervals* to a
+target coverage with the finite-sample split-conformal guarantee (the regression analog of isotonic),
+and `scripts/calibration_study.py` regenerates the per-task-ECE + recalibration report from
+CRISPR-Bench (the real-data numbers fill in with R1). The one remaining R0 item is pinning the real
+artifact hashes, which requires freezing the published upstream artifacts; the consent gate already
+refuses any `null`-hash fetch by design.
 
 ---
 
@@ -533,7 +537,8 @@ bundled, license-gated card. See [`SPEC_V2.md`](SPEC_V2.md) R1.
 | **Deep ensemble** (N=5) | default | `mean ± z·σ` from member disagreement — **widens on OOD** |
 | **Evidential** (NIG) | single-model fallback | splits aleatoric (data) vs epistemic (model) variance |
 | **Quantile** | when the model emits quantiles | read off the `(1±level)/2` quantiles |
-| **Isotonic calibration** | post-hoc, all of the above | PAV fit; `expected_calibration_error` quantifies the gain |
+| **Isotonic calibration** | post-hoc, recalibrates *probabilities* | PAV fit; `expected_calibration_error` quantifies the gain |
+| **Conformal recalibration** | post-hoc, recalibrates *intervals* | split-conformal width scale to a target coverage (finite-sample guarantee); `empirical_coverage` flags when it's needed |
 
 ```python
 from alleleforge.scoring import DeepEnsemble, ensemble_prediction, OODDetector, StubEmbedder
@@ -1043,7 +1048,7 @@ alleleforge/
 ├── Makefile                  # local mirror of the CI gate (make ci · reproduce · native)
 ├── tests/                    # mirrors src/; pytest + hypothesis
 ├── examples/                 # Phase 15: runnable notebooks (executed in CI via nbmake)
-├── scripts/                  # schema export · benchmark-fixture generator · reproduce (R0 audit) · native_speedup bench
+├── scripts/                  # schema export · benchmark-fixture generator · reproduce (R0) · native_speedup · calibration_study (R5)
 ├── conda/                    # Phase 15: bioconda-style recipe
 ├── docs/                     # mkdocs-material site (concepts · deployment · reference · paper outline)
 └── .github/                  # workflows: ci.yml (lint·type·test·docs·examples·rust·security·reproduce) · release.yml · dependabot.yml

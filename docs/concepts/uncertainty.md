@@ -41,6 +41,17 @@ Post-hoc **isotonic calibration** (`IsotonicCalibrator`, a pool-adjacent-violato
 scores to calibrated ones; `expected_calibration_error` quantifies the improvement and is a
 first-class metric on every CRISPR-Bench task (Phase 14).
 
+**Conformal interval recalibration** (`ConformalCalibrator`, R5) is the regression analog: where
+isotonic recalibrates *probabilities*, conformal recalibrates *intervals*. It learns a single
+multiplicative width scale from a held-out calibration set so the recalibrated intervals meet a target
+coverage with the finite-sample **split-conformal guarantee** — on exchangeable data, the truth falls
+inside the interval with probability at least `level`. The scale multiplies each interval's
+half-width, so the model's *relative* per-example uncertainty (wider where it is less sure) is
+preserved; only the global width is corrected. `empirical_coverage` measures whether a set of
+intervals needs recalibration (coverage off nominal), and `scripts/calibration_study.py` regenerates
+the per-task ECE plus a coverage-before/after report. A scorer measured miscalibrated is recalibrated
+or shipped with the OOD flag dominant — never silently.
+
 ## Out-of-distribution honesty
 
 `in_distribution` is not guesswork. The `OODDetector` stores a training-set reference in
