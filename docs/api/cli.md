@@ -23,6 +23,7 @@ pip install "alleleforge[cli]"
 | `aforge offtarget` | Standalone population-aware off-target search for a spacer. |
 | `aforge data list` / `show` | Inspect the dataset registry (versions, licenses, provenance). |
 | `aforge bench list` / `run` | List and run [CRISPR-Bench](benchmark.md) tasks against frozen splits. |
+| `aforge bench leaderboard` | Aggregate signed result JSONs into the model-card-gated leaderboard. |
 
 Global options (before the subcommand): `--seed`, `--reference`, `--cache-dir`,
 `--verbose/-v`, `--version/-V`. Every command takes `--json` for machine-readable
@@ -72,7 +73,12 @@ aforge data show gnomad --json
 
 # CRISPR-Bench: list the tasks, then score the reference baseline on a frozen split
 aforge bench list
-aforge bench run cas9-efficiency --out result.json --json
+aforge bench run cas9-efficiency --out cas9.json
+aforge bench run offtarget-classification --out offtarget.json
+
+# Aggregate signed results into the model-card-gated leaderboard (Markdown or HTML).
+# Every result must verify its signature and carry a complete model card.
+aforge bench leaderboard cas9.json offtarget.json --format html --out board.html
 ```
 
 !!! note "Reproducibility"

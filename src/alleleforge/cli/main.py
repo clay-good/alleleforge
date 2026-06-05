@@ -13,7 +13,7 @@ Subcommands:
 * ``batch`` — design a whole cohort from a VCF or variant list (streaming, resumable).
 * ``offtarget`` — standalone population/haplotype-aware off-target for a spacer.
 * ``data`` — inspect the dataset registry (versions, licenses, provenance).
-* ``bench`` — list and run CRISPR-Bench tasks against frozen splits (Phase 14).
+* ``bench`` — list/run CRISPR-Bench tasks and render the leaderboard (Phase 14).
 
 Exit codes are meaningful and distinct: ``0`` success, ``2`` usage/input error
 (Typer default), ``3`` missing data, ``4`` an unavailable model or feature.
@@ -733,6 +733,74 @@ def bench_run(
             f"{result.primary_value:.4f}, ece={result.metrics['ece']:.4f} "
             f"(n={result.n_test}, model={result.model.name})"
         )
+
+
+class LeaderboardFormat(StrEnum):
+    """Renderings the leaderboard command can produce."""
+
+    markdown = "markdown"
+    html = "html"
+
+
+@bench_app.command("leaderboard")
+def bench_leaderboard(
+    results: Annotated[
+        list[Path],
+        typer.Argument(help="Signed result JSON files (e.g. from `aforge bench run --out`)."),
+    ],
+    submitter: Annotated[
+        str, typer.Option(help="Submitter name recorded for the local results.")
+    ] = "local",
+    fmt: Annotated[
+        LeaderboardFormat, typer.Option("--format", help="Output format.")
+    ] = LeaderboardFormat.markdown,
+    out: Annotated[Path | None, typer.Option(help="Write the rendered board here.")] = None,
+) -> None:
+    """Aggregate signed result JSONs into the model-card-gated leaderboard.
+
+    Results are grouped by model into card-gated submissions; every result must
+    verify its own signature and carry a complete model card (name, license,
+    citation), so the board cannot show a number that was edited after signing.
+    """
+    from datetime import UTC, datetime
+
+    from alleleforge.benchmark.leaderboard import Leaderboard, Submission, SubmissionError
+    from alleleforge.benchmark.runner import BenchmarkResult
+
+    by_model: dict[str, list[BenchmarkResult]] = {}
+    for path in results:
+        if not path.is_file():
+            _echo_err(f"error: result file not found: {path}")
+            raise typer.Exit(ExitCode.MISSING_DATA)
+        try:
+            result = BenchmarkResult.model_validate_json(path.read_text())
+        except ValueError as exc:
+            _echo_err(f"error: {path} is not a valid result JSON: {exc}")
+            raise typer.Exit(ExitCode.USAGE) from exc
+        by_model.setdefault(result.model.name, []).append(result)
+
+    board = Leaderboard()
+    now = datetime.now(UTC)
+    try:
+        for model_results in by_model.values():
+            board.add(
+                Submission(
+                    submitter=submitter,
+                    model=model_results[0].model,
+                    results=tuple(model_results),
+                    submitted_at=now,
+                )
+            )
+    except SubmissionError as exc:
+        _echo_err(f"error: inadmissible submission: {exc}")
+        raise typer.Exit(ExitCode.USAGE) from exc
+
+    rendered = board.render_html() if fmt is LeaderboardFormat.html else board.render_markdown()
+    if out is not None:
+        out.write_text(rendered)
+        typer.echo(f"wrote {out}")
+    else:
+        typer.echo(rendered)
 
 
 if __name__ == "__main__":  # pragma: no cover

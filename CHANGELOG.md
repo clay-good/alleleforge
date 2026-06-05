@@ -471,6 +471,15 @@ acceptance.
   previously returned a stale `501 "arrives in Phase 14"`; Phase 14 has shipped, so
   it now returns the five tasks with their kind, chemistry, dataset, primary metric,
   and metric battery (ECE included) — the HTTP mirror of `aforge bench list`.
+- **Phase 14 — `aforge bench leaderboard` command.** `bench run` already emitted
+  signed, provenance-stamped result JSONs but nothing aggregated them; the new
+  command reads one or more result files, groups them by model into **card-gated
+  submissions**, and renders the leaderboard as Markdown (default) or HTML. It
+  enforces both honesty gates on read — every result must verify its own signature
+  and carry a complete model card (name/license/citation) — so a number edited
+  after signing, or a model without a card, is refused (exit `2`); a missing file
+  exits `3`. The benchmark's "publish the leaderboard" story is now reachable from
+  the CLI, not just the `Leaderboard` API.
 - **R4 — content-addressed cross-run caches.** A shared
   `alleleforge.cache.ContentAddressedCache` — a sharded, atomically-written
   (temp-file-then-rename) disk key/value store under the cache dir, keyed by the

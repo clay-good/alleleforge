@@ -861,6 +861,7 @@ flowchart LR
 | `aforge offtarget <spacer>` | Standalone population/haplotype-aware off-target search. |
 | `aforge data list` / `show <name>` | Inspect the dataset registry (versions, licenses, provenance). |
 | `aforge bench list` / `run` | List and run CRISPR-Bench tasks against frozen splits. |
+| `aforge bench leaderboard <result.json…>` | Aggregate signed results into the model-card-gated leaderboard (Markdown/HTML). |
 
 Global options sit before the subcommand (`--seed`, `--reference`, `--cache-dir`, `--verbose`,
 `--version`); every command takes `--json`. **Exit codes are distinct and scriptable**: `0` success,
@@ -980,14 +981,17 @@ oriented so a positive gap means worse generalization (R5; reported in the calib
 
 **Honest by construction.** Results are content-addressed (`signature`) so a published number cannot be
 silently edited, and the leaderboard refuses any submission lacking a model card (name, license, citation) or
-carrying a bad signature. The shipped datasets are **small synthetic fixtures** so the whole benchmark runs in
-CI with no downloads; the real corpora are fetched at runtime through the same consent-gated registry as the
-population data. See [`src/alleleforge/benchmark/README.md`](src/alleleforge/benchmark/README.md).
+carrying a bad signature — `aforge bench leaderboard *.json` aggregates signed results into the board
+(Markdown/HTML), enforcing both gates on read. The shipped datasets are **small synthetic fixtures** so the
+whole benchmark runs in CI with no downloads; the real corpora are fetched at runtime through the same
+consent-gated registry as the population data. See
+[`src/alleleforge/benchmark/README.md`](src/alleleforge/benchmark/README.md).
 
 ```bash
 aforge bench list                                  # the five tasks, datasets, and metrics
 aforge bench run cas9-efficiency                   # score the reference baseline on the frozen split
 aforge bench run pe-efficiency --out result.json   # signed, provenance-stamped result JSON
+aforge bench leaderboard *.json --format html --out board.html  # model-card-gated board
 ```
 
 ```python

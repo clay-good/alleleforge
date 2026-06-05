@@ -81,3 +81,57 @@ def test_bench_run_split_integrity_failure(
     result = runner.invoke(app, ["bench", "run", "cas9-efficiency"])
     assert result.exit_code == ExitCode.MISSING_DATA
     assert "integrity" in result.output.lower()
+
+
+# --- bench leaderboard ------------------------------------------------------
+
+
+def _write_result(runner: CliRunner, task: str, path: Path) -> Path:
+    """Produce one signed result JSON via `bench run --out`."""
+    res = runner.invoke(app, ["bench", "run", task, "--out", str(path)])
+    assert res.exit_code == 0
+    return path
+
+
+def test_bench_leaderboard_markdown(runner: CliRunner, tmp_path: Path) -> None:
+    eff = _write_result(runner, "cas9-efficiency", tmp_path / "eff.json")
+    ot = _write_result(runner, "offtarget-classification", tmp_path / "ot.json")
+    result = runner.invoke(app, ["bench", "leaderboard", str(eff), str(ot)])
+    assert result.exit_code == 0
+    assert "# CRISPR-Bench Leaderboard" in result.output
+    assert "## cas9-efficiency" in result.output and "## offtarget-classification" in result.output
+    assert "crispr-bench-baseline" in result.output and "ECE" in result.output
+
+
+def test_bench_leaderboard_html_to_file(runner: CliRunner, tmp_path: Path) -> None:
+    eff = _write_result(runner, "cas9-efficiency", tmp_path / "eff.json")
+    out = tmp_path / "board.html"
+    result = runner.invoke(
+        app, ["bench", "leaderboard", str(eff), "--format", "html", "--out", str(out)]
+    )
+    assert result.exit_code == 0
+    assert out.read_text().startswith("<!doctype html>")
+    assert "CRISPR-Bench Leaderboard" in out.read_text()
+
+
+def test_bench_leaderboard_missing_file_is_missing_data(runner: CliRunner) -> None:
+    result = runner.invoke(app, ["bench", "leaderboard", "/no/such/result.json"])
+    assert result.exit_code == ExitCode.MISSING_DATA
+
+
+def test_bench_leaderboard_rejects_tampered_result(runner: CliRunner, tmp_path: Path) -> None:
+    # Editing a result after signing must break the signature gate -> USAGE exit.
+    path = _write_result(runner, "cas9-efficiency", tmp_path / "eff.json")
+    payload = json.loads(path.read_text())
+    payload["primary_value"] = 0.999  # tamper with the score, keep the old signature
+    path.write_text(json.dumps(payload))
+    result = runner.invoke(app, ["bench", "leaderboard", str(path)])
+    assert result.exit_code == ExitCode.USAGE
+    assert "signature" in result.output.lower() or "inadmissible" in result.output.lower()
+
+
+def test_bench_leaderboard_invalid_json_is_usage(runner: CliRunner, tmp_path: Path) -> None:
+    bad = tmp_path / "bad.json"
+    bad.write_text("{not a result}")
+    result = runner.invoke(app, ["bench", "leaderboard", str(bad)])
+    assert result.exit_code == ExitCode.USAGE
