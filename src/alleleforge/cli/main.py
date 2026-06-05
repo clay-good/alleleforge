@@ -10,6 +10,7 @@ Subcommands:
 
 * ``resolve`` — normalize any input form and show the variant + consequence.
 * ``design`` — variant to a ranked, multi-chemistry menu (the headline command).
+* ``batch`` — design a whole cohort from a VCF or variant list (streaming, resumable).
 * ``offtarget`` — standalone population/haplotype-aware off-target for a spacer.
 * ``data`` — inspect the dataset registry (versions, licenses, provenance).
 * ``bench`` — list and run CRISPR-Bench tasks against frozen splits (Phase 14).
@@ -316,6 +317,230 @@ def design(
 
     if as_json and out is not None:
         typer.echo(menu.model_dump_json(indent=2))
+
+
+#: VCF path suffixes routed through the cyvcf2 fast path; anything else is a
+#: plain one-variant-per-line list.
+_VCF_SUFFIXES = (".vcf", ".vcf.gz", ".vcf.bgz", ".bcf")
+
+
+def _is_vcf_path(path: Path) -> bool:
+    """Return whether ``path`` looks like a VCF (vs a plain variant list)."""
+    name = path.name.lower()
+    return any(name.endswith(suffix) for suffix in _VCF_SUFFIXES)
+
+
+def _read_variant_list(path: Path) -> list[str]:
+    """Read a one-variant-per-line list, skipping blanks and ``#`` comments."""
+    out: list[str] = []
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
+        if line and not line.startswith("#"):
+            out.append(line)
+    return out
+
+
+def _batch_item_id(item: Any) -> str:
+    """Stable, filesystem-friendly id for a cohort item (resume + output names)."""
+    from alleleforge.variant.resolver import VcfRecord
+
+    if isinstance(item, VcfRecord):
+        return f"{item.chrom}:{item.pos}:{item.ref}>{item.alt}"
+    return str(item)
+
+
+def _batch_rows(report: Any) -> list[dict[str, Any]]:
+    """Flatten a ``CohortRunReport`` into per-item summary rows."""
+    rows: list[dict[str, Any]] = []
+    for it in report.items:
+        summary = it.summary or {}
+        rows.append(
+            {
+                "item_id": it.item_id,
+                "status": it.status,
+                "best_chemistry": summary.get("best_chemistry"),
+                "best_efficiency": summary.get("best_efficiency"),
+                "worst_offtarget": summary.get("worst_offtarget"),
+                "n_candidates": summary.get("n_candidates"),
+                "error": it.error,
+            }
+        )
+    return rows
+
+
+def _batch_tsv(rows: list[dict[str, Any]]) -> str:
+    """Render the per-item summary rows as TSV (one row per cohort item)."""
+    cols = [
+        "item_id",
+        "status",
+        "best_chemistry",
+        "best_efficiency",
+        "worst_offtarget",
+        "n_candidates",
+        "error",
+    ]
+    lines = ["\t".join(cols)]
+    for r in rows:
+        lines.append("\t".join("" if r[c] is None else str(r[c]) for c in cols))
+    return "\n".join(lines) + "\n"
+
+
+@app.command()
+def batch(
+    ctx: typer.Context,
+    inputs: Annotated[
+        Path,
+        typer.Argument(
+            help="A VCF (.vcf/.vcf.gz/.bcf) or a one-variant-per-line list "
+            "(ClinVar/rsID/HGVS/coords; '#' comments skipped)."
+        ),
+    ],
+    reference_fasta: Annotated[
+        Path | None, typer.Option(help="Reference FASTA (required).")
+    ] = None,
+    intent: Annotated[
+        str | None, typer.Option(help="correct | knock_out | install | revert (default: correct).")
+    ] = None,
+    populations: Annotated[
+        str | None, typer.Option(help="Comma-separated ancestry labels to stratify by.")
+    ] = None,
+    weights: Annotated[
+        str | None, typer.Option(help="Ranking weights 'eff,clean,safe,simple'.")
+    ] = None,
+    max_per_chemistry: Annotated[
+        int | None, typer.Option(help="Cap candidates kept per chemistry.")
+    ] = None,
+    no_offtarget: Annotated[
+        bool, typer.Option("--no-offtarget", help="Skip the off-target search.")
+    ] = False,
+    manifest: Annotated[
+        Path | None,
+        typer.Option(help="JSONL run manifest to append to; enables resume (skip recorded items)."),
+    ] = None,
+    no_resume: Annotated[
+        bool, typer.Option("--no-resume", help="Re-run every item even if the manifest records it.")
+    ] = False,
+    output_dir: Annotated[
+        Path | None, typer.Option(help="Write each item's full menu JSON to <dir>/<item>.json.")
+    ] = None,
+    max_workers: Annotated[
+        int, typer.Option(help="Thread pool size (a fresh reference is opened per worker).")
+    ] = 1,
+    summary_tsv: Annotated[
+        Path | None, typer.Option(help="Write a per-item TSV summary here.")
+    ] = None,
+    config: Annotated[
+        Path | None, typer.Option(help="Run-config TOML (CLI flags override).")
+    ] = None,
+    as_json: Annotated[
+        bool, typer.Option("--json", help="Emit the full run report as JSON to stdout.")
+    ] = False,
+) -> None:
+    """Design a whole cohort from a VCF or variant list (streaming, resumable).
+
+    The cohort multiplier over ``design``: it streams the input lazily (bounded
+    memory — each menu is summarized then released), is resumable through a JSONL
+    run manifest, and isolates per-item failures (an unresolvable variant is
+    recorded, not fatal). A ``.vcf``/``.vcf.gz``/``.bcf`` input takes the cyvcf2
+    fast path; anything else is read as a one-variant-per-line list.
+    """
+    from alleleforge.config import Settings
+    from alleleforge.design.cohort import design_many
+    from alleleforge.types.edit import EditIntent
+
+    state: GlobalState = ctx.obj
+    cfg = _load_config(config)
+    intent_str = intent or cfg.get("intent", "correct")
+    pops_str = populations if populations is not None else cfg.get("populations")
+    weights_obj = _parse_weights(weights or cfg.get("weights"))
+
+    try:
+        edit_intent = EditIntent(intent_str)
+    except ValueError as exc:
+        _echo_err(f"error: unknown intent {intent_str!r}")
+        raise typer.Exit(ExitCode.USAGE) from exc
+    if not inputs.is_file():
+        _echo_err(f"error: input file not found: {inputs}")
+        raise typer.Exit(ExitCode.MISSING_DATA)
+    pops = [p.strip() for p in pops_str.split(",")] if pops_str else None
+
+    reference = _load_reference(reference_fasta)
+    assert reference_fasta is not None  # _load_reference exits otherwise
+    settings = Settings(seed=state.seed)
+
+    if _is_vcf_path(inputs):
+        from alleleforge.variant import iter_vcf
+
+        variants: Any = iter_vcf(inputs)
+    else:
+        variants = _read_variant_list(inputs)
+
+    # A pyfaidx handle is not thread-safe to share, so parallel runs open a fresh
+    # reference per worker (the .fai built by _load_reference above is reused).
+    ref_kwargs: dict[str, Any] = {"reference": reference}
+    if max_workers > 1:
+        from alleleforge.genome.reference import ReferenceGenome
+
+        fasta = reference_fasta
+        ref_kwargs = {"reference_factory": lambda: ReferenceGenome(fasta, build="hg38")}
+
+    try:
+        report = design_many(
+            variants,
+            intent=edit_intent,
+            manifest_path=manifest,
+            resume=not no_resume,
+            output_dir=output_dir,
+            max_workers=max_workers,
+            item_id=_batch_item_id,
+            build=state.reference_build,
+            weights=weights_obj,
+            populations=pops,
+            run_offtarget=not no_offtarget,
+            max_candidates_per_chemistry=max_per_chemistry,
+            settings=settings,
+            **ref_kwargs,
+        )
+    except RuntimeError as exc:  # e.g. a VCF input but cyvcf2 is not installed
+        _echo_err(f"error: {exc}")
+        raise typer.Exit(ExitCode.UNAVAILABLE) from exc
+
+    rows = _batch_rows(report)
+    if summary_tsv is not None:
+        summary_tsv.write_text(_batch_tsv(rows))
+    if state.verbose:
+        _echo_err(f"designed {report.succeeded}/{report.total} (skipped {report.skipped})")
+
+    if as_json:
+        payload = {
+            "provenance": report.provenance,
+            "total": report.total,
+            "succeeded": report.succeeded,
+            "failed": report.failed,
+            "skipped": report.skipped,
+            "items": rows,
+        }
+        typer.echo(json.dumps(payload, indent=2, default=str))
+        return
+
+    header = (
+        f"cohort: {report.total} item(s) — {report.succeeded} ok, "
+        f"{report.failed} failed, {report.skipped} skipped (resume)"
+    )
+    lines = [header]
+    for r in rows:
+        if r["status"] == "ok":
+            eff = r["best_efficiency"]
+            eff_str = f"{eff:.2f}" if isinstance(eff, (int, float)) else "-"
+            lines.append(
+                f"  {r['item_id']}  ok  best={r['best_chemistry'] or '-'}  "
+                f"eff={eff_str}  n={r['n_candidates'] or 0}"
+            )
+        else:
+            lines.append(f"  {r['item_id']}  error  {r['error']}")
+    typer.echo("\n".join(lines))
+    if summary_tsv is not None:
+        typer.echo(f"wrote {summary_tsv}")
 
 
 @app.command()

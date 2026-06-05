@@ -39,6 +39,16 @@ def nuclease_fasta(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def cohort_fasta(tmp_path: Path) -> Path:
+    """A FASTA whose chr2:26 locus is ABE-installable (A>G) for cohort runs."""
+    pad = "T" * 20
+    contig = pad + "TTTAAACGTTTTTTTTTTTT" + "TGG" + pad  # in-window A at chr2:26, NGG PAM
+    fasta = tmp_path / "cohort.fa"
+    fasta.write_text(">chr2\n" + contig + "\n")
+    return fasta
+
+
+@pytest.fixture
 def design_cmd() -> Callable[[Path, str], list[str]]:
     """Return a helper building a ``design`` argv for a prime install case."""
 

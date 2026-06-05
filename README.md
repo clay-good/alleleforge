@@ -744,6 +744,15 @@ print(report.succeeded, report.failed, report.skipped)
 generator, a test list), so the whole pipeline is testable without the native htslib dependency; a
 path open names the `genome` extra in a clear error when `cyvcf2` is absent.
 
+The same cohort run is one command from the [`aforge` CLI](#the-aforge-cli-phase-12-shipping-now) —
+the `batch` subcommand auto-detects a VCF (cyvcf2 fast path) vs a one-variant-per-line list:
+
+```bash
+# Whole-VCF cohort → resumable run, durable per-sample menus, a per-item TSV summary
+aforge batch cohort.vcf.gz --reference-fasta hg38.fa --intent correct \
+    --manifest run.jsonl --output-dir menus/ --summary-tsv summary.tsv --max-workers 8
+```
+
 | Guarantee | How |
 |---|---|
 | **Bounded memory** | input consumed lazily; only the per-item menu is held, then released (`on_result` ⇒ `O(1)`) |
@@ -831,9 +840,12 @@ flowchart LR
     CFG["--config run.toml<br/>+ CLI flags + --seed"] --> CMD
     CMD["aforge subcommand"] --> RES["resolve"]
     CMD --> DES["design"]
+    CMD --> BAT["batch (cohort)"]
     CMD --> OT["offtarget"]
     CMD --> DAT["data list/show"]
     DES --> R["library: resolve → design → report"]
+    BAT --> MANY["library: iter_vcf → design_many"]
+    MANY --> SUM["per-item summary (TSV/JSON)<br/>+ JSONL manifest · menus/"]
     R --> OUT["JSON · TSV · HTML · PDF<br/>+ .provenance.json sidecar"]
 ```
 
@@ -841,6 +853,7 @@ flowchart LR
 |---|---|
 | `aforge resolve <input>` | Normalize any input form; show the canonical variant + class. |
 | `aforge design <input>` | Variant → ranked, multi-chemistry menu rendered to JSON/TSV/HTML/PDF. |
+| `aforge batch <vcf\|list>` | Cohort design over a VCF (cyvcf2 fast path) or variant list — streaming, resumable, failure-isolated. |
 | `aforge offtarget <spacer>` | Standalone population/haplotype-aware off-target search. |
 | `aforge data list` / `show <name>` | Inspect the dataset registry (versions, licenses, provenance). |
 | `aforge bench list` / `run` | List and run CRISPR-Bench tasks against frozen splits. |

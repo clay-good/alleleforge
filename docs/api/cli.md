@@ -19,6 +19,7 @@ pip install "alleleforge[cli]"
 |---|---|
 | `aforge resolve` | Normalize any input form and show the variant + class (debugging aid). |
 | `aforge design` | Variant → ranked, multi-chemistry menu rendered to JSON/TSV/HTML/PDF. |
+| `aforge batch` | Cohort design over a VCF or variant list — streaming, resumable, failure-isolated. |
 | `aforge offtarget` | Standalone population-aware off-target search for a spacer. |
 | `aforge data list` / `show` | Inspect the dataset registry (versions, licenses, provenance). |
 | `aforge bench list` / `run` | List and run [CRISPR-Bench](benchmark.md) tasks against frozen splits. |
@@ -55,6 +56,12 @@ aforge design VCV000012345 --reference-fasta hg38.fa \
 
 # A reproducible run from a config file (CLI flags override the file)
 aforge --seed 20240501 design chr2:71:A>C --reference-fasta hg38.fa --config run.toml --format tsv
+
+# Cohort design: a whole VCF (cyvcf2 fast path) or a one-variant-per-line list.
+# Streaming + resumable (--manifest), durable per-sample menus (--output-dir),
+# a per-item TSV summary, and a per-worker reference for the parallel path.
+aforge batch cohort.vcf.gz --reference-fasta hg38.fa --intent correct \
+    --manifest run.jsonl --output-dir menus/ --summary-tsv summary.tsv --max-workers 8
 
 # Standalone population-aware off-target for a spacer
 aforge offtarget GACGGAGGCTAAGCGTCGCAA --reference-fasta hg38.fa --pam NGG --json

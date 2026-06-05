@@ -216,6 +216,204 @@ def test_design_json_output_is_phase1_schema_valid(
     assert menu.candidates
 
 
+# --- batch (cohort) ---------------------------------------------------------
+
+OK_1 = "chr2:26:A>G"  # ABE-installable
+OK_2 = "chr2:25:A>G"  # ABE-installable (also an in-window A)
+BAD_REF = "chr2:26:C>G"  # asserts ref 'C' where the reference has 'A' -> hard error
+
+
+def _write_list(tmp_path: Path, *variants: str) -> Path:
+    path = tmp_path / "cohort.txt"
+    path.write_text("# a cohort\n" + "\n".join(variants) + "\n")
+    return path
+
+
+def test_batch_variant_list_human(runner: CliRunner, cohort_fasta: Path, tmp_path: Path) -> None:
+    listing = _write_list(tmp_path, OK_1, BAD_REF)
+    result = runner.invoke(
+        app,
+        ["batch", str(listing), "--reference-fasta", str(cohort_fasta), "--intent", "install"],
+    )
+    assert result.exit_code == 0
+    assert "2 item(s)" in result.output and "1 ok" in result.output and "1 failed" in result.output
+    assert "base_abe" in result.output
+
+
+def test_batch_json(runner: CliRunner, cohort_fasta: Path, tmp_path: Path) -> None:
+    listing = _write_list(tmp_path, OK_1, OK_2)
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            str(listing),
+            "--reference-fasta",
+            str(cohort_fasta),
+            "--intent",
+            "install",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert (data["total"], data["succeeded"], data["failed"]) == (2, 2, 0)
+    assert {it["item_id"] for it in data["items"]} == {OK_1, OK_2}
+    assert data["provenance"]["seed"] == 20240501
+
+
+def test_batch_summary_tsv(runner: CliRunner, cohort_fasta: Path, tmp_path: Path) -> None:
+    listing = _write_list(tmp_path, OK_1, BAD_REF)
+    out = tmp_path / "summary.tsv"
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            str(listing),
+            "--reference-fasta",
+            str(cohort_fasta),
+            "--intent",
+            "install",
+            "--summary-tsv",
+            str(out),
+        ],
+    )
+    assert result.exit_code == 0
+    lines = out.read_text().strip().splitlines()
+    assert lines[0].split("\t")[:2] == ["item_id", "status"]
+    assert len(lines) == 3  # header + 2 items
+    assert any("error" not in line and "base_abe" in line for line in lines[1:])
+
+
+def test_batch_manifest_resume(runner: CliRunner, cohort_fasta: Path, tmp_path: Path) -> None:
+    listing = _write_list(tmp_path, OK_1, OK_2)
+    manifest = tmp_path / "run.jsonl"
+    argv = [
+        "batch",
+        str(listing),
+        "--reference-fasta",
+        str(cohort_fasta),
+        "--intent",
+        "install",
+        "--manifest",
+        str(manifest),
+        "--json",
+    ]
+    first = runner.invoke(app, argv)
+    assert json.loads(first.output)["succeeded"] == 2
+    second = runner.invoke(app, argv)
+    data = json.loads(second.output)
+    assert (data["total"], data["skipped"]) == (0, 2)  # both already recorded -> skipped
+
+
+def test_batch_output_dir_writes_menus(
+    runner: CliRunner, cohort_fasta: Path, tmp_path: Path
+) -> None:
+    listing = _write_list(tmp_path, OK_1)
+    menus = tmp_path / "menus"
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            str(listing),
+            "--reference-fasta",
+            str(cohort_fasta),
+            "--intent",
+            "install",
+            "--output-dir",
+            str(menus),
+        ],
+    )
+    assert result.exit_code == 0
+    written = list(menus.glob("*.json"))
+    assert len(written) == 1
+    assert json.loads(written[0].read_text())["candidates"]
+
+
+def test_batch_missing_input_is_missing_data(runner: CliRunner, cohort_fasta: Path) -> None:
+    result = runner.invoke(
+        app, ["batch", "/no/such/cohort.txt", "--reference-fasta", str(cohort_fasta)]
+    )
+    assert result.exit_code == ExitCode.MISSING_DATA
+
+
+def test_batch_bad_intent_is_usage_error(
+    runner: CliRunner, cohort_fasta: Path, tmp_path: Path
+) -> None:
+    listing = _write_list(tmp_path, OK_1)
+    result = runner.invoke(
+        app,
+        ["batch", str(listing), "--reference-fasta", str(cohort_fasta), "--intent", "bogus"],
+    )
+    assert result.exit_code == ExitCode.USAGE
+
+
+def test_batch_vcf_without_cyvcf2_is_unavailable(
+    runner: CliRunner, cohort_fasta: Path, tmp_path: Path
+) -> None:
+    # A .vcf input routes through iter_vcf; absent cyvcf2 that surfaces as a clean
+    # UNAVAILABLE exit, not a crash. (Skip if cyvcf2 happens to be installed.)
+    try:
+        import cyvcf2  # noqa: F401
+    except ImportError:
+        vcf = tmp_path / "cohort.vcf"
+        vcf.write_text("##fileformat=VCFv4.2\n")
+        result = runner.invoke(
+            app, ["batch", str(vcf), "--reference-fasta", str(cohort_fasta), "--intent", "install"]
+        )
+        assert result.exit_code == ExitCode.UNAVAILABLE
+        assert "cyvcf2" in result.output or "cyvcf2" in (result.stderr or "")
+    else:  # pragma: no cover - only when cyvcf2 is installed
+        import pytest
+
+        pytest.skip("cyvcf2 is installed; the UNAVAILABLE branch is unreachable")
+
+
+def test_batch_parallel_matches_sequential(
+    runner: CliRunner, cohort_fasta: Path, tmp_path: Path
+) -> None:
+    # --max-workers > 1 opens a fresh reference per worker (the .fai built by the
+    # initial load is reused); results match the sequential run.
+    listing = _write_list(tmp_path, OK_1, OK_2)
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            str(listing),
+            "--reference-fasta",
+            str(cohort_fasta),
+            "--intent",
+            "install",
+            "--max-workers",
+            "2",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert (data["total"], data["succeeded"], data["failed"]) == (2, 2, 0)
+
+
+def test_batch_verbose_reports_to_stderr(
+    runner: CliRunner, cohort_fasta: Path, tmp_path: Path
+) -> None:
+    listing = _write_list(tmp_path, OK_1)
+    argv = ["-v", "batch", str(listing), "--reference-fasta", str(cohort_fasta), "--intent"]
+    result = runner.invoke(app, [*argv, "install"])
+    assert result.exit_code == 0
+    assert "designed 1/1" in (result.stderr or result.output)
+
+
+def test_batch_item_id_for_vcf_record() -> None:
+    # The cyvcf2 fast path yields VcfRecords; their id is a clean coordinate string
+    # (used for resume de-dup and the per-item output filename).
+    from alleleforge.cli.main import _batch_item_id
+    from alleleforge.variant.resolver import VcfRecord
+
+    rec = VcfRecord(chrom="chr2", pos=26, ref="A", alt="G", rsid="rs1")
+    assert _batch_item_id(rec) == "chr2:26:A>G"
+    assert _batch_item_id("chr2:26:A>G") == "chr2:26:A>G"
+
+
 # --- offtarget --------------------------------------------------------------
 
 

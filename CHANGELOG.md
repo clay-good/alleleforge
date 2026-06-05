@@ -441,6 +441,17 @@ acceptance.
   so the split/filter logic is fully CI-tested with a fake reader and **no native
   dependency**. (Whole-genome scale validation on a real VCF remains an opt-in
   nightly.)
+- **R4 / Phase 12 — `aforge batch` cohort command.** The cohort path now reaches
+  the CLI audience (the "three audiences, one core" principle): `aforge batch
+  <input>` streams a whole cohort through `design_many`, **auto-detecting** a VCF
+  (`.vcf`/`.vcf.gz`/`.bcf` → the `iter_vcf` cyvcf2 fast path) from a plain
+  one-variant-per-line list (`#` comments skipped). It exposes the full streaming
+  contract as flags — `--manifest` (resumable JSONL run), `--output-dir` (durable
+  per-item menu JSON), `--max-workers` (thread-parallel with a per-worker
+  reference), `--summary-tsv` (per-item table), plus `--intent`/`--populations`/
+  `--weights`/`--no-offtarget` forwarded to `design`. Emits a human summary or, with
+  `--json`, the full provenance-stamped run report; a VCF input without `cyvcf2`
+  surfaces as a clean exit code `4` (unavailable), not a crash.
 - **R4 — content-addressed cross-run caches.** A shared
   `alleleforge.cache.ContentAddressedCache` — a sharded, atomically-written
   (temp-file-then-rename) disk key/value store under the cache dir, keyed by the
