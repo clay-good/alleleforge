@@ -153,11 +153,27 @@ AlleleForge is built in ordered phases (see [`SPEC.md`](SPEC.md), the authoritat
 | 14 | CRISPR-Bench: tasks, frozen splits, metrics, runner, leaderboard (`benchmark/`) | ✅ done |
 | 15 | Docs, runnable examples, release engineering (`docs/`, `examples/`) | ✅ done |
 
-All fifteen v0.1.0 phases are complete. **Post-v0.1.0 work is tracked in [`SPEC_V2.md`](SPEC_V2.md)** —
-release hardening (pinning real artifact hashes), real-weights model integration through the
-consent-gated model zoo (in progress: the backbone download/consent flow has landed), wiring the
-native `kmer`/`haplotype` kernels and SA-IS onto the off-target hot paths, external-tool adapters, and
-the validation/calibration study for v1.0.
+All fifteen v0.1.0 phases are complete. **Post-v0.1.0 work to "bake" the release toward v1.0 is tracked
+in [`SPEC_V2.md`](SPEC_V2.md)**:
+
+| Track | Scope | Status |
+|---|---|:---:|
+| R0 | Release hardening: pin real artifact hashes; supply-chain; reproducibility audit | ◐ in progress |
+| R1 | Real-weights model integration through the consent-gated model zoo | ◐ in progress |
+| R2 | Native `bwt`/`kmer`/`haplotype` kernels wired onto the off-target hot paths | ◐ in progress |
+| R3 | External-tool adapters (Cas-OFFinder, VEP, HGVS) behind the registry | ☐ not started |
+| R4 | Scale: whole-genome on-disk FM-index (SA-IS), cohort throughput, cross-run caches | ☐ not started |
+| R5 | Validation, calibration study (ECE on real data), methods preprint | ☐ not started |
+| R6 | v1.0 release criteria | ☐ not started |
+
+**Landed since v0.1.0.** R0 — Dependabot across pip/cargo/actions, a CI `pip-audit`+`cargo audit`
+job, a CycloneDX SBOM on release, and a `scripts/reproduce.py` reproducibility audit gated in CI.
+R1 — the consent/license/checksum resolution wired for the backbone and every trained scorer through
+a shared `WeightGate` (the trained forward pass stays `real_weights`-gated). R2 — sub-quadratic
+(prefix-doubling) FM-index build, a native k-mer seed kernel, and **FM-index seed-and-extend wired into
+the engine's reference scan** (auto-engaged past 1 Mb, byte-identical to the linear scan).
+The one remaining R0 item is pinning the real artifact hashes, which requires freezing the published
+upstream artifacts; the consent gate already refuses any `null`-hash fetch by design.
 
 ---
 
@@ -351,7 +367,7 @@ flowchart TB
     SP["spacer + PAM"] --> S1
     subgraph ENG["search() — five stages"]
         direction TB
-        S1["1 · Reference scan<br/>PAM-anchored · ≤4 mismatch · ≤1 DNA + ≤1 RNA bulge · both strands"]
+        S1["1 · Reference scan<br/>PAM-anchored · ≤4 mismatch · ≤1 DNA + ≤1 RNA bulge · both strands<br/>FM-index seed-and-extend at genome scale (auto past 1 Mb)"]
         S2["2 · Population augmentation<br/>gnomAD alt-allele re-scan → de-novo PAMs / strengthened seed sites"]
         S3["3 · Haplotype walk<br/>common 1000G / HGDP haplotypes (variant combinations)"]
         S4["4 · Patient VCF (optional)<br/>personalize to one genome"]
@@ -378,6 +394,15 @@ average.
 > edit-budget scans) — measured **~2–4x** there ([`scripts/native_speedup.py`](scripts/native_speedup.py)) —
 > and is a transparent no-op at the default ≤4-mismatch+bulge budget, where the FM-index remains the
 > genome-scale path. See [`SPEC_V2.md`](SPEC_V2.md) R2.
+
+> [!NOTE]
+> **FM-index seed-and-extend on the reference scan (R2, landed).** Stage 1 now anchors PAMs through a
+> content-addressed FM-index (`search(..., use_fm_index=...)`): each concrete PAM is *located* in the
+> index (the PAM is the seed) and only those anchors are *extended* by the shared alignment, replacing
+> the linear `O(n)` PAM pass. It returns **byte-identical hits** to the brute-force scan — pinned by a
+> randomized parity test at both the `scan_sequence` and `search` levels — and **auto-engages per
+> region past 1 Mb** (`FM_INDEX_AUTO_THRESHOLD`), so genome-scale contigs take the indexed path while
+> small inputs stay on the linear scan.
 
 ### Reference bias, reproduced
 
@@ -407,8 +432,9 @@ worst = report.worst_ancestry()        # ('afr', 1.0) — flagged, not averaged 
 All three sit behind one swappable `OffTargetScorer` protocol, so a Phase 6 ML scorer drops in
 without touching the engine. Reporting thresholds default to **CFD ≥ 0.20 or MIT ≥ 0.10**.
 
-> The genome-scale search is the Rust FM-index seed-and-extend kernel; until that crate is built,
-> AlleleForge ships a *correct* pure-Python linear-scan fallback (CI never blocks on the native build).
+> The genome-scale search is the FM-index seed-and-extend path (native Rust `bwt` kernel when built, a
+> *correct* pure-Python FM-index otherwise — byte-identical, pinned by parity tests; CI never blocks on
+> the native build). It is wired into the engine's reference scan and auto-engages on large contigs.
 
 ---
 
@@ -868,7 +894,8 @@ it stays inert until `v0.1.0` is tagged, then it:
 |---|---|
 | **PyPI** | `python -m build` → `pypa/gh-action-pypi-publish` via OIDC Trusted Publishing (no stored token) |
 | **Docker** | multi-arch (`linux/amd64` + `linux/arm64`) image pushed to GHCR with buildx |
-| **GitHub Release** | sdist + wheel attached, notes auto-generated |
+| **GitHub Release** | sdist + wheel + **CycloneDX SBOM** attached, notes auto-generated |
+| **SBOM** | `cyclonedx-py` over the resolved dependency closure, attached to the release |
 | **Zenodo DOI** | minted on the tagged release ([`.zenodo.json`](.zenodo.json)) |
 | **conda** | bioconda-style recipe ([`conda/meta.yaml`](conda/meta.yaml)) |
 
@@ -919,12 +946,13 @@ alleleforge/
 │   ├── web/                   # Phase 13: FastAPI api/ + served frontend/ (variant-first journey)
 │   ├── benchmark/             # Phase 14: CRISPR-Bench — tasks · datasets · frozen splits · runner · leaderboard
 │   └── ...
+├── Makefile                  # local mirror of the CI gate (make ci · reproduce · native)
 ├── tests/                    # mirrors src/; pytest + hypothesis
 ├── examples/                 # Phase 15: runnable notebooks (executed in CI via nbmake)
-├── scripts/                  # schema export · benchmark-fixture generator
+├── scripts/                  # schema export · benchmark-fixture generator · reproduce (R0 audit) · native_speedup bench
 ├── conda/                    # Phase 15: bioconda-style recipe
 ├── docs/                     # mkdocs-material site (concepts · deployment · reference · paper outline)
-└── .github/workflows/        # ci.yml (lint·type·test·docs·examples·rust) · release.yml (tag-triggered)
+└── .github/                  # workflows: ci.yml (lint·type·test·docs·examples·rust·security·reproduce) · release.yml · dependabot.yml
 ```
 
 ---
@@ -941,11 +969,18 @@ pytest --nbmake examples/ --no-cov  # execute the example notebooks
 cd rust && cargo test && maturin develop   # native crate
 ```
 
+A `Makefile` mirrors the gate so `make ci` reproduces it locally (`make lint type test docs reproduce`;
+`make native` for the crate).
+
 CI (GitHub Actions) runs lint, type-check (`mypy --strict`), tests (Python 3.11 + 3.12 on Linux &amp; macOS),
-a strict docs build, notebook execution, and the Rust crate (`cargo fmt` · `clippy` · `maturin build`
-plus a native↔Python FM-index parity run) on every push and PR. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml); releases are cut on `v*` tags
-by [`.github/workflows/release.yml`](.github/workflows/release.yml). The native Rust crate builds locally
-with maturin (`cd rust && maturin develop`); the library runs in pure-Python mode without it.
+a strict docs build, notebook execution, the Rust crate (`cargo fmt` · `clippy` · `maturin build` plus a
+native↔Python FM-index parity run), a **supply-chain audit** (`pip-audit` + `cargo audit`), and a
+**reproducibility audit** (`scripts/reproduce.py` re-derives the canonical run from config + seed and
+diffs it against a committed golden) on every push and PR. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml);
+releases are cut on `v*` tags by [`.github/workflows/release.yml`](.github/workflows/release.yml) and emit
+a CycloneDX SBOM. [Dependabot](.github/dependabot.yml) tracks pip, cargo, and github-actions. The native
+Rust crate builds locally with maturin (`cd rust && maturin develop`); the library runs in pure-Python
+mode without it.
 
 Contributions are welcome — please read [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
 [Contributor Covenant 2.1](CODE_OF_CONDUCT.md) code of conduct.

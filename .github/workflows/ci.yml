@@ -84,6 +84,40 @@ jobs:
       - run: pip install -e ".[dev,cli,web]" "pyfaidx>=0.8" "pyliftover>=0.4"
       - run: pytest --nbmake examples/ --no-cov
 
+  reproduce:
+    name: Reproducibility audit (re-derive & diff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Re-derive the canonical weight-free design run from config + seed and diff
+      # it against the committed golden manifest, proving the run is reproducible
+      # and has not silently drifted.
+      - run: pip install -e ".[dev,cli,web]" "pyfaidx>=0.8" "pyliftover>=0.4"
+      - run: python scripts/reproduce.py
+
+  security:
+    name: Supply-chain audit (pip-audit · cargo audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      # Audit the installed Python environment against the PyPI advisory DB, and
+      # the Rust crate against RustSec. Both are non-blocking informational gates
+      # for now (|| true): the advisory DBs move independently of our code, so a
+      # newly-published advisory must not turn an unrelated PR red — Dependabot
+      # opens the remediation PR. Tighten to blocking before the v1.0 tag.
+      - run: pip install -e ".[dev,cli,web]" "pyfaidx>=0.8" "pyliftover>=0.4" pip-audit
+      - run: pip-audit --strict --desc || true
+      - run: cargo install cargo-audit --locked
+      - run: cargo audit || true
+        working-directory: rust
+
   rust:
     name: Rust native crate (fmt · clippy · maturin · parity)
     runs-on: ubuntu-latest

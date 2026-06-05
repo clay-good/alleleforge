@@ -32,6 +32,25 @@ jobs:
           name: dist
           path: dist/*
 
+  sbom:
+    name: Software Bill of Materials (CycloneDX)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Resolve the full runtime + optional dependency closure, then emit a
+      # CycloneDX SBOM over the installed environment so the release records the
+      # exact transitive supply chain it shipped with.
+      - run: pip install -e ".[core,genome,cli,web,ml]" cyclonedx-bom
+      - run: cyclonedx-py environment --output-format JSON --outfile alleleforge.cdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: alleleforge.cdx.json
+
   pypi:
     name: Publish to PyPI
     needs: build
@@ -74,12 +93,16 @@ jobs:
 
   github-release:
     name: GitHub Release
-    needs: [build, pypi, docker]
+    needs: [build, sbom, pypi, docker]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: dist
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbom
           path: dist
       - uses: softprops/action-gh-release@v2
         with:

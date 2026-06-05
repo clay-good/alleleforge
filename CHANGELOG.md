@@ -369,6 +369,30 @@ acceptance.
   expanded parity tests over low-complexity (poly-A/poly-N/repeat) and random
   long inputs in the CI rust job. (True-linear SA-IS remains a further
   optimization behind the same interface.)
+- **R2 — FM-index seed-and-extend wired into the reference scan.** The
+  off-target engine's stage-1 reference search now runs FM-index seed-and-extend
+  (`scan_sequence(..., use_fm_index=...)`, threaded from `engine.search`): each
+  concrete PAM is *located* in a content-addressed FM-index (the PAM is the seed)
+  and only those anchors are *extended* by the shared alignment, replacing the
+  linear `O(n)` PAM pass. It returns **byte-identical hits** to the brute-force
+  scan — pinned by a randomized parity test at both the `scan_sequence` and
+  `engine.search` levels (across mismatch/bulge budgets and both strands) — and
+  **auto-engages per region** past `FM_INDEX_AUTO_THRESHOLD` (1 Mb), so
+  genome-scale contigs take the indexed path while small inputs stay on the
+  linear scan. The native Rust `bwt` kernel and the pure-Python FM-index share
+  the interface; CI exercises the Python path, the rust job the native parity.
+- **R0 — supply-chain hardening.** Dependabot now tracks all three dependency
+  surfaces — `pip`, `cargo`, and `github-actions` (`.github/dependabot.yml`,
+  grouped weekly PRs); a CI `security` job runs `pip-audit` (PyPI advisory DB)
+  and `cargo audit` (RustSec); and the release pipeline emits a **CycloneDX
+  SBOM** over the resolved dependency closure (`sbom` job) and attaches it to the
+  GitHub Release alongside the sdist/wheel.
+- **R0 — reproducibility audit.** `scripts/reproduce.py` (and `make reproduce`)
+  re-derives the canonical weight-free design run (a ClinVar accession → ranked
+  menu, the §16.1 acceptance scenario) from config + seed, asserts run-to-run
+  determinism, and diffs a canonicalized digest — volatile provenance stripped,
+  floats rounded for cross-platform stability — against a committed golden
+  manifest (`scripts/reproduce_golden.json`). A CI `reproduce` job gates it.
 
 ### Security
 

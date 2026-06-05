@@ -34,7 +34,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done.
 
 ---
 
-## R0 — Release hardening (gates the public v0.1.0)
+## R0 — Release hardening (gates the public v0.1.0)  ◐ in progress
 
 **Context.** Everything required to cut a trustworthy `v0.1.0` that others can
 install, reproduce, and cite. The code is done; this is the operational freeze.
@@ -44,11 +44,16 @@ install, reproduce, and cite. The code is done; this is the operational freeze.
   `sha256: null` with the real content hash of a frozen release artifact, so the
   consent-gated downloaders will actually fetch (an unverifiable artifact is
   refused by design). Record the pinned versions in `docs/data.md` and each model
-  card.
-- **Supply-chain.** Enable Dependabot for `pip` + `cargo` + `github-actions`;
-  add `pip-audit` / `cargo audit` steps to CI; generate an SBOM on release.
-- **Reproducibility audit.** A `make reproduce` target (or `scripts/reproduce.py`)
-  that re-derives the acceptance-suite results from config + seed and diffs them.
+  card. **(☐ blocked on freezing the real artifacts — the only remaining R0
+  item; the gate already refuses a `null`-hash fetch.)**
+- **Supply-chain (☑ landed).** Dependabot covers `pip` + `cargo` +
+  `github-actions` (`.github/dependabot.yml`); a CI `security` job runs
+  `pip-audit` + `cargo audit`; the release pipeline emits a CycloneDX SBOM
+  (`sbom` job) and attaches it to the GitHub Release.
+- **Reproducibility audit (☑ landed).** `scripts/reproduce.py` (and `make
+  reproduce`) re-derives the canonical weight-free design run from config + seed,
+  asserts run-to-run determinism, and diffs a canonicalized digest against a
+  committed golden manifest; a CI `reproduce` job gates it.
 - **Version bump** to `0.1.0` (drop `.dev0`) at tag time; confirm the
   `aforge_native` constant and `_version.py` agree.
 
@@ -110,7 +115,7 @@ scorer records the backbone `ModelCheckpoint`.
 
 ---
 
-## R2 — Native kernels wired to the hot paths
+## R2 — Native kernels wired to the hot paths  ◐ in progress
 
 **Context.** v0.1.0 ships the native **FM-index** (`bwt`) with a Python-parity
 test, but it is opt-in and not yet on a production hot path. The spec layout also
@@ -136,8 +141,17 @@ dead code.
   budget) — measured ~2–4x there, a no-op at AlleleForge's default ≤4-mismatch+
   bulge budget (the seed is too short to prune). So it auto-engages only when
   `k ≥ 5`; the **FM-index seed-and-extend remains the genome-scale path** for the
-  default budget, and wiring the FM-index into the engine's reference scan is the
-  next R2 step.
+  default budget.
+- **FM-index wired into the reference scan (◐ landed).** The engine's stage-1
+  reference search now runs FM-index seed-and-extend (`scan_sequence(...,
+  use_fm_index=...)`): each concrete PAM is *located* in a content-addressed
+  FM-index (the PAM is the seed) and only those anchors are *extended* by the
+  shared alignment, replacing the linear `O(n)` PAM pass. It returns
+  byte-identical hits to the brute-force scan (pinned by a randomized parity test
+  on both the low-level scan and the engine report), and **auto-engages per
+  region** past `FM_INDEX_AUTO_THRESHOLD` (1 Mb) so genome-scale contigs take the
+  indexed path while small inputs stay on the linear scan. Building the
+  whole-genome on-disk index via SA-IS at scale is the remaining R4 step.
 - **`haplotype` kernel** wired into the population/haplotype off-target engine:
   fast walking of phased common haplotypes (1000G/HGDP) to materialize the
   ancestry-stratified alternative sequences the engine scans.
