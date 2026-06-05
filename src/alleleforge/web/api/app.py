@@ -36,6 +36,11 @@ from alleleforge.report.pdf import render_pdf
 from alleleforge.types.offtarget import OffTargetReport
 from alleleforge.web.api.jobs import JobManager
 from alleleforge.web.api.models import (
+    BatchItemResult,
+    BatchRequest,
+    BatchResponse,
+    BenchListResponse,
+    BenchTaskRow,
     DataListResponse,
     DatasetRow,
     DesignRequest,
@@ -92,27 +97,36 @@ def _resolve(request: Request, variant: str, build: str) -> Any:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
-    """Resolve + design + build a report for a design request (or ``4xx``)."""
-    from alleleforge.design.designer import design as run_design
+def _design_options(
+    intent_str: str, chemistries_in: list[str] | None, weights_in: list[float] | None
+) -> tuple[Any, Any, Any]:
+    """Parse the shared design knobs (intent/chemistries/weights), or raise ``422``."""
     from alleleforge.design.ranking import DEFAULT_WEIGHTS, RankingWeights
     from alleleforge.types.edit import Chemistry, EditIntent
 
-    reference = _require_reference(request)
     try:
-        intent = EditIntent(req.intent)
+        intent = EditIntent(intent_str)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=f"unknown intent {req.intent!r}") from exc
+        raise HTTPException(status_code=422, detail=f"unknown intent {intent_str!r}") from exc
     chemistries = None
-    if req.chemistries:
+    if chemistries_in:
         try:
-            chemistries = [Chemistry(c) for c in req.chemistries]
+            chemistries = [Chemistry(c) for c in chemistries_in]
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=f"unknown chemistry: {exc}") from exc
     weights = DEFAULT_WEIGHTS
-    if req.weights is not None:
-        e, c, s, p = req.weights
+    if weights_in is not None:
+        e, c, s, p = weights_in
         weights = RankingWeights(efficiency=e, cleanliness=c, safety=s, simplicity=p)
+    return intent, chemistries, weights
+
+
+def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
+    """Resolve + design + build a report for a design request (or ``4xx``)."""
+    from alleleforge.design.designer import design as run_design
+
+    reference = _require_reference(request)
+    intent, chemistries, weights = _design_options(req.intent, req.chemistries, req.weights)
 
     resolved = _resolve(request, req.variant, "hg38")
     settings: Settings = request.app.state.settings
@@ -220,6 +234,39 @@ def create_app(
             "result": result.model_dump(mode="json") if isinstance(result, DesignReport) else None,
         }
 
+    @app.post("/api/batch", response_model=BatchResponse)
+    def batch_endpoint(req: BatchRequest, request: Request) -> BatchResponse:
+        """Design a whole cohort in one streaming run (per-item failures isolated)."""
+        from alleleforge.design.cohort import design_many
+
+        reference = _require_reference(request)
+        intent, chemistries, weights = _design_options(req.intent, req.chemistries, req.weights)
+        settings: Settings = request.app.state.settings
+        report = design_many(
+            req.variants,
+            reference=reference,
+            intent=intent,
+            chemistries=chemistries,
+            weights=weights,
+            populations=req.populations,
+            run_offtarget=req.run_offtarget,
+            max_candidates_per_chemistry=req.max_per_chemistry,
+            settings=settings,
+        )
+        return BatchResponse(
+            total=report.total,
+            succeeded=report.succeeded,
+            failed=report.failed,
+            items=tuple(
+                BatchItemResult(
+                    item_id=it.item_id, status=it.status, summary=it.summary, error=it.error
+                )
+                for it in report.items
+            ),
+            provenance=report.provenance,
+            disclaimer=RESEARCH_USE_DISCLAIMER,
+        )
+
     @app.post("/api/offtarget", response_model=OffTargetReport)
     def offtarget_endpoint(req: OffTargetRequest, request: Request) -> OffTargetReport:
         """Run a standalone population-aware off-target search for a spacer."""
@@ -264,10 +311,25 @@ def create_app(
             raise HTTPException(status_code=404, detail=f"unknown dataset {name!r}")
         return DEFAULT_REGISTRY.get(name).model_dump(mode="json")
 
-    @app.get("/api/bench")
-    async def bench() -> Response:
-        """CRISPR-Bench endpoint (wired in Phase 14)."""
-        raise HTTPException(status_code=501, detail="CRISPR-Bench arrives in Phase 14.")
+    @app.get("/api/bench", response_model=BenchListResponse)
+    async def bench() -> BenchListResponse:
+        """List the CRISPR-Bench tasks, their datasets, and primary metrics."""
+        from alleleforge.benchmark.tasks import TASKS
+
+        return BenchListResponse(
+            tasks=tuple(
+                BenchTaskRow(
+                    task=t.name,
+                    kind=t.kind.value,
+                    chemistry=t.chemistry,
+                    dataset=t.dataset,
+                    primary_metric=t.primary_metric,
+                    metrics=tuple(t.metrics),
+                )
+                for name in sorted(TASKS)
+                for t in (TASKS[name],)
+            )
+        )
 
     if _FRONTEND_DIR.is_dir():
         app.mount("/", StaticFiles(directory=_FRONTEND_DIR, html=True), name="frontend")

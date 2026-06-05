@@ -452,6 +452,19 @@ acceptance.
   `--weights`/`--no-offtarget` forwarded to `design`. Emits a human summary or, with
   `--json`, the full provenance-stamped run report; a VCF input without `cyvcf2`
   surfaces as a clean exit code `4` (unavailable), not a crash.
+- **R4 / Phase 13 — `POST /api/batch` cohort endpoint.** Cohort design now reaches
+  the **third audience** (the web): the endpoint takes a JSON variant list, runs
+  `design_many`, and returns the per-item summaries, counts, and run provenance
+  (per-item failures isolated, not fatal), all behind the same `503`-until-a
+  -reference-is-configured contract as `/api/design`. The shared design knobs
+  (intent/chemistries/weights) are factored into one `_design_options` helper used
+  by both `/api/design` and `/api/batch`. Cohort design is now reachable from all
+  three surfaces (library `design_many`, `aforge batch`, `POST /api/batch`) over one
+  core.
+- **Phase 13 fix — `GET /api/bench` lists the CRISPR-Bench tasks.** The endpoint
+  previously returned a stale `501 "arrives in Phase 14"`; Phase 14 has shipped, so
+  it now returns the five tasks with their kind, chemistry, dataset, primary metric,
+  and metric battery (ECE included) — the HTTP mirror of `aforge bench list`.
 - **R4 — content-addressed cross-run caches.** A shared
   `alleleforge.cache.ContentAddressedCache` — a sharded, atomically-written
   (temp-file-then-rename) disk key/value store under the cache dir, keyed by the

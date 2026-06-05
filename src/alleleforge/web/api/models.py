@@ -60,6 +60,59 @@ class DesignRequest(BaseModel):
     run_offtarget: bool = Field(default=True, description="Run the off-target engine.")
 
 
+class BatchRequest(BaseModel):
+    """A request to design a cohort of variants in one streaming run."""
+
+    model_config = ConfigDict(frozen=True)
+
+    variants: list[str] = Field(
+        min_length=1, description="Variant input forms (ClinVar / rsID / HGVS / coords)."
+    )
+    intent: str = Field(default="correct", description="correct | knock_out | install | revert.")
+    chemistries: list[str] | None = Field(
+        default=None, description="Restrict to these chemistries (default: all eligible)."
+    )
+    populations: list[str] | None = Field(
+        default=None, description="Ancestry labels to query and stratify off-target by."
+    )
+    weights: list[float] | None = Field(
+        default=None,
+        description="Ranking weights [efficiency, cleanliness, safety, simplicity].",
+        min_length=4,
+        max_length=4,
+    )
+    max_per_chemistry: int | None = Field(
+        default=None, ge=1, description="Cap candidates kept per chemistry."
+    )
+    run_offtarget: bool = Field(default=True, description="Run the off-target engine.")
+
+
+class BatchItemResult(BaseModel):
+    """The compact outcome of one cohort item (never the full menu)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    item_id: str
+    status: str = Field(description="'ok' or 'error'.")
+    summary: dict[str, object] | None = Field(
+        default=None, description="Compact design summary (counts, best chemistry, off-target)."
+    )
+    error: str | None = Field(default=None, description="The error string when status == 'error'.")
+
+
+class BatchResponse(BaseModel):
+    """The aggregate outcome of a cohort design run."""
+
+    model_config = ConfigDict(frozen=True)
+
+    total: int
+    succeeded: int
+    failed: int
+    items: tuple[BatchItemResult, ...]
+    provenance: dict[str, object]
+    disclaimer: str
+
+
 class OffTargetRequest(BaseModel):
     """A request for a standalone population-aware off-target search."""
 
@@ -101,6 +154,27 @@ class DataListResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     datasets: tuple[DatasetRow, ...]
+
+
+class BenchTaskRow(BaseModel):
+    """One CRISPR-Bench task (summary form)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    task: str
+    kind: str
+    chemistry: str | None
+    dataset: str
+    primary_metric: str
+    metrics: tuple[str, ...]
+
+
+class BenchListResponse(BaseModel):
+    """The CRISPR-Bench task listing."""
+
+    model_config = ConfigDict(frozen=True)
+
+    tasks: tuple[BenchTaskRow, ...]
 
 
 class JobState(StrEnum):

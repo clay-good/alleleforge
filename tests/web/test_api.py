@@ -210,9 +210,57 @@ async def test_data_unknown_is_404(client: httpx.AsyncClient) -> None:
     assert res.status_code == 404
 
 
-async def test_bench_is_501(client: httpx.AsyncClient) -> None:
+async def test_bench_lists_tasks(client: httpx.AsyncClient) -> None:
     res = await client.get("/api/bench")
-    assert res.status_code == 501
+    assert res.status_code == 200
+    tasks = {t["task"] for t in res.json()["tasks"]}
+    assert {"cas9-efficiency", "pe-efficiency", "offtarget-classification"} <= tasks
+    # every task reports its primary metric and ECE is in the metric battery
+    for t in res.json()["tasks"]:
+        assert t["primary_metric"]
+        assert "ece" in t["metrics"]
+
+
+# --- batch (cohort) ---------------------------------------------------------
+
+
+async def test_batch_designs_cohort(client: httpx.AsyncClient) -> None:
+    body = {"variants": ["chr2:71:A>C", "chr2:71:A>G"], "intent": "install", "max_per_chemistry": 2}
+    res = await client.post("/api/batch", json=body)
+    assert res.status_code == 200
+    data = res.json()
+    assert (data["total"], data["succeeded"], data["failed"]) == (2, 2, 0)
+    assert {it["item_id"] for it in data["items"]} == {"chr2:71:A>C", "chr2:71:A>G"}
+    assert data["provenance"]["seed"] == 20240501
+    assert "research" in data["disclaimer"].lower()
+
+
+async def test_batch_isolates_per_item_failure(client: httpx.AsyncClient) -> None:
+    # A wrong-ref variant errors; the cohort run records it and continues.
+    body = {"variants": ["chr2:71:A>C", "chr2:71:G>C"], "intent": "install"}
+    res = await client.post("/api/batch", json=body)
+    assert res.status_code == 200
+    data = res.json()
+    assert (data["succeeded"], data["failed"]) == (1, 1)
+    failed = next(it for it in data["items"] if it["status"] == "error")
+    assert failed["item_id"] == "chr2:71:G>C" and "reference mismatch" in (failed["error"] or "")
+
+
+async def test_batch_empty_variants_is_422(client: httpx.AsyncClient) -> None:
+    res = await client.post("/api/batch", json={"variants": [], "intent": "install"})
+    assert res.status_code == 422  # min_length=1 request validation
+
+
+async def test_batch_bad_intent_is_422(client: httpx.AsyncClient) -> None:
+    res = await client.post("/api/batch", json={"variants": ["chr2:71:A>C"], "intent": "bogus"})
+    assert res.status_code == 422
+
+
+async def test_batch_requires_reference(app_no_reference: FastAPI) -> None:
+    transport = httpx.ASGITransport(app=app_no_reference)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as c:
+        res = await c.post("/api/batch", json={"variants": ["chr2:71:A>C"], "intent": "install"})
+        assert res.status_code == 503
 
 
 # --- schema validation & no-egress guarantee --------------------------------

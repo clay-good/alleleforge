@@ -753,6 +753,10 @@ aforge batch cohort.vcf.gz --reference-fasta hg38.fa --intent correct \
     --manifest run.jsonl --output-dir menus/ --summary-tsv summary.tsv --max-workers 8
 ```
 
+…and over HTTP from the [web API](#web-ui--api-phase-13-shipping-now): `POST /api/batch` takes a JSON
+variant list and returns the same per-item summaries with provenance — cohort design reaches all three
+audiences (library, CLI, web) over one core.
+
 | Guarantee | How |
 |---|---|
 | **Bounded memory** | input consumed lazily; only the per-item menu is held, then released (`on_result` ⇒ `O(1)`) |
@@ -887,7 +891,7 @@ flowchart LR
     B["Browser SPA<br/>(served, no Node build)"] -->|POST /api/design| API
     CURL["curl / httpx / any client"] -->|JSON| API
     subgraph API["FastAPI app (local)"]
-        EP["resolve · design · offtarget<br/>data · health · jobs"]
+        EP["resolve · design · batch · offtarget<br/>data · bench · health · jobs"]
         JQ["in-process async job queue<br/>(thread worker + progress)"]
         EP --> LIB
         JQ --> LIB
@@ -907,8 +911,10 @@ flowchart LR
 | `POST /api/resolve` | Normalize any input form to a canonical variant |
 | `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf` |
 | `POST /api/jobs/design` → `GET /api/jobs/{id}` | Async job submit + status/progress/result |
+| `POST /api/batch` | Cohort design over a variant list; per-item summaries + provenance, failures isolated |
 | `POST /api/offtarget` | Standalone population-aware off-target search |
 | `GET /api/data` · `/api/data/{name}` | Inspect the dataset registry |
+| `GET /api/bench` | List the CRISPR-Bench tasks, datasets, and primary metrics |
 | `GET /` | The served single-page frontend |
 
 ```bash
@@ -918,6 +924,10 @@ docker compose up --build          # → http://localhost:8000  ·  /docs for Op
 # Or run directly
 pip install "alleleforge[web]"
 ALLELEFORGE_REFERENCE_FASTA=hg38.fa uvicorn alleleforge.web.api.app:app --port 8000
+
+# Cohort design over HTTP: post a variant list, get per-item summaries + provenance
+curl -s localhost:8000/api/batch -H 'content-type: application/json' \
+    -d '{"variants": ["chr2:71:A>C", "VCV000012345"], "intent": "correct"}'
 ```
 
 The async job worker is **in-process** (the default deployment is single-user and local), so no broker or
