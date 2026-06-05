@@ -291,6 +291,19 @@ acceptance.
   Cas9-efficiency, PE-efficiency, and off-target tasks with frozen splits,
   calibration, signed results, and a working leaderboard. All run against the stub
   models, so the release contract is verified on every CI run.
+- **Native FM-index kernel (`aforge_native::bwt`).** The Rust crate now implements
+  the genome-scale FM-index off-target search path the layout reserved for it:
+  `fm_build` / `fm_count` / `fm_locate` and a `NativeFmIndex` object exposing
+  `count`, `locate`, `pam_sites` (with IUPAC PAM expansion), `content_hash`, and
+  `length`. `FMIndex.build(prefer_native=True)` transparently uses it when the
+  crate is present and falls back to pure Python otherwise. Construction mirrors
+  the Python fallback exactly (sentinel, C-table, checkpointed occ/rank, sampled
+  suffix array, LF-walk, SHA-256 content hash), and a new parity test module
+  (`tests/genome/test_native.py`, marked `native`) pins the native output to be
+  **byte-identical** to the fallback across texts, patterns, and PAM sites. The
+  CI `rust` job now builds the wheel and runs the parity suite; the existing
+  FM-index tests are pinned to the pure-Python path so they stay deterministic
+  whether or not the crate is built. Adds the `sha2` crate dependency.
 
 ### Security
 

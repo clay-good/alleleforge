@@ -7,10 +7,22 @@ from pathlib import Path
 import pytest
 
 from alleleforge.genome import index as index_mod
-from alleleforge.genome.index import FMIndex, native_fm_available
+from alleleforge.genome.index import FMIndex
 from alleleforge.types.guide import PAM
 
 _TEXT = "AAAGGGCCCTGGAAGGTTGG"
+
+
+@pytest.fixture(autouse=True)
+def _force_python_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin this module to the pure-Python FM-index it tests.
+
+    The native crate, when built, transparently takes over ``FMIndex.build``;
+    these fallback tests force the Python path so they are deterministic whether
+    or not ``aforge_native`` is installed. Native/Python parity is covered
+    separately in ``test_native.py``.
+    """
+    monkeypatch.setattr(index_mod, "native_fm_available", lambda: False)
 
 
 def _naive_locate(text: str, pat: str) -> list[int]:
@@ -118,11 +130,6 @@ def test_size_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(index_mod, "SIZE_WARN_THRESHOLD", 4)
     with pytest.warns(UserWarning, match="multi-gigabyte"):
         FMIndex.build("ACGTACGT", cache_dir=tmp_path).close()
-
-
-def test_native_fm_available_is_false_without_crate() -> None:
-    # The Phase 0 crate ships only version(); FM kernels are not built.
-    assert native_fm_available() is False
 
 
 def test_close_is_idempotent(tmp_path: Path) -> None:

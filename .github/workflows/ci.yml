@@ -85,11 +85,8 @@ jobs:
       - run: pytest --nbmake examples/ --no-cov
 
   rust:
-    name: Rust native crate (fmt · clippy · maturin)
+    name: Rust native crate (fmt · clippy · maturin · parity)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: rust
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -98,11 +95,18 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      # fmt + clippy gate the source; `maturin build` exercises the full PyO3
-      # toolchain (and keeps the pinned, security-patched pyo3 building). The
-      # `extension-module` feature means a bare `cargo build` cannot link
-      # libpython, so maturin — not cargo — is the build of record.
+      # fmt + clippy gate the source. The `extension-module` feature means a bare
+      # `cargo build` cannot link libpython, so maturin — not cargo — is the build
+      # of record; it also keeps the pinned, security-patched pyo3 building.
       - run: cargo fmt --check
+        working-directory: rust
       - run: cargo clippy --lib -- -D warnings
-      - run: pip install "maturin>=1.5"
-      - run: maturin build --release
+        working-directory: rust
+      # Build the wheel, install it alongside the library, and run the native
+      # parity tests so the Rust FM-index is proven byte-identical to the
+      # pure-Python fallback (not just compiled).
+      - run: pip install -e ".[dev]" "pyfaidx>=0.8" "pyliftover>=0.4"
+      - run: maturin build --release --out dist
+        working-directory: rust
+      - run: pip install rust/dist/*.whl
+      - run: pytest -m native --no-cov

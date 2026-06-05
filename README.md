@@ -186,15 +186,23 @@ pip install -e ".[core,genome,variant,cli,ml,dev]"
 
 ### Native acceleration (optional)
 
-The performance kernels live in a PyO3 crate built with [maturin](https://github.com/PyO3/maturin).
-AlleleForge imports and runs cleanly **without** it (pure-Python mode); build it for speed:
+The performance kernels live in a PyO3 crate (`aforge_native`) built with
+[maturin](https://github.com/PyO3/maturin). The **FM-index off-target search** kernel (`bwt`) is
+implemented: `FMIndex.build(prefer_native=True)` transparently uses the Rust index when the crate is
+present, and a [parity test](tests/genome/test_native.py) pins its `count` / `locate` / `pam_sites`
+output to be **byte-identical** to the pure-Python fallback (same BWT, C-table, checkpointed rank,
+sampled suffix array, and content hash). AlleleForge imports and runs cleanly **without** the crate
+(pure-Python mode); build it for the genome-scale path:
 
 ```bash
 pip install maturin
 cd rust && maturin develop --release      # builds & installs aforge_native
 ```
 
-`alleleforge._native.NATIVE_AVAILABLE` reports whether the compiled extension is present.
+`alleleforge._native.NATIVE_AVAILABLE` reports whether the compiled extension is present, and
+`alleleforge.genome.native_fm_available()` whether the FM-index kernels specifically are built. The
+suffix array is built by direct sort (parity with the fallback); SA-IS is the natural genome-scale
+optimization behind the same interface.
 
 ---
 
@@ -904,8 +912,8 @@ cd rust && cargo test && maturin develop   # native crate
 ```
 
 CI (GitHub Actions) runs lint, type-check (`mypy --strict`), tests (Python 3.11 + 3.12 on Linux &amp; macOS),
-a strict docs build, notebook execution, and the Rust crate (`cargo fmt` · `clippy` · `maturin build`) on
-every push and PR. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml); releases are cut on `v*` tags
+a strict docs build, notebook execution, and the Rust crate (`cargo fmt` · `clippy` · `maturin build`
+plus a native↔Python FM-index parity run) on every push and PR. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml); releases are cut on `v*` tags
 by [`.github/workflows/release.yml`](.github/workflows/release.yml). The native Rust crate builds locally
 with maturin (`cd rust && maturin develop`); the library runs in pure-Python mode without it.
 
