@@ -395,6 +395,26 @@ acceptance.
   this the three spec kernels — `bwt`, `kmer`, `haplotype` — are all on their hot
   paths behind the fallback-plus-parity discipline; the CI rust job runs the
   native parity suite for each.
+- **R3 — external tool adapters made real (Cas-OFFinder · VEP · HGVS).** The
+  three previously-inert `NotImplementedError` adapters now have working
+  implementations, each tested against **recorded fixtures** with the live
+  network/binary call factored behind an injection point (opt-in,
+  `live_integration`-marked, never run in CI):
+  - **Cas-OFFinder** (`offtarget.cas_offinder_adapter`): `format_input` builds the
+    binary's three-line input deck; `parse_output` reads both the legacy 6-column
+    and bulge-aware 8-column result layouts into `(chrom, position, strand)` loci;
+    `run(..., runner=...)` orchestrates write→invoke→parse with an injectable
+    runner, and the existing `disagreements()` cross-check flags divergence from
+    the native engine.
+  - **VEP** (`variant.effect`): `VepRestPredictor` queries the Ensembl region
+    endpoint through an injectable fetcher; `parse_vep_response` maps the JSON to a
+    `VariantEffect` (MANE/canonical or named-transcript selection, most-severe SO
+    term, impact tier), cached by `(variant, assembly, transcript)`.
+  - **HGVS** (`variant.hgvs_adapter`): `HgvsLibraryProjector` wraps the real `hgvs`
+    library (UTA + SeqRepo `AssemblyMapper.c_to_g`) behind the existing
+    `HgvsProjector` interface, degrading to a clear `RuntimeError` when the
+    optional library is absent.
+  Adds the `live_integration` pytest marker for the opt-in live tests.
 - **R0 — supply-chain hardening.** Dependabot now tracks all three dependency
   surfaces — `pip`, `cargo`, and `github-actions` (`.github/dependabot.yml`,
   grouped weekly PRs); a CI `security` job runs `pip-audit` (PyPI advisory DB)

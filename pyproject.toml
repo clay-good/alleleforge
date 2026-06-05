@@ -177,6 +177,7 @@ addopts = [
 markers = [
     "real_weights: tests that require downloading real model weights (opt-in, skipped in CI)",
     "native: tests that require the compiled aforge_native extension",
+    "live_integration: tests that hit a live external service (VEP/UTA/Cas-OFFinder); opt-in, skipped in CI",
 ]
 
 [tool.coverage.run]

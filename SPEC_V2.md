@@ -177,21 +177,31 @@ matrix, native in the rust job).
 
 ---
 
-## R3 — External tool adapters
+## R3 — External tool adapters  ◐ in progress
 
-**Context.** Three `NotImplementedError` adapters are wired but inert:
+**Context.** Three `NotImplementedError` adapters were wired but inert:
 `cas_offinder_adapter` (off-target cross-check), `variant/effect` VEP REST, and
 the HGVS projection backend. R3 makes them real, behind the same consent/registry
-discipline as data and models.
+discipline as data and models. **All three now have a real implementation behind
+recorded-fixture tests** (◐ landed); only the live network/binary calls are
+opt-in (`live_integration`-marked) and never run in CI.
 
 **Deliverables.**
-- **Cas-OFFinder** adapter: invoke the binary when present (discovered on `PATH`
-  or fetched with consent), parse its hits, and **cross-check** them against the
-  in-house engine — disagreements surfaced as flags, not hidden.
-- **VEP** consequence: a real REST/offline-cache `EffectPredictor` behind the
-  existing protocol, with response caching keyed by variant + assembly.
-- **HGVS** projection: wire a real `hgvs` backend (UTA/SeqRepo) behind
-  `HgvsAdapter` for `c.`/`p.` ⇄ `g.` projection.
+- **Cas-OFFinder** adapter (◐ landed): `format_input` builds the binary's input
+  deck (spacer-`N`s + PAM pattern, query + mismatch budget); `parse_output` reads
+  its results in **both** the legacy 6-column and bulge-aware 8-column layouts;
+  `run(..., runner=...)` orchestrates write→invoke→parse with an **injectable
+  runner**, so CI tests everything but the subprocess call itself, and
+  disagreements are surfaced via the existing `disagreements()` cross-check.
+- **VEP** consequence (◐ landed): `VepRestPredictor` issues the region-endpoint
+  GET through an **injectable fetcher** and `parse_vep_response` maps the JSON to a
+  `VariantEffect` (MANE/canonical or named-transcript selection, most-severe SO
+  term, impact tier), with response **caching keyed by `(variant, assembly,
+  transcript)`**. CI replays a recorded VEP response; only the live GET is opt-in.
+- **HGVS** projection (◐ landed): `HgvsLibraryProjector` wraps the real `hgvs`
+  library (UTA + SeqRepo, `AssemblyMapper.c_to_g`) behind the existing
+  `HgvsProjector` interface; the import guard degrades to a clear `RuntimeError`
+  when the optional library is absent (tested), and the live projection is opt-in.
 
 **Defaults & decisions.** External tools are **optional**; their absence degrades
 gracefully to the native engine with an explicit flag, never a crash. Network

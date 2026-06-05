@@ -1,0 +1,25 @@
+[
+  {
+    "input": "chr2 60100 . A T",
+    "assembly_name": "GRCh38",
+    "most_severe_consequence": "missense_variant",
+    "transcript_consequences": [
+      {
+        "transcript_id": "ENST00000335295",
+        "gene_symbol": "HBB",
+        "consequence_terms": ["missense_variant"],
+        "impact": "MODERATE",
+        "hgvsc": "ENST00000335295.4:c.20A>T",
+        "hgvsp": "ENSP00000333994.3:p.Glu7Val",
+        "canonical": 1,
+        "mane_select": "NM_000518.5"
+      },
+      {
+        "transcript_id": "ENST00000633227",
+        "gene_symbol": "HBB",
+        "consequence_terms": ["upstream_gene_variant"],
+        "impact": "MODIFIER"
+      }
+    ]
+  }
+]

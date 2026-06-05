@@ -2,9 +2,16 @@
 
 from __future__ import annotations
 
+import importlib.util
+
 import pytest
 
-from alleleforge.variant.hgvs_adapter import HgvsAdapter, HgvsOp, parse_genomic_hgvs
+from alleleforge.variant.hgvs_adapter import (
+    HgvsAdapter,
+    HgvsLibraryProjector,
+    HgvsOp,
+    parse_genomic_hgvs,
+)
 
 
 def test_parse_substitution_with_refseq_prefix() -> None:
@@ -98,3 +105,27 @@ def test_unsupported_expression_rejected() -> None:
 def test_delins_without_bases_rejected() -> None:
     with pytest.raises(ValueError, match="replacement bases"):
         parse_genomic_hgvs("chr2:g.100_102delins")
+
+
+def test_coding_hgvs_needs_projector() -> None:
+    # Without a projector, a c./p. expression cannot be resolved.
+    with pytest.raises(ValueError, match="projector"):
+        HgvsAdapter().to_variant("NM_000518.5:c.20A>T", chrom="chr11")
+
+
+def test_injected_projector_resolves_coding_to_genomic() -> None:
+    # A fake projector stands in for the hgvs library: c. -> g., then native parse.
+    adapter = HgvsAdapter(projector=lambda _c: "chr11:g.5226778A>T")
+    var = adapter.to_variant("NM_000518.5:c.20A>T", chrom="chr11")
+    assert var.chrom == "chr11" and var.pos == 5226777 and var.ref == "A" and var.alt == "T"
+
+
+@pytest.mark.skipif(
+    importlib.util.find_spec("hgvs") is not None,
+    reason="hgvs installed; the import-guard path is not exercised",
+)
+def test_hgvs_library_projector_requires_hgvs() -> None:
+    # With the optional library absent (the CI default), the backend setup raises
+    # a clear, actionable error rather than an opaque ImportError.
+    with pytest.raises(RuntimeError, match="hgvs"):
+        HgvsLibraryProjector()("NM_000518.5:c.20A>T")

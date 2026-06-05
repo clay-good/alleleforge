@@ -14,11 +14,14 @@ from alleleforge.variant.effect import (
     Impact,
     StaticEffectPredictor,
     VariantEffect,
+    VepFetcher,
     VepRestPredictor,
     impact_of,
+    parse_vep_response,
 )
 from alleleforge.variant.hgvs_adapter import (
     HgvsAdapter,
+    HgvsLibraryProjector,
     HgvsOp,
     ParsedGenomicHgvs,
     parse_genomic_hgvs,
@@ -35,6 +38,7 @@ __all__ = [
     "Consequence",
     "EffectPredictor",
     "HgvsAdapter",
+    "HgvsLibraryProjector",
     "HgvsOp",
     "Impact",
     "ParsedGenomicHgvs",
@@ -44,8 +48,10 @@ __all__ = [
     "StaticEffectPredictor",
     "VariantEffect",
     "VcfRecord",
+    "VepFetcher",
     "VepRestPredictor",
     "impact_of",
     "parse_genomic_hgvs",
+    "parse_vep_response",
     "resolve",
 ]

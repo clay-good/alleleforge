@@ -8,14 +8,16 @@ base-editing candidate; a frameshift suggests nuclease disruption). The
 * :class:`StaticEffectPredictor` is a deterministic, network-free predictor used
   in tests and for pre-annotated inputs (ClinVar already carries a consequence).
 * :class:`VepRestPredictor` wraps the Ensembl VEP REST API, caching responses by
-  variant + transcript set. It is the production default and is never reached in
-  CI (which stubs the predictor).
+  ``(variant, assembly, transcript)``. Its HTTP fetch is injectable, so the
+  response parsing (:func:`parse_vep_response`) is exercised in CI against a
+  recorded fixture; only the live GET (the default fetcher) is never run in CI.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from enum import IntEnum, StrEnum
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict
 
@@ -144,25 +146,137 @@ class StaticEffectPredictor:
         )
 
 
-class VepRestPredictor:  # pragma: no cover - network; stubbed in CI
-    """Ensembl VEP REST predictor with per-(variant, transcript) caching."""
+#: A VEP fetcher takes a request URL and returns the parsed JSON array Ensembl
+#: returns for it. Injected so tests replay a recorded response with no network;
+#: the default implementation issues the real GET via the optional ``requests``.
+VepFetcher = Callable[[str], list[dict[str, Any]]]
 
-    def __init__(self, *, server: str = "https://rest.ensembl.org") -> None:
-        """Configure the VEP REST endpoint."""
+
+def _assembly_of(variant: Variant) -> str:
+    """Return the GRCh assembly name VEP expects for ``variant``'s build."""
+    build = (variant.build or "").lower()
+    if build in {"hg38", "grch38"}:
+        return "GRCh38"
+    if build in {"hg19", "grch37"}:
+        return "GRCh37"
+    return variant.build or "GRCh38"
+
+
+def parse_vep_response(
+    payload: list[dict[str, Any]], *, transcript: str = "MANE_SELECT"
+) -> VariantEffect:
+    """Parse an Ensembl VEP REST response into a :class:`VariantEffect`.
+
+    Picks the transcript consequence to report: the MANE Select / canonical one
+    for the default ``transcript="MANE_SELECT"``, an exact ``transcript_id`` match
+    when a specific transcript is named, else the first listed. The reported
+    consequence is the most severe Sequence-Ontology term on that transcript;
+    unknown terms degrade to :attr:`Consequence.OTHER`.
+
+    Args:
+        payload: The decoded JSON array VEP returns (one element per input).
+        transcript: ``"MANE_SELECT"`` (default), or a specific transcript id.
+
+    Returns:
+        The structured consequence; an ``INTERGENIC``/``MODIFIER`` default when
+        the response carries no transcript consequences.
+    """
+    if not payload:
+        return VariantEffect(consequence=Consequence.INTERGENIC, impact=Impact.MODIFIER)
+    record = payload[0]
+    cons = record.get("transcript_consequences") or []
+    if not cons:
+        term = record.get("most_severe_consequence", Consequence.INTERGENIC.value)
+        consequence = _term_to_consequence(term)
+        return VariantEffect(consequence=consequence, impact=impact_of(consequence))
+
+    chosen = _select_transcript(cons, transcript)
+    terms = chosen.get("consequence_terms") or [record.get("most_severe_consequence", "other")]
+    consequence = max((_term_to_consequence(t) for t in terms), key=impact_of)
+    impact = _IMPACT_NAMES.get(str(chosen.get("impact", "")).upper(), impact_of(consequence))
+    return VariantEffect(
+        consequence=consequence,
+        impact=impact,
+        gene=chosen.get("gene_symbol"),
+        transcript=chosen.get("transcript_id"),
+        hgvs_c=chosen.get("hgvsc"),
+        hgvs_p=chosen.get("hgvsp"),
+        is_canonical=bool(chosen.get("canonical")) or chosen.get("mane_select") is not None,
+    )
+
+
+def _term_to_consequence(term: str) -> Consequence:
+    """Map a Sequence-Ontology term to a :class:`Consequence` (``OTHER`` if new)."""
+    try:
+        return Consequence(term)
+    except ValueError:
+        return Consequence.OTHER
+
+
+#: VEP impact strings → the ordered :class:`Impact` tier.
+_IMPACT_NAMES = {i.name: i for i in Impact}
+
+
+def _select_transcript(consequences: list[dict[str, Any]], transcript: str) -> dict[str, Any]:
+    """Return the transcript consequence block to report on."""
+    if transcript != "MANE_SELECT":
+        for c in consequences:
+            if c.get("transcript_id") == transcript:
+                return c
+    for c in consequences:
+        if c.get("mane_select") is not None or c.get("canonical"):
+            return c
+    return consequences[0]
+
+
+class VepRestPredictor:
+    """Ensembl VEP REST predictor with per-(variant, assembly, transcript) caching.
+
+    The HTTP fetch is injectable so CI replays a recorded response; the default
+    fetcher issues a real GET against the VEP region endpoint via the optional
+    ``requests`` package.
+    """
+
+    def __init__(
+        self, *, server: str = "https://rest.ensembl.org", fetcher: VepFetcher | None = None
+    ) -> None:
+        """Configure the VEP REST endpoint and (optionally) an injected fetcher."""
         self._server = server
-        self._cache: dict[tuple[str, str], VariantEffect] = {}
+        self._fetcher = fetcher
+        self._cache: dict[tuple[str, str, str], VariantEffect] = {}
+
+    def request_url(self, variant: Variant) -> str:
+        """Return the VEP region-endpoint URL for ``variant``."""
+        start = variant.pos + 1  # VEP regions are 1-based
+        end = start + max(len(variant.ref), 1) - 1
+        region = f"{variant.chrom}:{start}-{end}"
+        return (
+            f"{self._server}/vep/{_assembly_of(variant).lower()}/region/"
+            f"{region}/{variant.alt or '-'}?content-type=application/json"
+        )
 
     def predict(self, variant: Variant, *, transcript: str = "MANE_SELECT") -> VariantEffect:
         """Return (and cache) the VEP consequence of ``variant``.
 
         Raises:
-            RuntimeError: If the optional ``requests`` dependency is missing.
+            RuntimeError: If no fetcher was injected and the optional ``requests``
+                dependency is missing.
         """
-        key = (str(variant), transcript)
+        key = (str(variant), _assembly_of(variant), transcript)
         if key in self._cache:
             return self._cache[key]
+        payload = (self._fetcher or self._default_fetch)(self.request_url(variant))
+        effect = parse_vep_response(payload, transcript=transcript)
+        self._cache[key] = effect
+        return effect
+
+    def _default_fetch(self, url: str) -> list[dict[str, Any]]:  # pragma: no cover - network
+        """Issue the real VEP GET via ``requests`` (never run in CI)."""
         try:
-            import requests  # noqa: F401 - optional, only on the production path
-        except ImportError as exc:  # noqa: BLE001
+            import requests
+        except ImportError as exc:
             raise RuntimeError("VepRestPredictor requires the optional 'requests' package") from exc
-        raise NotImplementedError("VEP REST querying is wired up in a later phase")
+        response = requests.get(url, headers={"Accept": "application/json"}, timeout=30)
+        response.raise_for_status()
+        data: list[dict[str, Any]] = response.json()
+        return data

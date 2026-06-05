@@ -1,6 +1,10 @@
-"""Tests for the consequence model and the static effect predictor."""
+"""Tests for the consequence model, the static predictor, and the VEP backend."""
 
 from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
 
 from alleleforge.types.variant import Variant
 from alleleforge.variant.effect import (
@@ -8,8 +12,16 @@ from alleleforge.variant.effect import (
     Impact,
     StaticEffectPredictor,
     VariantEffect,
+    VepRestPredictor,
     impact_of,
+    parse_vep_response,
 )
+
+_FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def _vep_payload() -> list[dict[str, Any]]:
+    return json.loads((_FIXTURES / "vep_hbb_missense.json").read_text())
 
 
 def test_impact_ordering_is_severity() -> None:
@@ -43,3 +55,68 @@ def test_static_predictor_seeded_table() -> None:
     var = Variant(chrom="chr2", pos=10, ref="G", alt="A")
     table = {str(var): VariantEffect(consequence=Consequence.SPLICE_DONOR, impact=Impact.HIGH)}
     assert StaticEffectPredictor(table).predict(var).impact is Impact.HIGH
+
+
+# --- VEP REST backend (recorded fixture, injected fetcher, no network) -----------
+
+
+def test_parse_vep_response_picks_mane_canonical() -> None:
+    effect = parse_vep_response(_vep_payload())
+    assert effect.consequence is Consequence.MISSENSE
+    assert effect.impact is Impact.MODERATE
+    assert effect.gene == "HBB"
+    assert effect.transcript == "ENST00000335295"
+    assert effect.hgvs_p == "ENSP00000333994.3:p.Glu7Val"
+    assert effect.is_canonical is True
+
+
+def test_parse_vep_response_specific_transcript() -> None:
+    effect = parse_vep_response(_vep_payload(), transcript="ENST00000633227")
+    assert effect.consequence is Consequence.UPSTREAM
+    assert effect.impact is Impact.MODIFIER
+
+
+def test_parse_vep_response_empty_is_intergenic() -> None:
+    assert parse_vep_response([]).consequence is Consequence.INTERGENIC
+
+
+def test_parse_vep_response_no_transcripts_uses_most_severe() -> None:
+    payload = [{"most_severe_consequence": "stop_gained"}]
+    effect = parse_vep_response(payload)
+    assert effect.consequence is Consequence.STOP_GAINED
+    assert effect.impact is Impact.HIGH
+
+
+def test_parse_vep_response_unknown_term_degrades_to_other() -> None:
+    payload = [{"transcript_consequences": [{"consequence_terms": ["brand_new_so_term"]}]}]
+    assert parse_vep_response(payload).consequence is Consequence.OTHER
+
+
+def test_vep_request_url_maps_assembly() -> None:
+    hg19 = Variant(chrom="chr11", pos=5226778, ref="A", alt="T", build="hg19")
+    assert "grch37/region/chr11:5226779-5226779/T" in VepRestPredictor().request_url(hg19)
+    novel = Variant(chrom="chr1", pos=10, ref="C", alt="G", build="custombuild")
+    # An unrecognized build name passes through verbatim (lowercased in the URL).
+    assert "custombuild/region/chr1:11-11/G" in VepRestPredictor().request_url(novel)
+
+
+def test_parse_vep_response_specific_transcript_absent_falls_back() -> None:
+    # Asking for a transcript not present falls through to the canonical one.
+    effect = parse_vep_response(_vep_payload(), transcript="ENST_NOT_PRESENT")
+    assert effect.transcript == "ENST00000335295"
+
+
+def test_vep_predictor_uses_injected_fetcher_and_caches() -> None:
+    var = Variant(chrom="chr2", pos=60099, ref="A", alt="T", build="hg38")
+    calls: list[str] = []
+
+    def fetcher(url: str) -> list[dict[str, Any]]:
+        calls.append(url)
+        return _vep_payload()
+
+    predictor = VepRestPredictor(fetcher=fetcher)
+    first = predictor.predict(var)
+    second = predictor.predict(var)  # served from cache, no second fetch
+    assert first.gene == "HBB" and first == second
+    assert len(calls) == 1
+    assert "GRCh38".lower() in calls[0] and "chr2:60100-60100" in calls[0]

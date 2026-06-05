@@ -149,6 +149,61 @@ def parse_genomic_hgvs(text: str) -> ParsedGenomicHgvs:
 HgvsProjector = Callable[[str], str]
 
 
+class HgvsLibraryProjector:
+    """A :data:`HgvsProjector` backed by the real ``hgvs`` library (UTA/SeqRepo).
+
+    Wraps Biocommons ``hgvs``: parse the ``c.``/``n.`` expression, project it to
+    the genomic ``g.`` expression on the requested assembly via an
+    :class:`AssemblyMapper` (which resolves transcript→genome alignments from a
+    UTA database and reference sequence from SeqRepo). The library and its data
+    services are **optional** and reached only on the production path — never in
+    CI; tests inject a fake projector instead. The library handles is constructed
+    lazily on first call and cached.
+
+    Args:
+        assembly: Target assembly name (``"GRCh38"`` default).
+        alt_aln_method: Transcript-alignment method UTA exposes (``"splign"``).
+    """
+
+    def __init__(self, *, assembly: str = "GRCh38", alt_aln_method: str = "splign") -> None:
+        """Record the assembly and alignment method; defer the heavy setup."""
+        self._assembly = assembly
+        self._alt_aln_method = alt_aln_method
+        self._parser: object | None = None
+        self._mapper: object | None = None
+
+    def _ensure_backend(self) -> None:
+        """Construct the ``hgvs`` parser + assembly mapper on first use.
+
+        Raises:
+            RuntimeError: If the optional ``hgvs`` package is not installed.
+        """
+        if self._mapper is not None:  # pragma: no cover - reached only after a live connect
+            return
+        try:
+            import hgvs.assemblymapper
+            import hgvs.dataproviders.uta  # pragma: no cover - reached only with hgvs installed
+            import hgvs.parser  # pragma: no cover - reached only with hgvs installed
+        except ImportError as exc:
+            raise RuntimeError(
+                "HgvsLibraryProjector requires the optional 'hgvs' package "
+                "(and a reachable UTA database + SeqRepo)"
+            ) from exc
+        # The rest needs a live UTA connection + SeqRepo, never reached in CI.
+        hdp = hgvs.dataproviders.uta.connect()  # pragma: no cover - network (UTA)
+        self._parser = hgvs.parser.Parser()  # pragma: no cover - needs hgvs data
+        self._mapper = hgvs.assemblymapper.AssemblyMapper(  # pragma: no cover - needs hgvs data
+            hdp, assembly_name=self._assembly, alt_aln_method=self._alt_aln_method
+        )
+
+    def __call__(self, text: str) -> str:
+        """Project a ``c.``/``n.`` expression to a genomic ``g.`` string."""
+        self._ensure_backend()
+        assert self._parser is not None and self._mapper is not None  # pragma: no cover - live only
+        parsed = self._parser.parse_hgvs_variant(text)  # type: ignore[attr-defined]  # pragma: no cover
+        return str(self._mapper.c_to_g(parsed))  # type: ignore[attr-defined]  # pragma: no cover
+
+
 class HgvsAdapter:
     """Resolve HGVS expressions to :class:`Variant`s.
 

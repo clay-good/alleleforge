@@ -161,7 +161,7 @@ in [`SPEC_V2.md`](SPEC_V2.md)**:
 | R0 | Release hardening: pin real artifact hashes; supply-chain; reproducibility audit | ◐ in progress |
 | R1 | Real-weights model integration through the consent-gated model zoo | ◐ in progress |
 | R2 | Native `bwt`/`kmer`/`haplotype` kernels wired onto the off-target hot paths | ◐ in progress |
-| R3 | External-tool adapters (Cas-OFFinder, VEP, HGVS) behind the registry | ☐ not started |
+| R3 | External-tool adapters (Cas-OFFinder, VEP, HGVS) behind the registry | ◐ in progress |
 | R4 | Scale: whole-genome on-disk FM-index (SA-IS), cohort throughput, cross-run caches | ☐ not started |
 | R5 | Validation, calibration study (ECE on real data), methods preprint | ☐ not started |
 | R6 | v1.0 release criteria | ☐ not started |
@@ -174,9 +174,14 @@ kernels (`bwt`/`kmer`/`haplotype`) are now on their hot paths**: a sub-quadratic
 FM-index build, a native k-mer seed kernel, **FM-index seed-and-extend wired into the engine's
 reference scan** (auto-engaged past 1 Mb, byte-identical to the linear scan), and a **native
 haplotype-walk kernel** that materializes each common haplotype's alternative sequence (~4x, pinned
-byte-for-byte to the Python fallback). The one remaining R0 item is pinning the real artifact hashes,
-which requires freezing the published upstream artifacts; the consent gate already refuses any
-`null`-hash fetch by design.
+byte-for-byte to the Python fallback). R3 — **the three external-tool adapters are now real** behind
+recorded-fixture tests: **Cas-OFFinder** (input-deck builder + legacy/bulge output parser +
+injectable-runner cross-check), **VEP** (region-endpoint predictor with an injectable fetcher, MANE
+selection, and `(variant, assembly, transcript)` caching), and **HGVS** (`HgvsLibraryProjector` over
+the real `hgvs`/UTA/SeqRepo stack) — with live network/binary calls factored behind injection points
+(`live_integration`-marked, opt-in, never run in CI). The one remaining R0 item is pinning the real
+artifact hashes, which requires freezing the published upstream artifacts; the consent gate already
+refuses any `null`-hash fetch by design.
 
 ---
 
@@ -444,6 +449,22 @@ without touching the engine. Reporting thresholds default to **CFD ≥ 0.20 or M
 > The genome-scale search is the FM-index seed-and-extend path (native Rust `bwt` kernel when built, a
 > *correct* pure-Python FM-index otherwise — byte-identical, pinned by parity tests; CI never blocks on
 > the native build). It is wired into the engine's reference scan and auto-engages on large contigs.
+
+### External-tool adapters (R3)
+
+AlleleForge is **independent** of external tools but integrates them at the seams, each behind a
+swappable interface so its absence degrades gracefully and its presence adds a cross-check or a
+richer annotation. Every adapter is tested against **recorded fixtures**; only the live network/binary
+call is opt-in (`live_integration`-marked, never run in CI).
+
+| Adapter | Role | Pure (CI-tested) | Live (opt-in) |
+|---|---|---|---|
+| **Cas-OFFinder** | off-target cross-check vs. the native engine | input-deck builder, legacy/bulge output parser, `disagreements()` | the binary subprocess (injectable `runner`) |
+| **VEP** (Ensembl REST) | molecular consequence for chemistry routing | `parse_vep_response` (MANE/canonical selection, SO term → impact), `(variant, assembly, transcript)` cache | the region-endpoint GET (injectable `fetcher`) |
+| **HGVS** (`hgvs`/UTA/SeqRepo) | `c.`/`p.` ⇄ `g.` projection | dependency-free `g.` parser; import-guarded `HgvsLibraryProjector` | `AssemblyMapper.c_to_g` against UTA |
+
+Disagreements are **surfaced as flags, never hidden**: a Cas-OFFinder locus the native engine misses
+(or vice versa) is reported, not silently dropped.
 
 ---
 
