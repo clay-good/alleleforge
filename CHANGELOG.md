@@ -556,6 +556,17 @@ acceptance.
   determinism, and diffs a canonicalized digest — volatile provenance stripped,
   floats rounded for cross-platform stability — against a committed golden
   manifest (`scripts/reproduce_golden.json`). A CI `reproduce` job gates it.
+- **R0 — CI/CD runner hardening (Node 24).** Bumped every pinned GitHub Action off
+  the deprecated Node 20 runtime, which GitHub force-migrates on 2026-06-16:
+  `actions/checkout@v4→v5`, `actions/setup-python@v5→v6`, and (in the release
+  pipeline) `actions/upload-artifact@v4→v7` + `actions/download-artifact@v4→v7` (the
+  matched Node-24 pair, chosen over v8 to avoid its ESM/hash-mismatch breaking
+  changes for the trivial named-artifact handoff), `softprops/action-gh-release@v2→v3`,
+  and the Docker buildx stack (`setup-qemu@v3→v4`, `setup-buildx@v3→v4`,
+  `login@v3→v4`, `metadata@v5→v6`, `build-push@v6→v7`). Both workflows now run
+  entirely on Node 24; the CI workflow is verified green on the new majors, and the
+  Docker/composite actions (`gh-action-pypi-publish`, `dtolnay/rust-toolchain`) are
+  unaffected by the Node deprecation.
 
 ### Security
 
