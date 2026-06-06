@@ -286,7 +286,13 @@ runs are an opt-in nightly.
   demonstration (coverage before/after at the spec levels). Measured ECE *on real
   data* per task remains (needs R1); the gap machinery runs now on the weight-free
   cross-context splits.
-- Fill in `docs/paper/outline.md` into a methods preprint with the R5 results.
+- **Methods preprint (◐ draft landed).** `docs/paper/preprint.md` drafts the
+  outline into a full manuscript — abstract, methods, the CRISPR-Bench design, the
+  weight-free end-to-end results (the reference-bias reproduction and the
+  split-conformal coverage table), reproducibility, and discussion. The per-task
+  accuracy-vs-published numbers are explicitly marked `[pending R1]`; they fill in
+  with the real-weights integration, at which point the draft becomes the posted
+  preprint.
 
 **Defaults & decisions.** ECE is reported on every task (already enforced by
 CRISPR-Bench); a scorer whose intervals are miscalibrated on real data is

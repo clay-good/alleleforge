@@ -197,7 +197,11 @@ runs (parity-tested vs the per-call build; scale-tested on a downsampled chromos
 analog of isotonic), `benchmark.generalization_gap` quantifies the **cross-cell-type generalization
 gap** (in-context vs held-out cell type, oriented so positive = worse), and
 `scripts/calibration_study.py` regenerates the per-task-ECE + gap + recalibration report from
-CRISPR-Bench (the real-data numbers fill in with R1). The one remaining R0 item is pinning the real
+CRISPR-Bench (the real-data numbers fill in with R1); and the **methods-preprint draft**
+([`docs/paper/preprint.md`](docs/paper/preprint.md)) turns the outline into a full manuscript —
+abstract, methods, benchmark design, the weight-free end-to-end results (reference-bias reproduction +
+the split-conformal coverage table), and reproducibility — with the accuracy-vs-published numbers
+marked `[pending R1]`. The one remaining R0 item is pinning the real
 artifact hashes, which requires freezing the published upstream artifacts; the consent gate already
 refuses any `null`-hash fetch by design.
 
@@ -1171,4 +1175,6 @@ runtime with the user's consent instead.
 ## Citation
 
 If you use AlleleForge, please cite it via [`CITATION.cff`](CITATION.cff). A Zenodo DOI is minted on the first
-tagged release.
+tagged release. The methods are written up in the draft preprint at
+[`docs/paper/preprint.md`](docs/paper/preprint.md) (the posted version, with the real-data validation
+numbers, follows the v1.0 release).

@@ -5,6 +5,12 @@ A working outline for the AlleleForge methods preprint. The first public release
 full preprint are reserved for after external validation. This document is a
 scaffold, not the manuscript.
 
+> The scaffold below has been drafted into a manuscript: see the
+> [**draft preprint**](preprint.md). The draft is honest about its maturity — the
+> system, benchmark, and reproducibility apparatus are described as built, while
+> the per-task accuracy numbers against published models are marked `[pending R1]`
+> until the real-weights integration lands.
+
 ## Working title
 
 *AlleleForge: variant-driven, multi-modality CRISPR edit design with calibrated

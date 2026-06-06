@@ -532,6 +532,18 @@ acceptance.
   per-task gap table (the cross-cell-type chemistry tasks; off-target, stratified
   by sequence pair, is excluded). Pinned by a test where a scorer that memorizes
   the in-context fold but is ignorant on the held-out one shows a positive gap.
+- **R5 — methods-preprint draft.** `docs/paper/preprint.md` drafts the working
+  outline into a full manuscript: abstract, methods (the domain model & provenance,
+  the genome/variant front end, the population/haplotype off-target engine, the
+  license-gated scoring substrate and uncertainty methods, the three chemistries,
+  conformal recalibration, and the native kernels), the CRISPR-Bench design, the
+  **weight-free end-to-end results** (the `rs114518452` reference-bias reproduction
+  and the split-conformal coverage-before/after table regenerated from
+  `scripts/calibration_study.py`), reproducibility, and discussion. The
+  accuracy-vs-published-numbers results are explicitly fenced off as `[pending R1]`,
+  so the draft never overstates what is measured. Wired into the docs nav (under a
+  *Methods preprint* section) and linked from the outline, the README roadmap, and
+  the citation block.
 - **R0 — supply-chain hardening.** Dependabot now tracks all three dependency
   surfaces — `pip`, `cargo`, and `github-actions` (`.github/dependabot.yml`,
   grouped weekly PRs); a CI `security` job runs `pip-audit` (PyPI advisory DB)

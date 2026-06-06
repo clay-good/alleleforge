@@ -48,7 +48,9 @@ nav:
       - CLI (aforge): api/cli.md
       - Web UI & API: api/web.md
       - CRISPR-Bench: api/benchmark.md
-  - Methods preprint outline: paper/outline.md
+  - Methods preprint:
+      - Draft manuscript: paper/preprint.md
+      - Working outline: paper/outline.md
   - Scope & responsible use: scope.md
 
 markdown_extensions:
