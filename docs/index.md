@@ -21,10 +21,72 @@ every applicable chemistry, each carrying:
 - a **predicted edit outcome** distribution (indels / bystanders / byproducts);
 - a **population- and haplotype-aware off-target report**, ancestry-stratified by default.
 
+## Architecture at a glance
+
+AlleleForge is strictly layered — lower layers know nothing about higher ones, and the **Designer** is
+the only component that sees the whole pipeline. Every domain service is independently testable and
+usable on its own.
+
+```mermaid
+flowchart TB
+    subgraph I["Interfaces"]
+        PY["Python library"]
+        CLI["aforge CLI"]
+        WEB["Web UI (FastAPI + SPA)"]
+    end
+    subgraph O["Orchestration"]
+        DES["Designer: variant → routing → candidates → score → outcome → off-target → rank → report"]
+    end
+    subgraph D["Domain services"]
+        VR["Variant resolver<br/>(HGVS, ClinVar, dbSNP)"]
+        EN["Guide enumerators<br/>(cas9, base, prime)"]
+        SC["Scoring<br/>(efficiency, outcome, uncertainty)"]
+        OT["Off-target engine<br/>(population / haplotype)"]
+    end
+    subgraph F["Foundations"]
+        GA["Genome access<br/>(FASTA, FM-index)"]
+        DR["Data registry<br/>(gnomAD, ClinVar, consent-gated)"]
+        MZ["Model zoo<br/>(license + checksum gate)"]
+        CT["Core types and schemas"]
+    end
+    RUST["Rust / PyO3 — aforge_native: BWT off-target search · k-mer seeding · haplotype walking"]
+
+    I --> O --> D --> F
+    OT -.calls.-> RUST
+    EN -.calls.-> RUST
+```
+
+The variant-first request flows through the pipeline in one pass:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant R as Resolver
+    participant Rt as Router
+    participant E as Enumerators
+    participant S as Scorers
+    participant X as Off-target engine
+    participant K as Ranker
+
+    U->>R: ClinVar / rsID / HGVS / VCF / coords
+    R->>Rt: normalized Variant and consequence
+    Rt->>E: eligible chemistries (nuclease / base / prime)
+    E->>S: candidate guides and pegRNAs
+    Note over S: efficiency and outcome (calibrated Prediction)
+    E->>X: spacers and nicks
+    Note over X: reference, then population, then haplotype, then patient VCF
+    S->>K: scored candidates
+    X->>K: ancestry-stratified off-target reports
+    K-->>U: RankedMenu (Pareto front, provenance, disclaimer)
+```
+
 ## Build status
 
-AlleleForge is built in ordered phases against [the specification](https://github.com/clay-good/alleleforge/blob/main/SPEC.md).
-The foundations land before any chemistry-specific or ML code.
+All fifteen v0.1.0 phases are **complete**: three chemistries end to end with honest uncertainty and the
+benchmark. AlleleForge is built in ordered phases against
+[the specification](https://github.com/clay-good/alleleforge/blob/main/SPEC.md) — the foundations land
+before any chemistry-specific or ML code.
 
 | Phase | Component | Status |
 |---|---|:---:|
@@ -42,10 +104,13 @@ The foundations land before any chemistry-specific or ML code.
 | 11 | Reporting & oligo output (`report/`) | done |
 | 12 | CLI (`aforge`) (`cli/`) | done |
 | 13 | Web UI & API (`web/`) | done |
-| 14 | CRISPR-Bench: benchmark, splits, leaderboard | next |
-| 15 | Documentation, examples, release | planned |
+| 14 | CRISPR-Bench: benchmark, splits, leaderboard | done |
+| 15 | Documentation, examples, release | done |
 
-See [Data provenance](data.md) for the versioned, license-aware dataset registry.
+Post-v0.1.0 work to "bake" the release toward v1.0 (real weights through the consent-gated model zoo,
+native kernels on the hot paths, external-tool adapters, scale, and validation) is tracked in
+[`SPEC_V2.md`](https://github.com/clay-good/alleleforge/blob/main/SPEC_V2.md). See
+[Data provenance](data.md) for the versioned, license-aware dataset registry.
 
 ## The uncertainty contract in one snippet
 

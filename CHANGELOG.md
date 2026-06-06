@@ -544,6 +544,15 @@ acceptance.
   so the draft never overstates what is measured. Wired into the docs nav (under a
   *Methods preprint* section) and linked from the outline, the README roadmap, and
   the citation block.
+- **Docs — rendered diagrams on the published site + status fix.** Enabled
+  Material's native **Mermaid** rendering (`pymdownx.superfences` custom fence) so
+  the documentation site renders architecture and sequence diagrams as figures
+  rather than code blocks, and gave the docs home (`docs/index.md`) the layered
+  **architecture flowchart** and the **variant-first journey** sequence diagram that
+  the README already carried. Fixed the stale build-status table on the docs home
+  (Phase 14 CRISPR-Bench and Phase 15 docs/examples/release were still marked
+  *next*/*planned* — both have shipped; all fifteen v0.1.0 phases now read *done*),
+  and pointed the post-v0.1.0 roadmap at `SPEC_V2.md`.
 - **R0 — supply-chain hardening.** Dependabot now tracks all three dependency
   surfaces — `pip`, `cargo`, and `github-actions` (`.github/dependabot.yml`,
   grouped weekly PRs); a CI `security` job runs `pip-audit` (PyPI advisory DB)
