@@ -169,7 +169,9 @@ in [`SPEC_V2.md`](SPEC_V2.md)**:
 **Landed since v0.1.0.** R0 — Dependabot across pip/cargo/actions, a CI `pip-audit`+`cargo audit`
 job, a CycloneDX SBOM on release, and a `scripts/reproduce.py` reproducibility audit gated in CI.
 R1 — the consent/license/checksum resolution wired for the backbone and every trained scorer through
-a shared `WeightGate` (the trained forward pass stays `real_weights`-gated). R2 — **all three spec
+a shared `WeightGate`, plus a backbone **ONNX export** path (`export_onnx`, dynamic batch/sequence
+axes, opset 17) for portable inference (the trained forward pass and the export both stay
+`real_weights`-gated). R2 — **all three spec
 kernels (`bwt`/`kmer`/`haplotype`) are now on their hot paths**: a **true-linear SA-IS**
 FM-index build, a native k-mer seed kernel, **FM-index seed-and-extend wired into the engine's
 reference scan** (auto-engaged past 1 Mb, byte-identical to the linear scan), and a **native
@@ -232,7 +234,6 @@ pip install -e ".[core,genome,variant,cli,ml,dev]"
 | `cli` | typer | the `aforge` command-line interface (Phase 12) |
 | `web` | fastapi, uvicorn, httpx | the web API + served frontend (Phase 13) |
 | `ml` | torch, transformers, lightning, scikit-learn | real embedding backbones (Phase 6+); the uncertainty core needs none of these |
-| `web` | fastapi, uvicorn | API server (Phase 13) |
 | `docs` | mkdocs-material, mkdocstrings | documentation site |
 | `dev` | ruff, mypy, pytest, hypothesis, maturin | development |
 
@@ -1089,7 +1090,7 @@ alleleforge/
 │   ├── enumerate/            # Phases 7–9: SpCas9 guide · base-editor window · pegRNA enumeration
 │   ├── design/               # Phases 7–10: nuclease · base · prime verticals + designer (routing · ranking) + cohort (R4 batch)
 │   ├── report/               # Phase 11: oligos · report builder · JSON/TSV/Parquet · HTML · PDF
-│   ├── cli/                   # Phase 12: the aforge Typer CLI (resolve · design · offtarget · data · bench)
+│   ├── cli/                   # Phase 12: the aforge Typer CLI (resolve · design · batch · offtarget · data · bench)
 │   ├── web/                   # Phase 13: FastAPI api/ + served frontend/ (variant-first journey)
 │   ├── benchmark/             # Phase 14: CRISPR-Bench — tasks · datasets · frozen splits · runner · leaderboard
 │   └── ...

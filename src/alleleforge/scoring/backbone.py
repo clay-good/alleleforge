@@ -284,9 +284,47 @@ class _HuggingFaceEmbedder(WeightGate):
             out.append(tuple(float(v) for v in vec))
         return out
 
-    def export_onnx(self, path: str) -> None:  # pragma: no cover - requires weights
-        """Export the loaded model to ONNX (optional acceleration path)."""
-        raise NotImplementedError("ONNX export is wired up alongside the real-weights path")
+    def export_onnx(
+        self, path: str, *, sample_sequence: str = "ACGT" * 16
+    ) -> None:  # pragma: no cover - requires weights
+        """Export the loaded backbone to ONNX for portable inference.
+
+        Resolves the weights (consent-gated) if not already loaded, traces the
+        model on a tokenized ``sample_sequence``, and writes a dynamic-axes ONNX
+        graph to ``path`` so the backbone can run under any ONNX runtime without
+        torch/transformers at inference time. Batch and sequence dimensions are
+        marked dynamic so the exported graph accepts variable-length inputs.
+
+        Args:
+            path: Destination ``.onnx`` file path.
+            sample_sequence: A representative DNA sequence used only to trace the
+                graph (its content does not affect the exported weights).
+        """
+        torch, _, _ = _require_transformers()
+        if self._model is None:
+            self._load()
+        ids = self._tokenizer(
+            sample_sequence,
+            return_tensors="pt",
+            truncation=True,
+            max_length=self.context_window,
+        ).to(self.device)
+        input_names = list(ids.keys())
+        dynamic_axes: dict[str, dict[int, str]] = {
+            name: {0: "batch", 1: "sequence"} for name in input_names
+        }
+        dynamic_axes["last_hidden_state"] = {0: "batch", 1: "sequence"}
+        with torch.no_grad():
+            torch.onnx.export(
+                self._model,
+                tuple(ids.values()),
+                path,
+                input_names=input_names,
+                output_names=["last_hidden_state"],
+                dynamic_axes=dynamic_axes,
+                do_constant_folding=True,
+                opset_version=17,
+            )
 
 
 class NucleotideTransformerEmbedder(_HuggingFaceEmbedder):

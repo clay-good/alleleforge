@@ -100,7 +100,11 @@ published models, with the checkpoint recorded in every result's provenance.
   - Base-edit outcome: **BE-DICT / BE-Hive** adapters gated (◐); forward pass next.
   - Prime efficiency: **DeepPrime / GenET** adapters gated (◐); PRIDICT2.0 trained
     weights replace the heuristic next.
-- **ONNX export** path (`export_onnx`) for the backbone, for portable inference.
+- **ONNX export** path (`export_onnx`, ◐ landed): the backbone exports to a
+  dynamic-axes ONNX graph (batch + sequence dims dynamic, opset 17) by tracing the
+  consent-resolved model on a sample sequence, for portable inference under any
+  ONNX runtime. The export code is wired now; running it needs the `ml` extra +
+  real weights, so it stays `real_weights`-gated like the tensor load.
 
 **Defaults & decisions.** Default backbone stays **Nucleotide Transformer v2
 (500M)**; it is **CC-BY-NC-SA** — loadable for research, refused for commercial

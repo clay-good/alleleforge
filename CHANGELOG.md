@@ -324,6 +324,15 @@ acceptance.
   real tensor load stays behind the `real_weights` marker. The default backbone
   (Nucleotide Transformer v2, CC-BY-NC-SA) is loadable for research and refused
   for commercial use by the license gate.
+- **R1 — backbone ONNX export path (`export_onnx`).** The HuggingFace backbone
+  embedders now export the consent-resolved model to a portable ONNX graph
+  (`_HuggingFaceEmbedder.export_onnx(path, *, sample_sequence=...)`): the model is
+  resolved through the same consent gate, traced on a sample sequence, and written
+  with **dynamic batch and sequence axes** (opset 17) so it runs under any ONNX
+  runtime without torch/transformers at inference time. This replaces the prior
+  `NotImplementedError` stub. The export code is wired now; running it needs the
+  `ml` extra and real weights, so — like the tensor forward pass — it stays behind
+  the `real_weights` marker.
 - **R1 — consent-gated trained prime-efficiency adapters.** The trained
   prime-editing efficiency adapters (`DeepPrimeAdapter`, `GenETAdapter`) now
   resolve their weights through the same consent/license/checksum flow as the
