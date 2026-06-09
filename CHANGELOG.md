@@ -647,6 +647,21 @@ acceptance.
 
 ### Fixed
 
+- **Ancestry stratification is now byte-deterministic.**
+  `OffTargetReport.ancestry_stratification()` built its per-ancestry mapping by
+  iterating a `set`, and `worst_ancestry()` then took `max()` over that mapping —
+  so the **key order** of the returned/serialized strata, and the ancestry chosen
+  on a worst-case **tie**, depended on the process hash seed and varied run to
+  run. That is a reproducibility break in a safety-relevant output (the worst-
+  affected ancestry drives the ranking's safety term and appears verbatim in
+  reports and the `aforge offtarget` / `POST /api/offtarget` JSON), even though
+  the values themselves were always correct. The reproducibility golden missed it
+  because its canonicalizer sorts dict keys before hashing and the canonical run
+  has no ancestry tie. Ancestries are now emitted in **sorted order** and a
+  worst-case tie resolves to the **alphabetically-first** ancestry, so the
+  serialized report is identical across runs and machines. Pinned by a test that
+  passes under varying `PYTHONHASHSEED`.
+
 - **VEP transcript selection now prefers MANE Select with strict priority.** For
   the default `transcript="MANE_SELECT"`, `_select_transcript` returned the first
   consequence block that was MANE Select **or** canonical in a single pass — so a

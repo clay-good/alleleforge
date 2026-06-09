@@ -123,6 +123,25 @@ def test_ancestry_stratification_reference_contributes_to_all() -> None:
     assert rep.worst_ancestry() == ("AFR", pytest.approx(0.9))
 
 
+def test_ancestry_stratification_is_deterministically_ordered() -> None:
+    # The strata mapping must come out in sorted-key order, and a worst-case tie
+    # must resolve to the alphabetically-first ancestry, so the serialized report
+    # is byte-stable regardless of the process hash seed (a bare set iteration
+    # would otherwise vary the key order — and the tie-break — run to run).
+    rep = OffTargetReport(
+        spacer="A" * 20,
+        pam="NGG",
+        sites=(
+            _pop_site(0.5, "eur", 0.10),
+            _pop_site(0.5, "afr", 0.10),  # ties with eur at the worst score
+            _pop_site(0.3, "eas", 0.05),
+        ),
+    )
+    strata = rep.ancestry_stratification()
+    assert list(strata) == sorted(strata)  # deterministic key order
+    assert rep.worst_ancestry() == ("afr", pytest.approx(0.5))  # tie -> alphabetically first
+
+
 def test_worst_ancestry_none_without_annotation() -> None:
     rep = OffTargetReport(spacer="A" * 20, pam="NGG", sites=(_ref_site(0.5),))
     assert rep.worst_ancestry() is None

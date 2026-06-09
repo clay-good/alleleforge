@@ -140,13 +140,16 @@ class OffTargetReport(BaseModel):
 
         For each ancestry mentioned by any site, reports the maximum site score
         among sites carrying a non-zero frequency in that ancestry. Reference
-        sites (present in every genome) contribute to every ancestry.
+        sites (present in every genome) contribute to every ancestry. Ancestries
+        are emitted in sorted order so the returned mapping — and anything that
+        serializes it — is byte-stable across runs (a bare ``set`` iteration would
+        vary with the process hash seed).
         """
         strata: dict[str, float] = {}
         ancestries: set[str] = set()
         for site in self.sites:
             ancestries.update(site.ancestries)
-        for ancestry in ancestries:
+        for ancestry in sorted(ancestries):
             best = 0.0
             for site in self.sites:
                 if site.origin is SiteOrigin.REFERENCE:
@@ -159,10 +162,13 @@ class OffTargetReport(BaseModel):
     def worst_ancestry(self) -> tuple[str, float] | None:
         """Return the ``(ancestry, score)`` with the highest worst-case score.
 
-        Returns ``None`` when no site carries ancestry annotation.
+        Returns ``None`` when no site carries ancestry annotation. A tie on the
+        worst-case score resolves to the alphabetically-first ancestry, so the
+        result is deterministic (and the safety penalty it drives is byte-stable)
+        rather than depending on hash-seed-varying iteration order.
         """
         strata = self.ancestry_stratification()
         if not strata:
             return None
-        ancestry = max(strata, key=lambda a: strata[a])
+        ancestry = max(sorted(strata), key=lambda a: strata[a])
         return ancestry, strata[ancestry]
