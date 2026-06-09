@@ -25,6 +25,7 @@ TSV_COLUMNS = (
     "efficiency_low",
     "efficiency_high",
     "in_distribution",
+    "bystander_burden",
     "p_intended",
     "n_offtarget_sites",
     "worst_ancestry",
@@ -47,6 +48,7 @@ def menu_to_json(menu: RankedMenu, *, indent: int | None = 2) -> str:
 def _row(candidate: Any) -> dict[str, Any]:
     """Flatten one :class:`CandidateReport` into a TSV/Parquet row dict."""
     eff = candidate.efficiency
+    burden = candidate.bystander_burden
     worst = candidate.offtarget_by_ancestry[0] if candidate.offtarget_by_ancestry else None
     return {
         "rank": candidate.rank,
@@ -56,6 +58,7 @@ def _row(candidate: Any) -> dict[str, Any]:
         "efficiency_low": None if eff is None else round(eff.interval[0], 4),
         "efficiency_high": None if eff is None else round(eff.interval[1], 4),
         "in_distribution": None if eff is None else eff.in_distribution,
+        "bystander_burden": None if burden is None else round(burden.value, 4),
         "p_intended": None if candidate.p_intended is None else round(candidate.p_intended, 4),
         "n_offtarget_sites": candidate.n_offtarget_sites,
         "worst_ancestry": None if worst is None else worst.ancestry,

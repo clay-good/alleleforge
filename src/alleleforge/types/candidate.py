@@ -26,7 +26,11 @@ class DesignCandidate(BaseModel):
         guide: The reagent, when it is a Cas9 nuclease guide.
         base_edit_window: The reagent, when it is a base-editor sgRNA + window.
         pegrna: The reagent, when it is a prime-editing pegRNA.
-        efficiency: Calibrated on-target efficiency prediction.
+        efficiency: Calibrated on-target efficiency prediction. For base editing
+            this carries ``p_intended_exact`` (the probability of the exact
+            intended allele), the dimension the chemistry is ranked on.
+        bystander_burden: Calibrated expected number of bystander edits, for
+            base-editor candidates (``None`` for nuclease / prime candidates).
         outcome: Predicted edit-outcome distribution.
         offtarget: Ancestry-stratified off-target report.
         flags: Free-form annotations (e.g. ``"ood"``, ``"bystander-risk"``).
@@ -40,6 +44,7 @@ class DesignCandidate(BaseModel):
     base_edit_window: BaseEditWindow | None = None
     pegrna: PegRNA | None = None
     efficiency: Prediction[float] | None = None
+    bystander_burden: Prediction[float] | None = None
     outcome: EditOutcome | None = None
     offtarget: OffTargetReport | None = None
     flags: tuple[str, ...] = ()

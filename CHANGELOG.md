@@ -630,6 +630,24 @@ acceptance.
   Docker/composite actions (`gh-action-pypi-publish`, `dtolnay/rust-toolchain`) are
   unaffected by the Node deprecation.
 
+### Fixed
+
+- **Base-editor `bystander_burden` is now persisted on the candidate.** The
+  window-outcome predictor returns two calibrated `Prediction`s per base-editor
+  candidate — `p_intended_exact` and `bystander_burden` (SPEC §8) — but only the
+  first was stored (as `DesignCandidate.efficiency`); the bystander burden was
+  rendered into the human-readable `flags`/`rationale` strings and then dropped,
+  so it was absent from every machine-readable surface (JSON, TSV, Parquet, the
+  ranked menu, the web API). `DesignCandidate` and `CandidateReport` gained a
+  structured `bystander_burden: Prediction[float] | None` field, carried through
+  the report builder, exports (a new `bystander_burden` TSV/Parquet column), the
+  HTML/PDF renderers (now showing the calibrated value + interval, not just the
+  flag), and the cohort batch summary (`best_bystander_burden`, in the JSONL
+  manifest and per-item TSV). Schemas regenerated; the reproducibility golden
+  re-pinned to the canonical ABE run that now serializes the field. The
+  cleanliness/bystander tradeoff the vertical is *ranked* on is now exportable,
+  not just printable.
+
 ### Security
 
 - **Bumped PyO3 `0.22.6` → `0.24.2`** in the `aforge_native` crate, resolving

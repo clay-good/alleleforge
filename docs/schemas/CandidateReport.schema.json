@@ -273,8 +273,18 @@
       "type": "object"
     }
   },
-  "description": "One candidate, flattened for presentation and export.\n\nAttributes:\n    rank: 1-based rank within the menu.\n    chemistry: The candidate's chemistry.\n    on_pareto_front: Whether the candidate is Pareto-optimal.\n    reagent: A one-line human description of the reagent.\n    efficiency: The calibrated efficiency prediction, if scored.\n    p_intended: Summed probability of the intended allele(s), if scored.\n    outcome_top: The highest-probability outcome alleles (descending).\n    n_offtarget_sites: Number of nominated off-target sites, if searched.\n    offtarget_specificity: Aggregate genome-wide specificity in ``(0, 1]``\n        (Hsu-2013-style ``1/(1+\u03a3 scores)``), if searched; ``1.0`` = no off-targets.\n    offtarget_by_ancestry: Worst-case off-target score per ancestry.\n    oligos: Cloning-ready oligos for the reagent, if requested.\n    flags: Free-form candidate flags.\n    rationale: The candidate's ranking rationale.",
+  "description": "One candidate, flattened for presentation and export.\n\nAttributes:\n    rank: 1-based rank within the menu.\n    chemistry: The candidate's chemistry.\n    on_pareto_front: Whether the candidate is Pareto-optimal.\n    reagent: A one-line human description of the reagent.\n    efficiency: The calibrated efficiency prediction, if scored.\n    bystander_burden: Calibrated expected bystander-edit count, for\n        base-editor candidates (``None`` otherwise).\n    p_intended: Summed probability of the intended allele(s), if scored.\n    outcome_top: The highest-probability outcome alleles (descending).\n    n_offtarget_sites: Number of nominated off-target sites, if searched.\n    offtarget_specificity: Aggregate genome-wide specificity in ``(0, 1]``\n        (Hsu-2013-style ``1/(1+\u03a3 scores)``), if searched; ``1.0`` = no off-targets.\n    offtarget_by_ancestry: Worst-case off-target score per ancestry.\n    oligos: Cloning-ready oligos for the reagent, if requested.\n    flags: Free-form candidate flags.\n    rationale: The candidate's ranking rationale.",
   "properties": {
+    "bystander_burden": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Prediction_float_"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "chemistry": {
       "$ref": "#/$defs/Chemistry"
     },
@@ -386,6 +396,7 @@
     "on_pareto_front",
     "reagent",
     "efficiency",
+    "bystander_burden",
     "p_intended",
     "outcome_top",
     "n_offtarget_sites",

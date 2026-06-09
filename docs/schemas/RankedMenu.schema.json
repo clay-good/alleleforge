@@ -213,12 +213,23 @@
       "type": "object"
     },
     "DesignCandidate": {
-      "description": "One scored design option for a variant.\n\nAttributes:\n    chemistry: The chemistry this candidate uses.\n    guide: The reagent, when it is a Cas9 nuclease guide.\n    base_edit_window: The reagent, when it is a base-editor sgRNA + window.\n    pegrna: The reagent, when it is a prime-editing pegRNA.\n    efficiency: Calibrated on-target efficiency prediction.\n    outcome: Predicted edit-outcome distribution.\n    offtarget: Ancestry-stratified off-target report.\n    flags: Free-form annotations (e.g. ``\"ood\"``, ``\"bystander-risk\"``).\n    rationale: Human-readable note on this candidate's standing.",
+      "description": "One scored design option for a variant.\n\nAttributes:\n    chemistry: The chemistry this candidate uses.\n    guide: The reagent, when it is a Cas9 nuclease guide.\n    base_edit_window: The reagent, when it is a base-editor sgRNA + window.\n    pegrna: The reagent, when it is a prime-editing pegRNA.\n    efficiency: Calibrated on-target efficiency prediction. For base editing\n        this carries ``p_intended_exact`` (the probability of the exact\n        intended allele), the dimension the chemistry is ranked on.\n    bystander_burden: Calibrated expected number of bystander edits, for\n        base-editor candidates (``None`` for nuclease / prime candidates).\n    outcome: Predicted edit-outcome distribution.\n    offtarget: Ancestry-stratified off-target report.\n    flags: Free-form annotations (e.g. ``\"ood\"``, ``\"bystander-risk\"``).\n    rationale: Human-readable note on this candidate's standing.",
       "properties": {
         "base_edit_window": {
           "anyOf": [
             {
               "$ref": "#/$defs/BaseEditWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "bystander_burden": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Prediction_float_"
             },
             {
               "type": "null"

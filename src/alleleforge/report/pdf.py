@@ -44,6 +44,13 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
             f"@ {e.interval_level:.0%}{ood}",
             indent="    ",
         )
+    if c.bystander_burden is not None:
+        b = c.bystander_burden
+        lines += _wrap(
+            f"bystander burden {b.value:.2f} [{b.interval[0]:.2f}, {b.interval[1]:.2f}] "
+            f"@ {b.interval_level:.0%}",
+            indent="    ",
+        )
     if c.p_intended is not None:
         lines += _wrap(f"P(intended) = {c.p_intended:.2f}", indent="    ")
     for a in c.outcome_top:

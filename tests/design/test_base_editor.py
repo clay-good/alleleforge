@@ -57,6 +57,20 @@ def test_bystander_tradeoff_surfaced(make_reference: MakeRef) -> None:
     assert top.rationale is not None and "bystander" in top.rationale
 
 
+def test_bystander_burden_persisted_as_calibrated_prediction(make_reference: MakeRef) -> None:
+    # SPEC §8: bystander_burden is a calibrated Prediction and must survive on the
+    # candidate (structured), not only in the human-readable flags/rationale.
+    ref, rv = _abe_case(make_reference)
+    for c in design_base_editor(rv, EditIntent.INSTALL, reference=ref):
+        assert c.bystander_burden is not None
+        assert c.bystander_burden.value >= 0.0
+        assert (
+            c.bystander_burden.interval[0]
+            <= c.bystander_burden.value
+            <= c.bystander_burden.interval[1]
+        )
+
+
 def test_ranked_by_exact_intended(make_reference: MakeRef) -> None:
     ref, rv = _abe_case(make_reference)
     cands = design_base_editor(rv, EditIntent.INSTALL, reference=ref)

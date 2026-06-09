@@ -78,6 +78,8 @@ class CandidateReport(BaseModel):
         on_pareto_front: Whether the candidate is Pareto-optimal.
         reagent: A one-line human description of the reagent.
         efficiency: The calibrated efficiency prediction, if scored.
+        bystander_burden: Calibrated expected bystander-edit count, for
+            base-editor candidates (``None`` otherwise).
         p_intended: Summed probability of the intended allele(s), if scored.
         outcome_top: The highest-probability outcome alleles (descending).
         n_offtarget_sites: Number of nominated off-target sites, if searched.
@@ -96,6 +98,7 @@ class CandidateReport(BaseModel):
     on_pareto_front: bool
     reagent: str
     efficiency: Prediction[float] | None
+    bystander_burden: Prediction[float] | None
     p_intended: float | None
     outcome_top: tuple[AlleleOutcome, ...]
     n_offtarget_sites: int | None
@@ -171,6 +174,7 @@ def _candidate_report(
         on_pareto_front=on_pareto_front,
         reagent=_reagent_summary(candidate),
         efficiency=candidate.efficiency,
+        bystander_burden=candidate.bystander_burden,
         p_intended=p_intended,
         outcome_top=outcome_top,
         n_offtarget_sites=n_sites,

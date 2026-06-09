@@ -113,6 +113,9 @@ def _summarize(menu: RankedMenu) -> dict[str, Any]:
         "chemistries": sorted({c.chemistry.value for c in menu.candidates}),
         "best_chemistry": best.chemistry.value if best else None,
         "best_efficiency": (best.efficiency.value if best and best.efficiency else None),
+        "best_bystander_burden": (
+            best.bystander_burden.value if best and best.bystander_burden else None
+        ),
         "worst_offtarget": worst_ot,
         "best_specificity": best_specificity,
     }

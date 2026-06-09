@@ -114,6 +114,7 @@ def design_base_editor(
             chemistry=editor.chemistry,
             base_edit_window=window,
             efficiency=outcome.p_intended_exact,  # ranked on clean-edit probability
+            bystander_burden=outcome.bystander_burden,
             outcome=outcome.outcome,
             offtarget=offreport,
             flags=_flags(window, outcome, offreport),

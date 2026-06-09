@@ -53,6 +53,9 @@ def test_designs_cohort_and_summarizes(reference: ReferenceGenome) -> None:
     # The cohort summary carries the best candidate's aggregate specificity for triage.
     spec = best.summary["best_specificity"]
     assert spec is None or 0.0 < spec <= 1.0
+    # ...and, for base-editor cohorts, the best candidate's bystander burden.
+    burden = best.summary["best_bystander_burden"]
+    assert burden is not None and burden >= 0.0
 
 
 def test_per_item_error_is_captured_not_fatal(reference: ReferenceGenome) -> None:

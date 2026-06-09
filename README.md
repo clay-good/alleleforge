@@ -646,9 +646,13 @@ chemistry, window, PAM, motif preference) is a one-descriptor change, not code.
 | **CBE4max** | APOBEC1 | C→T | 4–8 | TC (prefers 5′ T) |
 | **evoCDA1** | evoCDA1 | C→T | 2–10 | none (broad window) |
 
-Every candidate carries the tradeoff explicitly — `bystander-present:N` / `clean`, a `bystander-burden`
-score, the full window-allele distribution, and an ancestry-stratified off-target report — so the
-recommendation is the cleanest editor/guide combination, not just the first one found.
+Every candidate carries the tradeoff explicitly — the `bystander-present:N` / `clean` flag, the full
+window-allele distribution, an ancestry-stratified off-target report, and a **calibrated
+`bystander_burden`** (the expected number of bystander edits, with an 80% interval) persisted as a
+structured field on the candidate. The burden the ranking minimizes is therefore exportable, not just
+printable: it rides through the JSON/TSV/Parquet exports (a `bystander_burden` column), the HTML/PDF
+reports, and the cohort batch summary (`best_bystander_burden`), alongside the `p_intended_exact` it is
+ranked against. The recommendation is the cleanest editor/guide combination, not just the first one found.
 
 ---
 
@@ -782,7 +786,7 @@ the `batch` subcommand auto-detects a VCF (cyvcf2 fast path) vs a one-variant-pe
 # Whole-VCF cohort → resumable run, durable per-sample menus, a per-item TSV summary
 aforge batch cohort.vcf.gz --reference-fasta hg38.fa --intent correct \
     --manifest run.jsonl --output-dir menus/ --summary-tsv summary.tsv --max-workers 8
-# Summary columns: best_chemistry · best_efficiency · worst_offtarget · best_specificity · n_candidates
+# Summary columns: best_chemistry · best_efficiency · best_bystander_burden · worst_offtarget · best_specificity · n_candidates
 ```
 
 …and over HTTP from the [web API](#web-ui--api-phase-13-shipping-now): `POST /api/batch` takes a JSON
