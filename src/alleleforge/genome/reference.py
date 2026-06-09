@@ -17,6 +17,7 @@ coordinates.
 from __future__ import annotations
 
 import hashlib
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -162,6 +163,14 @@ class ReferenceGenome:
 
     Construct directly from a local FASTA path, or via
     :meth:`from_build` to resolve a built-in build (downloading on consent).
+
+    A single instance is **safe to share across threads**: the underlying
+    ``pyfaidx`` handle keeps a shared file position (a seek+read is not atomic),
+    so concurrent reads would otherwise return interleaved, wrong bytes. Each
+    file read is guarded by a per-instance lock, so the web server (whose sync
+    handlers run in a threadpool over one shared reference) and any other
+    multi-threaded caller get correct sequence; the lock covers only the read,
+    not the CPU-bound design/search work that follows it.
     """
 
     def __init__(
@@ -182,6 +191,7 @@ class ReferenceGenome:
         self.build = build
         self.dataset_version = dataset_version
         self._fasta = Fasta(str(self.path), sequence_always_upper=True, rebuild=False)
+        self._lock = threading.Lock()  # pyfaidx Fasta is not thread-safe; serialize reads
 
     @classmethod
     def from_build(
@@ -273,11 +283,14 @@ class ReferenceGenome:
         if interval.chrom not in self._fasta:
             raise KeyError(f"unknown contig {interval.chrom!r}")
 
-        length = len(self._fasta[interval.chrom])
         start, end = interval.start, interval.end
-        real_lo = min(max(start, 0), length)
-        real_hi = max(min(end, length), real_lo)
-        core = str(self._fasta[interval.chrom][real_lo:real_hi]) if real_hi > real_lo else ""
+        # The pyfaidx handle has a shared file position, so the read (seek+slice)
+        # is not thread-safe; hold the per-instance lock for the read only.
+        with self._lock:
+            length = len(self._fasta[interval.chrom])
+            real_lo = min(max(start, 0), length)
+            real_hi = max(min(end, length), real_lo)
+            core = str(self._fasta[interval.chrom][real_lo:real_hi]) if real_hi > real_lo else ""
         left_pad = max(0, -start)
         right_pad = (end - start) - (real_hi - real_lo) - left_pad
         plus = "N" * left_pad + core.upper() + "N" * right_pad

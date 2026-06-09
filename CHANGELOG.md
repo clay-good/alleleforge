@@ -647,6 +647,23 @@ acceptance.
 
 ### Fixed
 
+- **`ReferenceGenome` is now thread-safe for concurrent reads.** The web app
+  holds a single shared `ReferenceGenome` on `app.state`, and its compute
+  handlers (`/api/design`, `/api/offtarget`, `/api/batch`) are sync `def`s —
+  which FastAPI runs in a threadpool, so concurrent requests fetch from that one
+  handle on different threads at the same time. `pyfaidx` keeps a shared file
+  position (a seek+read is not atomic), so those concurrent fetches could
+  silently return interleaved, wrong reference bytes — corrupting the very
+  sequence the off-target and edit design depend on, under nothing more exotic
+  than two simultaneous requests. The cohort path already knew pyfaidx isn't
+  thread-safe to share (it hands each worker its own handle via a
+  `reference_factory`); the web layer did not. `ReferenceGenome.fetch_result`
+  now guards the pyfaidx read with a per-instance lock, covering only the read
+  (not the CPU-bound design/search that follows), so a shared instance is
+  correct under concurrency while compute still parallelizes. Pinned by a test
+  that fetches many varied intervals across a threadpool and asserts each is
+  byte-exact.
+
 - **Robustness: enumeration margins and the mmap loader no longer crash/leak on
   edge inputs.** Three small hardening fixes, swept as a class:
   - `enumerate_prime(..., pbs_lengths=())` and `enumerate_base_edits(..., editors=())`

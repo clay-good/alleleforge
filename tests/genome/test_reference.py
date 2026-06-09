@@ -159,3 +159,27 @@ def test_from_build_uses_cached_copy_without_downloading(tmp_path: Path) -> None
         assert str(ref.fetch(_iv("chr2", 0, 4))) == "TTTT"
     finally:
         ref.close()
+
+
+def test_concurrent_fetches_are_thread_safe(tiny_fasta: Path) -> None:
+    # A single ReferenceGenome is shared across threads by the web server (its
+    # sync handlers run in a threadpool). pyfaidx has a shared file position, so
+    # without the per-instance read lock concurrent fetches race and threads read
+    # each other's bytes. Fetch many varied intervals concurrently and assert each
+    # returns exactly its expected slice.
+    import concurrent.futures
+
+    full = "ACGTACGTACGTACGTACGT"
+    cases = [(s, e, full[s:e]) for s in range(0, 16) for e in range(s + 1, 21)]
+    ref = ReferenceGenome(tiny_fasta)
+
+    def _check(case: tuple[int, int, str]) -> bool:
+        s, e, expected = case
+        return all(str(ref.fetch(_iv("chr1", s, e))) == expected for _ in range(10))
+
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=12) as pool:
+            results = list(pool.map(_check, cases))
+    finally:
+        ref.close()
+    assert all(results)
