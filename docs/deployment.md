@@ -71,6 +71,30 @@ JBrowse 2 frontend behind the unchanged API.
     a test that fails if any socket connects during a design request. The served
     frontend loads no third-party scripts.
 
+## Concurrency & scaling
+
+The design/off-target/batch endpoints are CPU-bound, so they are **synchronous**
+handlers — Starlette runs them in a worker threadpool, which means a single
+uvicorn process serves concurrent requests on multiple threads. Two properties
+matter for an operator:
+
+- **A shared reference is safe under concurrency.** All requests in a process
+  share one `ReferenceGenome`; its `pyfaidx` handle keeps a single file position,
+  so each read is guarded by a per-instance lock (the lock covers only the read,
+  not the CPU-bound design that follows). Concurrent requests therefore get
+  correct sequence — but genome reads serialize, and CPU work shares the GIL, so
+  a single process does not give linear throughput on many parallel designs.
+- **The async job queue is per-process.** `POST /api/jobs/design` schedules an
+  in-process `asyncio` task; a job submitted to one process is only visible to
+  that process. This is exactly right for the default single-process deployment.
+
+To scale out, run multiple `uvicorn --workers N` (or replicas): each is a separate
+process with **its own reference** (memory scales with N × genome size — size the
+host accordingly) and **its own job queue** (so route a job's submit and its
+status polls to the same worker via session affinity, or swap `JobManager` for a
+shared broker behind its unchanged interface). For CPU parallelism specifically,
+prefer more processes over threads — the GIL bounds intra-process speedup.
+
 ## Configuration & reproducibility
 
 Settings resolve in this order (later wins): field defaults →
