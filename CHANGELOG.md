@@ -632,6 +632,28 @@ acceptance.
 
 ### Fixed
 
+- **`aforge offtarget --json` now emits the full per-site audit set.** The CLI
+  hand-flattened each off-target site into a dict that dropped `mit_score` (added
+  in this release), `dna_bulges`/`rna_bulges`, the causal-allele `frequency`, and
+  the per-site `ancestries` — even though `POST /api/offtarget` returns all of
+  them (it serializes the whole report). A pipeline reading the CLI JSON saw a
+  strictly poorer record than an HTTP client of the same engine. The flattened
+  shape is kept (friendly `locus` string, `method` key) but now carries every
+  field, so the two surfaces are at parity; the human one-liner also shows the
+  MIT score when defined. Pinned by an extended CLI test.
+
+- **Model provenance now carries each model's documented failure modes.**
+  `ModelCard.known_failure_modes` is parsed, validated, and required of every
+  bundled card, but `ModelCard.to_checkpoint()` dropped it — so a result's
+  `provenance.models` named the exact checkpoints (name, version, hash, license,
+  citation) yet omitted the most safety-relevant card metadata. `ModelCheckpoint`
+  gained `known_failure_modes: tuple[str, ...]`, populated by `to_checkpoint()`,
+  so a `RankedMenu`/`BenchmarkResult` provenance block is **self-contained for
+  safety audit** — a consumer can check a design against what each model is
+  documented to get wrong without re-opening the cards. Schemas regenerated; the
+  reproducibility golden re-pinned (its stamped `be-dict`/`pridict2` checkpoints
+  now carry their failure modes — deterministic). Pinned by an extended test.
+
 - **Off-target sites now record the companion MIT score (`OffTargetSite.mit_score`).**
   The engine nominates a site when **either** its CFD clears `cfd_threshold`
   (default 0.20) **or** its MIT clears `mit_threshold` (default 0.10) — an OR.

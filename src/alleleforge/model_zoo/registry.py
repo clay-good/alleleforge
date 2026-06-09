@@ -144,6 +144,7 @@ class ModelCard(BaseModel):
             chemistry=self.chemistry,
             license=self.license,
             citation=self.citation,
+            known_failure_modes=self.known_failure_modes,
         )
 
 

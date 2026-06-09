@@ -429,6 +429,13 @@ def test_offtarget_json(runner: CliRunner, nuclease_fasta: Path) -> None:
     assert "n_sites" in data and "ancestry_stratification" in data
     assert data["spacer"] == "ACGTAACGTTACGTAACGTT"
     assert 0.0 < data["specificity"] <= 1.0  # aggregate genome-wide specificity
+    # Per-site JSON carries the full audit set, at parity with POST /api/offtarget:
+    # the MIT score, bulge counts, and population frequency/ancestries, not just CFD.
+    assert data["sites"], "expected at least the on-target-adjacent site"
+    site = data["sites"][0]
+    for field in ("mit_score", "dna_bulges", "rna_bulges", "frequency", "ancestries"):
+        assert field in site
+    assert site["mit_score"] == 1.0  # ungapped 20-nt perfect match -> recorded, not dropped
 
 
 def test_offtarget_human(runner: CliRunner, nuclease_fasta: Path) -> None:

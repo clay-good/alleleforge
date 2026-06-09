@@ -54,6 +54,10 @@ def test_bundled_card_to_checkpoint() -> None:
     assert ckpt.name == "rule-set-3"
     assert ckpt.chemistry == "cas9_nuclease"
     assert ckpt.license == "BSD-3-Clause"
+    # The card's documented failure modes ride into provenance so a result is
+    # self-contained for safety audit, not just name/version/license.
+    assert ckpt.known_failure_modes == card.known_failure_modes
+    assert ckpt.known_failure_modes
 
 
 # -- card validation ----------------------------------------------------------

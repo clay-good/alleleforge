@@ -579,11 +579,16 @@ def offtarget(
         {
             "locus": str(s.locus),
             "mismatches": s.mismatches,
+            "dna_bulges": s.dna_bulges,
+            "rna_bulges": s.rna_bulges,
             "score": round(s.score, 4),
             "method": s.score_method.value,
+            "mit_score": None if s.mit_score is None else round(s.mit_score, 4),
             "origin": s.origin.value,
             "causal_allele": s.causal_allele,
             "populations": list(s.populations),
+            "frequency": None if s.frequency is None else round(s.frequency, 6),
+            "ancestries": {a: round(v, 6) for a, v in s.ancestries.items()},
         }
         for s in report.sites
     ]
@@ -603,8 +608,9 @@ def offtarget(
         f"worst score {report.worst_score():.3f}, specificity {report.specificity_score():.3f}"
     ]
     for s in sites:
+        mit = f"  mit={s['mit_score']}" if s["mit_score"] is not None else ""
         human_lines.append(
-            f"  {s['locus']}  mm={s['mismatches']}  score={s['score']}  "
+            f"  {s['locus']}  mm={s['mismatches']}  score={s['score']}{mit}  "
             f"{s['origin']}{' ' + str(s['causal_allele']) if s['causal_allele'] else ''}"
         )
     _emit(payload, as_json=as_json, human="\n".join(human_lines))

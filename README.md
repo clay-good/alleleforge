@@ -572,7 +572,10 @@ consent/license/checksum flow is exercised in CI with an injected downloader —
 only the tensor load / forward pass itself stays behind the `real_weights` marker. Every model ships a
 bundled, license-gated card. Each menu's `provenance.models` records the card-backed `ModelCheckpoint`
 of **every model invoked** — deduped, scoped to the chemistries that ran, and rendered in the HTML/PDF
-report footer — so a result names the exact models that produced it. See [`SPEC_V2.md`](SPEC_V2.md) R1.
+report footer — so a result names the exact models that produced it. The checkpoint carries the card's
+`known_failure_modes` alongside its name, version, license, and citation, so the provenance is
+**self-contained for safety audit**: a consumer can check a design against what each model is documented
+to get wrong without re-opening the cards. See [`SPEC_V2.md`](SPEC_V2.md) R1.
 
 ### Uncertainty method cheat-sheet
 

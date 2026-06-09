@@ -59,6 +59,10 @@ class ModelCheckpoint(BaseModel):
         chemistry: The chemistry this model scores, if applicable.
         license: The model's license identifier.
         citation: Literature citation for the model.
+        known_failure_modes: The model card's documented failure modes, carried
+            into provenance so a result is self-contained for safety audit —
+            the consumer can check a design against what the models are known to
+            get wrong without re-opening the cards.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -69,6 +73,7 @@ class ModelCheckpoint(BaseModel):
     chemistry: str | None = None
     license: str | None = None
     citation: str | None = None
+    known_failure_modes: tuple[str, ...] = ()
 
 
 class Provenance(BaseModel):

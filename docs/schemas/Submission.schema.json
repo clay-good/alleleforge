@@ -138,7 +138,7 @@
       "type": "object"
     },
     "ModelCheckpoint": {
-      "description": "A content-hashed model checkpoint with its card metadata.\n\nAttributes:\n    name: Model identifier (e.g. ``\"PRIDICT2.0\"``).\n    version: Model version.\n    sha256: Content hash of the checkpoint file.\n    chemistry: The chemistry this model scores, if applicable.\n    license: The model's license identifier.\n    citation: Literature citation for the model.",
+      "description": "A content-hashed model checkpoint with its card metadata.\n\nAttributes:\n    name: Model identifier (e.g. ``\"PRIDICT2.0\"``).\n    version: Model version.\n    sha256: Content hash of the checkpoint file.\n    chemistry: The chemistry this model scores, if applicable.\n    license: The model's license identifier.\n    citation: Literature citation for the model.\n    known_failure_modes: The model card's documented failure modes, carried\n        into provenance so a result is self-contained for safety audit \u2014\n        the consumer can check a design against what the models are known to\n        get wrong without re-opening the cards.",
       "properties": {
         "chemistry": {
           "anyOf": [
@@ -163,6 +163,14 @@
           ],
           "default": null,
           "title": "Citation"
+        },
+        "known_failure_modes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Known Failure Modes",
+          "type": "array"
         },
         "license": {
           "anyOf": [
