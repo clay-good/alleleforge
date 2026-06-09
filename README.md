@@ -437,6 +437,11 @@ blindly. The report's worst-case is computed against the **worst-affected ancest
 average, and it rolls every site into one **aggregate genome-wide specificity score**
 (`specificity_score()`, see the cheat-sheet below).
 
+A population is annotated as carrying a site **only at or above the MAF safety threshold** — applied
+identically on the population-variant and haplotype paths, so the per-ancestry stratification can never
+attribute a site's burden to a population that merely shows a trace, sub-threshold frequency. The
+`populations` and `ancestries` provenance on each site are the *same* carrying set, by construction.
+
 > [!NOTE]
 > **k-mer seed acceleration (R2).** The scan carries an optional, **proven-equivalent** k-mer
 > seed-and-extend prefilter (native Rust kernel + pure-Python fallback): by the pigeonhole bound, any

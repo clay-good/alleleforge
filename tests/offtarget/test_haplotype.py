@@ -40,6 +40,21 @@ def test_haplotype_creates_de_novo_site(make_reference: MakeRef) -> None:
     assert "chr2:32:T>G" in (prov.causal_allele or "")
 
 
+def test_below_threshold_population_excluded_from_ancestry(make_reference: MakeRef) -> None:
+    # AFR carries the haplotype above threshold; EUR is present but below min_freq.
+    # Only the carrying population may appear in the site's populations *and*
+    # ancestries, so a below-threshold population cannot inflate the per-ancestry
+    # off-target burden in OffTargetReport.ancestry_stratification(). This exercises
+    # the populations=None path, which previously kept the full frequency dict.
+    ref = make_reference({"chr2": PAD + SPACER + "CGT" + PAD})
+    hap = _hap((Variant(chrom="chr2", pos=32, ref="T", alt="G"),), {"AFR": 0.2, "EUR": 0.0005})
+    sites = enumerate_haplotype_sites(SPACER, NRG, reference=ref, haplotypes=[hap], min_freq=0.001)
+    assert len(sites) == 1
+    _, prov = sites[0]
+    assert prov.populations == ("AFR",)
+    assert set(prov.ancestries) == {"AFR"}
+
+
 def test_two_variant_haplotype_lists_both(make_reference: MakeRef) -> None:
     # One variant creates the PAM, a second sits in the protospacer; the
     # haplotype's causal-allele string records both.

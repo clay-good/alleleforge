@@ -95,17 +95,19 @@ def enumerate_haplotype_sites(
             key = (h.strand, h.start, h.end)
             ref_edits[key] = min(ref_edits.get(key, h.edits), h.edits)
         var_positions = [v.pos for v in hap.variants]
-        pops = (
-            tuple(p for p in populations if hap.frequencies.get(p, 0.0) >= min_freq)
-            if populations is not None
-            else hap.populations
-        )
+        # A population "carries" the haplotype only at or above the safety
+        # threshold; apply it whether or not the caller restricts the populations
+        # (mirrors the population-variant path), and stratify ancestry only over
+        # the carrying set so a below-threshold population cannot inflate the
+        # per-ancestry off-target burden in ``ancestry_stratification``.
+        candidate_pops = populations if populations is not None else hap.populations
+        pops = tuple(sorted(p for p in candidate_pops if hap.frequencies.get(p, 0.0) >= min_freq))
         prov = SiteProvenance(
             origin=SiteOrigin.POPULATION,
             causal_allele=";".join(f"{v.chrom}:{v.pos}:{v.ref}>{v.alt}" for v in hap.variants),
             populations=pops,
             frequency=hap.max_freq(populations),
-            ancestries=dict(hap.frequencies),
+            ancestries={p: hap.frequencies[p] for p in pops},
         )
         for h in scan_sequence(chrom, alt_seq, sp, pam, offset=start, **kw):
             if not any(h.start - pam_len <= p < h.end + pam_len for p in var_positions):

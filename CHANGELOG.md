@@ -632,6 +632,22 @@ acceptance.
 
 ### Fixed
 
+- **Haplotype off-target sites no longer over-attribute ancestry burden.** The
+  haplotype path stamped the full, *unfiltered* per-population frequency dict
+  (`dict(hap.frequencies)`) into each site's `ancestries` provenance, and applied
+  the MAF carrying threshold to the `populations` list only when the caller
+  restricted the populations — so when populations were left unset (the common
+  case), a population with a trace, *sub-threshold* frequency was still recorded
+  as carrying the site. `OffTargetReport.ancestry_stratification()` attributes a
+  site's score to every ancestry with a non-zero entry, so those below-threshold
+  populations inflated the per-ancestry off-target burden — a population-aware-
+  safety regression, since the worst-affected-ancestry roll-up is what the report
+  surfaces. The carrying threshold is now applied **identically on both branches**
+  (mirroring the population-variant path), and `ancestries` is filtered to the
+  same carrying set as `populations`, so the two provenance fields are the one
+  set by construction. Pinned by a regression test (a haplotype carried in one
+  population above threshold and another below it surfaces only the carrier).
+
 - **Base-editor `bystander_burden` is now persisted on the candidate.** The
   window-outcome predictor returns two calibrated `Prediction`s per base-editor
   candidate — `p_intended_exact` and `bystander_burden` (SPEC §8) — but only the
