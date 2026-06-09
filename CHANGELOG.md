@@ -632,6 +632,22 @@ acceptance.
 
 ### Fixed
 
+- **Off-target sites now record the companion MIT score (`OffTargetSite.mit_score`).**
+  The engine nominates a site when **either** its CFD clears `cfd_threshold`
+  (default 0.20) **or** its MIT clears `mit_threshold` (default 0.10) — an OR.
+  But the MIT score was computed only for the threshold test and then discarded:
+  the site stored only the primary (CFD) score, so a site retained *because* its
+  MIT cleared the bar — while its displayed CFD sat below `cfd_threshold` — gave
+  no record of the score that nominated it, contradicting the engine's "every
+  nomination can be audited, not trusted blindly" contract. `OffTargetSite` gained
+  `mit_score: float | None` (the MIT/Hsu score when defined, `None` for a bulged
+  or non-20-nt alignment where MIT does not apply), populated by the engine and
+  carried through to the serialized report (JSON, the `aforge offtarget` output,
+  and the `POST /api/offtarget` envelope). Selection is **byte-identical** to
+  before — an undefined MIT is still treated as `0.0` for thresholding — so this
+  is purely additive; the reproducibility golden re-pinned only to record the new
+  field (its single site now carries `mit_score: 1.0`). Schemas regenerated.
+
 - **Haplotype off-target sites no longer over-attribute ancestry burden.** The
   haplotype path stamped the full, *unfiltered* per-population frequency dict
   (`dict(hap.frequencies)`) into each site's `ancestries` provenance, and applied

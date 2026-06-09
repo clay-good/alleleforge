@@ -68,21 +68,30 @@ def _spacer_str(spacer: Spacer | DNASequence | str) -> str:
     return str(spacer)
 
 
-def _scores(hit: Hit, scorer: OffTargetScorer) -> tuple[float, float]:
+def _scores(hit: Hit, scorer: OffTargetScorer) -> tuple[float, float | None]:
     """Return ``(primary_score, mit_score)`` for one hit.
 
     The MIT score is only defined for an ungapped 20-nt alignment; bulged or
-    non-20-nt hits report ``0.0`` for it (and rely on the CFD threshold).
+    non-20-nt hits report ``None`` for it (and rely on the CFD threshold). For
+    thresholding, an undefined MIT is treated as ``0.0`` (it cannot clear a
+    positive MIT threshold), so selection is unchanged; the ``None`` is preserved
+    on the site to record that MIT does not apply, rather than implying a real 0.
     """
     primary = scorer.score(hit.aligned_spacer, hit.aligned_target, hit.pam_sequence)
     ungapped_20 = (
         hit.dna_bulges == 0 and hit.rna_bulges == 0 and len(hit.aligned_spacer) == _MIT_LENGTH
     )
-    mit = mit_score(hit.aligned_spacer, hit.aligned_target) if ungapped_20 else 0.0
+    mit = mit_score(hit.aligned_spacer, hit.aligned_target) if ungapped_20 else None
     return primary, mit
 
 
-def _to_site(hit: Hit, prov: SiteProvenance, score: float, method: ScoreMethod) -> OffTargetSite:
+def _to_site(
+    hit: Hit,
+    prov: SiteProvenance,
+    score: float,
+    method: ScoreMethod,
+    mit: float | None = None,
+) -> OffTargetSite:
     """Build an :class:`OffTargetSite` from a hit and its provenance."""
     locus = GenomicInterval(
         chrom=hit.chrom,
@@ -98,6 +107,7 @@ def _to_site(hit: Hit, prov: SiteProvenance, score: float, method: ScoreMethod) 
         rna_bulges=hit.rna_bulges,
         score=score,
         score_method=method,
+        mit_score=mit,
         origin=prov.origin,
         causal_allele=prov.causal_allele,
         populations=prov.populations,
@@ -294,9 +304,9 @@ def search(
     best: dict[tuple[str, int, int, Strand], OffTargetSite] = {}
     for hit, prov in tagged:
         cfd, mit = _scores(hit, primary)
-        if cfd < cfd_threshold and mit < mit_threshold:
+        if cfd < cfd_threshold and (mit if mit is not None else 0.0) < mit_threshold:
             continue
-        site = _to_site(hit, prov, cfd, primary.method)
+        site = _to_site(hit, prov, cfd, primary.method, mit)
         key = (hit.chrom, hit.start, hit.end, hit.strand)
         existing = best.get(key)
         if existing is None or site.score > existing.score:

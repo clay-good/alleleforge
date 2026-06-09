@@ -62,6 +62,16 @@ def test_population_blind_spot(make_reference: MakeRef) -> None:
     assert site.score == 1.0
 
 
+def test_site_records_mit_score(make_reference: MakeRef) -> None:
+    # An ungapped 20-nt site carries the MIT score alongside the primary CFD, so a
+    # nomination retained by the engine's MIT reporting threshold (an OR with CFD)
+    # is auditable even when the displayed primary score is CFD.
+    ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    site = search(SPACER, NGG, reference=ref).sites[0]
+    assert site.score_method.value == "cfd"
+    assert site.mit_score == 1.0  # perfect ungapped match -> MIT 1.0, recorded not dropped
+
+
 def test_thresholds_filter(make_reference: MakeRef) -> None:
     mut = SPACER[:2] + "AA" + SPACER[4:]  # two distal mismatches
     ref = make_reference({"chr2": PAD + mut + "TGG" + PAD})

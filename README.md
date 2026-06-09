@@ -504,7 +504,12 @@ It surfaces on **every output surface that summarizes off-target**: the HTML/PDF
 batch summary (`best_specificity`), so triage can rank by total burden, not just the single worst site.
 
 All three site scores sit behind one swappable `OffTargetScorer` protocol, so a Phase 6 ML scorer drops in
-without touching the engine. Reporting thresholds default to **CFD ≥ 0.20 or MIT ≥ 0.10**.
+without touching the engine. Reporting thresholds default to **CFD ≥ 0.20 or MIT ≥ 0.10** — an **OR**, so
+a site can be nominated on its MIT score even when its CFD is sub-threshold. So that a nomination stays
+auditable, every site records **both**: the primary `score` (under `score_method`) and the companion
+`mit_score` (`OffTargetSite.mit_score`, `None` when MIT is undefined — a bulged or non-20-nt alignment).
+The MIT score that retained a low-CFD site is therefore visible in the serialized report, never silently
+dropped.
 
 > The genome-scale search is the FM-index seed-and-extend path (native Rust `bwt` kernel when built, a
 > *correct* pure-Python FM-index otherwise — byte-identical, pinned by parity tests; CI never blocks on

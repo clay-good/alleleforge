@@ -538,7 +538,7 @@
       "type": "object"
     },
     "OffTargetSite": {
-      "description": "A single nominated off-target locus with provenance and scoring.\n\nAttributes:\n    locus: The genomic placement of the off-target protospacer.\n    mismatches: Number of base mismatches to the on-target spacer.\n    dna_bulges: Number of DNA bulges in the alignment.\n    rna_bulges: Number of RNA bulges in the alignment.\n    score: The specificity score under ``score_method``.\n    score_method: Which score ``score`` reports.\n    origin: Reference, population, or patient origin.\n    causal_allele: For population/patient sites, the allele that creates or\n        modifies the site (``chrom:pos:ref>alt`` form), else ``None``.\n    populations: Populations carrying the causal allele.\n    frequency: Allele frequency of the causal allele (max over populations).\n    ancestries: Per-ancestry frequency annotation for this site.",
+      "description": "A single nominated off-target locus with provenance and scoring.\n\nAttributes:\n    locus: The genomic placement of the off-target protospacer.\n    mismatches: Number of base mismatches to the on-target spacer.\n    dna_bulges: Number of DNA bulges in the alignment.\n    rna_bulges: Number of RNA bulges in the alignment.\n    score: The specificity score under ``score_method``.\n    score_method: Which score ``score`` reports.\n    mit_score: The MIT/Hsu specificity score for this site when defined (an\n        ungapped, 20-nt alignment), else ``None``. Recorded alongside\n        ``score`` so a site nominated by the engine's MIT reporting threshold\n        is auditable even when the primary ``score`` is CFD \u2014 the two\n        thresholds are an OR, and the MIT score that retained a low-CFD site\n        would otherwise be invisible.\n    origin: Reference, population, or patient origin.\n    causal_allele: For population/patient sites, the allele that creates or\n        modifies the site (``chrom:pos:ref>alt`` form), else ``None``.\n    populations: Populations carrying the causal allele.\n    frequency: Allele frequency of the causal allele (max over populations).\n    ancestries: Per-ancestry frequency annotation for this site.",
       "properties": {
         "ancestries": {
           "additionalProperties": {
@@ -583,6 +583,18 @@
         "mismatches": {
           "title": "Mismatches",
           "type": "integer"
+        },
+        "mit_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mit Score"
         },
         "origin": {
           "$ref": "#/$defs/SiteOrigin",

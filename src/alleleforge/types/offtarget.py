@@ -43,6 +43,12 @@ class OffTargetSite(BaseModel):
         rna_bulges: Number of RNA bulges in the alignment.
         score: The specificity score under ``score_method``.
         score_method: Which score ``score`` reports.
+        mit_score: The MIT/Hsu specificity score for this site when defined (an
+            ungapped, 20-nt alignment), else ``None``. Recorded alongside
+            ``score`` so a site nominated by the engine's MIT reporting threshold
+            is auditable even when the primary ``score`` is CFD — the two
+            thresholds are an OR, and the MIT score that retained a low-CFD site
+            would otherwise be invisible.
         origin: Reference, population, or patient origin.
         causal_allele: For population/patient sites, the allele that creates or
             modifies the site (``chrom:pos:ref>alt`` form), else ``None``.
@@ -59,6 +65,7 @@ class OffTargetSite(BaseModel):
     rna_bulges: int = 0
     score: float
     score_method: ScoreMethod
+    mit_score: float | None = None
     origin: SiteOrigin = SiteOrigin.REFERENCE
     causal_allele: str | None = None
     populations: tuple[str, ...] = ()
@@ -72,6 +79,8 @@ class OffTargetSite(BaseModel):
             raise ValueError("mismatch/bulge counts must be non-negative")
         if not 0.0 <= self.score <= 1.0:
             raise ValueError(f"score {self.score} not in [0, 1]")
+        if self.mit_score is not None and not 0.0 <= self.mit_score <= 1.0:
+            raise ValueError(f"mit_score {self.mit_score} not in [0, 1]")
         if self.frequency is not None and not 0.0 <= self.frequency <= 1.0:
             raise ValueError(f"frequency {self.frequency} not in [0, 1]")
         if self.origin is not SiteOrigin.REFERENCE and self.causal_allele is None:
