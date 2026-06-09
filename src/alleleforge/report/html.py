@@ -186,6 +186,9 @@ def _provenance_html(report: DesignReport) -> str:
         f"seed {_esc(p.seed)}",
         f"generated {_esc(p.timestamp.isoformat())}",
     ]
+    if p.models:
+        models = ", ".join(f"{_esc(m.name)} {_esc(m.version)}" for m in p.models)
+        lines.append(f"models: {models}")
     return "<footer><strong>Provenance.</strong> " + " · ".join(lines) + "</footer>"
 
 

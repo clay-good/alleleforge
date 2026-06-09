@@ -127,6 +127,29 @@ def test_provenance_records_weights_and_seed(make_reference: MakeRef) -> None:
     assert abs(snap["weights"]["efficiency"] - 0.35) < 1e-9
 
 
+def test_provenance_records_invoked_models(make_reference: MakeRef) -> None:
+    # An A->G install routes to base-editing + prime; provenance must record the
+    # card-backed models for both verticals (BE-DICT, PRIDICT2.0), deduped.
+    ref = _abe_ref(make_reference)
+    rv = _resolve(ref, 25, "G")
+    menu = design(rv, reference=ref, intent=EditIntent.INSTALL)
+    recorded = {m.name for m in menu.provenance.models}
+    assert {"be-dict", "pridict2"} <= recorded
+    assert "cas9-efficiency-ensemble" not in recorded  # nuclease not eligible here
+    # Every recorded checkpoint carries its card metadata, not just a name.
+    assert all(m.license and m.citation for m in menu.provenance.models)
+
+
+def test_provenance_models_scope_to_eligible_chemistries(make_reference: MakeRef) -> None:
+    # A knock-out routes to the nuclease vertical only, so provenance records the
+    # Cas9 efficiency + outcome models and nothing from the other chemistries.
+    ref = make_reference({"chr2": PAD + "ACGTAACGTTACGTAACGTT" + "TGG" + PAD})
+    rv = _resolve(ref, 25, "G")
+    menu = design(rv, reference=ref, intent=EditIntent.KNOCK_OUT)
+    recorded = {m.name for m in menu.provenance.models}
+    assert recorded == {"cas9-efficiency-ensemble", "indelphi"}
+
+
 def _prime_context() -> str:
     seq = list("AT" * 70)
     seq[63:66] = list("TGG")  # plus pegRNA PAM

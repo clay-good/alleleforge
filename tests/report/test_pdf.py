@@ -54,3 +54,4 @@ def test_pdf_includes_ancestry_offtarget(ancestry_menu: RankedMenu) -> None:
     pdf = render_pdf(build_report(ancestry_menu))
     assert b"afr: worst score" in pdf
     assert b"PROVENANCE" in pdf
+    assert b"Models: cas9-efficiency-ensemble 0.1" in pdf

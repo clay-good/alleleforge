@@ -171,7 +171,9 @@ job, a CycloneDX SBOM on release, and a `scripts/reproduce.py` reproducibility a
 R1 — the consent/license/checksum resolution wired for the backbone and every trained scorer through
 a shared `WeightGate`, plus a backbone **ONNX export** path (`export_onnx`, dynamic batch/sequence
 axes, opset 17) for portable inference (the trained forward pass and the export both stay
-`real_weights`-gated). R2 — **all three spec
+`real_weights`-gated), and each menu's `provenance.models` now records the card-backed
+`ModelCheckpoint` of **every model invoked** (deduped, scoped to the eligible chemistries, rendered in
+the report footer, and captured by the reproducibility golden). R2 — **all three spec
 kernels (`bwt`/`kmer`/`haplotype`) are now on their hot paths**: a **true-linear SA-IS**
 FM-index build, a native k-mer seed kernel, **FM-index seed-and-extend wired into the engine's
 reference scan** (auto-engaged past 1 Mb, byte-identical to the linear scan), and a **native
@@ -537,7 +539,9 @@ consent** before any download, **checksum-verifies** a pinned artifact, and reco
 `ModelCheckpoint` for provenance (e.g. `EnsembleEfficiencyScorer.backbone_checkpoint()`). The whole
 consent/license/checksum flow is exercised in CI with an injected downloader — no network, no torch;
 only the tensor load / forward pass itself stays behind the `real_weights` marker. Every model ships a
-bundled, license-gated card. See [`SPEC_V2.md`](SPEC_V2.md) R1.
+bundled, license-gated card. Each menu's `provenance.models` records the card-backed `ModelCheckpoint`
+of **every model invoked** — deduped, scoped to the chemistries that ran, and rendered in the HTML/PDF
+report footer — so a result names the exact models that produced it. See [`SPEC_V2.md`](SPEC_V2.md) R1.
 
 ### Uncertainty method cheat-sheet
 
@@ -720,6 +724,7 @@ best = menu.best
 print(best.chemistry, best.rationale)        # includes the score breakdown
 print(menu.pareto_front)                      # trade-off-optimal candidates
 print(menu.provenance.seed)                   # reproducible to the byte
+print([m.name for m in menu.provenance.models])  # every model invoked, e.g. ['be-dict', 'pridict2']
 ```
 
 ### Cohort-scale batch design (R4)

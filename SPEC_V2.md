@@ -87,6 +87,12 @@ published models, with the checkpoint recorded in every result's provenance.
     (no network, no torch); the actual tensor load stays `real_weights`-gated.
   - `model_checkpoint()` on the embedder so a scorer can stamp the backbone into
     provenance.
+- **Menu provenance records every model invoked (☑ landed).** `design()` stamps
+  the card-backed `ModelCheckpoint` of each eligible chemistry's default scorers
+  into `RankedMenu.provenance.models` (deduped by name + version, scoped to the
+  chemistries that were eligible), and the HTML/PDF report footers render them.
+  The reproducibility golden captures the (deterministic) set. The real-backbone
+  hash fills the stub's `null` once R0 pins it.
 - **Shared weight gate (◐ landed).** One `model_zoo.loader.WeightGate` mixin
   implements the consent/license/checksum resolution for *every* trained model, so
   the flow lives in one place rather than per chemistry.

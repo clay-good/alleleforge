@@ -86,7 +86,7 @@ def ancestry_menu() -> RankedMenu:
         SiteOrigin,
     )
     from alleleforge.types.prediction import Prediction, UncertaintyMethod
-    from alleleforge.types.provenance import Provenance
+    from alleleforge.types.provenance import ModelCheckpoint, Provenance
     from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
 
     spacer = "ACGTAACGTTACGTAACGTT"
@@ -140,5 +140,19 @@ def ancestry_menu() -> RankedMenu:
         candidates=(candidate,),
         pareto_front=(0,),
         rationale="synthetic",
-        provenance=Provenance.capture(alleleforge_version="0.0.0", seed=1),
+        provenance=Provenance.capture(
+            alleleforge_version="0.0.0",
+            seed=1,
+            models=(
+                ModelCheckpoint(
+                    name="cas9-efficiency-ensemble",
+                    version="0.1",
+                    chemistry="cas9_nuclease",
+                    license="MIT",
+                ),
+                ModelCheckpoint(
+                    name="indelphi", version="1.0", chemistry="cas9_nuclease", license="MIT"
+                ),
+            ),
+        ),
     )

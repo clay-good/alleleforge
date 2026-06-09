@@ -28,16 +28,16 @@ from alleleforge._version import __version__
 from alleleforge.config import Settings, get_settings
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
-from alleleforge.design.base_editor import design_base_editor
-from alleleforge.design.cas9 import design_cas9
-from alleleforge.design.prime import design_prime
+from alleleforge.design.base_editor import base_editor_model_checkpoints, design_base_editor
+from alleleforge.design.cas9 import cas9_model_checkpoints, design_cas9
+from alleleforge.design.prime import design_prime, prime_model_checkpoints
 from alleleforge.design.ranking import DEFAULT_WEIGHTS, RankingWeights, rank_candidates
 from alleleforge.design.routing import ChemistryDecision, route
 from alleleforge.enumerate.base_editor import BASE_EDITORS
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import Chemistry, EditIntent
-from alleleforge.types.provenance import Provenance
+from alleleforge.types.provenance import ModelCheckpoint, Provenance
 from alleleforge.types.variant import Variant
 from alleleforge.variant.effect import EffectPredictor
 from alleleforge.variant.hgvs_adapter import HgvsAdapter
@@ -218,6 +218,7 @@ def design(
         seed=cfg.seed,
         reference_build=reference.build or build,
         timestamp=timestamp,
+        models=_collect_model_checkpoints(eligible),
         config_snapshot={
             "intent": intent.value,
             "weights": outcome.weights,
@@ -292,6 +293,28 @@ def _run_base_editors(
         ),
         notes,
     )
+
+
+def _collect_model_checkpoints(eligible: Sequence[Chemistry]) -> tuple[ModelCheckpoint, ...]:
+    """Return the deduped model checkpoints for every eligible chemistry's scorers.
+
+    ``design`` always runs each vertical with its default, card-backed scorers, so
+    the models invoked are fully determined by which chemistries were eligible.
+    Each contributing checkpoint is stamped into the menu's provenance block; a
+    model shared across chemistries (keyed by name + version) is recorded once.
+    """
+    seen: dict[tuple[str, str], ModelCheckpoint] = {}
+    contributors: list[tuple[bool, Callable[[], tuple[ModelCheckpoint, ...]]]] = [
+        (bool(_BASE_CHEMISTRIES.intersection(eligible)), base_editor_model_checkpoints),
+        (Chemistry.PRIME in eligible, prime_model_checkpoints),
+        (Chemistry.CAS9_NUCLEASE in eligible, cas9_model_checkpoints),
+    ]
+    for is_eligible, checkpoints in contributors:
+        if not is_eligible:
+            continue
+        for ckpt in checkpoints():
+            seen.setdefault((ckpt.name, ckpt.version), ckpt)
+    return tuple(seen.values())
 
 
 def _menu_rationale(

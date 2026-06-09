@@ -27,6 +27,7 @@ from alleleforge.types.edit import Chemistry, EditIntent, EditOutcome
 from alleleforge.types.guide import PAM, Guide
 from alleleforge.types.offtarget import OffTargetReport
 from alleleforge.types.prediction import Prediction
+from alleleforge.types.provenance import ModelCheckpoint
 from alleleforge.types.sequence import GenomicInterval, Strand
 from alleleforge.types.variant import Variant
 from alleleforge.variant.resolver import ResolvedVariant
@@ -79,6 +80,20 @@ def _flags(
     if offreport is not None and offreport.population_sites:
         flags.append("population-offtarget")
     return tuple(flags)
+
+
+def cas9_model_checkpoints() -> tuple[ModelCheckpoint, ...]:
+    """Return the provenance checkpoints for the default Cas9 scorers.
+
+    The default efficiency ensemble (``cas9-efficiency-ensemble``) and outcome
+    predictor (``indelphi``) carry model cards; their card-derived
+    :class:`ModelCheckpoint`s are stamped into a menu's provenance whenever the
+    nuclease vertical runs.
+    """
+    return (
+        EnsembleEfficiencyScorer().model_card().to_checkpoint(),
+        MicrohomologyOutcomePredictor().model_card().to_checkpoint(),
+    )
 
 
 def design_cas9(

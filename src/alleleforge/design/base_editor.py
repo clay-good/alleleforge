@@ -25,6 +25,7 @@ from alleleforge.types.candidate import DesignCandidate
 from alleleforge.types.edit import EditIntent
 from alleleforge.types.guide import BaseEditWindow
 from alleleforge.types.offtarget import OffTargetReport
+from alleleforge.types.provenance import ModelCheckpoint
 from alleleforge.types.sequence import GenomicInterval
 from alleleforge.variant.resolver import ResolvedVariant
 
@@ -42,6 +43,16 @@ def _flags(
     if offreport is not None and offreport.population_sites:
         flags.append("population-offtarget")
     return tuple(flags)
+
+
+def base_editor_model_checkpoints() -> tuple[ModelCheckpoint, ...]:
+    """Return the provenance checkpoint for the default base-edit outcome model.
+
+    The default window-outcome predictor is the BE-DICT baseline (``be-dict``),
+    which carries a model card stamped into a menu's provenance whenever the
+    base-editing vertical runs.
+    """
+    return (BaseEditOutcomePredictor().model_card().to_checkpoint(),)
 
 
 def design_base_editor(

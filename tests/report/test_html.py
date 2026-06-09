@@ -22,6 +22,13 @@ def test_html_leads_with_disclaimer_and_ends_with_provenance(prime_menu: RankedM
     assert disclaimer_pos < provenance_pos  # disclaimer first, provenance last
 
 
+def test_html_footer_lists_invoked_models(ancestry_menu: RankedMenu) -> None:
+    html = render_html(build_report(ancestry_menu, variant="chr11:108:A>T"))
+    # The provenance footer names every model checkpoint that produced the menu.
+    assert "models: cas9-efficiency-ensemble 0.1" in html
+    assert "indelphi 1.0" in html
+
+
 def test_html_embeds_interactive_plotly(prime_menu: RankedMenu) -> None:
     html = render_html(build_report(prime_menu))
     assert PLOTLY_CDN in html

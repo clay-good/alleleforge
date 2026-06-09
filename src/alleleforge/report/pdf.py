@@ -90,6 +90,9 @@ def _report_lines(report: DesignReport) -> list[str]:
             f"AlleleForge {p.alleleforge_version}; reference {p.reference_build}; "
             f"seed {p.seed}; generated {p.timestamp.isoformat()}"
         )
+        if p.models:
+            models = ", ".join(f"{m.name} {m.version}" for m in p.models)
+            lines += _wrap(f"Models: {models}")
     return lines
 
 

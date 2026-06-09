@@ -28,6 +28,7 @@ from alleleforge.types.edit import Chemistry, EditIntent
 from alleleforge.types.guide import PAM, PegRNA, Spacer
 from alleleforge.types.offtarget import OffTargetReport, OffTargetSite
 from alleleforge.types.prediction import Prediction
+from alleleforge.types.provenance import ModelCheckpoint
 from alleleforge.types.sequence import GenomicInterval
 from alleleforge.types.variant import Variant
 from alleleforge.variant.resolver import ResolvedVariant
@@ -74,6 +75,16 @@ def _flags(pegrna: PegRNA, efficiency: Prediction[float], run_offtarget: bool) -
     if not efficiency.in_distribution:
         flags.append("ood")
     return tuple(flags)
+
+
+def prime_model_checkpoints() -> tuple[ModelCheckpoint, ...]:
+    """Return the provenance checkpoints for the default prime scorers.
+
+    The default efficiency scorer is PRIDICT2.0 (``pridict2``), which carries a
+    model card. The default outcome predictor is a card-free heuristic, so it
+    contributes no checkpoint.
+    """
+    return (PridictScorer().model_card().to_checkpoint(),)
 
 
 def design_prime(

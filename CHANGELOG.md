@@ -333,6 +333,17 @@ acceptance.
   `NotImplementedError` stub. The export code is wired now; running it needs the
   `ml` extra and real weights, so — like the tensor forward pass — it stays behind
   the `real_weights` marker.
+- **R1 — menu provenance now records every model invoked.** `design()` stamps the
+  card-backed `ModelCheckpoint` of each eligible chemistry's scorers into
+  `RankedMenu.provenance.models`, which previously always shipped empty despite the
+  field documenting "checkpoints of every model invoked." Each vertical exposes its
+  default checkpoints (`cas9_model_checkpoints()`, `prime_model_checkpoints()`,
+  `base_editor_model_checkpoints()`); the designer aggregates and dedupes them by
+  name + version, scoped to the chemistries that were actually eligible (a
+  knock-out records only the Cas9 efficiency + outcome models, an A→G install
+  records BE-DICT + PRIDICT2.0). The HTML and PDF report footers now render the
+  invoked models, and the reproducibility golden captures them (they are
+  deterministic and scientifically meaningful, so they belong in the digest).
 - **R1 — consent-gated trained prime-efficiency adapters.** The trained
   prime-editing efficiency adapters (`DeepPrimeAdapter`, `GenETAdapter`) now
   resolve their weights through the same consent/license/checksum flow as the
