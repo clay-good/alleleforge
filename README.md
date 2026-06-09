@@ -68,6 +68,28 @@ Cas-OFFinder, …) behind a unified, typed, uncertainty-honest interface and add
 
 ---
 
+## Design decisions
+
+The principles above are realized by a handful of concrete, non-obvious engineering
+tradeoffs. Each was chosen to maximize **reproducibility, honest uncertainty, and
+population-aware safety — in that order**; the rationale and the code that enforces it:
+
+| Decision | Why — and where it lives |
+|---|---|
+| **Weight-free stubs are the CI default; real weights are opt-in** (`real_weights` marker) | The full gate (lint, type, test, docs, examples, reproduce) runs with no GPU, network, or torch, so any contributor reproduces it byte-for-byte. The consent/license/checksum flow is still exercised in CI with an **injected downloader**; only the tensor load / forward pass is gated. See [`SPEC_V2.md`](SPEC_V2.md) R1. |
+| **An unverifiable artifact is refused, never fetched** | A `null` checkpoint/dataset hash *blocks* the download by design — you cannot silently load an unpinned weight or dataset. The pin is a content hash, never a mutable tag. ([`model_zoo/loader.py`](src/alleleforge/model_zoo/loader.py), R0/R1.) |
+| **FM-index auto-engages per region past 1 Mb** (`FM_INDEX_AUTO_THRESHOLD`) | Building the index has a fixed cost that only amortizes at contig scale; below the threshold the linear PAM pass wins. The result is byte-identical either way (parity-pinned). ([`offtarget/engine.py`](src/alleleforge/offtarget/engine.py).) |
+| **The k-mer seed prefilter engages only when `k ≥ 5`** (`MIN_SELECTIVE_K`) | Honest micro-benchmark finding: a 4-letter alphabet saturates short k-mers, so a short seed prunes almost nothing and only adds overhead. `k ≥ 5` (low edit budget) measures ~2–4×; at the default ≤4-mismatch+bulge budget the seed is too short, so the FM-index stays the genome-scale path. ([`offtarget/_search.py`](src/alleleforge/offtarget/_search.py), R2.) |
+| **Every native kernel keeps a parity-tested pure-Python fallback; the library never *requires* the crate** | `prefer_native` selects Rust when built; CI runs the off-target engine on **both** paths. Trades raw speed-when-unbuilt for "installs and passes anywhere; native is a pure bonus." ([`SPEC_V2.md`](SPEC_V2.md) R2.) |
+| **Off-target nomination is an OR of two thresholds** (CFD ≥ 0.20 **or** MIT ≥ 0.10), and **both** scores are recorded per site | Two complementary specificity models catch different failure shapes; recording both (`OffTargetSite.mit_score`) keeps a MIT-nominated, low-CFD site auditable rather than mysteriously retained. ([`offtarget/scoring.py`](src/alleleforge/offtarget/scoring.py).) |
+| **Ancestry risk is the worst-affected population, never the average; "carrying" means at/above the MAF threshold** | Averaging hides risk concentrated in one ancestry — the BCL11A cautionary tale. The carrying threshold is applied **identically** on the population and haplotype paths, so a trace, sub-threshold frequency cannot inflate the per-ancestry burden. ([`types/offtarget.py`](src/alleleforge/types/offtarget.py).) |
+| **The cross-run off-target cache is safety-gated** to reference-only, default-scorer searches | A wrong off-target report is a *missed danger*, so a possibly-stale entry is never served once population / haplotype / patient augmentation is present (the key cannot fully capture that external data). ([`offtarget/cache.py`](src/alleleforge/offtarget/cache.py), R4.) |
+| **Intervals are recalibrated by split-conformal; probabilities by isotonic regression** | Different calibration targets need different tools — a finite-sample coverage guarantee for regression intervals, monotone probability calibration for classification — with `empirical_coverage` / ECE flagging when each is needed. ([`scoring/uncertainty.py`](src/alleleforge/scoring/uncertainty.py), R5.) |
+| **The default backbone is non-commercial, and the license gate enforces it** | Nucleotide Transformer v2 (500M) is **CC-BY-NC-SA-4.0** — loadable for research, *refused for commercial use* at load time. Real weights are never vendored. ([`model_zoo/cards/`](src/alleleforge/model_zoo/cards/), R1.) |
+| **Results, splits, and caches are content-addressed** | A published benchmark number cannot be silently edited (each result carries a `signature`); a split pins both its dataset-content hash and its own membership hash, re-verified on read (`SplitIntegrityError` on drift). ([`benchmark/`](src/alleleforge/benchmark/).) |
+
+---
+
 ## Architecture
 
 AlleleForge is strictly layered: lower layers know nothing about higher ones. The **Designer** is the only
