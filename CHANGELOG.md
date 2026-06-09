@@ -627,4 +627,14 @@ acceptance.
   closing the "Rust" leg of the v0.1.0 definition-of-done CI matrix and catching
   future dependency drift automatically.
 
+### Fixed
+
+- **Ship the PEP 561 `py.typed` marker.** The package declared the
+  `Typing :: Typed` classifier and is `mypy --strict` clean, but shipped **no**
+  `py.typed` marker — so a downstream type-checker silently ignored every one of
+  its types (the metadata claimed typing support the distribution did not deliver).
+  Added `src/alleleforge/py.typed` (hatchling bundles it into the wheel and sdist
+  automatically) and a packaging test that guards the marker — plus the bundled
+  model cards, benchmark splits, and web frontend — against silent removal.
+
 [Unreleased]: https://github.com/clay-good/alleleforge/commits/main

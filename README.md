@@ -1144,8 +1144,9 @@ pytest --nbmake examples/ --no-cov  # execute the example notebooks
 cd rust && cargo test && maturin develop   # native crate
 ```
 
-A `Makefile` mirrors the gate so `make ci` reproduces it locally (`make lint type test docs reproduce`;
-`make native` for the crate).
+The library is **fully typed and ships a PEP 561 `py.typed` marker**, so `mypy`/`pyright` see its types
+when you depend on it. A `Makefile` mirrors the gate so `make ci` reproduces it locally
+(`make lint type test docs reproduce`; `make figures` for the docs figures, `make native` for the crate).
 
 CI (GitHub Actions) runs lint, type-check (`mypy --strict`), tests (Python 3.11 + 3.12 on Linux &amp; macOS),
 a strict docs build, notebook execution, the Rust crate (`cargo fmt` · `clippy` · `maturin build` plus a
