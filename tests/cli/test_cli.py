@@ -279,7 +279,9 @@ def test_batch_summary_tsv(runner: CliRunner, cohort_fasta: Path, tmp_path: Path
     )
     assert result.exit_code == 0
     lines = out.read_text().strip().splitlines()
-    assert lines[0].split("\t")[:2] == ["item_id", "status"]
+    header = lines[0].split("\t")
+    assert header[:2] == ["item_id", "status"]
+    assert "best_specificity" in header  # aggregate specificity surfaces in the cohort TSV
     assert len(lines) == 3  # header + 2 items
     assert any("error" not in line and "base_abe" in line for line in lines[1:])
 
@@ -426,6 +428,7 @@ def test_offtarget_json(runner: CliRunner, nuclease_fasta: Path) -> None:
     data = json.loads(result.output)
     assert "n_sites" in data and "ancestry_stratification" in data
     assert data["spacer"] == "ACGTAACGTTACGTAACGTT"
+    assert 0.0 < data["specificity"] <= 1.0  # aggregate genome-wide specificity
 
 
 def test_offtarget_human(runner: CliRunner, nuclease_fasta: Path) -> None:

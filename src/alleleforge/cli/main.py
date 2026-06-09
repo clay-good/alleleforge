@@ -361,6 +361,7 @@ def _batch_rows(report: Any) -> list[dict[str, Any]]:
                 "best_chemistry": summary.get("best_chemistry"),
                 "best_efficiency": summary.get("best_efficiency"),
                 "worst_offtarget": summary.get("worst_offtarget"),
+                "best_specificity": summary.get("best_specificity"),
                 "n_candidates": summary.get("n_candidates"),
                 "error": it.error,
             }
@@ -376,6 +377,7 @@ def _batch_tsv(rows: list[dict[str, Any]]) -> str:
         "best_chemistry",
         "best_efficiency",
         "worst_offtarget",
+        "best_specificity",
         "n_candidates",
         "error",
     ]
@@ -588,6 +590,7 @@ def offtarget(
         "pam": report.pam,
         "n_sites": report.n_sites,
         "worst_score": round(report.worst_score(), 4),
+        "specificity": round(report.specificity_score(), 4),
         "ancestry_stratification": {
             a: round(v, 4) for a, v in report.ancestry_stratification().items()
         },
@@ -595,7 +598,7 @@ def offtarget(
     }
     human_lines = [
         f"spacer {report.spacer} / PAM {report.pam}: {report.n_sites} site(s), "
-        f"worst score {report.worst_score():.3f}"
+        f"worst score {report.worst_score():.3f}, specificity {report.specificity_score():.3f}"
     ]
     for s in sites:
         human_lines.append(

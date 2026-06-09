@@ -50,6 +50,9 @@ def test_designs_cohort_and_summarizes(reference: ReferenceGenome) -> None:
     assert {r.item_id for r in report.items} == {OK_1, OK_2}
     best = next(r for r in report.items if r.item_id == OK_1)
     assert best.summary is not None and best.summary["best_chemistry"] == "base_abe"
+    # The cohort summary carries the best candidate's aggregate specificity for triage.
+    spec = best.summary["best_specificity"]
+    assert spec is None or 0.0 < spec <= 1.0
 
 
 def test_per_item_error_is_captured_not_fatal(reference: ReferenceGenome) -> None:

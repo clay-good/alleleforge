@@ -52,7 +52,8 @@ class CohortItemResult:
         item_id: Stable identifier used for resume de-duplication.
         status: ``"ok"`` or ``"error"``.
         summary: Compact design summary (counts, best chemistry/efficiency,
-            worst off-target, chemistries reached), or ``None`` on error.
+            worst off-target, best-candidate aggregate specificity, chemistries
+            reached), or ``None`` on error.
         error: The error string when ``status == "error"``, else ``None``.
     """
 
@@ -104,12 +105,16 @@ def _summarize(menu: RankedMenu) -> dict[str, Any]:
         (c.offtarget.worst_score() for c in menu.candidates if c.offtarget is not None),
         default=0.0,
     )
+    best_specificity = (
+        best.offtarget.specificity_score() if best and best.offtarget is not None else None
+    )
     return {
         "n_candidates": len(menu.candidates),
         "chemistries": sorted({c.chemistry.value for c in menu.candidates}),
         "best_chemistry": best.chemistry.value if best else None,
         "best_efficiency": (best.efficiency.value if best and best.efficiency else None),
         "worst_offtarget": worst_ot,
+        "best_specificity": best_specificity,
     }
 
 

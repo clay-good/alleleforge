@@ -779,6 +779,7 @@ the `batch` subcommand auto-detects a VCF (cyvcf2 fast path) vs a one-variant-pe
 # Whole-VCF cohort → resumable run, durable per-sample menus, a per-item TSV summary
 aforge batch cohort.vcf.gz --reference-fasta hg38.fa --intent correct \
     --manifest run.jsonl --output-dir menus/ --summary-tsv summary.tsv --max-workers 8
+# Summary columns: best_chemistry · best_efficiency · worst_offtarget · best_specificity · n_candidates
 ```
 
 …and over HTTP from the [web API](#web-ui--api-phase-13-shipping-now): `POST /api/batch` takes a JSON

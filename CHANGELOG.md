@@ -18,7 +18,12 @@ acceptance.
   lacked the field-standard single-number specificity that distinguishes two guides
   with the same worst-case off-target but a different *number* of off-targets. It is
   now a `CandidateReport.offtarget_specificity` export field (schemas regenerated)
-  and is rendered in the HTML and PDF reports.
+  and is rendered in the HTML and PDF reports. It is surfaced across every output
+  surface that summarizes off-target: the standalone `aforge offtarget` command
+  (JSON `specificity` + the human one-liner) and the cohort batch summary
+  (`best_specificity`, the top candidate's specificity — in the JSONL manifest, the
+  per-item TSV, and `design.design_many`'s summaries), so cohort triage can rank by
+  total off-target burden, not just the single worst site.
 
 - **Phase 0 — Repository bootstrap.** Hatchling build, `aforge` console-script
   entry point, dependency groups (`core`/`genome`/`variant`/`ml`/`web`/`docs`/`dev`),
