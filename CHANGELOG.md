@@ -333,6 +333,19 @@ acceptance.
   `NotImplementedError` stub. The export code is wired now; running it needs the
   `ml` extra and real weights, so — like the tensor forward pass — it stays behind
   the `real_weights` marker.
+- **R5 — reproducible SVG figures for the docs & preprint (`alleleforge.viz`).** A
+  dependency-free, hand-rolled SVG bar-chart renderer (`viz.svg`, the same
+  no-plotting-stack discipline as the PDF report) plus four figures (`viz.figures`)
+  computed from the **weight-free, deterministic** pipeline: the reference-bias
+  reproduction (reference-only vs population-aware off-target nomination), the
+  split-conformal coverage restoration, per-task CRISPR-Bench ECE, and the
+  cross-cell-type generalization gap. Figures regenerate byte-for-byte from config +
+  seed (`scripts/figures.py`, `make figures`), are committed under
+  `docs/assets/figures/`, and are embedded in the README and methods preprint. The
+  deterministic calibration/generalization computations moved into a library module
+  (`alleleforge.benchmark.calibration`) so the markdown report and the figures share
+  one source of truth; `scripts/calibration_study.py` now delegates to it. 26 new
+  tests; no new runtime dependency.
 - **R1 — menu provenance now records every model invoked.** `design()` stamps the
   card-backed `ModelCheckpoint` of each eligible chemistry's scorers into
   `RankedMenu.provenance.models`, which previously always shipped empty despite the

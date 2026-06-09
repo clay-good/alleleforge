@@ -303,6 +303,13 @@ runs are an opt-in nightly.
   accuracy-vs-published numbers are explicitly marked `[pending R1]`; they fill in
   with the real-weights integration, at which point the draft becomes the posted
   preprint.
+- **Reproducible figures (☑ landed).** `alleleforge.viz` renders four figures from
+  the weight-free, deterministic pipeline with a dependency-free SVG renderer (no
+  plotting stack): the reference-bias reproduction, the split-conformal coverage
+  restoration, per-task ECE, and the cross-cell-type generalization gap. They
+  regenerate byte-for-byte (`scripts/figures.py` / `make figures`), are committed
+  under `docs/assets/figures/`, and are embedded in the preprint and README. The
+  per-task *values* fill in with R1; the renderer and machinery are final.
 
 **Defaults & decisions.** ECE is reported on every task (already enforced by
 CRISPR-Bench); a scorer whose intervals are miscalibrated on real data is

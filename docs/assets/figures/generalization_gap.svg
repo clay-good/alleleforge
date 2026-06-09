@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="380" viewBox="0 0 720 380" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+<rect width="720" height="380" fill="#ffffff"/>
+<text x="70" y="28" fill="#1f2933" font-size="17" font-weight="700">Cross-cell-type generalization gap</text>
+<text x="70" y="47" fill="#62707d" font-size="12">Metric drop from a training-seen to the held-out cell type (HepG2). Positive = worse generalization.</text>
+<line x1="70" y1="310.0" x2="696" y2="310.0" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="314.0" fill="#62707d" font-size="11" text-anchor="end">-0.1</text>
+<line x1="70" y1="260.8" x2="696" y2="260.8" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="264.8" fill="#62707d" font-size="11" text-anchor="end">-0.06</text>
+<line x1="70" y1="211.6" x2="696" y2="211.6" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="215.6" fill="#62707d" font-size="11" text-anchor="end">-0.02</text>
+<line x1="70" y1="162.4" x2="696" y2="162.4" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="166.4" fill="#62707d" font-size="11" text-anchor="end">0.02</text>
+<line x1="70" y1="113.2" x2="696" y2="113.2" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="117.2" fill="#62707d" font-size="11" text-anchor="end">0.06</text>
+<line x1="70" y1="64.0" x2="696" y2="64.0" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="68.0" fill="#62707d" font-size="11" text-anchor="end">0.1</text>
+<text x="18" y="187.0" fill="#62707d" font-size="12" text-anchor="middle" transform="rotate(-90 18 187.0)">Gap (held-out − in-context)</text>
+<line x1="70" y1="187.0" x2="696" y2="187.0" stroke="#1f2933" stroke-width="1"/>
+<rect x="86.1" y="187.0" width="124.3" height="0.0" fill="#d53f8c" rx="2"/>
+<text x="148.2" y="181.0" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">0</text>
+<text x="148.2" y="328.0" fill="#1f2933" font-size="12" text-anchor="middle">cas9-efficiency</text>
+<rect x="242.6" y="187.0" width="124.3" height="54.4" fill="#d53f8c" rx="2"/>
+<text x="304.8" y="255.4" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">-0.044</text>
+<text x="304.8" y="328.0" fill="#1f2933" font-size="12" text-anchor="middle">cas9-outcome</text>
+<rect x="399.1" y="159.9" width="124.3" height="27.1" fill="#d53f8c" rx="2"/>
+<text x="461.2" y="153.9" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">0.022</text>
+<text x="461.2" y="328.0" fill="#1f2933" font-size="12" text-anchor="middle">be-outcome</text>
+<rect x="555.6" y="187.0" width="124.3" height="0.0" fill="#d53f8c" rx="2"/>
+<text x="617.8" y="181.0" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">0</text>
+<text x="617.8" y="328.0" fill="#1f2933" font-size="12" text-anchor="middle">pe-efficiency</text>
+</svg>

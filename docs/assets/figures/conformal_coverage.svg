@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="380" viewBox="0 0 720 380" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+<rect width="720" height="380" fill="#ffffff"/>
+<text x="70" y="28" fill="#1f2933" font-size="17" font-weight="700">Split-conformal recalibration restores interval coverage</text>
+<text x="70" y="47" fill="#62707d" font-size="12">Coverage of a deliberately under-covering interval set, before vs after recalibration. Dashed: nominal target.</text>
+<line x1="70" y1="310.0" x2="696" y2="310.0" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="314.0" fill="#62707d" font-size="11" text-anchor="end">0</text>
+<line x1="70" y1="260.8" x2="696" y2="260.8" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="264.8" fill="#62707d" font-size="11" text-anchor="end">20</text>
+<line x1="70" y1="211.6" x2="696" y2="211.6" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="215.6" fill="#62707d" font-size="11" text-anchor="end">40</text>
+<line x1="70" y1="162.4" x2="696" y2="162.4" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="166.4" fill="#62707d" font-size="11" text-anchor="end">60</text>
+<line x1="70" y1="113.2" x2="696" y2="113.2" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="117.2" fill="#62707d" font-size="11" text-anchor="end">80</text>
+<line x1="70" y1="64.0" x2="696" y2="64.0" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="68.0" fill="#62707d" font-size="11" text-anchor="end">100</text>
+<text x="18" y="187.0" fill="#62707d" font-size="12" text-anchor="middle" transform="rotate(-90 18 187.0)">Empirical coverage</text>
+<rect x="100.2" y="262.5" width="124.3" height="47.5" fill="#dd6b20" rx="2"/>
+<text x="162.3" y="256.5" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">19.3%</text>
+<rect x="228.5" y="113.0" width="124.3" height="197.0" fill="#38a169" rx="2"/>
+<text x="290.7" y="107.0" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">80.1%</text>
+<text x="226.5" y="328.0" fill="#1f2933" font-size="12" text-anchor="middle">80% interval</text>
+<rect x="413.2" y="262.5" width="124.3" height="47.5" fill="#dd6b20" rx="2"/>
+<text x="475.3" y="256.5" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">19.3%</text>
+<rect x="541.5" y="85.2" width="124.3" height="224.8" fill="#38a169" rx="2"/>
+<text x="603.7" y="79.2" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">91.4%</text>
+<text x="539.5" y="328.0" fill="#1f2933" font-size="12" text-anchor="middle">90% interval</text>
+<line x1="70" y1="113.2" x2="696" y2="113.2" stroke="#e53e3e" stroke-width="1.5" stroke-dasharray="6 4"/>
+<rect x="629.0" y="97.2" width="70.0" height="14" fill="#ffffff" opacity="0.82"/>
+<text x="696.0" y="108.2" fill="#e53e3e" font-size="11" text-anchor="end">target 80%</text>
+<line x1="70" y1="88.6" x2="696" y2="88.6" stroke="#e53e3e" stroke-width="1.5" stroke-dasharray="6 4"/>
+<rect x="629.0" y="72.6" width="70.0" height="14" fill="#ffffff" opacity="0.82"/>
+<text x="696.0" y="83.6" fill="#e53e3e" font-size="11" text-anchor="end">target 90%</text>
+<rect x="70" y="349" width="12" height="12" fill="#dd6b20" rx="2"/>
+<text x="87" y="359" fill="#1f2933" font-size="12">Raw coverage</text>
+<rect x="178" y="349" width="12" height="12" fill="#38a169" rx="2"/>
+<text x="195" y="359" fill="#1f2933" font-size="12">Recalibrated coverage</text>
+</svg>

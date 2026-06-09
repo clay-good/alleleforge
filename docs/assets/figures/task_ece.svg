@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="380" viewBox="0 0 720 380" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+<rect width="720" height="380" fill="#ffffff"/>
+<text x="70" y="28" fill="#1f2933" font-size="17" font-weight="700">Per-task calibration error (ECE) — CRISPR-Bench baseline</text>
+<text x="70" y="47" fill="#62707d" font-size="12">Expected calibration error per task on the frozen weight-free splits. Dashed: the flag threshold.</text>
+<line x1="70" y1="284.0" x2="696" y2="284.0" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="288.0" fill="#62707d" font-size="11" text-anchor="end">0</text>
+<line x1="70" y1="240.0" x2="696" y2="240.0" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="244.0" fill="#62707d" font-size="11" text-anchor="end">0.08</text>
+<line x1="70" y1="196.0" x2="696" y2="196.0" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="200.0" fill="#62707d" font-size="11" text-anchor="end">0.16</text>
+<line x1="70" y1="152.0" x2="696" y2="152.0" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="156.0" fill="#62707d" font-size="11" text-anchor="end">0.24</text>
+<line x1="70" y1="108.0" x2="696" y2="108.0" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="112.0" fill="#62707d" font-size="11" text-anchor="end">0.32</text>
+<line x1="70" y1="64.0" x2="696" y2="64.0" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="68.0" fill="#62707d" font-size="11" text-anchor="end">0.4</text>
+<text x="18" y="174.0" fill="#62707d" font-size="12" text-anchor="middle" transform="rotate(-90 18 174.0)">Expected calibration error</text>
+<rect x="83.3" y="174.0" width="98.7" height="110.0" fill="#805ad5" rx="2"/>
+<text x="132.6" y="168.0" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">0.2</text>
+<text x="132.6" y="302.0" fill="#1f2933" font-size="11" text-anchor="end" transform="rotate(-22 132.6 302.0)">cas9-efficiency</text>
+<rect x="208.5" y="217.7" width="98.7" height="66.3" fill="#805ad5" rx="2"/>
+<text x="257.8" y="211.7" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">0.121</text>
+<text x="257.8" y="302.0" fill="#1f2933" font-size="11" text-anchor="end" transform="rotate(-22 257.8 302.0)">cas9-outcome</text>
+<rect x="333.7" y="216.3" width="98.7" height="67.7" fill="#805ad5" rx="2"/>
+<text x="383.0" y="210.3" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">0.123</text>
+<text x="383.0" y="302.0" fill="#1f2933" font-size="11" text-anchor="end" transform="rotate(-22 383.0 302.0)">be-outcome</text>
+<rect x="458.9" y="119.0" width="98.7" height="165.0" fill="#805ad5" rx="2"/>
+<text x="508.2" y="113.0" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">0.3</text>
+<text x="508.2" y="302.0" fill="#1f2933" font-size="11" text-anchor="end" transform="rotate(-22 508.2 302.0)">pe-efficiency</text>
+<rect x="584.1" y="191.4" width="98.7" height="92.6" fill="#805ad5" rx="2"/>
+<text x="633.4" y="185.4" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">0.168</text>
+<text x="633.4" y="302.0" fill="#1f2933" font-size="11" text-anchor="end" transform="rotate(-22 633.4 302.0)">offtarget-classification</text>
+<line x1="70" y1="229.0" x2="696" y2="229.0" stroke="#e53e3e" stroke-width="1.5" stroke-dasharray="6 4"/>
+<rect x="629.0" y="213.0" width="70.0" height="14" fill="#ffffff" opacity="0.82"/>
+<text x="696.0" y="224.0" fill="#e53e3e" font-size="11" text-anchor="end">flag ≥ 0.1</text>
+</svg>

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="380" viewBox="0 0 720 380" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+<rect width="720" height="380" fill="#ffffff"/>
+<text x="70" y="28" fill="#1f2933" font-size="17" font-weight="700">Reference bias, reproduced (rs114518452-style)</text>
+<text x="70" y="47" fill="#62707d" font-size="12">Reference-only finds nothing; the population-aware scan nominates a CFD-1 site (AFR allele freq 10.5%).</text>
+<line x1="70" y1="310.0" x2="696" y2="310.0" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="314.0" fill="#62707d" font-size="11" text-anchor="end">0</text>
+<line x1="70" y1="260.8" x2="696" y2="260.8" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="264.8" fill="#62707d" font-size="11" text-anchor="end">0.4</text>
+<line x1="70" y1="211.6" x2="696" y2="211.6" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="215.6" fill="#62707d" font-size="11" text-anchor="end">0.8</text>
+<line x1="70" y1="162.4" x2="696" y2="162.4" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="166.4" fill="#62707d" font-size="11" text-anchor="end">1.2</text>
+<line x1="70" y1="113.2" x2="696" y2="113.2" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="117.2" fill="#62707d" font-size="11" text-anchor="end">1.6</text>
+<line x1="70" y1="64.0" x2="696" y2="64.0" stroke="#dde3e8" stroke-width="1"/>
+<text x="62" y="68.0" fill="#62707d" font-size="11" text-anchor="end">2</text>
+<text x="18" y="187.0" fill="#62707d" font-size="12" text-anchor="middle" transform="rotate(-90 18 187.0)">Sites nominated</text>
+<rect x="100.2" y="310.0" width="252.7" height="0.0" fill="#2b6cb0" rx="2"/>
+<text x="226.5" y="304.0" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">0</text>
+<text x="226.5" y="328.0" fill="#1f2933" font-size="12" text-anchor="middle">Reference-only scan</text>
+<rect x="413.2" y="187.0" width="252.7" height="123.0" fill="#2b6cb0" rx="2"/>
+<text x="539.5" y="181.0" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">1</text>
+<text x="539.5" y="328.0" fill="#1f2933" font-size="12" text-anchor="middle">Population-aware scan</text>
+</svg>

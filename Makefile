@@ -1,6 +1,6 @@
 # AlleleForge developer tasks. CI runs the same commands; this is the local
 # mirror so `make ci` reproduces the gate before a push.
-.PHONY: help install lint type test docs reproduce native ci
+.PHONY: help install lint type test docs reproduce figures native ci
 
 help: ## Show this help.
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -24,6 +24,9 @@ docs: ## Build the docs site in strict mode.
 
 reproduce: ## Re-derive the canonical run and diff it against the golden (R0).
 	python scripts/reproduce.py
+
+figures: ## Regenerate the committed docs/preprint figures (dependency-free SVG).
+	python scripts/figures.py
 
 native: ## Build the Rust crate and run the native parity tests.
 	cd rust && maturin build --release --out dist
