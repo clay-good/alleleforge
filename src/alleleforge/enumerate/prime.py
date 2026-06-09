@@ -237,7 +237,12 @@ def enumerate_prime(
     if len(var.ref) != 1 or len(var.alt) != 1:
         return []  # the equal-length template path supports single-position edits
     start_allele, desired_allele = _required_alleles(resolved, intent)
-    margin = spacer_length + len(pam.pattern) + max(rtt_homologies, default=5) + max(pbs_lengths)
+    margin = (
+        spacer_length
+        + len(pam.pattern)
+        + max(rtt_homologies, default=5)
+        + max(pbs_lengths, default=PBS_RANGE[1])
+    )
     region = GenomicInterval(
         chrom=var.chrom,
         start=max(0, var.pos - margin),

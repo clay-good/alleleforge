@@ -118,3 +118,12 @@ def test_non_single_position_edit_empty(make_reference: MakeRef) -> None:
     ref = make_reference({"chr2": _context()})
     rv = resolve("chr2:71:ATA>A", reference=ref)  # a deletion (not single-position)
     assert enumerate_prime(rv, EditIntent.CORRECT, reference=ref) == []
+
+
+def test_empty_pbs_lengths_returns_empty_not_crash(make_reference: MakeRef) -> None:
+    # The margin max()es over pbs_lengths (and rtt_homologies); an empty pbs set
+    # must degrade to an empty result, not raise on an empty max() — matching the
+    # guarded rtt_homologies path.
+    ref = make_reference({"chr2": _context()})
+    rv = _resolve(ref, 70, "C")
+    assert enumerate_prime(rv, EditIntent.INSTALL, reference=ref, pbs_lengths=()) == []

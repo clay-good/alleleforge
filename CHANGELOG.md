@@ -647,6 +647,21 @@ acceptance.
 
 ### Fixed
 
+- **Robustness: enumeration margins and the mmap loader no longer crash/leak on
+  edge inputs.** Three small hardening fixes, swept as a class:
+  - `enumerate_prime(..., pbs_lengths=())` and `enumerate_base_edits(..., editors=())`
+    raised `ValueError: max() arg is an empty sequence` from the reference-window
+    *margin* computation — an asymmetry, since the sibling `max(rtt_homologies,
+    default=5)` was already guarded. Both `max()` calls now carry a `default`, so
+    an empty parameter degrades to an empty result (no candidates) like every
+    other empty enumeration input, rather than crashing.
+  - `FMIndex.load()` opened the BWT file, mmap'd it, then closed the fd — but a
+    failure in `mmap.mmap()` (a corrupt cache, `ENOMEM`) leaked the descriptor.
+    The open is now a `with` block, releasing the fd on the error path too; the
+    mmap still outlives it as before.
+  Pinned by tests for the two empty-parameter paths; no behavior change on any
+  in-range input. No type/schema/golden change.
+
 - **Menu rationale notes are now byte-deterministic.** When a caller restricted
   the chemistries, `design()` listed each *requested-but-ineligible* chemistry by
   iterating a `set` difference (`requested - eligible`) and appending to the

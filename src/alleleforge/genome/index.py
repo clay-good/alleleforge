@@ -269,9 +269,11 @@ class FMIndex:
         if in_memory:
             bwt = bwt_path.read_bytes().decode("latin-1")
         else:
-            fh = bwt_path.open("rb")
-            mm = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
-            fh.close()  # the mmap keeps the mapping alive after the fd is closed
+            # The mmap keeps the mapping alive after the fd is closed; the `with`
+            # closes the fd on success *and* releases it if mmap construction
+            # raises (a corrupt cache, ENOMEM), rather than leaking the handle.
+            with bwt_path.open("rb") as fh:
+                mm = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
         return cls(
             length=meta["length"],
             c_table=meta["c_table"],

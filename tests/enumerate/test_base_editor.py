@@ -50,6 +50,15 @@ def test_editor_installs_strand_logic() -> None:
 # -- enumeration --------------------------------------------------------------
 
 
+def test_empty_editors_returns_empty_not_crash(make_reference: MakeRef) -> None:
+    # The margin computation max()es over the editors' PAM lengths; with no
+    # editors it must degrade to an empty result, not raise on an empty max().
+    proto = "TTTTAACGTTTTTTTTTTTT"
+    ref = make_reference({"chr2": PAD + proto + "TGG" + PAD})
+    rv = _resolve(ref, 25, "G")
+    assert enumerate_base_edits(rv, reference=ref, intent=EditIntent.INSTALL, editors=()) == []
+
+
 def test_abe_plus_enumeration(make_reference: MakeRef) -> None:
     proto = "TTTTAACGTTTTTTTTTTTT"  # editable A's at protospacer positions 5 and 6
     ref = make_reference({"chr2": PAD + proto + "TGG" + PAD})

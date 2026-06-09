@@ -220,7 +220,7 @@ def enumerate_base_edits(
     if var.variant_class is not VariantClass.SNV:
         return []
     from_base, to_base = _required_transition(resolved, intent)
-    margin = spacer_length + max(len(e.pam.pattern) for e in editors)
+    margin = spacer_length + max((len(e.pam.pattern) for e in editors), default=0)
     region = GenomicInterval(
         chrom=var.chrom,
         start=max(0, var.pos - margin),
