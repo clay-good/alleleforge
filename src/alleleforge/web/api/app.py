@@ -280,6 +280,11 @@ def create_app(
                 PAM(pattern=req.pam),
                 reference=reference,
                 mismatches=req.mismatches,
+                dna_bulges=req.dna_bulges,
+                rna_bulges=req.rna_bulges,
+                cfd_threshold=req.cfd_threshold,
+                mit_threshold=req.mit_threshold,
+                maf=req.maf,
                 populations=req.populations,
             )
         except ValueError as exc:

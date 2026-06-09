@@ -630,6 +630,21 @@ acceptance.
   Docker/composite actions (`gh-action-pypi-publish`, `dtolnay/rust-toolchain`) are
   unaffected by the Node deprecation.
 
+### Added
+
+- **`aforge offtarget` and `POST /api/offtarget` now expose every engine knob.**
+  The off-target engine's `search()` has always accepted a tunable bulge budget
+  (`dna_bulges` / `rna_bulges`), CFD/MIT reporting thresholds (`cfd_threshold` /
+  `mit_threshold`), and a carrying-frequency floor (`maf`) — and the docs state
+  "every threshold is a parameter" — but the CLI command and the web request
+  hardcoded all of them to the defaults, exposing only `mismatches` and
+  `populations`. Both surfaces now pass the full set through (CLI options with
+  range validation; `OffTargetRequest` fields with `ge`/`le` bounds), so a user
+  can tighten the thresholds, drop bulges for speed, or change the population
+  stringency without dropping to the Python API. The library, CLI, and web are
+  again faithful mirrors of one engine. Pinned by monotonic tests on both
+  surfaces (tightening a knob can only remove nominations, never add).
+
 ### Fixed
 
 - **VEP transcript selection now prefers MANE Select with strict priority.** For

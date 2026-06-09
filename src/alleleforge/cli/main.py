@@ -555,7 +555,21 @@ def offtarget(
         Path | None, typer.Option(help="Reference FASTA (required).")
     ] = None,
     pam: Annotated[str, typer.Option(help="PAM pattern (IUPAC).")] = "NGG",
-    mismatches: Annotated[int, typer.Option(help="Max mismatches.")] = 4,
+    mismatches: Annotated[int, typer.Option(help="Max mismatches.", min=0)] = 4,
+    dna_bulges: Annotated[int, typer.Option(help="Max DNA bulges.", min=0)] = 1,
+    rna_bulges: Annotated[int, typer.Option(help="Max RNA bulges.", min=0)] = 1,
+    cfd_threshold: Annotated[
+        float, typer.Option(help="Report a site at or above this CFD score.", min=0.0, max=1.0)
+    ] = 0.20,
+    mit_threshold: Annotated[
+        float, typer.Option(help="...or at or above this MIT score.", min=0.0, max=1.0)
+    ] = 0.10,
+    maf: Annotated[
+        float,
+        typer.Option(
+            help="Min population allele frequency to consider carrying.", min=0.0, max=1.0
+        ),
+    ] = 0.001,
     populations: Annotated[
         str | None, typer.Option(help="Comma-separated ancestry labels to stratify by.")
     ] = None,
@@ -569,7 +583,16 @@ def offtarget(
     pops = [p.strip() for p in populations.split(",")] if populations else None
     try:
         report = search(
-            spacer, PAM(pattern=pam), reference=reference, mismatches=mismatches, populations=pops
+            spacer,
+            PAM(pattern=pam),
+            reference=reference,
+            mismatches=mismatches,
+            dna_bulges=dna_bulges,
+            rna_bulges=rna_bulges,
+            cfd_threshold=cfd_threshold,
+            mit_threshold=mit_threshold,
+            maf=maf,
+            populations=pops,
         )
     except ValueError as exc:
         _echo_err(f"error: {exc}")

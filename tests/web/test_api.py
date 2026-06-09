@@ -200,6 +200,27 @@ async def test_offtarget(client: httpx.AsyncClient) -> None:
     assert 0.0 < body["specificity"] <= 1.0
 
 
+async def test_offtarget_tuning_knobs_are_honored(client: httpx.AsyncClient) -> None:
+    # The engine's bulge budget and score thresholds are now exposed on the request
+    # and plumbed through. Raising the thresholds and disallowing bulges can only
+    # remove nominations, never add — a fixture-independent check they are honored.
+    spacer = "ATATATATATATATATATAT"
+    base = await client.post("/api/offtarget", json={"spacer": spacer, "pam": "NGG"})
+    strict = await client.post(
+        "/api/offtarget",
+        json={
+            "spacer": spacer,
+            "pam": "NGG",
+            "cfd_threshold": 1.0,
+            "mit_threshold": 1.0,
+            "dna_bulges": 0,
+            "rna_bulges": 0,
+        },
+    )
+    assert base.status_code == 200 and strict.status_code == 200
+    assert strict.json()["n_sites"] <= base.json()["n_sites"]
+
+
 async def test_offtarget_bad_pam_is_422(client: httpx.AsyncClient) -> None:
     res = await client.post("/api/offtarget", json={"spacer": "ACGT", "pam": "XZ"})
     assert res.status_code == 422

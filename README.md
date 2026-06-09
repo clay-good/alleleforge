@@ -366,8 +366,10 @@ The same journey from the `aforge` CLI (`pip install "alleleforge[cli]"`):
 aforge design VCV000012345 --reference-fasta hg38.fa \
     --intent correct --populations afr,eur,eas --format html --out report.html
 
-# Standalone population/haplotype-aware off-target for a spacer
-aforge offtarget GACGGAGGCTAAGCGTCGCAA --reference-fasta hg38.fa --pam NGG --json
+# Standalone population/haplotype-aware off-target for a spacer. Every engine knob is
+# tunable: the bulge budget, the CFD/MIT reporting thresholds, and the carrying MAF.
+aforge offtarget GACGGAGGCTAAGCGTCGCAA --reference-fasta hg38.fa --pam NGG --json \
+    --dna-bulges 1 --rna-bulges 1 --cfd-threshold 0.20 --mit-threshold 0.10 --maf 0.001
 
 # Normalize any input form and show its class (debugging aid)
 aforge resolve chr2:100:A>G --json

@@ -123,6 +123,20 @@ class OffTargetRequest(BaseModel):
     spacer: str = Field(description="The on-target spacer (5'->3').")
     pam: str = Field(default="NGG", description="PAM pattern (IUPAC).")
     mismatches: int = Field(default=4, ge=0, le=8, description="Max mismatches.")
+    dna_bulges: int = Field(default=1, ge=0, le=4, description="Max DNA bulges.")
+    rna_bulges: int = Field(default=1, ge=0, le=4, description="Max RNA bulges.")
+    cfd_threshold: float = Field(
+        default=0.20, ge=0.0, le=1.0, description="Report a site at or above this CFD score."
+    )
+    mit_threshold: float = Field(
+        default=0.10, ge=0.0, le=1.0, description="...or at or above this MIT score."
+    )
+    maf: float = Field(
+        default=0.001,
+        ge=0.0,
+        le=1.0,
+        description="Min population allele frequency to consider carrying.",
+    )
     populations: list[str] | None = Field(
         default=None, description="Ancestry labels to stratify by."
     )

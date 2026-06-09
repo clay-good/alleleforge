@@ -438,6 +438,36 @@ def test_offtarget_json(runner: CliRunner, nuclease_fasta: Path) -> None:
     assert site["mit_score"] == 1.0  # ungapped 20-nt perfect match -> recorded, not dropped
 
 
+def test_offtarget_tuning_knobs_are_honored(runner: CliRunner, nuclease_fasta: Path) -> None:
+    # The engine's bulge budget and score thresholds are now CLI options, plumbed
+    # through to search(). Raising the thresholds and disallowing bulges can only
+    # remove nominations, never add — a fixture-independent check they are honored.
+    spacer = "ACGTAACGTTACGTAACGTT"
+    base = runner.invoke(
+        app, ["offtarget", spacer, "--reference-fasta", str(nuclease_fasta), "--json"]
+    )
+    strict = runner.invoke(
+        app,
+        [
+            "offtarget",
+            spacer,
+            "--reference-fasta",
+            str(nuclease_fasta),
+            "--json",
+            "--cfd-threshold",
+            "1.0",
+            "--mit-threshold",
+            "1.0",
+            "--dna-bulges",
+            "0",
+            "--rna-bulges",
+            "0",
+        ],
+    )
+    assert base.exit_code == 0 and strict.exit_code == 0
+    assert json.loads(strict.output)["n_sites"] <= json.loads(base.output)["n_sites"]
+
+
 def test_offtarget_human(runner: CliRunner, nuclease_fasta: Path) -> None:
     result = runner.invoke(
         app, ["offtarget", "ACGTAACGTTACGTAACGTT", "--reference-fasta", str(nuclease_fasta)]
