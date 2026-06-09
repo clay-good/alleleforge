@@ -1031,7 +1031,10 @@ oriented so a positive gap means worse generalization (R5; reported in the calib
 **Honest by construction.** Results are content-addressed (`signature`) so a published number cannot be
 silently edited, and the leaderboard refuses any submission lacking a model card (name, license, citation) or
 carrying a bad signature — `aforge bench leaderboard *.json` aggregates signed results into the board
-(Markdown/HTML), enforcing both gates on read. The shipped datasets are **small synthetic fixtures** so the
+(Markdown/HTML), enforcing both gates on read. The regression-task ECE is **interval-coverage calibration**
+(`|empirical coverage − nominal|`), and because that is only well-defined against a single nominal level it
+is computed **per `interval_level` and count-weighted** — a scorer that mixes interval levels in one batch is
+scored correctly, never pooled against one prediction's level. The shipped datasets are **small synthetic fixtures** so the
 whole benchmark runs in CI with no downloads; the real corpora are fetched at runtime through the same
 consent-gated registry as the population data. See
 [`src/alleleforge/benchmark/README.md`](src/alleleforge/benchmark/README.md).

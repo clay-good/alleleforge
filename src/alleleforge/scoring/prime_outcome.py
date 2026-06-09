@@ -32,11 +32,6 @@ class PrimeOutcome:
     p_intended: Prediction[float]
 
 
-def _nick_to_edit(pegrna: PegRNA) -> int:
-    """Derive the nick-to-edit distance from the RTT geometry."""
-    return max(0, len(pegrna.rtt) - pegrna.rtt_homology_3prime - 1)
-
-
 class PrimeOutcomePredictor:
     """A transparent prime-edit byproduct baseline."""
 

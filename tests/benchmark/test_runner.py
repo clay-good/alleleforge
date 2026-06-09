@@ -27,6 +27,31 @@ def test_regression_task_end_to_end(fixed_ts: datetime) -> None:
     assert result.model.name == "stub-regression"
 
 
+def test_regression_ece_groups_by_interval_level() -> None:
+    # Interval calibration is per nominal level. With mixed levels in one batch,
+    # pooling every interval against a single nominal (the old behavior) is wrong:
+    # A's 80% interval covers its truth, B's 50% interval does not, so pooling
+    # gives |0.5 - 0.8| = 0.3, while the correct per-level count-weighted error is
+    # (|1.0 - 0.8| + |0.0 - 0.5|) / 2 = 0.35.
+    from alleleforge.benchmark.runner import _regression_metrics
+    from alleleforge.types.prediction import Prediction, UncertaintyMethod
+
+    def _pred(value: float, interval: tuple[float, float], level: float) -> Prediction[float]:
+        return Prediction[float](
+            value=value,
+            interval=interval,
+            interval_level=level,
+            method=UncertaintyMethod.HEURISTIC,
+            in_distribution=True,
+            calibrated=False,
+        )
+
+    # The point value sits inside its own interval; the label (5.0) is the truth
+    # whose coverage is tested — inside A's (0, 10) but outside B's (0, 1).
+    preds = [_pred(5.0, (0.0, 10.0), 0.8), _pred(0.5, (0.0, 1.0), 0.5)]
+    assert _regression_metrics(preds, [5.0, 5.0])["ece"] == pytest.approx(0.35)
+
+
 def test_classification_task_end_to_end(fixed_ts: datetime) -> None:
     result = run_benchmark(StubClassifierScorer(), "offtarget-classification", timestamp=fixed_ts)
     assert set(result.metrics) == {"auroc", "auprc", "ece"}

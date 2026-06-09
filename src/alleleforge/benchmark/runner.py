@@ -117,14 +117,35 @@ class BenchmarkResult(BaseModel):
 def _regression_metrics(
     predictions: list[Prediction[Any]], labels: list[float]
 ) -> dict[str, float]:
-    """Compute Spearman, Pearson, and interval-calibration ECE for regression."""
+    """Compute Spearman, Pearson, and interval-calibration ECE for regression.
+
+    Interval calibration is only well-defined against a single nominal level, so
+    the predictions are grouped by their ``interval_level`` and the ECE is the
+    count-weighted mean of the per-level calibration error. A homogeneous batch —
+    the common case, every scorer using the settings interval level — is one
+    group and reduces exactly to the single-nominal computation; a scorer that
+    mixes levels in one batch is now scored correctly instead of silently
+    comparing every interval against the first prediction's level.
+    """
     preds = [float(p.value) for p in predictions]
-    intervals = [p.interval for p in predictions]
-    nominal = predictions[0].interval_level if predictions else 0.80
+    by_level: dict[float, tuple[list[tuple[float, float]], list[float]]] = {}
+    for p, y in zip(predictions, labels, strict=True):
+        ivals, truths = by_level.setdefault(p.interval_level, ([], []))
+        ivals.append(p.interval)
+        truths.append(float(y))
+    ece = (
+        sum(
+            len(truths) * interval_calibration_error(ivals, truths, nominal=level)
+            for level, (ivals, truths) in by_level.items()
+        )
+        / len(predictions)
+        if predictions
+        else 0.0
+    )
     return {
         "spearman": spearman(labels, preds),
         "pearson": pearson(labels, preds),
-        "ece": interval_calibration_error(intervals, labels, nominal=nominal),
+        "ece": ece,
     }
 
 

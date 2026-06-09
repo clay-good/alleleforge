@@ -632,6 +632,25 @@ acceptance.
 
 ### Fixed
 
+- **CRISPR-Bench regression ECE is now correct under mixed interval levels.**
+  `_regression_metrics` took `predictions[0].interval_level` as the single nominal
+  for the interval-calibration ECE and pooled every prediction's interval against
+  it. `Prediction` permits a per-prediction `interval_level`, so a scorer that
+  returned mixed levels in one batch would have its calibration silently
+  misreported — comparing, say, an 80% and a 50% interval against one nominal —
+  in the benchmark whose entire purpose is honest calibration measurement. The
+  ECE is now computed **per `interval_level` and count-weighted** across the
+  groups. A homogeneous batch (the common case — every scorer uses the settings
+  interval level) is one group and reduces **exactly** to the prior value, so no
+  shipped number changes; a mixed-level batch is now scored correctly. Pinned by
+  a unit test (the pooled result `0.3` vs the correct per-level `0.35`).
+
+- **Removed a dead `_nick_to_edit` duplicate in `scoring/prime_outcome.py`.**
+  The prime-outcome baseline carried a byte-identical copy of the nick-to-edit
+  helper that lives in (and is used by) `scoring/prime_efficiency.py`; the outcome
+  model never called it (it folds nick-to-edit geometry into the RTT-length
+  proxy). Pure housekeeping — no behavior change.
+
 - **`aforge offtarget --json` now emits the full per-site audit set.** The CLI
   hand-flattened each off-target site into a dict that dropped `mit_score` (added
   in this release), `dna_bulges`/`rna_bulges`, the causal-allele `frequency`, and
