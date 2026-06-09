@@ -493,7 +493,10 @@ score** — `report.specificity_score()`, the CFD-scale analog of the Hsu 2013 /
 `100/(100+Σ)`, i.e. `1/(1 + Σ site scores)` ∈ (0, 1], **1.0** for a guide with no off-targets and
 decreasing as the total burden grows. It is the single number every design tool headlines, and unlike the
 worst-case it **distinguishes two guides with the same worst site but a different *number* of off-targets**.
-It surfaces in the HTML/PDF report and the `CandidateReport.offtarget_specificity` export field.
+It surfaces on **every output surface that summarizes off-target**: the HTML/PDF report and the
+`CandidateReport.offtarget_specificity` export field, the standalone `aforge offtarget` command and its
+`POST /api/offtarget` web equivalent (both alongside the site count and worst-case score), and the cohort
+batch summary (`best_specificity`), so triage can rank by total burden, not just the single worst site.
 
 All three site scores sit behind one swappable `OffTargetScorer` protocol, so a Phase 6 ML scorer drops in
 without touching the engine. Reporting thresholds default to **CFD ≥ 0.20 or MIT ≥ 0.10**.
@@ -944,7 +947,7 @@ flowchart LR
 | `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf` |
 | `POST /api/jobs/design` → `GET /api/jobs/{id}` | Async job submit + status/progress/result |
 | `POST /api/batch` | Cohort design over a variant list; per-item summaries + provenance, failures isolated |
-| `POST /api/offtarget` | Standalone population-aware off-target search |
+| `POST /api/offtarget` | Standalone population-aware off-target search — full report plus the aggregate summary (site count, worst-case, specificity) |
 | `GET /api/data` · `/api/data/{name}` | Inspect the dataset registry |
 | `GET /api/bench` | List the CRISPR-Bench tasks, datasets, and primary metrics |
 | `GET /` | The served single-page frontend |

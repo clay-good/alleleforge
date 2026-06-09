@@ -12,6 +12,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from alleleforge.types.offtarget import OffTargetReport
+
 
 class ResolveRequest(BaseModel):
     """A request to normalize any variant input form."""
@@ -124,6 +126,40 @@ class OffTargetRequest(BaseModel):
     populations: list[str] | None = Field(
         default=None, description="Ancestry labels to stratify by."
     )
+
+
+class OffTargetResponse(BaseModel):
+    """A standalone off-target search result with its aggregate summary.
+
+    The single-number aggregates a client wants to triage on — site count,
+    worst-case score, and the genome-wide specificity score — are *methods* on
+    :class:`OffTargetReport`, so they are absent from its serialized fields. This
+    envelope projects them alongside the full report, giving an API client the
+    same summary the ``aforge offtarget`` CLI surfaces.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    report: OffTargetReport
+    n_sites: int = Field(description="Number of nominated off-target sites.")
+    worst_score: float = Field(description="Highest single-site off-target score (0 if none).")
+    specificity: float = Field(
+        description="Aggregate genome-wide specificity 1/(1+Σ scores) in (0, 1]."
+    )
+    ancestry_stratification: dict[str, float] = Field(
+        description="Worst-case off-target score per annotated ancestry."
+    )
+
+    @classmethod
+    def from_report(cls, report: OffTargetReport) -> OffTargetResponse:
+        """Build the envelope from a report, computing its aggregate summary."""
+        return cls(
+            report=report,
+            n_sites=report.n_sites,
+            worst_score=report.worst_score(),
+            specificity=report.specificity_score(),
+            ancestry_stratification=report.ancestry_stratification(),
+        )
 
 
 class HealthResponse(BaseModel):

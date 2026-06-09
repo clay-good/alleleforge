@@ -190,8 +190,14 @@ async def test_design_job_reports_error(app: FastAPI) -> None:
 async def test_offtarget(client: httpx.AsyncClient) -> None:
     res = await client.post("/api/offtarget", json={"spacer": "ATATATATATATATATATAT", "pam": "NGG"})
     assert res.status_code == 200
-    report = OffTargetReport.model_validate(res.json())  # Phase 1 schema-valid
+    body = res.json()
+    report = OffTargetReport.model_validate(body["report"])  # Phase 1 schema-valid
     assert report.spacer == "ATATATATATATATATATAT"
+    # The aggregate summary the CLI surfaces is present and consistent with the report.
+    assert body["n_sites"] == report.n_sites
+    assert body["worst_score"] == report.worst_score()
+    assert body["specificity"] == report.specificity_score()
+    assert 0.0 < body["specificity"] <= 1.0
 
 
 async def test_offtarget_bad_pam_is_422(client: httpx.AsyncClient) -> None:

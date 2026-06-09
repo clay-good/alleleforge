@@ -23,7 +23,12 @@ acceptance.
   (JSON `specificity` + the human one-liner) and the cohort batch summary
   (`best_specificity`, the top candidate's specificity — in the JSONL manifest, the
   per-item TSV, and `design.design_many`'s summaries), so cohort triage can rank by
-  total off-target burden, not just the single worst site.
+  total off-target burden, not just the single worst site. The web API closes the
+  last gap: `POST /api/offtarget` now returns an `OffTargetResponse` envelope —
+  the full report **plus** the aggregate summary (`n_sites`, `worst_score`,
+  `specificity`, `ancestry_stratification`) — because those aggregates are
+  *methods* on `OffTargetReport` and so were absent from its serialized fields,
+  leaving an API client to recompute what the CLI already prints.
 
 - **Phase 0 — Repository bootstrap.** Hatchling build, `aforge` console-script
   entry point, dependency groups (`core`/`genome`/`variant`/`ml`/`web`/`docs`/`dev`),

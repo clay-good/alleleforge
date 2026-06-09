@@ -33,7 +33,6 @@ from alleleforge.config import Settings
 from alleleforge.report.builder import RESEARCH_USE_DISCLAIMER, DesignReport, build_report
 from alleleforge.report.html import render_html
 from alleleforge.report.pdf import render_pdf
-from alleleforge.types.offtarget import OffTargetReport
 from alleleforge.web.api.jobs import JobManager
 from alleleforge.web.api.models import (
     BatchItemResult,
@@ -47,6 +46,7 @@ from alleleforge.web.api.models import (
     HealthResponse,
     JobSubmitResponse,
     OffTargetRequest,
+    OffTargetResponse,
     ResolveRequest,
     ResolveResponse,
 )
@@ -267,15 +267,15 @@ def create_app(
             disclaimer=RESEARCH_USE_DISCLAIMER,
         )
 
-    @app.post("/api/offtarget", response_model=OffTargetReport)
-    def offtarget_endpoint(req: OffTargetRequest, request: Request) -> OffTargetReport:
+    @app.post("/api/offtarget", response_model=OffTargetResponse)
+    def offtarget_endpoint(req: OffTargetRequest, request: Request) -> OffTargetResponse:
         """Run a standalone population-aware off-target search for a spacer."""
         from alleleforge.offtarget.engine import search
         from alleleforge.types.guide import PAM
 
         reference = _require_reference(request)
         try:
-            return search(
+            report = search(
                 req.spacer,
                 PAM(pattern=req.pam),
                 reference=reference,
@@ -284,6 +284,7 @@ def create_app(
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return OffTargetResponse.from_report(report)
 
     @app.get("/api/data", response_model=DataListResponse)
     async def data_list() -> DataListResponse:
