@@ -647,6 +647,17 @@ acceptance.
 
 ### Fixed
 
+- **Menu rationale notes are now byte-deterministic.** When a caller restricted
+  the chemistries, `design()` listed each *requested-but-ineligible* chemistry by
+  iterating a `set` difference (`requested - eligible`) and appending to the
+  notes that compose the serialized menu rationale — so with two or more such
+  chemistries the note order depended on the process hash seed and varied run to
+  run, breaking byte-reproducibility of the rationale string. The canonical
+  reproducibility run passes no `chemistries`, so the golden never exercised this
+  path. The difference is now emitted in sorted order. Pinned by a test (two
+  ineligible chemistries → notes in sorted order) verified under varying
+  `PYTHONHASHSEED`. (Companion to the ancestry-stratification determinism fix.)
+
 - **Ancestry stratification is now byte-deterministic.**
   `OffTargetReport.ancestry_stratification()` built its per-ancestry mapping by
   iterating a `set`, and `worst_ancestry()` then took `max()` over that mapping —

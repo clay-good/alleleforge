@@ -90,6 +90,26 @@ def test_requesting_ineligible_chemistry_is_noted(make_reference: MakeRef) -> No
     assert not menu.candidates  # nuclease is ineligible for an install intent
 
 
+def test_ineligible_chemistry_notes_are_deterministically_ordered(make_reference: MakeRef) -> None:
+    # Two requested-but-ineligible chemistries for an A->G install (CBE is a C->T
+    # editor; nuclease makes indels, not a precise install). Their notes must come
+    # out in sorted order so the serialized menu rationale is byte-stable across
+    # runs — a bare set-difference iteration would order them by the hash seed.
+    ref = _abe_ref(make_reference)
+    rv = _resolve(ref, 25, "G")
+    menu = design(
+        rv,
+        reference=ref,
+        intent=EditIntent.INSTALL,
+        chemistries=[Chemistry.CAS9_NUCLEASE, Chemistry.BASE_CBE],
+    )
+    assert menu.rationale is not None
+    i_cbe = menu.rationale.find("base_cbe: requested but not eligible")
+    i_nuc = menu.rationale.find("cas9_nuclease: requested but not eligible")
+    assert i_cbe != -1 and i_nuc != -1  # both ineligible and noted
+    assert i_cbe < i_nuc  # sorted (base_cbe before cas9_nuclease), not hash-seed-ordered
+
+
 def test_run_offtarget_false_skips(make_reference: MakeRef) -> None:
     ref = _abe_ref(make_reference)
     rv = _resolve(ref, 25, "G")

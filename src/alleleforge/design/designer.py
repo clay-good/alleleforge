@@ -154,7 +154,11 @@ def design(
             continue
         eligible.append(decision.chemistry)
     if requested is not None:
-        for chem in requested - set(d.chemistry for d in decisions if d.eligible):
+        eligible_chemistries = {d.chemistry for d in decisions if d.eligible}
+        # sorted() so the note order is deterministic — a bare set-difference
+        # iteration is hash-seed-ordered and would make the serialized menu
+        # rationale vary run to run.
+        for chem in sorted(requested - eligible_chemistries, key=lambda c: c.value):
             notes.append(f"{chem.value}: requested but not eligible for this variant/intent")
 
     candidates: list[DesignCandidate] = []
