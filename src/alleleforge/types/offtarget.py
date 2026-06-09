@@ -112,6 +112,20 @@ class OffTargetReport(BaseModel):
         """Return the highest off-target score across all sites (0 if none)."""
         return max((s.score for s in self.sites), default=0.0)
 
+    def specificity_score(self) -> float:
+        """Return the aggregate genome-wide specificity score in ``(0, 1]``.
+
+        This is the CFD-scale analog of the Hsu 2013 / MIT aggregate guide
+        specificity score (``100 / (100 + Σ off-target scores)``): on the
+        normalized ``[0, 1]`` per-site scale it is ``1 / (1 + Σ sᵢ)``. It is the
+        single-number summary every design tool reports — **1.0** for a guide with
+        no nominated off-targets, decreasing monotonically as the total off-target
+        burden grows. Unlike :meth:`worst_score` (the single worst site), it
+        distinguishes two guides with the same worst-case off-target but a
+        different *number* of off-targets — the one with fewer is more specific.
+        """
+        return 1.0 / (1.0 + sum(s.score for s in self.sites))
+
     def ancestry_stratification(self) -> dict[str, float]:
         """Return the worst-case off-target score per ancestry.
 

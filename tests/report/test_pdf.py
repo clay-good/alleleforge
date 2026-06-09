@@ -53,5 +53,6 @@ def test_pdf_escapes_parentheses(nuclease_menu: RankedMenu) -> None:
 def test_pdf_includes_ancestry_offtarget(ancestry_menu: RankedMenu) -> None:
     pdf = render_pdf(build_report(ancestry_menu))
     assert b"afr: worst score" in pdf
+    assert b"specificity" in pdf  # the aggregate genome-wide specificity score
     assert b"PROVENANCE" in pdf
     assert b"Models: cas9-efficiency-ensemble 0.1" in pdf

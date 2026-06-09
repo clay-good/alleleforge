@@ -49,12 +49,17 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
     for a in c.outcome_top:
         mark = " (intended)" if a.is_intended else ""
         lines += _wrap(f"outcome {a.allele}  p={a.probability:.3f}{mark}", indent="      ")
+    spec = (
+        f" (specificity {c.offtarget_specificity:.3f})"
+        if c.offtarget_specificity is not None
+        else ""
+    )
     if c.offtarget_by_ancestry:
-        lines += _wrap(f"off-target sites: {c.n_offtarget_sites}", indent="    ")
+        lines += _wrap(f"off-target sites: {c.n_offtarget_sites}{spec}", indent="    ")
         for r in c.offtarget_by_ancestry:
             lines += _wrap(f"{r.ancestry}: worst score {r.worst_score:.3f}", indent="      ")
     elif c.n_offtarget_sites is not None:
-        lines += _wrap(f"off-target sites: {c.n_offtarget_sites}", indent="    ")
+        lines += _wrap(f"off-target sites: {c.n_offtarget_sites}{spec}", indent="    ")
     if c.flags:
         lines += _wrap("flags: " + ", ".join(c.flags), indent="    ")
     lines.append("")

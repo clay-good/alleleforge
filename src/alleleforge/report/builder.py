@@ -81,6 +81,8 @@ class CandidateReport(BaseModel):
         p_intended: Summed probability of the intended allele(s), if scored.
         outcome_top: The highest-probability outcome alleles (descending).
         n_offtarget_sites: Number of nominated off-target sites, if searched.
+        offtarget_specificity: Aggregate genome-wide specificity in ``(0, 1]``
+            (Hsu-2013-style ``1/(1+Σ scores)``), if searched; ``1.0`` = no off-targets.
         offtarget_by_ancestry: Worst-case off-target score per ancestry.
         oligos: Cloning-ready oligos for the reagent, if requested.
         flags: Free-form candidate flags.
@@ -97,6 +99,7 @@ class CandidateReport(BaseModel):
     p_intended: float | None
     outcome_top: tuple[AlleleOutcome, ...]
     n_offtarget_sites: int | None
+    offtarget_specificity: float | None
     offtarget_by_ancestry: tuple[AncestryOffTarget, ...]
     oligos: SgRnaOligos | PegRNAOligos | None
     flags: tuple[str, ...]
@@ -150,9 +153,11 @@ def _candidate_report(
         p_intended = candidate.outcome.p_intended
 
     n_sites: int | None = None
+    specificity: float | None = None
     ancestry_rows: tuple[AncestryOffTarget, ...] = ()
     if candidate.offtarget is not None:
         n_sites = candidate.offtarget.n_sites
+        specificity = candidate.offtarget.specificity_score()
         strata = candidate.offtarget.ancestry_stratification()
         ancestry_rows = tuple(
             AncestryOffTarget(ancestry=a, worst_score=s)
@@ -169,6 +174,7 @@ def _candidate_report(
         p_intended=p_intended,
         outcome_top=outcome_top,
         n_offtarget_sites=n_sites,
+        offtarget_specificity=specificity,
         offtarget_by_ancestry=ancestry_rows,
         oligos=oligos,
         flags=candidate.flags,

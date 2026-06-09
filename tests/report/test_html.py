@@ -57,6 +57,7 @@ def test_html_renders_ancestry_offtarget_chart_and_table(ancestry_menu: RankedMe
     html = render_html(build_report(ancestry_menu, variant="chr11:108:A>T"))
     assert "Worst-case off-target score by ancestry" in html  # the grouped Plotly chart
     assert "off-target score by ancestry" in html  # the per-candidate table caption
+    assert "specificity" in html  # the aggregate genome-wide specificity score
     assert "afr" in html and "eur" in html
 
 

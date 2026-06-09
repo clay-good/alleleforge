@@ -136,19 +136,24 @@ def _candidate_html(c: CandidateReport) -> str:
         parts.append(
             f"<table><tr><th>allele</th><th>probability</th><th>intended</th></tr>{rows}</table>"
         )
+    spec = (
+        f"; specificity {c.offtarget_specificity:.3f}"
+        if c.offtarget_specificity is not None
+        else ""
+    )
     if c.offtarget_by_ancestry:
         rows = "".join(
             f"<tr><td>{_esc(r.ancestry)}</td><td>{r.worst_score:.3f}</td></tr>"
             for r in c.offtarget_by_ancestry
         )
         parts.append(
-            f"<p class='muted'>{c.n_offtarget_sites} nominated site(s); "
+            f"<p class='muted'>{c.n_offtarget_sites} nominated site(s){spec}; "
             "worst-case score by ancestry:</p>"
             "<table><tr><th>ancestry</th><th>worst off-target score</th></tr>"
             f"{rows}</table>"
         )
     elif c.n_offtarget_sites is not None:
-        parts.append(f"<p class='muted'>{c.n_offtarget_sites} nominated site(s).</p>")
+        parts.append(f"<p class='muted'>{c.n_offtarget_sites} nominated site(s){spec}.</p>")
     if c.flags:
         parts.append("<p class='muted'>flags: " + _esc(", ".join(c.flags)) + "</p>")
     if c.oligos is not None:

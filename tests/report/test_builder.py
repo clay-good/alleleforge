@@ -51,6 +51,13 @@ def test_every_candidate_axes_populated(prime_menu: RankedMenu) -> None:
         assert c.reagent and c.reagent != "no reagent"
 
 
+def test_candidate_carries_aggregate_specificity(prime_menu: RankedMenu) -> None:
+    report = build_report(prime_menu)
+    for c in report.candidates:
+        assert c.offtarget_specificity is not None
+        assert 0.0 < c.offtarget_specificity <= 1.0
+
+
 def test_offtarget_table_is_ancestry_stratified(abe_menu: RankedMenu) -> None:
     report = build_report(abe_menu)
     top = report.candidates[0]

@@ -84,6 +84,28 @@ def test_worst_score_empty_report() -> None:
     assert OffTargetReport(spacer="A" * 20, pam="NGG").worst_score() == 0.0
 
 
+def test_specificity_score_is_one_without_off_targets() -> None:
+    assert OffTargetReport(spacer="A" * 20, pam="NGG").specificity_score() == 1.0
+
+
+def test_specificity_score_matches_hsu_formula() -> None:
+    rep = OffTargetReport(
+        spacer="A" * 20, pam="NGG", sites=(_ref_site(0.5), _pop_site(0.3, "AFR", 0.02))
+    )
+    # 1 / (1 + 0.5 + 0.3)
+    assert rep.specificity_score() == pytest.approx(1.0 / 1.8)
+
+
+def test_specificity_score_distinguishes_total_burden() -> None:
+    # Same worst-case off-target, but one guide has more of them -> less specific.
+    one = OffTargetReport(spacer="A" * 20, pam="NGG", sites=(_ref_site(0.6),))
+    many = OffTargetReport(
+        spacer="A" * 20, pam="NGG", sites=(_ref_site(0.6), _ref_site(0.4), _ref_site(0.4))
+    )
+    assert one.worst_score() == many.worst_score()  # worst-case can't tell them apart
+    assert one.specificity_score() > many.specificity_score()  # aggregate can
+
+
 def test_ancestry_stratification_reference_contributes_to_all() -> None:
     rep = OffTargetReport(
         spacer="A" * 20,

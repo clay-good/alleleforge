@@ -10,6 +10,16 @@ acceptance.
 
 ### Added
 
+- **Aggregate genome-wide off-target specificity score.** `OffTargetReport`
+  gained `specificity_score()` — the CFD-scale analog of the Hsu 2013 / MIT guide
+  specificity (`100/(100+Σ)`), i.e. `1/(1 + Σ site scores)` ∈ (0, 1], **1.0** for a
+  guide with no nominated off-targets and decreasing as the total burden grows.
+  The report already aggregated site count, worst-case, and ancestry strata, but
+  lacked the field-standard single-number specificity that distinguishes two guides
+  with the same worst-case off-target but a different *number* of off-targets. It is
+  now a `CandidateReport.offtarget_specificity` export field (schemas regenerated)
+  and is rendered in the HTML and PDF reports.
+
 - **Phase 0 — Repository bootstrap.** Hatchling build, `aforge` console-script
   entry point, dependency groups (`core`/`genome`/`variant`/`ml`/`web`/`docs`/`dev`),
   pinned tool configuration (ruff line-length 100; mypy `strict`; pytest with an

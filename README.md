@@ -434,7 +434,8 @@ flowchart TB
 Every site records **where it came from** — the reference, a population variant (which allele, which
 populations, at what frequency), or a patient's VCF — so a nomination can be audited, not trusted
 blindly. The report's worst-case is computed against the **worst-affected ancestry**, never the
-average.
+average, and it rolls every site into one **aggregate genome-wide specificity score**
+(`specificity_score()`, see the cheat-sheet below).
 
 > [!NOTE]
 > **k-mer seed acceleration (R2).** The scan carries an optional, **proven-equivalent** k-mer
@@ -470,6 +471,7 @@ report = search(spacer, PAM(pattern="NGG"), reference=hg38, gnomad=gnomad_db)
 for site in report.sites:
     print(site.origin, round(site.score, 2), site.causal_allele, site.populations)
 worst = report.worst_ancestry()        # ('afr', 1.0) — flagged, not averaged away
+spec = report.specificity_score()      # aggregate genome-wide specificity in (0,1], 1.0 = clean
 ```
 
 ![Reference bias reproduced: a reference-only scan finds zero off-targets where the population-aware scan nominates one high-CFD site.](docs/assets/figures/reference_bias.svg)
@@ -486,7 +488,14 @@ dependency (the same hand-rolled-renderer discipline as the PDF report).*
 | **CFD** | Doench et al., *Nat Biotechnol* 2016 | Published PAM table; mismatch weights default to a transparent seed model, **injectable** with the exact Doench matrix |
 | **CFD-Cas12a** | analog | Seed at the PAM-proximal 5' end, `TTTV` PAM |
 
-All three sit behind one swappable `OffTargetScorer` protocol, so a Phase 6 ML scorer drops in
+Those score one **site**. The report also rolls every site into one **aggregate genome-wide specificity
+score** — `report.specificity_score()`, the CFD-scale analog of the Hsu 2013 / MIT guide score
+`100/(100+Σ)`, i.e. `1/(1 + Σ site scores)` ∈ (0, 1], **1.0** for a guide with no off-targets and
+decreasing as the total burden grows. It is the single number every design tool headlines, and unlike the
+worst-case it **distinguishes two guides with the same worst site but a different *number* of off-targets**.
+It surfaces in the HTML/PDF report and the `CandidateReport.offtarget_specificity` export field.
+
+All three site scores sit behind one swappable `OffTargetScorer` protocol, so a Phase 6 ML scorer drops in
 without touching the engine. Reporting thresholds default to **CFD ≥ 0.20 or MIT ≥ 0.10**.
 
 > The genome-scale search is the FM-index seed-and-extend path (native Rust `bwt` kernel when built, a

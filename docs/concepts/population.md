@@ -58,3 +58,10 @@ Two published single-guide specificity scores are implemented behind one swappab
   transparent monotonic seed-tolerance model and accept the exact 400-value Doench matrix via
   injection, so the published table drops in without code changes.
 - A **Cas12a CFD analog** with the seed at the PAM-proximal 5' end and a `TTTV` PAM model.
+
+Those score one site. The report rolls them into an **aggregate genome-wide specificity score**,
+[`specificity_score`][alleleforge.types.offtarget.OffTargetReport.specificity_score] — the CFD-scale
+analog of the Hsu 2013 / MIT guide score `100/(100+Σ)`, i.e. `1/(1 + Σ site scores)` ∈ (0, 1]. It is
+**1.0** for a guide with no off-targets and decreasing as the total off-target burden grows, and unlike
+[`worst_score`][alleleforge.types.offtarget.OffTargetReport.worst_score] it distinguishes two guides
+with the same worst site but a different *number* of off-targets.
