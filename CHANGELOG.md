@@ -632,6 +632,19 @@ acceptance.
 
 ### Fixed
 
+- **VEP transcript selection now prefers MANE Select with strict priority.** For
+  the default `transcript="MANE_SELECT"`, `_select_transcript` returned the first
+  consequence block that was MANE Select **or** canonical in a single pass — so a
+  merely-canonical transcript that happened to precede the MANE Select one (VEP
+  does not guarantee MANE-first ordering) was reported instead of the MANE one.
+  Selection is now a strict two-pass priority — MANE Select, then canonical, then
+  the first block — and both the selection and the `is_canonical` flag test
+  membership by **truthiness** (a MANE accession / `canonical: 1`) rather than
+  `is not None`, so an explicit falsy `mane_select` (`""`/`false`/`0`) never
+  matches. The recorded HBB fixture is unaffected (its MANE transcript is first
+  and truthy); pinned by two new tests (a canonical block preceding MANE, and a
+  falsy `mane_select`).
+
 - **CRISPR-Bench regression ECE is now correct under mixed interval levels.**
   `_regression_metrics` took `predictions[0].interval_level` as the single nominal
   for the interval-calibration ECE and pooled every prediction's interval against

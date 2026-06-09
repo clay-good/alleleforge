@@ -201,7 +201,7 @@ def parse_vep_response(
         transcript=chosen.get("transcript_id"),
         hgvs_c=chosen.get("hgvsc"),
         hgvs_p=chosen.get("hgvsp"),
-        is_canonical=bool(chosen.get("canonical")) or chosen.get("mane_select") is not None,
+        is_canonical=bool(chosen.get("canonical") or chosen.get("mane_select")),
     )
 
 
@@ -218,15 +218,27 @@ _IMPACT_NAMES = {i.name: i for i in Impact}
 
 
 def _select_transcript(consequences: list[dict[str, Any]], transcript: str) -> dict[str, Any]:
-    """Return the transcript consequence block to report on."""
+    """Return the transcript consequence block to report on.
+
+    For a named ``transcript`` an exact ``transcript_id`` match wins. Otherwise
+    (the default ``"MANE_SELECT"``) the **MANE Select** transcript is preferred,
+    then any **canonical** one, then the first block — in that strict priority,
+    because VEP does not guarantee MANE-first ordering, so a single pass keying on
+    "MANE *or* canonical" would return a merely-canonical transcript that happened
+    to precede the MANE Select one. Membership is tested by truthiness (a MANE
+    accession / ``canonical: 1``), so an explicit falsy value never matches.
+    """
     if transcript != "MANE_SELECT":
         for c in consequences:
             if c.get("transcript_id") == transcript:
                 return c
-    for c in consequences:
-        if c.get("mane_select") is not None or c.get("canonical"):
+    for c in consequences:  # 1. the MANE Select transcript
+        if c.get("mane_select"):
             return c
-    return consequences[0]
+    for c in consequences:  # 2. failing that, any canonical transcript
+        if c.get("canonical"):
+            return c
+    return consequences[0]  # 3. else the first reported block
 
 
 class VepRestPredictor:

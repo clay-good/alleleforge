@@ -70,6 +70,59 @@ def test_parse_vep_response_picks_mane_canonical() -> None:
     assert effect.is_canonical is True
 
 
+def test_select_transcript_prefers_mane_over_earlier_canonical() -> None:
+    # A canonical-but-not-MANE transcript precedes the MANE Select one. VEP does
+    # not guarantee MANE-first ordering, so the default MANE_SELECT request must
+    # still return the MANE transcript, not the first merely-canonical block.
+    payload = [
+        {
+            "most_severe_consequence": "missense_variant",
+            "transcript_consequences": [
+                {
+                    "transcript_id": "ENST_CANON",
+                    "consequence_terms": ["missense_variant"],
+                    "impact": "MODERATE",
+                    "canonical": 1,
+                },
+                {
+                    "transcript_id": "ENST_MANE",
+                    "consequence_terms": ["missense_variant"],
+                    "impact": "MODERATE",
+                    "mane_select": "NM_999.1",
+                },
+            ],
+        }
+    ]
+    assert parse_vep_response(payload).transcript == "ENST_MANE"
+
+
+def test_select_transcript_ignores_falsy_mane_select() -> None:
+    # A transcript carrying an explicit falsy mane_select is not MANE Select; the
+    # canonical transcript is chosen and is_canonical reflects only real flags.
+    payload = [
+        {
+            "most_severe_consequence": "missense_variant",
+            "transcript_consequences": [
+                {
+                    "transcript_id": "ENST_FALSY",
+                    "consequence_terms": ["missense_variant"],
+                    "impact": "MODERATE",
+                    "mane_select": "",
+                },
+                {
+                    "transcript_id": "ENST_CANON",
+                    "consequence_terms": ["missense_variant"],
+                    "impact": "MODERATE",
+                    "canonical": 1,
+                },
+            ],
+        }
+    ]
+    effect = parse_vep_response(payload)
+    assert effect.transcript == "ENST_CANON"
+    assert effect.is_canonical is True
+
+
 def test_parse_vep_response_specific_transcript() -> None:
     effect = parse_vep_response(_vep_payload(), transcript="ENST00000633227")
     assert effect.consequence is Consequence.UPSTREAM
