@@ -647,6 +647,18 @@ acceptance.
 
 ### Fixed
 
+- **Async design jobs hold a strong task reference (no GC mid-flight).** The web
+  `JobManager` scheduled each job with a bare `asyncio.create_task(_run())` whose
+  result was discarded, suppressing the lint that flags exactly this
+  (`# noqa: RUF006`) with the justification "lifetime tracked via the record
+  store" — but the store holds the job *record*, not the running *task*, and
+  asyncio keeps only a weak reference to a task, so a job could be garbage-
+  collected mid-execution. The manager now keeps each task in a set and clears it
+  with a done-callback, so a running job is strongly referenced until it finishes
+  and the set stays bounded (no per-job leak). The misleading suppression is gone.
+  Pinned by JobManager unit tests (jobs run to completion and the tracking set is
+  released, for both success and failure).
+
 - **`ReferenceGenome` is now thread-safe for concurrent reads.** The web app
   holds a single shared `ReferenceGenome` on `app.state`, and its compute
   handlers (`/api/design`, `/api/offtarget`, `/api/batch`) are sync `def`s —

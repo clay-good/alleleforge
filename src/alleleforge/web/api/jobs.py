@@ -39,6 +39,7 @@ class JobManager:
     def __init__(self) -> None:
         """Initialise an empty job store."""
         self._jobs: dict[str, JobRecord] = {}
+        self._tasks: set[asyncio.Task[None]] = set()
 
     def get(self, job_id: str) -> JobRecord | None:
         """Return the record for ``job_id``, or ``None`` if unknown."""
@@ -64,5 +65,11 @@ class JobManager:
                 record.error = f"{type(exc).__name__}: {exc}"
                 record.state = JobState.ERROR
 
-        asyncio.create_task(_run())  # noqa: RUF006 - lifetime tracked via the record store
+        # Keep a strong reference until the task finishes. asyncio holds only a
+        # weak reference to a bare create_task() result, so without this a job
+        # could be garbage-collected mid-flight; the job *record* in the store
+        # does not keep the running task alive.
+        task = asyncio.create_task(_run())
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
         return record
