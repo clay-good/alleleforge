@@ -48,7 +48,70 @@ ranking's "cleanliness"/bystander-burden axis). The integration is therefore an
 Lazy imports; opt-in extra; `real_weights`-gated; weight-free CI untouched; honest
 `method`/`calibrated`; no new hard dep on the heavy stack.
 
+## Feasibility: CONFIRMED — BE-DICT runs on modern torch/py3.11
+
+Installed BE-DICT (`pip install -e .`, unpinned deps) and ran the **perbase** model
+on the sample data. It loads the 5-fold ensemble and predicts cleanly. Two gotchas:
+
+- `select_prediction(..., 'mean')` breaks on modern pandas (it `.mean()`s a frame
+  with the string `run_id` column). Aggregate the ensemble manually instead:
+  `pred_runs.groupby('base_pos')['prob_score_class1'].mean()`.
+- `_load_model_statedict_` loads weights from `<cwd_parent>/trained_models/perbase/
+  {editor}/train_val/run_{n}` — i.e. **cwd-relative** (assumes cwd is a subdir of the
+  repo). The adapter must set cwd into the BE-DICT checkout (or patch the path).
+
+### API
+
+- `from criscas.predict_model import BEDICT_CriscasModel`
+- `BEDICT_CriscasModel(base_editor, torch.device('cpu')).predict_from_dataframe(df)`
+  → `(pred_runs_df, proc_df)`. Input `df` columns: `ID`, `seq` (20-nt protospacer).
+- Editors: `ABEmax`, `ABE8e`, `BE4max`, `Target-AID` (perbase + bystander variants).
+- Output `pred_runs_df`: one row per (`id`, `base_pos`) per run; `prob_score_class1`
+  = P(position edited). `base_pos` = **0-indexed** position of the target base.
+
+### Golden (perbase, ABEmax, seq `ACACACACACTTAGAATCTG`, mean over 5 runs)
+
+| base_pos (0-idx) | P(edit) |
+|---|---|
+| 0 | 0.00067 |
+| 2 | 0.02460 |
+| 4 | 0.94198 |
+| 6 | 0.72816 |
+| 8 | 0.07536 |
+| 12 | 0.00595 |
+| 14 | 0.00120 |
+| 15 | 0.00013 |
+
+(Window peaks at pos 4–6 — biologically correct for ABE.)
+
+## ⚠ Correctness-critical: position-convention reconciliation (verify before wiring)
+
+`BaseEditWindow.target_positions`/`bystander_positions` are **1-based, counting from
+the PAM-distal end** (`types/guide.py`). BE-DICT `base_pos` is **0-based**. The
+mapping is *probably* AlleleForge `p` ↔ BE-DICT `p-1` (both from the PAM-distal/5'
+end), but this **must be verified** against BE-DICT's training orientation (which end
+is index 0, and whether the 20-mer is PAM-distal-first) — an off-by-one or flipped
+orientation silently yields wrong outcomes. Do not ship the adapter until a test
+pins this against BE-DICT's own documented window (ABE/CBE canonical window ≈ 1-based
+4–8 from PAM-distal). This is the one open item; everything else is ready.
+
+## Implementation shape (ready once the mapping is verified)
+
+- `BeDictAdapter.predict(window, editor)`: map AlleleForge editor → BE-DICT editor
+  name; run perbase; mean over runs → per-position P(edit); reuse the **existing**
+  baseline allele enumeration (`itertools.combinations`) with the real probabilities
+  to build `EditOutcome` + `p_intended_exact` + `bystander_burden`.
+- Boundary: BE-DICT is pure PyTorch (no TF/typing-extensions conflict, unlike
+  PRIDICT2), so in-process is viable with a cwd-context-manager into the checkout;
+  point at it via `$ALLELEFORGE_BEDICT_REPO`. Gated behind `real_weights`; CI parses
+  a fixture of the golden table + exercises the gate.
+
 ## Execution log
 
 - 2026-06-23: Researched BE-DICT (MIT, PyTorch, same lab as PRIDICT2) and BE-Hive
-  (older, deferred). Chose BE-DICT. Implementation queued as the next unit.
+  (older, deferred). Chose BE-DICT.
+- 2026-06-23: **De-risked fully.** Installed + ran the perbase model on modern
+  torch/py3.11; captured the golden table above; mapped the output to the existing
+  allele-enumeration path. Flagged the one correctness-critical open item: the
+  1-based-PAM-distal ↔ 0-based position reconciliation, which must be pinned by a test
+  before the adapter ships (no unverified scientific mapping — project ethos).
