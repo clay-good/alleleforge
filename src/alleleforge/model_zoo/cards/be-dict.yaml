@@ -20,4 +20,4 @@ known_failure_modes:
   - "Bystander spectra are deaminase- and context-dependent; transfer is imperfect."
   - "Treats editable positions as independent; correlated edits are approximate."
 checkpoint_sha256: null
-source_url: "https://github.com/uzh-dqbm-cmi/crispr-bedict"
+source_url: "https://github.com/uzh-dqbm-cmi/crispr"

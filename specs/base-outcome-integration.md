@@ -113,5 +113,16 @@ pins this against BE-DICT's own documented window (ABE/CBE canonical window ≈ 
 - 2026-06-23: **De-risked fully.** Installed + ran the perbase model on modern
   torch/py3.11; captured the golden table above; mapped the output to the existing
   allele-enumeration path. Flagged the one correctness-critical open item: the
-  1-based-PAM-distal ↔ 0-based position reconciliation, which must be pinned by a test
-  before the adapter ships (no unverified scientific mapping — project ethos).
+  1-based-PAM-distal ↔ 0-based position reconciliation.
+- 2026-06-23: **SHIPPED + verified.** Position mapping confirmed by AlleleForge's own
+  `_editable_positions` (1-based, `spacer[p-1]`) ⇒ BE-DICT `base_pos p-1`; both 5'→3'.
+  `BeDictAdapter` (real) wired in `scoring/base_outcome.py`: runs BE-DICT in-process
+  (cwd-guard + `sys.path`), aggregates the 5-fold ensemble (manual mean — upstream
+  `select_prediction` breaks on modern pandas), maps positions, and reuses the shared
+  `_assemble_window_outcome`. Editors: ABE8e→ABE8e, CBE4max→BE4max (evoCDA1
+  unsupported → `ValueError`). Gated behind `real_weights`. Live golden test **PASSED**
+  (ABE8e, seq `ACACACACACTTAGAATCTG`: base_pos 4≈0.776, 6≈0.577; full `predict`
+  pins target pos 5 → base_pos 4 peak). Card `source_url` corrected (`crispr-bedict`
+  → `crispr`). `make ci` green.
+- **BE-Hive** remains the deferred follow-up; **PRIDICT2 P2** (per-pegRNA parity) and
+  **Cas9 outcome** (inDelphi/Lindel/X-CRISP) are the other open outcome-model items.
