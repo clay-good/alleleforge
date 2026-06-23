@@ -133,3 +133,25 @@ TF/pandas ABI.)
   efficiency (0.78854) within 5e-3. `make ci` stays green/weight-free.
 - **Next (P2):** per-pegRNA parity scorer + version-stable (ONNX) export, validated
   against P1's captured references.
+
+## Prime per-pegRNA cross-check: DeepPrime via GenET (fills DeepPrimeAdapter/GenETAdapter)
+
+Research 2026-06-23. The `DeepPrimeAdapter` / `GenETAdapter` stubs (prime efficiency
+cross-checks) have a **clean path**: the **`genet`** package is on **PyPI**
+(`pip install genet`) and wraps DeepPrime (Yu et al., *Cell* 2023). It exposes a
+**per-pegRNA** API — exactly the `score(pegrna) -> Prediction` slot, and the
+per-pegRNA prime scorer PRIDICT2's sequence-level engine lacks (so this also
+satisfies the P2 need from a different model):
+
+    from genet.predict import DeepPrimeGuideRNA
+    peg = DeepPrimeGuideRNA('id', target=..., pbs=..., rtt=..., edit_len=1,
+                            edit_pos=16, edit_type='sub')
+    score = peg.predict('PE2max')   # single efficiency
+
+Integration shape: map AlleleForge `PegRNA` (spacer/pbs/rtt + edit) →
+`DeepPrimeGuideRNA(target, pbs, rtt, edit_len, edit_pos, edit_type)`; wrap the score
+as a `Prediction`. **Correctness-critical** (do not rush): `target` orientation and
+`edit_pos` indexing must be pinned by a golden test against GenET's own output, like
+the BE-DICT position mapping. Heavy deps (torch + TF≥2.6), so opt-in extra
+(`prime-genet`) or a checkout-style env, gated behind `real_weights`. The other prime
+cross-check (X-CRISP is Cas9-outcome, not prime) does not apply here.
