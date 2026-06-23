@@ -32,6 +32,33 @@ def _design(ref: ReferenceGenome, intent: EditIntent, **kw: object) -> list[Desi
     return design_cas9(rv, intent, reference=ref, efficiency_scorer=RuleSet3Scorer(), **kw)
 
 
+class _RecordingScorer:
+    """A stub efficiency scorer that records the context window it is handed."""
+
+    name = "recording"
+    context_flank = (4, 3)  # request Rule Set 3's asymmetric 30-mer
+
+    def __init__(self) -> None:
+        self.seen: list[int] = []
+
+    def score(self, context: str):  # type: ignore[no-untyped-def]
+        from alleleforge.types.prediction import Prediction, UncertaintyMethod
+
+        self.seen.append(len(context))
+        return Prediction[float](value=0.5, interval=(0.4, 0.6), method=UncertaintyMethod.HEURISTIC)
+
+
+def test_design_honors_scorer_context_flank(make_reference: MakeRef) -> None:
+    # A scorer declaring context_flank=(4, 3) must be handed a 30-nt window.
+    ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    scorer = _RecordingScorer()
+    rv = _resolve_at(ref, "chr2", 32)
+    design_cas9(
+        rv, EditIntent.CORRECT, reference=ref, efficiency_scorer=scorer, run_offtarget=False
+    )
+    assert scorer.seen and all(length == 30 for length in scorer.seen)
+
+
 def test_end_to_end_yields_candidates(make_reference: MakeRef) -> None:
     ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
     candidates = _design(ref, EditIntent.KNOCK_OUT)

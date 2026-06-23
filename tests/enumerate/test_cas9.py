@@ -108,6 +108,20 @@ def test_guide_context_minus_strand(make_reference: MakeRef) -> None:
     assert str(g.pam_sequence) in ctx
 
 
+def test_guide_context_asymmetric_flanks_rule_set_3_30mer(make_reference: MakeRef) -> None:
+    # Rule Set 3's window: 4 nt 5' + 20 nt protospacer + 3 nt PAM + 3 nt 3' = 30.
+    ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    rv = _resolve_at(ref, "chr2", 32)
+    g = next(
+        g
+        for g in enumerate_cas9(rv, EditIntent.CORRECT, reference=ref)
+        if str(g.spacer.sequence) == SPACER
+    )
+    ctx = guide_context(g, ref, flank_5=4, flank_3=3)
+    assert len(ctx) == 30
+    assert SPACER + "TGG" in ctx
+
+
 def test_hdr_donor_precise_vs_knockout(make_reference: MakeRef) -> None:
     ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
     rv = _resolve_at(ref, "chr2", 32)  # ref allele at 32 is 'C'

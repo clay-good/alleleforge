@@ -224,6 +224,15 @@ def design(
     no_offtarget: Annotated[
         bool, typer.Option("--no-offtarget", help="Skip the off-target search.")
     ] = False,
+    trained_efficiency: Annotated[
+        bool,
+        typer.Option(
+            "--trained-efficiency",
+            help="Use the real trained Rule Set 3 model for SpCas9 efficiency "
+            "(opt-in; needs the cas9-rs3 extra + booster). Default is the "
+            "weight-free baseline.",
+        ),
+    ] = False,
     fmt: Annotated[OutputFormat, typer.Option("--format", help="Output format.")] = (
         OutputFormat.json
     ),
@@ -270,6 +279,12 @@ def design(
 
     reference = _load_reference(reference_fasta)
     settings = Settings(seed=state.seed)
+    cas9_scorer = None
+    if trained_efficiency:
+        from alleleforge.scoring.cas9_efficiency import TrainedRuleSet3Scorer
+
+        # The user opted in explicitly, so consent for the gated weight download.
+        cas9_scorer = TrainedRuleSet3Scorer(consent=True)
     try:
         resolved = resolve_variant(variant, build=state.reference_build, reference=reference)
         menu = run_design(
@@ -282,6 +297,7 @@ def design(
             run_offtarget=not no_offtarget,
             max_candidates_per_chemistry=max_per_chemistry,
             settings=settings,
+            cas9_efficiency_scorer=cas9_scorer,
         )
     except ValueError as exc:
         _echo_err(f"error: {exc}")

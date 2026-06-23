@@ -29,7 +29,7 @@ from alleleforge.config import Settings, get_settings
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.design.base_editor import base_editor_model_checkpoints, design_base_editor
-from alleleforge.design.cas9 import cas9_model_checkpoints, design_cas9
+from alleleforge.design.cas9 import Cas9EfficiencyScorer, cas9_model_checkpoints, design_cas9
 from alleleforge.design.prime import design_prime, prime_model_checkpoints
 from alleleforge.design.ranking import DEFAULT_WEIGHTS, RankingWeights, rank_candidates
 from alleleforge.design.routing import ChemistryDecision, route
@@ -101,6 +101,7 @@ def design(
     effect: EffectPredictor | None = None,
     settings: Settings | None = None,
     timestamp: datetime | None = None,
+    cas9_efficiency_scorer: Cas9EfficiencyScorer | None = None,
 ) -> RankedMenu:
     """Design a ranked, multi-chemistry editing menu for a variant.
 
@@ -116,6 +117,9 @@ def design(
         gnomad: gnomAD DB for population-aware off-target.
         haplotypes: Common haplotypes for haplotype-aware off-target.
         cell_context: Target cell context (prime efficiency OOD honesty).
+        cas9_efficiency_scorer: Override the SpCas9 on-target efficiency scorer
+            (e.g. the opt-in trained Rule Set 3 model); default is the weight-free
+            deep ensemble.
         run_offtarget: Run the off-target engine for every candidate.
         max_candidates_per_chemistry: Cap candidates kept from each chemistry.
         build: Reference build the input is expressed in.
@@ -204,6 +208,7 @@ def design(
                     resolved,
                     intent,
                     reference=reference,
+                    efficiency_scorer=cas9_efficiency_scorer,
                     gnomad=gnomad,
                     haplotypes=haplotypes,
                     patient_vcf=patient_vcf,

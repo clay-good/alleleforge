@@ -147,10 +147,15 @@ def design_cas9(
     predictor: Cas9OutcomePredictor = outcome_predictor or MicrohomologyOutcomePredictor()
     mark_fs = intent is EditIntent.KNOCK_OUT
 
+    # A scorer may declare the asymmetric window it reads (e.g. the trained Rule
+    # Set 3 model's 30-mer); otherwise the symmetric default applies.
+    flank: tuple[int, int] | None = getattr(scorer, "context_flank", None)
+    ctx_kwargs = {"flank_5": flank[0], "flank_3": flank[1]} if flank is not None else {}
+
     candidates: list[DesignCandidate] = []
     for guide in guides:
         efficiency = ensure_prediction(
-            scorer.score(guide_context(guide, reference)), who=scorer.name
+            scorer.score(guide_context(guide, reference, **ctx_kwargs)), who=scorer.name
         )
         outcome = _cut_outcome(guide, reference, predictor, mark_fs)
         offreport: OffTargetReport | None = None

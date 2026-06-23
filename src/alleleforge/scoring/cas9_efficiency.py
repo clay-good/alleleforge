@@ -159,6 +159,11 @@ class TrainedRuleSet3Scorer(WeightGate):
     name = "rule-set-3-trained"
     card_name = "rule-set-3"
 
+    #: The asymmetric window this model reads, as (5' flank, 3' flank) around the
+    #: protospacer+PAM — Rule Set 3's 30-mer (4 nt 5' + 20 + 3 PAM + 3 nt 3').
+    #: ``design_cas9`` reads this to build the right context.
+    context_flank = (4, 3)
+
     #: Required Rule Set 3 context length (nt).
     CONTEXT_LENGTH = 30
     #: Heuristic interval half-width around the trained point estimate.

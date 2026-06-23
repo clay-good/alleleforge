@@ -215,22 +215,34 @@ def enumerate_cas9(
     return guides
 
 
-def guide_context(guide: Guide, reference: ReferenceGenome, *, flank: int = 6) -> str:
+def guide_context(
+    guide: Guide,
+    reference: ReferenceGenome,
+    *,
+    flank: int = 6,
+    flank_5: int | None = None,
+    flank_3: int | None = None,
+) -> str:
     """Return the sequence context around a guide (5'->3' on the guide's strand).
 
-    Spans the protospacer, its PAM, and ``flank`` extra bases on each side — the
-    window an efficiency model reads (e.g. Rule Set 3's 30-mer).
+    Spans the protospacer, its PAM, and flanking bases — the window an efficiency
+    model reads. ``flank`` is a symmetric margin; ``flank_5`` / ``flank_3`` override
+    it per side (5' and 3' in the guide's own orientation). The trained Rule Set 3
+    model, for instance, wants an asymmetric 30-mer: 4 nt 5' + 20 nt protospacer +
+    3 nt PAM + 3 nt 3' (``flank_5=4, flank_3=3``).
     """
+    f5 = flank if flank_5 is None else flank_5
+    f3 = flank if flank_3 is None else flank_3
     pam_len = len(guide.pam.pattern)
     placement = guide.placement
     if placement.strand is Strand.PLUS:
-        lo, hi = placement.start, placement.end + pam_len
+        lo, hi = placement.start - f5, placement.end + pam_len + f3
     else:
-        lo, hi = placement.start - pam_len, placement.end
+        lo, hi = placement.start - pam_len - f3, placement.end + f5
     interval = GenomicInterval(
         chrom=placement.chrom,
-        start=max(0, lo - flank),
-        end=hi + flank,
+        start=max(0, lo),
+        end=hi,
         strand=placement.strand,
     )
     return str(reference.fetch(interval))
