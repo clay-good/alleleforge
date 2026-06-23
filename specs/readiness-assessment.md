@@ -27,22 +27,39 @@ not the real published models the README compares against. Build scientific subs
   - wheel + sdist build, `twine check` PASSED, assets bundled (py.typed, cards,
     splits, frontend)
 
-## What is NOT real yet (the gap)
+## UPDATE 2026-06-23 — four real models now wired (one per axis)
 
-Verified in code:
+The gap below has been substantially closed. Real, opt-in, parity-verified models
+are now wired through the model-zoo gate (behind `real_weights`; CI stays weight-free):
 
-- `RuleSet3Scorer`, `PridictScorer`, `BaseEditOutcomePredictor` return
-  `UncertaintyMethod.HEURISTIC` with `calibrated=False`. They are plausible-looking
-  sigmoid stand-ins, **not** Rule Set 3 / PRIDICT2.0 / BE-Hive.
-- The trained adapters (`DeepPrimeAdapter`, `BeHiveAdapter`, `GenETAdapter`, …)
-  `raise NotImplementedError` on the forward pass.
-- README four-axis table implies it "wraps PRIDICT2.0/BE-Hive". Today it does not.
+| Axis | Real model | Status |
+|---|---|---|
+| Cas9 efficiency | **Rule Set 3** (`TrainedRuleSet3Scorer`) | bit-parity; **hosted** (auto-download) + usable via `aforge design --trained-efficiency` |
+| Prime efficiency | **PRIDICT2.0** (`PridictEngineAdapter`) | sequence-level engine; golden-verified |
+| Base-edit outcome | **BE-DICT** (`BeDictAdapter`) | golden-verified; position-mapping pinned |
+| Cas9 outcome | **Lindel** (`LindelAdapter`) | golden-verified; usable via `aforge design --trained-outcome` |
+
+Remaining stubs are documented optional **cross-checks** (each axis already has a
+real model): `XCrispAdapter` (X-CRISP, 2025 PyTorch — feasible), `DeepPrimeAdapter`/
+`GenETAdapter` (DeepPrime via the **PyPI** `genet` package — feasible),
+`InDelphiAdapter` (2018 TF1/Theano — rot risk), `BeHiveAdapter` (2020 TF1 — rot
+risk). See the per-axis specs. Their value is the inter-model **ensemble/agreement**
+signal, not new coverage.
+
+## What was NOT real (the original gap, now mostly closed)
+
+Verified in code (pre-2026-06-23):
+
+- `RuleSet3Scorer`, `PridictScorer`, `BaseEditOutcomePredictor` returned
+  `UncertaintyMethod.HEURISTIC` with `calibrated=False` — sigmoid stand-ins. The
+  baselines remain the weight-free defaults; the **real** models above are now the
+  opt-in path.
+- The trained adapters `raise NotImplementedError` — now wired for RS3, PRIDICT2,
+  BE-DICT, Lindel; the rest remain documented cross-check stubs.
 - Benchmark accuracy-vs-published is marked `[pending R1]`; the shipped benchmark
-  fixtures are **synthetic** (`"synthetic": true, "redistributable": false`) — the
-  real validation libraries are not in the repo and are not redistributable.
-- Model cards carry `checkpoint_sha256: null` (the open R0 item: pin real artifact
-  hashes once upstream artifacts are frozen). The consent gate already refuses any
-  `null`-hash *download* by design.
+  fixtures are **synthetic** — real validation libraries are non-redistributable.
+- Model cards carry `checkpoint_sha256: null` except `rule-set-3`, whose artifact is
+  now pinned **and hosted** (R0 closed for that model).
 
 ## Reputational guardrail
 
