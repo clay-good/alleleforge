@@ -739,6 +739,18 @@ report. The PE3b nicking guide is preferred when a seed-disrupting ngRNA exists 
 edited strand, suppressing indels). See the canonical journey end to end in
 [`examples/01_clinvar_to_design.ipynb`](examples/01_clinvar_to_design.ipynb).
 
+> [!NOTE]
+> **Default vs. real PRIDICT2.0.** The built-in `PridictScorer` is a transparent *heuristic*
+> geometry baseline (`method=HEURISTIC`) — it is not the trained network. The **real PRIDICT2.0** is now
+> wired as an opt-in, sequence-level engine: [`PridictEngineAdapter`](src/alleleforge/scoring/pridict_engine.py)
+> shells out to a local PRIDICT2 checkout (Mathis et al. 2024, MIT), runs its attention-RNN ensemble +
+> DeepCas9 pipeline, and returns ranked pegRNA designs each carrying a calibrated efficiency. Because
+> PRIDICT2 ships as a Git repo (not a PyPI package) and pins TensorFlow 2.13 + PyTorch 2.0.1 (which
+> conflict with AlleleForge's own deps), the adapter invokes PRIDICT2 in **its own** environment — point
+> it there with `ALLELEFORGE_PRIDICT2_REPO` / `ALLELEFORGE_PRIDICT2_PYTHON`. It is gated behind the
+> `real_weights` marker and parity-tested against captured PRIDICT2 output, so CI stays weight-free. See
+> [`specs/pridict2-integration.md`](specs/pridict2-integration.md).
+
 ---
 
 ## The designer: one variant, every chemistry, one ranking (Phase 10, shipping now)

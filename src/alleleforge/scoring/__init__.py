@@ -43,6 +43,11 @@ from alleleforge.scoring.cas9_outcome import (
     XCrispAdapter,
     ensemble_outcome,
 )
+from alleleforge.scoring.pridict_engine import (
+    PRIDICT2_CELL_LINES,
+    PridictDesign,
+    PridictEngineAdapter,
+)
 from alleleforge.scoring.prime_efficiency import (
     PRIDICT_TRAINING_CONTEXTS,
     DeepPrimeAdapter,
@@ -70,8 +75,11 @@ from alleleforge.scoring.uncertainty import (
 __all__ = [
     "DEFAULT_ENSEMBLE_SIZE",
     "DEFAULT_INTERVAL_LEVEL",
+    "PRIDICT2_CELL_LINES",
     "PRIDICT_TRAINING_CONTEXTS",
     "BareFloatError",
+    "PridictDesign",
+    "PridictEngineAdapter",
     "DeepPrimeAdapter",
     "GenETAdapter",
     "PridictScorer",
