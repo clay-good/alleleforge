@@ -69,8 +69,14 @@ reference data P2 would validate against.
 
 ## Boundary decision: P1 (sequence-level wrap) — chosen by maintainer (2026-06-23)
 
-Build the sequence-level adapter that wraps PRIDICT2's own pipeline. P2 (per-pegRNA
-parity) is a later enhancement validated against P1's captured references.
+Build the sequence-level adapter that wraps PRIDICT2's own pipeline.
+
+> **P2 (per-pegRNA parity) — RESOLVED out of scope (2026-06-23).** P1 is the
+> supported PRIDICT2.0 integration. P2 is not pursued: the clean per-pegRNA option
+> (DeepPrime via `genet`) is out of scope ([`cross-check-models-scope.md`](cross-check-models-scope.md)),
+> and a from-scratch reimplementation of PRIDICT2's per-pegRNA featurization would
+> duplicate the working engine for no new coverage. Revisit only if a maintained
+> per-pegRNA prime model becomes cleanly wrappable.
 
 ## Feasibility: CONFIRMED (real model ran here)
 
