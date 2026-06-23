@@ -233,6 +233,15 @@ def design(
             "weight-free baseline.",
         ),
     ] = False,
+    trained_outcome: Annotated[
+        bool,
+        typer.Option(
+            "--trained-outcome",
+            help="Use the real trained Lindel model for the SpCas9 indel spectrum "
+            "(opt-in; needs a Lindel checkout via $ALLELEFORGE_LINDEL_REPO). "
+            "Default is the weight-free microhomology baseline.",
+        ),
+    ] = False,
     fmt: Annotated[OutputFormat, typer.Option("--format", help="Output format.")] = (
         OutputFormat.json
     ),
@@ -285,6 +294,11 @@ def design(
 
         # The user opted in explicitly, so consent for the gated weight download.
         cas9_scorer = TrainedRuleSet3Scorer(consent=True)
+    cas9_outcome = None
+    if trained_outcome:
+        from alleleforge.scoring.cas9_outcome import LindelAdapter
+
+        cas9_outcome = LindelAdapter(consent=True)
     try:
         resolved = resolve_variant(variant, build=state.reference_build, reference=reference)
         menu = run_design(
@@ -298,6 +312,7 @@ def design(
             max_candidates_per_chemistry=max_per_chemistry,
             settings=settings,
             cas9_efficiency_scorer=cas9_scorer,
+            cas9_outcome_predictor=cas9_outcome,
         )
     except ValueError as exc:
         _echo_err(f"error: {exc}")
