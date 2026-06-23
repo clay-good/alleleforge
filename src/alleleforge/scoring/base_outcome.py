@@ -348,7 +348,7 @@ class BeDictAdapter(_ModelZooAdapter):
 
 
 class BeHiveAdapter(_ModelZooAdapter):
-    """Adapter to the trained BE-Hive model (optional; not yet wired)."""
+    """BE-Hive placeholder — out of supported scope (see cross-check-models-scope)."""
 
     name = "BE-Hive"
     card_name = "be-hive"

@@ -28,7 +28,11 @@ from alleleforge._version import __version__
 from alleleforge.config import Settings, get_settings
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
-from alleleforge.design.base_editor import base_editor_model_checkpoints, design_base_editor
+from alleleforge.design.base_editor import (
+    BaseOutcomePredictor,
+    base_editor_model_checkpoints,
+    design_base_editor,
+)
 from alleleforge.design.cas9 import (
     Cas9EfficiencyScorer,
     Cas9OutcomePredictor,
@@ -108,6 +112,7 @@ def design(
     timestamp: datetime | None = None,
     cas9_efficiency_scorer: Cas9EfficiencyScorer | None = None,
     cas9_outcome_predictor: Cas9OutcomePredictor | None = None,
+    base_outcome_predictor: BaseOutcomePredictor | None = None,
 ) -> RankedMenu:
     """Design a ranked, multi-chemistry editing menu for a variant.
 
@@ -128,6 +133,8 @@ def design(
             deep ensemble.
         cas9_outcome_predictor: Override the SpCas9 indel-outcome predictor (e.g. the
             opt-in trained Lindel model); default is the microhomology baseline.
+        base_outcome_predictor: Override the base-edit window-outcome predictor (e.g.
+            the opt-in trained BE-DICT model); default is the weight-free baseline.
         run_offtarget: Run the off-target engine for every candidate.
         max_candidates_per_chemistry: Cap candidates kept from each chemistry.
         build: Reference build the input is expressed in.
@@ -180,6 +187,7 @@ def design(
             intent,
             eligible,
             reference=reference,
+            outcome_predictor=base_outcome_predictor,
             gnomad=gnomad,
             haplotypes=haplotypes,
             patient_vcf=patient_vcf,
@@ -282,6 +290,7 @@ def _run_base_editors(
     eligible: list[Chemistry],
     *,
     reference: ReferenceGenome,
+    outcome_predictor: BaseOutcomePredictor | None,
     gnomad: GnomadDB | None,
     haplotypes: Iterable[Haplotype],
     patient_vcf: Iterable[Variant] | None,
@@ -302,6 +311,7 @@ def _run_base_editors(
             intent,
             reference=reference,
             editors=editors,
+            outcome_predictor=outcome_predictor,
             gnomad=gnomad,
             haplotypes=haplotypes,
             patient_vcf=patient_vcf,

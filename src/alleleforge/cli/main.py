@@ -242,6 +242,15 @@ def design(
             "Default is the weight-free microhomology baseline.",
         ),
     ] = False,
+    trained_base_outcome: Annotated[
+        bool,
+        typer.Option(
+            "--trained-base-outcome",
+            help="Use the real trained BE-DICT model for the base-edit window "
+            "outcome (opt-in; needs a BE-DICT checkout via $ALLELEFORGE_BEDICT_REPO). "
+            "Default is the weight-free baseline.",
+        ),
+    ] = False,
     fmt: Annotated[OutputFormat, typer.Option("--format", help="Output format.")] = (
         OutputFormat.json
     ),
@@ -299,6 +308,11 @@ def design(
         from alleleforge.scoring.cas9_outcome import LindelAdapter
 
         cas9_outcome = LindelAdapter(consent=True)
+    base_outcome = None
+    if trained_base_outcome:
+        from alleleforge.scoring.base_outcome import BeDictAdapter
+
+        base_outcome = BeDictAdapter(consent=True)
     try:
         resolved = resolve_variant(variant, build=state.reference_build, reference=reference)
         menu = run_design(
@@ -313,6 +327,7 @@ def design(
             settings=settings,
             cas9_efficiency_scorer=cas9_scorer,
             cas9_outcome_predictor=cas9_outcome,
+            base_outcome_predictor=base_outcome,
         )
     except ValueError as exc:
         _echo_err(f"error: {exc}")

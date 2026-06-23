@@ -10,6 +10,7 @@ The cleanest combination is flagged as the recommendation.
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from typing import Protocol
 
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
@@ -55,13 +56,27 @@ def base_editor_model_checkpoints() -> tuple[ModelCheckpoint, ...]:
     return (BaseEditOutcomePredictor().model_card().to_checkpoint(),)
 
 
+class BaseOutcomePredictor(Protocol):
+    """Structural type a base-edit window-outcome predictor must satisfy.
+
+    Both the weight-free :class:`BaseEditOutcomePredictor` baseline and the trained
+    :class:`~alleleforge.scoring.base_outcome.BeDictAdapter` satisfy it.
+    """
+
+    name: str
+
+    def predict(self, window: BaseEditWindow, editor: BaseEditor) -> WindowOutcome:
+        """Return the predicted window outcome for ``window`` under ``editor``."""
+        ...
+
+
 def design_base_editor(
     resolved: ResolvedVariant,
     intent: EditIntent = EditIntent.CORRECT,
     *,
     reference: ReferenceGenome,
     editors: tuple[BaseEditor, ...] = BASE_EDITORS,
-    outcome_predictor: BaseEditOutcomePredictor | None = None,
+    outcome_predictor: BaseOutcomePredictor | None = None,
     gnomad: GnomadDB | None = None,
     haplotypes: Iterable[Haplotype] = (),
     patient_vcf: Iterable[object] | None = None,
