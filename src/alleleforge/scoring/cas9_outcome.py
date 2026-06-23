@@ -15,14 +15,27 @@ top-allele **agreement** as an inter-model uncertainty signal.
 from __future__ import annotations
 
 import math
+import os
+import sys
 from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
 
 from alleleforge.model_zoo.loader import WeightGate
-from alleleforge.model_zoo.registry import ModelCard, ModelRegistry, default_registry
+from alleleforge.model_zoo.registry import (
+    Downloader,
+    ModelCard,
+    ModelRegistry,
+    ModelUse,
+    default_registry,
+)
 from alleleforge.types.edit import AlleleOutcome, EditOutcome
 
 #: Default maximum MMEJ deletion length considered (bp).
 DEFAULT_MAX_DELETION = 20
+
+#: Lindel's fixed window geometry: a 60-bp sequence with the cut at index 30.
+_LINDEL_FLANK = 30
 
 #: Relative weight of a templated 1-bp insertion vs. the MMEJ deletion pool.
 _INSERTION_BASE_WEIGHT = 1.0
@@ -207,11 +220,169 @@ class InDelphiAdapter(_ModelZooAdapter):
     card_name = "indelphi"
 
 
+def _lindel_window(context: str, cut: int) -> str:
+    """Return Lindel's 60-bp input window (30 bp each side of ``cut``).
+
+    Raises:
+        ValueError: If ``context`` lacks 30 bp on either side of ``cut``.
+    """
+    seq = context.upper()
+    if not _LINDEL_FLANK <= cut <= len(seq) - _LINDEL_FLANK:
+        raise ValueError(
+            f"Lindel needs >={_LINDEL_FLANK} bp flanking the cut (cut={cut}, len={len(seq)})"
+        )
+    return seq[cut - _LINDEL_FLANK : cut + _LINDEL_FLANK]
+
+
+def _lindel_outcome(
+    probs: Sequence[float],
+    labels: Sequence[str],
+    frameshift: Sequence[float],
+    *,
+    mark_frameshift: bool,
+    top_k: int,
+) -> EditOutcome:
+    """Map a Lindel class distribution to a normalized :class:`EditOutcome`.
+
+    Keeps the ``top_k`` most probable indel classes verbatim and buckets the tail
+    into ``other_frameshift`` / ``other_inframe`` so the **total** frameshift
+    probability is preserved exactly (it equals Lindel's frameshift ratio when
+    ``mark_frameshift`` is set). Pure — unit-tested without the model.
+    """
+    order = sorted(range(len(probs)), key=lambda i: probs[i], reverse=True)
+    alleles: list[AlleleOutcome] = [
+        AlleleOutcome(
+            allele=labels[i],
+            probability=probs[i],
+            is_intended=mark_frameshift and frameshift[i] >= 0.5,
+        )
+        for i in order[:top_k]
+    ]
+    rest = order[top_k:]
+    fs_tail = sum(probs[i] for i in rest if frameshift[i] >= 0.5)
+    inf_tail = sum(probs[i] for i in rest if frameshift[i] < 0.5)
+    if fs_tail > 0:
+        alleles.append(
+            AlleleOutcome(
+                allele="other_frameshift", probability=fs_tail, is_intended=mark_frameshift
+            )
+        )
+    if inf_tail > 0:
+        alleles.append(
+            AlleleOutcome(allele="other_inframe", probability=inf_tail, is_intended=False)
+        )
+    return EditOutcome(alleles=tuple(alleles), partial=False)
+
+
+def _require_lindel(repo: Path) -> tuple[Any, Any, Any]:  # pragma: no cover - needs the checkout
+    """Import Lindel + load its weights from a checkout, or raise a helpful error."""
+    import pickle
+
+    try:
+        import numpy  # noqa: F401  (Lindel needs it; surfaced as a clear error if absent)
+
+        if str(repo) not in sys.path:
+            sys.path.insert(0, str(repo))
+        import Lindel
+        from Lindel.Predictor import gen_prediction
+
+        lp = Lindel.__path__[0]
+        with open(os.path.join(lp, "Model_weights.pkl"), "rb") as handle:
+            wb = pickle.load(handle)
+        with open(os.path.join(lp, "model_prereq.pkl"), "rb") as handle:
+            prereq = pickle.load(handle)
+    except (ImportError, FileNotFoundError) as exc:
+        raise RuntimeError(
+            "the trained Lindel model requires NumPy and a Lindel checkout. Clone "
+            "https://github.com/shendurelab/Lindel and set $ALLELEFORGE_LINDEL_REPO; "
+            "see specs/cas9-outcome-integration.md"
+        ) from exc
+    return gen_prediction, wb, prereq
+
+
 class LindelAdapter(_ModelZooAdapter):
-    """Adapter to the trained Lindel model (optional)."""
+    """The real trained Lindel SpCas9 indel-outcome model (consent-gated, opt-in).
+
+    Runs Lindel's logistic-regression model (Chen et al., *Nucleic Acids Res* 2019)
+    on the 60-bp window around the cut and maps its 557-class indel distribution to
+    a normalized :class:`EditOutcome`, preserving the frameshift mass exactly. Lindel
+    ships as a Git repo (not a PyPI package), so point the adapter at a checkout via
+    ``repo_dir`` / ``$ALLELEFORGE_LINDEL_REPO``. Pure NumPy (no torch); gated behind
+    the ``real_weights`` marker so CI stays weight-free.
+    """
 
     name = "Lindel"
     card_name = "lindel"
+
+    def __init__(
+        self,
+        *,
+        repo_dir: str | Path | None = None,
+        top_k: int = 24,
+        registry: ModelRegistry | None = None,
+        use: ModelUse = ModelUse.RESEARCH,
+        consent: bool = False,
+        cache_dir: str | Path | None = None,
+        downloader: Downloader | None = None,
+    ) -> None:
+        """Configure the Lindel checkout, output truncation, and model-zoo gate.
+
+        Args:
+            repo_dir: Path to a Lindel checkout. Defaults to ``$ALLELEFORGE_LINDEL_REPO``.
+            top_k: Keep this many top indel classes verbatim (tail is bucketed).
+            registry: Model-card registry (defaults to the bundled cards).
+            use: The use the weights are loaded for (drives the license gate).
+            consent: Must be ``True`` to authorize use of the weights.
+            cache_dir: Override for the checkpoint cache (unused on this path).
+            downloader: Injected fetcher (unused on this path).
+        """
+        super().__init__(
+            registry=registry,
+            use=use,
+            consent=consent,
+            cache_dir=cache_dir,
+            downloader=downloader,
+        )
+        self._repo = Path(repo_dir or os.environ.get("ALLELEFORGE_LINDEL_REPO", ""))
+        self._top_k = top_k
+
+    def predict(
+        self,
+        context: str,
+        cut: int,
+        *,
+        max_del: int = DEFAULT_MAX_DELETION,
+        mark_frameshift: bool = False,
+    ) -> EditOutcome:
+        """Predict the indel spectrum at ``cut`` with the trained Lindel model.
+
+        Raises:
+            ValueError: If the context is too short or has no NGG PAM for Lindel.
+            ConsentError / LicenseError: From the model-zoo gate.
+        """
+        window = _lindel_window(context, cut)
+        self.resolve_weights()  # consent + license gate; records provenance
+        return self._predict_with_model(
+            window, mark_frameshift
+        )  # pragma: no cover - needs checkout
+
+    def _predict_with_model(  # pragma: no cover - needs the checkout + NumPy
+        self, window: str, mark_frameshift: bool
+    ) -> EditOutcome:
+        """Run Lindel on a 60-bp window and assemble the outcome distribution."""
+        gen_prediction, wb, prereq = _require_lindel(self._repo)
+        result = gen_prediction(window, wb, prereq)
+        if isinstance(result, str):  # Lindel reports e.g. a missing PAM as a string
+            raise ValueError(f"Lindel could not score the window: {result}")
+        y_hat, _frameshift_ratio = result
+        label, _rev, _feat, frame_shift = prereq
+        inv = {idx: lbl for lbl, idx in label.items()}
+        probs = [float(p) for p in y_hat]
+        labels = [inv[i] for i in range(len(probs))]
+        fs = [float(x) for x in frame_shift]
+        return _lindel_outcome(
+            probs, labels, fs, mark_frameshift=mark_frameshift, top_k=self._top_k
+        )
 
 
 class XCrispAdapter(_ModelZooAdapter):

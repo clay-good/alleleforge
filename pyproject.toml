@@ -176,6 +176,10 @@ module = [
     "pandas.*",
     "criscas",
     "criscas.*",
+    "numpy",
+    "numpy.*",
+    "Lindel",
+    "Lindel.*",
 ]
 ignore_missing_imports = true
 
