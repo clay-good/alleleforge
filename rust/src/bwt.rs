@@ -87,7 +87,10 @@ impl FmIndex {
                 ));
             }
         }
-        let content_hash = format!("{:x}", Sha256::digest(s.as_bytes()));
+        let content_hash: String = Sha256::digest(s.as_bytes())
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
 
         let mut data = s.into_bytes();
         data.push(SENTINEL);
