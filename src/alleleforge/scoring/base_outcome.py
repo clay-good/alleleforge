@@ -191,17 +191,22 @@ class _ModelZooAdapter(WeightGate):
         return self._registry.get(self.card_name)
 
     def predict(self, window: BaseEditWindow, editor: BaseEditor) -> WindowOutcome:
-        """Resolve weights (consent-gated), then predict the window outcome.
+        """Resolve the license gate, then refuse — this is an out-of-scope placeholder.
+
+        ``BeHiveAdapter`` is a license-gated placeholder, not a supported model: its
+        upstream (BE-Hive) is TensorFlow-1-era and redundant with the wired **BE-DICT**
+        model. See ``specs/cross-check-models-scope.md``.
 
         Raises:
             ConsentError / LicenseError / ChecksumError: From the weight gate.
-            NotImplementedError: The trained forward pass is not yet wired.
+            NotImplementedError: Always — use :class:`BeDictAdapter` (real) or
+                :class:`BaseEditOutcomePredictor` (baseline) for this axis.
         """
         self.resolve_weights()
-        raise NotImplementedError(  # pragma: no cover - forward pass needs real weights
-            f"{self.name} weights resolved and verified; the trained forward pass is "
-            "wired alongside the real-weights integration. Use "
-            "BaseEditOutcomePredictor meanwhile."
+        raise NotImplementedError(  # pragma: no cover - out of supported scope (see scope spec)
+            f"{self.name} is an out-of-scope placeholder (TF1-era/redundant upstream; "
+            "see specs/cross-check-models-scope.md). Use BeDictAdapter for the real "
+            "base-edit outcome model."
         )
 
 

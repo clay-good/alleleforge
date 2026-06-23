@@ -199,17 +199,23 @@ class _ModelZooAdapter(WeightGate):
         return self._registry.get(self.card_name)
 
     def predict(self, context: str, cut: int) -> EditOutcome:
-        """Resolve weights (consent-gated), then predict the indel spectrum.
+        """Resolve the license gate, then refuse — this is an out-of-scope placeholder.
+
+        ``InDelphiAdapter`` / ``XCrispAdapter`` are license-gated placeholders, not
+        supported models: their upstreams are dependency-rotted (TF1/Theano, old
+        ``scikit-learn``, ``mpi4py``) and redundant with the wired **Lindel** model.
+        See ``specs/cross-check-models-scope.md``.
 
         Raises:
             ConsentError / LicenseError / ChecksumError: From the weight gate.
-            NotImplementedError: The trained forward pass is not yet wired.
+            NotImplementedError: Always — use :class:`LindelAdapter` (real) or
+                :class:`MicrohomologyOutcomePredictor` (baseline) for this axis.
         """
         self.resolve_weights()
-        raise NotImplementedError(  # pragma: no cover - forward pass needs real weights
-            f"{self.name} weights resolved and verified; the trained forward pass is "
-            "wired alongside the real-weights integration. Use "
-            "MicrohomologyOutcomePredictor meanwhile."
+        raise NotImplementedError(  # pragma: no cover - out of supported scope (see scope spec)
+            f"{self.name} is an out-of-scope placeholder (dependency-rotted/redundant "
+            "upstream; see specs/cross-check-models-scope.md). Use LindelAdapter for "
+            "the real SpCas9 indel-outcome model."
         )
 
 

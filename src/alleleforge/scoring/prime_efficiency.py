@@ -127,19 +127,25 @@ class _ModelZooAdapter(WeightGate):
         return self._registry.get(self.card_name)
 
     def score(self, pegrna: PegRNA, **kwargs: object) -> Prediction[float]:
-        """Resolve weights (consent-gated), then predict efficiency.
+        """Resolve the license gate, then refuse — this is an out-of-scope placeholder.
 
-        The consent/license/checksum gate runs first; the forward pass over the
-        trained weights lands alongside the real-weights integration (R1/R5).
+        ``DeepPrimeAdapter`` / ``GenETAdapter`` are license-gated placeholders, not
+        supported models: DeepPrime's per-pegRNA API needs edit metadata a
+        :class:`PegRNA` does not carry, its stack is heavy/Python-≤3.10-pinned
+        (``tensorflow<2.10`` + ``viennarna``), and its sequence-level API is redundant
+        with the wired PRIDICT2.0 engine. See ``specs/cross-check-models-scope.md``.
 
         Raises:
             ConsentError / LicenseError / ChecksumError: From the weight gate.
-            NotImplementedError: The trained forward pass is not yet wired.
+            NotImplementedError: Always — use
+                :class:`~alleleforge.scoring.pridict_engine.PridictEngineAdapter`
+                (real PRIDICT2.0) for prime efficiency.
         """
         self.resolve_weights()
-        raise NotImplementedError(  # pragma: no cover - forward pass needs real weights
-            f"{self.name} weights resolved and verified; the trained forward pass is "
-            "wired alongside the real-weights integration. Use PridictScorer meanwhile."
+        raise NotImplementedError(  # pragma: no cover - out of supported scope (see scope spec)
+            f"{self.name} is an out-of-scope placeholder (heavy/redundant upstream; "
+            "see specs/cross-check-models-scope.md). Use PridictEngineAdapter for the "
+            "real PRIDICT2.0 prime-efficiency model."
         )
 
 
