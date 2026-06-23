@@ -34,6 +34,7 @@ from alleleforge.scoring.cas9_efficiency import (
     EnsembleEfficiencyScorer,
     RuleSet3Scorer,
     TracrRNA,
+    TrainedRuleSet3Scorer,
 )
 from alleleforge.scoring.cas9_outcome import (
     InDelphiAdapter,
@@ -101,6 +102,7 @@ __all__ = [
     "SequenceEmbedder",
     "StubEmbedder",
     "TracrRNA",
+    "TrainedRuleSet3Scorer",
     "WindowOutcome",
     "XCrispAdapter",
     "ensemble_outcome",

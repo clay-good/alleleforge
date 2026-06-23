@@ -7,9 +7,16 @@ an out-of-distribution flag — never a bare float:
 * :class:`RuleSet3Scorer` — an always-available, no-large-download baseline. It
   is a transparent, deterministic sequence-feature model in the spirit of Rule
   Set 3 (DeWeirdt & Doench, *Nat Commun* 2022), including a **tracrRNA-aware**
-  term (RS3's key addition: activity depends on the tracrRNA scaffold). The exact
-  trained RS3 coefficients load through the model zoo when present; the shipped
-  default is the documented feature baseline, not the fitted model.
+  term (RS3's key addition: activity depends on the tracrRNA scaffold). This is a
+  documented *heuristic* baseline (``method=HEURISTIC``), not the fitted model.
+
+* :class:`TrainedRuleSet3Scorer` — the **real** trained Rule Set 3 model. Its
+  point estimate comes from the published LightGBM model (resolved through the
+  consent-gated, checksum-verified model zoo as a version-independent text
+  booster) over the exact ``sglearn`` 632-feature representation, so it
+  reproduces upstream ``rs3.predict_seq`` to the bit. Opt-in: it needs the
+  ``cas9-rs3`` extra (``lightgbm``, ``sglearn``) and is gated behind the
+  ``real_weights`` test marker, so CI stays weight-free.
 
 * :class:`EnsembleEfficiencyScorer` — the default: a backbone-fine-tuned **deep
   ensemble** over a :class:`~alleleforge.scoring.backbone.SequenceEmbedder`. The
@@ -25,8 +32,17 @@ import math
 import struct
 from collections.abc import Callable, Sequence
 from enum import StrEnum
+from pathlib import Path
+from typing import Any
 
-from alleleforge.model_zoo.registry import ModelCard, ModelRegistry, default_registry
+from alleleforge.model_zoo.loader import WeightGate
+from alleleforge.model_zoo.registry import (
+    Downloader,
+    ModelCard,
+    ModelRegistry,
+    ModelUse,
+    default_registry,
+)
 from alleleforge.scoring.backbone import Embedding, SequenceEmbedder, StubEmbedder
 from alleleforge.scoring.uncertainty import (
     DEFAULT_ENSEMBLE_SIZE,
@@ -97,6 +113,137 @@ class RuleSet3Scorer:
         return Prediction[float](
             value=value,
             interval=(max(0.0, value - half), min(1.0, value + half)),
+            interval_level=DEFAULT_INTERVAL_LEVEL,
+            method=UncertaintyMethod.HEURISTIC,
+            in_distribution=in_dist,
+            calibrated=False,
+        )
+
+
+#: rs3 reference tracrRNA labels, in the column order the trained model expects.
+_RS3_REF_TRACRS = ("Hsu2013", "Chen2013")
+
+
+def _require_rs3_runtime() -> tuple[Any, Any]:  # pragma: no cover - needs the cas9-rs3 extra
+    """Import lightgbm + sglearn, or raise a helpful error if missing."""
+    try:
+        import lightgbm
+        import sglearn
+    except ImportError as exc:
+        raise RuntimeError(
+            "the trained Rule Set 3 model requires the 'cas9-rs3' extra "
+            "(lightgbm, sglearn); install alleleforge[cas9-rs3], or use "
+            "RuleSet3Scorer for the weight-free baseline"
+        ) from exc
+    return lightgbm, sglearn
+
+
+class TrainedRuleSet3Scorer(WeightGate):
+    """The real trained Rule Set 3 LightGBM model (consent-gated, opt-in).
+
+    The point estimate is the published Rule Set 3 model's prediction, reproduced
+    bit-for-bit from a version-independent LightGBM **text booster** resolved
+    through the model zoo (license + consent + checksum) over the exact
+    ``sglearn`` 632-feature representation. The interval is a documented heuristic
+    spread — the trained model yields a point activity, not a calibrated interval —
+    so ``calibrated`` stays ``False`` until conformal calibration on a real
+    validation set lands (R5). The recorded
+    :class:`~alleleforge.types.provenance.ModelCheckpoint` carries the model's
+    provenance and failure modes.
+
+    Inputs are 30-nt contexts (4 nt 5' + 20 nt protospacer + 3 nt PAM + 3 nt 3'),
+    the Rule Set 3 sequence-model contract. Opt-in: needs the ``cas9-rs3`` extra
+    and is gated behind the ``real_weights`` test marker, so CI stays weight-free.
+    """
+
+    name = "rule-set-3-trained"
+    card_name = "rule-set-3"
+
+    #: Required Rule Set 3 context length (nt).
+    CONTEXT_LENGTH = 30
+    #: Heuristic interval half-width around the trained point estimate.
+    _INTERVAL_HALF = 0.15
+
+    def __init__(
+        self,
+        *,
+        tracr: TracrRNA = TracrRNA.CHEN_2013,
+        registry: ModelRegistry | None = None,
+        use: ModelUse = ModelUse.RESEARCH,
+        consent: bool = False,
+        cache_dir: str | Path | None = None,
+        downloader: Downloader | None = None,
+    ) -> None:
+        """Configure the assumed tracrRNA scaffold and the model-zoo gate.
+
+        Args:
+            tracr: The tracrRNA scaffold to score against (RS3 feature).
+            registry: Model-card registry (defaults to the bundled cards).
+            use: The use the weights are loaded for (drives the license gate).
+            consent: Must be ``True`` to authorize the booster download.
+            cache_dir: Override for the checkpoint cache (pinned-artifact path).
+            downloader: Injected fetcher for the pinned booster (tests).
+        """
+        super().__init__(
+            registry=registry,
+            use=use,
+            consent=consent,
+            cache_dir=cache_dir,
+            downloader=downloader,
+        )
+        self.tracr = tracr
+        self._booster: Any = None
+
+    def model_card(self) -> ModelCard:
+        """Return the Rule Set 3 model card."""
+        return self._registry.get(self.card_name)
+
+    def _load_booster(self) -> Any:  # pragma: no cover - needs the extra + real booster
+        """Resolve weights (consent-gated) and load the LightGBM text booster once."""
+        if self._booster is None:
+            lightgbm, _ = _require_rs3_runtime()
+            path = self.resolve_weights()
+            self._booster = lightgbm.Booster(model_file=path)
+        return self._booster
+
+    def predict_raw(self, contexts: Sequence[str]) -> list[float]:  # pragma: no cover - extra
+        """Return the trained model's raw activity z-scores for 30-nt ``contexts``.
+
+        This is the parity surface: the scores match upstream
+        ``rs3.seq.predict_seq`` exactly (same featurization, same booster).
+
+        Raises:
+            ValueError: If any context is not :attr:`CONTEXT_LENGTH` nt long.
+        """
+        bad = sorted({len(c) for c in contexts if len(c) != self.CONTEXT_LENGTH})
+        if bad:
+            raise ValueError(
+                f"Rule Set 3 needs {self.CONTEXT_LENGTH}-nt contexts; got lengths {bad}"
+            )
+        _, sglearn = _require_rs3_runtime()
+        booster = self._load_booster()
+        features = sglearn.featurize_guides(list(contexts), n_jobs=1)
+        tracr_label = "Chen2013" if self.tracr is TracrRNA.CHEN_2013 else "Hsu2013"
+        for ref in _RS3_REF_TRACRS:
+            features[f"{ref} tracr"] = int(tracr_label == ref)
+        return [float(x) for x in booster.predict(features.values)]
+
+    def score(self, context: str) -> Prediction[float]:  # pragma: no cover - needs the extra
+        """Return a Rule Set 3 efficiency prediction for a 30-nt ``context``.
+
+        The point estimate is the trained model's activity, squashed to ``[0, 1]``
+        by a monotone logistic map (ranking-preserving); the raw z-score is
+        available via :meth:`predict_raw`. The interval is heuristic.
+        """
+        z = self.predict_raw([context])[0]
+        value = _sigmoid(z)
+        in_dist = "N" not in context.upper() and len(context) == self.CONTEXT_LENGTH
+        return Prediction[float](
+            value=value,
+            interval=(
+                max(0.0, value - self._INTERVAL_HALF),
+                min(1.0, value + self._INTERVAL_HALF),
+            ),
             interval_level=DEFAULT_INTERVAL_LEVEL,
             method=UncertaintyMethod.HEURISTIC,
             in_distribution=in_dist,

@@ -262,6 +262,7 @@ pip install -e ".[core,genome,variant,cli,ml,dev]"
 | `cli` | typer | the `aforge` command-line interface (Phase 12) |
 | `web` | fastapi, uvicorn, httpx | the web API + served frontend (Phase 13) |
 | `ml` | torch, transformers, lightning, scikit-learn | real embedding backbones (Phase 6+); the uncertainty core needs none of these |
+| `cas9-rs3` | lightgbm, sglearn | the **real trained Rule Set 3** SpCas9-efficiency model (no torch); see below |
 | `docs` | mkdocs-material, mkdocstrings | documentation site |
 | `dev` | ruff, mypy, pytest, hypothesis, maturin | development |
 
@@ -645,11 +646,22 @@ when no `NGG` guide is actionable **and** opted in. Cut site 3 bp 5' of the PAM.
 is tight around the edit for precise intents (HDR efficiency falls off with cut-to-edit distance) and
 the whole working interval for a knock-out, which marks frameshift outcomes as intended.
 
-| Axis | Default (CI, weight-free) | Trained alternative (model zoo, `ml` extra) |
+| Axis | Default (CI, weight-free) | Trained alternative (model zoo) |
 |---|---|---|
-| Efficiency | RS3-style feature baseline + backbone deep ensemble | Rule Set 3; fine-tuned NT v2 ensemble |
+| Efficiency | RS3-style feature **heuristic** + backbone deep ensemble | **Rule Set 3 (real, wired — `cas9-rs3`)**; fine-tuned NT v2 ensemble (`ml`) |
 | Outcome | microhomology/MMEJ + 1-bp insertion model | inDelphi (default) · Lindel · X-CRISP + agreement |
 | Off-target | Phase 5 engine (pure-Python fallback) | Phase 5 engine (Rust FM-index) |
+
+> [!NOTE]
+> **Heuristic vs. trained, stated honestly.** The weight-free defaults that run in CI are *heuristic*
+> baselines (`method=HEURISTIC`, `calibrated=False`) — transparent feature models, not the published
+> networks. The first **real** trained model is now wired: [`TrainedRuleSet3Scorer`](src/alleleforge/scoring/cas9_efficiency.py)
+> resolves the published Rule Set 3 LightGBM model through the consent-gated, checksum-verified model
+> zoo (as a version-independent text booster) and reproduces upstream `rs3.predict_seq` **bit-for-bit**
+> (parity-tested). It is opt-in (`pip install "alleleforge[cas9-rs3]"`, no torch) and gated behind the
+> `real_weights` marker so CI stays weight-free. The trained prime/base-editing networks remain
+> heuristic baselines for now; see [`specs/model-integration.md`](specs/model-integration.md) for the
+> roadmap.
 
 Every efficiency score carries an 80% interval and an OOD flag; every outcome is a normalized
 distribution over indel alleles; every candidate carries an ancestry-stratified off-target report —

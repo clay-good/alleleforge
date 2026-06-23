@@ -57,6 +57,16 @@ ml = [
     "lightning>=2.2",
     "scikit-learn>=1.4",
 ]
+# The real trained Rule Set 3 SpCas9-efficiency model. Deliberately separate from
+# `ml`: it needs only a modern LightGBM (to run the version-independent text
+# booster resolved through the model zoo) plus the upstream `sglearn` featurizer —
+# no torch. Kept opt-in so the core install stays light and CI stays weight-free.
+cas9-rs3 = [
+    "lightgbm>=4",
+    "sglearn>=1.2.5",
+    "numpy>=1.26",
+    "pandas>=2",
+]
 web = [
     "fastapi>=0.110",
     "uvicorn>=0.29",
@@ -158,6 +168,12 @@ module = [
     "transformers.*",
     "polars",
     "polars.*",
+    "lightgbm",
+    "lightgbm.*",
+    "sglearn",
+    "sglearn.*",
+    "pandas",
+    "pandas.*",
 ]
 ignore_missing_imports = true
 

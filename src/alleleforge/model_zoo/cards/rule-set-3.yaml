@@ -8,15 +8,24 @@ training_data: >-
 metrics:
   spearman_validation: 0.0  # populated when CRISPR-Bench scores it (Phase 14)
 intended_use: >-
-  No-large-download on-target SpCas9 efficiency baseline; always-available
-  fallback to the backbone-fine-tuned ensemble. Research use.
+  On-target SpCas9 efficiency. The always-available baseline is a transparent
+  feature model (no download); the trained Rule Set 3 LightGBM model loads on
+  demand through the consent-gated model zoo. Research use.
 out_of_scope_use: >-
   Clinical decision-making; chemistries other than SpCas9 nuclease; a substitute
   for experimental validation.
-license: BSD-3-Clause
-citation: "DeWeirdt & Doench et al., Nat Commun 2022 (Rule Set 3)"
+# Apache-2.0: the trained model ships in the Apache-2.0-licensed `rs3` package
+# (gpp-rnd / Broad GPP). The pinned artifact is its LightGBM booster exported to
+# the version-independent text format (loads under any LightGBM; see
+# scripts/export_rs3_booster.py for the exact, reproducible derivation).
+license: Apache-2.0
+citation: "DeWeirdt & Doench et al., Nat Commun 2022 (Rule Set 3); rs3 v0.0.18"
 known_failure_modes:
   - "Trained on lentiviral pooled screens; may not transfer to other delivery/contexts."
   - "Reduced accuracy outside the trained spacer-length / scaffold assumptions."
-checkpoint_sha256: null
-source_url: "https://github.com/gpp-rnd/rs3"
+  - "Requires a 30-nt context (4 nt 5' + 20 nt protospacer + 3 nt PAM + 3 nt 3')."
+# Pinned content hash of the version-independent LightGBM text booster
+# (RuleSet3.txt) derived from rs3 v0.0.18. The maintainer hosts this artifact at
+# source_url; the consent gate downloads + checksum-verifies it before any load.
+checkpoint_sha256: "464a5a0844f805529b7ccaf5ed461a2e15abe9a36d8cb4667447556bee19917e"
+source_url: "https://github.com/clay-good/alleleforge/releases/download/rs3-booster-v1/RuleSet3.txt"
