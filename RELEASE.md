@@ -15,16 +15,18 @@ wired + validated: trained Rule Set 3 and PRIDICT2.0).
 - [ ] README claims are honest (heuristic vs trained scorers; see the prime/cas9
       sections). Confirm no overclaim of "wraps PRIDICT2/BE-Hive" beyond what's wired.
 
-## 1. Host the trained Rule Set 3 booster (unblocks `--trained-efficiency`)
+## 1. Host the trained Rule Set 3 booster (unblocks `--trained-efficiency`) — ✅ DONE
 
 The `rule-set-3` card pins a `checkpoint_sha256` and a `source_url` release asset.
 
-- [ ] In a legacy env, run [`scripts/export_rs3_booster.py`](scripts/export_rs3_booster.py)
-      to produce `RuleSet3.txt`; confirm its sha256 == the card's `checkpoint_sha256`
-      (`464a5a08…917e`).
-- [ ] Upload `RuleSet3.txt` as the `rs3-booster-v1` release asset (matches the card's
-      `source_url`). After this, `pip install "alleleforge[cas9-rs3]"` +
-      `aforge design --trained-efficiency` works end to end for any user.
+- [x] `RuleSet3.txt` produced via [`scripts/export_rs3_booster.py`](scripts/export_rs3_booster.py);
+      sha256 confirmed == the card's `checkpoint_sha256` (`464a5a08…917e`).
+- [x] Uploaded as the [`rs3-booster-v1`](https://github.com/clay-good/alleleforge/releases/tag/rs3-booster-v1)
+      release asset (matches the card's `source_url`). Verified end to end: the
+      model-zoo gate downloads it, the checksum verifies, and the scorer reproduces
+      upstream `rs3` exactly. `pip install "alleleforge[cas9-rs3]"` +
+      `aforge design --trained-efficiency` now works for any user.
+- [ ] (Re-run only if the model is ever re-derived and the hash changes.)
 
 ## 2. Tag + GitHub release (→ Zenodo DOI)
 
