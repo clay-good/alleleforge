@@ -17,10 +17,12 @@
 - [x] 3.2 Test: the snapshot round-trips and matches the settings that governed the run.
 
 ## 4. Honor config precedence in CLI and web
-- [ ] 4.1 Route the CLI and web through `Settings.load()` so the config file applies.
-- [ ] 4.2 Honor the user-supplied reference build instead of hard-coding `hg38`.
+- [x] 4.1 Route the CLI and web through `Settings.load()` so the config file applies.
+      *(CLI routes `Settings.load(config_file=config, seed=state.seed)`; the web layer
+      already threads a `Settings` instance.)*
+- [x] 4.2 Honor the user-supplied reference build instead of hard-coding `hg38`.
 - [ ] 4.3 Add a warn-on-unknown-key mode for the config file.
-- [ ] 4.4 Tests: a `config.toml` `maf_threshold`/`interval_level` governs a CLI run; a
+- [x] 4.4 Tests: a `config.toml` `maf_threshold`/`interval_level` governs a CLI run; a
       non-hg38 reference resolves at its own build.
 
 ## 5. Add `aforge verify`

@@ -50,10 +50,14 @@ subset that can drift. Task 5 has also shipped: `aforge verify <result>` checks 
 result's provenance is complete and self-consistent and, given `--cache-dir`,
 re-hashes each pinned model checkpoint against the hash recorded in provenance,
 exiting non-zero on incomplete provenance or a mismatch — turning provenance from a
-record into a checkable contract. Still open: the load-bearing seed/RNG (task 2),
-routing the CLI/web through `Settings.load()` and honoring the user's reference
-build (task 4), and the reproduce-style determinism re-run inside `verify` (needs
-the original reference, so it is a follow-up).
+record into a checkable contract. Task 4 has largely shipped: the CLI now routes its
+settings through `Settings.load(config_file=config, seed=…)`, so a `config.toml`
+key like `maf_threshold` is honored (and appears in the recorded settings snapshot)
+instead of being ignored, and `--reference` labels the loaded genome and provenance
+instead of a hard-coded `hg38`. Still open: the load-bearing seed/RNG (task 2 — the
+design path has no stochastic step today, so this is forward-looking scaffolding),
+the warn-on-unknown-config-key mode (task 4.3), and the reproduce-style determinism
+re-run inside `verify` (needs the original reference, so it is a follow-up).
 
 ## Impact
 

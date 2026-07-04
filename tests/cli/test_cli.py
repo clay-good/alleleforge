@@ -173,6 +173,55 @@ def test_design_config_toml(runner: CliRunner, prime_fasta: Path, tmp_path: Path
     assert json.loads(result.output)["intent"] == "install"
 
 
+def test_design_config_toml_governs_settings(
+    runner: CliRunner, prime_fasta: Path, tmp_path: Path
+) -> None:
+    # A config.toml Settings key (maf_threshold) must be honored, not ignored:
+    # it flows into the resolved settings recorded in provenance.
+    cfg = tmp_path / "run.toml"
+    cfg.write_text('intent = "install"\nmaf_threshold = 0.05\n')
+    out = tmp_path / "report.html"
+    result = runner.invoke(
+        app,
+        [
+            "design",
+            "chr2:71:A>C",
+            "--reference-fasta",
+            str(prime_fasta),
+            "--config",
+            str(cfg),
+            "--out",
+            str(out),
+        ],
+    )
+    assert result.exit_code == 0
+    sidecar = out.with_suffix(".html.provenance.json")
+    prov = json.loads(sidecar.read_text())
+    assert prov["config_snapshot"]["settings"]["maf_threshold"] == 0.05
+
+
+def test_reference_build_is_honored(runner: CliRunner, prime_fasta: Path, tmp_path: Path) -> None:
+    # The user's --reference build must label the reference (and provenance),
+    # not a hard-coded hg38.
+    out = tmp_path / "report.html"
+    result = runner.invoke(
+        app,
+        [
+            "--reference",
+            "mm39",
+            "design",
+            "chr2:71:A>C",
+            "--reference-fasta",
+            str(prime_fasta),
+            "--out",
+            str(out),
+        ],
+    )
+    assert result.exit_code == 0
+    prov = json.loads(out.with_suffix(".html.provenance.json").read_text())
+    assert prov["reference_build"] == "mm39"
+
+
 def test_design_reproducible_modulo_timestamp(
     runner: CliRunner, prime_fasta: Path, design_cmd: DesignCmd
 ) -> None:

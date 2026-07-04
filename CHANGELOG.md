@@ -8,6 +8,18 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The CLI now honors the config file and the declared reference build.** `aforge`
+  constructed `Settings(seed=…)` directly, so a user's `config.toml`
+  (`maf_threshold`, `interval_level`, `cache_dir`) was ignored — the documented
+  precedence was violated for the primary interface — and every reference was
+  hard-labeled `hg38` regardless of `--reference`. The CLI now routes settings
+  through `Settings.load(config_file=config, seed=state.seed)` so the config file's
+  keys apply (and appear in the recorded settings snapshot), and labels the loaded
+  genome (and its provenance) with the user's `--reference` build. (Part of the
+  in-progress `complete-provenance`, task 4; the warn-on-unknown-key mode remains.)
+
 ### Added
 
 - **Optional per-job wall-clock timeout completes the web-API hardening.**

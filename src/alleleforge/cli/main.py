@@ -104,8 +104,13 @@ def main(
     )
 
 
-def _load_reference(fasta: Path | None) -> Any:
-    """Load a :class:`ReferenceGenome` from a FASTA, or exit ``MISSING_DATA``."""
+def _load_reference(fasta: Path | None, build: str = DEFAULT_REFERENCE) -> Any:
+    """Load a :class:`ReferenceGenome` from a FASTA, or exit ``MISSING_DATA``.
+
+    ``build`` labels the reference with the user's declared build (``--reference``)
+    rather than a hard-coded ``hg38``, so coordinates and provenance reflect the
+    genome the caller actually supplied.
+    """
     if fasta is None:
         _echo_err("error: --reference-fasta is required for this command")
         raise typer.Exit(ExitCode.MISSING_DATA)
@@ -114,7 +119,7 @@ def _load_reference(fasta: Path | None) -> Any:
         raise typer.Exit(ExitCode.MISSING_DATA)
     from alleleforge.genome.reference import ReferenceGenome
 
-    return ReferenceGenome(fasta, build="hg38")
+    return ReferenceGenome(fasta, build=build)
 
 
 def _emit(payload: dict[str, Any], *, as_json: bool, human: str) -> None:
@@ -135,7 +140,11 @@ def resolve(
     from alleleforge.variant.resolver import resolve as resolve_variant
 
     state: GlobalState = ctx.obj
-    reference = _load_reference(reference_fasta) if reference_fasta is not None else None
+    reference = (
+        _load_reference(reference_fasta, state.reference_build)
+        if reference_fasta is not None
+        else None
+    )
     try:
         resolved = resolve_variant(variant, build=state.reference_build, reference=reference)
     except ValueError as exc:
@@ -296,8 +305,11 @@ def design(
             raise typer.Exit(ExitCode.USAGE) from exc
     pops = [p.strip() for p in pops_str.split(",")] if pops_str else None
 
-    reference = _load_reference(reference_fasta)
-    settings = Settings(seed=state.seed)
+    reference = _load_reference(reference_fasta, state.reference_build)
+    # Honor the user's config file (its Settings keys) with the CLI --seed as
+    # an override, so a config.toml maf_threshold/interval_level/cache_dir is
+    # applied instead of being silently ignored.
+    settings = Settings.load(config_file=config, seed=state.seed)
     cas9_scorer = None
     if trained_efficiency:
         from alleleforge.scoring.cas9_efficiency import TrainedRuleSet3Scorer
@@ -515,9 +527,12 @@ def batch(
         raise typer.Exit(ExitCode.MISSING_DATA)
     pops = [p.strip() for p in pops_str.split(",")] if pops_str else None
 
-    reference = _load_reference(reference_fasta)
+    reference = _load_reference(reference_fasta, state.reference_build)
     assert reference_fasta is not None  # _load_reference exits otherwise
-    settings = Settings(seed=state.seed)
+    # Honor the user's config file (its Settings keys) with the CLI --seed as
+    # an override, so a config.toml maf_threshold/interval_level/cache_dir is
+    # applied instead of being silently ignored.
+    settings = Settings.load(config_file=config, seed=state.seed)
 
     if _is_vcf_path(inputs):
         from alleleforge.variant import iter_vcf
@@ -533,7 +548,9 @@ def batch(
         from alleleforge.genome.reference import ReferenceGenome
 
         fasta = reference_fasta
-        ref_kwargs = {"reference_factory": lambda: ReferenceGenome(fasta, build="hg38")}
+        ref_kwargs = {
+            "reference_factory": lambda: ReferenceGenome(fasta, build=state.reference_build)
+        }
 
     try:
         report = design_many(
@@ -626,7 +643,8 @@ def offtarget(
     from alleleforge.offtarget.engine import search
     from alleleforge.types.guide import PAM
 
-    reference = _load_reference(reference_fasta)
+    state: GlobalState = ctx.obj
+    reference = _load_reference(reference_fasta, state.reference_build)
     pops = [p.strip() for p in populations.split(",")] if populations else None
     try:
         report = search(
