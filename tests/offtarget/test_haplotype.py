@@ -121,3 +121,24 @@ def test_rare_haplotype_skipped(make_reference: MakeRef) -> None:
     hap = _hap((Variant(chrom="chr2", pos=32, ref="T", alt="G"),), {"AFR": 0.0005})
     sites = enumerate_haplotype_sites(SPACER, NRG, reference=ref, haplotypes=[hap], min_freq=0.001)
     assert sites == []
+
+
+def test_partial_haplotype_applies_non_clashing_subset(make_reference: MakeRef) -> None:
+    # A haplotype with one ref-clashing variant (pos 15 asserts 'A' where the build
+    # has 'T') and one PAM-creating variant (pos 32 T>G). The whole haplotype must
+    # no longer be discarded: the created site is still nominated, the clashing
+    # variant is skipped and recorded, and it is absent from the causal allele.
+    ref = make_reference({"chr2": PAD + SPACER + "CGT" + PAD})
+    hap = _hap(
+        (
+            Variant(chrom="chr2", pos=15, ref="A", alt="G"),  # clashes: build has 'T'
+            Variant(chrom="chr2", pos=32, ref="T", alt="G"),  # creates the CGG PAM
+        ),
+        {"AFR": 0.2},
+    )
+    sites = enumerate_haplotype_sites(SPACER, NRG, reference=ref, haplotypes=[hap], min_freq=0.001)
+    assert len(sites) == 1
+    hit, prov = sites[0]
+    assert hit.mismatches == 0  # the in-protospacer clashing variant was not applied
+    assert prov.causal_allele == "chr2:32:T>G"
+    assert prov.skipped_variants == ("chr2:15:A>G",)

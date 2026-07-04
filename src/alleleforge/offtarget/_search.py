@@ -17,7 +17,7 @@ each is evaluated independently; a single site is not given both at once.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
@@ -49,6 +49,9 @@ class SiteProvenance:
         populations: Populations carrying the causal allele.
         frequency: Allele frequency of the causal allele (max over populations).
         ancestries: Per-ancestry frequency annotation for this site.
+        skipped_variants: Variants that were present on the source haplotype but
+            not applied (their asserted reference base clashed with the build),
+            recorded for audit so a partially-applied haplotype is transparent.
     """
 
     origin: SiteOrigin
@@ -56,6 +59,7 @@ class SiteProvenance:
     populations: tuple[str, ...] = ()
     frequency: float | None = None
     ancestries: dict[str, float] = field(default_factory=dict)
+    skipped_variants: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -90,6 +94,70 @@ class Hit:
     def edits(self) -> int:
         """Return the total edit count (mismatches + bulges)."""
         return self.mismatches + self.dna_bulges + self.rna_bulges
+
+
+#: One applied edit relative to a window: ``(rel_start, ref_len, alt_len)``.
+AppliedEdit = tuple[int, int, int]
+
+
+def _alt_coordinate_lift(
+    ref_len: int, window_start: int, applied: list[AppliedEdit]
+) -> tuple[dict[int, int], dict[int, int]]:
+    """Map alt-local boundaries back to genomic coordinates through indels.
+
+    Given the reference-window length, its genomic start, and the length-changing
+    edits applied to it (``(rel, ref_len, alt_len)`` in ascending, non-overlapping
+    order), return ``(lo, hi)`` dicts from an alt-local boundary index to its
+    genomic coordinate — ``lo`` for a span start, ``hi`` for a span end. In a
+    1:1 region (before/after/between edits, and across equal-length
+    substitutions) both agree and reduce to ``window_start + index``, so an
+    all-substitution (SNV) window is placed exactly as an unshifted scan would.
+    Inside a length-changing edit a start boundary anchors to the edit's genomic
+    start and an end boundary to its genomic end, so a protospacer straddling the
+    indel is reported over the whole affected genomic footprint.
+    """
+    lo: dict[int, int] = {}
+    hi: dict[int, int] = {}
+    a = 0  # alt-local index
+    r = 0  # ref-local index
+
+    def _copy(length: int) -> None:
+        nonlocal a, r
+        for k in range(length + 1):
+            g = window_start + r + k
+            lo[a + k] = g
+            hi[a + k] = g
+        a += length
+        r += length
+
+    for rel, rlen, alen in applied:
+        _copy(rel - r)  # 1:1 stretch up to this edit
+        if rlen == alen:
+            _copy(alen)  # substitution: coordinates are unshifted
+        else:
+            glo = window_start + r
+            ghi = window_start + r + rlen
+            for k in range(alen + 1):
+                lo[a + k] = glo if k < alen else ghi
+                hi[a + k] = glo if k == 0 else ghi
+            a += alen
+            r += rlen
+    _copy(ref_len - r)  # trailing 1:1 stretch
+    return lo, hi
+
+
+def _reindex_alt_hits(
+    hits: list[Hit], ref_len: int, window_start: int, applied: list[AppliedEdit]
+) -> list[Hit]:
+    """Reindex hits found on a length-changed alt window to genomic coordinates.
+
+    ``hits`` must carry alt-local coordinates (scanned with ``offset=0``). Each
+    hit's ``start``/``end`` is lifted through :func:`_alt_coordinate_lift`.
+    """
+    if not applied:
+        return [replace(h, start=window_start + h.start, end=window_start + h.end) for h in hits]
+    lo, hi = _alt_coordinate_lift(ref_len, window_start, applied)
+    return [replace(h, start=lo[h.start], end=hi[h.end]) for h in hits]
 
 
 def _best_ungapped(spacer: str, window: str, max_mm: int) -> int | None:
@@ -128,17 +196,23 @@ def _evaluate(
     """Evaluate the protospacer 5' of a PAM at ``pam_at`` in ``seq``.
 
     Returns ``(proto_start, mismatches, dna_bulge, rna_bulge, aligned_spacer,
-    aligned_target)`` for the best alignment within budget, else ``None``. The
-    ungapped alignment wins ties; bulged alignments are only tried when allowed.
+    aligned_target)`` for the **edit-minimal** alignment within budget, else
+    ``None``. Every in-budget alignment (ungapped, single DNA bulge, single RNA
+    bulge) is considered and the one with the fewest total edits is returned — a
+    bulged near-perfect match therefore wins over a many-mismatch ungapped one, so
+    a site's risk is never under-stated. Ties break deterministically: fewer
+    bulges first (ungapped over bulged), then a DNA bulge before an RNA bulge. A
+    site is never given both bulge types at once.
     """
     n = len(spacer)
+    candidates: list[tuple[int, int, int, int, str, str]] = []
     # Ungapped: protospacer is exactly n bases immediately 5' of the PAM.
     start = pam_at - n
     if start >= 0:
         window = seq[start:pam_at]
         mm = _best_ungapped(spacer, window, max_mm)
         if mm is not None:
-            return (start, mm, 0, 0, spacer, window)
+            candidates.append((start, mm, 0, 0, spacer, window))
     # DNA bulge: protospacer is n+1 bases (one extra genomic base); remove it so
     # the aligned target is n bases for scoring.
     if dna_bulges >= 1:
@@ -148,7 +222,7 @@ def _evaluate(
             best = _best_with_removed_base(window, spacer, max_mm)
             if best is not None:
                 mm, reduced_target = best
-                return (start, mm, 1, 0, spacer, reduced_target)
+                candidates.append((start, mm, 1, 0, spacer, reduced_target))
     # RNA bulge: protospacer is n-1 bases (one extra spacer base); remove the
     # extra spacer base so both aligned strings are n-1 bases.
     if rna_bulges >= 1 and n >= 2:
@@ -158,8 +232,17 @@ def _evaluate(
             best = _best_with_removed_base(spacer, window, max_mm)
             if best is not None:
                 mm, reduced_spacer = best
-                return (start, mm, 0, 1, reduced_spacer, window)
-    return None
+                candidates.append((start, mm, 0, 1, reduced_spacer, window))
+    if not candidates:
+        return None
+
+    # Edit-minimal: fewest total edits, then fewest bulges (ungapped wins), then
+    # DNA bulge before RNA bulge — a total, deterministic order.
+    def _rank(c: tuple[int, int, int, int, str, str]) -> tuple[int, int, int]:
+        _start, mm, dnab, rnab, _asp, _atg = c
+        return (mm + dnab + rnab, dnab + rnab, rnab)
+
+    return min(candidates, key=_rank)
 
 
 #: Minimum seed length for the prefilter to be worth it. Below this the seed is
@@ -241,6 +324,25 @@ def _scan_one_strand(
             continue  # never nominate a site over a padded / unknown region
         hits.append((start, pam_at, pam_seq, mm, dnab, rnab, a_spacer, a_target))
     return hits
+
+
+#: The alphabet both the linear scan and the FM-index/native path accept.
+_INDEX_ALPHABET = frozenset("ACGTN")
+
+
+def _sanitize(seq: str) -> str:
+    """Map any base outside ``ACGTN`` to ``N`` so both search paths agree.
+
+    The FM-index/native path can only be built over ``ACGTN`` (it raises on any
+    other base), while the linear scan would otherwise tolerate dirty bases and
+    silently score against them. Folding non-``ACGTN`` to ``N`` up front makes the
+    two paths identical — a window containing an unexpected base is skipped by
+    both (a site is never nominated over an ``N``), rather than crashing one path
+    and silently mis-scoring the other.
+    """
+    if all(b in _INDEX_ALPHABET for b in seq):
+        return seq
+    return "".join(b if b in _INDEX_ALPHABET else "N" for b in seq)
 
 
 def _expand_pam(pam: PAM) -> list[str]:
@@ -344,7 +446,7 @@ def scan_sequence(
     Returns:
         All hits within budget, as plus-strand :class:`Hit` records.
     """
-    seq = str(sequence).upper()
+    seq = _sanitize(str(sequence).upper())
     sp = str(spacer).upper()
     n = len(seq)
     hits: list[Hit] = []

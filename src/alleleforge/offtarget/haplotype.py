@@ -18,17 +18,42 @@ from collections.abc import Iterable, Sequence
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.offtarget._haplotype import apply_variants
-from alleleforge.offtarget._search import Hit, SearchBudget, SiteProvenance, scan_sequence
+from alleleforge.offtarget._search import (
+    Hit,
+    SearchBudget,
+    SiteProvenance,
+    _reindex_alt_hits,
+    scan_sequence,
+)
 from alleleforge.types.guide import PAM
 from alleleforge.types.offtarget import SiteOrigin
 from alleleforge.types.sequence import CoordinateSystem, DNASequence, GenomicInterval, Strand
 from alleleforge.types.variant import Variant
 
 
-def _apply_all(seq: str, window_start: int, variants: Sequence[Variant]) -> str | None:
-    """Apply every variant to ``seq`` via the haplotype kernel; ``None`` on clash."""
-    edits = [(var.pos, var.ref, var.alt) for var in variants]
-    return apply_variants(seq, window_start, edits)
+def _clashes(ref_seq: str, window_start: int, var: Variant) -> bool:
+    """Return ``True`` if ``var``'s asserted reference does not match the window."""
+    rel = var.pos - window_start
+    if rel < 0 or rel + len(var.ref) > len(ref_seq):
+        return True
+    return ref_seq[rel : rel + len(var.ref)].upper() != var.ref.upper()
+
+
+def _partition_variants(
+    ref_seq: str, window_start: int, variants: Sequence[Variant]
+) -> tuple[list[Variant], list[Variant]]:
+    """Split a haplotype's variants into (applied, skipped) against the window.
+
+    A variant is skipped when its asserted reference base clashes with the build;
+    the rest are still applied, so one bad variant no longer discards the whole
+    haplotype's nominations. Variants are non-overlapping on a phased haplotype, so
+    each clash decision is independent of the others.
+    """
+    applied: list[Variant] = []
+    skipped: list[Variant] = []
+    for var in variants:
+        (skipped if _clashes(ref_seq, window_start, var) else applied).append(var)
+    return applied, skipped
 
 
 def enumerate_haplotype_sites(
@@ -87,14 +112,22 @@ def enumerate_haplotype_sites(
                 )
             )
         )
-        alt_seq = _apply_all(ref_seq, start, hap.variants)
-        if alt_seq is None:
+        # Apply the non-clashing subset of the haplotype instead of dropping the
+        # whole thing when one variant clashes with the build; record the skipped
+        # variants for audit.
+        applied_vars, skipped_vars = _partition_variants(ref_seq, start, hap.variants)
+        if not applied_vars:
+            continue
+        edits = [(v.pos, v.ref, v.alt) for v in applied_vars]
+        alt_seq = apply_variants(ref_seq, start, edits)
+        if alt_seq is None:  # defensive: overlapping applied variants could still clash
             continue
         ref_edits: dict[tuple[Strand, int, int], int] = {}
         for h in scan_sequence(chrom, ref_seq, sp, pam, offset=start, **kw):
             key = (h.strand, h.start, h.end)
             ref_edits[key] = min(ref_edits.get(key, h.edits), h.edits)
-        var_positions = [v.pos for v in hap.variants]
+        var_positions = [v.pos for v in applied_vars]
+        applied_edits = sorted((v.pos - start, len(v.ref), len(v.alt)) for v in applied_vars)
         # A population "carries" the haplotype only at or above the safety
         # threshold; apply it whether or not the caller restricts the populations
         # (mirrors the population-variant path), and stratify ancestry only over
@@ -104,12 +137,17 @@ def enumerate_haplotype_sites(
         pops = tuple(sorted(p for p in candidate_pops if hap.frequencies.get(p, 0.0) >= min_freq))
         prov = SiteProvenance(
             origin=SiteOrigin.POPULATION,
-            causal_allele=";".join(f"{v.chrom}:{v.pos}:{v.ref}>{v.alt}" for v in hap.variants),
+            causal_allele=";".join(f"{v.chrom}:{v.pos}:{v.ref}>{v.alt}" for v in applied_vars),
             populations=pops,
             frequency=hap.max_freq(populations),
             ancestries={p: hap.frequencies[p] for p in pops},
+            skipped_variants=tuple(f"{v.chrom}:{v.pos}:{v.ref}>{v.alt}" for v in skipped_vars),
         )
-        for h in scan_sequence(chrom, alt_seq, sp, pam, offset=start, **kw):
+        # Scan the alt window in local coordinates, then lift hits back to genomic
+        # coordinates through the haplotype's indels so downstream sites are placed
+        # correctly (and the ref-vs-alt comparison keys on the true locus).
+        alt_local = scan_sequence(chrom, alt_seq, sp, pam, offset=0, **kw)
+        for h in _reindex_alt_hits(alt_local, len(ref_seq), start, applied_edits):
             if not any(h.start - pam_len <= p < h.end + pam_len for p in var_positions):
                 continue
             prior = ref_edits.get((h.strand, h.start, h.end))

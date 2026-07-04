@@ -105,3 +105,46 @@ def test_patient_sites_tagged_patient(make_reference: MakeRef) -> None:
     _, prov = sites[0]
     assert prov.origin is SiteOrigin.PATIENT
     assert prov.frequency is None
+
+
+def test_deletion_places_downstream_hit_at_correct_locus(make_reference: MakeRef) -> None:
+    # The reference carries an extra base inside the protospacer (a DNA-bulge site
+    # at 4 nt... here 0 mm via the bulge); a deletion removes it, restoring a clean
+    # 0-mismatch protospacer. The nominated hit must be placed at its TRUE genomic
+    # locus [10, 31) — spanning the deleted base — not shifted by the deletion.
+    contig = PAD + SPACER[:10] + "A" + SPACER[10:] + "AGG" + PAD
+    ref = make_reference({"chr2": contig})
+    # Delete the inserted 'A' at genomic 20 (anchored at 19: 'A'(SPACER[9]) + 'A').
+    pf = PopulationFrequency(
+        chrom="chr2", pos=19, ref="AA", alt="A", overall_af=0.2, populations={"afr": 0.2}
+    )
+    hits = [h for h, _ in enumerate_population_sites(SPACER, NRG, reference=ref, variants=[pf])]
+    # The restored ungapped protospacer (its PAM is the "AGG") is placed at
+    # [10, 31), spanning the deleted base — not shifted to end 30.
+    agg = [h for h in hits if h.pam_sequence == "AGG" and h.rna_bulges == 0]
+    assert len(agg) == 1
+    assert (agg[0].start, agg[0].end, agg[0].mismatches) == (10, 31, 0)
+
+
+def test_insertion_places_downstream_hit_at_correct_locus(make_reference: MakeRef) -> None:
+    # The reference is missing one protospacer base (an RNA-bulge site); an
+    # insertion restores it, creating a clean protospacer that straddles the
+    # insertion. The hit must be reported at [10, 29) — the true genomic span,
+    # one shorter than the 20-nt protospacer because of the inserted base.
+    contig = PAD + SPACER[:10] + SPACER[11:] + "AGG" + PAD
+    ref = make_reference({"chr2": contig})
+    # Insert SPACER[10] ('C') back between genomic 19 and 20 (anchored at 19).
+    pf = PopulationFrequency(
+        chrom="chr2",
+        pos=19,
+        ref=SPACER[9],
+        alt=SPACER[9] + SPACER[10],
+        overall_af=0.2,
+        populations={"afr": 0.2},
+    )
+    hits = [h for h, _ in enumerate_population_sites(SPACER, NRG, reference=ref, variants=[pf])]
+    # The restored ungapped protospacer straddles the insertion: its genomic span
+    # [10, 29) is one shorter than the 20-nt protospacer, not the naive end 30.
+    agg = [h for h in hits if h.pam_sequence == "AGG" and h.rna_bulges == 0]
+    assert len(agg) == 1
+    assert (agg[0].start, agg[0].end, agg[0].mismatches) == (10, 29, 0)

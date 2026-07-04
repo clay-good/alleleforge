@@ -78,6 +78,33 @@ def test_padded_n_region_is_skipped() -> None:
     assert not any((h.start, h.end) == (10, 30) and h.strand is Strand.PLUS for h in hits)
 
 
+def test_best_alignment_wins_at_anchor() -> None:
+    # One anchor admits BOTH an in-budget ungapped alignment (3 mismatches) and a
+    # 1-DNA-bulge, 0-mismatch alignment. The edit-minimal (bulged) one must be
+    # reported, not the first (ungapped) one found, so the site is not under-scored.
+    proto = SP[:3] + "A" + SP[3:]  # 21 nt: SP with one extra base near the 5' end
+    seq = PAD + proto + "TGG" + PAD
+    at_anchor = [h for h in _scan(seq) if h.strand is Strand.PLUS and h.end == 31]
+    assert len(at_anchor) == 1
+    h = at_anchor[0]
+    assert (h.dna_bulges, h.mismatches, h.start) == (1, 0, 10)
+    # The ungapped alignment at the same anchor was genuinely in budget (3 mm),
+    # so the win is over a real competitor, not the only option.
+    assert sum(a != b for a, b in zip(seq[11:31], SP, strict=True)) == 3
+
+
+def test_linear_fm_parity_on_dirty_and_low_complexity() -> None:
+    # The linear scan and the FM-index path must agree on non-ACGTN input and on
+    # low-complexity poly-N / poly-A runs: dirty bases are folded to N and skipped
+    # by both, so neither crashes nor silently diverges.
+    seq = PAD + SP + "TGG" + "N" * 40 + "A" * 40 + SP[:8] + "R" + SP[9:] + "AGG" + PAD + SP + "CGG"
+    linear = scan_sequence("chr2", seq, SP, NRG, use_fm_index=False)
+    fm = scan_sequence("chr2", seq, SP, NRG, use_fm_index=True)
+    assert linear == fm
+    # A genuine hit still survives (the clean SP+TGG at the front).
+    assert any((h.start, h.end) == (10, 30) and h.mismatches == 0 for h in linear)
+
+
 def test_no_pam_no_hit() -> None:
     hits = _scan(PAD + SP + "CAT" + PAD)  # CAT is not NRG
     assert not any(h.mismatches == 0 and h.strand is Strand.PLUS for h in hits)

@@ -19,7 +19,13 @@ from collections.abc import Iterable, Sequence
 
 from alleleforge.data.gnomad import PopulationFrequency
 from alleleforge.genome.reference import ReferenceGenome
-from alleleforge.offtarget._search import Hit, SearchBudget, SiteProvenance, scan_sequence
+from alleleforge.offtarget._search import (
+    Hit,
+    SearchBudget,
+    SiteProvenance,
+    _reindex_alt_hits,
+    scan_sequence,
+)
 from alleleforge.types.guide import PAM
 from alleleforge.types.offtarget import SiteOrigin
 from alleleforge.types.sequence import CoordinateSystem, DNASequence, GenomicInterval, Strand
@@ -85,8 +91,14 @@ def _variant_window_hits(
         key = (h.strand, h.start, h.end)
         ref_edits[key] = min(ref_edits.get(key, h.edits), h.edits)
 
+    # Scan the alt allele in window-local coordinates, then lift every hit back to
+    # true genomic coordinates through the (possibly length-changing) edit, so an
+    # insertion or deletion places downstream hits correctly and the ref-vs-alt
+    # comparison below keys on the same genomic locus for a pre-existing site.
+    applied = [(rel, len(ref), len(alt))]
+    alt_local = scan_sequence(chrom, alt_seq, spacer, pam, offset=0, **kw)
     created: list[Hit] = []
-    for h in scan_sequence(chrom, alt_seq, spacer, pam, offset=start, **kw):
+    for h in _reindex_alt_hits(alt_local, len(ref_seq), start, applied):
         if not _touches(h, pos, len(pam.pattern)):
             continue
         prior = ref_edits.get((h.strand, h.start, h.end))
