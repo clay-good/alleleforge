@@ -21,15 +21,40 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
+from alleleforge.enumerate.prime import SCAFFOLD
 from alleleforge.types.candidate import DesignCandidate
 from alleleforge.types.guide import PegRNA, ThreePrimeMotif
 
 _COMPLEMENT = str.maketrans("ACGTN", "TGCAN")
 
+#: The concrete DNA alphabet a wet-lab oligo may contain.
+_DNA_ALPHABET = frozenset("ACGTN")
+
+
+def _require_dna(seq: str, *, context: str) -> str:
+    """Return ``seq`` upper-cased, or raise if it holds a non-``ACGTN`` character.
+
+    A wet-lab oligo is ordered and annealed verbatim, so a stray RNA ``U``, an
+    IUPAC ambiguity code, or whitespace is a wrong reagent, not a soft warning.
+    """
+    up = seq.upper()
+    bad = sorted(set(up) - _DNA_ALPHABET)
+    if bad:
+        raise ValueError(
+            f"{context} contains non-DNA character(s) {bad}; a wet-lab oligo must be ACGTN only"
+        )
+    return up
+
 
 def revcomp(seq: str) -> str:
-    """Return the reverse complement of a concrete ACGTN sequence."""
-    return seq.upper().translate(_COMPLEMENT)[::-1]
+    """Return the reverse complement of a concrete ACGTN sequence.
+
+    Raises:
+        ValueError: If ``seq`` contains any character outside ``ACGTN`` (e.g. an
+            RNA ``U`` or an IUPAC ambiguity code), which ``str.maketrans`` would
+            otherwise pass through untranslated and emit a mis-complemented oligo.
+    """
+    return _require_dna(seq, context="reverse-complement input").translate(_COMPLEMENT)[::-1]
 
 
 #: Engineered 3' epegRNA motif sequences (DNA form), appended after the PBS.
@@ -139,6 +164,8 @@ class SgRnaOligos(BaseModel):
         )
         if self.bottom != expected_bottom:
             raise ValueError("antisense oligo is not the reverse complement of the sense oligo")
+        if core != self.spacer:
+            raise ValueError("oligo does not reconstruct its declared spacer")
         return core
 
 
@@ -194,12 +221,25 @@ class PegRNAOligos(BaseModel):
             if not body.endswith(motif_seq):
                 raise ValueError("extension oligo missing the declared 3' motif")
             body = body[: -len(motif_seq)]
-        rtt = body[: len(self.rtt)]
-        pbs = body[len(self.rtt) :]
+        # Independent RTT/PBS boundary check: the extension body must equal the
+        # declared RTT followed by the declared PBS. Comparing the whole body to
+        # ``rtt + pbs`` catches a mis-split boundary that a length-based slice
+        # (which trusts the stored ``rtt`` length) would silently accept.
+        if body != self.rtt + self.pbs:
+            raise ValueError("extension oligo does not reconstruct the declared RTT+PBS boundary")
         expected_bottom = _EXT_BOTTOM_OVERHANG + revcomp(self.ext_top[len(_EXT_TOP_OVERHANG) :])
         if self.ext_bottom != expected_bottom:
             raise ValueError("extension antisense oligo is not the reverse complement of the sense")
-        return spacer, rtt, pbs
+        return spacer, self.rtt, self.pbs
+
+    @property
+    def component_lengths(self) -> dict[str, int]:
+        """Return the extension component lengths (RTT, PBS, motif) for audit."""
+        return {
+            "rtt": len(self.rtt),
+            "pbs": len(self.pbs),
+            "motif": len(MOTIF_SEQUENCES[self.motif]),
+        }
 
 
 def sgrna_oligos(
@@ -215,6 +255,7 @@ def sgrna_oligos(
     Returns:
         The :class:`SgRnaOligos` duplex (round-trip validated on construction).
     """
+    spacer = _require_dna(spacer, context="sgRNA spacer")
     g = "G" if scheme.prepend_g else ""
     top = scheme.top_overhang + g + spacer
     bottom = scheme.bottom_overhang + revcomp(g + spacer)
@@ -233,9 +274,15 @@ def pegrna_oligos(pegrna: PegRNA, *, scheme: VectorScheme = PEGRNA_GG_BSAI) -> P
     Returns:
         The :class:`PegRNAOligos` set (round-trip validated on construction).
     """
-    spacer = str(pegrna.spacer.sequence)
-    rtt = str(pegrna.rtt)
-    pbs = str(pegrna.pbs)
+    spacer = _require_dna(str(pegrna.spacer.sequence), context="pegRNA spacer")
+    rtt = _require_dna(str(pegrna.rtt), context="pegRNA RTT")
+    pbs = _require_dna(str(pegrna.pbs), context="pegRNA PBS")
+    scaffold = str(pegrna.scaffold)
+    if scaffold != SCAFFOLD:
+        raise ValueError(
+            "pegRNA scaffold does not match the expected SpCas9 sgRNA scaffold constant; "
+            "a wrong or empty scaffold would ship a non-functional pegRNA"
+        )
     motif_seq = MOTIF_SEQUENCES[pegrna.three_prime_motif]
 
     g = "G" if scheme.prepend_g else ""

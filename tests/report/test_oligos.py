@@ -137,3 +137,63 @@ def test_pegrna_reconstruct_detects_missing_motif(prime_menu: RankedMenu) -> Non
     tampered = oligos.model_copy(update={"ext_top": oligos.ext_top[:-4]})  # drop the motif tail
     with pytest.raises(ValueError, match="3' motif|reverse complement"):
         tampered.reconstruct()
+
+
+# -- alphabet, scaffold, and boundary safety ----------------------------------
+
+
+def test_revcomp_rejects_non_dna() -> None:
+    for bad in ("ACGU", "ACGR", "AC GT"):
+        with pytest.raises(ValueError, match="ACGTN only"):
+            revcomp(bad)
+
+
+@pytest.mark.parametrize(
+    "bad_spacer", ["ACGUAACGTTACGTAACGTT", "ACGRAACGTTACGTAACGTT", "ACGT AACGTTACGTAACGT"]
+)
+def test_sgrna_rejects_non_dna_spacer(bad_spacer: str) -> None:
+    with pytest.raises(ValueError, match="ACGTN only"):
+        sgrna_oligos(bad_spacer)
+
+
+def test_valid_dna_spacer_unchanged() -> None:
+    # A valid spacer still builds and round-trips exactly as before.
+    assert sgrna_oligos(SPACER).reconstruct() == SPACER
+
+
+def test_pegrna_wrong_scaffold_rejected(prime_menu: RankedMenu) -> None:
+    from alleleforge.types.sequence import DNASequence
+
+    peg = prime_menu.candidates[0].pegrna
+    assert peg is not None
+    bad = peg.model_copy(update={"scaffold": DNASequence("ACGTACGTACGT")})
+    with pytest.raises(ValueError, match="scaffold does not match"):
+        pegrna_oligos(bad)
+
+
+def test_pegrna_missplit_extension_detected() -> None:
+    from alleleforge.enumerate.prime import SCAFFOLD
+    from alleleforge.types.guide import ThreePrimeMotif
+
+    scheme = PEGRNA_GG_BSAI
+    spacer_top = scheme.top_overhang + "G" + SPACER
+    spacer_bottom = scheme.bottom_overhang + revcomp("G" + SPACER)
+    # The extension body carries an extra base, so it no longer equals RTT + PBS.
+    body = "AAAA" + "G" + "CCCC"  # declared rtt="AAAA", pbs="CCCC" -> body should be 8 nt
+    ext_top = "GTGC" + body
+    ext_bottom = "AAAA" + revcomp(body)
+    oligos = PegRNAOligos(
+        spacer=SPACER,
+        rtt="AAAA",
+        pbs="CCCC",
+        motif=ThreePrimeMotif.NONE,
+        scaffold=SCAFFOLD,
+        spacer_top=spacer_top,
+        spacer_bottom=spacer_bottom,
+        ext_top=ext_top,
+        ext_bottom=ext_bottom,
+        nicking=None,
+        scheme=scheme,
+    )
+    with pytest.raises(ValueError, match="RTT\\+PBS boundary"):
+        oligos.reconstruct()
