@@ -45,9 +45,17 @@ def test_knock_out_routes_to_nuclease_only() -> None:
     assert elig == [Chemistry.CAS9_NUCLEASE]
 
 
-def test_small_deletion_routes_to_prime_only() -> None:
-    elig = eligible_chemistries(_rv("ACGT", "A"), EditIntent.CORRECT)
-    assert elig == [Chemistry.PRIME]  # an indel: not a base-editable SNV, not a knock-out
+def test_small_deletion_not_routed_to_prime_until_enumerable() -> None:
+    # An indel is biologically a prime edit, but enumeration templates SNVs only,
+    # so routing must not advertise prime for it (that would silently under-deliver
+    # the flagship). No chemistry is eligible, and prime's decision states why.
+    rv = _rv("ACGT", "A")
+    elig = eligible_chemistries(rv, EditIntent.CORRECT)
+    assert Chemistry.PRIME not in elig
+    assert elig == []  # not a base-editable SNV, not a knock-out, not yet enumerable by prime
+    prime = next(d for d in route(rv, EditIntent.CORRECT) if d.chemistry is Chemistry.PRIME)
+    assert prime.eligible is False
+    assert "SNV" in prime.rationale and "not yet enumerated" in prime.rationale
 
 
 def test_large_edit_excludes_prime() -> None:

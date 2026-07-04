@@ -8,6 +8,19 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Prime-editing routing no longer over-promises edits it cannot produce.**
+  Routing advertised prime for any non-knockout edit up to 44 bp, but
+  `enumerate_prime` templates only a single-base substitution (SNV) — so an
+  insertion, deletion, or MNV routed to prime, enumerated nothing, and surfaced
+  only as a generic "eligible but no actionable candidate" note, silently
+  under-delivering the flagship capability. `_prime_eligible` now consults an SNV
+  feasibility gate matching enumeration, and the prime routing rule's rationale
+  states the SNV-only limitation, so an ineligible decision carries the specific
+  reason. (First slice of the in-progress `align-prime-coverage`; Pol-III
+  rejection reasons and separating a defect from an empty result remain open.)
+
 ### Added
 
 - **Design provenance records the datasets it consumed.** `Provenance` defaulted

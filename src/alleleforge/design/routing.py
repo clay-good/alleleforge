@@ -69,11 +69,22 @@ def _base_eligible(resolved: ResolvedVariant, intent: EditIntent, chemistry: Che
 
 
 def _prime_eligible(resolved: ResolvedVariant, intent: EditIntent) -> bool:
-    """Prime editing handles any precise small edit (not bulk disruption)."""
+    """Prime editing handles a precise small edit that enumeration can produce.
+
+    Prime editing is biologically capable of substitutions, short insertions, and
+    short deletions, but the enumeration layer currently templates only a
+    single-base substitution (SNV) — an indel or MNV would need the variable-length
+    RTT path that is not yet built. Routing must not advertise prime for an edit
+    class enumeration cannot produce (that surfaces only as a generic "no candidate"
+    note and silently under-delivers the flagship), so eligibility is gated on the
+    SNV feasibility check here. Widen it when the variable-length RTT path lands.
+    """
     if intent is EditIntent.KNOCK_OUT:
         return False
     var = resolved.variant
-    return len(var.ref) <= PRIME_MAX_EDIT and len(var.alt) <= PRIME_MAX_EDIT
+    if len(var.ref) > PRIME_MAX_EDIT or len(var.alt) > PRIME_MAX_EDIT:
+        return False
+    return var.variant_class is VariantClass.SNV
 
 
 @dataclass(frozen=True)
@@ -124,9 +135,11 @@ ROUTING_RULES: tuple[RoutingRule, ...] = (
         chemistry=Chemistry.PRIME,
         name="prime-precise-small-edit",
         rationale=(
-            "Prime editing writes an arbitrary small edit (substitution, short "
-            "insertion or deletion) from an RTT template without a break — "
-            "eligible for any precise edit up to the practical RTT length."
+            "Prime editing writes a precise small edit from an RTT template without "
+            "a break. Enumeration currently templates a single-base substitution "
+            "(SNV) only, so routing advertises prime for a precise SNV up to the "
+            "practical RTT length today; insertion, deletion, and MNV templating "
+            "via a variable-length RTT is not yet enumerated."
         ),
         predicate=_prime_eligible,
     ),

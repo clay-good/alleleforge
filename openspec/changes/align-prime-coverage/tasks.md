@@ -1,11 +1,12 @@
 # Tasks
 
 ## 1. Feasibility-aware routing
-- [ ] 1.1 Add a lightweight feasibility check (edit class enumeration supports) and have
+- [x] 1.1 Add a lightweight feasibility check (edit class enumeration supports) and have
       `_prime_eligible` consult it; today that means SNV-only.
-- [ ] 1.2 When declining, record a specific reason ("prime enumeration does not yet support
-      insertions/deletions") rather than a generic note.
-- [ ] 1.3 Test: an indel routes with the explicit reason, or enumerates if supported.
+- [x] 1.2 When declining, record a specific reason ("prime enumeration does not yet support
+      insertions/deletions") rather than a generic note. *(Surfaced via the prime rule
+      rationale on the ineligible routing decision.)*
+- [x] 1.3 Test: an indel routes with the explicit reason, or enumerates if supported.
 
 ## 2. Pol-III constraints as inspectable reasons
 - [ ] 2.1 Filter spacers with a `TTTT` terminator and enforce/annotate the 5'-G start and a

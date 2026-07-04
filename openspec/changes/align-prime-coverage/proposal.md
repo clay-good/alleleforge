@@ -28,6 +28,16 @@ behind graceful degradation.
   as a typed failure so cohort error columns are actionable, instead of swallowing every
   exception into a note.
 
+## Status (partial)
+
+Task 1 has shipped: `_prime_eligible` now consults an SNV feasibility gate matching
+what `enumerate_prime` can produce, so routing no longer advertises prime for
+insertions, deletions, or MNVs it cannot template — and the prime routing rule's
+rationale states the SNV-only limitation, so an ineligible decision carries the
+specific reason instead of a generic "no candidate" note. Still open: the Pol-III
+constraints as inspectable rejection reasons (task 2) and separating a genuine
+defect from an empty result in `_run_chemistry` / `_design_one` (task 3).
+
 ## Impact
 
 - Specs: `prime-editor-design` (MODIFIED coverage honesty; ADDED Pol-III filters as
