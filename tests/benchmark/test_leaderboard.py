@@ -158,9 +158,7 @@ def test_duplicate_task_in_submission_rejected(fixed_ts: datetime) -> None:
     # One model may not carry two results for the same task in a submission —
     # otherwise it would occupy two ranked rows for the same task.
     result = _baseline_result("cas9-efficiency", fixed_ts)
-    sub = Submission(
-        submitter="x", model=_model(), results=(result, result), submitted_at=fixed_ts
-    )
+    sub = Submission(submitter="x", model=_model(), results=(result, result), submitted_at=fixed_ts)
     with pytest.raises(SubmissionError, match="two results for task"):
         Leaderboard().add(sub)
 

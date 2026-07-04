@@ -44,8 +44,12 @@ maps to 429, so a submission flood cannot exhaust the worker threadpool. And tas
 has shipped: `JobManager` is now size-bounded — it evicts the oldest *terminal*
 (done/error) records past a configurable cap (default 1000) on submit and on job
 completion, so a long-lived server no longer leaks memory; an in-flight job is
-never evicted. Still open: optional off-loopback auth (task 3) and the per-request
-timeout + durability seam (task 4).
+never evicted. Task 3 has also shipped: `create_app(api_token=...)` gates every
+`/api/*` request (except `/api/health`) on a matching `X-API-Token` header, and
+`serve()` refuses to bind to a non-loopback host without a token (from the argument
+or `ALLELEFORGE_API_TOKEN`), so the API cannot be exposed unauthenticated while
+localhost stays open. Still open: the per-request timeout (task 4.1) and documenting
+the durable-job-backend seam (task 4.2).
 
 ## Impact
 

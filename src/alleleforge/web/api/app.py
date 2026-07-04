@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from alleleforge._version import __version__
@@ -144,10 +144,15 @@ def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
     return build_report(menu, variant=str(resolved.variant), intent=intent.value)
 
 
+#: Request paths that never require the API token (liveness must stay probeable).
+_TOKEN_EXEMPT_PATHS = frozenset({"/api/health"})
+
+
 def create_app(
     *,
     reference: Any | None = None,
     settings: Settings | None = None,
+    api_token: str | None = None,
 ) -> FastAPI:
     """Build the AlleleForge FastAPI application.
 
@@ -155,6 +160,9 @@ def create_app(
         reference: A pre-loaded :class:`ReferenceGenome`. If ``None``, one is
             loaded from ``ALLELEFORGE_REFERENCE_FASTA`` when that is set.
         settings: Settings to thread into provenance (default: a fresh instance).
+        api_token: When set, every ``/api/*`` request (except ``/api/health``)
+            SHALL carry a matching ``X-API-Token`` header or is rejected with 401.
+            ``None`` (the localhost default) leaves the API open.
 
     Returns:
         The configured :class:`FastAPI` app (frontend mounted at ``/``).
@@ -171,6 +179,18 @@ def create_app(
     app.state.reference = reference if reference is not None else _load_reference_from_env()
     app.state.settings = settings or Settings()
     app.state.jobs = JobManager()
+
+    if api_token:
+
+        @app.middleware("http")
+        async def _require_api_token(request: Request, call_next: Any) -> Response:
+            """Gate ``/api/*`` on a matching ``X-API-Token`` header."""
+            path = request.url.path
+            if path.startswith("/api/") and path not in _TOKEN_EXEMPT_PATHS:
+                if request.headers.get("x-api-token") != api_token:
+                    return JSONResponse({"detail": "missing or invalid API token"}, status_code=401)
+            response: Response = await call_next(request)
+            return response
 
     @app.get("/api/health", response_model=HealthResponse)
     async def health() -> HealthResponse:
@@ -349,9 +369,43 @@ def create_app(
 #: The ASGI application for ``uvicorn alleleforge.web.api.app:app`` deploys.
 app = create_app()
 
+#: Hosts treated as loopback: an open (token-free) API is safe only on these.
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", ""})
 
-def serve(host: str = "127.0.0.1", port: int = 8000) -> None:  # pragma: no cover - runtime entry
-    """Run the API with uvicorn (used by the console entry / docker image)."""
+
+def _is_loopback(host: str) -> bool:
+    """Return ``True`` if ``host`` is a loopback address the API may serve openly."""
+    return host in _LOOPBACK_HOSTS
+
+
+def resolve_serve_token(host: str, api_token: str | None) -> str | None:
+    """Return the API token to enforce, refusing an unauthenticated public bind.
+
+    Binding to a non-loopback host exposes the service, so a token is mandatory
+    there; localhost stays open for the unchanged local dev experience. The token
+    comes from ``api_token`` or the ``ALLELEFORGE_API_TOKEN`` environment variable.
+
+    Raises:
+        ValueError: If ``host`` is non-loopback and no token is available.
+    """
+    token = api_token if api_token is not None else os.environ.get("ALLELEFORGE_API_TOKEN")
+    if not _is_loopback(host) and not token:
+        raise ValueError(
+            f"refusing to bind the API to non-loopback host {host!r} without an API token; "
+            "set ALLELEFORGE_API_TOKEN (or pass api_token), or bind to 127.0.0.1"
+        )
+    return token
+
+
+def serve(
+    host: str = "127.0.0.1", port: int = 8000, *, api_token: str | None = None
+) -> None:  # pragma: no cover - runtime entry
+    """Run the API with uvicorn (used by the console entry / docker image).
+
+    A non-loopback bind requires an API token (see :func:`resolve_serve_token`).
+    """
     import uvicorn
 
-    uvicorn.run(app, host=host, port=port)
+    token = resolve_serve_token(host, api_token)
+    application = create_app(api_token=token) if token else app
+    uvicorn.run(application, host=host, port=port)

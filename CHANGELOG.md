@@ -36,9 +36,13 @@ acceptance.
   records past a configurable cap (default 1000) while never dropping an in-flight
   job. And `JobManager` now enforces a max-in-flight cap (default 16): `submit`
   raises `JobCapacityError` when saturated, mapped to 429 by `POST /api/jobs/design`,
-  so a submission flood cannot exhaust the worker threadpool. (Part of the in-progress
-  `harden-web-api`; optional off-loopback auth and a per-request timeout remain open.
-  The default localhost experience is unchanged.)
+  so a submission flood cannot exhaust the worker threadpool. And an optional API
+  token now gates every `/api/*` request (except `/api/health`) via an `X-API-Token`
+  header when `create_app(api_token=...)` is set; `serve()` refuses to bind to a
+  non-loopback host without a token (from the argument or `ALLELEFORGE_API_TOKEN`),
+  so the service cannot be exposed unauthenticated. (Part of the in-progress
+  `harden-web-api`; a per-request timeout and the durable-job-backend seam remain
+  open. The default localhost experience is unchanged.)
 - **Benchmark split leakage and leaderboard injection are now blocked.**
   `Split.verify` hashed whatever membership was in a split file but never checked
   that `train`/`val`/`test` were disjoint or that every id existed in the dataset —

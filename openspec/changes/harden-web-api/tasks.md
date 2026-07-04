@@ -12,8 +12,8 @@
 - [x] 2.2 Test: the store stays bounded past the cap.
 
 ## 3. Optional auth on non-loopback binds
-- [ ] 3.1 Require an API token when bound to a non-loopback host; leave localhost open.
-- [ ] 3.2 Tests: token required off-loopback, not on localhost.
+- [x] 3.1 Require an API token when bound to a non-loopback host; leave localhost open.
+- [x] 3.2 Tests: token required off-loopback, not on localhost.
 
 ## 4. Per-request timeout and durability seam
 - [ ] 4.1 Add a per-request timeout to the synchronous design/batch paths.

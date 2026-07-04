@@ -352,3 +352,50 @@ def test_create_app_loads_reference_from_env(
     monkeypatch.setenv("ALLELEFORGE_REFERENCE_FASTA", str(fasta))
     env_app = create_app()
     assert env_app.state.reference is not None
+
+
+async def test_api_token_required_when_configured(reference: object) -> None:
+    # With a token configured, /api/* needs a matching X-API-Token header; the
+    # health probe stays open so liveness checks keep working.
+    app = create_app(reference=reference, api_token="s3cret")  # type: ignore[arg-type]
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as c:
+        assert (await c.get("/api/health")).status_code == 200
+        assert (await c.post("/api/resolve", json={"variant": "chr2:71:A>C"})).status_code == 401
+        ok = await c.post(
+            "/api/resolve", json={"variant": "chr2:71:A>C"}, headers={"X-API-Token": "s3cret"}
+        )
+        assert ok.status_code == 200
+        bad = await c.post(
+            "/api/resolve", json={"variant": "chr2:71:A>C"}, headers={"X-API-Token": "nope"}
+        )
+        assert bad.status_code == 401
+
+
+async def test_no_token_leaves_api_open(client: httpx.AsyncClient) -> None:
+    # The default app carries no token, so the local dev experience is unchanged.
+    res = await client.post("/api/resolve", json={"variant": "chr2:71:A>C"})
+    assert res.status_code == 200
+
+
+def test_serve_refuses_public_bind_without_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    from alleleforge.web.api.app import resolve_serve_token
+
+    monkeypatch.delenv("ALLELEFORGE_API_TOKEN", raising=False)
+    with pytest.raises(ValueError, match="non-loopback"):
+        resolve_serve_token("0.0.0.0", None)
+
+
+def test_serve_allows_loopback_without_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    from alleleforge.web.api.app import resolve_serve_token
+
+    monkeypatch.delenv("ALLELEFORGE_API_TOKEN", raising=False)
+    assert resolve_serve_token("127.0.0.1", None) is None
+    assert resolve_serve_token("0.0.0.0", "tok") == "tok"
+
+
+def test_serve_reads_token_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    from alleleforge.web.api.app import resolve_serve_token
+
+    monkeypatch.setenv("ALLELEFORGE_API_TOKEN", "envtok")
+    assert resolve_serve_token("0.0.0.0", None) == "envtok"
