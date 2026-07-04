@@ -21,7 +21,7 @@ Ranked by scientific trust impact. Do the top group before any public distributi
 | 5 | `verify-artifact-integrity` | model-zoo, data-registry, genome-access | Cached checkpoints/datasets are trusted without re-verification and 12/13 cards are unpinned — the checksum gate is bypassed on every cache hit. |
 | 6 | `complete-provenance` | provenance-reproducibility, cli | Design provenance under-reports datasets/tools, the seed drives no RNG, and the CLI ignores the config file — "re-derivable from provenance" is only partly true. |
 | 7 | `align-prime-coverage` | prime-editor-design, candidate-ranking | Routing advertises prime for edit classes enumeration cannot produce, so the flagship silently under-delivers. |
-| 8 | `harden-web-api` | web-api | No auth/rate-limit/size cap and an unbounded, non-durable job store — unsafe to expose beyond localhost. |
+| ✅ | `harden-web-api` *(shipped — see `archive/`)* | web-api | No auth/rate-limit/size cap and an unbounded, non-durable job store — unsafe to expose beyond localhost. |
 | ✅ | `guard-benchmark-integrity` *(shipped — see `archive/`; optional metric hardening deferred)* | benchmark-harness, reporting | Split disjointness is never enforced and results carry no schema version — leaderboard trust rests on invariants that aren't checked. |
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an

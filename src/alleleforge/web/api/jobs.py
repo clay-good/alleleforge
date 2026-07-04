@@ -4,8 +4,15 @@ The default AlleleForge deployment is single-user and local, so the "task queue"
 is deliberately in-process: an :class:`asyncio` task per job, with the work run
 in a worker thread so the event loop stays responsive. Jobs expose a state
 (pending → running → done/error) and a coarse progress fraction through a
-status endpoint. A production multi-user deployment can swap this for a real
-broker behind the same interface; nothing else in the API changes.
+status endpoint.
+
+**Durable-backend seam.** :class:`JobManager`'s ``submit(work) -> JobRecord`` and
+``get(job_id) -> JobRecord | None`` are the whole interface the API depends on, so
+a multi-user or restart-surviving deployment can back them with a real broker /
+persistent store (the CLI's resumable-manifest model in
+:mod:`alleleforge.design.cohort` is the shape a durable job record would take)
+without touching any endpoint. Today the store is in-memory, so a restart loses
+in-flight job state — bounded and concurrency-capped, but not yet durable.
 
 No work here ever makes a network call — the queue only schedules library
 functions that run entirely on local data.
@@ -55,6 +62,7 @@ class JobManager:
         *,
         max_jobs: int = DEFAULT_MAX_JOBS,
         max_in_flight: int = DEFAULT_MAX_IN_FLIGHT,
+        max_job_seconds: float | None = None,
     ) -> None:
         """Initialise an empty, size- and concurrency-bounded job store.
 
@@ -64,18 +72,26 @@ class JobManager:
                 never evicted.
             max_in_flight: Maximum concurrently in-flight (pending/running) jobs;
                 :meth:`submit` raises :class:`JobCapacityError` past this cap.
+            max_job_seconds: Optional per-job wall-clock limit. A job that exceeds
+                it is marked ``ERROR`` (a soft timeout: the worker thread cannot be
+                cancelled, so it runs to completion in the background, but its
+                result is discarded and the caller sees the timeout). ``None``
+                (default) leaves jobs unbounded, as before.
 
         Raises:
-            ValueError: If either cap is not positive.
+            ValueError: If either cap is not positive, or the timeout is not positive.
         """
         if max_jobs < 1:
             raise ValueError(f"max_jobs must be positive; got {max_jobs}")
         if max_in_flight < 1:
             raise ValueError(f"max_in_flight must be positive; got {max_in_flight}")
+        if max_job_seconds is not None and max_job_seconds <= 0:
+            raise ValueError(f"max_job_seconds must be positive; got {max_job_seconds}")
         self._jobs: dict[str, JobRecord] = {}
         self._tasks: set[asyncio.Task[None]] = set()
         self._max_jobs = max_jobs
         self._max_in_flight = max_in_flight
+        self._max_job_seconds = max_job_seconds
         self._in_flight = 0
 
     def get(self, job_id: str) -> JobRecord | None:
@@ -121,9 +137,17 @@ class JobManager:
             record.state = JobState.RUNNING
             record.progress = 0.1
             try:
-                record.result = await asyncio.to_thread(work)
+                if self._max_job_seconds is not None:
+                    record.result = await asyncio.wait_for(
+                        asyncio.to_thread(work), self._max_job_seconds
+                    )
+                else:
+                    record.result = await asyncio.to_thread(work)
                 record.progress = 1.0
                 record.state = JobState.DONE
+            except TimeoutError:
+                record.error = f"job exceeded the {self._max_job_seconds}s time limit"
+                record.state = JobState.ERROR
             except Exception as exc:  # noqa: BLE001 - report any failure to the client
                 record.error = f"{type(exc).__name__}: {exc}"
                 record.state = JobState.ERROR

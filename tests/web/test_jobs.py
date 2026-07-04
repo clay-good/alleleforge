@@ -101,3 +101,26 @@ async def test_max_in_flight_must_be_positive() -> None:
 
     with pytest.raises(ValueError, match="max_in_flight must be positive"):
         JobManager(max_in_flight=0)
+
+
+async def test_job_times_out_when_over_limit() -> None:
+    import threading
+
+    # A job whose work runs past the per-job limit is marked ERROR (a soft
+    # timeout); the caller sees the timeout rather than waiting forever.
+    mgr = JobManager(max_job_seconds=0.05)
+    gate = threading.Event()
+    rec = await mgr.submit(lambda: gate.wait(5))  # blocks well past the 0.05s limit
+    await _drain(mgr, [rec.id])
+    record = mgr.get(rec.id)
+    assert record is not None
+    assert record.state is JobState.ERROR
+    assert "time limit" in (record.error or "")
+    gate.set()  # release the orphaned worker thread so it can exit cleanly
+
+
+async def test_max_job_seconds_must_be_positive() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="max_job_seconds must be positive"):
+        JobManager(max_job_seconds=0)

@@ -16,8 +16,11 @@
 - [x] 3.2 Tests: token required off-loopback, not on localhost.
 
 ## 4. Per-request timeout and durability seam
-- [ ] 4.1 Add a per-request timeout to the synchronous design/batch paths.
-- [ ] 4.2 Document the durable-job-backend seam behind the `JobManager` interface.
+- [x] 4.1 Add a per-request timeout to the synchronous design/batch paths.
+      *(Ships as an optional per-job wall-clock limit on `JobManager` — a soft
+      timeout marking an over-limit job ERROR; the sync request paths inherit the
+      async job path.)*
+- [x] 4.2 Document the durable-job-backend seam behind the `JobManager` interface.
 
 ## 5. Reconcile
-- [ ] 5.1 `make ci` green; default localhost behavior unchanged.
+- [x] 5.1 `make ci` green; default localhost behavior unchanged.

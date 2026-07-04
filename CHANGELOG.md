@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **Optional per-job wall-clock timeout completes the web-API hardening.**
+  `JobManager` now accepts `max_job_seconds`: a job that runs past it is marked
+  `ERROR` (a soft timeout — the worker thread cannot be cancelled, so it finishes in
+  the background but its result is discarded and the caller sees the timeout). Off by
+  default. With this and the durable-job-backend seam documented behind the
+  `JobManager` interface, `harden-web-api` is complete — its size cap, in-flight cap,
+  bounded job store, optional off-loopback auth, and timeout are folded into the
+  `web-api` spec and the change is archived.
 - **The content-addressed cache can verify payload integrity on read.**
   `ContentAddressedCache` served whatever bytes were on disk, so a corrupted or
   externally-modified entry was returned as-is. It now takes an opt-in
