@@ -38,10 +38,14 @@ flooded with an unbounded batch. Still open: the max-in-flight-job semaphore
 (task 3), and the per-request timeout + durability seam (task 4). The default
 localhost experience is unchanged.
 
-Task 2 has also shipped: `JobManager` is now size-bounded — it evicts the oldest
-*terminal* (done/error) records past a configurable cap (default 1000) on submit
-and on job completion, so a long-lived server no longer leaks memory; an in-flight
-job is never evicted.
+Task 1.2 has also shipped: `JobManager` enforces a max-in-flight cap (default 16) —
+`submit` raises `JobCapacityError` when saturated, which `POST /api/jobs/design`
+maps to 429, so a submission flood cannot exhaust the worker threadpool. And task 2
+has shipped: `JobManager` is now size-bounded — it evicts the oldest *terminal*
+(done/error) records past a configurable cap (default 1000) on submit and on job
+completion, so a long-lived server no longer leaks memory; an in-flight job is
+never evicted. Still open: optional off-loopback auth (task 3) and the per-request
+timeout + durability seam (task 4).
 
 ## Impact
 

@@ -33,7 +33,7 @@ from alleleforge.config import Settings
 from alleleforge.report.builder import RESEARCH_USE_DISCLAIMER, DesignReport, build_report
 from alleleforge.report.html import render_html
 from alleleforge.report.pdf import render_pdf
-from alleleforge.web.api.jobs import JobManager
+from alleleforge.web.api.jobs import JobCapacityError, JobManager
 from alleleforge.web.api.models import (
     BatchItemResult,
     BatchRequest,
@@ -215,7 +215,10 @@ def create_app(
     async def submit_design_job(req: DesignRequest, request: Request) -> JobSubmitResponse:
         """Submit an async design job; poll ``/api/jobs/{id}`` for the result."""
         jobs: JobManager = request.app.state.jobs
-        record = await jobs.submit(lambda: _design_to_report(request, req))
+        try:
+            record = await jobs.submit(lambda: _design_to_report(request, req))
+        except JobCapacityError as exc:
+            raise HTTPException(status_code=429, detail=str(exc)) from exc
         return JobSubmitResponse(job_id=record.id, state=record.state)
 
     @app.get("/api/jobs/{job_id}")

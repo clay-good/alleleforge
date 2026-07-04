@@ -26,6 +26,15 @@ from alleleforge.web.api.models import JobState
 #: in-flight job is never dropped.
 DEFAULT_MAX_JOBS = 1000
 
+#: Default cap on concurrently in-flight (pending/running) jobs. Each job spawns a
+#: worker thread, so an uncapped submission path is a thread-pool amplifier; past
+#: this cap :meth:`JobManager.submit` refuses new work until a job finishes.
+DEFAULT_MAX_IN_FLIGHT = 16
+
+
+class JobCapacityError(RuntimeError):
+    """Raised by :meth:`JobManager.submit` when the in-flight cap is reached."""
+
 
 @dataclass
 class JobRecord:
@@ -41,22 +50,33 @@ class JobRecord:
 class JobManager:
     """Schedules and tracks in-process async jobs (one event loop, N threads)."""
 
-    def __init__(self, *, max_jobs: int = DEFAULT_MAX_JOBS) -> None:
-        """Initialise an empty, size-bounded job store.
+    def __init__(
+        self,
+        *,
+        max_jobs: int = DEFAULT_MAX_JOBS,
+        max_in_flight: int = DEFAULT_MAX_IN_FLIGHT,
+    ) -> None:
+        """Initialise an empty, size- and concurrency-bounded job store.
 
         Args:
             max_jobs: Maximum retained *terminal* job records. Older completed
                 records are evicted oldest-first past this cap; in-flight jobs are
                 never evicted.
+            max_in_flight: Maximum concurrently in-flight (pending/running) jobs;
+                :meth:`submit` raises :class:`JobCapacityError` past this cap.
 
         Raises:
-            ValueError: If ``max_jobs`` is not positive.
+            ValueError: If either cap is not positive.
         """
         if max_jobs < 1:
             raise ValueError(f"max_jobs must be positive; got {max_jobs}")
+        if max_in_flight < 1:
+            raise ValueError(f"max_in_flight must be positive; got {max_in_flight}")
         self._jobs: dict[str, JobRecord] = {}
         self._tasks: set[asyncio.Task[None]] = set()
         self._max_jobs = max_jobs
+        self._max_in_flight = max_in_flight
+        self._in_flight = 0
 
     def get(self, job_id: str) -> JobRecord | None:
         """Return the record for ``job_id``, or ``None`` if unknown."""
@@ -82,9 +102,19 @@ class JobManager:
 
         The callable runs in a worker thread; ``work`` should be a self-contained
         library call. The returned record updates in place as the job runs.
+
+        Raises:
+            JobCapacityError: If the in-flight-job cap is already reached, so a
+                caller cannot exhaust the worker threadpool.
         """
+        if self._in_flight >= self._max_in_flight:
+            raise JobCapacityError(
+                f"server at capacity: {self._in_flight} job(s) in flight "
+                f"(max {self._max_in_flight}); retry once one finishes"
+            )
         record = JobRecord(id=uuid.uuid4().hex)
         self._jobs[record.id] = record
+        self._in_flight += 1
         self._evict()  # reclaim old terminal records this submission may push over the cap
 
         async def _run() -> None:
@@ -98,7 +128,8 @@ class JobManager:
                 record.error = f"{type(exc).__name__}: {exc}"
                 record.state = JobState.ERROR
             finally:
-                # This record is now terminal; reclaim any backlog over the cap.
+                # This record is now terminal; free its slot and reclaim any backlog.
+                self._in_flight -= 1
                 self._evict()
 
         # Keep a strong reference until the task finishes. asyncio holds only a

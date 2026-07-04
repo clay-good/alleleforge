@@ -76,3 +76,28 @@ async def test_max_jobs_must_be_positive() -> None:
 
     with pytest.raises(ValueError, match="must be positive"):
         JobManager(max_jobs=0)
+
+
+async def test_in_flight_cap_refuses_when_saturated() -> None:
+    import pytest
+
+    from alleleforge.web.api.jobs import JobCapacityError
+
+    # With one in-flight slot, a second submit is refused before the first job
+    # (whose slot is still held) finishes — so the worker threadpool can't be
+    # exhausted by a submission flood.
+    mgr = JobManager(max_in_flight=1)
+    r1 = await mgr.submit(lambda: 1)  # takes the only slot (counted synchronously)
+    with pytest.raises(JobCapacityError, match="at capacity"):
+        await mgr.submit(lambda: 2)
+    await _drain(mgr, [r1.id])  # first job finishes, freeing the slot
+    r3 = await mgr.submit(lambda: 3)  # now admitted
+    await _drain(mgr, [r3.id])
+    assert mgr.get(r3.id) is not None
+
+
+async def test_max_in_flight_must_be_positive() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="max_in_flight must be positive"):
+        JobManager(max_in_flight=0)

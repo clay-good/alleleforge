@@ -34,9 +34,11 @@ acceptance.
   Separately, `JobManager._jobs` grew without bound (a long-lived server leaked
   memory); it is now size-bounded, evicting the oldest *terminal* (done/error)
   records past a configurable cap (default 1000) while never dropping an in-flight
-  job. (Part of the in-progress `harden-web-api`; the in-flight concurrency
-  semaphore, optional off-loopback auth, and per-request timeout remain open. The
-  default localhost experience is unchanged.)
+  job. And `JobManager` now enforces a max-in-flight cap (default 16): `submit`
+  raises `JobCapacityError` when saturated, mapped to 429 by `POST /api/jobs/design`,
+  so a submission flood cannot exhaust the worker threadpool. (Part of the in-progress
+  `harden-web-api`; optional off-loopback auth and a per-request timeout remain open.
+  The default localhost experience is unchanged.)
 - **Benchmark split leakage and leaderboard injection are now blocked.**
   `Split.verify` hashed whatever membership was in a split file but never checked
   that `train`/`val`/`test` were disjoint or that every id existed in the dataset —

@@ -3,8 +3,8 @@
 ## 1. Bound request size and concurrency
 - [x] 1.1 Add a maximum `variants` length to the batch request schema; reject over-large
       requests at the boundary with 422.
-- [ ] 1.2 Add a max-in-flight-job semaphore; return 429 (or 503) when saturated.
-- [x] 1.3 Tests for both limits. *(size-cap test done; concurrency test open with 1.2.)*
+- [x] 1.2 Add a max-in-flight-job semaphore; return 429 (or 503) when saturated.
+- [x] 1.3 Tests for both limits.
 
 ## 2. Bound the job store
 - [x] 2.1 Add a TTL / LRU eviction to `JobManager` so completed records are reclaimed.
