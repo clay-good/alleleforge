@@ -150,6 +150,8 @@ def _enumerate_frame(
         proto = start[k - spacer_length : k]
         if "N" in proto:
             continue
+        if "TTTT" in proto:
+            continue  # Pol III terminator in the spacer: pegRNA cannot be transcribed
         nick_local = k - cut_offset
         distance = edit_local - nick_local  # edit must be 3' of the nick (>= 0)
         if distance < 0:

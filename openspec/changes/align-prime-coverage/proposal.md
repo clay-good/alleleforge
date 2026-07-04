@@ -34,9 +34,12 @@ Task 1 has shipped: `_prime_eligible` now consults an SNV feasibility gate match
 what `enumerate_prime` can produce, so routing no longer advertises prime for
 insertions, deletions, or MNVs it cannot template — and the prime routing rule's
 rationale states the SNV-only limitation, so an ineligible decision carries the
-specific reason instead of a generic "no candidate" note. Still open: the Pol-III
-constraints as inspectable rejection reasons (task 2) and separating a genuine
-defect from an empty result in `_run_chemistry` / `_design_one` (task 3).
+specific reason instead of a generic "no candidate" note. Task 2 has also partly
+shipped: `enumerate_prime` now filters a protospacer containing a `TTTT` Pol III
+terminator (a pegRNA that cannot be transcribed from a U6 promoter is never
+enumerated). Still open: the 5'-G-start / GC-band annotation and per-candidate
+rejection-reason surfacing (rest of task 2), and separating a genuine defect from
+an empty result in `_run_chemistry` / `_design_one` (task 3).
 
 ## Impact
 

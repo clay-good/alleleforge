@@ -10,6 +10,12 @@ acceptance.
 
 ### Fixed
 
+- **Prime enumeration no longer emits an untranscribable pegRNA.** A protospacer
+  containing a `TTTT` run is a Pol III terminator: transcription from a U6 promoter
+  stops early, so the pegRNA is a dead reagent. `enumerate_prime` now filters any
+  candidate whose protospacer carries a `TTTT` terminator. (Part of the in-progress
+  `align-prime-coverage`, task 2; the 5'-G/GC-band annotation and per-candidate
+  rejection-reason surfacing remain open.)
 - **The web API bounds request size and the job store.** `POST /api/batch` accepted
   a `variants` list with `min_length=1` but no maximum, so a single caller could
   queue an arbitrarily large cohort; the schema now caps it at `MAX_BATCH_VARIANTS`

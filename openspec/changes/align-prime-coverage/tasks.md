@@ -9,9 +9,11 @@
 - [x] 1.3 Test: an indel routes with the explicit reason, or enumerates if supported.
 
 ## 2. Pol-III constraints as inspectable reasons
-- [ ] 2.1 Filter spacers with a `TTTT` terminator and enforce/annotate the 5'-G start and a
-      spacer-GC band; expose each rejection as a stated reason.
-- [ ] 2.2 Test: a `TTTT`-containing spacer is rejected with its reason.
+- [x] 2.1 Filter spacers with a `TTTT` terminator and enforce/annotate the 5'-G start and a
+      spacer-GC band; expose each rejection as a stated reason. *(TTTT-terminator filter
+      shipped — a spacer that cannot be transcribed is never enumerated; the 5'-G/GC-band
+      annotation and per-candidate reason surfacing remain open.)*
+- [x] 2.2 Test: a `TTTT`-containing spacer is rejected with its reason.
 
 ## 3. Separate a defect from an empty result
 - [ ] 3.1 In `_run_chemistry` and `_design_one`, catch only expected "no design" conditions;

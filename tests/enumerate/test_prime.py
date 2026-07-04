@@ -127,3 +127,20 @@ def test_empty_pbs_lengths_returns_empty_not_crash(make_reference: MakeRef) -> N
     ref = make_reference({"chr2": _context()})
     rv = _resolve(ref, 70, "C")
     assert enumerate_prime(rv, EditIntent.INSTALL, reference=ref, pbs_lengths=()) == []
+
+
+def test_pol3_terminator_spacer_is_filtered(make_reference: MakeRef) -> None:
+    # A run of T's (a Pol III terminator) in the protospacer makes the pegRNA
+    # untranscribable from a U6 promoter, so such a spacer must never be enumerated.
+    _ref, baseline = _pegs(make_reference)
+    assert any(p.placement.strand is Strand.PLUS for p in baseline)  # plus normally enumerates
+    seq = list("AT" * 70)
+    seq[63:66] = list("TGG")
+    seq[55:58] = list("CCA")
+    seq[50:54] = list("TTTT")  # a terminator inside the plus protospacer window
+    ref = make_reference({"chr2": "".join(seq)})
+    rv = _resolve(ref, 70, "C")
+    pegs = enumerate_prime(rv, EditIntent.INSTALL, reference=ref)
+    assert all("TTTT" not in str(p.spacer.sequence) for p in pegs)
+    # the plus candidate, whose protospacer holds the terminator, is filtered out
+    assert all(p.placement.strand is not Strand.PLUS for p in pegs)
