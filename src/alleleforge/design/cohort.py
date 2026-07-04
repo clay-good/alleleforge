@@ -34,7 +34,7 @@ from typing import Any
 
 from alleleforge._version import __version__
 from alleleforge.config import get_settings
-from alleleforge.design.designer import design
+from alleleforge.design.designer import _EXPECTED_DESIGN_FAILURES, design
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.candidate import RankedMenu
 from alleleforge.types.edit import EditIntent
@@ -221,8 +221,20 @@ def design_many(
         iid = id_of(item)
         try:
             menu = design(item, reference=_reference(), intent=intent, **design_kwargs)
-        except Exception as exc:  # noqa: BLE001 - per-item isolation is the contract
-            return CohortItemResult(item_id=iid, status="error", summary=None, error=str(exc))
+        except _EXPECTED_DESIGN_FAILURES as exc:
+            return CohortItemResult(
+                item_id=iid, status="error", summary=None, error=f"{type(exc).__name__}: {exc}"
+            )
+        except Exception as exc:  # noqa: BLE001 - a defect is recorded distinctly, not hidden
+            # An unexpected exception type is a code defect, not a per-item data
+            # problem; tag it so the error column is actionable rather than a
+            # generic "error" indistinguishable from "no design".
+            return CohortItemResult(
+                item_id=iid,
+                status="error",
+                summary=None,
+                error=f"unexpected {type(exc).__name__} (likely a defect): {exc}",
+            )
         if out_dir is not None:
             (out_dir / f"{_safe_name(iid)}.json").write_text(menu.model_dump_json())
         return CohortItemResult(iid, "ok", _summarize(menu), None)

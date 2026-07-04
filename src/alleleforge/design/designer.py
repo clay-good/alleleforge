@@ -265,8 +265,30 @@ def design(
     )
 
 
+#: Exceptions that mean a chemistry legitimately produced no design (a missing
+#: model, an unsupported edit, a bad input, an absent optional dependency) — the
+#: graceful-degradation path. Any *other* exception type signals a defect in the
+#: code, not "no design", and is noted distinctly so a real bug is not silently
+#: swallowed behind an "eligible but empty" note.
+_EXPECTED_DESIGN_FAILURES: tuple[type[Exception], ...] = (
+    ValueError,
+    KeyError,
+    RuntimeError,
+    NotImplementedError,
+    FileNotFoundError,
+    ImportError,
+    OSError,
+)
+
+
 def _run_chemistry(label: str, runner: _Runner, notes: list[str]) -> list[DesignCandidate]:
-    """Run one chemistry's vertical, degrading gracefully on any failure.
+    """Run one chemistry's vertical, degrading gracefully on an expected failure.
+
+    An *expected* failure (see :data:`_EXPECTED_DESIGN_FAILURES`) is recorded as a
+    ``skipped`` note; an *unexpected* exception type is a defect and is recorded as
+    an ``ERROR`` note (still without crashing the whole design) so it is
+    distinguishable from a legitimate "no design" rather than masked by graceful
+    degradation.
 
     Args:
         label: The chemistry label for notes.
@@ -278,8 +300,13 @@ def _run_chemistry(label: str, runner: _Runner, notes: list[str]) -> list[Design
     """
     try:
         result = runner()
-    except Exception as exc:  # noqa: BLE001 - graceful degradation is the contract
+    except _EXPECTED_DESIGN_FAILURES as exc:
         notes.append(f"{label}: skipped ({type(exc).__name__}: {exc})")
+        return []
+    except Exception as exc:  # noqa: BLE001 - a defect is surfaced, not swallowed as "no design"
+        notes.append(
+            f"{label}: ERROR — unexpected {type(exc).__name__}: {exc} (a defect, not 'no design')"
+        )
         return []
     if not result:
         notes.append(f"{label}: eligible but no actionable candidate enumerated")

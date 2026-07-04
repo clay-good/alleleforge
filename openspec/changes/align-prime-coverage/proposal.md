@@ -37,9 +37,12 @@ rationale states the SNV-only limitation, so an ineligible decision carries the
 specific reason instead of a generic "no candidate" note. Task 2 has also partly
 shipped: `enumerate_prime` now filters a protospacer containing a `TTTT` Pol III
 terminator (a pegRNA that cannot be transcribed from a U6 promoter is never
-enumerated). Still open: the 5'-G-start / GC-band annotation and per-candidate
-rejection-reason surfacing (rest of task 2), and separating a genuine defect from
-an empty result in `_run_chemistry` / `_design_one` (task 3).
+enumerated). Task 3 has also shipped: `_run_chemistry` and `_design_one` now catch
+only *expected* design-failure exceptions (missing model, bad input, absent optional
+dependency) as graceful "skipped"/error records, and tag any *unexpected* exception
+type as a defect ("ERROR — unexpected …") so a genuine bug is no longer masked as
+"no design". Still open: the 5'-G-start / GC-band annotation and per-candidate
+rejection-reason surfacing (rest of task 2).
 
 ## Impact
 

@@ -226,6 +226,25 @@ def test_chemistry_failure_degrades_gracefully(
     assert "model checkpoint unavailable" in menu.rationale
 
 
+def test_unexpected_defect_is_distinguished_from_no_design(
+    make_reference: MakeRef, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # An unexpected exception type (a code defect) must not be swallowed as a
+    # benign "skipped" / "no design"; it is surfaced as an ERROR note instead.
+    import alleleforge.design.designer as designer_mod
+
+    def _defect(*args: object, **kwargs: object) -> list[object]:
+        raise AttributeError("'NoneType' object has no attribute 'foo'")
+
+    monkeypatch.setattr(designer_mod, "design_cas9", _defect)
+    ref = make_reference({"chr2": PAD + "ACGTAACGTTACGTAACGTT" + "TGG" + PAD})
+    rv = _resolve(ref, 25, "G")
+    menu = design(rv, reference=ref, intent=EditIntent.KNOCK_OUT)
+    assert menu.rationale is not None
+    assert "ERROR" in menu.rationale and "unexpected AttributeError" in menu.rationale
+    assert "skipped (AttributeError" not in menu.rationale  # not masked as graceful
+
+
 def test_provenance_snapshots_the_resolved_settings(make_reference: MakeRef) -> None:
     # config_snapshot records the full resolved settings that governed the run
     # (minus the volatile cache_dir), not just a hand-built subset that can drift.

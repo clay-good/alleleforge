@@ -8,6 +8,19 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A code defect in a design vertical is no longer masked as "no design".** The
+  designer and cohort caught every exception with a blanket `except Exception`, so a
+  genuine bug (an `AttributeError`, a `TypeError`) was swallowed into a benign
+  "skipped" note, indistinguishable from a chemistry that legitimately produced
+  nothing. `_run_chemistry` and the cohort's `_design_one` now catch only *expected*
+  design-failure types (missing model, bad input, absent optional dependency) as
+  graceful degradation, and tag any *unexpected* exception as a defect ("ERROR —
+  unexpected …" / "unexpected … (likely a defect)") so it is surfaced and
+  actionable, while still not crashing the run. (Part of the in-progress
+  `align-prime-coverage`, task 3.)
+
 ### Added
 
 - **`aforge verify <result>` turns provenance into a checkable contract.** A new CLI

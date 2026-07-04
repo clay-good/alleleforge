@@ -16,9 +16,9 @@
 - [x] 2.2 Test: a `TTTT`-containing spacer is rejected with its reason.
 
 ## 3. Separate a defect from an empty result
-- [ ] 3.1 In `_run_chemistry` and `_design_one`, catch only expected "no design" conditions;
+- [x] 3.1 In `_run_chemistry` and `_design_one`, catch only expected "no design" conditions;
       re-raise or capture unexpected exception types as a typed failure.
-- [ ] 3.2 Test: an injected error in a vertical surfaces as a typed failure, not a
+- [x] 3.2 Test: an injected error in a vertical surfaces as a typed failure, not a
       "skipped" note.
 
 ## 4. Reconcile

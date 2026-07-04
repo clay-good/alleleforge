@@ -185,3 +185,20 @@ def test_custom_item_id(reference: ReferenceGenome, tmp_path: Path) -> None:
     )
     text = manifest.read_text()
     assert "sample::chr2:26:A>G" in text
+
+
+def test_unexpected_defect_is_tagged_in_cohort(
+    reference: ReferenceGenome, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A per-item unexpected exception (a code defect) is captured with a distinct,
+    # actionable tag rather than an indistinguishable generic error.
+    import alleleforge.design.cohort as cohort_mod
+
+    def _defect(*args: object, **kwargs: object) -> object:
+        raise AttributeError("boom")
+
+    monkeypatch.setattr(cohort_mod, "design", _defect)
+    report = design_many([OK_1], reference=reference, intent=EditIntent.INSTALL)
+    failed = next(r for r in report.items if r.status == "error")
+    assert "unexpected AttributeError" in (failed.error or "")
+    assert "defect" in (failed.error or "")
