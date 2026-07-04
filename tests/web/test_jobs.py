@@ -54,3 +54,25 @@ async def test_job_error_is_captured_not_raised() -> None:
     assert final.state is JobState.ERROR
     assert final.error is not None and "kaboom" in final.error
     await _settle_tasks(mgr)  # a failed task is released too
+
+
+async def test_job_store_is_bounded_by_max_jobs() -> None:
+    # A long-lived server must not grow the job store without bound; only terminal
+    # records are evicted (oldest-first), never an in-flight job.
+    mgr = JobManager(max_jobs=3)
+    records = [await mgr.submit(lambda v=v: v) for v in range(10)]
+    await _settle_tasks(mgr)
+    for _ in range(1000):  # let the final eviction run
+        if len(mgr._jobs) <= 3:
+            break
+        await asyncio.sleep(0)
+    assert len(mgr._jobs) <= 3
+    assert mgr.get(records[-1].id) is not None  # the most recent survives
+    assert mgr.get(records[0].id) is None  # the oldest was evicted
+
+
+async def test_max_jobs_must_be_positive() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="must be positive"):
+        JobManager(max_jobs=0)

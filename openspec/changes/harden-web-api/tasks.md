@@ -7,8 +7,9 @@
 - [x] 1.3 Tests for both limits. *(size-cap test done; concurrency test open with 1.2.)*
 
 ## 2. Bound the job store
-- [ ] 2.1 Add a TTL / LRU eviction to `JobManager` so completed records are reclaimed.
-- [ ] 2.2 Test: the store stays bounded past the cap.
+- [x] 2.1 Add a TTL / LRU eviction to `JobManager` so completed records are reclaimed.
+      *(Size-bounded LRU eviction of terminal records; TTL not added.)*
+- [x] 2.2 Test: the store stays bounded past the cap.
 
 ## 3. Optional auth on non-loopback binds
 - [ ] 3.1 Require an API token when bound to a non-loopback host; leave localhost open.

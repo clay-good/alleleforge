@@ -38,6 +38,11 @@ flooded with an unbounded batch. Still open: the max-in-flight-job semaphore
 (task 3), and the per-request timeout + durability seam (task 4). The default
 localhost experience is unchanged.
 
+Task 2 has also shipped: `JobManager` is now size-bounded — it evicts the oldest
+*terminal* (done/error) records past a configurable cap (default 1000) on submit
+and on job completion, so a long-lived server no longer leaks memory; an in-flight
+job is never evicted.
+
 ## Impact
 
 - Specs: `web-api` (ADDED resource-safety requirements: size cap, job bounds, optional

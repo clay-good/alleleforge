@@ -10,13 +10,16 @@ acceptance.
 
 ### Fixed
 
-- **The batch API rejects an unbounded cohort at the boundary.** `POST /api/batch`
-  accepted a `variants` list with `min_length=1` but no maximum, so a single caller
-  could queue an arbitrarily large cohort. The schema now caps it at
-  `MAX_BATCH_VARIANTS` (1000); an over-large request is rejected with 422 before any
-  work is scheduled. (First slice of the in-progress `harden-web-api`; the in-flight
-  concurrency semaphore, job-store TTL/eviction, optional off-loopback auth, and
-  per-request timeout remain open. The default localhost experience is unchanged.)
+- **The web API bounds request size and the job store.** `POST /api/batch` accepted
+  a `variants` list with `min_length=1` but no maximum, so a single caller could
+  queue an arbitrarily large cohort; the schema now caps it at `MAX_BATCH_VARIANTS`
+  (1000) and rejects an over-large request with 422 before any work is scheduled.
+  Separately, `JobManager._jobs` grew without bound (a long-lived server leaked
+  memory); it is now size-bounded, evicting the oldest *terminal* (done/error)
+  records past a configurable cap (default 1000) while never dropping an in-flight
+  job. (Part of the in-progress `harden-web-api`; the in-flight concurrency
+  semaphore, optional off-loopback auth, and per-request timeout remain open. The
+  default localhost experience is unchanged.)
 - **Benchmark split leakage and leaderboard injection are now blocked.**
   `Split.verify` hashed whatever membership was in a split file but never checked
   that `train`/`val`/`test` were disjoint or that every id existed in the dataset —
