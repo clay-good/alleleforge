@@ -252,6 +252,9 @@ def design(
             "populations": list(populations) if populations else [],
             "run_offtarget": run_offtarget,
             "cell_context": cell_context,
+            # The full resolved settings (minus volatile paths) so the run is
+            # re-derivable from what actually governed it, not a subset that drifts.
+            "settings": cfg.snapshot(),
         },
     )
     return RankedMenu(

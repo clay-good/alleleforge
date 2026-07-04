@@ -8,6 +8,17 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **Provenance snapshots the full resolved settings.** `config_snapshot` was a
+  hand-built subset of run parameters that could drift from the `Settings` that
+  actually governed a run. It now also embeds the full resolved settings via the
+  new `Settings.snapshot()` (seed, reference, interval level, MAF threshold,
+  network policy — minus the volatile per-machine `cache_dir`), so a result is
+  re-derivable from what governed it. (Part of the in-progress `complete-provenance`,
+  task 3; the load-bearing seed/RNG, CLI/web config-file honoring, and `aforge
+  verify` remain open.)
+
 ### Fixed
 
 - **Prime enumeration no longer emits an untranscribable pegRNA.** A protospacer

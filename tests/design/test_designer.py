@@ -224,3 +224,19 @@ def test_chemistry_failure_degrades_gracefully(
     assert not menu.candidates
     assert "skipped" in menu.rationale
     assert "model checkpoint unavailable" in menu.rationale
+
+
+def test_provenance_snapshots_the_resolved_settings(make_reference: MakeRef) -> None:
+    # config_snapshot records the full resolved settings that governed the run
+    # (minus the volatile cache_dir), not just a hand-built subset that can drift.
+    from alleleforge.config import Settings
+
+    ref = _abe_ref(make_reference)
+    rv = _resolve(ref, 25, "G")
+    settings = Settings(seed=4242, maf_threshold=0.02)
+    menu = design(rv, reference=ref, intent=EditIntent.INSTALL, settings=settings)
+    assert menu.provenance is not None
+    snap = menu.provenance.config_snapshot["settings"]
+    assert snap["seed"] == 4242
+    assert abs(snap["maf_threshold"] - 0.02) < 1e-9
+    assert "cache_dir" not in snap  # volatile per-machine path is excluded

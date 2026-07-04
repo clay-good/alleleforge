@@ -42,10 +42,13 @@ provenance block. Today the block is partly decorative:
 Task 1 has shipped: the design path now wires the existing dataset-capture helper
 into provenance via `_collect_datasets`, so a menu's `Provenance.datasets` records
 the reference build's `DatasetVersion` (and gnomAD/ClinVar once those classes carry
-a version descriptor) instead of silently defaulting to empty. Still open: the
-load-bearing seed/RNG (task 2), the full `Settings` config snapshot (task 3),
-routing the CLI/web through `Settings.load()` and honoring the user's reference
-build (task 4), and the `aforge verify` command (task 5).
+a version descriptor) instead of silently defaulting to empty. Task 3 has also
+shipped: `config_snapshot` now embeds the full resolved `Settings` (via
+`Settings.snapshot()`, minus the volatile `cache_dir`) alongside the run
+parameters, so it reflects what actually governed the run rather than a hand-built
+subset that can drift. Still open: the load-bearing seed/RNG (task 2), routing the
+CLI/web through `Settings.load()` and honoring the user's reference build (task 4),
+and the `aforge verify` command (task 5).
 
 ## Impact
 

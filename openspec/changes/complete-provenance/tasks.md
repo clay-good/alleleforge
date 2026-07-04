@@ -13,8 +13,8 @@
 - [ ] 2.2 Test: changing the seed changes a stochastic output; fixing it reproduces.
 
 ## 3. Full config snapshot
-- [ ] 3.1 Snapshot the resolved `Settings` (minus volatile paths) into `config_snapshot`.
-- [ ] 3.2 Test: the snapshot round-trips and matches the settings that governed the run.
+- [x] 3.1 Snapshot the resolved `Settings` (minus volatile paths) into `config_snapshot`.
+- [x] 3.2 Test: the snapshot round-trips and matches the settings that governed the run.
 
 ## 4. Honor config precedence in CLI and web
 - [ ] 4.1 Route the CLI and web through `Settings.load()` so the config file applies.

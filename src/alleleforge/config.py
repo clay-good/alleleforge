@@ -75,6 +75,18 @@ class Settings(BaseSettings):
     #: pass an explicit consent flag to fetch external artifacts.
     allow_network: bool = False
 
+    def snapshot(self) -> dict[str, Any]:
+        """Return the resolved settings for provenance, minus volatile paths.
+
+        The full resolved settings are recorded in a result's provenance so the run
+        is re-derivable from what actually governed it, rather than a hand-built
+        subset that can drift. The per-machine ``cache_dir`` is dropped because it
+        is a local filesystem path, not part of the reproducible result.
+        """
+        data: dict[str, Any] = self.model_dump(mode="json")
+        data.pop("cache_dir", None)
+        return data
+
     @classmethod
     def load(cls, config_file: Path | None = None, **overrides: Any) -> Settings:
         """Build settings from the user TOML, environment, then overrides.
