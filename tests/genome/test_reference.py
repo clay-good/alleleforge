@@ -161,6 +161,25 @@ def test_from_build_uses_cached_copy_without_downloading(tmp_path: Path) -> None
         ref.close()
 
 
+def test_from_build_reverifies_cached_reference_on_read(tmp_path: Path) -> None:
+    # A pinned build is re-hashed on every open: a tampered cached FASTA is
+    # rejected on load, without any new download (consent=False).
+    digest = hashlib.sha256(_FASTA_TEXT.encode()).hexdigest()
+    desc = BuildDescriptor(
+        name="synth", version="v1", source_url="http://x/y.fa", citation="c", sha256=digest
+    )
+
+    def fake_downloader(url: str, dest: Path) -> None:
+        dest.write_text(_FASTA_TEXT)
+
+    ReferenceGenome.from_build(
+        "synth", cache_dir=tmp_path, consent=True, descriptor=desc, downloader=fake_downloader
+    ).close()
+    (tmp_path / f"{desc.name}.{desc.version}.fa").write_text(_FASTA_TEXT + "TAMPERED\n")
+    with pytest.raises(ChecksumError, match="checksum mismatch"):
+        ReferenceGenome.from_build("synth", cache_dir=tmp_path, consent=False, descriptor=desc)
+
+
 def test_concurrent_fetches_are_thread_safe(tiny_fasta: Path) -> None:
     # A single ReferenceGenome is shared across threads by the web server (its
     # sync handlers run in a threadpool). pyfaidx has a shared file position, so

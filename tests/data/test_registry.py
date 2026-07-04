@@ -114,6 +114,22 @@ def test_resolve_uses_cache_on_second_call(tmp_path: Path) -> None:
     assert calls["n"] == 1  # second call served from cache
 
 
+def test_resolve_reverifies_cached_artifact_on_read(tmp_path: Path) -> None:
+    # A cached dataset is re-hashed on resolve: a tampered cache entry is rejected
+    # on load, with no new download (consent=False).
+    payload = b"data"
+    digest = hashlib.sha256(payload).hexdigest()
+    reg = DatasetRegistry({"demo": _descriptor(sha256=digest)})
+
+    def fake_download(url: str, dest: Path) -> None:
+        dest.write_bytes(payload)
+
+    path, _ = reg.resolve("demo", cache_dir=tmp_path, consent=True, downloader=fake_download)
+    path.write_bytes(b"tampered")
+    with pytest.raises(ChecksumError, match="checksum mismatch"):
+        reg.resolve("demo", cache_dir=tmp_path, consent=False)
+
+
 def test_descriptor_dataset_version_roundtrips() -> None:
     desc = _descriptor(populations=("afr", "eas"))
     version = desc.dataset_version()

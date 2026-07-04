@@ -10,6 +10,17 @@ acceptance.
 
 ### Added
 
+- **Cached artifacts are re-verified on every load (hash-on-read).** The
+  consent + license + checksum gate was bypassed exactly where tampering matters —
+  on cache hits: `ModelRegistry.checkpoint`, `DatasetRegistry.resolve`, and
+  `ReferenceGenome.from_build` only hashed bytes on download and returned an
+  existing cached file unverified. Each now re-verifies a cached checkpoint,
+  dataset, or reference FASTA against its pinned hash on every load and fails
+  closed (`ChecksumError`) on a mismatch, so a tampered or truncated cache entry
+  can no longer pass silently. Artifacts with no pinned hash are served as before.
+  (Part of the in-progress `verify-artifact-integrity`; pinning real hashes for the
+  remaining cards is a maintainer release step, and cache content-verify / required
+  failure-modes remain open.)
 - **Wet-lab oligo path is now alphabet-, scaffold-, and boundary-safe**
   (`validate-oligo-alphabet`). The oligo module emits the exact duplexes a bench
   scientist orders, so a wrong sequence wastes reagents. `revcomp` used

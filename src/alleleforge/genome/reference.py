@@ -242,6 +242,10 @@ class ReferenceGenome:
             root.mkdir(parents=True, exist_ok=True)
             (downloader or _default_downloader)(desc.source_url, fasta_path)
             _verify_sha256(fasta_path, desc.sha256)
+        elif desc.sha256 is not None:
+            # Hash-on-read: re-verify a cached reference FASTA against its pinned
+            # checksum on every load, so a tampered build is rejected on open.
+            _verify_sha256(fasta_path, desc.sha256)
         return cls(fasta_path, build=desc.name, dataset_version=desc.dataset_version())
 
     @property

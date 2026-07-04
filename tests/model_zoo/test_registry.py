@@ -168,3 +168,19 @@ def test_checkpoint_uses_cache(tmp_path: Path) -> None:
     reg.checkpoint("demo", cache_dir=tmp_path, consent=True, downloader=counting_dl)
     reg.checkpoint("demo", cache_dir=tmp_path, consent=True, downloader=counting_dl)
     assert calls["n"] == 1
+
+
+def test_checkpoint_reverifies_cached_file_on_read(tmp_path: Path) -> None:
+    # A cached checkpoint is re-hashed on every load: tampering with the file
+    # after download is caught, without any new download (consent=False).
+    payload = b"weights"
+    digest = hashlib.sha256(payload).hexdigest()
+    reg = ModelRegistry({"demo": _card(checkpoint_sha256=digest, source_url="https://x")})
+
+    def fake_dl(url: str, dest: Path) -> None:
+        dest.write_bytes(payload)
+
+    path, _ = reg.checkpoint("demo", cache_dir=tmp_path, consent=True, downloader=fake_dl)
+    path.write_bytes(b"tampered")  # corrupt the cache entry
+    with pytest.raises(ChecksumError, match="hash mismatch"):
+        reg.checkpoint("demo", cache_dir=tmp_path, consent=False)

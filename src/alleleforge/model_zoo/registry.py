@@ -254,6 +254,11 @@ class ModelRegistry:
             path.parent.mkdir(parents=True, exist_ok=True)
             (downloader or _default_downloader)(card.source_url, path)
             _verify_sha256(path, card.checkpoint_sha256)
+        elif card.checkpoint_sha256 is not None:
+            # Hash-on-read: a cached checkpoint is re-verified against its pinned
+            # hash on every load, not only when first downloaded, so a tampered or
+            # truncated cache entry fails closed rather than being trusted silently.
+            _verify_sha256(path, card.checkpoint_sha256)
         return path, card.to_checkpoint()
 
     def authorize(

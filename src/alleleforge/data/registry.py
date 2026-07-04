@@ -178,6 +178,10 @@ class DatasetRegistry:
             path.parent.mkdir(parents=True, exist_ok=True)
             (downloader or _default_downloader)(desc.source_url, path)
             _verify_sha256(path, desc.sha256)
+        elif desc.sha256 is not None:
+            # Hash-on-read: re-verify a cached dataset against its pinned checksum
+            # on every resolve, so a tampered cache entry is rejected on load.
+            _verify_sha256(path, desc.sha256)
         return path, desc.dataset_version()
 
 
