@@ -184,6 +184,7 @@ def test_outcome_adapter_pinned_weights_download_and_verify(tmp_path: object) ->
         out_of_scope_use="anything real",
         license="MIT",
         citation="AlleleForge test suite",
+        known_failure_modes=("documented test failure mode",),
         checkpoint_sha256=sha,
         source_url="https://example.invalid/indelphi.ckpt",
     )

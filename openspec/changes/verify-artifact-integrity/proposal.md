@@ -41,11 +41,13 @@ on **every** load, not only on download — a tampered or truncated cache entry
 fails closed. Tamper-on-read tests cover all three. When a card/descriptor pins no
 hash, the artifact is served as before (there is nothing to verify against).
 
-Still open: pinning real `checkpoint_sha256` values for the remaining cards (a
-maintainer release step that requires downloading and hashing the actual
-artifacts — must be done authoritatively, not guessed); making
-`known_failure_modes` a required card field (task 3.2/3.3); the FM-index
-`verify()` and content-verifying the content-addressed cache on read (task 4).
+Task 3.2/3.3 has also shipped: `known_failure_modes` is now a **required**,
+non-empty `ModelCard` field (validated at construction), so every model's audit
+surface is complete and rides into provenance. Still open: pinning real
+`checkpoint_sha256` values for the remaining cards (a maintainer release step that
+requires downloading and hashing the actual artifacts — must be done
+authoritatively, not guessed); the FM-index `verify()` and content-verifying the
+content-addressed cache on read (task 4).
 
 ## Impact
 

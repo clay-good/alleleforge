@@ -25,6 +25,7 @@ def _card(name: str) -> ModelCard:
         out_of_scope_use="anything real",
         license="MIT",
         citation="AlleleForge test suite",
+        known_failure_modes=("documented test failure mode",),
     )
 
 

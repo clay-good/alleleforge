@@ -42,6 +42,7 @@ def _pinned_card(sha: str | None = _WEIGHTS_SHA, license_id: str = "MIT") -> Mod
         out_of_scope_use="anything real",
         license=license_id,
         citation="AlleleForge test suite",
+        known_failure_modes=("documented test failure mode",),
         checkpoint_sha256=sha,
         source_url="https://example.invalid/weights.ckpt",
     )

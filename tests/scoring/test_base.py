@@ -36,6 +36,7 @@ class _ToyScorer:
             out_of_scope_use="anything real",
             license="MIT",
             citation="n/a",
+            known_failure_modes=("documented test failure mode",),
         )
 
     def score(self, x: object) -> Prediction[float]:

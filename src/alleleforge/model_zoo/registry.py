@@ -29,7 +29,7 @@ from enum import StrEnum
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from alleleforge.types.provenance import ModelCheckpoint
 
@@ -112,9 +112,23 @@ class ModelCard(BaseModel):
     out_of_scope_use: str
     license: str
     citation: str
-    known_failure_modes: tuple[str, ...] = ()
+    known_failure_modes: tuple[str, ...]
     checkpoint_sha256: str | None = None
     source_url: str | None = None
+
+    @field_validator("known_failure_modes")
+    @classmethod
+    def _require_failure_modes(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        """Require at least one documented failure mode.
+
+        A model's audit surface is incomplete without its known failure modes, so
+        every card SHALL name at least one — a result carries these into provenance
+        (:meth:`to_checkpoint`) precisely so a consumer can check a design against
+        what the models are known to get wrong.
+        """
+        if not value:
+            raise ValueError("a model card must document at least one known_failure_mode")
+        return value
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> ModelCard:

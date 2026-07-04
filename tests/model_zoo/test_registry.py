@@ -29,6 +29,7 @@ _VALID = {
     "out_of_scope_use": "clinical",
     "license": "MIT",
     "citation": "Demo et al. 2024",
+    "known_failure_modes": ("documented demo failure mode",),
 }
 
 
@@ -184,3 +185,10 @@ def test_checkpoint_reverifies_cached_file_on_read(tmp_path: Path) -> None:
     path.write_bytes(b"tampered")  # corrupt the cache entry
     with pytest.raises(ChecksumError, match="hash mismatch"):
         reg.checkpoint("demo", cache_dir=tmp_path, consent=False)
+
+
+def test_card_without_failure_modes_is_rejected() -> None:
+    # Every card must document at least one known failure mode; an empty (or
+    # missing) list is rejected so a model's audit surface is never incomplete.
+    with pytest.raises(ValidationError, match="known_failure_mode"):
+        ModelCard(**{**_VALID, "known_failure_modes": ()})  # type: ignore[arg-type]

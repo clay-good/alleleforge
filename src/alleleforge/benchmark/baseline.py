@@ -38,6 +38,12 @@ BASELINE_CARD = ModelCard(
     out_of_scope_use="Not a design model; never use for real guide selection.",
     license="MIT",
     citation="AlleleForge CRISPR-Bench reference baseline.",
+    known_failure_modes=(
+        "Predicts the train-fold marginal, so it ignores every sequence feature and "
+        "cannot rank guides within a locus.",
+        "Has no calibrated uncertainty and no biological signal — it exists only as a "
+        "leaderboard floor.",
+    ),
 )
 
 

@@ -136,6 +136,7 @@ def _fake_rs3_card(sha: str = _FAKE_SHA) -> ModelCard:
         out_of_scope_use="anything real",
         license="Apache-2.0",
         citation="AlleleForge test suite",
+        known_failure_modes=("documented test failure mode",),
         checkpoint_sha256=sha,
         source_url="https://example.invalid/RuleSet3.txt",
     )

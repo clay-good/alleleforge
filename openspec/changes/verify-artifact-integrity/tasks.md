@@ -16,8 +16,8 @@
 ## 3. Pin the remaining model cards
 - [ ] 3.1 Compute and commit real `checkpoint_sha256` values for every card that ships a
       pinned artifact (maintainer release step).
-- [ ] 3.2 Make `known_failure_modes` a required card field; update cards and the schema.
-- [ ] 3.3 Test: a card missing failure modes is rejected.
+- [x] 3.2 Make `known_failure_modes` a required card field; update cards and the schema.
+- [x] 3.3 Test: a card missing failure modes is rejected.
 
 ## 4. Content-verify the cache on read
 - [ ] 4.1 Store a checksum with each cache entry and re-check payload bytes on read

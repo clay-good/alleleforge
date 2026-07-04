@@ -88,9 +88,11 @@ acceptance.
   dataset, or reference FASTA against its pinned hash on every load and fails
   closed (`ChecksumError`) on a mismatch, so a tampered or truncated cache entry
   can no longer pass silently. Artifacts with no pinned hash are served as before.
-  (Part of the in-progress `verify-artifact-integrity`; pinning real hashes for the
-  remaining cards is a maintainer release step, and cache content-verify / required
-  failure-modes remain open.)
+  Relatedly, `known_failure_modes` is now a **required**, non-empty `ModelCard`
+  field (validated at construction), so every model's audit surface is complete and
+  rides into provenance rather than being an optional afterthought. (Part of the
+  in-progress `verify-artifact-integrity`; pinning real hashes for the remaining
+  cards is a maintainer release step, and the cache content-verify remains open.)
 - **Wet-lab oligo path is now alphabet-, scaffold-, and boundary-safe**
   (`validate-oligo-alphabet`). The oligo module emits the exact duplexes a bench
   scientist orders, so a wrong sequence wastes reagents. `revcomp` used
