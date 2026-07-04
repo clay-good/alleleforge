@@ -188,15 +188,45 @@ def _parse_weights(spec: str | None) -> Any:
     return RankingWeights(efficiency=eff, cleanliness=clean, safety=safe, simplicity=simple)
 
 
+#: Run-parameter keys a config file may carry (the rest must be `Settings` fields).
+#: These mirror the design/batch command knobs; a config key outside this set and
+#: the `Settings` fields is almost certainly a typo and is warned about.
+_RUN_PARAM_KEYS = frozenset(
+    {
+        "intent",
+        "chemistry",
+        "populations",
+        "weights",
+        "max_per_chemistry",
+        "no_offtarget",
+        "run_offtarget",
+        "trained_efficiency",
+        "trained_outcome",
+        "trained_base_outcome",
+        "cell_context",
+    }
+)
+
+
 def _load_config(path: Path | None) -> dict[str, Any]:
-    """Load a run-config TOML, or exit ``MISSING_DATA`` if it is absent."""
+    """Load a run-config TOML (warning on unknown keys), or exit if it is absent."""
     if path is None:
         return {}
     if not path.is_file():
         _echo_err(f"error: config file not found: {path}")
         raise typer.Exit(ExitCode.MISSING_DATA)
     with path.open("rb") as fh:
-        return tomllib.load(fh)
+        cfg: dict[str, Any] = tomllib.load(fh)
+    from alleleforge.config import Settings
+
+    known = set(Settings.model_fields) | _RUN_PARAM_KEYS
+    for key in cfg:
+        if key not in known:
+            _echo_err(
+                f"warning: unknown config key {key!r} (ignored); "
+                f"known keys: {', '.join(sorted(known))}"
+            )
+    return cfg
 
 
 class OutputFormat(StrEnum):

@@ -55,9 +55,12 @@ settings through `Settings.load(config_file=config, seed=…)`, so a `config.tom
 key like `maf_threshold` is honored (and appears in the recorded settings snapshot)
 instead of being ignored, and `--reference` labels the loaded genome and provenance
 instead of a hard-coded `hg38`. Still open: the load-bearing seed/RNG (task 2 — the
-design path has no stochastic step today, so this is forward-looking scaffolding),
-the warn-on-unknown-config-key mode (task 4.3), and the reproduce-style determinism
-re-run inside `verify` (needs the original reference, so it is a follow-up).
+design path has no stochastic step today, so this is deliberately deferred rather
+than adding speculative infrastructure) and the reproduce-style determinism re-run
+inside `verify` (needs the original reference, a follow-up). The warn-on-unknown-key
+mode (task 4.3) has shipped: `_load_config` warns on any config key that is neither a
+`Settings` field nor a recognized run-param knob, so a typo is surfaced rather than
+silently ignored.
 
 ## Impact
 

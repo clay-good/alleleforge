@@ -222,6 +222,28 @@ def test_reference_build_is_honored(runner: CliRunner, prime_fasta: Path, tmp_pa
     assert prov["reference_build"] == "mm39"
 
 
+def test_design_warns_on_unknown_config_key(
+    runner: CliRunner, prime_fasta: Path, tmp_path: Path
+) -> None:
+    # A typo'd config key is warned about (and ignored), not silently dropped.
+    cfg = tmp_path / "run.toml"
+    cfg.write_text('intent = "install"\nmaf_treshold = 0.05\n')  # note the typo
+    result = runner.invoke(
+        app,
+        [
+            "design",
+            "chr2:71:A>C",
+            "--reference-fasta",
+            str(prime_fasta),
+            "--config",
+            str(cfg),
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "unknown config key" in result.output and "maf_treshold" in result.output
+
+
 def test_design_reproducible_modulo_timestamp(
     runner: CliRunner, prime_fasta: Path, design_cmd: DesignCmd
 ) -> None:

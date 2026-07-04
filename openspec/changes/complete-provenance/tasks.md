@@ -21,7 +21,7 @@
       *(CLI routes `Settings.load(config_file=config, seed=state.seed)`; the web layer
       already threads a `Settings` instance.)*
 - [x] 4.2 Honor the user-supplied reference build instead of hard-coding `hg38`.
-- [ ] 4.3 Add a warn-on-unknown-key mode for the config file.
+- [x] 4.3 Add a warn-on-unknown-key mode for the config file.
 - [x] 4.4 Tests: a `config.toml` `maf_threshold`/`interval_level` governs a CLI run; a
       non-hg38 reference resolves at its own build.
 

@@ -10,6 +10,11 @@ acceptance.
 
 ### Added
 
+- **The CLI warns on unknown config-file keys.** `aforge --config` silently ignored
+  any key it didn't consume, so a typo like `maf_treshold` vanished without effect.
+  `_load_config` now warns (to stderr) on any config key that is neither a `Settings`
+  field nor a recognized run-param knob, so a mistake is surfaced. (Part of the
+  in-progress `complete-provenance`, task 4.3.)
 - **The FM-index can re-verify itself against its build-time content hash.**
   `FMIndex.verify()` reconstructs the indexed text from the persisted BWT via the
   LF-mapping and re-hashes it, raising `FMIndexIntegrityError` if it no longer matches

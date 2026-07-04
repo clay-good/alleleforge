@@ -56,6 +56,7 @@ SIZE_WARN_THRESHOLD = 50_000_000
 class FMIndexIntegrityError(RuntimeError):
     """Raised when a cached FM-index does not reconstruct to its recorded content hash."""
 
+
 #: Default checkpoint spacing for the rank (occ) table.
 _DEFAULT_OCC_RATE = 64
 
