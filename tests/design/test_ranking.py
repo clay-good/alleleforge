@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from alleleforge.design.ranking import (
     DEFAULT_WEIGHTS,
     RankingWeights,
@@ -21,11 +23,12 @@ from alleleforge.types.prediction import Prediction, UncertaintyMethod
 from alleleforge.types.sequence import GenomicInterval, Strand
 
 
-def _eff(value: float) -> Prediction[float]:
+def _eff(value: float, *, in_distribution: bool = True) -> Prediction[float]:
     return Prediction[float](
         value=value,
         interval=(max(0.0, value - 0.1), min(1.0, value + 0.1)),
         method=UncertaintyMethod.HEURISTIC,
+        in_distribution=in_distribution,
     )
 
 
@@ -74,10 +77,11 @@ def _cand(
     p_intended: float = 0.5,
     offscore: float = 0.0,
     ancestry: str | None = None,
+    in_distribution: bool = True,
 ) -> DesignCandidate:
     return DesignCandidate(
         chemistry=chemistry,
-        efficiency=_eff(eff),
+        efficiency=_eff(eff, in_distribution=in_distribution),
         outcome=_outcome(p_intended),
         offtarget=_report(offscore, ancestry=ancestry),
         rationale="seed",
@@ -126,6 +130,32 @@ def test_ancestry_worst_case_downranks_population_dangerous_guide() -> None:
     assert abs(sc.safety - 0.2) < 1e-9
 
 
+def test_ood_candidate_ranks_below_identical_in_distribution() -> None:
+    # Two candidates identical in every respect except the OOD flag on the
+    # efficiency prediction. The out-of-distribution one is ranked on its lower
+    # interval bound, so it must rank below the in-distribution one.
+    in_dist = _cand(Chemistry.CAS9_NUCLEASE, eff=0.8, in_distribution=True)
+    ood = _cand(Chemistry.CAS9_NUCLEASE, eff=0.8, in_distribution=False)
+    outcome = rank_candidates([ood, in_dist])
+    assert outcome.candidates[0].efficiency is not None
+    assert outcome.candidates[0].efficiency.in_distribution is True
+    # The score breakdown surfaces the OOD demotion and the lower bound used.
+    in_dist_score, ood_score = outcome.scores
+    assert in_dist_score.efficiency > ood_score.efficiency
+    assert ood_score.efficiency_in_distribution is False
+    assert "OOD" in ood_score.explain()
+    assert "out-of-distribution" in outcome.rationale
+
+
+def test_ood_score_uses_lower_interval_bound() -> None:
+    ood = _cand(Chemistry.PRIME, eff=0.7, in_distribution=False)
+    sc = score_candidate(ood)
+    # eff 0.7 with interval (0.6, 0.8) OOD -> ranked on the 0.6 lower bound.
+    assert sc.efficiency == pytest.approx(0.6)
+    assert sc.efficiency_interval is not None
+    assert sc.efficiency_interval == pytest.approx((0.6, 0.8))
+
+
 def test_pareto_front_excludes_dominated() -> None:
     best = _cand(Chemistry.PRIME, eff=0.9, p_intended=0.9, offscore=0.0)
     dominated = _cand(Chemistry.PRIME, eff=0.4, p_intended=0.4, offscore=0.5)
@@ -161,14 +191,10 @@ def test_prime_is_less_simple_than_nuclease() -> None:
 
 
 def test_zero_weights_rejected() -> None:
-    import pytest
-
     with pytest.raises(ValueError, match="cannot all be zero"):
         RankingWeights(efficiency=0.0, cleanliness=0.0, safety=0.0, simplicity=0.0)
 
 
 def test_negative_weight_rejected() -> None:
-    import pytest
-
     with pytest.raises(ValueError, match="must be non-negative"):
         RankingWeights(efficiency=-0.1)

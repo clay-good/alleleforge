@@ -10,6 +10,28 @@ acceptance.
 
 ### Added
 
+- **Honest-uncertainty contract, enforced end to end.** The `calibrated` and
+  out-of-distribution flags are no longer honor-system, and ranking now acts on
+  uncertainty instead of ignoring it (`harden-uncertainty-honesty`). Four hardenings:
+  (1) `calibrated = True` is **unforgeable** — only a fitted calibrator can set it,
+  through the new `Prediction.calibrated_by` classmethod; a scorer that constructs a
+  `Prediction` asserting calibration directly is silently coerced to
+  `calibrated = False`. (2) An **out-of-distribution prediction can never be
+  calibrated** and its interval is **widened, never narrowed** (`OOD_WIDEN_FACTOR`), so
+  an OOD input can't present a narrow, confident interval even when ensemble members
+  agree. (3) The **weight-free stub embedder path is labeled honestly** — the default
+  ensemble on the stub reports `method = heuristic`, `calibrated = False`, so
+  content-hashed noise is never mistaken for a trained model. (4) **Interval repair is
+  recorded, not silent** — when a point estimate falls outside its own interval (an
+  inconsistent-head signal), the interval is widened to contain it *and* an auditable
+  note is attached (new `Prediction.notes` field). Ranking became
+  **uncertainty-aware**: the efficiency objective uses the point estimate
+  in-distribution but the **lower interval bound out-of-distribution**, so a
+  confident-looking OOD candidate can no longer outrank an otherwise-equal
+  in-distribution one, and each candidate's interval and OOD status now appear in its
+  score breakdown and the menu rationale. The reproducibility golden was regenerated to
+  reflect the new, honest ranking output.
+
 - **Aggregate genome-wide off-target specificity score.** `OffTargetReport`
   gained `specificity_score()` — the CFD-scale analog of the Hsu 2013 / MIT guide
   specificity (`100/(100+Σ)`), i.e. `1/(1 + Σ site scores)` ∈ (0, 1], **1.0** for a

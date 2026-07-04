@@ -12,11 +12,18 @@ This module is pure: it imports no genome, model, or I/O code.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, ValidationInfo, model_validator
 
 T = TypeVar("T")
+
+#: Module-private capability token. ``calibrated=True`` is honored only when a
+#: construction supplies this exact object through the pydantic validation
+#: context — which only :meth:`Prediction.calibrated_by` does. A scorer building
+#: a ``Prediction`` directly has no way to obtain it, so it cannot self-declare
+#: calibration; the flag becomes a guarantee rather than an honor-system field.
+_CALIBRATION_TOKEN = object()
 
 
 class UncertaintyMethod(StrEnum):
@@ -48,8 +55,14 @@ class Prediction(BaseModel, Generic[T]):
         interval_level: The interval's nominal coverage in ``(0, 1]``.
         method: The uncertainty method that produced the interval.
         in_distribution: ``False`` flags an out-of-distribution input whose
-            interval should be treated with extra caution.
-        calibrated: Whether the interval was post-hoc calibrated.
+            interval should be treated with extra caution. An out-of-distribution
+            prediction can never also be ``calibrated``.
+        calibrated: Whether the interval was post-hoc calibrated. Settable to
+            ``True`` only through :meth:`calibrated_by` (a fitted calibrator); a
+            direct construction asserting ``calibrated=True`` is coerced to
+            ``False``, so the flag is a guarantee, not a self-report.
+        notes: Auditable free-form notes attached at construction (e.g. a
+            recorded interval repair), stored verbatim in provenance.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -60,22 +73,72 @@ class Prediction(BaseModel, Generic[T]):
     method: UncertaintyMethod
     in_distribution: bool = True
     calibrated: bool = False
+    notes: tuple[str, ...] = ()
 
     @model_validator(mode="after")
-    def _check_interval(self) -> Prediction[T]:
-        """Validate interval ordering, level, and point containment."""
+    def _check_interval(self, info: ValidationInfo) -> Prediction[T]:
+        """Validate the interval and enforce the tamper-resistant honesty flags.
+
+        Beyond interval ordering, level, and point containment, this coerces
+        ``calibrated`` to ``False`` unless the construction was authorized by a
+        fitted calibrator (via :meth:`calibrated_by`), and forbids an
+        out-of-distribution prediction from also claiming calibration.
+        """
         low, high = self.interval
         if low > high:
             raise ValueError(f"interval low {low} exceeds high {high}")
         if not 0.0 < self.interval_level <= 1.0:
             raise ValueError(f"interval_level {self.interval_level} not in (0, 1]")
         value = self.value
-        if isinstance(value, bool):
-            return self
-        if isinstance(value, (int, float)):
+        if not isinstance(value, bool) and isinstance(value, (int, float)):
             if not low <= float(value) <= high:
                 raise ValueError(f"point estimate {value} lies outside interval {self.interval}")
+        if self.calibrated:
+            context = info.context or {}
+            authorized = context.get("calibration_token") is _CALIBRATION_TOKEN
+            if not authorized or not self.in_distribution:
+                object.__setattr__(self, "calibrated", False)
         return self
+
+    @classmethod
+    def calibrated_by(
+        cls,
+        *,
+        value: T,
+        interval: tuple[float, float],
+        method: UncertaintyMethod,
+        interval_level: float = 0.80,
+        in_distribution: bool = True,
+        notes: tuple[str, ...] = (),
+    ) -> Prediction[T]:
+        """Construct a prediction marked ``calibrated=True`` (calibrators only).
+
+        This is the sole authorized path to ``calibrated=True``: a fitted
+        conformal/isotonic calibrator calls it to certify that recalibration
+        actually happened. An out-of-distribution prediction cannot be
+        calibrated, so ``in_distribution=False`` still yields ``calibrated=False``.
+
+        Args:
+            value: The point estimate.
+            interval: The ``(low, high)`` predictive interval.
+            method: The uncertainty method that produced the interval.
+            interval_level: The interval's nominal coverage.
+            in_distribution: Whether the input is in the training distribution.
+            notes: Auditable notes to attach.
+
+        Returns:
+            A :class:`Prediction` with ``calibrated=True`` when in-distribution.
+        """
+        data: dict[str, Any] = {
+            "value": value,
+            "interval": interval,
+            "interval_level": interval_level,
+            "method": method,
+            "in_distribution": in_distribution,
+            "calibrated": True,
+            "notes": notes,
+        }
+        return cls.model_validate(data, context={"calibration_token": _CALIBRATION_TOKEN})
 
     @property
     def interval_width(self) -> float:
@@ -123,11 +186,24 @@ class Prediction(BaseModel, Generic[T]):
             interval = (sum(lows), sum(highs))
         else:
             raise ValueError(f"unknown reduce {reduce!r}; use 'mean' or 'sum'")
+        in_distribution = all(p.in_distribution for p in predictions)
+        # The combined result inherits calibration only when every input was
+        # itself calibrated (each of which could only have earned the flag
+        # through the authorized path), so routing through ``calibrated_by`` here
+        # propagates a real guarantee rather than forging one.
+        if in_distribution and all(p.calibrated for p in predictions):
+            return Prediction[float].calibrated_by(
+                value=value,
+                interval=interval,
+                method=UncertaintyMethod.AGREEMENT,
+                interval_level=predictions[0].interval_level,
+                in_distribution=True,
+            )
         return Prediction[float](
             value=value,
             interval=interval,
             interval_level=predictions[0].interval_level,
             method=UncertaintyMethod.AGREEMENT,
-            in_distribution=all(p.in_distribution for p in predictions),
-            calibrated=all(p.calibrated for p in predictions),
+            in_distribution=in_distribution,
+            calibrated=False,
         )

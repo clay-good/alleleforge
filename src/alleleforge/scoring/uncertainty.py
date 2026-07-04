@@ -42,6 +42,11 @@ DEFAULT_INTERVAL_LEVEL = 0.80
 #: Default ensemble size.
 DEFAULT_ENSEMBLE_SIZE = 5
 
+#: Factor by which an out-of-distribution interval's half-widths are inflated so
+#: an OOD input can never present a narrow, confident interval (uncertainty
+#: contract: OOD widens, never narrows).
+OOD_WIDEN_FACTOR = 2.0
+
 
 def _z(level: float) -> float:
     """Return the two-sided standard-normal z for a coverage ``level``."""
@@ -55,23 +60,41 @@ def to_prediction(
     method: UncertaintyMethod,
     level: float = DEFAULT_INTERVAL_LEVEL,
     in_distribution: bool = True,
-    calibrated: bool = False,
+    notes: tuple[str, ...] = (),
 ) -> Prediction[float]:
     """Package a value + interval into a Phase 1 :class:`Prediction`.
 
-    The interval is widened minimally if needed so it always contains the point
-    estimate (the contract :class:`Prediction` enforces).
+    The result is always ``calibrated=False``: only a fitted calibrator may
+    certify calibration (see :meth:`Prediction.calibrated_by`). Two honesty
+    couplings are applied here so no builder can bypass them:
+
+    * **Interval repair is recorded, not silent.** If the point estimate falls
+      outside its own interval (a signal the head is inconsistent), the interval
+      is widened to contain it *and* a note recording the repair is attached.
+    * **Out-of-distribution widens, never narrows.** When ``in_distribution`` is
+      ``False`` the interval half-widths are inflated by :data:`OOD_WIDEN_FACTOR`,
+      so an OOD input cannot present a narrow interval even if members agree.
     """
     low, high = interval
     low, high = min(low, high), max(low, high)
-    low, high = min(low, value), max(high, value)
+    notes = tuple(notes)
+    if value < low or value > high:
+        low, high = min(low, value), max(high, value)
+        notes = (
+            *notes,
+            f"interval widened to contain point estimate {value:.6g} (inconsistent head)",
+        )
+    if not in_distribution:
+        low = value - (value - low) * OOD_WIDEN_FACTOR
+        high = value + (high - value) * OOD_WIDEN_FACTOR
     return Prediction[float](
         value=value,
         interval=(low, high),
         interval_level=level,
         method=method,
         in_distribution=in_distribution,
-        calibrated=calibrated,
+        calibrated=False,
+        notes=notes,
     )
 
 
@@ -120,17 +143,23 @@ def ensemble_prediction(
     *,
     level: float = DEFAULT_INTERVAL_LEVEL,
     in_distribution: bool = True,
-    calibrated: bool = False,
+    method: UncertaintyMethod = UncertaintyMethod.ENSEMBLE,
 ) -> Prediction[float]:
-    """Build a Gaussian predictive interval from ensemble disagreement."""
+    """Build a Gaussian predictive interval from ensemble disagreement.
+
+    The raw ensemble interval is not post-hoc calibrated, so the result is
+    ``calibrated=False``. ``method`` lets a caller demote a weight-free ensemble
+    (content-hashed noise, not a trained backbone) to
+    :attr:`UncertaintyMethod.HEURISTIC` so a heuristic result is distinguishable
+    from a trained one without reading provenance.
+    """
     half = _z(level) * result.std
     return to_prediction(
         result.mean,
         (result.mean - half, result.mean + half),
-        method=UncertaintyMethod.ENSEMBLE,
+        method=method,
         level=level,
         in_distribution=in_distribution,
-        calibrated=calibrated,
     )
 
 
@@ -176,7 +205,6 @@ def evidential_prediction(
     *,
     level: float = DEFAULT_INTERVAL_LEVEL,
     in_distribution: bool = True,
-    calibrated: bool = False,
 ) -> Prediction[float]:
     """Build a predictive interval from an evidential head's parameters."""
     half = _z(level) * math.sqrt(params.total_variance)
@@ -186,7 +214,6 @@ def evidential_prediction(
         method=UncertaintyMethod.EVIDENTIAL,
         level=level,
         in_distribution=in_distribution,
-        calibrated=calibrated,
     )
 
 
@@ -210,7 +237,6 @@ def quantile_prediction(
     level: float = DEFAULT_INTERVAL_LEVEL,
     point: float | None = None,
     in_distribution: bool = True,
-    calibrated: bool = False,
 ) -> Prediction[float]:
     """Build a predictive interval directly from predicted quantiles.
 
@@ -220,7 +246,6 @@ def quantile_prediction(
             quantiles bound the interval.
         point: The point estimate; defaults to the interpolated median.
         in_distribution: Whether the input is in distribution.
-        calibrated: Whether the quantiles were calibrated.
     """
     low = _interp_quantile(quantiles, (1.0 - level) / 2.0)
     high = _interp_quantile(quantiles, (1.0 + level) / 2.0)
@@ -231,7 +256,6 @@ def quantile_prediction(
         method=UncertaintyMethod.QUANTILE,
         level=level,
         in_distribution=in_distribution,
-        calibrated=calibrated,
     )
 
 
@@ -389,17 +413,22 @@ class ConformalCalibrator:
         return self
 
     def calibrate(self, prediction: Prediction[float]) -> Prediction[float]:
-        """Return ``prediction`` with its interval scaled to the target coverage."""
+        """Return ``prediction`` with its interval scaled to the target coverage.
+
+        As a fitted calibrator this is an authorized producer of
+        ``calibrated=True`` (via :meth:`Prediction.calibrated_by`). An
+        out-of-distribution prediction still resolves to ``calibrated=False``,
+        because the honesty contract forbids calibrating an OOD input.
+        """
         scale = self.scale
         half_width = (prediction.interval[1] - prediction.interval[0]) / 2.0
         new_half = scale * half_width
-        return to_prediction(
-            prediction.value,
-            (prediction.value - new_half, prediction.value + new_half),
+        return Prediction[float].calibrated_by(
+            value=prediction.value,
+            interval=(prediction.value - new_half, prediction.value + new_half),
             method=UncertaintyMethod.CONFORMAL,
-            level=self.level,
+            interval_level=self.level,
             in_distribution=prediction.in_distribution,
-            calibrated=True,
         )
 
 

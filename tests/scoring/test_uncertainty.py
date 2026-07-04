@@ -31,6 +31,27 @@ def test_to_prediction_contains_point() -> None:
     assert p.interval[0] <= p.value <= p.interval[1]  # interval widened to hold the point
 
 
+def test_to_prediction_records_interval_repair() -> None:
+    # A point outside its own interval signals an inconsistent head: the repair
+    # is recorded as an auditable note rather than applied silently.
+    p = to_prediction(0.9, (0.2, 0.5), method=UncertaintyMethod.ENSEMBLE)
+    assert any("widened to contain point estimate" in n for n in p.notes)
+
+
+def test_to_prediction_consistent_head_has_no_note() -> None:
+    p = to_prediction(0.4, (0.2, 0.5), method=UncertaintyMethod.ENSEMBLE)
+    assert p.notes == ()
+
+
+def test_ood_widens_and_stays_uncalibrated() -> None:
+    # An OOD input can never present a narrow interval, even if members agree.
+    agree = EnsembleResult((0.50, 0.501, 0.499, 0.50, 0.50))
+    in_dist = ensemble_prediction(agree, in_distribution=True)
+    ood = ensemble_prediction(agree, in_distribution=False)
+    assert ood.interval_width > in_dist.interval_width
+    assert ood.calibrated is False
+
+
 # -- DeepEnsemble -------------------------------------------------------------
 
 

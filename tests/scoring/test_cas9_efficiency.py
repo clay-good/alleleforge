@@ -85,12 +85,15 @@ def test_rs3_model_card() -> None:
 # -- backbone deep ensemble ---------------------------------------------------
 
 
-def test_ensemble_returns_ensemble_prediction() -> None:
+def test_ensemble_on_stub_is_honest_heuristic() -> None:
+    # The weight-free stub embedder is content-hashed noise, not a trained
+    # backbone: the result must be an uncalibrated, heuristic-tagged prediction
+    # so a heuristic is never mistaken for a trained model.
     p = EnsembleEfficiencyScorer(embedder=StubEmbedder(dim=16)).score(_CTX)
-    assert p.method is UncertaintyMethod.ENSEMBLE
+    assert p.method is UncertaintyMethod.HEURISTIC
     assert p.interval[0] <= p.value <= p.interval[1]
     assert p.interval_level == 0.80
-    assert p.calibrated is True
+    assert p.calibrated is False
 
 
 def test_ensemble_model_card() -> None:

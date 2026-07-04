@@ -79,9 +79,21 @@ _CHEMISTRY_SIMPLICITY: dict[Chemistry, float] = {
 }
 
 
-def _efficiency(candidate: DesignCandidate) -> float:
-    """Return the calibrated efficiency point estimate (0 if unscored)."""
-    return float(candidate.efficiency.value) if candidate.efficiency is not None else 0.0
+def _efficiency(candidate: DesignCandidate) -> tuple[float, bool, tuple[float, float] | None]:
+    """Return an uncertainty-discounted efficiency estimate for ranking.
+
+    Returns ``(estimate, in_distribution, interval)``. An in-distribution
+    prediction is ranked on its point estimate; an out-of-distribution one is
+    ranked on its **lower interval bound** instead, so a confident-looking OOD
+    prediction cannot outrank an otherwise-equal in-distribution one. An
+    unscored candidate contributes 0 and is treated as in-distribution.
+    """
+    p = candidate.efficiency
+    if p is None:
+        return 0.0, True, None
+    if not p.in_distribution:
+        return max(0.0, float(p.interval[0])), False, p.interval
+    return float(p.value), True, p.interval
 
 
 def _cleanliness(candidate: DesignCandidate) -> float:
@@ -124,12 +136,18 @@ class CandidateScore:
     """The four objective scores and the composite for one candidate.
 
     Attributes:
-        efficiency: Calibrated efficiency point estimate.
+        efficiency: The uncertainty-discounted efficiency estimate used in the
+            composite — the point estimate in-distribution, the lower interval
+            bound out-of-distribution.
         cleanliness: Intended-allele probability mass.
         safety: ``1 - worst-affected-ancestry off-target score``.
         simplicity: Reagent simplicity.
         worst_ancestry: The ancestry the safety term was computed against, if
             the report carried ancestry annotation.
+        efficiency_in_distribution: ``False`` if the efficiency prediction was
+            flagged out-of-distribution (and therefore ranked on its lower bound).
+        efficiency_interval: The efficiency prediction's ``(low, high)`` interval,
+            or ``None`` when the candidate is unscored.
         composite: The weighted-sum score that drives the order.
     """
 
@@ -138,6 +156,8 @@ class CandidateScore:
     safety: float
     simplicity: float
     worst_ancestry: str | None
+    efficiency_in_distribution: bool
+    efficiency_interval: tuple[float, float] | None
     composite: float
 
     def as_vector(self) -> tuple[float, float, float, float]:
@@ -147,9 +167,19 @@ class CandidateScore:
     def explain(self) -> str:
         """Return a one-line human-readable score breakdown."""
         worst = f", worst-ancestry={self.worst_ancestry}" if self.worst_ancestry else ""
+        if not self.efficiency_in_distribution and self.efficiency_interval is not None:
+            eff = (
+                f"eff {self.efficiency:.2f} (OOD, ranked on lower bound "
+                f"{self.efficiency_interval[0]:.2f})"
+            )
+        elif self.efficiency_interval is not None:
+            low, high = self.efficiency_interval
+            eff = f"eff {self.efficiency:.2f} [{low:.2f}, {high:.2f}]"
+        else:
+            eff = f"eff {self.efficiency:.2f}"
         return (
             f"score {self.composite:.3f} "
-            f"[eff {self.efficiency:.2f}, clean {self.cleanliness:.2f}, "
+            f"[{eff}, clean {self.cleanliness:.2f}, "
             f"safe {self.safety:.2f}, simple {self.simplicity:.2f}{worst}]"
         )
 
@@ -166,7 +196,7 @@ def score_candidate(
     Returns:
         The candidate's :class:`CandidateScore`.
     """
-    eff = _efficiency(candidate)
+    eff, eff_in_dist, eff_interval = _efficiency(candidate)
     clean = _cleanliness(candidate)
     safe, worst_ancestry = _safety(candidate)
     simple = _simplicity(candidate)
@@ -183,6 +213,8 @@ def score_candidate(
         safety=safe,
         simplicity=simple,
         worst_ancestry=worst_ancestry,
+        efficiency_in_distribution=eff_in_dist,
+        efficiency_interval=eff_interval,
         composite=composite,
     )
 
@@ -257,11 +289,19 @@ def rank_candidates(
         ordered_scores.append(score)
     front = pareto_front(ordered_scores)
     w = weights.normalized()
+    n_ood = sum(1 for s in ordered_scores if not s.efficiency_in_distribution)
+    ood_note = (
+        f" {n_ood} out-of-distribution candidate(s) were ranked on their lower "
+        "efficiency interval bound rather than the point estimate."
+        if n_ood
+        else ""
+    )
     rationale = (
         "Ranked by a weighted sum of four higher-is-better objectives "
         f"(efficiency {w['efficiency']:.2f}, cleanliness {w['cleanliness']:.2f}, "
         f"safety {w['safety']:.2f}, simplicity {w['simplicity']:.2f}); the safety "
-        "term uses the worst-affected ancestry. The Pareto front lists the "
+        "term uses the worst-affected ancestry and the efficiency term is "
+        f"uncertainty-discounted.{ood_note} The Pareto front lists the "
         f"{len(front)} candidate(s) not dominated on all four objectives."
     )
     return RankingOutcome(

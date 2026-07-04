@@ -256,6 +256,16 @@ class TrainedRuleSet3Scorer(WeightGate):
         )
 
 
+def _is_weight_free(embedder: SequenceEmbedder) -> bool:
+    """Return ``True`` if ``embedder`` is the weight-free stub (no trained backbone).
+
+    Unwraps a :class:`~alleleforge.scoring.backbone.CachedEmbedder` so a cached
+    stub is still recognized as weight-free.
+    """
+    inner = getattr(embedder, "_embedder", embedder)
+    return isinstance(inner, StubEmbedder)
+
+
 def _member_weights(index: int, dim: int) -> tuple[float, ...]:
     """Return deterministic per-member projection weights in ``[-1, 1]``."""
     weights: list[float] = []
@@ -319,10 +329,22 @@ class EnsembleEfficiencyScorer:
         return head
 
     def score(self, context: str) -> Prediction[float]:
-        """Return a calibrated ensemble efficiency prediction for ``context``."""
+        """Return an ensemble efficiency prediction for ``context``.
+
+        The raw ensemble interval is not post-hoc calibrated, so the result is
+        ``calibrated=False`` (only a fitted calibrator certifies calibration). On
+        the weight-free stub embedder — content-hashed noise, not a trained
+        backbone — the method is demoted to ``HEURISTIC`` so a heuristic result
+        is not mistaken for a trained-model one.
+        """
         embedding = self._embedder.embed([context])[0]
         heads = [_member_weights(i, len(embedding)) for i in range(self._n_members)]
         ensemble = DeepEnsemble([self._member_head(w) for w in heads])
         result = ensemble.predict(embedding)
         in_dist = self._ood.is_in_distribution(embedding) if self._ood is not None else True
-        return ensemble_prediction(result, in_distribution=in_dist, calibrated=True)
+        method = (
+            UncertaintyMethod.HEURISTIC
+            if _is_weight_free(self._embedder)
+            else UncertaintyMethod.ENSEMBLE
+        )
+        return ensemble_prediction(result, in_distribution=in_dist, method=method)

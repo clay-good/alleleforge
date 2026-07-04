@@ -115,3 +115,52 @@ def test_combine_rejects_mixed_levels() -> None:
 def test_combine_rejects_unknown_reduce() -> None:
     with pytest.raises(ValueError, match="unknown reduce"):
         Prediction.combine([_pred(0.5, 0.4, 0.6)], reduce="median")
+
+
+# -- honesty flags are tamper-resistant ---------------------------------------
+
+
+def test_scorer_cannot_self_declare_calibration() -> None:
+    # A direct construction asserting calibration is coerced to False: only a
+    # fitted calibrator (via calibrated_by) may set the flag.
+    p = _pred(0.5, 0.4, 0.6, calibrated=True)
+    assert p.calibrated is False
+
+
+def test_calibrated_by_is_the_authorized_path() -> None:
+    p = Prediction[float].calibrated_by(
+        value=0.5, interval=(0.4, 0.6), method=UncertaintyMethod.CONFORMAL
+    )
+    assert p.calibrated is True
+
+
+def test_ood_cannot_be_calibrated() -> None:
+    # Even the authorized path cannot certify an out-of-distribution prediction.
+    p = Prediction[float].calibrated_by(
+        value=0.5,
+        interval=(0.4, 0.6),
+        method=UncertaintyMethod.CONFORMAL,
+        in_distribution=False,
+    )
+    assert p.calibrated is False
+
+
+def test_combine_propagates_real_calibration() -> None:
+    a = Prediction[float].calibrated_by(
+        value=0.4, interval=(0.3, 0.5), method=UncertaintyMethod.CONFORMAL
+    )
+    b = Prediction[float].calibrated_by(
+        value=0.6, interval=(0.5, 0.7), method=UncertaintyMethod.CONFORMAL
+    )
+    assert Prediction.combine([a, b]).calibrated is True
+
+
+def test_notes_default_empty_and_carry_through() -> None:
+    assert _pred(0.5, 0.4, 0.6).notes == ()
+    p = Prediction[float].calibrated_by(
+        value=0.5,
+        interval=(0.4, 0.6),
+        method=UncertaintyMethod.CONFORMAL,
+        notes=("hello",),
+    )
+    assert p.notes == ("hello",)

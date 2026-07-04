@@ -328,8 +328,16 @@ print(seq.reverse_complement())        # ambiguity-aware: R↔Y, N↔N → "NRYA
 
 # Every numeric prediction carries a calibrated interval, never a bare float.
 p = Prediction(value=0.72, interval=(0.61, 0.83), method=UncertaintyMethod.ENSEMBLE,
-               in_distribution=True, calibrated=True)
+               in_distribution=True)
 print(p.interval_level)                # 0.80 by default
+print(p.calibrated)                    # False — the flag is unforgeable
+
+# `calibrated=True` is a guarantee, not a self-report: a direct construction
+# asserting it is coerced to False. Only a fitted calibrator can certify it,
+# through the single authorized path, and never for an out-of-distribution input.
+calibrated = Prediction.calibrated_by(value=0.72, interval=(0.61, 0.83),
+                                      method=UncertaintyMethod.CONFORMAL)
+print(calibrated.calibrated)           # True
 ```
 
 **Resolve a variant** — every input form normalizes to one canonical, left-aligned record:
@@ -787,12 +795,15 @@ exposed for users who weight differently.
 
 | Objective | Definition | Default weight |
 |---|---|:---:|
-| Efficiency | calibrated on-target efficiency point estimate | 0.35 |
+| Efficiency | uncertainty-discounted on-target efficiency (point estimate in-distribution, **lower interval bound out-of-distribution**) | 0.35 |
 | Cleanliness | probability mass on the intended allele | 0.30 |
 | Safety | `1 − off-target score` of the **worst-affected ancestry** | 0.30 |
 | Simplicity | reagent simplicity (single sgRNA > pegRNA + nick + motif) | 0.05 |
 
-The safety term uses the **worst-affected ancestry**, never the average, so a guide safe on average but
+The efficiency term is **uncertainty-aware**: an out-of-distribution prediction is ranked on its lower
+interval bound, so a confident-looking OOD candidate cannot outrank an otherwise-equal in-distribution one,
+and each candidate's interval and OOD status appear in its score breakdown. The safety term uses the
+**worst-affected ancestry**, never the average, so a guide safe on average but
 dangerous in one population is correctly down-ranked. The designer **degrades gracefully**: an unavailable
 model, a failing enumeration, or a chemistry that finds nothing is recorded with its reason in the menu
 rationale while the rest of the menu still returns.
