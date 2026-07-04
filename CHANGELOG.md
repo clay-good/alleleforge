@@ -8,6 +8,17 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **The FM-index can re-verify itself against its build-time content hash.**
+  `FMIndex.verify()` reconstructs the indexed text from the persisted BWT via the
+  LF-mapping and re-hashes it, raising `FMIndexIntegrityError` if it no longer matches
+  the `content_hash` recorded at build — an on-demand `O(n)` integrity check so a
+  corrupted or tampered cached index fails closed instead of serving wrong locations.
+  With this, the hash-on-read machinery, required failure-modes, and opt-in cache
+  content-verify, only the maintainer release step of pinning real checkpoint hashes
+  (blocked on the external artifacts) remains in `verify-artifact-integrity`.
+
 ### Fixed
 
 - **The CLI now honors the config file and the declared reference build.** `aforge`

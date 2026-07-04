@@ -18,6 +18,7 @@ larger than :data:`SIZE_WARN_THRESHOLD`.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import mmap
 import warnings
@@ -50,6 +51,10 @@ _SENTINEL = "\x00"
 
 #: Warn before building an index over a sequence larger than this (bases).
 SIZE_WARN_THRESHOLD = 50_000_000
+
+
+class FMIndexIntegrityError(RuntimeError):
+    """Raised when a cached FM-index does not reconstruct to its recorded content hash."""
 
 #: Default checkpoint spacing for the rank (occ) table.
 _DEFAULT_OCC_RATE = 64
@@ -189,8 +194,6 @@ class FMIndex:
                 "on-disk index (hg38 single-strand is several GB)",
                 stacklevel=2,
             )
-        import hashlib
-
         content_hash = hashlib.sha256(s.encode()).hexdigest()
         cache = cls._cache_path(content_hash, cache_dir)
         if rebuild or not (cache / "meta.json").exists():
@@ -328,6 +331,33 @@ class FMIndex:
             r = self.c_table[c] + self._rank(c, r)
             steps += 1
         return (self._sa_samples[r] + steps) % self.length
+
+    def verify(self) -> None:
+        """Re-verify the index against the content hash it was built from.
+
+        Reconstructs the indexed text from the BWT by walking the LF-mapping and
+        re-hashes it, so a cached index whose ``bwt.bin``/tables were corrupted or
+        tampered with on disk fails closed rather than serving wrong locations. An
+        ``O(n)`` on-demand check — not run on every load.
+
+        Raises:
+            FMIndexIntegrityError: If the reconstructed text does not match the
+                ``content_hash`` recorded at build time.
+        """
+        n = self.length
+        chars = [""] * n
+        row = 0  # the sorted rotation beginning with the sentinel
+        for k in range(n):
+            c = self._char_at(row)
+            chars[n - 1 - k] = c
+            row = self.c_table[c] + self._rank(c, row)
+        text = "".join(chars).replace(_SENTINEL, "")
+        actual = hashlib.sha256(text.encode()).hexdigest()
+        if actual != self.content_hash:
+            raise FMIndexIntegrityError(
+                f"FM-index failed integrity check (expected {self.content_hash[:12]}…, "
+                f"reconstructed {actual[:12]}…); the cached index is corrupt"
+            )
 
     # -- queries ------------------------------------------------------------
 

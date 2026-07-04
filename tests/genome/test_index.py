@@ -142,3 +142,24 @@ def test_indexes_sequence_with_n(tmp_path: Path) -> None:
     with FMIndex.build("ACGTNNNNACGT", cache_dir=tmp_path) as idx:
         assert idx.locate("ACGT") == [0, 8]
         assert idx.count("N") == 4
+
+
+def test_verify_passes_on_clean_index(tmp_path: Path) -> None:
+    with FMIndex.build(_TEXT, cache_dir=tmp_path) as idx:
+        idx.verify()  # reconstructs the text from the BWT and matches its content hash
+
+
+def test_verify_detects_corrupted_index(tmp_path: Path) -> None:
+    import hashlib
+
+    from alleleforge.genome.index import FMIndexIntegrityError
+
+    good = FMIndex.build(_TEXT, cache_dir=tmp_path, in_memory=True)
+    good.verify()  # sanity: a fresh index verifies
+    cache = tmp_path / hashlib.sha256(_TEXT.encode()).hexdigest()
+    bwt = (cache / "bwt.bin").read_bytes()
+    # Flip one BWT byte so reconstruction diverges from the recorded content hash.
+    (cache / "bwt.bin").write_bytes((b"C" if bwt[:1] != b"C" else b"A") + bwt[1:])
+    bad = FMIndex.load(cache, in_memory=True)
+    with pytest.raises(FMIndexIntegrityError, match="integrity check"):
+        bad.verify()

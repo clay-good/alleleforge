@@ -43,14 +43,20 @@ hash, the artifact is served as before (there is nothing to verify against).
 
 Task 3.2/3.3 has also shipped: `known_failure_modes` is now a **required**,
 non-empty `ModelCard` field (validated at construction), so every model's audit
-surface is complete and rides into provenance. Still open: pinning real
-`checkpoint_sha256` values for the remaining cards (a maintainer release step that
-requires downloading and hashing the actual artifacts — must be done
-authoritatively, not guessed) and the FM-index `verify()`. Task 4 (content-verify
-the cache on read) has shipped as an opt-in: `ContentAddressedCache(..., verify=True)`
-stores a checksum sidecar with each entry and re-checks the payload bytes on read,
-raising `CacheIntegrityError` on a mismatch; wiring it default-on for the specific
-artifact namespaces is a follow-up.
+surface is complete and rides into provenance. The FM-index `verify()` has shipped:
+it reconstructs the indexed text from the persisted BWT via LF-mapping and re-checks
+it against the content hash recorded at build time, raising `FMIndexIntegrityError`
+on a corrupt cache. Task 4 (content-verify the cache on read) has shipped as an
+opt-in: `ContentAddressedCache(..., verify=True)` stores a checksum sidecar with each
+entry and re-checks the payload bytes on read, raising `CacheIntegrityError` on a
+mismatch; wiring it default-on for the specific artifact namespaces is a follow-up.
+
+The **only** remaining work is task 3.1 — pinning real `checkpoint_sha256` values
+for the remaining cards — and it is **blocked**: it is a maintainer release step
+that requires downloading and hashing the actual (license-gated, external)
+artifacts, which must be done authoritatively, not guessed. Until then the
+hash-on-read machinery verifies whenever a hash *is* pinned, and unpinned cards
+take the (honest, checksum-refusing) `authorize` path.
 
 ## Impact
 
