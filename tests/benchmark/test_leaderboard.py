@@ -137,3 +137,18 @@ def _resign(result: BenchmarkResult) -> str:
     body = result.model_dump(mode="json")
     body.pop("signature", None)
     return content_hash(body)
+
+
+def test_leaderboard_escapes_submitter_markup(fixed_ts: datetime) -> None:
+    # A submitter handle is attacker-controlled text: markup must be escaped in
+    # the HTML board and a pipe must be escaped in the Markdown table.
+    result = _baseline_result("cas9-efficiency", fixed_ts)
+    evil = "<script>alert(1)</script> a|b"
+    lb = Leaderboard()
+    lb.add(Submission(submitter=evil, model=_model(), results=(result,), submitted_at=fixed_ts))
+    html_out = lb.render_html()
+    assert "<script>alert(1)</script>" not in html_out
+    assert "&lt;script&gt;" in html_out
+    md_out = lb.render_markdown()
+    assert "a\\|b" in md_out  # the pipe is escaped so it cannot break the table
+    assert "a|b" not in md_out

@@ -78,7 +78,9 @@ class Split(BaseModel):
 
         Raises:
             SplitIntegrityError: If the split file was edited (membership hash
-                mismatch) or the dataset content drifted (dataset hash mismatch).
+                mismatch), the dataset content drifted (dataset hash mismatch),
+                the folds overlap (train/val/test leakage), or a split id is
+                absent from the dataset.
         """
         if self.membership_hash() != self.split_sha256:
             raise SplitIntegrityError(
@@ -91,6 +93,26 @@ class Split(BaseModel):
                 f"split {self.task}/{self.split_version} expects dataset hash "
                 f"{self.dataset_sha256[:12]}… but {dataset.name} now hashes to "
                 f"{actual[:12]}… — the data changed; a frozen split cannot follow it"
+            )
+        # Leakage is the one thing a benchmark must forbid: the folds SHALL be
+        # pairwise disjoint. A hash-valid file with an id in two folds would
+        # otherwise pass every check and quietly inflate scores.
+        folds = {"train": set(self.train), "val": set(self.val), "test": set(self.test)}
+        for a, b in (("train", "val"), ("train", "test"), ("val", "test")):
+            overlap = folds[a] & folds[b]
+            if overlap:
+                raise SplitIntegrityError(
+                    f"split {self.task}/{self.split_version} leaks {len(overlap)} id(s) between "
+                    f"{a} and {b} (e.g. {sorted(overlap)[0]!r}) — folds must be disjoint"
+                )
+        # Every split id must exist in the dataset; a dangling id would otherwise
+        # surface only later as a KeyError in examples().
+        index = dataset.by_id()
+        missing = [i for i in (*self.train, *self.val, *self.test) if i not in index]
+        if missing:
+            raise SplitIntegrityError(
+                f"split {self.task}/{self.split_version} references {len(missing)} id(s) absent "
+                f"from dataset {dataset.name} (e.g. {missing[0]!r})"
             )
 
     def examples(self, dataset: BenchmarkDataset, fold: str) -> tuple[Example, ...]:

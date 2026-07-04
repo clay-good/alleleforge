@@ -10,6 +10,17 @@ acceptance.
 
 ### Fixed
 
+- **Benchmark split leakage and leaderboard injection are now blocked.**
+  `Split.verify` hashed whatever membership was in a split file but never checked
+  that `train`/`val`/`test` were disjoint or that every id existed in the dataset —
+  so a minted split with an id in both train and test passed every integrity check
+  (the one thing a benchmark most needs to forbid), and a dangling id surfaced only
+  later as a `KeyError`. `verify` now rejects overlapping folds and absent ids up
+  front. Separately, the leaderboard interpolated `model_name`/`submitter`/`task`
+  raw into HTML/Markdown; those cells are now HTML- and Markdown-escaped, so a
+  submitter handle with markup or a `|` can no longer inject into the static board.
+  (First slice of the in-progress `guard-benchmark-integrity`; result/export schema
+  versioning and per-(model, task) uniqueness remain open.)
 - **Prime-editing routing no longer over-promises edits it cannot produce.**
   Routing advertised prime for any non-knockout edit up to 44 bp, but
   `enumerate_prime` templates only a single-base substitution (SNV) — so an

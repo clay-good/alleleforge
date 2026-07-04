@@ -13,6 +13,7 @@ as a first-class result rather than a footnote.
 
 from __future__ import annotations
 
+import html
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
@@ -21,6 +22,23 @@ from alleleforge.benchmark.runner import BenchmarkResult, ModelInfo
 
 #: Metrics for which a lower value is better (everything else ranks descending).
 LOWER_IS_BETTER = frozenset({"kl", "ece"})
+
+
+def _md_cell(value: object) -> str:
+    """Escape a value for a GitHub-flavored Markdown table cell.
+
+    A submitter handle or model name is attacker-controlled text; a raw ``|``
+    breaks the table and raw markup injects into the static board. Escape the
+    pipe and backslash and flatten newlines so a cell can only ever be data.
+    """
+    return (
+        str(value).replace("\\", "\\\\").replace("|", "\\|").replace("\r", " ").replace("\n", " ")
+    )
+
+
+def _html_cell(value: object) -> str:
+    """Escape a value for an HTML table cell (attacker-controlled text)."""
+    return html.escape(str(value))
 
 
 def metric_is_descending(metric: str) -> bool:
@@ -157,14 +175,16 @@ class Leaderboard:
             ranked = self.rankings(task)
             metric = ranked[0].primary_metric
             arrow = "↓" if not metric_is_descending(metric) else "↑"
-            lines.append(f"## {task}")
+            lines.append(f"## {_md_cell(task)}")
             lines.append("")
-            lines.append(f"| Rank | Model | Submitter | {metric} {arrow} | ECE ↓ | Split |")
+            lines.append(
+                f"| Rank | Model | Submitter | {_md_cell(metric)} {arrow} | ECE ↓ | Split |"
+            )
             lines.append("| ---: | :--- | :--- | ---: | ---: | :--- |")
             for i, e in enumerate(ranked, start=1):
                 lines.append(
-                    f"| {i} | {e.model_name} | {e.submitter} | "
-                    f"{e.primary_value:.4f} | {e.ece:.4f} | {e.split_version} |"
+                    f"| {i} | {_md_cell(e.model_name)} | {_md_cell(e.submitter)} | "
+                    f"{e.primary_value:.4f} | {e.ece:.4f} | {_md_cell(e.split_version)} |"
                 )
             lines.append("")
         return "\n".join(lines)
@@ -182,16 +202,17 @@ class Leaderboard:
         for task in self.tasks:
             ranked = self.rankings(task)
             metric = ranked[0].primary_metric
-            parts.append(f"<h2>{task}</h2>")
+            parts.append(f"<h2>{_html_cell(task)}</h2>")
             parts.append(
                 "<table><thead><tr><th>Rank</th><th>Model</th><th>Submitter</th>"
-                f"<th>{metric}</th><th>ECE</th><th>Split</th></tr></thead><tbody>"
+                f"<th>{_html_cell(metric)}</th><th>ECE</th><th>Split</th></tr></thead><tbody>"
             )
             for i, e in enumerate(ranked, start=1):
                 parts.append(
-                    f"<tr><td>{i}</td><td>{e.model_name}</td><td>{e.submitter}</td>"
+                    f"<tr><td>{i}</td><td>{_html_cell(e.model_name)}</td>"
+                    f"<td>{_html_cell(e.submitter)}</td>"
                     f"<td>{e.primary_value:.4f}</td><td>{e.ece:.4f}</td>"
-                    f"<td>{e.split_version}</td></tr>"
+                    f"<td>{_html_cell(e.split_version)}</td></tr>"
                 )
             parts.append("</tbody></table>")
         parts.append("</body></html>")

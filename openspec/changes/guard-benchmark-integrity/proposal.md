@@ -28,6 +28,17 @@ CRISPR-Bench's trustworthiness rests on invariants that are not all checked:
 - **Escape leaderboard cell content** in the HTML and Markdown renders.
 - Enforce **per-(model, task) uniqueness** in a submission.
 
+## Status (partial)
+
+Shipped: split-integrity enforcement (task 1) — `Split.verify` now rejects a
+hash-valid split whose `train`/`val`/`test` folds overlap (leakage) or that
+references an id absent from the dataset (a dangling id that would otherwise
+surface only later as a `KeyError`); and leaderboard cell escaping (task 3.1) —
+`model_name`/`submitter`/`task`/`split_version` are HTML- and Markdown-escaped in
+the renders, closing the injection vector in the static board. Still open: the
+result/export `schema_version` (task 2), per-`(model, task)` uniqueness in a
+submission (task 3.2), and the optional metric hardening (task 4).
+
 ## Impact
 
 - Specs: `benchmark-harness` (ADDED split-disjointness + id-existence; ADDED result schema

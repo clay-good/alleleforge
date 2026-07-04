@@ -71,3 +71,22 @@ def test_load_split_accepts_preloaded_dataset() -> None:
     split, returned = load_split("cas9-efficiency", dataset=ds)
     assert returned is ds
     assert isinstance(split, Split)
+
+
+def test_overlapping_folds_are_rejected() -> None:
+    # A hash-valid split with a train id also in test must be rejected as leakage.
+    split, dataset = load_split("cas9-efficiency")
+    leaky = split.model_copy(update={"test": split.test + (split.train[0],)})
+    leaky = leaky.model_copy(update={"split_sha256": leaky.membership_hash()})
+    with pytest.raises(SplitIntegrityError, match="leaks .* between train and test|disjoint"):
+        leaky.verify(dataset)
+
+
+def test_dangling_split_id_is_rejected() -> None:
+    # A hash-valid split referencing an id absent from the dataset is rejected
+    # up front, not as a later KeyError in examples().
+    split, dataset = load_split("cas9-efficiency")
+    dangling = split.model_copy(update={"test": split.test + ("no-such-id-xyz",)})
+    dangling = dangling.model_copy(update={"split_sha256": dangling.membership_hash()})
+    with pytest.raises(SplitIntegrityError, match="absent from dataset"):
+        dangling.verify(dataset)
