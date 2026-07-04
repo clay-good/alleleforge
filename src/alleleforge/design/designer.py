@@ -46,7 +46,7 @@ from alleleforge.enumerate.base_editor import BASE_EDITORS
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import Chemistry, EditIntent
-from alleleforge.types.provenance import ModelCheckpoint, Provenance
+from alleleforge.types.provenance import DatasetVersion, ModelCheckpoint, Provenance
 from alleleforge.types.variant import Variant
 from alleleforge.variant.effect import EffectPredictor
 from alleleforge.variant.hgvs_adapter import HgvsAdapter
@@ -245,6 +245,7 @@ def design(
         reference_build=reference.build or build,
         timestamp=timestamp,
         models=_collect_model_checkpoints(eligible),
+        datasets=_collect_datasets(reference, gnomad, clinvar),
         config_snapshot={
             "intent": intent.value,
             "weights": outcome.weights,
@@ -321,6 +322,29 @@ def _run_base_editors(
         ),
         notes,
     )
+
+
+def _collect_datasets(
+    reference: ReferenceGenome,
+    gnomad: GnomadDB | None,
+    clinvar: ClinVarLookup | None,
+) -> tuple[DatasetVersion, ...]:
+    """Return the deduped dataset versions the run actually consumed.
+
+    The dataset-capture helpers exist but were never wired into the design path,
+    so a menu's provenance under-reported its own inputs. This mirrors
+    :func:`_collect_model_checkpoints` for datasets: the reference build's
+    :class:`DatasetVersion` (present when the reference was resolved through a
+    pinned build) is recorded, and gnomAD/ClinVar are recorded when they carry a
+    version descriptor, so no result silently omits a dataset it read. Deduped by
+    ``(name, version)``.
+    """
+    seen: dict[tuple[str, str], DatasetVersion] = {}
+    for source in (reference, gnomad, clinvar):
+        version = getattr(source, "dataset_version", None)
+        if isinstance(version, DatasetVersion):
+            seen.setdefault((version.name, version.version), version)
+    return tuple(seen.values())
 
 
 def _collect_model_checkpoints(eligible: Sequence[Chemistry]) -> tuple[ModelCheckpoint, ...]:

@@ -1,9 +1,11 @@
 # Tasks
 
 ## 1. Auto-collect datasets and tools
-- [ ] 1.1 Collect the reference build and every accessed dataset version into
+- [x] 1.1 Collect the reference build and every accessed dataset version into
       `Provenance.datasets`/`tools` in the design path, mirroring `_collect_model_checkpoints`.
-- [ ] 1.2 Test: a design menu's provenance lists its reference and dataset versions.
+      *(Reference `DatasetVersion` wired in via `_collect_datasets`; gnomAD/ClinVar are
+      recorded once those classes carry a version descriptor.)*
+- [x] 1.2 Test: a design menu's provenance lists its reference and dataset versions.
 
 ## 2. Make the seed load-bearing
 - [ ] 2.1 Create a single run-scoped RNG seeded from `cfg.seed` and thread it into every

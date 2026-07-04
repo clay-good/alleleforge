@@ -45,6 +45,22 @@ def test_end_to_end_populated_menu(make_reference: MakeRef) -> None:
     assert {Chemistry.BASE_ABE} & {c.chemistry for c in menu.candidates}
 
 
+def test_provenance_records_reference_dataset_version(make_reference: MakeRef) -> None:
+    # A menu's provenance must not under-report its inputs: when the reference
+    # carries a pinned build descriptor, it is recorded in provenance.datasets.
+    from alleleforge.types.provenance import DatasetVersion
+
+    ref = _abe_ref(make_reference)
+    ref.dataset_version = DatasetVersion(
+        name="hg38", version="GRCh38.p14", source_url="http://x", citation="Ensembl"
+    )
+    rv = _resolve(ref, 25, "G")
+    menu = design(rv, reference=ref, intent=EditIntent.INSTALL)
+    assert menu.provenance is not None
+    recorded = {(d.name, d.version) for d in menu.provenance.datasets}
+    assert ("hg38", "GRCh38.p14") in recorded
+
+
 def test_completeness_property(make_reference: MakeRef) -> None:
     # Every candidate has efficiency + outcome, and either an off-target report
     # or an explicit reason it lacks one (surfaced in flags).

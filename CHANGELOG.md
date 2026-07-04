@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **Design provenance records the datasets it consumed.** `Provenance` defaulted
+  `datasets`/`tools` to empty and the designer populated only `models`, so a menu's
+  provenance under-reported its own inputs even though the dataset-capture helpers
+  existed — they were never wired in. The design path now collects the reference
+  build's `DatasetVersion` (and gnomAD/ClinVar once they carry a version) into
+  `Provenance.datasets` via `_collect_datasets`, mirroring `_collect_model_checkpoints`,
+  so a result no longer silently omits a dataset it read. (First slice of the
+  in-progress `complete-provenance`; the load-bearing seed, full config snapshot,
+  CLI/web config-file honoring, and `aforge verify` remain open.)
 - **Cached artifacts are re-verified on every load (hash-on-read).** The
   consent + license + checksum gate was bypassed exactly where tampering matters —
   on cache hits: `ModelRegistry.checkpoint`, `DatasetRegistry.resolve`, and
