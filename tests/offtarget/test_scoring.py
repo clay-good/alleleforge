@@ -118,3 +118,29 @@ def test_scorer_classes_dispatch() -> None:
     assert Cas12aCfdScorer().score(_SP, _SP, "TTTA") == 1.0
     assert CfdScorer().name == "CFD"
     assert MitScorer().method.value == "mit"
+
+
+# -- scoring-time weight validation -------------------------------------------
+
+
+def test_out_of_range_mismatch_weight_caught_at_scoring_time() -> None:
+    # A supplied weight above 1.0 would drive the score out of [0, 1] and only
+    # fail later in the OffTargetSite validator; catch it here with a clear message.
+    sp = _sub(_SP, 5, "A")  # a real A->C mismatch at position 5
+    proto = _sub(sp, 5, "C")
+    with pytest.raises(ValueError, match=r"CFD mismatch .* outside \[0, 1\]"):
+        cfd_score(sp, proto, "TGG", mismatch_weights={("A", "C", 5): 1.3})
+
+
+def test_negative_mismatch_weight_rejected() -> None:
+    sp = _sub(_SP, 5, "A")
+    proto = _sub(sp, 5, "C")
+    with pytest.raises(ValueError, match=r"outside \[0, 1\]"):
+        cfd_score(sp, proto, "TGG", mismatch_weights={("A", "C", 5): -0.1})
+
+
+def test_valid_injected_weight_still_scores() -> None:
+    sp = _sub(_SP, 5, "A")
+    proto = _sub(sp, 5, "C")
+    score = cfd_score(sp, proto, "TGG", mismatch_weights={("A", "C", 5): 0.5})
+    assert 0.0 <= score <= 1.0

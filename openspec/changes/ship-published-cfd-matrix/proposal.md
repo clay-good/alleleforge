@@ -29,6 +29,21 @@ Cas12a scorer is an explicitly-unvalidated analog (`scoring.py:186-215`).
 - Mark the Cas12a scorer's analog status in output so it is not mistaken for a validated
   risk signal.
 
+## Status (partial)
+
+Task 2 (clamp/validate scores at scoring time) has shipped: `cfd_score` /
+`cas12a_cfd_score` now reject an out-of-range mismatch/PAM weight with a clear
+scoring-time error naming the offending weight, instead of letting a stray value
+produce a `> 1.0` score that aborts later in the `OffTargetSite` validator.
+
+Tasks 1 (default the published matrix) and 3 (matrix/scorer provenance in the
+report) remain **open and are blocked on data**: the authentic Doench 2016 CFD
+mismatch matrix is distributed only as a binary pickle in the upstream tools, and
+it must be authoritatively sourced and cross-verified before being vendored — it
+must never be fabricated or approximated and then labeled "published" (that would
+violate the project's honesty principle). The default therefore stays the clearly
+labeled transparent approximation until the real matrix can be verified in.
+
 ## Impact
 
 - Specs: `offtarget-scoring` (MODIFIED default matrix + score clamping; ADDED matrix

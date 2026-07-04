@@ -8,9 +8,9 @@
 - [ ] 1.3 Test: default CFD reproduces published example scores within tolerance.
 
 ## 2. Clamp/validate scores at scoring time
-- [ ] 2.1 Validate/clamp each computed score into `[0, 1]` inside the scorer with a clear
+- [x] 2.1 Validate/clamp each computed score into `[0, 1]` inside the scorer with a clear
       error/warning, before the `OffTargetSite` validator.
-- [ ] 2.2 Test: an injected out-of-range weight is caught at scoring time, not as a
+- [x] 2.2 Test: an injected out-of-range weight is caught at scoring time, not as a
       downstream abort.
 
 ## 3. Record matrix/scorer provenance

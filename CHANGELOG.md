@@ -669,6 +669,18 @@ acceptance.
   Docker/composite actions (`gh-action-pypi-publish`, `dtolnay/rust-toolchain`) are
   unaffected by the Node deprecation.
 
+### Fixed
+
+- **Out-of-range CFD/Cas12a mismatch weights are caught at scoring time.** An
+  injected mismatch- or PAM-weight table with a value outside `[0, 1]` previously
+  produced a specificity score `> 1.0` that only failed downstream, as an abort in
+  the `OffTargetSite` validator. `cfd_score` / `cas12a_cfd_score` now validate each
+  weight as it is applied and raise a clear `ValueError` naming the offending weight
+  (base substitution and position), so a bad table is a scoring-time error, not a
+  late crash. (Part of the in-progress `ship-published-cfd-matrix`; vendoring the
+  authentic Doench 2016 matrix as the default remains blocked on an authoritatively
+  sourced, cross-verified copy — it must not be fabricated.)
+
 ### Added
 
 - **`aforge offtarget` and `POST /api/offtarget` now expose every engine knob.**

@@ -80,6 +80,23 @@ CFD_PAM_WEIGHTS: dict[str, float] = {
 MismatchWeights = dict[tuple[str, str, int], float]
 
 
+def _checked_weight(weight: float, *, context: str) -> float:
+    """Return ``weight`` if it is a valid retained-activity in ``[0, 1]``.
+
+    A CFD/analog weight is a retained-activity fraction, so it must lie in
+    ``[0, 1]``. A supplied table with an out-of-range value would otherwise drive
+    a specificity score outside ``[0, 1]`` that only fails later, in the
+    :class:`~alleleforge.types.offtarget.OffTargetSite` validator. Catching it
+    here names the offending weight at scoring time.
+
+    Raises:
+        ValueError: If ``weight`` is outside ``[0, 1]``.
+    """
+    if not 0.0 <= weight <= 1.0:
+        raise ValueError(f"{context} weight {weight} is outside [0, 1]")
+    return weight
+
+
 def _default_mismatch_weight(
     spacer_base: str, target_base: str, position: int, length: int
 ) -> float:
@@ -136,13 +153,15 @@ def cfd_score(
         raise ValueError("spacer and protospacer must be the same length for CFD")
     spacer, protospacer = spacer.upper(), protospacer.upper()
     pam_table = pam_weights if pam_weights is not None else CFD_PAM_WEIGHTS
-    score = pam_table.get(_normalize_pam(pam_sequence), 0.0)
+    score = _checked_weight(pam_table.get(_normalize_pam(pam_sequence), 0.0), context="CFD PAM")
     length = len(spacer)
     for i, (s, t) in enumerate(zip(spacer, protospacer, strict=True)):
         if s == t:
             continue
         if mismatch_weights is not None:
-            score *= mismatch_weights.get((s, t, i), 0.0)
+            score *= _checked_weight(
+                mismatch_weights.get((s, t, i), 0.0), context=f"CFD mismatch ({s}->{t} @ {i})"
+            )
         else:
             score *= _default_mismatch_weight(s, t, i, length)
     return score
@@ -209,7 +228,10 @@ def cas12a_cfd_score(
         if s == t:
             continue
         if mismatch_weights is not None:
-            score *= mismatch_weights.get((s, t, i), 0.0)
+            score *= _checked_weight(
+                mismatch_weights.get((s, t, i), 0.0),
+                context=f"Cas12a CFD mismatch ({s}->{t} @ {i})",
+            )
         else:  # mirror the seed to the 5' end: position 0 is PAM-proximal
             score *= _default_mismatch_weight(s, t, length - 1 - i, length)
     return score
