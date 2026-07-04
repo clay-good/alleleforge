@@ -76,3 +76,14 @@ def test_non_editable_variant_empty(make_reference: MakeRef) -> None:
     ref = make_reference({"chr2": _context()})
     rv = resolve("chr2:71:ATA>A", reference=ref)  # not a single-position edit
     assert design_prime(rv, EditIntent.CORRECT, reference=ref) == []
+
+
+def test_pol3_gc_and_5prime_g_annotated(make_reference: MakeRef) -> None:
+    # The AT-heavy synthetic context yields a low-GC protospacer that does not
+    # start with G, so both Pol-III caveats are surfaced as inspectable flags
+    # (annotations, not a silent drop).
+    top = _design(make_reference)[0]
+    assert any(f.startswith("gc-out-of-band:") for f in top.flags)
+    assert top.pegrna is not None
+    spacer = str(top.pegrna.spacer.sequence).upper()
+    assert ("no-5prime-g" in top.flags) == (not spacer.startswith("G"))

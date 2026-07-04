@@ -11,8 +11,9 @@
 ## 2. Pol-III constraints as inspectable reasons
 - [x] 2.1 Filter spacers with a `TTTT` terminator and enforce/annotate the 5'-G start and a
       spacer-GC band; expose each rejection as a stated reason. *(TTTT-terminator filter
-      shipped — a spacer that cannot be transcribed is never enumerated; the 5'-G/GC-band
-      annotation and per-candidate reason surfacing remain open.)*
+      drops untranscribable pegRNAs; the 5'-G-start and out-of-band-GC caveats are surfaced
+      as candidate flags — `no-5prime-g`, `gc-out-of-band:<frac>`. A per-candidate
+      rejection-reason channel through enumeration remains a follow-up.)*
 - [x] 2.2 Test: a `TTTT`-containing spacer is rejected with its reason.
 
 ## 3. Separate a defect from an empty result

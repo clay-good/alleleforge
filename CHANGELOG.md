@@ -10,6 +10,11 @@ acceptance.
 
 ### Added
 
+- **pegRNA candidates flag Pol-III transcription caveats.** A prime candidate whose
+  spacer does not start with G (needs a prepended U6-start G) or whose GC content
+  falls outside the 0.30–0.80 band now carries an inspectable `no-5prime-g` /
+  `gc-out-of-band:<frac>` flag, surfacing the caveat as an annotation rather than
+  silent absence. (Part of the in-progress `align-prime-coverage`, task 2.)
 - **The CLI warns on unknown config-file keys.** `aforge --config` silently ignored
   any key it didn't consume, so a typo like `maf_treshold` vanished without effect.
   `_load_config` now warns (to stderr) on any config key that is neither a `Settings`

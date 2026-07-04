@@ -63,6 +63,11 @@ def _merge_offtarget(peg: OffTargetReport, ngrna: OffTargetReport | None) -> Off
     )
 
 
+#: Spacer GC band (Pol III): outside it, U6 transcription and synthesis suffer, so
+#: the spacer is annotated (not dropped) as an inspectable quality caveat.
+_GC_BAND = (0.30, 0.80)
+
+
 def _flags(pegrna: PegRNA, efficiency: Prediction[float], run_offtarget: bool) -> tuple[str, ...]:
     """Return free-form annotations for a prime candidate."""
     flags: list[str] = []
@@ -74,6 +79,15 @@ def _flags(pegrna: PegRNA, efficiency: Prediction[float], run_offtarget: bool) -
         flags.append("both-nicks-searched")
     if not efficiency.in_distribution:
         flags.append("ood")
+    # Pol III transcription caveats, surfaced as inspectable annotations rather than
+    # silent absence: a spacer not starting with G needs a prepended U6-start G, and
+    # an out-of-band GC content hurts transcription/synthesis.
+    spacer = str(pegrna.spacer.sequence).upper()
+    if spacer and not spacer.startswith("G"):
+        flags.append("no-5prime-g")
+    gc = sum(b in "GC" for b in spacer) / len(spacer) if spacer else 0.0
+    if not _GC_BAND[0] <= gc <= _GC_BAND[1]:
+        flags.append(f"gc-out-of-band:{gc:.2f}")
     return tuple(flags)
 
 

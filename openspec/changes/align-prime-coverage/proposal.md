@@ -41,8 +41,11 @@ enumerated). Task 3 has also shipped: `_run_chemistry` and `_design_one` now cat
 only *expected* design-failure exceptions (missing model, bad input, absent optional
 dependency) as graceful "skipped"/error records, and tag any *unexpected* exception
 type as a defect ("ERROR — unexpected …") so a genuine bug is no longer masked as
-"no design". Still open: the 5'-G-start / GC-band annotation and per-candidate
-rejection-reason surfacing (rest of task 2).
+"no design". The 5'-G-start and GC-band caveats now surface as inspectable
+candidate flags (`no-5prime-g`, `gc-out-of-band:<frac>`) rather than silent
+absence. The only remaining item is a per-candidate rejection-reason channel
+threaded out of enumeration (so a *dropped* candidate can state its reason), a
+structural follow-up.
 
 ## Impact
 
