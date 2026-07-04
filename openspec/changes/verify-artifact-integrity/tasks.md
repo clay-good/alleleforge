@@ -20,9 +20,11 @@
 - [x] 3.3 Test: a card missing failure modes is rejected.
 
 ## 4. Content-verify the cache on read
-- [ ] 4.1 Store a checksum with each cache entry and re-check payload bytes on read
-      (default-on for artifact namespaces).
-- [ ] 4.2 Test: a corrupted cache entry is detected on read.
+- [x] 4.1 Store a checksum with each cache entry and re-check payload bytes on read
+      (default-on for artifact namespaces). *(Mechanism ships as opt-in
+      `ContentAddressedCache(..., verify=True)`; wiring it default-on for the specific
+      artifact namespaces is a follow-up.)*
+- [x] 4.2 Test: a corrupted cache entry is detected on read.
 
 ## 5. Reconcile
 - [ ] 5.1 `make ci` green; weight-free path unaffected (no download in CI).

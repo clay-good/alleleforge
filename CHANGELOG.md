@@ -8,6 +8,16 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **The content-addressed cache can verify payload integrity on read.**
+  `ContentAddressedCache` served whatever bytes were on disk, so a corrupted or
+  externally-modified entry was returned as-is. It now takes an opt-in
+  `verify=True`: each entry gets a checksum sidecar on write, and reads re-hash the
+  payload and raise `CacheIntegrityError` on a mismatch. Off by default (no sidecars,
+  no overhead), so existing caches are unchanged. (Part of the in-progress
+  `verify-artifact-integrity`, task 4.)
+
 ### Fixed
 
 - **A code defect in a design vertical is no longer masked as "no design".** The

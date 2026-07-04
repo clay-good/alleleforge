@@ -56,3 +56,28 @@ def test_survives_a_fresh_cache_object(tmp_path: Path) -> None:
     key = hash_parts("persisted")
     ContentAddressedCache("ns", root=tmp_path).put_text(key, "kept")
     assert ContentAddressedCache("ns", root=tmp_path).get_text(key) == "kept"
+
+
+def test_verify_cache_detects_corrupted_entry(tmp_path: Path) -> None:
+    import pytest
+
+    from alleleforge.cache import CacheIntegrityError, ContentAddressedCache
+
+    cache = ContentAddressedCache("artifacts", root=tmp_path, verify=True)
+    digest = hash_parts("artifact-key")
+    cache.put_bytes(digest, b"the-real-bytes")
+    assert cache.get_bytes(digest) == b"the-real-bytes"  # round-trips
+    assert len(cache) == 1  # the checksum sidecar is not counted as an entry
+
+    # Corrupt the stored payload on disk; the next read must fail closed.
+    path = cache._path(digest)
+    path.write_bytes(b"tampered-bytes")
+    with pytest.raises(CacheIntegrityError, match="integrity check"):
+        cache.get_bytes(digest)
+
+
+def test_unverified_cache_does_not_write_sidecars(tmp_path: Path) -> None:
+    cache = ContentAddressedCache("plain", root=tmp_path)  # verify=False (default)
+    cache.put_bytes(hash_parts("k"), b"v")
+    assert cache.get_bytes(hash_parts("k")) == b"v"
+    assert not list(tmp_path.rglob("*.sum"))  # no sidecars written

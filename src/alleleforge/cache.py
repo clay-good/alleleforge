@@ -33,6 +33,13 @@ from alleleforge.config import get_settings
 #: Bump to invalidate every cache after a breaking change to a stored format.
 CACHE_FORMAT_VERSION = "1"
 
+#: Suffix of the per-entry checksum sidecar written when a cache verifies on read.
+_SUM_SUFFIX = ".sum"
+
+
+class CacheIntegrityError(RuntimeError):
+    """Raised when a verified cache entry's bytes do not match its stored checksum."""
+
 
 def hash_parts(*parts: Any) -> str:
     """Return a stable SHA-256 hex digest over ``parts``.
@@ -55,10 +62,22 @@ class ContentAddressedCache:
     caches never collide.
     """
 
-    def __init__(self, namespace: str, *, root: str | Path | None = None) -> None:
-        """Open the cache for ``namespace`` under ``root`` (default: the cache dir)."""
+    def __init__(
+        self, namespace: str, *, root: str | Path | None = None, verify: bool = False
+    ) -> None:
+        """Open the cache for ``namespace`` under ``root`` (default: the cache dir).
+
+        Args:
+            namespace: A logical namespace so unrelated caches never collide.
+            root: Override the cache root (default: the settings cache dir).
+            verify: When ``True``, store a checksum sidecar with each entry and
+                re-check the payload bytes against it on read, raising
+                :class:`CacheIntegrityError` on a mismatch — for namespaces holding
+                artifacts a corrupted-on-disk entry must never be served silently.
+        """
         base = Path(root) if root is not None else get_settings().cache_dir
         self.root = base / "caches" / namespace
+        self._verify = verify
 
     def _path(self, digest: str) -> Path:
         """Return the sharded on-disk path for ``digest``."""
@@ -69,9 +88,28 @@ class ContentAddressedCache:
         return self._path(digest).exists()
 
     def get_bytes(self, digest: str) -> bytes | None:
-        """Return the cached bytes for ``digest``, or ``None`` on a miss."""
+        """Return the cached bytes for ``digest``, or ``None`` on a miss.
+
+        Raises:
+            CacheIntegrityError: If this cache verifies on read and the entry's
+                bytes do not match its stored checksum (on-disk corruption or
+                tampering).
+        """
         path = self._path(digest)
-        return path.read_bytes() if path.exists() else None
+        if not path.exists():
+            return None
+        data = path.read_bytes()
+        if self._verify:
+            sidecar = path.with_name(path.name + _SUM_SUFFIX)
+            if sidecar.exists():
+                expected = sidecar.read_text().strip()
+                actual = hashlib.sha256(data).hexdigest()
+                if actual != expected:
+                    raise CacheIntegrityError(
+                        f"cache entry {digest} failed integrity check "
+                        f"(expected {expected[:12]}…, got {actual[:12]}…)"
+                    )
+        return data
 
     def put_bytes(self, digest: str, data: bytes) -> None:
         """Write ``data`` for ``digest`` atomically (temp file then rename)."""
@@ -81,6 +119,9 @@ class ContentAddressedCache:
         tmp = path.with_name(f"{path.name}.{os.getpid()}.{id(data)}.tmp")
         tmp.write_bytes(data)
         tmp.replace(path)  # atomic on POSIX and Windows
+        if self._verify:
+            sidecar = path.with_name(path.name + _SUM_SUFFIX)
+            sidecar.write_text(hashlib.sha256(data).hexdigest())
 
     def get_text(self, digest: str) -> str | None:
         """Return the cached UTF-8 text for ``digest``, or ``None``."""
@@ -104,4 +145,8 @@ class ContentAddressedCache:
         """Return the number of cached entries (scans the namespace)."""
         if not self.root.exists():
             return 0
-        return sum(1 for p in self.root.rglob("*") if p.is_file() and not p.name.endswith(".tmp"))
+        return sum(
+            1
+            for p in self.root.rglob("*")
+            if p.is_file() and not p.name.endswith((".tmp", _SUM_SUFFIX))
+        )
