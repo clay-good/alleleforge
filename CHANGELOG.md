@@ -10,6 +10,20 @@ acceptance.
 
 ### Added
 
+- **Wet-lab oligo path is now alphabet-, scaffold-, and boundary-safe**
+  (`validate-oligo-alphabet`). The oligo module emits the exact duplexes a bench
+  scientist orders, so a wrong sequence wastes reagents. `revcomp` used
+  `str.maketrans` and silently passed any non-`ACGTN` character through
+  untranslated (an RNA `U`, an IUPAC code, stray whitespace) — a mis-complemented
+  antisense oligo that could still round-trip because both strands shared the bad
+  complement. Now: (1) `revcomp` and every oligo-construction input are validated
+  against the `ACGTN` DNA alphabet and raise a clear error naming the offending
+  character; (2) the pegRNA scaffold is verified against the canonical SpCas9
+  scaffold constant, so a wrong or empty scaffold is caught rather than shipped;
+  (3) the pegRNA extension carries an RTT/PBS boundary check that compares the
+  whole extension body to `RTT + PBS` (independent of the stored slice length), so
+  a mis-split extension is detected, plus a `component_lengths` annotation. Valid
+  DNA inputs are unchanged.
 - **Bulletproofed population/haplotype off-target nomination** — the tool's
   differentiated capability — on four correctness fronts (`bulletproof-offtarget-nomination`):
   (1) **Best alignment per anchor.** Each PAM anchor now reports the *edit-minimal*
