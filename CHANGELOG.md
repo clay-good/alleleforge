@@ -10,6 +10,23 @@ acceptance.
 
 ### Added
 
+- **Bulletproofed population/haplotype off-target nomination** — the tool's
+  differentiated capability — on four correctness fronts (`bulletproof-offtarget-nomination`):
+  (1) **Best alignment per anchor.** Each PAM anchor now reports the *edit-minimal*
+  alignment across ungapped / single-DNA-bulge / single-RNA-bulge candidates, with a
+  deterministic tie-break, instead of the first in-budget one found — so a bulged
+  near-perfect match (higher CFD, more dangerous) is never under-scored behind a
+  many-mismatch ungapped alignment. (2) **Indel-aware coordinates.** When a population,
+  haplotype, or patient variant changes the window length, hits are scanned in
+  alt-local coordinates and *lifted back* to true genomic coordinates through the
+  indel, so insertions and deletions place downstream sites correctly (a capability
+  CRISPOR and Cas-OFFinder lack); the equal-length (SNV) path is byte-for-byte
+  unchanged. (3) **Partial haplotype application.** One ref-clashing variant no longer
+  discards a whole haplotype's nominations — the non-clashing subset is applied and the
+  skipped variants are recorded on the site provenance (`SiteProvenance.skipped_variants`).
+  (4) **Unified dirty-input handling.** Bases outside `ACGTN` are folded to `N` up front
+  so the linear scan and the FM-index/native path agree — both skip an unexpected base
+  rather than one silently mis-scoring while the other raises.
 - **Honest-uncertainty contract, enforced end to end.** The `calibrated` and
   out-of-distribution flags are no longer honor-system, and ranking now acts on
   uncertainty instead of ignoring it (`harden-uncertainty-honesty`). Four hardenings:
