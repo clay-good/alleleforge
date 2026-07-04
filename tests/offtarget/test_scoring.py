@@ -144,3 +144,21 @@ def test_valid_injected_weight_still_scores() -> None:
     proto = _sub(sp, 5, "C")
     score = cfd_score(sp, proto, "TGG", mismatch_weights={("A", "C", 5): 0.5})
     assert 0.0 <= score <= 1.0
+
+
+# -- scorer matrix identity (honest labeling) ---------------------------------
+
+
+def test_cfd_scorer_reports_approximation_matrix() -> None:
+    assert CfdScorer().matrix == "doench-2016-seed-tolerance-approximation"
+    # injecting a published table changes the recorded identity
+    assert CfdScorer({("A", "C", 5): 0.5}).matrix == "custom-mismatch-matrix"
+    assert CfdScorer(matrix="doench-2016-published").matrix == "doench-2016-published"
+
+
+def test_cas12a_scorer_matrix_is_flagged_unvalidated() -> None:
+    assert "unvalidated" in Cas12aCfdScorer().matrix
+
+
+def test_mit_scorer_matrix_identity() -> None:
+    assert MitScorer().matrix == "hsu-2013-position-weights"

@@ -39,6 +39,15 @@ def test_reference_on_target(make_reference: MakeRef) -> None:
     assert report.reference_build == "hg38"
 
 
+def test_report_names_scorer_and_matrix(make_reference: MakeRef) -> None:
+    # The report must say which scorer + weight source produced its scores, so a
+    # consumer can tell the default CFD approximation from the published matrix.
+    ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    report = search(SPACER, NGG, reference=ref)
+    assert report.scorer == "CFD"
+    assert report.score_matrix == "doench-2016-seed-tolerance-approximation"
+
+
 def test_fm_index_reference_path_matches_linear(make_reference: MakeRef) -> None:
     """Forcing the FM-index reference path yields the same report as the scan."""
     ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD + SPACER[:5] + "CCC" + PAD})

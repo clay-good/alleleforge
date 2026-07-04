@@ -664,6 +664,8 @@ def offtarget(
     payload = {
         "spacer": report.spacer,
         "pam": report.pam,
+        "scorer": report.scorer,
+        "score_matrix": report.score_matrix,
         "n_sites": report.n_sites,
         "worst_score": round(report.worst_score(), 4),
         "specificity": round(report.specificity_score(), 4),
@@ -672,9 +674,13 @@ def offtarget(
         },
         "sites": sites,
     }
+    scorer_note = (
+        f" [scorer {report.scorer}, matrix {report.score_matrix}]" if report.scorer else ""
+    )
     human_lines = [
         f"spacer {report.spacer} / PAM {report.pam}: {report.n_sites} site(s), "
-        f"worst score {report.worst_score():.3f}, specificity {report.specificity_score():.3f}"
+        f"worst score {report.worst_score():.3f}, "
+        f"specificity {report.specificity_score():.3f}{scorer_note}"
     ]
     for s in sites:
         mit = f"  mit={s['mit_score']}" if s["mit_score"] is not None else ""

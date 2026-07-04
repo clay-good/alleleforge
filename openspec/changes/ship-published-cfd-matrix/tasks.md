@@ -14,10 +14,10 @@
       downstream abort.
 
 ## 3. Record matrix/scorer provenance
-- [ ] 3.1 Tag each score (or the report) with the scorer name and matrix identity.
-- [ ] 3.2 Surface the scorer + matrix in the off-target report render.
-- [ ] 3.3 Mark the Cas12a analog scorer's unvalidated status in output.
+- [x] 3.1 Tag each score (or the report) with the scorer name and matrix identity.
+- [x] 3.2 Surface the scorer + matrix in the off-target report render.
+- [x] 3.3 Mark the Cas12a analog scorer's unvalidated status in output.
 
 ## 4. Reconcile
-- [ ] 4.1 Regenerate off-target and reproduce goldens; note the score change in CHANGELOG.
-- [ ] 4.2 `make ci` green.
+- [x] 4.1 Regenerate off-target and reproduce goldens; note the score change in CHANGELOG.
+- [x] 4.2 `make ci` green.

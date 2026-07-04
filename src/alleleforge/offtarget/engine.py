@@ -319,6 +319,8 @@ def search(
         sites=sites,
         mismatch_threshold=mismatches,
         reference_build=reference.build or "hg38",
+        scorer=primary.name,
+        score_matrix=getattr(primary, "matrix", None),
     )
     if cache is not None and signature is not None:
         cache.put(signature, report)

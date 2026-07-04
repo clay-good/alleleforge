@@ -243,6 +243,10 @@ class OffTargetScorer(Protocol):
 
     name: str
     method: ScoreMethod
+    #: A human-readable identity of the weight source (which matrix/table produced
+    #: the scores), recorded in the report so a consumer can tell whether they are
+    #: reading published-CFD or an approximation, not just a bare number.
+    matrix: str
 
     def score(self, spacer: str, protospacer: str, pam_sequence: str) -> float:
         """Return the specificity score in ``[0, 1]`` for one candidate."""
@@ -254,10 +258,29 @@ class CfdScorer:
 
     name = "CFD"
     method = ScoreMethod.CFD
+    #: The default per-position mismatch model: the transparent seed-tolerance
+    #: approximation, not the published Doench 2016 matrix (which drops in via
+    #: ``mismatch_weights``). Named honestly so a score is never mistaken for CFD.
+    DEFAULT_MATRIX = "doench-2016-seed-tolerance-approximation"
 
-    def __init__(self, mismatch_weights: MismatchWeights | None = None) -> None:
-        """Optionally bind the published Doench mismatch-weight table."""
+    def __init__(
+        self, mismatch_weights: MismatchWeights | None = None, *, matrix: str | None = None
+    ) -> None:
+        """Optionally bind the published Doench mismatch-weight table.
+
+        Args:
+            mismatch_weights: A published ``(spacer, target, pos) -> weight`` table;
+                the transparent approximation is used when omitted.
+            matrix: Override the recorded matrix-identity label (e.g. name the
+                published table when you inject it).
+        """
         self._mismatch_weights = mismatch_weights
+        if matrix is not None:
+            self.matrix = matrix
+        elif mismatch_weights is None:
+            self.matrix = self.DEFAULT_MATRIX
+        else:
+            self.matrix = "custom-mismatch-matrix"
 
     def score(self, spacer: str, protospacer: str, pam_sequence: str) -> float:
         """Return the CFD score for one candidate."""
@@ -269,6 +292,7 @@ class MitScorer:
 
     name = "MIT"
     method = ScoreMethod.MIT
+    matrix = "hsu-2013-position-weights"
 
     def score(self, spacer: str, protospacer: str, pam_sequence: str) -> float:
         """Return the MIT score for one candidate (PAM is not used)."""
@@ -280,10 +304,22 @@ class Cas12aCfdScorer:
 
     name = "CFD-Cas12a"
     method = ScoreMethod.CFD_CAS12A
+    #: The Cas12a analog is documented as *unvalidated* pending a Cas12a-specific
+    #: published matrix; the label carries that caveat into the report so the score
+    #: is not mistaken for a validated Cas12a risk signal.
+    DEFAULT_MATRIX = "cas12a-analog-approximation (unvalidated)"
 
-    def __init__(self, mismatch_weights: MismatchWeights | None = None) -> None:
+    def __init__(
+        self, mismatch_weights: MismatchWeights | None = None, *, matrix: str | None = None
+    ) -> None:
         """Optionally bind a Cas12a mismatch-weight table."""
         self._mismatch_weights = mismatch_weights
+        if matrix is not None:
+            self.matrix = matrix
+        elif mismatch_weights is None:
+            self.matrix = self.DEFAULT_MATRIX
+        else:
+            self.matrix = "custom-mismatch-matrix (unvalidated cas12a analog)"
 
     def score(self, spacer: str, protospacer: str, pam_sequence: str) -> float:
         """Return the Cas12a CFD-analog score for one candidate."""

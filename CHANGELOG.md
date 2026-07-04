@@ -10,6 +10,16 @@ acceptance.
 
 ### Added
 
+- **Off-target reports now say which scorer and weight matrix produced the scores.**
+  CFD is the number bench scientists compare against CRISPOR, but nothing in the
+  output said whether a score came from the published Doench matrix or the shipped
+  transparent approximation. `CfdScorer`/`Cas12aCfdScorer` now expose a `matrix`
+  identity, `OffTargetReport` carries `scorer`/`score_matrix`, the engine populates
+  them, and `aforge offtarget` surfaces them — so the default is honestly labeled
+  `doench-2016-seed-tolerance-approximation` and the Cas12a analog is flagged
+  `unvalidated`. (Part of the in-progress `ship-published-cfd-matrix`, task 3;
+  defaulting to the authentic Doench matrix stays blocked on an authoritatively
+  sourced, cross-verified copy. Off-target and reproduce goldens were regenerated.)
 - **Provenance snapshots the full resolved settings.** `config_snapshot` was a
   hand-built subset of run parameters that could drift from the `Settings` that
   actually governed a run. It now also embeds the full resolved settings via the

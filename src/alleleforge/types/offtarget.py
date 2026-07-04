@@ -97,6 +97,9 @@ class OffTargetReport(BaseModel):
         sites: All nominated sites passing the reporting thresholds.
         mismatch_threshold: Max mismatches allowed in the search.
         reference_build: The reference build searched.
+        scorer: Name of the specificity scorer that produced the site scores.
+        score_matrix: Identity of the weight source the scorer used, so a consumer
+            can tell whether the scores are published-CFD or an approximation.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -106,6 +109,8 @@ class OffTargetReport(BaseModel):
     sites: tuple[OffTargetSite, ...] = ()
     mismatch_threshold: int = 4
     reference_build: str = "hg38"
+    scorer: str | None = None
+    score_matrix: str | None = None
 
     @property
     def n_sites(self) -> int:
