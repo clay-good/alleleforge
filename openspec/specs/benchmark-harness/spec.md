@@ -1,0 +1,80 @@
+# benchmark-harness Specification
+
+## Purpose
+
+Score any scorer against a frozen `(task, split)` pair and emit a signed,
+content-addressed, provenance-stamped result that a later editor cannot silently alter —
+the reproducible, tamper-evident evaluation substrate ("CRISPR-Bench") that makes a
+leaderboard trustworthy.
+
+## Requirements
+
+### Requirement: A fixed set of canonical tasks
+
+The harness SHALL define the canonical tasks — Cas9 efficiency, Cas9 outcome,
+base-edit outcome, prime-edit efficiency, and off-target classification — each binding a
+dataset, an input key, a task kind, and a metric tuple with the ranking metric first.
+
+#### Scenario: Primary metric
+- **WHEN** a task is scored
+- **THEN** its first metric is used as the ranking metric
+
+### Requirement: Calibration is reported on every task
+
+Calibration (`ece`) SHALL be reported on every task regardless of kind — interval
+coverage for regression, binned reliability for classification, predicted-mode
+reliability for distributions — always under the same key so calibration is comparable.
+
+#### Scenario: Calibration always present
+- **WHEN** any task result is produced
+- **THEN** it carries an `ece` calibration number
+
+### Requirement: Scorer outputs are contract-checked
+
+Every scorer output SHALL be contract-checked as a `Prediction` (never a bare float),
+attributed to the scorer by name.
+
+#### Scenario: Bare float rejected
+- **WHEN** a scorer returns a bare float during benchmarking
+- **THEN** the harness raises, naming the offending scorer
+
+### Requirement: Results are signed and verifiable
+
+A benchmark result SHALL carry a SHA-256 signature over its own canonical JSON body minus
+the signature field, verifiable after the fact; editing a signed result SHALL invalidate
+its signature.
+
+#### Scenario: Tampered result
+- **WHEN** a signed result is edited after signing
+- **THEN** signature verification fails and it is rejected from the leaderboard
+
+### Requirement: Splits are immutable and self-verifying
+
+A split SHALL recompute both its membership hash and the dataset content hash on load and
+raise on any mismatch; the dataset content hash SHALL cover only `(example_id, inputs,
+label)` so re-pinning a citation does not invalidate a split.
+
+#### Scenario: Data changed
+- **WHEN** the underlying fixture data changes
+- **THEN** loading the split raises an integrity error
+
+### Requirement: The leaderboard admits only complete, verified submissions
+
+The leaderboard SHALL admit only submissions carrying a complete model card (name,
+license, citation) whose every result passes signature verification and whose result
+model matches the submission; rankings SHALL respect each metric's direction with
+deterministic tie-breaks.
+
+#### Scenario: Missing license
+- **WHEN** a submission omits a license
+- **THEN** it is rejected before any entry is created
+
+### Requirement: The generalization gap is orientation-corrected
+
+The reported generalization gap SHALL be orientation-corrected so a positive value always
+means worse held-out performance, regardless of whether the metric is ascending or
+descending.
+
+#### Scenario: Descending metric
+- **WHEN** the gap is computed for a higher-is-better metric
+- **THEN** a positive gap still denotes worse held-out performance

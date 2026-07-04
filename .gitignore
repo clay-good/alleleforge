@@ -43,3 +43,6 @@ site/
 
 # Allow small test fixtures despite the FASTA/VCF rules above
 !tests/**/fixtures/**
+
+# openlore analysis artifacts
+.openlore/
