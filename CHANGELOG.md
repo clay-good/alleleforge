@@ -27,8 +27,11 @@ acceptance.
   raw into HTML/Markdown; those cells are now HTML- and Markdown-escaped, so a
   submitter handle with markup or a `|` can no longer inject into the static board.
   A submission may also no longer carry two results for the same task (one model
-  ranking twice). (Part of the in-progress `guard-benchmark-integrity`; result/export
-  schema versioning remains open.)
+  ranking twice). Finally, `BenchmarkResult` and the TSV/Parquet candidate exports
+  now carry a `schema_version` (in the result's signed body and as the leading
+  export column), so a downstream consumer can detect a field/column addition or
+  reordering instead of silently misreading a changed record. This completes
+  `guard-benchmark-integrity` (only the optional metric hardening is deferred).
 - **Prime-editing routing no longer over-promises edits it cannot produce.**
   Routing advertised prime for any non-knockout edit up to 44 bp, but
   `enumerate_prime` templates only a single-base substitution (SNV) — so an

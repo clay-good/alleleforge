@@ -163,3 +163,11 @@ def test_duplicate_task_in_submission_rejected(fixed_ts: datetime) -> None:
     )
     with pytest.raises(SubmissionError, match="two results for task"):
         Leaderboard().add(sub)
+
+
+def test_benchmark_result_carries_schema_version(fixed_ts: datetime) -> None:
+    from alleleforge.benchmark.runner import RESULT_SCHEMA_VERSION
+
+    result = _baseline_result("cas9-efficiency", fixed_ts)
+    assert result.schema_version == RESULT_SCHEMA_VERSION
+    assert result.verify_signature()  # schema_version is inside the signed body

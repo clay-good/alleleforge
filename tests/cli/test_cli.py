@@ -78,7 +78,7 @@ def test_design_tsv_stdout(runner: CliRunner, prime_fasta: Path, design_cmd: Des
     result = runner.invoke(app, design_cmd(prime_fasta, "tsv"))
     assert result.exit_code == 0
     lines = result.output.strip().splitlines()
-    assert lines[0].startswith("rank\tchemistry")
+    assert lines[0].startswith("schema_version\trank\tchemistry")
     assert len(lines) == 4  # header + 3 candidates
 
 

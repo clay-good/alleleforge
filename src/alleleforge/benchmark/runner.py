@@ -76,10 +76,18 @@ class ModelInfo(BaseModel):
     chemistry: str | None = None
 
 
+#: Schema version for a :class:`BenchmarkResult`. Bump when a field is added,
+#: removed, or reinterpreted so a downstream consumer can detect the drift instead
+#: of silently misreading a changed record. Part of the signed body.
+RESULT_SCHEMA_VERSION = 1
+
+
 class BenchmarkResult(BaseModel):
     """A signed, provenance-stamped evaluation of one model on one (task, split).
 
     Attributes:
+        schema_version: The :data:`RESULT_SCHEMA_VERSION` this record was produced
+            under, so a consumer can detect format drift.
         task: The task name.
         split_version: The frozen split version evaluated against.
         dataset: The dataset the split partitions.
@@ -95,6 +103,7 @@ class BenchmarkResult(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
+    schema_version: int = RESULT_SCHEMA_VERSION
     task: str
     split_version: str
     dataset: str
@@ -379,6 +388,7 @@ def run_benchmark(
     )
 
     body: dict[str, Any] = {
+        "schema_version": RESULT_SCHEMA_VERSION,
         "task": task_obj.name,
         "split_version": split.split_version,
         "dataset": dataset.name,

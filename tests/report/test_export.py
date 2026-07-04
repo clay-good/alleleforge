@@ -58,3 +58,15 @@ def test_parquet_export(prime_menu: RankedMenu, tmp_path: Path) -> None:
     frame = pl.read_parquet(out)
     assert frame.height == len(report.candidates)
     assert set(TSV_COLUMNS) <= set(frame.columns)
+
+
+def test_tsv_export_carries_schema_version(prime_menu: RankedMenu) -> None:
+    from alleleforge.report.builder import build_report
+    from alleleforge.report.export import EXPORT_SCHEMA_VERSION, report_to_tsv
+
+    report = build_report(prime_menu)
+    lines = report_to_tsv(report).strip().splitlines()
+    assert lines[0].split("\t")[0] == "schema_version"
+    # every data row carries the current export schema version in the first column
+    for row in lines[1:]:
+        assert row.split("\t")[0] == str(EXPORT_SCHEMA_VERSION)

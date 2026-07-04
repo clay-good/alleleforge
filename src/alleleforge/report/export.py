@@ -16,8 +16,14 @@ from typing import Any
 from alleleforge.report.builder import DesignReport
 from alleleforge.types.candidate import RankedMenu
 
-#: The flat TSV column order (one row per candidate).
+#: Schema version for the flat TSV/Parquet candidate export. Bump when a column is
+#: added, removed, or reinterpreted so a downstream consumer can detect the drift.
+EXPORT_SCHEMA_VERSION = 1
+
+#: The flat TSV column order (one row per candidate). ``schema_version`` leads so a
+#: reader can branch on the format before touching any other column.
 TSV_COLUMNS = (
+    "schema_version",
     "rank",
     "chemistry",
     "on_pareto_front",
@@ -51,6 +57,7 @@ def _row(candidate: Any) -> dict[str, Any]:
     burden = candidate.bystander_burden
     worst = candidate.offtarget_by_ancestry[0] if candidate.offtarget_by_ancestry else None
     return {
+        "schema_version": EXPORT_SCHEMA_VERSION,
         "rank": candidate.rank,
         "chemistry": candidate.chemistry.value,
         "on_pareto_front": candidate.on_pareto_front,
