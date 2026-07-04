@@ -26,8 +26,9 @@ acceptance.
   front. Separately, the leaderboard interpolated `model_name`/`submitter`/`task`
   raw into HTML/Markdown; those cells are now HTML- and Markdown-escaped, so a
   submitter handle with markup or a `|` can no longer inject into the static board.
-  (First slice of the in-progress `guard-benchmark-integrity`; result/export schema
-  versioning and per-(model, task) uniqueness remain open.)
+  A submission may also no longer carry two results for the same task (one model
+  ranking twice). (Part of the in-progress `guard-benchmark-integrity`; result/export
+  schema versioning remains open.)
 - **Prime-editing routing no longer over-promises edits it cannot produce.**
   Routing advertised prime for any non-knockout edit up to 44 bp, but
   `enumerate_prime` templates only a single-base substitution (SNV) — so an

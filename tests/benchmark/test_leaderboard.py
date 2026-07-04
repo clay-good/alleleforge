@@ -152,3 +152,14 @@ def test_leaderboard_escapes_submitter_markup(fixed_ts: datetime) -> None:
     md_out = lb.render_markdown()
     assert "a\\|b" in md_out  # the pipe is escaped so it cannot break the table
     assert "a|b" not in md_out
+
+
+def test_duplicate_task_in_submission_rejected(fixed_ts: datetime) -> None:
+    # One model may not carry two results for the same task in a submission —
+    # otherwise it would occupy two ranked rows for the same task.
+    result = _baseline_result("cas9-efficiency", fixed_ts)
+    sub = Submission(
+        submitter="x", model=_model(), results=(result, result), submitted_at=fixed_ts
+    )
+    with pytest.raises(SubmissionError, match="two results for task"):
+        Leaderboard().add(sub)

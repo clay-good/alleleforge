@@ -76,8 +76,9 @@ class Submission(BaseModel):
 
         Raises:
             SubmissionError: If the model card is incomplete, no result is
-                present, a result fails signature verification, or a result's
-                model does not match the submission's model.
+                present, a result fails signature verification, a result's model
+                does not match the submission's model, or two results cover the
+                same task (a duplicate that would let one model rank twice).
         """
         if not (self.model.name and self.model.license and self.model.citation):
             raise SubmissionError(
@@ -85,6 +86,7 @@ class Submission(BaseModel):
             )
         if not self.results:
             raise SubmissionError("a submission must include at least one result")
+        tasks_seen: set[str] = set()
         for r in self.results:
             if not r.verify_signature():
                 raise SubmissionError(
@@ -96,6 +98,11 @@ class Submission(BaseModel):
                     f"result model {r.model.name!r} does not match submission model "
                     f"{self.model.name!r}"
                 )
+            if r.task in tasks_seen:
+                raise SubmissionError(
+                    f"submission has two results for task {r.task!r}; one result per (model, task)"
+                )
+            tasks_seen.add(r.task)
 
 
 class LeaderboardEntry(BaseModel):

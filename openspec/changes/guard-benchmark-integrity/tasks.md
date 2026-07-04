@@ -11,9 +11,8 @@
 
 ## 3. Leaderboard safety
 - [x] 3.1 HTML-escape and Markdown-escape `model_name`/`submitter`/`task` in the renders.
-- [ ] 3.2 Enforce per-(model, task) uniqueness in a submission.
-- [ ] 3.3 Tests: a markup handle is escaped; a duplicate (model, task) is rejected.
-      *(escaping test done; duplicate-submission test open.)*
+- [x] 3.2 Enforce per-(model, task) uniqueness in a submission.
+- [x] 3.3 Tests: a markup handle is escaped; a duplicate (model, task) is rejected.
 
 ## 4. Optional metric hardening
 - [ ] 4.1 (Optional) Make `pr_auc` tie-grouping order-insensitive; note `roc_auc` O(n^2)
