@@ -46,9 +46,14 @@ a version descriptor) instead of silently defaulting to empty. Task 3 has also
 shipped: `config_snapshot` now embeds the full resolved `Settings` (via
 `Settings.snapshot()`, minus the volatile `cache_dir`) alongside the run
 parameters, so it reflects what actually governed the run rather than a hand-built
-subset that can drift. Still open: the load-bearing seed/RNG (task 2), routing the
-CLI/web through `Settings.load()` and honoring the user's reference build (task 4),
-and the `aforge verify` command (task 5).
+subset that can drift. Task 5 has also shipped: `aforge verify <result>` checks a
+result's provenance is complete and self-consistent and, given `--cache-dir`,
+re-hashes each pinned model checkpoint against the hash recorded in provenance,
+exiting non-zero on incomplete provenance or a mismatch — turning provenance from a
+record into a checkable contract. Still open: the load-bearing seed/RNG (task 2),
+routing the CLI/web through `Settings.load()` and honoring the user's reference
+build (task 4), and the reproduce-style determinism re-run inside `verify` (needs
+the original reference, so it is a follow-up).
 
 ## Impact
 

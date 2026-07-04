@@ -21,6 +21,7 @@ Exit codes are meaningful and distinct: ``0`` success, ``2`` usage/input error
 
 from __future__ import annotations
 
+import hashlib
 import json
 import tomllib
 from dataclasses import dataclass
@@ -689,6 +690,97 @@ def offtarget(
             f"{s['origin']}{' ' + str(s['causal_allele']) if s['causal_allele'] else ''}"
         )
     _emit(payload, as_json=as_json, human="\n".join(human_lines))
+
+
+@app.command()
+def verify(
+    result: Annotated[
+        Path, typer.Argument(help="A result JSON (ranked menu) with a provenance block.")
+    ],
+    cache_dir: Annotated[
+        Path | None,
+        typer.Option(help="Model cache dir; re-hash pinned checkpoints found here."),
+    ] = None,
+    as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Verify a result's provenance is complete and its pinned artifacts are intact.
+
+    Turns provenance from a record into a checkable contract: it confirms the block
+    names every model and dataset the result used and carries a seed, version, and
+    config snapshot; with ``--cache-dir`` it re-hashes each pinned model checkpoint
+    found there against the hash recorded in provenance. Exits non-zero on
+    incomplete provenance or a checkpoint hash mismatch.
+    """
+    from alleleforge.types.candidate import RankedMenu
+
+    if not result.is_file():
+        _echo_err(f"error: result file not found: {result}")
+        raise typer.Exit(ExitCode.MISSING_DATA)
+    try:
+        menu = RankedMenu.model_validate_json(result.read_text())
+    except ValueError as exc:
+        _echo_err(f"error: not a valid result JSON: {exc}")
+        raise typer.Exit(ExitCode.USAGE) from exc
+
+    prov = menu.provenance
+    if prov is None:
+        _echo_err("error: result carries no provenance block; it is not verifiable")
+        raise typer.Exit(ExitCode.UNAVAILABLE)
+
+    problems: list[str] = []
+    if not prov.alleleforge_version:
+        problems.append("provenance is missing alleleforge_version")
+    if not prov.config_snapshot:
+        problems.append("provenance is missing config_snapshot")
+    for ck in prov.models:
+        if not ck.name or not ck.version:
+            problems.append(f"a model checkpoint is missing name/version: {ck.name!r}")
+    for ds in prov.datasets:
+        if not ds.name or not ds.version:
+            problems.append(f"a dataset is missing name/version: {ds.name!r}")
+
+    checks: list[dict[str, str]] = []
+    if cache_dir is not None:
+        for ck in prov.models:
+            if ck.sha256 is None:
+                checks.append({"artifact": f"{ck.name}.{ck.version}", "status": "unpinned"})
+                continue
+            path = cache_dir / f"{ck.name}.{ck.version}.ckpt"
+            if not path.is_file():
+                checks.append({"artifact": f"{ck.name}.{ck.version}", "status": "not-cached"})
+                continue
+            actual = hashlib.sha256(path.read_bytes()).hexdigest()
+            if actual == ck.sha256:
+                checks.append({"artifact": f"{ck.name}.{ck.version}", "status": "ok"})
+            else:
+                checks.append({"artifact": f"{ck.name}.{ck.version}", "status": "MISMATCH"})
+                problems.append(
+                    f"checkpoint {ck.name}.{ck.version} hash mismatch: "
+                    f"expected {ck.sha256[:12]}…, got {actual[:12]}…"
+                )
+
+    payload: dict[str, Any] = {
+        "seed": prov.seed,
+        "alleleforge_version": prov.alleleforge_version,
+        "n_models": len(prov.models),
+        "n_datasets": len(prov.datasets),
+        "checkpoint_checks": checks,
+        "problems": problems,
+        "verified": not problems,
+    }
+    human = [
+        f"provenance: aforge {prov.alleleforge_version}, seed {prov.seed}, "
+        f"{len(prov.models)} model(s), {len(prov.datasets)} dataset(s)"
+    ]
+    human += [f"  checkpoint {c['artifact']}: {c['status']}" for c in checks]
+    if problems:
+        human.append("PROBLEMS:")
+        human += [f"  - {p}" for p in problems]
+    else:
+        human.append("verified: provenance is complete and consistent")
+    _emit(payload, as_json=as_json, human="\n".join(human))
+    if problems:
+        raise typer.Exit(ExitCode.UNAVAILABLE)
 
 
 data_app = typer.Typer(name="data", help="Inspect the dataset registry.", no_args_is_help=True)

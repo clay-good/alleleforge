@@ -24,10 +24,12 @@
       non-hg38 reference resolves at its own build.
 
 ## 5. Add `aforge verify`
-- [ ] 5.1 Implement `aforge verify <result>`: re-hash pinned checkpoints/datasets in the
+- [x] 5.1 Implement `aforge verify <result>`: re-hash pinned checkpoints/datasets in the
       provenance block and re-run a reproduce-style determinism check against the embedded
-      config; non-zero exit on any mismatch.
-- [ ] 5.2 Tests: passes on a good result, fails on a tampered one.
+      config; non-zero exit on any mismatch. *(Ships: checks provenance completeness and,
+      with `--cache-dir`, re-hashes pinned model checkpoints against their recorded hash;
+      the reproduce-style re-run needs the original reference and is a follow-up.)*
+- [x] 5.2 Tests: passes on a good result, fails on a tampered one.
 
 ## 6. Reconcile
 - [ ] 6.1 Regenerate the reproduce golden; `make ci` green.

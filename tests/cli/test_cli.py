@@ -566,3 +566,60 @@ def test_design_verbose_reports_to_stderr(
     result = runner.invoke(app, ["-v", *design_cmd(prime_fasta, "json")])
     assert result.exit_code == 0
     assert "candidate(s)" in result.stderr
+
+
+# -- aforge verify -----------------------------------------------------------
+
+
+def _menu_with_provenance(tmp_path: Path, *, provenance: bool = True, models: tuple = ()) -> Path:
+    from datetime import UTC, datetime
+
+    from alleleforge.types.provenance import Provenance
+
+    prov = None
+    if provenance:
+        prov = Provenance.capture(
+            alleleforge_version="1.0.0",
+            seed=7,
+            timestamp=datetime(2024, 1, 1, tzinfo=UTC),
+            models=models,
+            config_snapshot={"intent": "install"},
+        )
+    menu = RankedMenu(candidates=(), rationale="test", provenance=prov)
+    path = tmp_path / "menu.json"
+    path.write_text(menu.model_dump_json())
+    return path
+
+
+def test_verify_passes_on_complete_provenance(runner: CliRunner, tmp_path: Path) -> None:
+    result = runner.invoke(app, ["verify", str(_menu_with_provenance(tmp_path))])
+    assert result.exit_code == 0
+    assert "verified" in result.output
+
+
+def test_verify_fails_without_provenance(runner: CliRunner, tmp_path: Path) -> None:
+    path = _menu_with_provenance(tmp_path, provenance=False)
+    result = runner.invoke(app, ["verify", str(path)])
+    assert result.exit_code == ExitCode.UNAVAILABLE
+
+
+def test_verify_detects_tampered_checkpoint(runner: CliRunner, tmp_path: Path) -> None:
+    import hashlib
+
+    from alleleforge.types.provenance import ModelCheckpoint
+
+    payload = b"weights"
+    digest = hashlib.sha256(payload).hexdigest()
+    ck = ModelCheckpoint(name="demo", version="1.0", sha256=digest)
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    (cache / "demo.1.0.ckpt").write_bytes(payload)
+    path = _menu_with_provenance(tmp_path, models=(ck,))
+
+    ok = runner.invoke(app, ["verify", str(path), "--cache-dir", str(cache)])
+    assert ok.exit_code == 0 and "ok" in ok.output
+
+    (cache / "demo.1.0.ckpt").write_bytes(b"tampered")
+    bad = runner.invoke(app, ["verify", str(path), "--cache-dir", str(cache)])
+    assert bad.exit_code == ExitCode.UNAVAILABLE
+    assert "MISMATCH" in bad.output

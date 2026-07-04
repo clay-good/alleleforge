@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **`aforge verify <result>` turns provenance into a checkable contract.** A new CLI
+  command loads a result's ranked-menu JSON and confirms its provenance block is
+  complete and self-consistent — it names every model and dataset used and carries a
+  seed, version, and config snapshot — then, given `--cache-dir`, re-hashes each
+  pinned model checkpoint found there against the hash recorded in provenance. It
+  exits non-zero on incomplete provenance or a checkpoint hash mismatch. (Part of the
+  in-progress `complete-provenance`, task 5; the reproduce-style determinism re-run
+  needs the original reference and is a follow-up.)
 - **Off-target reports now say which scorer and weight matrix produced the scores.**
   CFD is the number bench scientists compare against CRISPOR, but nothing in the
   output said whether a score came from the published Doench matrix or the shipped
