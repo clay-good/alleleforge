@@ -288,6 +288,16 @@ async def test_batch_empty_variants_is_422(client: httpx.AsyncClient) -> None:
     assert res.status_code == 422  # min_length=1 request validation
 
 
+async def test_batch_oversized_variants_is_422(client: httpx.AsyncClient) -> None:
+    # A batch over the size cap is rejected at the boundary, before any work,
+    # so a shared deployment cannot be flooded with an unbounded cohort.
+    from alleleforge.web.api.models import MAX_BATCH_VARIANTS
+
+    body = {"variants": ["chr2:71:A>C"] * (MAX_BATCH_VARIANTS + 1), "intent": "install"}
+    res = await client.post("/api/batch", json=body)
+    assert res.status_code == 422  # max_length request validation
+
+
 async def test_batch_bad_intent_is_422(client: httpx.AsyncClient) -> None:
     res = await client.post("/api/batch", json={"variants": ["chr2:71:A>C"], "intent": "bogus"})
     assert res.status_code == 422

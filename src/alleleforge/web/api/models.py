@@ -14,6 +14,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from alleleforge.types.offtarget import OffTargetReport
 
+#: Maximum number of variants a single batch request may carry. Bounds the work a
+#: caller can queue in one request, so a shared (non-loopback) deployment cannot be
+#: flooded with an unbounded cohort. Callers with more variants page across requests.
+MAX_BATCH_VARIANTS = 1000
+
 
 class ResolveRequest(BaseModel):
     """A request to normalize any variant input form."""
@@ -68,7 +73,9 @@ class BatchRequest(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     variants: list[str] = Field(
-        min_length=1, description="Variant input forms (ClinVar / rsID / HGVS / coords)."
+        min_length=1,
+        max_length=MAX_BATCH_VARIANTS,
+        description="Variant input forms (ClinVar / rsID / HGVS / coords).",
     )
     intent: str = Field(default="correct", description="correct | knock_out | install | revert.")
     chemistries: list[str] | None = Field(

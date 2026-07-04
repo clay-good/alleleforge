@@ -28,6 +28,16 @@ invariant; it makes that invariant safe to expose.
 - Document the durable-job-backend seam so the existing `JobManager` interface can later be
   backed by a resumable store.
 
+## Status (partial)
+
+Task 1.1 has shipped: the batch request schema now caps `variants` at
+`MAX_BATCH_VARIANTS` (1000), so an over-large cohort is rejected at the boundary
+with 422 before any work is scheduled — a shared deployment can no longer be
+flooded with an unbounded batch. Still open: the max-in-flight-job semaphore
+(task 1.2), the job-store TTL/LRU eviction (task 2), optional off-loopback auth
+(task 3), and the per-request timeout + durability seam (task 4). The default
+localhost experience is unchanged.
+
 ## Impact
 
 - Specs: `web-api` (ADDED resource-safety requirements: size cap, job bounds, optional
