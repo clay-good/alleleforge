@@ -11,6 +11,7 @@ Nothing in this module imports CRISPR logic; it is pure infrastructure.
 from __future__ import annotations
 
 import os
+import random
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -74,6 +75,19 @@ class Settings(BaseSettings):
     #: When false, the data/model registries must never auto-download; callers
     #: pass an explicit consent flag to fetch external artifacts.
     allow_network: bool = False
+
+    def rng(self) -> random.Random:
+        """Return the single run-scoped RNG, seeded from :attr:`seed`.
+
+        Every stochastic step in a run SHALL draw from this one generator so the
+        recorded :attr:`seed` is *load-bearing*: change the seed and any randomness
+        changes; fix it and the run reproduces byte-for-byte. Construct it once per
+        run and thread the same instance through the stochastic steps — do not call
+        :func:`random.random` or seed an ad-hoc generator, which would make the
+        provenance seed decorative. A fresh instance is returned on each call, so
+        the caller owns draw order.
+        """
+        return random.Random(self.seed)
 
     def snapshot(self) -> dict[str, Any]:
         """Return the resolved settings for provenance, minus volatile paths.

@@ -54,10 +54,14 @@ record into a checkable contract. Task 4 has largely shipped: the CLI now routes
 settings through `Settings.load(config_file=config, seed=…)`, so a `config.toml`
 key like `maf_threshold` is honored (and appears in the recorded settings snapshot)
 instead of being ignored, and `--reference` labels the loaded genome and provenance
-instead of a hard-coded `hg38`. Still open: the load-bearing seed/RNG (task 2 — the
-design path has no stochastic step today, so this is deliberately deferred rather
-than adding speculative infrastructure) and the reproduce-style determinism re-run
-inside `verify` (needs the original reference, a follow-up). The warn-on-unknown-key
+instead of a hard-coded `hg38`. Task 2 has now shipped: `Settings.rng()` is the single
+run-scoped RNG (`random.Random(seed)`) that stochastic steps draw from, and the run's
+one genuine stochastic step — the conformal-recalibration demo — now draws from it
+instead of a private duplicate seed, so the recorded seed is load-bearing (its callers
+thread `get_settings().rng()`). The design path still has no stochastic step, so nothing
+there draws from the RNG yet; the seam is in place for the first one that does. Still
+open: the reproduce-style determinism re-run inside `verify` (needs the original
+reference, a follow-up). The warn-on-unknown-key
 mode (task 4.3) has shipped: `_load_config` warns on any config key that is neither a
 `Settings` field nor a recognized run-param knob, so a typo is surfaced rather than
 silently ignored.

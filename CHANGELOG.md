@@ -10,6 +10,16 @@ acceptance.
 
 ### Added
 
+- **The recorded seed is now load-bearing.** `provenance.seed` drove no randomness: the
+  only genuine stochastic step (the conformal-recalibration demo) drew from its own
+  hardcoded `SEED = 20240501` duplicate, so the seed was decorative. `Settings.rng()` is
+  now the single run-scoped RNG (`random.Random(seed)`) that stochastic steps draw from,
+  the conformal demo takes that RNG, and its callers (`viz.figures`, `calibration_study`)
+  thread `get_settings().rng()` — so changing the seed changes the output and fixing it
+  reproduces byte-for-byte. Because the default resolved seed equals the retired constant,
+  the committed figures and reproduce golden are unchanged. The design path still has no
+  stochastic step; the seam is in place for the first one that does. (Completes
+  `complete-provenance`, task 2.)
 - **pegRNA candidates flag Pol-III transcription caveats.** A prime candidate whose
   spacer does not start with G (needs a prepended U6-start G) or whose GC content
   falls outside the 0.30–0.80 band now carries an inspectable `no-5prime-g` /

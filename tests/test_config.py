@@ -86,3 +86,22 @@ def test_default_cache_dir_honors_xdg() -> None:
 
 def test_default_config_file_path() -> None:
     assert _default_config_file().name == "config.toml"
+
+
+def test_rng_is_reproducible_and_seed_dependent() -> None:
+    # The run-scoped RNG is fully determined by the seed: same seed -> same
+    # sequence, different seed -> a different one. This is the seam every
+    # stochastic step draws from, so the recorded seed is load-bearing.
+    draws = lambda s: [Settings(seed=s).rng().random() for _ in range(5)]  # noqa: E731
+    assert draws(20240501) == draws(20240501)
+    assert draws(1) != draws(2)
+
+
+def test_seed_governs_a_stochastic_step() -> None:
+    # conformal_demo is the run's one genuine stochastic step. Changing the seed
+    # changes its output; fixing the seed reproduces it byte-for-byte.
+    from alleleforge.benchmark.calibration import conformal_demo
+
+    baseline = conformal_demo(Settings(seed=20240501).rng())
+    assert conformal_demo(Settings(seed=20240501).rng()) == baseline
+    assert conformal_demo(Settings(seed=7).rng()) != baseline

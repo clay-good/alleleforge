@@ -8,9 +8,17 @@
 - [x] 1.2 Test: a design menu's provenance lists its reference and dataset versions.
 
 ## 2. Make the seed load-bearing
-- [ ] 2.1 Create a single run-scoped RNG seeded from `cfg.seed` and thread it into every
-      stochastic step (start with any that exist; enforce for future ones).
-- [ ] 2.2 Test: changing the seed changes a stochastic output; fixing it reproduces.
+- [x] 2.1 Create a single run-scoped RNG seeded from `cfg.seed` and thread it into every
+      stochastic step (start with any that exist; enforce for future ones). *(`Settings.rng()`
+      is the one run-scoped `random.Random(seed)` seam; the run's only genuine stochastic
+      step — the conformal-recalibration demo — now draws from it instead of a private
+      duplicate `SEED = 20240501`, and its real callers (`viz.figures`, `calibration_study`)
+      pass `get_settings().rng()`, so the recorded seed governs the randomness. The design
+      path still has no stochastic step, so nothing there draws from the RNG yet — the seam
+      exists for the first one that does.)*
+- [x] 2.2 Test: changing the seed changes a stochastic output; fixing it reproduces.
+      *(`test_seed_governs_a_stochastic_step` + `test_rng_is_reproducible_and_seed_dependent`
+      in `tests/test_config.py`.)*
 
 ## 3. Full config snapshot
 - [x] 3.1 Snapshot the resolved `Settings` (minus volatile paths) into `config_snapshot`.
@@ -34,4 +42,8 @@
 - [x] 5.2 Tests: passes on a good result, fails on a tampered one.
 
 ## 6. Reconcile
-- [ ] 6.1 Regenerate the reproduce golden; `make ci` green.
+- [x] 6.1 Regenerate the reproduce golden; `make ci` green. *(The default resolved seed
+      equals the retired hardcoded `SEED` value, so the reproduce golden and the committed
+      figures/report are byte-identical — no regeneration needed. `make ci` green: ruff +
+      mypy --strict clean, 1002 passed/5 skipped at 97.4% coverage, docs strict, reproduce
+      matches golden.)*

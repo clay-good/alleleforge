@@ -26,6 +26,7 @@ from alleleforge.benchmark.calibration import (
     generalization_table,
     task_calibration_table,
 )
+from alleleforge.config import get_settings
 from alleleforge.data.gnomad import GnomadDB, PopulationFrequency
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.offtarget.engine import search
@@ -86,7 +87,7 @@ def reference_bias_figure() -> str:
 
 def conformal_coverage_figure() -> str:
     """Render the split-conformal coverage-restoration figure."""
-    rows = conformal_demo()
+    rows = conformal_demo(get_settings().rng())
     categories = tuple(f"{r['level'] * 100:g}% interval" for r in rows)
     raw = tuple(round(float(r["raw_coverage"]) * 100, 1) for r in rows)
     recal = tuple(round(float(r["recalibrated_coverage"]) * 100, 1) for r in rows)

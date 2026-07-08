@@ -35,6 +35,7 @@ from alleleforge.benchmark.calibration import (
     task_calibration_table,
 )
 from alleleforge.benchmark.tasks import TASKS
+from alleleforge.config import get_settings
 
 __all__ = [
     "LEVELS",
@@ -107,7 +108,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, default=None, help="also write the report to this path")
     args = parser.parse_args(argv)
 
-    report = render_markdown(task_calibration_table(), generalization_table(), conformal_demo())
+    report = render_markdown(
+        task_calibration_table(), generalization_table(), conformal_demo(get_settings().rng())
+    )
     if args.out is not None:
         args.out.write_text(report)
         print(f"wrote {args.out}")

@@ -26,6 +26,7 @@ from alleleforge.benchmark.baseline import build_baseline
 from alleleforge.benchmark.runner import generalization_gap, run_benchmark
 from alleleforge.benchmark.splits import load_split
 from alleleforge.benchmark.tasks import TASKS, get_task
+from alleleforge.config import DEFAULT_SEED
 from alleleforge.scoring.uncertainty import (
     ConformalCalibrator,
     empirical_coverage,
@@ -38,9 +39,6 @@ FIXED_TS = datetime(2024, 5, 1, tzinfo=UTC)
 
 #: Interval levels the recalibration demonstration targets.
 LEVELS = (0.80, 0.90)
-
-#: Seed for the synthetic miscalibrated set (deterministic across runs/platforms).
-SEED = 20240501
 
 
 def task_calibration_table() -> list[dict[str, Any]]:
@@ -92,9 +90,18 @@ def generalization_table() -> list[dict[str, Any]]:
     return rows
 
 
-def conformal_demo() -> list[dict[str, Any]]:
-    """Recalibrate a deliberately-narrow interval set; report coverage before/after."""
-    rng = random.Random(SEED)
+def conformal_demo(rng: random.Random | None = None) -> list[dict[str, Any]]:
+    """Recalibrate a deliberately-narrow interval set; report coverage before/after.
+
+    Args:
+        rng: The run-scoped RNG the synthetic miscalibrated set is drawn from
+            (see :meth:`alleleforge.config.Settings.rng`). This is the run's only
+            genuine stochastic step, so it makes the recorded seed load-bearing:
+            change the seed and coverage moves; fix it and the table reproduces.
+            Defaults to the spec seed so standalone fixture regeneration is stable.
+    """
+    if rng is None:
+        rng = random.Random(DEFAULT_SEED)
 
     def generate(n: int, half: float, sigma: float) -> tuple[list[Any], list[float]]:
         preds, truths = [], []
