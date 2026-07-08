@@ -10,6 +10,19 @@ acceptance.
 
 ### Fixed
 
+- **Two silent coordinate errors in the input layer now fail closed.** (Parts of
+  `reconcile-assembly-coordinates`; contig-naming and source-build reconciliation remain):
+  - *A wrong-build insertion passed silently.* `_left_align` re-read an indel's anchor from
+    the reference before validating, so a hg19 coordinate fed as hg38 whose asserted anchor
+    disagreed was accepted — the exact wrong-build case the fail-closed guarantee exists to
+    catch, defeated precisely for insertions. The caller's asserted ref is now validated
+    **before** re-anchoring for every indel (insertion and deletion), raising a
+    reference-mismatch error on disagreement.
+  - *Liftover rebuilt a span from two independent endpoints.* `lift_interval` kept one
+    endpoint's strand and never compared the lifted length to the source, so a chain indel
+    silently resized the interval and an inversion boundary scrambled it. It now returns
+    `None` when the endpoints map to different strands or the lifted length differs from the
+    source beyond a declared `length_tolerance` (default 0).
 - **Benchmark results are now independently re-derivable, and a degenerate model can no
   longer win the honesty axis.** Four gaps kept a published result from confirming an
   independent re-derivation (`harden-benchmark-reproducibility`):

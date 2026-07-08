@@ -132,6 +132,32 @@ def test_liftover_split_across_contigs_returns_none() -> None:
     assert lo.lift_interval(_iv("chr1", 10, 20)) is None
 
 
+def test_liftover_strand_split_returns_none() -> None:
+    # The two endpoints map to different strands — an inversion boundary runs
+    # through the interval. Keeping one endpoint's strand would emit a mis-oriented
+    # span; fail closed instead.
+    lo = Liftover(
+        lambda c, p: [("chrA", p, "+" if p < 15 else "-", 100)],
+        source_build="hg38",
+        target_build="t2t",
+    )
+    assert lo.lift_interval(_iv("chr1", 10, 20)) is None
+
+
+def test_liftover_length_change_returns_none() -> None:
+    # A chain indel inside the interval resizes the lifted span (source 10 nt ->
+    # lifted 15 nt): the lifted coordinates no longer describe the same bases, so
+    # the lift is not faithful and must fail closed.
+    lo = Liftover(
+        lambda c, p: [("chrA", p if p < 15 else p + 5, "+", 100)],
+        source_build="hg38",
+        target_build="t2t",
+    )
+    assert lo.lift_interval(_iv("chr1", 10, 20)) is None
+    # ...but an explicit tolerance can admit a known, quantified chain-gap slack.
+    assert lo.lift_interval(_iv("chr1", 10, 20), length_tolerance=5) is not None
+
+
 def test_convert_position_none_when_unmapped() -> None:
     lo = Liftover(lambda c, p: [], source_build="hg38", target_build="t2t")
     assert lo.convert_position("chr1", 5) is None

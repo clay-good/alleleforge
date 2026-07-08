@@ -120,7 +120,7 @@ def test_transversion_not_base_editable(make_reference: MakeRef) -> None:
 def test_non_snv_not_base_editable(make_reference: MakeRef) -> None:
     proto = "TTTTAACGTTTTTTTTTTTT"
     ref = make_reference({"chr2": PAD + proto + "TGG" + PAD})
-    rv = resolve("chr2:26:AA>A", reference=ref)  # a deletion (non-SNV)
+    rv = resolve("chr2:26:AC>A", reference=ref)  # a deletion (non-SNV); ref matches build
     assert enumerate_base_edits(rv, reference=ref, intent=EditIntent.CORRECT) == []
 
 

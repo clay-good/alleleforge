@@ -285,6 +285,12 @@ def _left_align(variant: Variant, reference: ReferenceGenome) -> Variant:
     ref, alt, pos = v.ref, v.alt, v.pos
     if len(ref) == len(alt):
         return v  # SNV / MNV: nothing to roll
+    # Validate the caller's asserted anchor/flanking base BEFORE re-anchoring. The
+    # re-anchor step below re-reads the anchor from the reference, which would
+    # overwrite (and so silently accept) a wrong-build insertion whose asserted
+    # anchor disagrees — defeating the fail-closed guarantee precisely for
+    # insertions. Checking the original assertion first is what closes that hole.
+    _validate_ref(v, reference)
     while ref and alt and ref[-1] == alt[-1]:  # strip shared suffix to minimal form
         ref, alt = ref[:-1], alt[:-1]
     while ref and alt and ref[0] == alt[0]:  # strip shared prefix

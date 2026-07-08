@@ -202,12 +202,25 @@ class Liftover:
         new_chrom, new_pos, strand, *_ = result[0]
         return new_chrom, new_pos, Strand.PLUS if strand == "+" else Strand.MINUS
 
-    def lift_interval(self, interval: GenomicInterval) -> GenomicInterval | None:
+    def lift_interval(
+        self, interval: GenomicInterval, *, length_tolerance: int = 0
+    ) -> GenomicInterval | None:
         """Lift a 0-based half-open interval to the target build.
 
-        Lifts the first and last bases independently and rebuilds the span.
-        Returns ``None`` if either endpoint fails to map or the endpoints land
-        on different contigs (a broken/split region).
+        Lifts the first and last bases independently and rebuilds the span, then
+        **fails closed** — returns ``None`` — rather than emitting a scrambled
+        interval when the two endpoints disagree about the region's shape:
+
+        * either endpoint fails to map, or they land on different contigs;
+        * the endpoints map to **different strands** (an inversion boundary splits
+          the interval — keeping one endpoint's strand would mis-orient the span);
+        * the lifted span's length differs from the source length by more than
+          ``length_tolerance`` (a chain **indel** inside the interval silently
+          resized it — the lifted coordinates no longer describe the same bases).
+
+        A faithful 1:1 lift preserves the length exactly, so the default tolerance
+        of ``0`` accepts a clean lift and rejects any resize; raise it only to admit
+        a known, quantified chain-gap slack.
 
         Raises:
             ValueError: If ``interval`` is empty or not 0-based half-open.
@@ -220,7 +233,12 @@ class Liftover:
         last = self.convert_position(interval.chrom, interval.end - 1)
         if start is None or last is None or start[0] != last[0]:
             return None
+        if start[2] is not last[2]:
+            return None  # endpoints split across strands (inversion boundary)
         lo_pos, hi_pos = sorted((start[1], last[1]))
+        lifted_length = hi_pos + 1 - lo_pos
+        if abs(lifted_length - interval.length) > length_tolerance:
+            return None  # a chain indel resized the span; the lift is not faithful
         strand = interval.strand if start[2] is Strand.PLUS else interval.strand.opposite()
         return GenomicInterval(
             chrom=start[0],

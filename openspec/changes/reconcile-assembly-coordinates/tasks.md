@@ -12,20 +12,20 @@
 - [ ] Test: a `chr17` ClinVar lookup against an Ensembl-named `hg38` reference resolves (or
   errors clearly); an ambiguous region flags on both naming styles.
 
-## 2. Insertion-anchor validation
+## 2. Insertion-anchor validation — DONE
 
-- [ ] In `variant/resolver.py`, validate the caller's asserted anchor/flanking base against
+- [x] In `variant/resolver.py`, validate the caller's asserted anchor/flanking base against
   the reference before re-anchoring an insertion in `_left_align`.
-- [ ] Raise a reference-mismatch `ValueError` when the asserted anchor disagrees.
-- [ ] Test: `chr1:100 A>AT` where the reference has `G` at the locus raises, rather than
+- [x] Raise a reference-mismatch `ValueError` when the asserted anchor disagrees.
+- [x] Test: `chr1:100 A>AT` where the reference has `G` at the locus raises, rather than
   silently relocating to `G>GT`.
 
-## 3. Liftover length/strand fail-closed
+## 3. Liftover length/strand fail-closed — DONE
 
-- [ ] In `Liftover.lift_interval`, return `None` when the lifted span length differs from
+- [x] In `Liftover.lift_interval`, return `None` when the lifted span length differs from
   the source length beyond a declared tolerance, or the two endpoints map to different
   strands.
-- [ ] Test: an interval spanning a chain indel comes back `None`; an interval straddling an
+- [x] Test: an interval spanning a chain indel comes back `None`; an interval straddling an
   inversion boundary comes back `None`.
 
 ## 4. Source-database assembly reconciliation
@@ -36,3 +36,11 @@
   assembly, unless an explicit liftover is performed; propagate the true source build into
   provenance and VEP assembly selection.
 - [ ] Test: a GRCh37 database queried with `build="hg38"` raises instead of relabeling.
+
+## Status
+
+Parts 2 (insertion-anchor validation) and 3 (liftover length/strand fail-closed) are
+**shipped**. Parts 1 (contig-naming reconciliation across `reference.py` / `sequence.py`
+`overlaps` / `coordinates.py`) and 4 (source-database native-assembly recording across
+`clinvar.py` / `dbsnp.py` / `types/variant.py` / `effect.py`) remain open — each spans the
+data/effect layer and is deferred to its own focused increment.

@@ -35,6 +35,22 @@ def test_resolve_vcf_record(reference: ReferenceGenome) -> None:
     assert rv.source == "vcf"
 
 
+def test_insertion_wrong_anchor_raises_before_reanchoring(reference: ReferenceGenome) -> None:
+    # An insertion whose asserted anchor disagrees with the reference is the classic
+    # wrong-build signal. Left-alignment re-reads the anchor from the reference, which
+    # would silently accept it; validating the caller's assertion first fails closed.
+    # Reference has 'A' at 0-based pos 5 (1-based 6); asserting 'C' must raise.
+    with pytest.raises(ValueError, match="reference mismatch"):
+        resolve(VcfRecord(chrom="chr2", pos=6, ref="C", alt="CT"), reference=reference)
+
+
+def test_insertion_correct_anchor_resolves(reference: ReferenceGenome) -> None:
+    # The mirror: a correctly-anchored insertion (reference really has 'A' there)
+    # resolves normally — the new guard rejects only a genuine mismatch.
+    rv = resolve(VcfRecord(chrom="chr2", pos=6, ref="A", alt="AT"), reference=reference)
+    assert rv.variant.alt.endswith("T") and len(rv.variant.alt) > len(rv.variant.ref)
+
+
 def test_resolve_genomic_hgvs(reference: ReferenceGenome) -> None:
     rv = resolve("chr2:g.6A>G", reference=reference)
     assert _key(rv.variant) == ("chr2", 5, "A", "G")
