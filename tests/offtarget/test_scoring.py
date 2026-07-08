@@ -5,7 +5,9 @@ from __future__ import annotations
 import pytest
 
 from alleleforge.offtarget.scoring import (
+    APPROX_CFD_MATRIX_ID,
     CFD_PAM_WEIGHTS,
+    PUBLISHED_CFD_MATRIX_ID,
     Cas12aCfdScorer,
     CfdScorer,
     MitScorer,
@@ -80,6 +82,34 @@ def test_cfd_accepts_published_table_injection() -> None:
 def test_cfd_length_guard() -> None:
     with pytest.raises(ValueError, match="same length"):
         cfd_score("ACGT", "ACG", "TGG")
+
+
+def test_cfd_published_matrix_requires_20nt() -> None:
+    # The published matrix is indexed by absolute position 0-19; an off-length input
+    # is scored in the wrong register (or silently collapses at position >=20), so
+    # the fixed-matrix path must raise rather than fabricate a "published" score.
+    weights = published_cfd_mismatch_weights()
+    for n in (19, 21):
+        with pytest.raises(ValueError, match="20-nt"):
+            cfd_score("A" * n, "A" * n, "TGG", mismatch_weights=weights)
+
+
+def test_cfd_approximation_accepts_any_length() -> None:
+    # The length-relative default model normalizes by position, so it is defined for
+    # any length and does not trip the fixed-matrix guard.
+    assert 0.0 <= cfd_score("A" * 21, "A" * 20 + "C", "TGG") <= 1.0
+    assert 0.0 <= cfd_score("A" * 19, "A" * 19, "TGG") <= 1.0
+
+
+def test_cfd_scorer_offlength_falls_back_and_relabels() -> None:
+    # The default (published) scorer must not raise on a bulge-collapsed / off-length
+    # alignment — that would gut recall — but it also must not label the fallback as
+    # published CFD. It scores via the approximation and reports the honest matrix.
+    scorer = CfdScorer()
+    assert scorer.matrix_for("A" * 20, "A" * 20) == PUBLISHED_CFD_MATRIX_ID
+    for n in (19, 21):
+        assert scorer.matrix_for("A" * n, "A" * n) == APPROX_CFD_MATRIX_ID
+        assert 0.0 <= scorer.score("A" * n, "A" * n, "TGG") <= 1.0
 
 
 # -- Cas12a -------------------------------------------------------------------

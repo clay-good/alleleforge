@@ -25,6 +25,8 @@ from alleleforge.offtarget._search import (
     _reindex_alt_hits,
     scan_sequence,
 )
+from alleleforge.offtarget.population import _reference_best, _strengthens
+from alleleforge.offtarget.scoring import CfdScorer, OffTargetScorer
 from alleleforge.types.guide import PAM
 from alleleforge.types.offtarget import SiteOrigin
 from alleleforge.types.sequence import CoordinateSystem, DNASequence, GenomicInterval, Strand
@@ -67,6 +69,7 @@ def enumerate_haplotype_sites(
     mismatches: int = 4,
     dna_bulges: int = 1,
     rna_bulges: int = 1,
+    scorer: OffTargetScorer | None = None,
 ) -> list[tuple[Hit, SiteProvenance]]:
     """Enumerate off-target hits created or strengthened by common haplotypes.
 
@@ -80,11 +83,16 @@ def enumerate_haplotype_sites(
         mismatches: Maximum base mismatches.
         dna_bulges: Maximum DNA bulges.
         rna_bulges: Maximum RNA bulges.
+        scorer: The specificity scorer used to judge whether a haplotype hit
+            strengthens a reference hit at the same placement (default
+            :class:`CfdScorer`); pass the engine's primary scorer so nomination and
+            reporting agree.
 
     Returns:
         ``(hit, provenance)`` pairs with ``provenance.origin = POPULATION``.
     """
     sp = str(spacer).upper()
+    scorer = scorer if scorer is not None else CfdScorer()
     pam_len = len(pam.pattern)
     margin = len(sp) + pam_len + 1
     kw: SearchBudget = {
@@ -122,10 +130,9 @@ def enumerate_haplotype_sites(
         alt_seq = apply_variants(ref_seq, start, edits)
         if alt_seq is None:  # defensive: overlapping applied variants could still clash
             continue
-        ref_edits: dict[tuple[Strand, int, int], int] = {}
-        for h in scan_sequence(chrom, ref_seq, sp, pam, offset=start, **kw):
-            key = (h.strand, h.start, h.end)
-            ref_edits[key] = min(ref_edits.get(key, h.edits), h.edits)
+        ref_best = _reference_best(
+            scan_sequence(chrom, ref_seq, sp, pam, offset=start, **kw), scorer
+        )
         var_positions = [v.pos for v in applied_vars]
         applied_edits = sorted((v.pos - start, len(v.ref), len(v.alt)) for v in applied_vars)
         # A population "carries" the haplotype only at or above the safety
@@ -150,7 +157,6 @@ def enumerate_haplotype_sites(
         for h in _reindex_alt_hits(alt_local, len(ref_seq), start, applied_edits):
             if not any(h.start - pam_len <= p < h.end + pam_len for p in var_positions):
                 continue
-            prior = ref_edits.get((h.strand, h.start, h.end))
-            if prior is None or h.edits < prior:
+            if _strengthens(h, ref_best.get((h.strand, h.start, h.end)), scorer):
                 out.append((h, prov))
     return out

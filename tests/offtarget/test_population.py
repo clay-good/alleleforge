@@ -80,6 +80,42 @@ def test_variant_strengthens_existing_site(make_reference: MakeRef) -> None:
     assert hit.mismatches == 0
 
 
+def test_pam_upgrade_strengthens_at_unchanged_edit_count(make_reference: MakeRef) -> None:
+    # A perfect protospacer sits 5' of a weak NAG PAM (CFD ~0.26); a minor allele
+    # flips the PAM's middle base A->G, making canonical NGG (CFD 1.0) without
+    # touching the protospacer. The edit count is unchanged, so the old edit-count
+    # gate dropped this site; the score-based gate nominates the strengthened PAM.
+    ref = make_reference({"chr2": PAD + SPACER + "CAG" + PAD})  # NAG PAM after the spacer
+    pf = PopulationFrequency(
+        chrom="chr2",
+        pos=31,  # the 'A' of CAG, 3' of the spacer at [10, 30)
+        ref="A",
+        alt="G",
+        overall_af=0.03,
+        populations={"afr": 0.08, "nfe": 0.001},
+    )
+    sites = enumerate_population_sites(SPACER, NRG, reference=ref, variants=[pf], maf=0.001)
+    assert len(sites) == 1
+    hit, prov = sites[0]
+    assert (hit.start, hit.end) == (10, 30)
+    assert hit.mismatches == 0
+    assert hit.pam_sequence == "CGG"  # the upgraded, canonical PAM
+    assert prov.origin is SiteOrigin.POPULATION
+    assert prov.causal_allele == "chr2:31:A>G"
+    assert "afr" in prov.populations
+
+
+def test_pam_downgrade_is_not_nominated(make_reference: MakeRef) -> None:
+    # The mirror of the upgrade: a canonical NGG PAM downgraded to weak NAG lowers
+    # the CFD at an unchanged edit count. That is a *weakening*, not a strengthening,
+    # so the score-directional gate correctly reports nothing.
+    ref = make_reference({"chr2": PAD + SPACER + "CGG" + PAD})  # canonical NGG PAM
+    pf = PopulationFrequency(
+        chrom="chr2", pos=31, ref="G", alt="A", overall_af=0.05, populations={"afr": 0.05}
+    )
+    assert enumerate_population_sites(SPACER, NRG, reference=ref, variants=[pf], maf=0.001) == []
+
+
 def test_absent_contig_is_skipped(make_reference: MakeRef) -> None:
     ref = make_reference({"chr2": PAD + SPACER + "CGT" + PAD})
     pf = PopulationFrequency(

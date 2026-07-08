@@ -93,6 +93,13 @@ CFD_MATRIX_FILE = Path(__file__).parent / "cfd_matrix.json"
 PUBLISHED_CFD_MATRIX_ID = "doench-2016-cfd"
 APPROX_CFD_MATRIX_ID = "doench-2016-seed-tolerance-approximation"
 
+#: The spacer length the published Doench 2016 CFD matrix is defined for. Its
+#: per-position weights are indexed by absolute position 0–19; an alignment of any
+#: other length falls outside the matrix (a mismatch at position ≥ 20 has no
+#: published weight and silently collapses CFD to 0), so a fixed-position matrix is
+#: only honestly applied at exactly this length.
+CFD_SPACER_LENGTH = 20
+
 
 @lru_cache(maxsize=1)
 def published_cfd_mismatch_weights() -> MismatchWeights:
@@ -183,10 +190,19 @@ def cfd_score(
         The CFD score in ``[0, 1]``.
 
     Raises:
-        ValueError: If ``spacer`` and ``protospacer`` differ in length.
+        ValueError: If ``spacer`` and ``protospacer`` differ in length, or if a
+            fixed-position ``mismatch_weights`` matrix is supplied for anything
+            other than a 20-nt alignment (its weights are indexed by absolute
+            position 0–19, so an off-length input is scored in the wrong register
+            or silently collapses — see :data:`CFD_SPACER_LENGTH`).
     """
     if len(spacer) != len(protospacer):
         raise ValueError("spacer and protospacer must be the same length for CFD")
+    if mismatch_weights is not None and len(spacer) != CFD_SPACER_LENGTH:
+        raise ValueError(
+            f"published CFD matrix requires a {CFD_SPACER_LENGTH}-nt spacer/protospacer, "
+            f"got {len(spacer)} nt (its weights are defined only for positions 0-19)"
+        )
     spacer, protospacer = spacer.upper(), protospacer.upper()
     pam_table = pam_weights if pam_weights is not None else CFD_PAM_WEIGHTS
     score = _checked_weight(pam_table.get(_normalize_pam(pam_sequence), 0.0), context="CFD PAM")
@@ -334,9 +350,37 @@ class CfdScorer:
             self._mismatch_weights = published_cfd_mismatch_weights()
             self.matrix = matrix or self.PUBLISHED_MATRIX
 
+    def _uses_fallback(self, spacer: str) -> bool:
+        """Return whether this call must fall back off the fixed published matrix.
+
+        A fixed-position matrix (published or custom) is defined only at
+        :data:`CFD_SPACER_LENGTH`. For a bulge-collapsed or off-length alignment it
+        cannot be applied honestly, so the scorer falls back to the length-relative
+        approximation for that one call. The approximation matrix (no fixed table)
+        is length-agnostic and never needs a fallback.
+        """
+        return self._mismatch_weights is not None and len(spacer) != CFD_SPACER_LENGTH
+
     def score(self, spacer: str, protospacer: str, pam_sequence: str) -> float:
-        """Return the CFD score for one candidate."""
-        return cfd_score(spacer, protospacer, pam_sequence, mismatch_weights=self._mismatch_weights)
+        """Return the CFD score for one candidate.
+
+        When a fixed published/custom matrix is bound but the alignment is not
+        :data:`CFD_SPACER_LENGTH` (a bulge-collapsed or off-length hit), the
+        length-relative approximation is used instead of scoring off-register; the
+        effective matrix for that call is reported by :meth:`matrix_for`.
+        """
+        weights = None if self._uses_fallback(spacer) else self._mismatch_weights
+        return cfd_score(spacer, protospacer, pam_sequence, mismatch_weights=weights)
+
+    def matrix_for(self, spacer: str, protospacer: str) -> str:
+        """Return the matrix identity that :meth:`score` uses for this alignment.
+
+        Equals :attr:`matrix` for an in-length alignment; for a fallback call
+        (bulge-collapsed or off-length under a fixed matrix) it returns the
+        approximation identity, so an off-length score is never labeled published
+        CFD.
+        """
+        return self.APPROXIMATE_MATRIX if self._uses_fallback(spacer) else self.matrix
 
 
 class MitScorer:

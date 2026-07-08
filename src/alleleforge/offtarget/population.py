@@ -26,6 +26,7 @@ from alleleforge.offtarget._search import (
     _reindex_alt_hits,
     scan_sequence,
 )
+from alleleforge.offtarget.scoring import CfdScorer, OffTargetScorer
 from alleleforge.types.guide import PAM
 from alleleforge.types.offtarget import SiteOrigin
 from alleleforge.types.sequence import CoordinateSystem, DNASequence, GenomicInterval, Strand
@@ -42,6 +43,41 @@ def _touches(hit: Hit, pos: int, pam_len: int) -> bool:
     return hit.start - pam_len <= pos < hit.end + pam_len
 
 
+#: The strongest reference hit at a placement: ``(best specificity score, fewest edits)``.
+ReferenceBest = tuple[float, int]
+
+
+def _reference_best(
+    hits: list[Hit], scorer: OffTargetScorer
+) -> dict[tuple[Strand, int, int], ReferenceBest]:
+    """Return the best reference ``(score, edits)`` per placement over ``hits``."""
+    best: dict[tuple[Strand, int, int], ReferenceBest] = {}
+    for h in hits:
+        key = (h.strand, h.start, h.end)
+        s = scorer.score(h.aligned_spacer, h.aligned_target, h.pam_sequence)
+        prev = best.get(key)
+        best[key] = (max(s, prev[0]), min(h.edits, prev[1])) if prev is not None else (s, h.edits)
+    return best
+
+
+def _strengthens(hit: Hit, prior: ReferenceBest | None, scorer: OffTargetScorer) -> bool:
+    """Return whether an alt ``hit`` is created or strengthens the reference.
+
+    An alt hit is nominated when it is **created** (no reference hit at the same
+    placement) or **more dangerous** than the best reference hit there by *either*
+    measure: a strictly higher specificity score (catches a PAM upgrade such as
+    ``NAG``→``NGG`` that leaves the edit count unchanged), or strictly fewer edits
+    (catches a variant that removes a mismatch or bulge — a real strengthening the
+    bulge-blind CFD score alone would miss). The union is the safety-maximizing
+    gate: it never drops a hit that either signal flags.
+    """
+    if prior is None:
+        return True
+    prior_score, prior_edits = prior
+    alt_score = scorer.score(hit.aligned_spacer, hit.aligned_target, hit.pam_sequence)
+    return alt_score > prior_score or hit.edits < prior_edits
+
+
 def _variant_window_hits(
     spacer: str,
     pam: PAM,
@@ -54,12 +90,17 @@ def _variant_window_hits(
     mismatches: int,
     dna_bulges: int,
     rna_bulges: int,
+    scorer: OffTargetScorer,
 ) -> list[Hit]:
     """Return alt-allele hits the variant creates or strengthens vs. reference.
 
     Scans a window around the variant on both the reference and the alternate
     allele; an alt hit is attributed to the variant when it overlaps the variant
-    locus and has no reference hit at the same placement with as few edits.
+    locus and is **more dangerous** than any reference hit at the same placement,
+    judged by the specificity score (``scorer``), not merely by a lower edit count.
+    A minor allele that upgrades a weak PAM (e.g. ``NAG``→``NGG``) raises the score
+    at an unchanged edit count, so scoring the comparison — not counting edits —
+    catches the strengthened site the edit-count gate would silently drop.
     """
     if chrom not in reference.contigs:
         return []
@@ -86,10 +127,11 @@ def _variant_window_hits(
         "dna_bulges": dna_bulges,
         "rna_bulges": rna_bulges,
     }
-    ref_edits: dict[tuple[Strand, int, int], int] = {}
-    for h in scan_sequence(chrom, ref_seq, spacer, pam, offset=start, **kw):
-        key = (h.strand, h.start, h.end)
-        ref_edits[key] = min(ref_edits.get(key, h.edits), h.edits)
+    # Best reference (specificity score, min edits) per placement. An alt hit is
+    # nominated when it beats the strongest reference hit at the same locus by
+    # *either* measure — see :func:`_strengthens`.
+    ref_hits = scan_sequence(chrom, ref_seq, spacer, pam, offset=start, **kw)
+    ref_best = _reference_best(ref_hits, scorer)
 
     # Scan the alt allele in window-local coordinates, then lift every hit back to
     # true genomic coordinates through the (possibly length-changing) edit, so an
@@ -101,8 +143,7 @@ def _variant_window_hits(
     for h in _reindex_alt_hits(alt_local, len(ref_seq), start, applied):
         if not _touches(h, pos, len(pam.pattern)):
             continue
-        prior = ref_edits.get((h.strand, h.start, h.end))
-        if prior is None or h.edits < prior:
+        if _strengthens(h, ref_best.get((h.strand, h.start, h.end)), scorer):
             created.append(h)
     return created
 
@@ -118,6 +159,7 @@ def enumerate_population_sites(
     mismatches: int = 4,
     dna_bulges: int = 1,
     rna_bulges: int = 1,
+    scorer: OffTargetScorer | None = None,
 ) -> list[tuple[Hit, SiteProvenance]]:
     """Enumerate off-target hits created or strengthened by population variants.
 
@@ -132,11 +174,15 @@ def enumerate_population_sites(
         mismatches: Maximum base mismatches.
         dna_bulges: Maximum DNA bulges.
         rna_bulges: Maximum RNA bulges.
+        scorer: The specificity scorer used to judge whether an alt hit strengthens
+            a reference hit at the same placement (default :class:`CfdScorer`); pass
+            the engine's primary scorer so nomination and reporting agree.
 
     Returns:
         ``(hit, provenance)`` pairs with ``provenance.origin = POPULATION``.
     """
     sp = str(spacer).upper()
+    scorer = scorer if scorer is not None else CfdScorer()
     out: list[tuple[Hit, SiteProvenance]] = []
     for var in variants:
         pops = list(populations) if populations is not None else list(var.populations)
@@ -156,6 +202,7 @@ def enumerate_population_sites(
             mismatches=mismatches,
             dna_bulges=dna_bulges,
             rna_bulges=rna_bulges,
+            scorer=scorer,
         )
         prov = SiteProvenance(
             origin=SiteOrigin.POPULATION,
@@ -177,6 +224,7 @@ def enumerate_patient_sites(
     mismatches: int = 4,
     dna_bulges: int = 1,
     rna_bulges: int = 1,
+    scorer: OffTargetScorer | None = None,
 ) -> list[tuple[Hit, SiteProvenance]]:
     """Enumerate off-target hits created or strengthened by a patient's variants.
 
@@ -185,6 +233,7 @@ def enumerate_patient_sites(
     population frequency.
     """
     sp = str(spacer).upper()
+    scorer = scorer if scorer is not None else CfdScorer()
     out: list[tuple[Hit, SiteProvenance]] = []
     for var in variants:
         hits = _variant_window_hits(
@@ -198,6 +247,7 @@ def enumerate_patient_sites(
             mismatches=mismatches,
             dna_bulges=dna_bulges,
             rna_bulges=rna_bulges,
+            scorer=scorer,
         )
         prov = SiteProvenance(origin=SiteOrigin.PATIENT, causal_allele=str(var))
         out.extend((h, prov) for h in hits)

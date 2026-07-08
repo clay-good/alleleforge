@@ -55,6 +55,12 @@ class OffTargetSite(BaseModel):
         populations: Populations carrying the causal allele.
         frequency: Allele frequency of the causal allele (max over populations).
         ancestries: Per-ancestry frequency annotation for this site.
+        score_matrix: The weight source that actually produced ``score`` for *this*
+            site, so a consumer can tell a published-CFD score from a fallback. It
+            can differ from the report-level scorer matrix: the published CFD matrix
+            is defined only for a 20-nt alignment, so a bulge-collapsed or off-length
+            hit is scored by the length-relative approximation and records that here
+            rather than being mislabeled as published CFD. ``None`` when unset.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -71,6 +77,7 @@ class OffTargetSite(BaseModel):
     populations: tuple[str, ...] = ()
     frequency: float | None = None
     ancestries: dict[str, float] = {}
+    score_matrix: str | None = None
 
     @model_validator(mode="after")
     def _check(self) -> OffTargetSite:
@@ -100,6 +107,11 @@ class OffTargetReport(BaseModel):
         scorer: Name of the specificity scorer that produced the site scores.
         score_matrix: Identity of the weight source the scorer used, so a consumer
             can tell whether the scores are published-CFD or an approximation.
+        subthreshold_score_sum: Sum of the best per-placement scores of in-budget
+            off-target sites that were nominated but did **not** clear the reporting
+            threshold, so :meth:`specificity_score` can aggregate over the full
+            nominated set (including the sub-threshold tail) rather than only over
+            reported sites. Defaults to ``0.0`` for a report built without a tail.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -111,6 +123,7 @@ class OffTargetReport(BaseModel):
     reference_build: str = "hg38"
     scorer: str | None = None
     score_matrix: str | None = None
+    subthreshold_score_sum: float = 0.0
 
     @property
     def n_sites(self) -> int:
@@ -137,8 +150,35 @@ class OffTargetReport(BaseModel):
         burden grows. Unlike :meth:`worst_score` (the single worst site), it
         distinguishes two guides with the same worst-case off-target but a
         different *number* of off-targets — the one with fewer is more specific.
+
+        The sum covers the **full nominated in-budget set**: the reported sites plus
+        :attr:`subthreshold_score_sum`, the sub-threshold tail the reporting filter
+        excludes from :attr:`sites`. Two guides with identical above-threshold hits
+        but different sub-threshold tails therefore report different specificity,
+        matching the CRISPOR/Hsu aggregate that sums over all candidate sites — not
+        just the reporting-threshold survivors.
         """
-        return 1.0 / (1.0 + sum(s.score for s in self.sites))
+        return 1.0 / (1.0 + sum(s.score for s in self.sites) + self.subthreshold_score_sum)
+
+    def expected_burden(self) -> float:
+        """Return the frequency-weighted expected off-target burden.
+
+        Each site's score is weighted by the probability a genome actually carries
+        it: a reference site is present in every genome (weight 1.0), a patient
+        site is certain in that individual's genome (weight 1.0), and a population
+        site is weighted by its carrying-population frequency. This separates a
+        rare-variant off-target (down-weighted toward the MAF floor) from a
+        universal one, which the frequency-blind :meth:`worst_score` and
+        :meth:`specificity_score` cannot — a 0.1%-MAF hit and a reference hit of the
+        same raw score contribute a thousandfold-different burden here.
+        """
+        total = 0.0
+        for site in self.sites:
+            if site.origin is SiteOrigin.REFERENCE or site.frequency is None:
+                total += site.score
+            else:
+                total += site.score * site.frequency
+        return total
 
     def ancestry_stratification(self) -> dict[str, float]:
         """Return the worst-case off-target score per ancestry.

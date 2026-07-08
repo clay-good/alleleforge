@@ -84,16 +84,31 @@ for genome-scale regions SHALL return byte-identical hits to the linear scan.
 ### Requirement: Population augmentation nominates created or strengthened sites
 
 Population augmentation SHALL re-scan a window around each gnomAD variant on its
-alternate allele and nominate only hits the variant creates or strengthens (fewer edits
-than any reference hit at the same placement) that overlap the variant locus, annotated
-with the causal allele, carrying populations above the MAF threshold, and per-ancestry
-frequency.
+alternate allele and nominate hits the variant **creates or strengthens** that overlap
+the variant locus, annotated with the causal allele, carrying populations above the MAF
+threshold, and per-ancestry frequency. An alt hit "strengthens" a reference hit at the
+same placement when it is more dangerous by **either** measure: a strictly higher
+specificity score (CFD) — so a variant that upgrades a weak PAM (e.g. `NAG`→`NGG`) at an
+unchanged edit count is nominated — **or** strictly fewer edits, which catches a mismatch
+or bulge the variant removes that the bulge-blind CFD score alone would not reflect. The
+gate SHALL NOT rely on the edit count alone, which would drop an equal-edit PAM upgrade.
 
 #### Scenario: De novo PAM from a minor allele
 - **WHEN** the reference protospacer is followed by a non-PAM but a gnomAD variant
   creates a valid PAM
 - **THEN** reference-only nomination returns zero sites and population-aware nomination
   returns one site annotated with the causal allele and its ancestry frequencies
+
+#### Scenario: A variant upgrades a weak PAM without changing the edit count
+- **WHEN** a minor allele changes a low-stringency PAM (`NAG`) into a canonical PAM
+  (`NGG`) while the protospacer edit count is unchanged, raising the site's CFD
+- **THEN** the strengthened site is nominated and attributed to the causal allele, rather
+  than discarded because its edit count did not fall
+
+#### Scenario: A downgraded PAM is not nominated
+- **WHEN** a minor allele weakens a canonical PAM (`NGG`→`NAG`) at an unchanged edit count,
+  lowering the site's CFD
+- **THEN** no site is nominated — a weakening is not a strengthening
 
 ### Requirement: Haplotype and patient passes preserve co-inherited context
 

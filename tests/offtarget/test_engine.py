@@ -123,6 +123,39 @@ def test_patient_vcf_stage(make_reference: MakeRef) -> None:
     assert report.sites[0].origin is SiteOrigin.PATIENT
 
 
+def test_subthreshold_tail_lowers_specificity(make_reference: MakeRef) -> None:
+    # A guide whose only reference off-target is sub-threshold (2 seed mismatches:
+    # CFD ~0.07, MIT ~0.004, both below the reporting thresholds) reports zero sites
+    # but is *not* as specific as a genuinely clean guide — the sub-threshold tail is
+    # carried into the genome-wide aggregate rather than silently dropped.
+    off = SPACER[:16] + "T" + "A" + SPACER[18:]  # positions 16 (A->T), 17 (C->A)
+    ref = make_reference({"chr2": PAD + off + "TGG" + PAD})
+    report = search(SPACER, NGG, reference=ref)
+    assert report.n_sites == 0  # the tail hit does not clear either threshold
+    assert report.subthreshold_score_sum > 0.0
+    assert report.specificity_score() < 1.0
+
+    clean = make_reference({"chr2": PAD + "T" * 40})  # no protospacer at all
+    clean_report = search(SPACER, NGG, reference=clean)
+    assert clean_report.n_sites == 0
+    assert clean_report.specificity_score() == 1.0  # a truly clean guide is fully specific
+    assert clean_report.specificity_score() > report.specificity_score()
+
+
+def test_bulge_site_records_approximation_matrix(make_reference: MakeRef) -> None:
+    # An RNA-bulge alignment collapses to 19 nt, which the published CFD matrix does
+    # not cover. The site is still nominated (recall preserved) but records the
+    # length-relative approximation as its matrix, so it is never mislabeled as
+    # published CFD even though the report-level scorer is the published matrix.
+    rna_bulge = SPACER[:10] + SPACER[11:]  # a 19-nt protospacer (one base deleted)
+    ref = make_reference({"chr2": PAD + rna_bulge + "TGG" + PAD})
+    report = search(SPACER, NGG, reference=ref)
+    bulged = [s for s in report.sites if s.rna_bulges == 1]
+    assert bulged, "expected an RNA-bulge site"
+    assert bulged[0].score_matrix == "doench-2016-seed-tolerance-approximation"
+    assert report.score_matrix == "doench-2016-cfd"  # report-level scorer is unchanged
+
+
 def test_region_restriction(make_reference: MakeRef) -> None:
     ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
     empty = GenomicInterval(chrom="chr2", start=0, end=5, strand=Strand.PLUS)

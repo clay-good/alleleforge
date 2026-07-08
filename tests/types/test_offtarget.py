@@ -106,6 +106,39 @@ def test_specificity_score_distinguishes_total_burden() -> None:
     assert one.specificity_score() > many.specificity_score()  # aggregate can
 
 
+def test_specificity_score_includes_subthreshold_tail() -> None:
+    # Two guides with identical *reported* sites but different sub-threshold tails
+    # must get different specificity — the promiscuous one (large near-threshold
+    # tail) is less specific, matching the CRISPOR/Hsu sum over all candidate sites.
+    clean = OffTargetReport(spacer="A" * 20, pam="NGG", sites=(_ref_site(0.6),))
+    promiscuous = OffTargetReport(
+        spacer="A" * 20, pam="NGG", sites=(_ref_site(0.6),), subthreshold_score_sum=0.5
+    )
+    assert clean.worst_score() == promiscuous.worst_score()  # top hits are identical
+    assert clean.specificity_score() > promiscuous.specificity_score()
+    assert promiscuous.specificity_score() == pytest.approx(1.0 / (1.0 + 0.6 + 0.5))
+
+
+def test_expected_burden_weights_by_carrying_frequency() -> None:
+    # A MAF-floor population off-target and a universal reference one with the same
+    # raw score contribute very different expected burdens; the frequency-blind
+    # worst-case still reports the higher raw score.
+    rep = OffTargetReport(
+        spacer="A" * 20,
+        pam="NGG",
+        sites=(_pop_site(0.9, "AFR", 0.001), _ref_site(0.9)),
+    )
+    assert rep.worst_score() == pytest.approx(0.9)  # frequency-blind: same raw score
+    assert rep.expected_burden() == pytest.approx(0.9 * 0.001 + 0.9)  # rare down-weighted
+
+
+def test_expected_burden_separates_rare_from_universal() -> None:
+    rare = OffTargetReport(spacer="A" * 20, pam="NGG", sites=(_pop_site(0.9, "AFR", 0.001),))
+    common = OffTargetReport(spacer="A" * 20, pam="NGG", sites=(_pop_site(0.9, "AFR", 0.5),))
+    assert rare.worst_score() == common.worst_score()  # worst-case can't tell them apart
+    assert rare.expected_burden() < common.expected_burden()  # the burden can
+
+
 def test_ancestry_stratification_reference_contributes_to_all() -> None:
     rep = OffTargetReport(
         spacer="A" * 20,

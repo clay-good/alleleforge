@@ -69,6 +69,56 @@ causal allele. The report SHALL expose the worst score, a genome-wide specificit
 - **WHEN** a guide is dangerous only in one ancestry
 - **THEN** the report's per-ancestry worst score reflects that ancestry
 
+### Requirement: The genome-wide aggregate covers the full nominated set
+
+The genome-wide `specificity_score` SHALL aggregate over the full set of nominated
+in-budget off-target sites, including sites below the reporting threshold: the engine
+SHALL carry the best per-placement score of each sub-threshold nomination into the
+aggregate (the sub-threshold tail) so a guide with a large near-threshold tail cannot
+report the same specificity as a clean guide, matching the CRISPOR/Hsu aggregate that
+sums over all candidate sites rather than only the reporting-threshold survivors.
+
+#### Scenario: Two guides differ only in their sub-threshold tail
+- **WHEN** two guides have identical above-threshold hits but one has additional
+  near-threshold off-targets that do not clear the reporting threshold
+- **THEN** the guide with the larger sub-threshold tail reports a lower genome-wide
+  specificity, not an identical one
+
+### Requirement: Published CFD requires a 20-nt spacer
+
+The published Doench 2016 CFD matrix is indexed by absolute position 0–19, so `cfd_score`
+SHALL raise when a fixed-position mismatch matrix is supplied for any non-20-nt alignment,
+rather than scoring in the wrong register or silently collapsing to 0 at a position ≥ 20.
+The length-relative approximation is defined for any length and is exempt. The default
+`CfdScorer` SHALL NOT raise on a bulge-collapsed or off-length alignment (that would gut
+recall); it SHALL instead fall back to the approximation for that site and record the
+approximation as the site's matrix, so a non-20-nt score is never labeled published CFD.
+
+#### Scenario: Off-length published CFD
+- **WHEN** `cfd_score` is asked to score a 19-nt or 21-nt alignment with the published
+  mismatch matrix
+- **THEN** it raises `ValueError`
+
+#### Scenario: Bulge-collapsed site is honestly labeled
+- **WHEN** the engine scores an RNA-bulge site (a 19-nt collapsed alignment) with the
+  default published scorer
+- **THEN** the site is still nominated and its recorded matrix is the approximation, not
+  `doench-2016-cfd`
+
+### Requirement: A frequency-aware aggregate accompanies the worst-case
+
+The report SHALL expose a frequency-aware `expected_burden` — the sum of each site's score
+weighted by the probability a genome carries it (reference and patient sites weight 1.0, a
+population site weights its carrying-population frequency) — alongside the frequency-blind
+`worst_score` and `specificity_score`, so a rare-variant off-target and a universal one
+are distinguishable in the summary numbers.
+
+#### Scenario: Rare versus universal off-target
+- **WHEN** one off-target is present at the MAF floor (0.001) and another is a universal
+  reference site of the same raw score
+- **THEN** the expected burden weights them a thousandfold apart while the frequency-blind
+  worst-case reports the same raw score for both
+
 ### Requirement: Scorers are swappable behind a protocol
 
 All scorers SHALL satisfy a common `OffTargetScorer` protocol so a future ML or

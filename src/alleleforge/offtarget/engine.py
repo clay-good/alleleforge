@@ -85,12 +85,30 @@ def _scores(hit: Hit, scorer: OffTargetScorer) -> tuple[float, float | None]:
     return primary, mit
 
 
+def _site_matrix(hit: Hit, scorer: OffTargetScorer) -> str | None:
+    """Return the matrix identity the scorer actually used for this hit.
+
+    A scorer may fall back off its nominal matrix for an off-length alignment
+    (the published CFD matrix is 20-nt-only, so a bulge-collapsed hit is scored by
+    the length-relative approximation). When the scorer exposes ``matrix_for`` we
+    record that per-call identity, so an off-length score is never labeled as the
+    published matrix; otherwise we record the scorer's static matrix.
+    """
+    matrix_for = getattr(scorer, "matrix_for", None)
+    if matrix_for is not None:
+        result: str = matrix_for(hit.aligned_spacer, hit.aligned_target)
+        return result
+    matrix: str | None = getattr(scorer, "matrix", None)
+    return matrix
+
+
 def _to_site(
     hit: Hit,
     prov: SiteProvenance,
     score: float,
     method: ScoreMethod,
     mit: float | None = None,
+    matrix: str | None = None,
 ) -> OffTargetSite:
     """Build an :class:`OffTargetSite` from a hit and its provenance."""
     locus = GenomicInterval(
@@ -113,6 +131,7 @@ def _to_site(
         populations=prov.populations,
         frequency=prov.frequency,
         ancestries=prov.ancestries,
+        score_matrix=matrix,
     )
 
 
@@ -277,6 +296,7 @@ def search(
                     variants=variants,
                     populations=populations,
                     maf=maf,
+                    scorer=primary,
                     **kw,
                 )
             )
@@ -290,6 +310,7 @@ def search(
             haplotypes=haplotype_list,
             populations=populations,
             min_freq=maf,
+            scorer=primary,
             **kw,
         )
     )
@@ -297,21 +318,30 @@ def search(
     # Stage 4 — optional patient-VCF personalization.
     if patient_vcf is not None:
         tagged.extend(
-            enumerate_patient_sites(sp, scan_pam, reference=reference, variants=patient_vcf, **kw)
+            enumerate_patient_sites(
+                sp, scan_pam, reference=reference, variants=patient_vcf, scorer=primary, **kw
+            )
         )
 
-    # Stage 5 — score, threshold, de-duplicate, sort.
+    # Stage 5 — score, threshold, de-duplicate, sort. Sites below the reporting
+    # threshold are not reported, but their best per-placement score is carried into
+    # the genome-wide aggregate (the sub-threshold tail) so a guide with a large
+    # near-threshold tail cannot report the same specificity as a clean one.
     best: dict[tuple[str, int, int, Strand], OffTargetSite] = {}
+    subthreshold: dict[tuple[str, int, int, Strand], float] = {}
     for hit, prov in tagged:
         cfd, mit = _scores(hit, primary)
-        if cfd < cfd_threshold and (mit if mit is not None else 0.0) < mit_threshold:
-            continue
-        site = _to_site(hit, prov, cfd, primary.method, mit)
         key = (hit.chrom, hit.start, hit.end, hit.strand)
+        if cfd < cfd_threshold and (mit if mit is not None else 0.0) < mit_threshold:
+            subthreshold[key] = max(subthreshold.get(key, 0.0), cfd)
+            continue
+        site = _to_site(hit, prov, cfd, primary.method, mit, _site_matrix(hit, primary))
         existing = best.get(key)
         if existing is None or site.score > existing.score:
             best[key] = site
 
+    # A placement that ultimately cleared the threshold is a reported site, not tail.
+    subthreshold_sum = sum(score for key, score in subthreshold.items() if key not in best)
     sites = tuple(sorted(best.values(), key=lambda s: s.score, reverse=True))
     report = OffTargetReport(
         spacer=sp,
@@ -321,6 +351,7 @@ def search(
         reference_build=reference.build or "hg38",
         scorer=primary.name,
         score_matrix=getattr(primary, "matrix", None),
+        subthreshold_score_sum=subthreshold_sum,
     )
     if cache is not None and signature is not None:
         cache.put(signature, report)

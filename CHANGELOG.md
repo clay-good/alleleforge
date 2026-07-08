@@ -10,6 +10,31 @@ acceptance.
 
 ### Added
 
+- **Off-target strengthening is now score-based, the aggregate covers the sub-threshold
+  tail, and a frequency-aware burden joins the worst-case.** Four gaps that let the
+  population/haplotype differentiator under-state risk or report an optimistic summary are
+  closed (`guard-offtarget-strengthening`):
+  - *Strengthening was edit-count-only.* The population and haplotype passes nominated an
+    alt-allele hit only when its edit count fell, so a minor allele upgrading a weak PAM
+    (`NAG`→`NGG`, CFD 0.07→0.28) at an unchanged edit count was silently dropped — a pure
+    false negative. Nomination now keeps an alt hit that beats the best reference hit at
+    the same placement by **either** a higher specificity score (catches the PAM upgrade)
+    **or** fewer edits (catches a mismatch/bulge removal the bulge-blind CFD misses).
+  - *The genome-wide `specificity_score` summed only reporting-threshold survivors*, so a
+    guide with a large near-threshold tail could report the same specificity as a clean
+    one. The engine now carries the best per-placement sub-threshold score into the
+    aggregate (`OffTargetReport.subthreshold_score_sum`), matching the CRISPOR/Hsu sum
+    over all candidate sites.
+  - *CFD scored any length under a "published" label.* `cfd_score` now raises when the
+    published/fixed matrix (positions 0–19) is applied to a non-20-nt alignment; the
+    default `CfdScorer` falls back to the length-relative approximation for a
+    bulge-collapsed/off-length hit and records the approximation as that site's matrix
+    (`OffTargetSite.score_matrix`), so an off-length score is never mislabeled published
+    CFD while recall is preserved.
+  - *The aggregates were frequency-blind.* `OffTargetReport.expected_burden()` weights
+    each site by the probability a genome carries it (reference/patient 1.0, population by
+    carrying frequency), so a MAF-floor off-target and a universal one are now
+    distinguishable in the summary numbers.
 - **The published Doench 2016 CFD matrix is now the default off-target scorer.**
   The default `CfdScorer` used a transparent seed-tolerance *approximation*, so
   out-of-the-box CFD numbers were not the values a reviewer comparing against CRISPOR
