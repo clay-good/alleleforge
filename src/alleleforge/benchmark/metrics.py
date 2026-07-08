@@ -194,16 +194,22 @@ def pr_auc(scores: Sequence[float], labels: Sequence[int]) -> float:
 
 def expected_calibration_error(
     confidences: Sequence[float], correct: Sequence[int], *, n_bins: int = DEFAULT_ECE_BINS
-) -> float:
-    """Return the binned Expected Calibration Error.
+) -> float | None:
+    """Return the binned Expected Calibration Error, or ``None`` if undefined.
 
     ``confidences`` are predicted probabilities in ``[0, 1]`` and ``correct`` the
     0/1 indicator of whether that prediction was right. Examples are bucketed
     into ``n_bins`` equal-width confidence bins; ECE is the sample-weighted mean
     gap between bin confidence and bin accuracy. ``0.0`` is perfect calibration.
+
+    Returns ``None`` — **undefined**, not ``0.0`` — when there are no scorable
+    predictions (e.g. a distribution scorer that emits ``{}`` everywhere expresses
+    no calibrated belief). Reporting that as ``0.0`` would let a model that made no
+    real prediction win the calibration ranking; ``None`` keeps "undefined" and
+    "perfectly calibrated" distinct.
     """
     if len(confidences) != len(correct) or not confidences:
-        return 0.0
+        return None
     n = len(confidences)
     bins: list[list[tuple[float, int]]] = [[] for _ in range(n_bins)]
     for c, y in zip(confidences, correct, strict=True):
@@ -224,15 +230,17 @@ def interval_calibration_error(
     truths: Sequence[float],
     *,
     nominal: float,
-) -> float:
-    """Return ``|empirical coverage - nominal|`` for predictive intervals.
+) -> float | None:
+    """Return ``|empirical coverage - nominal|`` for intervals, or ``None``.
 
     For a well-calibrated 80% interval, the truth should fall inside the
     ``(low, high)`` range about 80% of the time; the gap between observed
-    coverage and ``nominal`` is the regression analog of ECE. ``0.0`` is perfect.
+    coverage and ``nominal`` is the regression analog of ECE. ``0.0`` is perfect;
+    ``None`` is **undefined** — no intervals to estimate coverage from — kept
+    distinct from ``0.0`` so an empty prediction set is not scored as perfect.
     """
     if len(intervals) != len(truths) or not intervals:
-        return 0.0
+        return None
     covered = sum(1 for (lo, hi), t in zip(intervals, truths, strict=True) if lo <= t <= hi)
     coverage = covered / len(truths)
     return abs(coverage - nominal)

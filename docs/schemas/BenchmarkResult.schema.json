@@ -292,7 +292,7 @@
       "type": "object"
     }
   },
-  "description": "A signed, provenance-stamped evaluation of one model on one (task, split).\n\nAttributes:\n    schema_version: The :data:`RESULT_SCHEMA_VERSION` this record was produced\n        under, so a consumer can detect format drift.\n    task: The task name.\n    split_version: The frozen split version evaluated against.\n    dataset: The dataset the split partitions.\n    n_test: Number of test-fold examples scored.\n    metrics: Metric name \u2192 value, including ``\"ece\"``.\n    primary_metric: The task's ranking metric.\n    primary_value: The value of the primary metric.\n    n_out_of_distribution: How many predictions the model self-flagged OOD.\n    model: The evaluated model's card facts.\n    provenance: The full reproducibility block.\n    signature: Content hash over this record (minus the signature itself).",
+  "description": "A signed, provenance-stamped evaluation of one model on one (task, split).\n\nAttributes:\n    schema_version: The :data:`RESULT_SCHEMA_VERSION` this record was produced\n        under, so a consumer can detect format drift.\n    task: The task name.\n    split_version: The frozen split version evaluated against.\n    split_sha256: The evaluated split's membership hash, so a verifier can\n        confirm the exact frozen fold \u2014 not just its version label. A re-cut\n        ``v1`` split over the same rows changes this, revealing a moved fold a\n        bare version label would hide.\n    dataset: The dataset the split partitions.\n    n_test: Number of test-fold examples scored.\n    metrics: Metric name \u2192 value, including ``\"ece\"``. A value may be ``None``\n        when the metric is **undefined** for this run (e.g. calibration ECE with\n        no scorable predictions), kept distinct from a genuine ``0.0``.\n    primary_metric: The task's ranking metric.\n    primary_value: The value of the primary metric (never a calibration metric,\n        so always defined).\n    n_out_of_distribution: How many predictions the model self-flagged OOD.\n    model: The evaluated model's card facts.\n    provenance: The full reproducibility block.\n    reproducibility_digest: A platform/release-stable digest over the scientific\n        body only (metrics, model facts, task, split identity, dataset) with\n        floats rounded \u2014 so two independent runs of the same model on the same\n        frozen ``(task, split)`` match across releases and platforms, which the\n        timestamp-sealing :attr:`signature` cannot confirm.\n    signature: Content hash over this record (minus the signature itself).",
   "properties": {
     "dataset": {
       "title": "Dataset",
@@ -300,7 +300,14 @@
     },
     "metrics": {
       "additionalProperties": {
-        "type": "number"
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ]
       },
       "title": "Metrics",
       "type": "object"
@@ -327,13 +334,21 @@
     "provenance": {
       "$ref": "#/$defs/Provenance"
     },
+    "reproducibility_digest": {
+      "title": "Reproducibility Digest",
+      "type": "string"
+    },
     "schema_version": {
-      "default": 1,
+      "default": 2,
       "title": "Schema Version",
       "type": "integer"
     },
     "signature": {
       "title": "Signature",
+      "type": "string"
+    },
+    "split_sha256": {
+      "title": "Split Sha256",
       "type": "string"
     },
     "split_version": {
@@ -348,6 +363,7 @@
   "required": [
     "task",
     "split_version",
+    "split_sha256",
     "dataset",
     "n_test",
     "metrics",
@@ -356,6 +372,7 @@
     "n_out_of_distribution",
     "model",
     "provenance",
+    "reproducibility_digest",
     "signature"
   ],
   "title": "BenchmarkResult",

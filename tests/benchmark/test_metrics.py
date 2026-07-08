@@ -116,12 +116,15 @@ def test_ece_max_miscalibration() -> None:
     assert expected_calibration_error([1.0, 1.0], [0, 0]) == 1.0
 
 
-def test_ece_empty_is_zero() -> None:
-    assert expected_calibration_error([], []) == 0.0
+def test_ece_empty_is_undefined_not_zero() -> None:
+    # No scorable predictions -> ECE is undefined (None), NOT a perfect 0.0. A
+    # model that expressed no calibrated belief must not be reported as perfectly
+    # calibrated (which would win the leaderboard's calibration tie-break).
+    assert expected_calibration_error([], []) is None
 
 
 def test_interval_calibration_error() -> None:
     intervals = [(0.0, 1.0), (0.0, 1.0), (0.0, 0.1), (0.0, 0.1)]
     truths = [0.5, 0.5, 0.5, 0.5]  # first two covered, last two not -> coverage 0.5
     assert interval_calibration_error(intervals, truths, nominal=0.8) == pytest.approx(0.3)
-    assert interval_calibration_error([], [], nominal=0.8) == 0.0
+    assert interval_calibration_error([], [], nominal=0.8) is None  # undefined, not 0.0

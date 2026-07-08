@@ -41,6 +41,11 @@ def _html_cell(value: object) -> str:
     return html.escape(str(value))
 
 
+def _fmt_ece(ece: float | None) -> str:
+    """Format an ECE cell, showing ``n/a`` for an undefined (``None``) value."""
+    return "n/a" if ece is None else f"{ece:.4f}"
+
+
 def metric_is_descending(metric: str) -> bool:
     """Return ``True`` if higher values of ``metric`` rank ahead of lower ones."""
     return metric not in LOWER_IS_BETTER
@@ -116,8 +121,8 @@ class LeaderboardEntry(BaseModel):
     split_version: str
     primary_metric: str
     primary_value: float
-    ece: float
-    metrics: dict[str, float]
+    ece: float | None
+    metrics: dict[str, float | None]
 
 
 class Leaderboard:
@@ -144,7 +149,7 @@ class Leaderboard:
                     split_version=r.split_version,
                     primary_metric=r.primary_metric,
                     primary_value=r.primary_value,
-                    ece=r.metrics.get("ece", 0.0),
+                    ece=r.metrics.get("ece"),
                     metrics=r.metrics,
                 )
             )
@@ -158,7 +163,10 @@ class Leaderboard:
         """Return entries for ``task`` ordered best-first by the primary metric.
 
         Ties on the primary metric break toward lower (better) ECE, then by
-        model name for determinism.
+        model name for determinism. An **undefined** ECE (``None`` — a model that
+        made no scorable prediction) sorts last on the calibration key, so a
+        degenerate model can never win the honesty tie-break by claiming a perfect
+        ``0.0`` it never earned.
         """
         entries = [e for e in self._entries if e.task == task]
         if not entries:
@@ -168,7 +176,7 @@ class Leaderboard:
             entries,
             key=lambda e: (
                 -e.primary_value if descending else e.primary_value,
-                e.ece,
+                float("inf") if e.ece is None else e.ece,
                 e.model_name,
             ),
         )
@@ -191,7 +199,7 @@ class Leaderboard:
             for i, e in enumerate(ranked, start=1):
                 lines.append(
                     f"| {i} | {_md_cell(e.model_name)} | {_md_cell(e.submitter)} | "
-                    f"{e.primary_value:.4f} | {e.ece:.4f} | {_md_cell(e.split_version)} |"
+                    f"{e.primary_value:.4f} | {_fmt_ece(e.ece)} | {_md_cell(e.split_version)} |"
                 )
             lines.append("")
         return "\n".join(lines)
@@ -218,7 +226,7 @@ class Leaderboard:
                 parts.append(
                     f"<tr><td>{i}</td><td>{_html_cell(e.model_name)}</td>"
                     f"<td>{_html_cell(e.submitter)}</td>"
-                    f"<td>{e.primary_value:.4f}</td><td>{e.ece:.4f}</td>"
+                    f"<td>{e.primary_value:.4f}</td><td>{_fmt_ece(e.ece)}</td>"
                     f"<td>{_html_cell(e.split_version)}</td></tr>"
                 )
             parts.append("</tbody></table>")

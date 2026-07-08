@@ -109,6 +109,32 @@ def test_rankings_order_by_direction(fixed_ts: datetime) -> None:
     assert ranked[0].primary_value == 0.1  # lower KL wins
 
 
+def test_undefined_ece_never_wins_calibration_tiebreak(fixed_ts: datetime) -> None:
+    # Two entries tie on the primary metric; one has an honest ECE (0.05), the other
+    # an *undefined* ECE (a degenerate model that made no scorable prediction). The
+    # undefined one must NOT win the calibration tie-break by masquerading as 0.0.
+    base = _baseline_result("cas9-outcome", fixed_ts)
+    honest = base.model_copy(
+        update={"primary_value": 0.5, "metrics": {**base.metrics, "kl": 0.5, "ece": 0.05}}
+    )
+    degenerate = base.model_copy(
+        update={"primary_value": 0.5, "metrics": {**base.metrics, "kl": 0.5, "ece": None}}
+    )
+    honest = honest.model_copy(update={"signature": _resign(honest)})
+    degenerate = degenerate.model_copy(update={"signature": _resign(degenerate)})
+    lb = Leaderboard()
+    lb.add(
+        Submission(submitter="degen", model=_model(), results=(degenerate,), submitted_at=fixed_ts)
+    )
+    lb.add(
+        Submission(submitter="honest", model=_model(), results=(honest,), submitted_at=fixed_ts)
+    )
+    ranked = lb.rankings("cas9-outcome")
+    assert ranked[0].ece == 0.05  # the honestly-calibrated model wins the tie-break
+    assert ranked[1].ece is None  # the degenerate one sorts last, not first
+    assert "n/a" in lb.render_markdown()  # and renders as undefined, not 0.0000
+
+
 def test_render_markdown_and_html(fixed_ts: datetime) -> None:
     result = _baseline_result("cas9-efficiency", fixed_ts)
     lb = Leaderboard()

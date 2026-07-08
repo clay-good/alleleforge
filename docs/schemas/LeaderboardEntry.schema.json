@@ -2,12 +2,26 @@
   "description": "One row on the board: a model's result on a single task.",
   "properties": {
     "ece": {
-      "title": "Ece",
-      "type": "number"
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Ece"
     },
     "metrics": {
       "additionalProperties": {
-        "type": "number"
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ]
       },
       "title": "Metrics",
       "type": "object"

@@ -21,7 +21,7 @@ from typing import Any, Protocol, runtime_checkable
 from pydantic import BaseModel, ConfigDict
 
 from alleleforge._version import __version__
-from alleleforge.benchmark._canon import content_hash
+from alleleforge.benchmark._canon import content_hash, reproducibility_digest
 from alleleforge.benchmark.datasets import BenchmarkDataset, load_dataset
 from alleleforge.benchmark.metrics import (
     expected_calibration_error,
@@ -35,7 +35,7 @@ from alleleforge.benchmark.metrics import (
 )
 from alleleforge.benchmark.splits import Split, load_split
 from alleleforge.benchmark.tasks import Example, Task, TaskKind, get_task
-from alleleforge.config import DEFAULT_SEED
+from alleleforge.config import DEFAULT_SEED, get_settings
 from alleleforge.model_zoo.registry import ModelCard
 from alleleforge.scoring.base import ensure_prediction
 from alleleforge.types.prediction import Prediction
@@ -78,8 +78,10 @@ class ModelInfo(BaseModel):
 
 #: Schema version for a :class:`BenchmarkResult`. Bump when a field is added,
 #: removed, or reinterpreted so a downstream consumer can detect the drift instead
-#: of silently misreading a changed record. Part of the signed body.
-RESULT_SCHEMA_VERSION = 1
+#: of silently misreading a changed record. Part of the signed body. v2 adds
+#: ``split_sha256`` and ``reproducibility_digest`` and lets a metric be ``null``
+#: (undefined calibration).
+RESULT_SCHEMA_VERSION = 2
 
 
 class BenchmarkResult(BaseModel):
@@ -90,14 +92,26 @@ class BenchmarkResult(BaseModel):
             under, so a consumer can detect format drift.
         task: The task name.
         split_version: The frozen split version evaluated against.
+        split_sha256: The evaluated split's membership hash, so a verifier can
+            confirm the exact frozen fold — not just its version label. A re-cut
+            ``v1`` split over the same rows changes this, revealing a moved fold a
+            bare version label would hide.
         dataset: The dataset the split partitions.
         n_test: Number of test-fold examples scored.
-        metrics: Metric name → value, including ``"ece"``.
+        metrics: Metric name → value, including ``"ece"``. A value may be ``None``
+            when the metric is **undefined** for this run (e.g. calibration ECE with
+            no scorable predictions), kept distinct from a genuine ``0.0``.
         primary_metric: The task's ranking metric.
-        primary_value: The value of the primary metric.
+        primary_value: The value of the primary metric (never a calibration metric,
+            so always defined).
         n_out_of_distribution: How many predictions the model self-flagged OOD.
         model: The evaluated model's card facts.
         provenance: The full reproducibility block.
+        reproducibility_digest: A platform/release-stable digest over the scientific
+            body only (metrics, model facts, task, split identity, dataset) with
+            floats rounded — so two independent runs of the same model on the same
+            frozen ``(task, split)`` match across releases and platforms, which the
+            timestamp-sealing :attr:`signature` cannot confirm.
         signature: Content hash over this record (minus the signature itself).
     """
 
@@ -106,14 +120,16 @@ class BenchmarkResult(BaseModel):
     schema_version: int = RESULT_SCHEMA_VERSION
     task: str
     split_version: str
+    split_sha256: str
     dataset: str
     n_test: int
-    metrics: dict[str, float]
+    metrics: dict[str, float | None]
     primary_metric: str
     primary_value: float
     n_out_of_distribution: int
     model: ModelInfo
     provenance: Provenance
+    reproducibility_digest: str
     signature: str
 
     def verify_signature(self) -> bool:
@@ -125,7 +141,7 @@ class BenchmarkResult(BaseModel):
 
 def _regression_metrics(
     predictions: list[Prediction[Any]], labels: list[float]
-) -> dict[str, float]:
+) -> dict[str, float | None]:
     """Compute Spearman, Pearson, and interval-calibration ECE for regression.
 
     Interval calibration is only well-defined against a single nominal level, so
@@ -142,15 +158,18 @@ def _regression_metrics(
         ivals, truths = by_level.setdefault(p.interval_level, ([], []))
         ivals.append(p.interval)
         truths.append(float(y))
-    ece = (
-        sum(
-            len(truths) * interval_calibration_error(ivals, truths, nominal=level)
-            for level, (ivals, truths) in by_level.items()
-        )
-        / len(predictions)
-        if predictions
-        else 0.0
-    )
+    # ECE is undefined (None) with no predictions to estimate coverage from, kept
+    # distinct from a genuine 0.0 so an empty run is not scored as perfectly calibrated.
+    ece: float | None
+    if predictions:
+        total = 0.0
+        for level, (ivals, truths) in by_level.items():
+            level_ece = interval_calibration_error(ivals, truths, nominal=level)
+            if level_ece is not None:
+                total += len(truths) * level_ece
+        ece = total / len(predictions)
+    else:
+        ece = None
     return {
         "spearman": spearman(labels, preds),
         "pearson": pearson(labels, preds),
@@ -160,7 +179,7 @@ def _regression_metrics(
 
 def _classification_metrics(
     predictions: list[Prediction[Any]], labels: list[int]
-) -> dict[str, float]:
+) -> dict[str, float | None]:
     """Compute AUROC, AUPRC, and binned ECE for binary classification."""
     scores = [float(p.value) for p in predictions]
     confidences: list[float] = []
@@ -178,7 +197,7 @@ def _classification_metrics(
 
 def _distribution_metrics(
     predictions: list[Prediction[Any]], labels: list[dict[str, float]]
-) -> dict[str, float]:
+) -> dict[str, float | None]:
     """Compute mean KL, top-1 mode accuracy, and predicted-mode reliability ECE."""
     kls: list[float] = []
     top1s: list[float] = []
@@ -203,7 +222,7 @@ def _distribution_metrics(
 
 def _compute_metrics(
     task: Task, predictions: list[Prediction[Any]], examples: list[Example]
-) -> dict[str, float]:
+) -> dict[str, float | None]:
     """Dispatch to the metric battery for ``task.kind``."""
     if task.kind is TaskKind.REGRESSION:
         return _regression_metrics(predictions, [float(e.label) for e in examples])
@@ -232,7 +251,7 @@ def evaluate_fold(
     split: Split,
     dataset: BenchmarkDataset,
     fold: str,
-) -> dict[str, float]:
+) -> dict[str, float | None]:
     """Run ``scorer`` over a split ``fold`` and return the task's metric battery.
 
     The shared evaluation primitive behind :func:`run_benchmark` (which scores the
@@ -315,6 +334,10 @@ def generalization_gap(
     pm = task_obj.primary_metric
     in_value = evaluate_fold(scorer, task_obj, split, dataset, in_context_fold)[pm]
     held_value = evaluate_fold(scorer, task_obj, split, dataset, held_out_fold)[pm]
+    # The primary metric is a ranking metric (never a calibration metric), so it is
+    # always defined on a non-empty fold; the gap arithmetic relies on that.
+    if in_value is None or held_value is None:
+        raise ValueError(f"primary metric {pm!r} is undefined on a compared fold")
     higher_is_better = HIGHER_IS_BETTER[pm]
     gap = (in_value - held_value) if higher_is_better else (held_value - in_value)
     return GeneralizationGap(
@@ -377,7 +400,10 @@ def run_benchmark(
         timestamp=timestamp,
         datasets=(dataset.dataset_version(),),
         models=(card.to_checkpoint(),),
-        config_snapshot={"task": task_obj.name, "split_version": split.split_version},
+        # Record the full resolved settings (like the design path), not a hand-built
+        # 2-key subset — so interval_level and every setting that governed the
+        # metrics is captured and a result is re-derivable from what actually ran.
+        config_snapshot=get_settings().snapshot(),
     )
     model_info = ModelInfo(
         name=card.name,
@@ -387,18 +413,37 @@ def run_benchmark(
         chemistry=card.chemistry,
     )
 
-    body: dict[str, Any] = {
+    # The primary metric is a task's ranking metric (Spearman/AUROC/KL/top1), never
+    # a calibration metric, so it is always defined; guard the contract explicitly.
+    primary_value = metrics[task_obj.primary_metric]
+    if primary_value is None:
+        raise ValueError(f"primary metric {task_obj.primary_metric!r} is undefined for this run")
+    # The scientific body: everything that defines the result *scientifically*,
+    # excluding the volatile provenance (wall-clock timestamp, package version, local
+    # config). Its digest is stable across releases and platforms, so a second lab's
+    # re-derivation matches — which the timestamp-sealing signature cannot show.
+    scientific_body: dict[str, Any] = {
         "schema_version": RESULT_SCHEMA_VERSION,
         "task": task_obj.name,
         "split_version": split.split_version,
+        "split_sha256": split.split_sha256,
         "dataset": dataset.name,
+        "dataset_version": dataset.dataset_version().model_dump(mode="json"),
         "n_test": len(examples),
         "metrics": metrics,
         "primary_metric": task_obj.primary_metric,
-        "primary_value": metrics[task_obj.primary_metric],
-        "n_out_of_distribution": n_ood,
+        "primary_value": primary_value,
         "model": model_info.model_dump(mode="json"),
-        "provenance": provenance.model_dump(mode="json"),
     }
+    digest = reproducibility_digest(scientific_body)
+    body: dict[str, Any] = {
+        **scientific_body,
+        "n_out_of_distribution": n_ood,
+        "provenance": provenance.model_dump(mode="json"),
+        "reproducibility_digest": digest,
+    }
+    # dataset_version is folded into the scientific body above; drop the duplicate
+    # key from the signed record (it lives inside provenance's datasets tuple too).
+    body.pop("dataset_version", None)
     signature = content_hash(body)
     return BenchmarkResult(**body, signature=signature)

@@ -55,7 +55,7 @@ def task_calibration_table() -> list[dict[str, Any]]:
                 "kind": task.kind.value,
                 "primary_metric": result.primary_metric,
                 "primary_value": round(result.primary_value, 4),
-                "ece": round(result.metrics["ece"], 4),
+                "ece": None if result.metrics["ece"] is None else round(result.metrics["ece"], 4),
             }
         )
     return rows

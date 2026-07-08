@@ -70,10 +70,55 @@ def test_distribution_task_end_to_end(fixed_ts: datetime) -> None:
     assert result.verify_signature()
 
 
+def test_empty_distribution_scorer_reports_undefined_ece(fixed_ts: datetime) -> None:
+    # A scorer that emits {} for every example expresses no calibrated belief, so
+    # its ECE is undefined (None) -- not a perfect 0.0 it never earned.
+    result = run_benchmark(StubDistributionScorer({}), "cas9-outcome", timestamp=fixed_ts)
+    assert result.metrics["ece"] is None
+    assert result.verify_signature()
+
+
 def test_signature_is_reproducible(fixed_ts: datetime) -> None:
     a = run_benchmark(StubRegressionScorer(), "cas9-efficiency", timestamp=fixed_ts)
     b = run_benchmark(StubRegressionScorer(), "cas9-efficiency", timestamp=fixed_ts)
     assert a.signature == b.signature
+
+
+def test_config_snapshot_is_the_full_resolved_settings(fixed_ts: datetime) -> None:
+    # The benchmark config_snapshot must be the full resolved settings (like the
+    # design path), not a hand-built 2-key subset — so interval_level, which drives
+    # the regression ECE the leaderboard ranks honesty by, is recorded.
+    result = run_benchmark(StubRegressionScorer(), "cas9-efficiency", timestamp=fixed_ts)
+    snapshot = result.provenance.config_snapshot
+    assert "interval_level" in snapshot
+    assert snapshot != {"task": "cas9-efficiency", "split_version": "v1"}
+
+
+def test_result_binds_the_split_membership_hash(fixed_ts: datetime) -> None:
+    # The result binds the exact frozen fold (split_sha256), not just the "v1"
+    # label — so a re-cut split over the same rows is detectable.
+    split, dataset = load_split("cas9-efficiency")
+    result = run_benchmark(
+        StubRegressionScorer(), "cas9-efficiency", split=split, dataset=dataset, timestamp=fixed_ts
+    )
+    assert result.split_sha256 == split.split_sha256
+    assert result.verify_signature()
+
+
+def test_reproducibility_digest_is_stable_across_timestamp(fixed_ts: datetime) -> None:
+    # The reproducibility digest covers only the scientific body (metrics, model
+    # facts, task, split identity, dataset) with floats rounded — NOT the wall-clock
+    # timestamp or package version. So the same model on the same (task, split)
+    # yields the identical digest even when the timestamp (and, by construction, the
+    # release) differs, which the timestamp-sealing signature cannot confirm.
+    from datetime import timedelta
+
+    a = run_benchmark(StubRegressionScorer(), "cas9-efficiency", timestamp=fixed_ts)
+    b = run_benchmark(
+        StubRegressionScorer(), "cas9-efficiency", timestamp=fixed_ts + timedelta(days=1)
+    )
+    assert a.reproducibility_digest == b.reproducibility_digest  # scientific body identical
+    assert a.signature != b.signature  # but the tamper seal reflects the changed timestamp
 
 
 def test_tampered_result_fails_signature(fixed_ts: datetime) -> None:

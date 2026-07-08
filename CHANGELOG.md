@@ -10,6 +10,25 @@ acceptance.
 
 ### Fixed
 
+- **Benchmark results are now independently re-derivable, and a degenerate model can no
+  longer win the honesty axis.** Four gaps kept a published result from confirming an
+  independent re-derivation (`harden-benchmark-reproducibility`):
+  - *The signature sealed volatile fields.* It hashed the wall-clock timestamp, package
+    version, and config paths, so a second lab, a new release, or a different platform
+    produced a different signature for a scientifically identical result. A new
+    `reproducibility_digest` covers only the scientific body (metrics rounded to a fixed
+    precision, model-card facts, task, split identity, dataset hash) — identical across
+    releases and platforms — alongside the existing tamper signature.
+  - *The `config_snapshot` was a hand-built 2-key subset.* It now comes from
+    `Settings.snapshot()` like the design path, recording `interval_level` (which drives the
+    ranked ECE) and every governing setting.
+  - *The result bound the split version label but not its membership.* It now binds
+    `split.split_sha256`, so a re-cut `v1` fold is detectable.
+  - *A `{}`-everywhere scorer scored ECE 0.0 ("perfect") and won the calibration tie-break.*
+    ECE and interval-calibration now return `None` (undefined) when there are no scorable
+    predictions, and the leaderboard sorts an undefined ECE last — an honestly-calibrated
+    competitor is never out-ranked by a model that made no real prediction. (`BenchmarkResult`
+    schema bumped to v2: adds `split_sha256`/`reproducibility_digest`, allows a null metric.)
 - **Cloning oligos are now guarded as a real wet-lab deliverable.** Four gaps let a
   cloning-lethal or mis-specified oligo ship as a clean, round-trip-valid reagent
   (`guard-cloning-oligos`):
