@@ -39,15 +39,28 @@
   (`test_trained_point_is_distinguishable_from_heuristic`, `test_combine_ands_trained_flag`,
   `test_baseline_point_is_not_from_trained_model`, `test_trained_window_math_stamps_the_trained_flag`.)
 
-## 4. Nominal vs measured interval level
+## 4. Nominal vs measured interval level — DONE
 
-- [ ] Represent the fixed heuristic band as nominal/unmeasured — attach a note or use an
+- [x] Represent the fixed heuristic band as nominal/unmeasured — attach a note or use an
   `interval_level` sentinel — so a `calibrated = False` heuristic does not assert a
   specific measured coverage it never estimated.
-- [ ] Ensure count-valued quantities (e.g. `bystander_burden`) do not claim an 80% band.
-- [ ] Test: a heuristic prediction is flagged as carrying a nominal (not measured) interval
+  (`NOMINAL_INTERVAL_NOTE` attached to every fixed-band heuristic prediction: cas9
+  baseline + trained RS3, prime efficiency + outcome, PRIDICT engine, base outcome.)
+- [x] Ensure count-valued quantities (e.g. `bystander_burden`) do not claim an 80% band.
+  (`COUNT_INTERVAL_NOTE` on `bystander_burden` via `_prediction(count_valued=True)`.)
+- [x] Test: a heuristic prediction is flagged as carrying a nominal (not measured) interval
   width.
+  (`test_heuristic_band_is_flagged_nominal_not_measured`.)
 
 ## 5. Regenerate goldens
 
-- [ ] Regenerate provenance/prediction goldens whose flags or levels change.
+- [x] Regenerate provenance/prediction goldens whose flags or levels change.
+  (`scripts/reproduce_golden.json` re-derived — the menu now carries the honest notes;
+  `docs/schemas` regenerated for the new `point_from_trained_model` field.)
+
+## Remaining
+
+- Task 2 (compute `in_distribution`; fail honest by default; wire an `OODDetector` into the
+  default ensemble/prime/base scorers) is **still open** — it flips the fail-open default and
+  needs a training reference wired so the whole design path does not become uniformly OOD.
+  Deferred to its own focused change so the interval-widening golden churn is contained.

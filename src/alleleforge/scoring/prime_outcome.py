@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 from alleleforge.types.edit import AlleleOutcome, EditOutcome
 from alleleforge.types.guide import PegRNA
-from alleleforge.types.prediction import Prediction, UncertaintyMethod
+from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE, Prediction, UncertaintyMethod
 
 #: The byproduct channels modeled, in addition to the intended product.
 _BYPRODUCTS = ("scaffold_incorporation", "partial_rtt", "indel")
@@ -72,5 +72,6 @@ class PrimeOutcomePredictor:
             method=UncertaintyMethod.HEURISTIC,
             in_distribution=True,
             calibrated=False,
+            notes=(NOMINAL_INTERVAL_NOTE,),
         )
         return PrimeOutcome(outcome=outcome, p_intended=prediction)

@@ -63,6 +63,20 @@ def test_trained_window_math_stamps_the_trained_flag() -> None:
     assert trained.bystander_burden.point_from_trained_model is True
 
 
+def test_heuristic_band_is_flagged_nominal_not_measured() -> None:
+    # The fixed ±0.15 band asserts interval_level 0.80 without ever measuring
+    # coverage; the honest reading (nominal, unmeasured) must be auditable so a
+    # consumer thresholding on interval_level is not misled.
+    from alleleforge.types.prediction import COUNT_INTERVAL_NOTE, NOMINAL_INTERVAL_NOTE
+
+    w = _window("TTTAAACGTTTTTTTTTTTT", target=6, bystanders=(4, 5))
+    result = BaseEditOutcomePredictor().predict(w, _ABE)
+    assert result.p_intended_exact.calibrated is False
+    assert NOMINAL_INTERVAL_NOTE in result.p_intended_exact.notes
+    # bystander_burden is a count, not a probability -> not a coverage band at all
+    assert COUNT_INTERVAL_NOTE in result.bystander_burden.notes
+
+
 def test_clean_window_has_high_exact_probability() -> None:
     clean = _window("TTTTTACGTTTTTTTTTTTT", target=6)  # only the target A in-window
     bystander = _window("TTTAAACGTTTTTTTTTTTT", target=6, bystanders=(4, 5))

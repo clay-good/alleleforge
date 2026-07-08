@@ -39,7 +39,12 @@ from alleleforge.model_zoo.registry import (
 )
 from alleleforge.types.edit import AlleleOutcome, EditOutcome
 from alleleforge.types.guide import BaseEditWindow
-from alleleforge.types.prediction import Prediction, UncertaintyMethod
+from alleleforge.types.prediction import (
+    COUNT_INTERVAL_NOTE,
+    NOMINAL_INTERVAL_NOTE,
+    Prediction,
+    UncertaintyMethod,
+)
 
 #: Baseline peak per-base editing probability at the window center.
 _PEAK_EDIT = 0.6
@@ -147,17 +152,24 @@ def _assemble_window_outcome(
     return WindowOutcome(
         outcome=outcome,
         p_intended_exact=_prediction(p_exact, from_trained=from_trained),
-        bystander_burden=_prediction(burden, from_trained=from_trained),
+        # bystander_burden is an expected *count* of bystander edits, not a
+        # probability, so its fixed spread is not a coverage band at all.
+        bystander_burden=_prediction(burden, from_trained=from_trained, count_valued=True),
     )
 
 
-def _prediction(value: float, *, from_trained: bool = False) -> Prediction[float]:
+def _prediction(
+    value: float, *, from_trained: bool = False, count_valued: bool = False
+) -> Prediction[float]:
     """Wrap an outcome scalar in an 80% heuristic-band prediction.
 
     ``from_trained`` records whether the underlying probabilities came from the
     trained BE-DICT model (versus the transparent baseline), so a trained point
     with this uncalibrated band is distinguishable from a fully heuristic one.
+    ``count_valued`` marks a non-probability quantity (an expected count) whose
+    interval is a nominal spread, not a probability-coverage band.
     """
+    note = COUNT_INTERVAL_NOTE if count_valued else NOMINAL_INTERVAL_NOTE
     return Prediction[float](
         value=value,
         interval=(max(0.0, value - _INTERVAL_HALF), value + _INTERVAL_HALF),
@@ -166,6 +178,7 @@ def _prediction(value: float, *, from_trained: bool = False) -> Prediction[float
         in_distribution=True,
         calibrated=False,
         point_from_trained_model=from_trained,
+        notes=(note,),
     )
 
 

@@ -31,7 +31,7 @@ from pathlib import Path
 
 from alleleforge.model_zoo.loader import WeightGate
 from alleleforge.model_zoo.registry import Downloader, ModelCard, ModelRegistry, ModelUse
-from alleleforge.types.prediction import Prediction, UncertaintyMethod
+from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE, Prediction, UncertaintyMethod
 
 #: Cell lines PRIDICT2.0 predicts (and is trained on); the score column suffix.
 PRIDICT2_CELL_LINES = ("HEK", "K562")
@@ -134,6 +134,7 @@ class PridictEngineAdapter(WeightGate):
             in_distribution=True,
             calibrated=False,
             point_from_trained_model=True,  # real PRIDICT2 point; interval still heuristic
+            notes=(NOMINAL_INTERVAL_NOTE,),
         )
 
     @classmethod

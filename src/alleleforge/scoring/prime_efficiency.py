@@ -21,7 +21,7 @@ from alleleforge.data.annotations import EncodeTracks
 from alleleforge.model_zoo.loader import WeightGate
 from alleleforge.model_zoo.registry import ModelCard, ModelRegistry, default_registry
 from alleleforge.types.guide import PegRNA
-from alleleforge.types.prediction import Prediction, UncertaintyMethod
+from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE, Prediction, UncertaintyMethod
 from alleleforge.types.sequence import GenomicInterval
 
 #: Cell contexts PRIDICT2.0 is trained on; anything else is out-of-distribution.
@@ -106,6 +106,7 @@ class PridictScorer:
             method=UncertaintyMethod.HEURISTIC,
             in_distribution=in_dist,
             calibrated=False,
+            notes=(NOMINAL_INTERVAL_NOTE,),
         )
 
 

@@ -18,6 +18,19 @@ from pydantic import BaseModel, ConfigDict, ValidationInfo, model_validator
 
 T = TypeVar("T")
 
+#: Auditable note stamped on a fixed-width heuristic interval so its
+#: ``interval_level`` is never read as a *measured* coverage. A constant half-width
+#: (e.g. ±0.15) cannot be an 80% predictive interval; the level is a nominal target
+#: the band was never calibrated to. Pairs with ``calibrated=False``: a consumer
+#: thresholding on ``interval_level`` sees, in the notes, that the coverage is
+#: unmeasured until a calibrator certifies it.
+NOMINAL_INTERVAL_NOTE = "nominal interval level: fixed heuristic half-width, coverage not measured"
+
+#: Auditable note for a *count-valued* quantity (e.g. an expected number of
+#: bystander edits) whose fixed spread is not a probability-coverage band at all —
+#: the ``interval_level`` does not apply to it in the usual sense.
+COUNT_INTERVAL_NOTE = "count-valued quantity: interval is a nominal spread, not a coverage band"
+
 #: Module-private capability token. ``calibrated=True`` is honored only when a
 #: construction supplies this exact object through the pydantic validation
 #: context — which only :meth:`Prediction.calibrated_by` does. A scorer building

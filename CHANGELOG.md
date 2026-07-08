@@ -22,6 +22,14 @@ acceptance.
 
 ### Added
 
+- **A fixed heuristic interval no longer masquerades as a measured 80% coverage.** Every
+  scorer stamped a constant ±0.15 band with `interval_level = 0.80`, so a consumer
+  thresholding on `interval_level` could read an unmeasured placeholder as a calibrated
+  coverage. Each fixed-band heuristic prediction now carries an auditable
+  `NOMINAL_INTERVAL_NOTE` ("coverage not measured"), and the count-valued `bystander_burden`
+  carries a `COUNT_INTERVAL_NOTE` (its spread is not a coverage band at all). The reproduce
+  golden was re-derived (the menu now carries the honest notes). (Task 4 of
+  `compute-honest-uncertainty`; only task 2 — computing `in_distribution` — remains.)
 - **A trained point estimate is now distinguishable from a heuristic one by the honesty
   flags alone.** The real Rule Set 3, PRIDICT2, and BE-DICT scorers ship a trained point
   with an *uncalibrated* heuristic interval — byte-identical in `method`/`calibrated`/

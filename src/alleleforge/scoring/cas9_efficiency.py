@@ -51,7 +51,7 @@ from alleleforge.scoring.uncertainty import (
     OODDetector,
     ensemble_prediction,
 )
-from alleleforge.types.prediction import Prediction, UncertaintyMethod
+from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE, Prediction, UncertaintyMethod
 from alleleforge.types.provenance import ModelCheckpoint
 
 
@@ -117,6 +117,7 @@ class RuleSet3Scorer:
             method=UncertaintyMethod.HEURISTIC,
             in_distribution=in_dist,
             calibrated=False,
+            notes=(NOMINAL_INTERVAL_NOTE,),
         )
 
 
@@ -254,6 +255,7 @@ class TrainedRuleSet3Scorer(WeightGate):
             in_distribution=in_dist,
             calibrated=False,
             point_from_trained_model=True,  # trained RS3 point; interval still heuristic
+            notes=(NOMINAL_INTERVAL_NOTE,),
         )
 
 
