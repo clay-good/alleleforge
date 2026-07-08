@@ -744,8 +744,11 @@ flowchart LR
 efficiency prediction out-of-distribution and raises an `ood` flag rather than hiding it. The
 off-target engine runs on the pegRNA nick **and** the ngRNA nick, merging into one ancestry-stratified
 report. The PE3b nicking guide is preferred when a seed-disrupting ngRNA exists (it nicks only the
-edited strand, suppressing indels). See the canonical journey end to end in
-[`examples/01_clinvar_to_design.ipynb`](examples/01_clinvar_to_design.ipynb).
+edited strand, suppressing indels). **Edit-class scope:** the enumeration templates a single-base
+substitution today, so routing advertises prime for a precise SNV only; short insertions, deletions,
+and MNVs are biologically in scope for prime editing but await the variable-length RTT path, and
+`route()` states this in the dropped-rule rationale rather than silently declining. See the canonical
+journey end to end in [`examples/01_clinvar_to_design.ipynb`](examples/01_clinvar_to_design.ipynb).
 
 > [!NOTE]
 > **Default vs. real PRIDICT2.0.** The built-in `PridictScorer` is a transparent *heuristic*
@@ -786,7 +789,7 @@ and `route()` explains every verdict — kept *and* dropped.
 |---|---|---|
 | Base editing (ABE) | transition SNV, required change `A:T→G:C` | one in-window transition, no double-strand break — the cleanest fix |
 | Base editing (CBE) | transition SNV, required change `G:C→A:T` | same, complementary transition |
-| Prime editing | any precise small edit (≤ RTT length), non-disruptive intent | arbitrary substitutions / short indels from an RTT template, no break |
+| Prime editing | precise SNV, non-disruptive intent (enumeration templates a single-base substitution today) | writes the edit from an RTT template with no break; biology also supports short insertions/deletions/MNVs, but the variable-length RTT path is pending, so routing advertises prime for a precise SNV only |
 | SpCas9 nuclease | disruption (knock-out) intent | a break repaired by NHEJ yields frameshifting indels |
 
 **Ranking puts every chemistry on one footing.** Candidates are projected onto four shared,

@@ -23,5 +23,11 @@
       "skipped" note.
 
 ## 4. Reconcile
-- [ ] 4.1 Update docs so prime's supported edit classes are stated honestly.
-- [ ] 4.2 `make ci` green.
+- [x] 4.1 Update docs so prime's supported edit classes are stated honestly. *(The README
+      routing table no longer claims "arbitrary substitutions / short indels"; it and the
+      four-axis flagship section now state that enumeration templates a single-base
+      substitution today — so routing advertises prime for a precise SNV only — while short
+      insertions/deletions/MNVs are biologically in scope but await the variable-length RTT
+      path, matching `routing.py`'s dropped-rule rationale.)*
+- [x] 4.2 `make ci` green. *(ruff + mypy --strict clean, 1002 passed/5 skipped at 97.4%
+      coverage, docs strict, reproduce matches golden; the edit-class fix is docs-only.)*

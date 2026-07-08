@@ -41,6 +41,13 @@ acceptance.
 
 ### Fixed
 
+- **The README states prime's supported edit classes honestly.** The routing table
+  claimed prime editing handles "arbitrary substitutions / short indels," but the
+  enumeration templates a single-base substitution today (routing already declines
+  indels/MNVs with a stated reason). The routing table and the four-axis flagship
+  section now say prime is advertised for a precise SNV only, with short
+  insertions/deletions/MNVs biologically in scope but pending the variable-length RTT
+  path — matching `routing.py`. (Completes `align-prime-coverage`, task 4.)
 - **The CLI now honors the config file and the declared reference build.** `aforge`
   constructed `Settings(seed=…)` directly, so a user's `config.toml`
   (`maf_threshold`, `interval_level`, `cache_dir`) was ignored — the documented
