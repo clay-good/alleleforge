@@ -54,7 +54,9 @@ def prime_menu(make_reference: MakeRef) -> RankedMenu:
     """A ranked menu with prime (pegRNA) candidates for an A->C install."""
     seq = list("AT" * 70)
     seq[63:66] = list("TGG")  # plus pegRNA PAM
-    seq[55:58] = list("CCA")  # minus ngRNA PAM (PE3b)
+    # minus ngRNA PAM: proto_lo=61, PAM-proximal seed [61, 71) spans the edit at 70
+    # -> a genuine PE3b (measured from the minus-strand PAM-proximal end).
+    seq[58:61] = list("CCA")
     ref = make_reference({"chr2": "".join(seq)})
     rv = _resolve(ref, 70, "C")
     return design(rv, reference=ref, intent=EditIntent.INSTALL, max_candidates_per_chemistry=5)

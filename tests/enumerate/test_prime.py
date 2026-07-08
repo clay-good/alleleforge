@@ -14,13 +14,17 @@ from alleleforge.variant.resolver import ResolvedVariant, resolve
 MakeRef = Callable[[dict[str, str]], ReferenceGenome]
 
 
-def _context() -> str:
+def _context(cca_start: int = 58) -> str:
     # AT-only fill has no GG/CC, so the only PAMs are the ones we insert:
     #   a plus pegRNA PAM (TGG) whose nick sits 10 nt 5' of the edit at 70, and
-    #   a minus ngRNA PAM (CCA -> NGG on the minus strand) whose seed spans the edit.
+    #   a minus ngRNA PAM (CCA -> NGG on the minus strand). The ngRNA protospacer
+    #   reads on the minus strand, so its PAM-proximal seed end is the LOW genomic
+    #   boundary proto_lo = cca_start + 3. Default cca_start=58 -> proto_lo=61, seed
+    #   [61, 71) which spans the edit at 70 (a genuine PE3b). cca_start=55 ->
+    #   proto_lo=58, so edit 70 is 12 nt away, in the PAM-distal half (not PE3b).
     seq = list("AT" * 70)  # length 140
     seq[63:66] = list("TGG")  # plus pegRNA PAM; nick = 63 - 3 = 60
-    seq[55:58] = list("CCA")  # minus ngRNA PAM; protospacer [58, 78) covers edit 70
+    seq[cca_start : cca_start + 3] = list("CCA")  # minus ngRNA PAM
     return "".join(seq)
 
 
@@ -75,10 +79,24 @@ def test_tevopreq1_attached_by_default(make_reference: MakeRef) -> None:
 
 
 def test_pe3b_preferred_when_seed_disrupting(make_reference: MakeRef) -> None:
+    # The ngRNA's PAM-proximal seed [61, 71) spans the edit at 70, so this is a
+    # genuine PE3b (measured from proto_lo, the minus-strand PAM-proximal end).
     _ref, pegs = _pegs(make_reference)
     plus = next(p for p in pegs if p.placement.strand is Strand.PLUS)
     assert plus.nicking_guide is not None
-    assert plus.nicking_guide.seed_disrupting  # the CCA ngRNA's seed spans the edit
+    assert plus.nicking_guide.seed_disrupting
+
+
+def test_pam_distal_edit_is_not_labeled_pe3b(make_reference: MakeRef) -> None:
+    # With the ngRNA PAM one codon further 5' (proto_lo=58), the edit at 70 is 12 nt
+    # away — in the PAM-DISTAL half, not the seed. The prior code measured the seed
+    # from proto_hi and would falsely promote this to PE3b; the corrected code does
+    # not, so no seed-disrupting nicking guide is emitted here.
+    ref = make_reference({"chr2": _context(cca_start=55)})
+    rv = _resolve(ref, 70, "C")
+    pegs = enumerate_prime(rv, EditIntent.INSTALL, reference=ref)
+    plus = next(p for p in pegs if p.placement.strand is Strand.PLUS)
+    assert plus.nicking_guide is None or not plus.nicking_guide.seed_disrupting
 
 
 def test_both_strands_enumerated(make_reference: MakeRef) -> None:

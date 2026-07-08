@@ -105,9 +105,16 @@ def _select_nicking_guide(
         spacer = _rc(start[proto_lo:proto_hi])
         placement = place(proto_lo, proto_hi, Strand.MINUS)
         nick_genomic = place(nick_local, nick_local + 1, Strand.MINUS).start
+        # The ngRNA protospacer reads on the minus strand, so its PAM-proximal end
+        # (where the Cas9 seed lives) is the LOW genomic boundary ``proto_lo``,
+        # adjacent to the PAM at ``[k, k+pam_len)``. The seed is therefore the
+        # SEED_LENGTH bases from ``proto_lo`` up — an edit disrupts it iff
+        # ``edit_local - proto_lo < _SEED_LENGTH``. Measuring from ``proto_hi`` (the
+        # PAM-distal 5' end) mislabels a genuine PE3b as plain PE3 and falsely
+        # promotes a PAM-distal edit to PE3b.
         seed_disrupting = (
             proto_lo <= edit_local < proto_hi
-            and (proto_hi - edit_local) <= _SEED_LENGTH
+            and (edit_local - proto_lo) < _SEED_LENGTH
             and start[edit_local] != edited[edit_local]
         )
         guide = NickingGuide(

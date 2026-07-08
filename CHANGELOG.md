@@ -10,6 +10,14 @@ acceptance.
 
 ### Fixed
 
+- **PE3b is now measured from the correct end of the seed.** For a frame-minus prime-editing
+  nicking guide, the Cas9 seed is the PAM-proximal protospacer end (the low-genomic `proto_lo`
+  boundary, adjacent to the PAM). The enumerator tested `proto_hi - edit_local <= SEED_LENGTH`
+  — the PAM-*distal* half — so genuine PE3b guides were demoted to plain PE3 and PAM-distal
+  edits were falsely promoted to PE3b, mislabeling the flagship's byproduct protection. The
+  test is now `edit_local - proto_lo < SEED_LENGTH`, so a guide is labeled `pe3b` only when the
+  edit truly falls in its seed. (Part 1 of `correct-design-verticals`; the allele-aware nuclease
+  correction, base-editor efficiency axis, and composite-preserving truncation parts remain.)
 - **Two silent coordinate errors in the input layer now fail closed.** (Parts of
   `reconcile-assembly-coordinates`; contig-naming and source-build reconciliation remain):
   - *A wrong-build insertion passed silently.* `_left_align` re-read an indel's anchor from

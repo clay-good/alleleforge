@@ -1,13 +1,18 @@
 # Tasks
 
-## 1. PE3b seed direction
+## 1. PE3b seed direction — DONE
 
-- [ ] In `enumerate/prime.py`, change the frame-minus seed-disruption test to measure from
+- [x] In `enumerate/prime.py`, change the frame-minus seed-disruption test to measure from
   the PAM-proximal protospacer end (`edit_local - proto_lo < _SEED_LENGTH`), matching the
   Cas9 seed definition.
-- [ ] Confirm the frame-plus path (if any) measures from its own PAM-proximal end.
-- [ ] Test: an edit in the PAM-proximal seed is classified `pe3b` and preferred; a
+- [x] Confirm the frame-plus path (if any) measures from its own PAM-proximal end.
+  (There is only one nicking-guide seed computation — the frame-minus `_select_nicking_guide`;
+  the frame-plus path enumerates pegRNAs, not ngRNAs, so it has no seed test to correct.)
+- [x] Test: an edit in the PAM-proximal seed is classified `pe3b` and preferred; a
   PAM-distal edit is not classified `pe3b`.
+  (`test_pe3b_preferred_when_seed_disrupting` on a proto_lo=61 seed spanning edit 70, and
+  `test_pam_distal_edit_is_not_labeled_pe3b` on the proto_lo=58 / 12-nt-distal case; three
+  downstream fixtures that encoded the wrong direction were corrected to a real PE3b geometry.)
 
 ## 2. Allele-aware nuclease correction + re-cut-blocking donor
 
@@ -40,3 +45,10 @@
 ## 5. Regenerate goldens
 
 - [ ] Regenerate menu/ranking goldens affected by the axis and truncation changes.
+
+## Status
+
+Part 1 (PE3b seed direction) is **shipped**. Parts 2 (allele-aware nuclease correction +
+re-cut-blocking donor), 3 (base-editor activity efficiency axis), and 4 (composite-preserving
+per-chemistry truncation) remain open — each is a design-layer change with golden impact and
+is deferred to its own focused increment.

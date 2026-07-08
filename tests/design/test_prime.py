@@ -18,7 +18,10 @@ MakeRef = Callable[[dict[str, str]], ReferenceGenome]
 def _context() -> str:
     seq = list("AT" * 70)
     seq[63:66] = list("TGG")  # plus pegRNA PAM
-    seq[55:58] = list("CCA")  # minus ngRNA PAM (PE3b)
+    # minus ngRNA PAM: proto_lo = 58 + 3 = 61, so the PAM-proximal seed [61, 71)
+    # spans the edit at 70 -> a genuine PE3b (measured from the minus-strand
+    # PAM-proximal end, not proto_hi).
+    seq[58:61] = list("CCA")
     return "".join(seq)
 
 
