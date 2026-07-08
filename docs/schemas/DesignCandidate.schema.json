@@ -252,7 +252,7 @@
       "type": "object"
     },
     "OffTargetReport": {
-      "description": "An aggregated, ancestry-stratified off-target nomination report.\n\nAttributes:\n    spacer: The on-target spacer the search was run for (5'->3').\n    pam: The PAM pattern searched.\n    sites: All nominated sites passing the reporting thresholds.\n    mismatch_threshold: Max mismatches allowed in the search.\n    reference_build: The reference build searched.",
+      "description": "An aggregated, ancestry-stratified off-target nomination report.\n\nAttributes:\n    spacer: The on-target spacer the search was run for (5'->3').\n    pam: The PAM pattern searched.\n    sites: All nominated sites passing the reporting thresholds.\n    mismatch_threshold: Max mismatches allowed in the search.\n    reference_build: The reference build searched.\n    scorer: Name of the specificity scorer that produced the site scores.\n    score_matrix: Identity of the weight source the scorer used, so a consumer\n        can tell whether the scores are published-CFD or an approximation.\n    subthreshold_score_sum: Sum of the best per-placement scores of in-budget\n        off-target sites that were nominated but did **not** clear the reporting\n        threshold, so :meth:`specificity_score` can aggregate over the full\n        nominated set (including the sub-threshold tail) rather than only over\n        reported sites. Defaults to ``0.0`` for a report built without a tail.",
       "properties": {
         "mismatch_threshold": {
           "default": 4,
@@ -268,6 +268,30 @@
           "title": "Reference Build",
           "type": "string"
         },
+        "score_matrix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score Matrix"
+        },
+        "scorer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scorer"
+        },
         "sites": {
           "default": [],
           "items": {
@@ -279,6 +303,11 @@
         "spacer": {
           "title": "Spacer",
           "type": "string"
+        },
+        "subthreshold_score_sum": {
+          "default": 0.0,
+          "title": "Subthreshold Score Sum",
+          "type": "number"
         }
       },
       "required": [
@@ -289,7 +318,7 @@
       "type": "object"
     },
     "OffTargetSite": {
-      "description": "A single nominated off-target locus with provenance and scoring.\n\nAttributes:\n    locus: The genomic placement of the off-target protospacer.\n    mismatches: Number of base mismatches to the on-target spacer.\n    dna_bulges: Number of DNA bulges in the alignment.\n    rna_bulges: Number of RNA bulges in the alignment.\n    score: The specificity score under ``score_method``.\n    score_method: Which score ``score`` reports.\n    mit_score: The MIT/Hsu specificity score for this site when defined (an\n        ungapped, 20-nt alignment), else ``None``. Recorded alongside\n        ``score`` so a site nominated by the engine's MIT reporting threshold\n        is auditable even when the primary ``score`` is CFD \u2014 the two\n        thresholds are an OR, and the MIT score that retained a low-CFD site\n        would otherwise be invisible.\n    origin: Reference, population, or patient origin.\n    causal_allele: For population/patient sites, the allele that creates or\n        modifies the site (``chrom:pos:ref>alt`` form), else ``None``.\n    populations: Populations carrying the causal allele.\n    frequency: Allele frequency of the causal allele (max over populations).\n    ancestries: Per-ancestry frequency annotation for this site.",
+      "description": "A single nominated off-target locus with provenance and scoring.\n\nAttributes:\n    locus: The genomic placement of the off-target protospacer.\n    mismatches: Number of base mismatches to the on-target spacer.\n    dna_bulges: Number of DNA bulges in the alignment.\n    rna_bulges: Number of RNA bulges in the alignment.\n    score: The specificity score under ``score_method``.\n    score_method: Which score ``score`` reports.\n    mit_score: The MIT/Hsu specificity score for this site when defined (an\n        ungapped, 20-nt alignment), else ``None``. Recorded alongside\n        ``score`` so a site nominated by the engine's MIT reporting threshold\n        is auditable even when the primary ``score`` is CFD \u2014 the two\n        thresholds are an OR, and the MIT score that retained a low-CFD site\n        would otherwise be invisible.\n    origin: Reference, population, or patient origin.\n    causal_allele: For population/patient sites, the allele that creates or\n        modifies the site (``chrom:pos:ref>alt`` form), else ``None``.\n    populations: Populations carrying the causal allele.\n    frequency: Allele frequency of the causal allele (max over populations).\n    ancestries: Per-ancestry frequency annotation for this site.\n    score_matrix: The weight source that actually produced ``score`` for *this*\n        site, so a consumer can tell a published-CFD score from a fallback. It\n        can differ from the report-level scorer matrix: the published CFD matrix\n        is defined only for a 20-nt alignment, so a bulge-collapsed or off-length\n        hit is scored by the length-relative approximation and records that here\n        rather than being mislabeled as published CFD. ``None`` when unset.",
       "properties": {
         "ancestries": {
           "additionalProperties": {
@@ -367,6 +396,18 @@
         "score": {
           "title": "Score",
           "type": "number"
+        },
+        "score_matrix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score Matrix"
         },
         "score_method": {
           "$ref": "#/$defs/ScoreMethod"
@@ -496,6 +537,19 @@
         },
         "method": {
           "$ref": "#/$defs/UncertaintyMethod"
+        },
+        "notes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "point_from_trained_model": {
+          "default": false,
+          "title": "Point From Trained Model",
+          "type": "boolean"
         },
         "value": {
           "title": "Value",

@@ -42,6 +42,27 @@ def test_distribution_normalized_and_methods() -> None:
     assert result.p_intended_exact.interval_level == 0.80
 
 
+def test_baseline_point_is_not_from_trained_model() -> None:
+    # The transparent baseline's point is a rule-of-thumb, not a trained model, so
+    # it must not carry the trained-point flag (the trained BE-DICT adapter, which
+    # feeds the same window math, sets it True — see _assemble_window_outcome).
+    w = _window("TTTAAACGTTTTTTTTTTTT", target=6, bystanders=(4, 5))
+    result = BaseEditOutcomePredictor().predict(w, _ABE)
+    assert result.p_intended_exact.point_from_trained_model is False
+    assert result.bystander_burden.point_from_trained_model is False
+
+
+def test_trained_window_math_stamps_the_trained_flag() -> None:
+    # The shared assembler carries the trained provenance onto both derived
+    # predictions when the probabilities come from the trained BE-DICT model.
+    from alleleforge.scoring.base_outcome import _assemble_window_outcome
+
+    w = _window("TTTAAACGTTTTTTTTTTTT", target=6, bystanders=(4, 5))
+    trained = _assemble_window_outcome(w, _ABE, {4: 0.3, 5: 0.2, 6: 0.8}, from_trained=True)
+    assert trained.p_intended_exact.point_from_trained_model is True
+    assert trained.bystander_burden.point_from_trained_model is True
+
+
 def test_clean_window_has_high_exact_probability() -> None:
     clean = _window("TTTTTACGTTTTTTTTTTTT", target=6)  # only the target A in-window
     bystander = _window("TTTAAACGTTTTTTTTTTTT", target=6, bystanders=(4, 5))

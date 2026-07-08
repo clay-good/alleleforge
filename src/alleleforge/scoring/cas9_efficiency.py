@@ -253,6 +253,7 @@ class TrainedRuleSet3Scorer(WeightGate):
             method=UncertaintyMethod.HEURISTIC,
             in_distribution=in_dist,
             calibrated=False,
+            point_from_trained_model=True,  # trained RS3 point; interval still heuristic
         )
 
 

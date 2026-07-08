@@ -133,6 +133,7 @@ class PridictEngineAdapter(WeightGate):
             method=UncertaintyMethod.HEURISTIC,
             in_distribution=True,
             calibrated=False,
+            point_from_trained_model=True,  # real PRIDICT2 point; interval still heuristic
         )
 
     @classmethod

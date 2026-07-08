@@ -48,6 +48,19 @@
     "method": {
       "$ref": "#/$defs/UncertaintyMethod"
     },
+    "notes": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+    },
+    "point_from_trained_model": {
+      "default": false,
+      "title": "Point From Trained Model",
+      "type": "boolean"
+    },
     "value": {
       "title": "Value",
       "type": "number"

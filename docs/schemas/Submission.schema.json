@@ -1,7 +1,7 @@
 {
   "$defs": {
     "BenchmarkResult": {
-      "description": "A signed, provenance-stamped evaluation of one model on one (task, split).\n\nAttributes:\n    task: The task name.\n    split_version: The frozen split version evaluated against.\n    dataset: The dataset the split partitions.\n    n_test: Number of test-fold examples scored.\n    metrics: Metric name \u2192 value, including ``\"ece\"``.\n    primary_metric: The task's ranking metric.\n    primary_value: The value of the primary metric.\n    n_out_of_distribution: How many predictions the model self-flagged OOD.\n    model: The evaluated model's card facts.\n    provenance: The full reproducibility block.\n    signature: Content hash over this record (minus the signature itself).",
+      "description": "A signed, provenance-stamped evaluation of one model on one (task, split).\n\nAttributes:\n    schema_version: The :data:`RESULT_SCHEMA_VERSION` this record was produced\n        under, so a consumer can detect format drift.\n    task: The task name.\n    split_version: The frozen split version evaluated against.\n    dataset: The dataset the split partitions.\n    n_test: Number of test-fold examples scored.\n    metrics: Metric name \u2192 value, including ``\"ece\"``.\n    primary_metric: The task's ranking metric.\n    primary_value: The value of the primary metric.\n    n_out_of_distribution: How many predictions the model self-flagged OOD.\n    model: The evaluated model's card facts.\n    provenance: The full reproducibility block.\n    signature: Content hash over this record (minus the signature itself).",
       "properties": {
         "dataset": {
           "title": "Dataset",
@@ -35,6 +35,11 @@
         },
         "provenance": {
           "$ref": "#/$defs/Provenance"
+        },
+        "schema_version": {
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
         },
         "signature": {
           "title": "Signature",

@@ -114,7 +114,11 @@ class BaseEditOutcomePredictor:
 
 
 def _assemble_window_outcome(
-    window: BaseEditWindow, editor: BaseEditor, probs: dict[int, float]
+    window: BaseEditWindow,
+    editor: BaseEditor,
+    probs: dict[int, float],
+    *,
+    from_trained: bool = False,
 ) -> WindowOutcome:
     """Build a :class:`WindowOutcome` from per-position edit probabilities.
 
@@ -142,13 +146,18 @@ def _assemble_window_outcome(
     burden = sum(probs.get(p, 0.0) for p in window.bystander_positions)
     return WindowOutcome(
         outcome=outcome,
-        p_intended_exact=_prediction(p_exact),
-        bystander_burden=_prediction(burden),
+        p_intended_exact=_prediction(p_exact, from_trained=from_trained),
+        bystander_burden=_prediction(burden, from_trained=from_trained),
     )
 
 
-def _prediction(value: float) -> Prediction[float]:
-    """Wrap a baseline scalar in a calibrated 80% heuristic prediction."""
+def _prediction(value: float, *, from_trained: bool = False) -> Prediction[float]:
+    """Wrap an outcome scalar in an 80% heuristic-band prediction.
+
+    ``from_trained`` records whether the underlying probabilities came from the
+    trained BE-DICT model (versus the transparent baseline), so a trained point
+    with this uncalibrated band is distinguishable from a fully heuristic one.
+    """
     return Prediction[float](
         value=value,
         interval=(max(0.0, value - _INTERVAL_HALF), value + _INTERVAL_HALF),
@@ -156,6 +165,7 @@ def _prediction(value: float) -> Prediction[float]:
         method=UncertaintyMethod.HEURISTIC,
         in_distribution=True,
         calibrated=False,
+        point_from_trained_model=from_trained,
     )
 
 
@@ -344,7 +354,7 @@ class BeDictAdapter(_ModelZooAdapter):
         # AlleleForge positions are 1-based from the PAM-distal end; BE-DICT base_pos
         # is 0-based from the same (5') end -> p maps to base_pos p-1.
         probs = {p: by_basepos.get(p - 1, 0.0) for p in editable}
-        return _assemble_window_outcome(window, editor, probs)
+        return _assemble_window_outcome(window, editor, probs, from_trained=True)
 
 
 class BeHiveAdapter(_ModelZooAdapter):

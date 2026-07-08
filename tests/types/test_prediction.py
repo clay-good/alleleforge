@@ -157,6 +157,49 @@ def test_combine_propagates_real_calibration() -> None:
 
 def test_notes_default_empty_and_carry_through() -> None:
     assert _pred(0.5, 0.4, 0.6).notes == ()
+
+
+# -- trained-vs-heuristic legibility ------------------------------------------
+
+
+def test_point_from_trained_model_defaults_false() -> None:
+    assert _pred(0.5, 0.4, 0.6).point_from_trained_model is False
+
+
+def test_trained_point_is_distinguishable_from_heuristic() -> None:
+    # A trained point estimate often ships with an *uncalibrated* heuristic band,
+    # so calibrated/in_distribution/method alone cannot separate it from a fully
+    # heuristic prediction. The trained flag makes the distinction without
+    # reading provenance.
+    heuristic = _pred(0.5, 0.35, 0.65, calibrated=False, in_distribution=True)
+    trained = _pred(
+        0.5, 0.35, 0.65, calibrated=False, in_distribution=True, point_from_trained_model=True
+    )
+    assert (heuristic.calibrated, heuristic.in_distribution) == (
+        trained.calibrated,
+        trained.in_distribution,
+    )
+    assert heuristic.point_from_trained_model != trained.point_from_trained_model
+
+
+def test_combine_ands_trained_flag() -> None:
+    trained = _pred(0.4, 0.3, 0.5, point_from_trained_model=True)
+    also_trained = _pred(0.6, 0.5, 0.7, point_from_trained_model=True)
+    heuristic = _pred(0.6, 0.5, 0.7, point_from_trained_model=False)
+    assert Prediction.combine([trained, also_trained]).point_from_trained_model is True
+    # one heuristic input makes the aggregate no longer purely trained
+    assert Prediction.combine([trained, heuristic]).point_from_trained_model is False
+
+
+def test_calibrated_by_preserves_trained_flag() -> None:
+    p = Prediction[float].calibrated_by(
+        value=0.5,
+        interval=(0.4, 0.6),
+        method=UncertaintyMethod.CONFORMAL,
+        point_from_trained_model=True,
+    )
+    assert p.calibrated is True
+    assert p.point_from_trained_model is True
     p = Prediction[float].calibrated_by(
         value=0.5,
         interval=(0.4, 0.6),

@@ -33,7 +33,6 @@
       "type": "string"
     },
     "known_failure_modes": {
-      "default": [],
       "items": {
         "type": "string"
       },
@@ -89,7 +88,8 @@
     "intended_use",
     "out_of_scope_use",
     "license",
-    "citation"
+    "citation",
+    "known_failure_modes"
   ],
   "title": "ModelCard",
   "type": "object"

@@ -23,15 +23,21 @@
 - [ ] Test: a detector-less scorer reports `in_distribution = False`; the default design
   path computes OOD; the trained PRIDICT path is not less OOD-honest than its baseline.
 
-## 3. Trained-vs-heuristic legibility
+## 3. Trained-vs-heuristic legibility — DONE
 
-- [ ] Add a method value or boolean (e.g. `point_from_trained_model`) so a trained point
+- [x] Add a method value or boolean (e.g. `point_from_trained_model`) so a trained point
   estimate with an uncalibrated interval is distinguishable from a fully heuristic
   prediction using the honesty flags alone.
-- [ ] Set it on the trained scorers (Rule Set 3, PRIDICT2, BE-DICT, Lindel); leave it
+  (`Prediction.point_from_trained_model`; threaded through `calibrated_by` and `combine`.)
+- [x] Set it on the trained scorers (Rule Set 3, PRIDICT2, BE-DICT, Lindel); leave it
   false on the heuristic baselines.
-- [ ] Test: a trained scorer and a heuristic scorer differ in the honesty surface without
+  (Set on `TrainedRuleSet3Scorer`, `PridictEngineAdapter`, and the BE-DICT trained path via
+  `_assemble_window_outcome(from_trained=True)`. Lindel/cas9-outcome adapters return an
+  `EditOutcome` distribution, not a scalar `Prediction`, so they carry no such flag.)
+- [x] Test: a trained scorer and a heuristic scorer differ in the honesty surface without
   reading provenance.
+  (`test_trained_point_is_distinguishable_from_heuristic`, `test_combine_ands_trained_flag`,
+  `test_baseline_point_is_not_from_trained_model`, `test_trained_window_math_stamps_the_trained_flag`.)
 
 ## 4. Nominal vs measured interval level
 

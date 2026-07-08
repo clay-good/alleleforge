@@ -61,6 +61,13 @@ class Prediction(BaseModel, Generic[T]):
             ``True`` only through :meth:`calibrated_by` (a fitted calibrator); a
             direct construction asserting ``calibrated=True`` is coerced to
             ``False``, so the flag is a guarantee, not a self-report.
+        point_from_trained_model: ``True`` when the point estimate comes from a
+            trained model (e.g. Rule Set 3, PRIDICT2, BE-DICT, Lindel) rather than
+            a transparent rule-of-thumb baseline. A trained point often ships with
+            an *uncalibrated* heuristic interval (``calibrated=False``), which would
+            otherwise be byte-identical in the honesty flags to a fully heuristic
+            prediction — so this makes "trained point, uncalibrated interval"
+            distinguishable from "heuristic point" without reading provenance.
         notes: Auditable free-form notes attached at construction (e.g. a
             recorded interval repair), stored verbatim in provenance.
     """
@@ -73,6 +80,7 @@ class Prediction(BaseModel, Generic[T]):
     method: UncertaintyMethod
     in_distribution: bool = True
     calibrated: bool = False
+    point_from_trained_model: bool = False
     notes: tuple[str, ...] = ()
 
     @model_validator(mode="after")
@@ -109,6 +117,7 @@ class Prediction(BaseModel, Generic[T]):
         method: UncertaintyMethod,
         interval_level: float = 0.80,
         in_distribution: bool = True,
+        point_from_trained_model: bool = False,
         notes: tuple[str, ...] = (),
     ) -> Prediction[T]:
         """Construct a prediction marked ``calibrated=True`` (calibrators only).
@@ -124,6 +133,8 @@ class Prediction(BaseModel, Generic[T]):
             method: The uncertainty method that produced the interval.
             interval_level: The interval's nominal coverage.
             in_distribution: Whether the input is in the training distribution.
+            point_from_trained_model: Whether the point estimate came from a
+                trained model (preserved from the pre-calibration prediction).
             notes: Auditable notes to attach.
 
         Returns:
@@ -136,6 +147,7 @@ class Prediction(BaseModel, Generic[T]):
             "method": method,
             "in_distribution": in_distribution,
             "calibrated": True,
+            "point_from_trained_model": point_from_trained_model,
             "notes": notes,
         }
         return cls.model_validate(data, context={"calibration_token": _CALIBRATION_TOKEN})
@@ -187,6 +199,9 @@ class Prediction(BaseModel, Generic[T]):
         else:
             raise ValueError(f"unknown reduce {reduce!r}; use 'mean' or 'sum'")
         in_distribution = all(p.in_distribution for p in predictions)
+        # A combined point rests on a trained model only when *every* input point
+        # did; one heuristic input makes the aggregate no longer purely trained.
+        from_trained = all(p.point_from_trained_model for p in predictions)
         # The combined result inherits calibration only when every input was
         # itself calibrated (each of which could only have earned the flag
         # through the authorized path), so routing through ``calibrated_by`` here
@@ -198,6 +213,7 @@ class Prediction(BaseModel, Generic[T]):
                 method=UncertaintyMethod.AGREEMENT,
                 interval_level=predictions[0].interval_level,
                 in_distribution=True,
+                point_from_trained_model=from_trained,
             )
         return Prediction[float](
             value=value,
@@ -206,4 +222,5 @@ class Prediction(BaseModel, Generic[T]):
             method=UncertaintyMethod.AGREEMENT,
             in_distribution=in_distribution,
             calibrated=False,
+            point_from_trained_model=from_trained,
         )

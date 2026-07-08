@@ -22,6 +22,16 @@ acceptance.
 
 ### Added
 
+- **A trained point estimate is now distinguishable from a heuristic one by the honesty
+  flags alone.** The real Rule Set 3, PRIDICT2, and BE-DICT scorers ship a trained point
+  with an *uncalibrated* heuristic interval — byte-identical in `method`/`calibrated`/
+  `in_distribution` to a purely heuristic prediction, so a consumer could not tell a
+  trained activity from a rule-of-thumb without reading provenance. `Prediction` gains
+  `point_from_trained_model` (default `False`, threaded through `calibrated_by` and AND-ed
+  in `combine`), set `True` on the trained Rule Set 3 / PRIDICT2 / BE-DICT paths and left
+  `False` on the transparent baselines. Published JSON schemas regenerated (this also syncs
+  the off-target `score_matrix` / `subthreshold_score_sum` fields). (Task 3 of
+  `compute-honest-uncertainty`; tasks 2 and 4 remain.)
 - **Off-target strengthening is now score-based, the aggregate covers the sub-threshold
   tail, and a frequency-aware burden joins the worst-case.** Four gaps that let the
   population/haplotype differentiator under-state risk or report an optimistic summary are
