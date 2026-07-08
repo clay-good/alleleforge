@@ -104,6 +104,26 @@ def test_resolve_rsid_string(dbsnp_db: DbSnpDB) -> None:
     assert resolve("rs334", dbsnp=dbsnp_db).variant.pos == 60099
 
 
+def test_resolve_raises_on_source_assembly_mismatch() -> None:
+    from pathlib import Path
+
+    fixtures = Path(__file__).parents[1] / "data" / "fixtures"
+    db = DbSnpDB.from_tsv(fixtures / "dbsnp.tsv", assembly="GRCh37")
+    # A GRCh37 record must not be silently relabeled hg38.
+    with pytest.raises(ValueError, match="source assembly"):
+        resolve("rs334", dbsnp=db, build="hg38")
+
+
+def test_resolve_ok_when_source_assembly_matches() -> None:
+    from pathlib import Path
+
+    fixtures = Path(__file__).parents[1] / "data" / "fixtures"
+    db = DbSnpDB.from_tsv(fixtures / "dbsnp.tsv", assembly="GRCh37")
+    # GRCh37 == hg19: the assemblies match, so it resolves and keeps the build.
+    rv = resolve("rs334", dbsnp=db, build="hg19")
+    assert rv.variant.build == "hg19"
+
+
 def test_clinvar_without_db_raises() -> None:
     with pytest.raises(ValueError, match="clinvar="):
         resolve(ClinVarAccession(value="VCV000000012"))

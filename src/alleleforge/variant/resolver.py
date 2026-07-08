@@ -30,7 +30,7 @@ from alleleforge.genome.coordinates import (
 )
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.sequence import CoordinateSystem, DNASequence, GenomicInterval, Strand
-from alleleforge.types.variant import ClinVarAccession, DbSnpId, Variant
+from alleleforge.types.variant import ClinVarAccession, DbSnpId, Variant, assembly_matches
 from alleleforge.variant.effect import EffectPredictor, VariantEffect
 from alleleforge.variant.hgvs_adapter import HgvsAdapter
 
@@ -389,6 +389,18 @@ def resolve(
             reference mismatch.
     """
     variant, source = _to_variant(inp, clinvar=clinvar, dbsnp=dbsnp, hgvs=hgvs, reference=reference)
+    # Reconcile — never silently overwrite — a database record's native assembly.
+    # A source record that states its assembly must agree with the requested build
+    # (no liftover happens here); otherwise the mislabel would poison provenance,
+    # the working interval, and the VEP assembly selection downstream.
+    if variant.source_assembly is not None and not assembly_matches(
+        variant.source_assembly, build
+    ):
+        raise ValueError(
+            f"source assembly {variant.source_assembly!r} disagrees with requested build "
+            f"{build!r}; lift the coordinates to {build!r} before resolving rather than "
+            "relabeling them"
+        )
     variant = variant.model_copy(update={"build": build})
     if reference is not None:
         variant = _left_align(variant, reference)

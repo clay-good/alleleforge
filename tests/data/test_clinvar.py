@@ -77,6 +77,36 @@ def test_no_chr_prefix_option(clinvar_vcf: Path) -> None:
     assert db.get("VCV000000012").variant.chrom == "2"
 
 
+def test_from_vcf_sniffs_native_assembly_from_header(tmp_path: Path) -> None:
+    vcf = tmp_path / "clinvar_grch37.vcf"
+    vcf.write_text(
+        "##fileformat=VCFv4.2\n"
+        "##reference=GRCh37\n"
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+        "2\t60100\t12\tA\tT\t.\t.\tCLNSIG=Pathogenic\n"
+    )
+    db = ClinVarDB.from_vcf(vcf)
+    assert db.get("VCV000000012").variant.source_assembly == "GRCh37"
+
+
+def test_from_vcf_assembly_unknown_when_header_silent(clinvar_vcf: Path) -> None:
+    # The fixture header states no assembly, so it is recorded as unknown (None),
+    # not assumed to be the default build.
+    db = ClinVarDB.from_vcf(clinvar_vcf)
+    assert db.get("VCV000000012").variant.source_assembly is None
+
+
+def test_from_vcf_explicit_assembly_overrides_sniff(tmp_path: Path) -> None:
+    vcf = tmp_path / "clinvar.vcf"
+    vcf.write_text(
+        "##reference=GRCh38\n"
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+        "2\t60100\t12\tA\tT\t.\t.\tCLNSIG=Pathogenic\n"
+    )
+    db = ClinVarDB.from_vcf(vcf, assembly="GRCh37")
+    assert db.get("VCV000000012").variant.source_assembly == "GRCh37"
+
+
 def test_parser_edge_cases(tmp_path: Path) -> None:
     vcf = tmp_path / "edge.vcf"
     vcf.write_text(

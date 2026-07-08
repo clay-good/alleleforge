@@ -54,8 +54,27 @@ acceptance.
   test is now `edit_local - proto_lo < SEED_LENGTH`, so a guide is labeled `pe3b` only when the
   edit truly falls in its seed. (Part 1 of `correct-design-verticals`; the allele-aware nuclease
   correction, base-editor efficiency axis, and composite-preserving truncation parts remain.)
+- **Contig naming is reconciled at the reference boundary.** The only fetchable genomes are
+  Ensembl-named (`1`/`MT`), but the ClinVar/dbSNP parsers, the difficult-region table, and the
+  RefSeq resolver all use UCSC `chr`-prefixed names — so a `chr17` ClinVar lookup against an
+  Ensembl-named reference hit a `KeyError`, a misleading "wrong build?" mismatch, or silently
+  never fired the T2T recommendation. `BuildDescriptor` now declares its `naming_style`,
+  `ReferenceGenome.fetch`/`contig_length` alias `chr17`↔`17` (and the `chrM`/`MT`/`M`
+  spellings) transparently — raising an explicit `ContigNamingError` (distinct from a
+  base-level mismatch) only for a genuinely irreconcilable name — and `GenomicInterval.overlaps`
+  compares contigs canonically so ambiguous-region flagging fires on either naming style.
+  (Part 1 of `reconcile-assembly-coordinates`.)
+- **A source database's assembly is reconciled, not silently overwritten.** `resolve` stamped
+  the requested `build` (default hg38) onto every ClinVar/dbSNP record unconditionally, and the
+  parsers never recorded the record's native assembly — so a GRCh37 release loaded with
+  `build="hg38"` relabeled every variant to hg38 with no liftover, poisoning provenance and the
+  downstream VEP assembly selection. Parsers now record each record's native assembly on
+  `Variant.source_assembly` (ClinVar sniffs it from the VCF header or takes an explicit
+  `assembly=`; dbSNP takes `assembly=`), left unknown rather than assumed when absent; `resolve`
+  raises when the requested build disagrees with a recorded source assembly instead of
+  relabeling. (Part 4 of `reconcile-assembly-coordinates`, which is now complete and archived.)
 - **Two silent coordinate errors in the input layer now fail closed.** (Parts of
-  `reconcile-assembly-coordinates`; contig-naming and source-build reconciliation remain):
+  `reconcile-assembly-coordinates`):
   - *A wrong-build insertion passed silently.* `_left_align` re-read an indel's anchor from
     the reference before validating, so a hg19 coordinate fed as hg38 whose asserted anchor
     disagreed was accepted — the exact wrong-build case the fail-closed guarantee exists to

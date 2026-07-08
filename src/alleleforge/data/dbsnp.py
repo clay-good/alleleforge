@@ -33,12 +33,22 @@ class DbSnpDB:
             recs.sort(key=lambda v: v.pos)
 
     @classmethod
-    def from_tsv(cls, path: str | Path, *, add_chr_prefix: bool = True) -> DbSnpDB:
-        """Parse an ``rsid chrom pos ref alt`` TSV (plain or ``.gz``)."""
-        return cls(cls._parse(path, add_chr_prefix=add_chr_prefix))
+    def from_tsv(
+        cls, path: str | Path, *, add_chr_prefix: bool = True, assembly: str | None = None
+    ) -> DbSnpDB:
+        """Parse an ``rsid chrom pos ref alt`` TSV (plain or ``.gz``).
+
+        ``assembly`` records the release's native assembly on each variant's
+        ``source_assembly`` so a requested build can be reconciled against it; it
+        is left unknown (``None``) when the caller does not state it, rather than
+        assuming the default build.
+        """
+        return cls(cls._parse(path, add_chr_prefix=add_chr_prefix, assembly=assembly))
 
     @staticmethod
-    def _parse(path: str | Path, *, add_chr_prefix: bool) -> Iterator[Variant]:
+    def _parse(
+        path: str | Path, *, add_chr_prefix: bool, assembly: str | None = None
+    ) -> Iterator[Variant]:
         """Yield one normalized :class:`Variant` per TSV data row."""
         header: list[str] | None = None
         for line in open_text(path):
@@ -59,6 +69,7 @@ class DbSnpDB:
                 pos=int(row["pos"]) - 1,  # dbSNP VCF is 1-based; store 0-based
                 ref=row["ref"],
                 alt=row["alt"],
+                source_assembly=assembly,
                 rsid=DbSnpId(value=row["rsid"]),
             ).normalized()
 

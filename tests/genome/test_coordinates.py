@@ -35,6 +35,15 @@ def test_flag_recommends_t2t_in_centromere() -> None:
     assert "overlaps" in rec.reason
 
 
+def test_flag_fires_on_either_naming_style() -> None:
+    # The difficult-region table is chr-named; an Ensembl-named ('1') query must
+    # still flag the same locus rather than silently short-circuiting on the name.
+    ucsc = flag_ambiguous_regions(_iv("chr1", 122_000_000, 122_000_100))
+    ensembl = flag_ambiguous_regions(_iv("1", 122_000_000, 122_000_100))
+    assert ucsc.recommended and ensembl.recommended
+    assert {r.kind for r in ensembl.regions} == {r.kind for r in ucsc.regions}
+
+
 def test_flag_clears_outside_difficult_regions() -> None:
     rec = flag_ambiguous_regions(_iv("chr7", 1_000, 1_100))
     assert not rec.recommended

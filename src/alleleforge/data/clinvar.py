@@ -118,24 +118,36 @@ class ClinVarDB:
                 self._by_gene[rec.gene.upper()].append(rec)
 
     @classmethod
-    def from_vcf(cls, path: str | Path, *, add_chr_prefix: bool = True) -> ClinVarDB:
+    def from_vcf(
+        cls, path: str | Path, *, add_chr_prefix: bool = True, assembly: str | None = None
+    ) -> ClinVarDB:
         """Parse a ClinVar VCF (plain or ``.gz``) into a :class:`ClinVarDB`.
 
         Args:
             path: Path to the ClinVar VCF release.
             add_chr_prefix: Prepend ``chr`` to bare numeric/``X``/``Y``/``MT``
                 contig names so coordinates match the hg38 reference convention.
+            assembly: The release's native assembly (e.g. ``"GRCh37"``). When
+                omitted it is sniffed from the VCF header (ClinVar states it in a
+                ``##reference`` / ``##fileformat`` line); if the header does not
+                state it, each record's ``source_assembly`` is left unknown rather
+                than assuming the default build.
 
         Returns:
             A queryable :class:`ClinVarDB`.
         """
-        return cls(cls._parse(path, add_chr_prefix=add_chr_prefix))
+        return cls(cls._parse(path, add_chr_prefix=add_chr_prefix, assembly=assembly))
 
     @staticmethod
-    def _parse(path: str | Path, *, add_chr_prefix: bool) -> Iterator[ClinVarRecord]:
+    def _parse(
+        path: str | Path, *, add_chr_prefix: bool, assembly: str | None = None
+    ) -> Iterator[ClinVarRecord]:
         """Yield one :class:`ClinVarRecord` per usable VCF data line."""
+        source_assembly = assembly
         for line in open_text(path):
             if line.startswith("#") or not line.strip():
+                if source_assembly is None and line.startswith("#"):
+                    source_assembly = _sniff_assembly(line)
                 continue
             cols = line.rstrip("\n").split("\t")
             if len(cols) < 8:
@@ -153,6 +165,7 @@ class ClinVarDB:
                 pos=int(pos_s) - 1,  # VCF is 1-based; AlleleForge is 0-based
                 ref=ref if ref != "." else "",
                 alt=alt,
+                source_assembly=source_assembly,
                 clinvar=accession,
                 rsid=rsid,
             ).normalized()
@@ -197,6 +210,19 @@ class ClinVarDB:
             if rec.variant.chrom == interval.chrom
             and interval.start <= rec.variant.pos < interval.end
         ]
+
+
+#: Assembly tokens recognized in a VCF header line, longest/most-specific first.
+_ASSEMBLY_TOKENS: tuple[str, ...] = ("GRCh38", "GRCh37", "NCBI36", "hg38", "hg19", "hg18")
+
+
+def _sniff_assembly(header_line: str) -> str | None:
+    """Return the assembly named in a VCF header line, or ``None`` if none is."""
+    lowered = header_line.lower()
+    for token in _ASSEMBLY_TOKENS:
+        if token.lower() in lowered:
+            return token
+    return None
 
 
 def _with_chr(chrom: str) -> str:

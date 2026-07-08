@@ -40,6 +40,16 @@ def test_no_chr_prefix_option(dbsnp_tsv: Path) -> None:
     assert db.locus("rs334").chrom == "2"
 
 
+def test_from_tsv_records_native_assembly(dbsnp_tsv: Path) -> None:
+    db = DbSnpDB.from_tsv(dbsnp_tsv, assembly="GRCh37")
+    assert db.locus("rs334").source_assembly == "GRCh37"
+
+
+def test_from_tsv_assembly_unknown_by_default(dbsnp_tsv: Path) -> None:
+    db = DbSnpDB.from_tsv(dbsnp_tsv)
+    assert db.locus("rs334").source_assembly is None
+
+
 def test_variant_without_rsid_rejected() -> None:
     from alleleforge.types.variant import Variant
 

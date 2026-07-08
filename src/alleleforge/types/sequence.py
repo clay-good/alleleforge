@@ -148,6 +148,17 @@ class DNASequence(BaseModel):
         return gc / len(self.sequence)
 
 
+def canonical_contig(chrom: str) -> str:
+    """Return a naming-style-independent key for a contig name.
+
+    Strips a UCSC ``chr`` prefix and unifies the mitochondrion's two spellings
+    (``chrM``/``M`` and Ensembl ``MT``), so ``chr17`` and ``17`` — or ``chrM`` and
+    ``MT`` — compare equal. Any other name is returned upper-cased and unprefixed.
+    """
+    base = chrom[3:] if chrom.lower().startswith("chr") else chrom
+    return "MT" if base.upper() in {"M", "MT"} else base.upper()
+
+
 class GenomicInterval(BaseModel):
     """A strand-aware genomic interval, 0-based half-open by default.
 
@@ -217,9 +228,11 @@ class GenomicInterval(BaseModel):
     def overlaps(self, other: GenomicInterval) -> bool:
         """Return ``True`` if the two intervals share any base on the same contig.
 
-        Compares coordinates directly; both intervals must use the same
-        coordinate system for the result to be meaningful.
+        Contigs are compared by :func:`canonical_contig`, so a ``chr1`` interval
+        and a ``1`` interval on the same chromosome are recognized as the same
+        contig rather than silently treated as disjoint. Both intervals must use
+        the same coordinate system for the result to be meaningful.
         """
-        if self.chrom != other.chrom:
+        if canonical_contig(self.chrom) != canonical_contig(other.chrom):
             return False
         return self.start < other.end and other.start < self.end

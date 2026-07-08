@@ -12,6 +12,7 @@ from alleleforge.genome.reference import (
     BuildDescriptor,
     ChecksumError,
     ConsentError,
+    ContigNamingError,
     ReferenceGenome,
 )
 from alleleforge.types.sequence import CoordinateSystem, GenomicInterval, Strand
@@ -21,6 +22,48 @@ _FASTA_TEXT = ">chr1\nACGTACGTACGTACGTACGT\n>chr2\nTTTTGGGGCCCCAAAANNNN\n"
 
 def _iv(chrom: str, start: int, end: int, strand: Strand = Strand.PLUS) -> GenomicInterval:
     return GenomicInterval(chrom=chrom, start=start, end=end, strand=strand)
+
+
+def _write_fasta(tmp_path: Path, contigs: dict[str, str]) -> Path:
+    fasta = tmp_path / "ref.fa"
+    fasta.write_text("".join(f">{c}\n{s}\n" for c, s in contigs.items()))
+    return fasta
+
+
+def test_naming_style_detected(tmp_path: Path, tiny_fasta: Path) -> None:
+    with ReferenceGenome(tiny_fasta) as ucsc:
+        assert ucsc.naming_style == "ucsc"
+    ens = _write_fasta(tmp_path, {"17": "ACGTACGTACGTACGT"})
+    with ReferenceGenome(ens) as ref:
+        assert ref.naming_style == "ensembl"
+
+
+def test_fetch_aliases_chr_query_against_ensembl_reference(tmp_path: Path) -> None:
+    fa = _write_fasta(tmp_path, {"17": "ACGTACGTACGTACGT", "MT": "GGGGCCCCTTTTAAAA"})
+    with ReferenceGenome(fa) as ref:
+        # A chr-prefixed query resolves against an Ensembl-named reference...
+        assert str(ref.fetch(_iv("chr17", 0, 4))) == "ACGT"
+        assert ref.contig_length("chr17") == 16
+        # ...and both mitochondrion spellings alias to Ensembl 'MT'.
+        assert str(ref.fetch(_iv("chrM", 0, 4))) == "GGGG"
+        assert str(ref.fetch(_iv("M", 0, 4))) == "GGGG"
+
+
+def test_fetch_aliases_bare_query_against_ucsc_reference(tiny_fasta: Path) -> None:
+    with ReferenceGenome(tiny_fasta) as ref:
+        assert str(ref.fetch(_iv("1", 0, 4))) == "ACGT"  # bare '1' aliases to chr1
+
+
+def test_contig_naming_mismatch_is_distinct_from_unknown(tmp_path: Path) -> None:
+    fa = _write_fasta(tmp_path, {"Chr9": "ACGTACGT"})  # nonstandard mixed-case prefix
+    with ReferenceGenome(fa) as ref:
+        # canonical match but no exact/alias hit → an explicit naming-mismatch error,
+        # never a misleading unknown-contig or wrong-build message
+        with pytest.raises(ContigNamingError, match="contig-naming mismatch"):
+            ref.fetch(_iv("9", 0, 4))
+        # a genuinely-absent contig stays a plain unknown-contig KeyError
+        with pytest.raises(KeyError, match="unknown contig"):
+            ref.fetch(_iv("22", 0, 4))
 
 
 def test_contigs_and_lengths(tiny_fasta: Path) -> None:

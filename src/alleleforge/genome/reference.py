@@ -27,7 +27,13 @@ from pyfaidx import Fasta
 
 from alleleforge.config import get_settings
 from alleleforge.types.provenance import DatasetVersion
-from alleleforge.types.sequence import CoordinateSystem, DNASequence, GenomicInterval, Strand
+from alleleforge.types.sequence import (
+    CoordinateSystem,
+    DNASequence,
+    GenomicInterval,
+    Strand,
+    canonical_contig,
+)
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -39,6 +45,26 @@ Downloader = Callable[[str, Path], None]
 
 class ConsentError(RuntimeError):
     """Raised when a download is needed but the caller withheld consent."""
+
+
+class ContigNamingError(KeyError):
+    """A fetch used a different contig-naming style than the reference.
+
+    A subclass of :class:`KeyError` so existing ``except KeyError`` handlers still
+    catch it, but its message names the naming mismatch (``chr``-prefix) explicitly
+    rather than presenting as an unknown contig or a base-level reference mismatch.
+    """
+
+
+def _contig_aliases(chrom: str) -> tuple[str, ...]:
+    """Return candidate names for ``chrom`` across UCSC/Ensembl naming styles."""
+    base = chrom[3:] if chrom.lower().startswith("chr") else chrom
+    candidates: tuple[str, ...]
+    if base.upper() in {"M", "MT"}:  # mitochondrion has three spellings in the wild
+        candidates = (chrom, "MT", "chrM", "M")
+    else:
+        candidates = (chrom, base, f"chr{base}")
+    return tuple(dict.fromkeys(candidates))
 
 
 class ChecksumError(RuntimeError):
@@ -57,6 +83,9 @@ class BuildDescriptor:
         sha256: Expected content hash; ``None`` means the build cannot be
             auto-downloaded (we refuse to fetch what we cannot verify).
         redistributable: Whether AlleleForge may vendor this build.
+        naming_style: Contig-naming convention — ``"ensembl"`` (``1``/``MT``) or
+            ``"ucsc"`` (``chr1``/``chrM``). Declares what the FASTA's contigs are
+            named so a differently-named query can be reconciled at the boundary.
     """
 
     name: str
@@ -65,6 +94,7 @@ class BuildDescriptor:
     citation: str
     sha256: str | None = None
     redistributable: bool = False
+    naming_style: str = "ensembl"
 
     def dataset_version(self) -> DatasetVersion:
         """Return the :class:`DatasetVersion` recorded in result provenance."""
@@ -99,6 +129,7 @@ BUILTIN_BUILDS: dict[str, BuildDescriptor] = {
         "analysis_set/chm13v2.0.fa.gz",
         citation="Nurk et al., Science 2022 (T2T-CHM13)",
         redistributable=False,
+        naming_style="ucsc",  # the analysis-set FASTA uses chr1..chrM
     ),
     "mm39": BuildDescriptor(
         name="mm39",
@@ -253,15 +284,42 @@ class ReferenceGenome:
         """Return the contig names available in this reference."""
         return tuple(self._fasta.keys())
 
+    @property
+    def naming_style(self) -> str:
+        """Return this reference's contig-naming style (``"ucsc"``/``"ensembl"``)."""
+        return "ucsc" if any(c.lower().startswith("chr") for c in self._fasta.keys()) else "ensembl"
+
+    def _resolve_contig(self, chrom: str) -> str:
+        """Map a requested contig to the reference's actual name, reconciling style.
+
+        Aliases ``chr17``<->``17`` and ``chrM``<->``MT`` so a query named in the
+        other convention resolves transparently. Raises
+        :class:`ContigNamingError` when only the naming style differs, and a plain
+        :class:`KeyError` when the contig is genuinely absent — the two are kept
+        distinct so a style mismatch is never read as a wrong-build error.
+        """
+        if chrom in self._fasta:
+            return chrom
+        for alias in _contig_aliases(chrom):
+            if alias in self._fasta:
+                return alias
+        # Genuinely absent: if some reference contig shares this canonical name,
+        # the caller only used the wrong naming style; say so explicitly.
+        if any(canonical_contig(chrom) == canonical_contig(c) for c in self._fasta.keys()):
+            raise ContigNamingError(
+                f"contig-naming mismatch (chr-prefix): requested {chrom!r} but the "
+                f"reference is {self.naming_style}-named"
+            )
+        raise KeyError(f"unknown contig {chrom!r}")
+
     def contig_length(self, chrom: str) -> int:
         """Return the length of ``chrom`` in bases.
 
         Raises:
-            KeyError: If ``chrom`` is not present in the reference.
+            KeyError: If ``chrom`` is not present in the reference (even after
+                reconciling the contig-naming style).
         """
-        if chrom not in self._fasta:
-            raise KeyError(f"unknown contig {chrom!r}")
-        return len(self._fasta[chrom])
+        return len(self._fasta[self._resolve_contig(chrom)])
 
     def fetch(self, interval: GenomicInterval) -> DNASequence:
         """Return the reference sequence over ``interval`` (strand-aware).
@@ -284,17 +342,16 @@ class ReferenceGenome:
         """
         if interval.coordinate_system is not CoordinateSystem.ZERO_BASED_HALF_OPEN:
             raise ValueError("fetch requires a 0-based half-open interval")
-        if interval.chrom not in self._fasta:
-            raise KeyError(f"unknown contig {interval.chrom!r}")
+        contig = self._resolve_contig(interval.chrom)
 
         start, end = interval.start, interval.end
         # The pyfaidx handle has a shared file position, so the read (seek+slice)
         # is not thread-safe; hold the per-instance lock for the read only.
         with self._lock:
-            length = len(self._fasta[interval.chrom])
+            length = len(self._fasta[contig])
             real_lo = min(max(start, 0), length)
             real_hi = max(min(end, length), real_lo)
-            core = str(self._fasta[interval.chrom][real_lo:real_hi]) if real_hi > real_lo else ""
+            core = str(self._fasta[contig][real_lo:real_hi]) if real_hi > real_lo else ""
         left_pad = max(0, -start)
         right_pad = (end - start) - (real_hi - real_lo) - left_pad
         plus = "N" * left_pad + core.upper() + "N" * right_pad

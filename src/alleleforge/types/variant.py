@@ -20,6 +20,36 @@ _CLINVAR_RE = re.compile(r"^(VCV|RCV|SCV)\d{9}(\.\d+)?$")
 _RSID_RE = re.compile(r"^rs\d+$")
 _DNA_RE = re.compile(r"^[ACGTN]*$")
 
+#: Assembly-name synonyms collapsed to one canonical family key, so a UCSC and an
+#: Ensembl/GRC name for the same assembly compare equal (``hg38`` == ``GRCh38``).
+_ASSEMBLY_ALIASES: dict[str, str] = {
+    "hg38": "GRCh38",
+    "grch38": "GRCh38",
+    "hg19": "GRCh37",
+    "grch37": "GRCh37",
+    "hg18": "NCBI36",
+    "ncbi36": "NCBI36",
+    "grch36": "NCBI36",
+    "t2t-chm13v2": "CHM13v2",
+    "chm13v2": "CHM13v2",
+    "chm13": "CHM13v2",
+    "mm39": "GRCm39",
+    "grcm39": "GRCm39",
+    "mm10": "GRCm38",
+    "grcm38": "GRCm38",
+}
+
+
+def canonical_assembly(name: str) -> str:
+    """Return a naming-independent key for a genome assembly name."""
+    key = name.strip().lower()
+    return _ASSEMBLY_ALIASES.get(key, name.strip())
+
+
+def assembly_matches(a: str, b: str) -> bool:
+    """Return ``True`` if two assembly names denote the same assembly."""
+    return canonical_assembly(a) == canonical_assembly(b)
+
 
 class VariantClass(StrEnum):
     """The structural class of a normalized variant."""
@@ -83,6 +113,10 @@ class Variant(BaseModel):
         ref: Reference allele (may be empty for a pure insertion after trimming).
         alt: Alternate allele (may be empty for a pure deletion after trimming).
         build: Reference genome build (e.g. ``"hg38"``).
+        source_assembly: The native assembly a database record was parsed from
+            (e.g. ``"GRCh37"``), or ``None`` when unknown / not database-sourced.
+            Recorded so ``resolve`` can reconcile — not overwrite — the source
+            build against the requested one.
         hgvs_g: Optional genomic HGVS string.
         hgvs_c: Optional coding HGVS string.
         hgvs_p: Optional protein HGVS string.
@@ -97,6 +131,7 @@ class Variant(BaseModel):
     ref: str
     alt: str
     build: str = "hg38"
+    source_assembly: str | None = None
     hgvs_g: str | None = None
     hgvs_c: str | None = None
     hgvs_p: str | None = None
