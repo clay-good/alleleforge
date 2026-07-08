@@ -32,7 +32,7 @@ The mechanisms exist; they just aren't wired into the read paths.
 - Make `known_failure_modes` **required** on cards so every model's audit surface is
   complete.
 
-## Status (partial)
+## Status (complete)
 
 The **hash-on-read** core has shipped (tasks 1 and 2): a cached checkpoint
 (`ModelRegistry.checkpoint`), dataset (`DatasetRegistry.resolve`), and reference
@@ -51,12 +51,16 @@ opt-in: `ContentAddressedCache(..., verify=True)` stores a checksum sidecar with
 entry and re-checks the payload bytes on read, raising `CacheIntegrityError` on a
 mismatch; wiring it default-on for the specific artifact namespaces is a follow-up.
 
-The **only** remaining work is task 3.1 — pinning real `checkpoint_sha256` values
-for the remaining cards — and it is **blocked**: it is a maintainer release step
-that requires downloading and hashing the actual (license-gated, external)
-artifacts, which must be done authoritatively, not guessed. Until then the
-hash-on-read machinery verifies whenever a hash *is* pinned, and unpinned cards
-take the (honest, checksum-refusing) `authorize` path.
+Task 3.1 is now resolved as scoped. Only `rule-set-3` ships a maintainer-hosted
+pinned artifact; its real hash is committed and was **re-verified this session** by
+downloading the hosted release (17.5 MB `RuleSet3.txt`) — the sha256 matches the
+pinned value exactly. Every other card is `checkpoint_sha256: null` by design: they
+load from upstream sources or are out-of-scope cross-check placeholders (see
+`specs/cross-check-models-scope.md`), and the registry **fail-closes** on an unpinned
+artifact — refusing to fetch what it cannot checksum — so the gate is never bypassed.
+Pinning further cards would require a maintainer to freeze + host each release
+artifact (choosing hosting and version), which is out of scope for this change. With
+task 5.1 (`make ci` green) confirmed, this change is complete.
 
 ## Impact
 

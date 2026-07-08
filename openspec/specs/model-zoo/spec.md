@@ -13,11 +13,16 @@ weight-free, and every loaded artifact is traceable and license-clean.
 
 Loading any model SHALL require a validated `ModelCard` with the fields `name`,
 `version`, `chemistry`, `training_data`, `intended_use`, `out_of_scope_use`, `license`,
-and `citation`. A missing file or non-mapping YAML SHALL raise `CardError`; a card
-missing a required field SHALL be rejected at validation.
+`citation`, and `known_failure_modes` (now required, so every model's safety-audit
+surface is complete). A missing file or non-mapping YAML SHALL raise `CardError`; a card
+missing any required field SHALL be rejected at validation.
 
 #### Scenario: Missing required field
 - **WHEN** a card omits `intended_use`
+- **THEN** card validation rejects it
+
+#### Scenario: Card without failure modes
+- **WHEN** a card omits `known_failure_modes`
 - **THEN** card validation rejects it
 
 #### Scenario: Absent card
@@ -39,7 +44,9 @@ licenses (markers `-nc`, `noncommercial`, `research-only`). The default use is r
 `ModelRegistry.checkpoint` SHALL, when the artifact is not cached, require
 `consent=True` (`ConsentError`), a pinned `checkpoint_sha256` (`ChecksumError`,
 "refusing to fetch an unverifiable artifact"), and a `source_url`; downloaded bytes
-SHALL be stream-hashed and rejected on mismatch (`ChecksumError`).
+SHALL be stream-hashed and rejected on mismatch (`ChecksumError`). It SHALL ALSO verify an
+**already-cached** artifact against its pinned hash on every load, not only on download,
+so a tampered or truncated cache entry cannot pass silently.
 
 #### Scenario: No consent
 - **WHEN** an uncached checkpoint is requested without consent
@@ -52,6 +59,10 @@ SHALL be stream-hashed and rejected on mismatch (`ChecksumError`).
 #### Scenario: Corrupted download
 - **WHEN** downloaded bytes hash differently from the pinned value
 - **THEN** it raises `ChecksumError` and the artifact is rejected
+
+#### Scenario: Tampered cache entry
+- **WHEN** a cached checkpoint's bytes no longer match the pinned `checkpoint_sha256`
+- **THEN** loading it raises `ChecksumError`
 
 ### Requirement: One shared gate resolves weights for provenance
 

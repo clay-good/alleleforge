@@ -14,7 +14,9 @@ provenance-tagged, coordinate-normalized models.
 `DatasetRegistry.resolve` SHALL raise `ConsentError` for an uncached dataset without
 `consent=True`, `ChecksumError` when the descriptor's `sha256` is `None`, and
 `ConsentError` when `source_url` is `None`; downloaded bytes SHALL be SHA-256 verified.
-An unregistered name SHALL raise `KeyError`.
+When the descriptor pins a `sha256`, `resolve` SHALL ALSO re-verify an already-cached
+artifact against it on every load, so a corrupted or tampered cached dataset cannot be
+served. An unregistered name SHALL raise `KeyError`.
 
 #### Scenario: Uncached dataset without consent
 - **WHEN** `resolve` is called for an uncached dataset without consent
@@ -23,6 +25,10 @@ An unregistered name SHALL raise `KeyError`.
 #### Scenario: Unpinned checksum
 - **WHEN** consent is given but the descriptor's `sha256` is `None`
 - **THEN** it raises `ChecksumError`
+
+#### Scenario: Tampered cached dataset
+- **WHEN** a cached dataset's bytes no longer match the pinned `sha256`
+- **THEN** `resolve` raises `ChecksumError` rather than returning the stale file
 
 ### Requirement: Every dataset is a pinned, cited release
 
