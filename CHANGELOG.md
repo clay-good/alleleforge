@@ -10,6 +10,14 @@ acceptance.
 
 ### Fixed
 
+- **Per-chemistry truncation no longer prunes a composite-optimal candidate.** Each vertical
+  capped its candidates on a *local* proxy (prime by efficiency, Cas9 by
+  efficiency-then-off-target, base by `p_intended_exact`) **before** the global 4-objective
+  ranker ran, so a candidate that would top the composite — modestly lower efficiency but far
+  safer or cleaner — was pruned before the composite was computed. The cap is now applied by
+  `rank_candidates` (`max_per_chemistry`) **after** the composite sort; the verticals pool all
+  candidates. Off-target search already ran on every candidate before the old slice, so this
+  adds no compute. (Part 4 of `correct-design-verticals`.)
 - **The base-editor efficiency axis is no longer a duplicate of cleanliness.** A base-editor
   candidate's `efficiency` was set to `p_intended_exact` (target edited **and** no bystander),
   the same clean-allele probability the ranker's cleanliness term reads — so ~0.65 of the

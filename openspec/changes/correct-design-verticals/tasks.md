@@ -39,13 +39,17 @@
   cleanliness, and is not double-penalized.
   (`test_target_activity_is_distinct_from_clean_fraction`.)
 
-## 4. Composite-preserving truncation
+## 4. Composite-preserving truncation — DONE
 
-- [ ] In the vertical enumerators / `design/designer.py`, apply
+- [x] In the vertical enumerators / `design/designer.py`, apply
   `max_candidates_per_chemistry` after projecting candidates onto the shared ranking
   objectives (or defer truncation to the global ranker).
-- [ ] Test: with a per-chemistry cap set, a candidate that tops the composite but is lower
+  (Verticals now receive `max_candidates=None`; `rank_candidates` gained a
+  `max_per_chemistry` cap applied **after** the composite sort. Off-target search already
+  ran on every candidate before the old local slice, so no extra compute.)
+- [x] Test: with a per-chemistry cap set, a candidate that tops the composite but is lower
   on a vertical's local proxy is still returned.
+  (`test_cap_keeps_composite_best_not_local_proxy_best`, `test_cap_is_per_chemistry`.)
 
 ## 5. Regenerate goldens
 
@@ -53,7 +57,7 @@
 
 ## Status
 
-Parts 1 (PE3b seed direction) and 3 (base-editor activity efficiency axis) are **shipped**.
-Parts 2 (allele-aware nuclease correction + re-cut-blocking donor) and 4 (composite-preserving
-per-chemistry truncation) remain open — each is a design-layer change with golden impact and
-is deferred to its own focused increment.
+Parts 1 (PE3b seed direction), 3 (base-editor activity efficiency axis), and 4
+(composite-preserving truncation) are **shipped**. Only part 2 (allele-aware nuclease
+correction + re-cut-blocking donor) remains open — it spans enumerate/cas9 + design/cas9
+(hdr_donor) and is deferred to its own focused increment.

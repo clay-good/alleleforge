@@ -193,7 +193,7 @@ def design(
             patient_vcf=patient_vcf,
             populations=populations,
             run_offtarget=run_offtarget,
-            max_candidates=max_candidates_per_chemistry,
+            max_candidates=None,  # cap deferred to the composite ranker
             notes=notes,
         )
     )
@@ -211,7 +211,7 @@ def design(
                     patient_vcf=patient_vcf,
                     populations=populations,
                     run_offtarget=run_offtarget,
-                    max_candidates=max_candidates_per_chemistry,
+                    max_candidates=None,  # cap deferred to the composite ranker
                 ),
                 notes,
             )
@@ -231,13 +231,15 @@ def design(
                     patient_vcf=patient_vcf,
                     populations=populations,
                     run_offtarget=run_offtarget,
-                    max_candidates=max_candidates_per_chemistry,
+                    max_candidates=None,  # cap deferred to the composite ranker
                 ),
                 notes,
             )
         )
 
-    outcome = rank_candidates(candidates, weights=weights)
+    outcome = rank_candidates(
+        candidates, weights=weights, max_per_chemistry=max_candidates_per_chemistry
+    )
     rationale = _menu_rationale(decisions, eligible, notes, outcome.rationale)
     provenance = Provenance.capture(
         alleleforge_version=__version__,

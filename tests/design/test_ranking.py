@@ -156,6 +156,34 @@ def test_ood_score_uses_lower_interval_bound() -> None:
     assert sc.efficiency_interval == pytest.approx((0.6, 0.8))
 
 
+def test_cap_keeps_composite_best_not_local_proxy_best() -> None:
+    # A tops a vertical's local efficiency proxy (eff 0.9) but is dangerous and
+    # dirty (low safety/cleanliness); B is the composite winner. A cap applied on
+    # the local proxy (as the verticals used to) would keep A and prune B before the
+    # composite is even computed; applied on the composite (as the ranker now does),
+    # the cap keeps B.
+    a = _cand(Chemistry.CAS9_NUCLEASE, eff=0.9, p_intended=0.1, offscore=0.95)
+    b = _cand(Chemistry.CAS9_NUCLEASE, eff=0.55, p_intended=0.95, offscore=0.0)
+    assert score_candidate(b).composite > score_candidate(a).composite  # B wins the composite
+    out = rank_candidates([a, b], max_per_chemistry=1)
+    assert len(out.candidates) == 1
+    assert out.candidates[0].efficiency is not None
+    assert out.candidates[0].efficiency.value == 0.55  # B kept, not the eff-0.9 A
+
+
+def test_cap_is_per_chemistry() -> None:
+    cands = [
+        _cand(Chemistry.CAS9_NUCLEASE, eff=0.9),
+        _cand(Chemistry.CAS9_NUCLEASE, eff=0.5),
+        _cand(Chemistry.PRIME, eff=0.8),
+        _cand(Chemistry.PRIME, eff=0.4),
+    ]
+    out = rank_candidates(cands, max_per_chemistry=1)
+    kept_chems = [c.chemistry for c in out.candidates]
+    assert kept_chems.count(Chemistry.CAS9_NUCLEASE) == 1
+    assert kept_chems.count(Chemistry.PRIME) == 1
+
+
 def test_pareto_front_excludes_dominated() -> None:
     best = _cand(Chemistry.PRIME, eff=0.9, p_intended=0.9, offscore=0.0)
     dominated = _cand(Chemistry.PRIME, eff=0.4, p_intended=0.4, offscore=0.5)

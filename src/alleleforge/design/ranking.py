@@ -258,7 +258,10 @@ class RankingOutcome:
 
 
 def rank_candidates(
-    candidates: list[DesignCandidate], *, weights: RankingWeights = DEFAULT_WEIGHTS
+    candidates: list[DesignCandidate],
+    *,
+    weights: RankingWeights = DEFAULT_WEIGHTS,
+    max_per_chemistry: int | None = None,
 ) -> RankingOutcome:
     """Rank candidates across chemistries by the weighted-sum composite.
 
@@ -270,6 +273,11 @@ def rank_candidates(
     Args:
         candidates: The pooled candidates from every chemistry.
         weights: The objective weights (default: the spec weights).
+        max_per_chemistry: Keep at most this many candidates per chemistry. The cap
+            is applied **after** the composite sort, so it keeps each chemistry's
+            composite-best — never pruning a candidate that would top the composite
+            on a vertical's local proxy (efficiency, `p_intended_exact`, …) before
+            the composite is even computed. ``None`` keeps every candidate.
 
     Returns:
         A :class:`RankingOutcome` with the ordered candidates, their scores, the
@@ -280,6 +288,16 @@ def rank_candidates(
         key=lambda cs: (cs[1].composite, cs[1].efficiency, cs[1].safety, cs[1].simplicity),
         reverse=True,
     )
+    if max_per_chemistry is not None:
+        kept: list[tuple[DesignCandidate, CandidateScore]] = []
+        per_chem: dict[Chemistry, int] = {}
+        for cs in scored:
+            chem = cs[0].chemistry
+            if per_chem.get(chem, 0) >= max_per_chemistry:
+                continue
+            per_chem[chem] = per_chem.get(chem, 0) + 1
+            kept.append(cs)
+        scored = kept
     ranked: list[DesignCandidate] = []
     ordered_scores: list[CandidateScore] = []
     for candidate, score in scored:
