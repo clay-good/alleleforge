@@ -61,10 +61,28 @@ consent/license-gated, and opt-in.
 
 ### Requirement: Enumeration coverage is stated honestly
 
-The enumerable edit classes SHALL be documented so routing does not advertise prime for
-edits enumeration cannot yet produce; when an eligible edit yields no pegRNA, the menu
-SHALL record an explicit reason rather than silently returning nothing.
+Routing SHALL advertise prime editing only for edit classes that enumeration can currently
+produce (a feasibility check), and SHALL state a specific reason when it declines an edit
+it cannot yet enumerate — not a generic "no actionable candidate" note. The supported edit
+classes SHALL be documented.
 
 #### Scenario: Routed but unenumerable edit
 - **WHEN** an edit routes to prime but no pegRNA can be enumerated for its class
 - **THEN** the menu records an explicit "eligible but no actionable candidate" note
+
+#### Scenario: Unsupported edit class
+- **WHEN** an insertion or deletion is requested and prime enumeration does not yet support
+  it
+- **THEN** routing either declines with a specific "not yet supported" reason or enumerates
+  a valid pegRNA — never silently returns an empty menu with only a generic note
+
+### Requirement: Pol-III transcription constraints are enforced and inspectable
+
+pegRNA enumeration SHALL apply Pol-III (U6) transcription constraints — reject spacers
+containing a `TTTT` terminator, enforce or annotate the 5'-G transcription start, and
+apply a spacer-GC band — and SHALL expose each rejection as a stated reason rather than a
+silent omission.
+
+#### Scenario: Terminator in the spacer
+- **WHEN** a candidate spacer contains a `TTTT` Pol-III terminator
+- **THEN** it is rejected with a stated reason

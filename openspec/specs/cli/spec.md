@@ -26,11 +26,21 @@ sub-apps, and SHALL use distinct exit codes: `0` success, `2` usage, `3` missing
 
 Every command SHALL accept a global `--seed` (default `20240501`), `--reference`,
 `--cache-dir`, and `--verbose`, and every structured-output command SHALL support `--json`
-emitting stable, indented JSON.
+emitting stable, indented JSON. The CLI SHALL resolve settings through `Settings.load()`
+so the user's config file is honored (not only the seed), and SHALL resolve a variant at
+the user-supplied reference build rather than a hard-coded one.
 
 #### Scenario: JSON output
 - **WHEN** `design` is run with `--format json`
 - **THEN** the ranked menu is printed as JSON to stdout and it exits `0`
+
+#### Scenario: Config file honored
+- **WHEN** a user's config file sets `maf_threshold` and a CLI command runs
+- **THEN** the run uses that value
+
+#### Scenario: Non-hg38 reference
+- **WHEN** a non-hg38 reference is supplied
+- **THEN** resolution uses that build, not a hard-coded `hg38`
 
 ### Requirement: Design requires a reference and validates output format
 
@@ -65,3 +75,14 @@ the default run stays weight-free.
 #### Scenario: No trained flag
 - **WHEN** `design` runs without any trained-model flag
 - **THEN** only weight-free heuristic scorers are used
+
+### Requirement: A verify subcommand checks provenance
+
+The CLI SHALL expose `aforge verify <result>` that re-hashes the pinned checkpoints and
+datasets in the result's provenance and re-runs a determinism check against the embedded
+config, exiting non-zero on any mismatch.
+
+#### Scenario: Tampered artifact
+- **WHEN** `aforge verify` is run on a result whose recorded artifact no longer matches its
+  hash
+- **THEN** it exits non-zero and names the mismatch

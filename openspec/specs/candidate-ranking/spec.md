@@ -22,12 +22,19 @@ rationale. Ineligible or unrequested chemistries SHALL be recorded with a note.
 ### Requirement: Verticals degrade gracefully into one menu
 
 Each eligible chemistry vertical SHALL run and the menu SHALL always carry either a
-candidate per eligible chemistry or an explicit reason; a genuine defect SHALL be
-distinguishable from "no design found" rather than both collapsing to the same note.
+candidate per eligible chemistry or an explicit reason. A genuine defect (an unexpected
+exception) SHALL be surfaced as a typed failure that is distinguishable from a legitimate
+"no design found," rather than both collapsing into the same graceful-degradation note, so
+a real bug is not masked.
 
-#### Scenario: A vertical fails
-- **WHEN** one chemistry's scorer raises
-- **THEN** the failure is recorded and other chemistries still populate the menu
+#### Scenario: Expected empty result
+- **WHEN** a vertical legitimately produces no candidate
+- **THEN** the menu records a "no design" reason for that chemistry
+
+#### Scenario: Unexpected defect
+- **WHEN** a vertical raises an unexpected error (e.g. a type error, a bad handle)
+- **THEN** it is surfaced as a typed failure distinguishable from "no design," and other
+  chemistries still populate the menu
 
 ### Requirement: Candidates are scored on four transparent objectives
 
