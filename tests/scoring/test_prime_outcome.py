@@ -53,6 +53,14 @@ def test_intended_marked_and_byproducts_present() -> None:
     assert len(intended) == 1 and intended[0].allele == "intended"
 
 
+def test_outcome_flags_ood_on_ambiguous_reagent() -> None:
+    # The OOD flag is computed from the reagent sequence, not hardcoded: a clean
+    # pegRNA is in-distribution; an ambiguous base (N) in the RTT flags it OOD.
+    assert PrimeOutcomePredictor().predict(_peg()).p_intended.in_distribution is True
+    dirty = PrimeOutcomePredictor().predict(_peg(rtt="ACGTNCGTACGTACGT"))
+    assert dirty.p_intended.in_distribution is False
+
+
 def test_pe3b_suppresses_indels() -> None:
     pe3b = PrimeOutcomePredictor().predict(_peg(ng=_ng(seed_disrupting=True)))
     pe3 = PrimeOutcomePredictor().predict(_peg(ng=_ng(seed_disrupting=False)))

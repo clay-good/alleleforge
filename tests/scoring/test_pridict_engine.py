@@ -64,7 +64,7 @@ def test_parse_predictions_invalid_cell_line() -> None:
 
 
 def test_efficiency_prediction_contract() -> None:
-    pred = PridictEngineAdapter._efficiency(78.854)
+    pred = PridictEngineAdapter._efficiency(78.854, cell_line="HEK")
     assert abs(pred.value - 0.78854) < 1e-9
     assert pred.interval[0] <= pred.value <= pred.interval[1]
     assert pred.interval_level == 0.80
@@ -74,9 +74,16 @@ def test_efficiency_prediction_contract() -> None:
 
 
 def test_efficiency_prediction_clamps() -> None:
-    assert PridictEngineAdapter._efficiency(0.0).value == 0.0
-    assert PridictEngineAdapter._efficiency(100.0).value == 1.0
-    assert PridictEngineAdapter._efficiency(140.0).value == 1.0  # clamped
+    assert PridictEngineAdapter._efficiency(0.0, cell_line="HEK").value == 0.0
+    assert PridictEngineAdapter._efficiency(100.0, cell_line="HEK").value == 1.0
+    assert PridictEngineAdapter._efficiency(140.0, cell_line="HEK").value == 1.0  # clamped
+
+
+def test_efficiency_ood_computed_from_cell_line_not_hardcoded() -> None:
+    # The trained PRIDICT2 path computes its OOD flag from the cell context — at
+    # least as honest as the heuristic baseline — rather than hardcoding True.
+    assert PridictEngineAdapter._efficiency(78.854, cell_line="HEK").in_distribution is True
+    assert PridictEngineAdapter._efficiency(78.854, cell_line="HeLa").in_distribution is False
 
 
 # -- model-zoo gate (CI) ------------------------------------------------------

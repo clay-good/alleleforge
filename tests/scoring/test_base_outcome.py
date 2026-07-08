@@ -42,6 +42,17 @@ def test_distribution_normalized_and_methods() -> None:
     assert result.p_intended_exact.interval_level == 0.80
 
 
+def test_outcome_flags_ood_on_ambiguous_spacer() -> None:
+    # The OOD flag is computed from the protospacer, not hardcoded: a clean spacer
+    # is in-distribution; an ambiguous base (N) flags every emitted prediction OOD.
+    clean = BaseEditOutcomePredictor().predict(_window("TTTAAACGTTTTTTTTTTTT", target=6), _ABE)
+    assert clean.p_intended_exact.in_distribution is True
+    dirty = BaseEditOutcomePredictor().predict(_window("TTTAAACGNTTTTTTTTTTT", target=6), _ABE)
+    assert dirty.p_intended_exact.in_distribution is False
+    assert dirty.p_target_edited.in_distribution is False
+    assert dirty.bystander_burden.in_distribution is False
+
+
 def test_baseline_point_is_not_from_trained_model() -> None:
     # The transparent baseline's point is a rule-of-thumb, not a trained model, so
     # it must not carry the trained-point flag (the trained BE-DICT adapter, which

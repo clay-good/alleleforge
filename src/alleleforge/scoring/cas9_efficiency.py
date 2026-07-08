@@ -72,6 +72,23 @@ def _gc_fraction(seq: str) -> float:
     return sum(b in "GC" for b in seq) / len(seq) if seq else 0.0
 
 
+#: Minimum guide-context length (nt) an efficiency head can read meaningfully.
+_MIN_CONTEXT_LENGTH = 20
+
+
+def context_in_distribution(context: str) -> bool:
+    """Return the documented context check shared by the Cas9 efficiency heads.
+
+    A context with an ambiguous base (``N``) or shorter than the head's minimum is
+    outside the regime the model was defined on, so it is out of distribution. This
+    is the fail-honest fallback the default ensemble uses when no embedding-space
+    :class:`~alleleforge.scoring.uncertainty.OODDetector` is wired — the flag is
+    never hardcoded ``True``.
+    """
+    seq = context.upper()
+    return "N" not in seq and len(seq) >= _MIN_CONTEXT_LENGTH
+
+
 class RuleSet3Scorer:
     """A transparent, deterministic Rule-Set-3-style efficiency baseline."""
 
@@ -109,7 +126,7 @@ class RuleSet3Scorer:
         """Return a calibrated efficiency prediction for a guide ``context``."""
         value = _sigmoid(self._logit(context))
         half = 0.15  # documented heuristic spread for the rule-based baseline
-        in_dist = "N" not in context.upper() and len(context) >= 20
+        in_dist = context_in_distribution(context)
         return Prediction[float](
             value=value,
             interval=(max(0.0, value - half), min(1.0, value + half)),
@@ -299,7 +316,8 @@ class EnsembleEfficiencyScorer:
                 for CI; use a real backbone with the ``ml`` extra).
             n_members: Ensemble size (default 5).
             ood: An out-of-distribution detector over training embeddings; when
-                omitted every input is treated as in-distribution.
+                omitted the scorer falls back to the documented context check
+                (:func:`context_in_distribution`), never a hardcoded in-distribution.
             registry: Model-card registry (defaults to the bundled cards).
         """
         self._embedder = embedder or StubEmbedder(dim=16)
@@ -344,7 +362,13 @@ class EnsembleEfficiencyScorer:
         heads = [_member_weights(i, len(embedding)) for i in range(self._n_members)]
         ensemble = DeepEnsemble([self._member_head(w) for w in heads])
         result = ensemble.predict(embedding)
-        in_dist = self._ood.is_in_distribution(embedding) if self._ood is not None else True
+        # Prefer an embedding-space detector when wired; otherwise fall back to the
+        # documented context check (fail-honest), never a hardcoded ``True``.
+        in_dist = (
+            self._ood.is_in_distribution(embedding)
+            if self._ood is not None
+            else context_in_distribution(context)
+        )
         method = (
             UncertaintyMethod.HEURISTIC
             if _is_weight_free(self._embedder)

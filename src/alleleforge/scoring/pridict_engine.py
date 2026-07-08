@@ -117,13 +117,15 @@ class PridictEngineAdapter(WeightGate):
         return self._registry.get(self.card_name)
 
     @staticmethod
-    def _efficiency(score_percent: float) -> Prediction[float]:
+    def _efficiency(score_percent: float, *, cell_line: str) -> Prediction[float]:
         """Wrap a PRIDICT2 0-100 score as a calibrated [0, 1] efficiency prediction.
 
         The point estimate is the real trained model's score (rescaled); the
         interval is a documented heuristic spread until conformal calibration on a
-        real validation set lands (R5). HEK/K562 are the training distribution, so
-        the OOD flag is honest (in-distribution).
+        real validation set lands (R5). The OOD flag is *computed* from the cell
+        context — ``in_distribution`` iff ``cell_line`` is one of PRIDICT2's training
+        cell lines — so the trained path is at least as OOD-honest as the heuristic
+        baseline (which applies the same cell-context check), never hardcoded ``True``.
         """
         value = min(1.0, max(0.0, score_percent / 100.0))
         return Prediction[float](
@@ -131,7 +133,7 @@ class PridictEngineAdapter(WeightGate):
             interval=(max(0.0, value - _INTERVAL_HALF), min(1.0, value + _INTERVAL_HALF)),
             interval_level=0.80,
             method=UncertaintyMethod.HEURISTIC,
-            in_distribution=True,
+            in_distribution=cell_line in PRIDICT2_CELL_LINES,
             calibrated=False,
             point_from_trained_model=True,  # real PRIDICT2 point; interval still heuristic
             notes=(NOMINAL_INTERVAL_NOTE,),
@@ -169,7 +171,7 @@ class PridictEngineAdapter(WeightGate):
                         rt_length=int(float(row["RTlength"])),
                         rt_overhang=int(float(row["RToverhanglength"])),
                         cell_line=cell_line,
-                        efficiency=cls._efficiency(float(row[score_col])),
+                        efficiency=cls._efficiency(float(row[score_col]), cell_line=cell_line),
                     )
                 )
         designs.sort(key=lambda d: d.efficiency.value, reverse=True)

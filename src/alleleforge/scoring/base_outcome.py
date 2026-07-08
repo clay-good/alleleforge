@@ -146,6 +146,10 @@ def _assemble_window_outcome(
     the allele math is identical regardless of where the probabilities come from.
     """
     editable = sorted(probs)
+    # Fail-honest OOD flag: an ambiguous base (N) in the protospacer is outside the
+    # regime the motif model was defined on. Shared by the baseline and trained
+    # BE-DICT path, so the trained path is no less OOD-honest — never hardcoded True.
+    in_dist = "N" not in str(window.spacer.sequence).upper()
     alleles: list[AlleleOutcome] = []
     intended = frozenset(window.target_positions)
     for r in range(len(editable) + 1):
@@ -170,16 +174,22 @@ def _assemble_window_outcome(
     burden = sum(probs.get(p, 0.0) for p in window.bystander_positions)
     return WindowOutcome(
         outcome=outcome,
-        p_intended_exact=_prediction(p_exact, from_trained=from_trained),
-        p_target_edited=_prediction(p_target, from_trained=from_trained),
+        p_intended_exact=_prediction(p_exact, from_trained=from_trained, in_distribution=in_dist),
+        p_target_edited=_prediction(p_target, from_trained=from_trained, in_distribution=in_dist),
         # bystander_burden is an expected *count* of bystander edits, not a
         # probability, so its fixed spread is not a coverage band at all.
-        bystander_burden=_prediction(burden, from_trained=from_trained, count_valued=True),
+        bystander_burden=_prediction(
+            burden, from_trained=from_trained, count_valued=True, in_distribution=in_dist
+        ),
     )
 
 
 def _prediction(
-    value: float, *, from_trained: bool = False, count_valued: bool = False
+    value: float,
+    *,
+    from_trained: bool = False,
+    count_valued: bool = False,
+    in_distribution: bool = True,
 ) -> Prediction[float]:
     """Wrap an outcome scalar in an 80% heuristic-band prediction.
 
@@ -188,6 +198,7 @@ def _prediction(
     with this uncalibrated band is distinguishable from a fully heuristic one.
     ``count_valued`` marks a non-probability quantity (an expected count) whose
     interval is a nominal spread, not a probability-coverage band.
+    ``in_distribution`` is computed by the caller from the reagent, never hardcoded.
     """
     note = COUNT_INTERVAL_NOTE if count_valued else NOMINAL_INTERVAL_NOTE
     return Prediction[float](
@@ -195,7 +206,7 @@ def _prediction(
         interval=(max(0.0, value - _INTERVAL_HALF), value + _INTERVAL_HALF),
         interval_level=0.80,
         method=UncertaintyMethod.HEURISTIC,
-        in_distribution=True,
+        in_distribution=in_distribution,
         calibrated=False,
         point_from_trained_model=from_trained,
         notes=(note,),

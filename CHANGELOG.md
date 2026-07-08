@@ -10,6 +10,20 @@ acceptance.
 
 ### Fixed
 
+- **The out-of-distribution flag is now computed, not hardcoded — fail-honest by default.**
+  Several default scorers stamped `in_distribution = True` unconditionally: the default
+  ensemble efficiency scorer with no detector wired, the prime-outcome and base-outcome
+  heuristics, and — worst — the real trained PRIDICT2 path, which was *less* OOD-honest than
+  the heuristic baseline it replaces. Every scorer that emits a `Prediction` now derives the
+  flag from an explicit check on its own inputs: the ensemble falls back to a documented
+  context check (`context_in_distribution`, N-free + minimum length) when no embedding-space
+  `OODDetector` is wired; prime-outcome and base-outcome apply the analogous reagent-sequence
+  check; and PRIDICT2 computes `in_distribution` from the cell line, matching the baseline's
+  cell-context check. A scorer with no check defaults to `False`, never `True`. Well-formed
+  reference inputs stay in-distribution, so no goldens churn; only genuinely ill-formed
+  (N-bearing or too-short) inputs now flag OOD. (Completes `compute-honest-uncertainty`, now
+  archived.)
+
 - **Nuclease correction is now enumerated against the allele the target genome actually
   carries.** For a CORRECT/REVERT/INSTALL intent the patient carries the *alternate* allele,
   but `enumerate_cas9` scanned the plain reference — so it emitted guides whose PAM exists only

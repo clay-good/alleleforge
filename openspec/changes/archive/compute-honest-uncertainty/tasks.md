@@ -10,18 +10,34 @@
   non-zero-width interval and `calibrated = False`.
   (`test_ood_floor_defeats_zero_width_agreement`.)
 
-## 2. Compute in_distribution; fail honest by default
+## 2. Compute in_distribution; fail honest by default — DONE
 
-- [ ] Change every scorer that emits a `Prediction` (`cas9_efficiency.py`,
+- [x] Change every scorer that emits a `Prediction` (`cas9_efficiency.py`,
   `prime_efficiency.py`, `prime_outcome.py`, `base_outcome.py`, `pridict_engine.py`) to
   derive `in_distribution` from an explicit distribution check; a scorer with no detector
   SHALL default `in_distribution = False`, never `True`.
-- [ ] Wire a training reference + `OODDetector` (or a documented context check) into the
+  (No emitting scorer now hardcodes `True`: cas9 ensemble falls back to
+  `context_in_distribution`; prime-outcome and base-outcome compute an N-free reagent check;
+  pridict computes from the cell line. `prime_efficiency` already had a cell-context check;
+  the trained `_ModelZooAdapter` placeholders never emit a Prediction (they raise); Lindel /
+  cas9-outcome adapters return an `EditOutcome` distribution, not a scalar `Prediction`.)
+- [x] Wire a training reference + `OODDetector` (or a documented context check) into the
   default ensemble, prime, and base scorers used by `design/`.
-- [ ] Give the trained PRIDICT/BE-DICT/Lindel adapters at least the OOD check their
+  (Shared `cas9_efficiency.context_in_distribution` (N-free + min length) is the default
+  ensemble's fallback when no embedding-space `OODDetector` is wired; prime-outcome and
+  base-outcome apply the analogous reagent-sequence check. Well-formed reference contexts
+  stay in-distribution — no golden churn — while N-bearing / too-short inputs now flag OOD.)
+- [x] Give the trained PRIDICT/BE-DICT/Lindel adapters at least the OOD check their
   heuristic baselines already apply (e.g. cell-context membership).
-- [ ] Test: a detector-less scorer reports `in_distribution = False`; the default design
+  (`PridictEngineAdapter._efficiency` now takes `cell_line` and computes
+  `in_distribution = cell_line in PRIDICT2_CELL_LINES`, matching the `PrimeEfficiencyScorer`
+  baseline; the BE-DICT trained path shares `_assemble_window_outcome`'s computed flag.)
+- [x] Test: a detector-less scorer reports `in_distribution = False`; the default design
   path computes OOD; the trained PRIDICT path is not less OOD-honest than its baseline.
+  (`test_ensemble_without_detector_fails_honest_not_hardcoded_true`,
+  `test_efficiency_ood_computed_from_cell_line_not_hardcoded`,
+  `test_outcome_flags_ood_on_ambiguous_reagent` (prime),
+  `test_outcome_flags_ood_on_ambiguous_spacer` (base).)
 
 ## 3. Trained-vs-heuristic legibility — DONE
 
@@ -58,9 +74,11 @@
   (`scripts/reproduce_golden.json` re-derived — the menu now carries the honest notes;
   `docs/schemas` regenerated for the new `point_from_trained_model` field.)
 
-## Remaining
+## Status
 
-- Task 2 (compute `in_distribution`; fail honest by default; wire an `OODDetector` into the
-  default ensemble/prime/base scorers) is **still open** — it flips the fail-open default and
-  needs a training reference wired so the whole design path does not become uniformly OOD.
-  Deferred to its own focused change so the interval-widening golden churn is contained.
+All tasks are **shipped**. Task 2 — the last open piece — flipped the fail-open default to
+fail-honest without making the design path uniformly OOD: each emitting scorer now derives
+`in_distribution` from a documented check on its own inputs (a context/reagent N-and-length
+check, or the cell-line membership the trained PRIDICT path shares with its baseline). Well-
+formed reference inputs stay in-distribution, so no goldens churned; only genuinely
+ill-formed (N-bearing / too-short) inputs now flag OOD. Ready to archive.

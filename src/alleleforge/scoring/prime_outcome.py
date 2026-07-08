@@ -65,12 +65,17 @@ class PrimeOutcomePredictor:
         outcome = EditOutcome(alleles=tuple(alleles), partial=False)
 
         p = intended / total
+        # Fail-honest OOD flag from the reagent's own sequence: an ambiguous base
+        # (N) in the spacer/RTT/PBS is outside the regime this geometry heuristic
+        # was defined on. Never hardcoded in-distribution.
+        reagent = str(pegrna.spacer.sequence) + str(pegrna.rtt) + str(pegrna.pbs)
+        in_dist = "N" not in reagent.upper()
         prediction = Prediction[float](
             value=p,
             interval=(max(0.0, p - 0.15), min(1.0, p + 0.15)),
             interval_level=0.80,
             method=UncertaintyMethod.HEURISTIC,
-            in_distribution=True,
+            in_distribution=in_dist,
             calibrated=False,
             notes=(NOMINAL_INTERVAL_NOTE,),
         )

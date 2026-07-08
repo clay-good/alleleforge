@@ -110,6 +110,16 @@ def test_ensemble_ood_flag_plumbing() -> None:
     assert scorer.score("TTTTTTTTTTTTTTTTTTTT").in_distribution is False
 
 
+def test_ensemble_without_detector_fails_honest_not_hardcoded_true() -> None:
+    # No OOD detector wired: the scorer falls back to the documented context check
+    # (fail-honest), never a hardcoded in-distribution flag. A context with an
+    # ambiguous base is out of distribution; a clean, long-enough one is not.
+    scorer = EnsembleEfficiencyScorer(embedder=StubEmbedder(dim=16))
+    assert scorer.score("ACGTACGTNCGTACGTACGTAGG").in_distribution is False
+    assert scorer.score("ACGT").in_distribution is False  # too short for the head
+    assert scorer.score(_CTX).in_distribution is True
+
+
 def test_ensemble_is_deterministic() -> None:
     a = EnsembleEfficiencyScorer(embedder=StubEmbedder(dim=16)).score(_CTX)
     b = EnsembleEfficiencyScorer(embedder=StubEmbedder(dim=16)).score(_CTX)
