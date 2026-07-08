@@ -63,6 +63,17 @@ def test_trained_window_math_stamps_the_trained_flag() -> None:
     assert trained.bystander_burden.point_from_trained_model is True
 
 
+def test_target_activity_is_distinct_from_clean_fraction() -> None:
+    # A window with an editable bystander: the raw target activity (P target edited,
+    # marginal over bystanders — the *efficiency* axis) is strictly higher than the
+    # clean fraction (P target edited AND no bystander — the *cleanliness* axis), so
+    # ranking no longer double-charges bystanders on one identical number.
+    w = _window("TTTAAACGTTTTTTTTTTTT", target=6, bystanders=(4, 5))
+    r = BaseEditOutcomePredictor().predict(w, _ABE)
+    assert r.p_target_edited.value > r.p_intended_exact.value
+    assert 0.0 < r.p_target_edited.value <= 1.0
+
+
 def test_heuristic_band_is_flagged_nominal_not_measured() -> None:
     # The fixed ±0.15 band asserts interval_level 0.80 without ever measuring
     # coverage; the honest reading (nominal, unmeasured) must be auditable so a

@@ -128,7 +128,11 @@ def design_base_editor(
         candidate = DesignCandidate(
             chemistry=editor.chemistry,
             base_edit_window=window,
-            efficiency=outcome.p_intended_exact,  # ranked on clean-edit probability
+            # Efficiency is the raw target-editing *activity* (P target edited,
+            # bystander-independent) — the same activity axis Cas9/prime use — so it
+            # is not a duplicate of the cleanliness axis (outcome.p_intended); the
+            # ranker weighs the two distinctly instead of double-charging bystanders.
+            efficiency=outcome.p_target_edited,
             bystander_burden=outcome.bystander_burden,
             outcome=outcome.outcome,
             offtarget=offreport,

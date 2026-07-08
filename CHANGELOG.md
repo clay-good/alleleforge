@@ -10,6 +10,15 @@ acceptance.
 
 ### Fixed
 
+- **The base-editor efficiency axis is no longer a duplicate of cleanliness.** A base-editor
+  candidate's `efficiency` was set to `p_intended_exact` (target edited **and** no bystander),
+  the same clean-allele probability the ranker's cleanliness term reads — so ~0.65 of the
+  composite weight sat on one identical number, double-charging bystanders and understating
+  activity, while Cas9 and prime put raw activity on that axis. Efficiency now reads the new
+  `WindowOutcome.p_target_edited` (P the target base is edited, marginal over bystanders); the
+  clean fraction stays on the cleanliness axis, so the two objectives measure distinct
+  quantities like-for-like across chemistries. Base-editor rankings shift; the reproduce golden
+  was re-derived. (Part 3 of `correct-design-verticals`.)
 - **PE3b is now measured from the correct end of the seed.** For a frame-minus prime-editing
   nicking guide, the Cas9 seed is the PAM-proximal protospacer end (the low-genomic `proto_lo`
   boundary, adjacent to the PAM). The enumerator tested `proto_hi - edit_local <= SEED_LENGTH`

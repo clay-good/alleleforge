@@ -25,14 +25,19 @@
 - [ ] Test: a CORRECT intent whose alt allele destroys the reference PAM does not emit that
   guide; one whose alt creates a PAM does emit it; the donor records its blocking mutation.
 
-## 3. Base-editor efficiency axis
+## 3. Base-editor efficiency axis — DONE
 
-- [ ] In `design/base_editor.py`, set the ranking efficiency axis to target-base editing
+- [x] In `design/base_editor.py`, set the ranking efficiency axis to target-base editing
   activity (P(target position edited), independent of bystanders); keep the clean fraction
   on the cleanliness axis.
-- [ ] Verify the axis is populated consistently with the Cas9/prime activity axis.
-- [ ] Test: a high-activity/obligate-bystander base edit reports high efficiency and lower
+  (`WindowOutcome.p_target_edited` = the marginal target-edit probability; the candidate's
+  `efficiency` now reads it, while cleanliness stays `outcome.p_intended`.)
+- [x] Verify the axis is populated consistently with the Cas9/prime activity axis.
+  (Efficiency is now raw activity on every chemistry; cleanliness is the distinct clean
+  fraction — the two ranking objectives no longer collapse to one number for base editors.)
+- [x] Test: a high-activity/obligate-bystander base edit reports high efficiency and lower
   cleanliness, and is not double-penalized.
+  (`test_target_activity_is_distinct_from_clean_fraction`.)
 
 ## 4. Composite-preserving truncation
 
@@ -48,7 +53,7 @@
 
 ## Status
 
-Part 1 (PE3b seed direction) is **shipped**. Parts 2 (allele-aware nuclease correction +
-re-cut-blocking donor), 3 (base-editor activity efficiency axis), and 4 (composite-preserving
+Parts 1 (PE3b seed direction) and 3 (base-editor activity efficiency axis) are **shipped**.
+Parts 2 (allele-aware nuclease correction + re-cut-blocking donor) and 4 (composite-preserving
 per-chemistry truncation) remain open — each is a design-layer change with golden impact and
 is deferred to its own focused increment.

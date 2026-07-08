@@ -55,10 +55,23 @@ _INTERVAL_HALF = 0.15
 
 @dataclass(frozen=True)
 class WindowOutcome:
-    """A predicted base-edit window outcome with its derived quantities."""
+    """A predicted base-edit window outcome with its derived quantities.
+
+    Attributes:
+        outcome: The window allele distribution.
+        p_intended_exact: P(target edited **and** no bystander edited) — the clean
+            allele probability. This is the *cleanliness* axis.
+        p_target_edited: P(the target base(s) edited), **marginal** over bystanders —
+            the raw editing *activity* at the target. This is the *efficiency* axis,
+            distinct from ``p_intended_exact`` so activity and cleanliness measure
+            different quantities (as they do for Cas9 and prime), rather than
+            double-charging bystanders on one number.
+        bystander_burden: The expected number of bystander edits.
+    """
 
     outcome: EditOutcome
     p_intended_exact: Prediction[float]
+    p_target_edited: Prediction[float]
     bystander_burden: Prediction[float]
 
 
@@ -148,10 +161,17 @@ def _assemble_window_outcome(
             )
     outcome = EditOutcome(alleles=tuple(alleles), partial=False)
     p_exact = next((a.probability for a in alleles if a.is_intended), 0.0)
+    # Marginal probability the target base(s) are edited, over any bystander
+    # outcome — the raw editing activity, independent of cleanliness. Positions are
+    # independent, so it is the product of the per-target edit probabilities.
+    p_target = 1.0
+    for p in window.target_positions:
+        p_target *= probs.get(p, 0.0)
     burden = sum(probs.get(p, 0.0) for p in window.bystander_positions)
     return WindowOutcome(
         outcome=outcome,
         p_intended_exact=_prediction(p_exact, from_trained=from_trained),
+        p_target_edited=_prediction(p_target, from_trained=from_trained),
         # bystander_burden is an expected *count* of bystander edits, not a
         # probability, so its fixed spread is not a coverage band at all.
         bystander_burden=_prediction(burden, from_trained=from_trained, count_valued=True),
