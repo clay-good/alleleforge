@@ -13,6 +13,7 @@ from __future__ import annotations
 import textwrap
 
 from alleleforge.report.builder import CandidateReport, DesignReport
+from alleleforge.report.oligos import PegRNAOligos, SgRnaOligos
 
 #: US Letter media box (points).
 _PAGE_W, _PAGE_H = 612, 792
@@ -28,6 +29,33 @@ def _wrap(text: str, *, indent: str = "") -> list[str]:
     """Wrap one logical line to the page width (preserving an indent)."""
     wrapped = textwrap.wrap(text, width=_WRAP - len(indent)) or [""]
     return [indent + line for line in wrapped]
+
+
+def _oligo_lines(oligos: SgRnaOligos | PegRNAOligos) -> list[str]:
+    """Render the cloning oligos to order, with warnings and the prep note.
+
+    The PDF is the printable leave-behind, so it must carry the exact oligos to
+    order — and the phosphorylation/annealing prerequisite, without which the
+    ligation cannot close — not just point at the electronic report.
+    """
+    scheme = oligos.scheme
+    lines = _wrap(f"cloning oligos ({scheme.name}, {scheme.enzyme}):", indent="    ")
+    if isinstance(oligos, SgRnaOligos):
+        lines += _wrap(f"top    5'-{oligos.top}-3'", indent="      ")
+        lines += _wrap(f"bottom 5'-{oligos.bottom}-3'", indent="      ")
+    else:
+        lines += _wrap(f"spacer top    5'-{oligos.spacer_top}-3'", indent="      ")
+        lines += _wrap(f"spacer bottom 5'-{oligos.spacer_bottom}-3'", indent="      ")
+        lines += _wrap(f"ext top    5'-{oligos.ext_top}-3'", indent="      ")
+        lines += _wrap(f"ext bottom 5'-{oligos.ext_bottom}-3'", indent="      ")
+        if oligos.nicking is not None:
+            lines += _wrap(f"ngRNA top    5'-{oligos.nicking.top}-3'", indent="      ")
+            lines += _wrap(f"ngRNA bottom 5'-{oligos.nicking.bottom}-3'", indent="      ")
+    for warning in oligos.warnings:
+        lines += _wrap(f"WARNING: {warning}", indent="      ")
+    if scheme.phosphorylation:
+        lines += _wrap(f"prep: {scheme.phosphorylation}", indent="      ")
+    return lines
 
 
 def _candidate_lines(c: CandidateReport) -> list[str]:
@@ -69,6 +97,10 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
         lines += _wrap(f"off-target sites: {c.n_offtarget_sites}{spec}", indent="    ")
     if c.flags:
         lines += _wrap("flags: " + ", ".join(c.flags), indent="    ")
+    if c.oligos is not None:
+        lines += _oligo_lines(c.oligos)
+    elif c.oligos_requested:
+        lines += _wrap("cloning oligos: none required (no synthesized reagent)", indent="    ")
     lines.append("")
     return lines
 

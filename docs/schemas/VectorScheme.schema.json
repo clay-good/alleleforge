@@ -1,5 +1,5 @@
 {
-  "description": "A named cloning scheme: enzyme, sticky-end overhangs, and the U6 ``G``.\n\nAttributes:\n    name: Human-readable scheme name (echoed into the oligo set).\n    enzyme: The Type IIS enzyme whose overhangs this scheme matches.\n    top_overhang: 5' overhang prepended to the sense oligo.\n    bottom_overhang: 5' overhang prepended to the antisense oligo.\n    prepend_g: Add a 5' ``G`` to the spacer for U6 transcription start.\n    citation: Protocol citation.",
+  "description": "A named cloning scheme: enzyme, sticky-end overhangs, and the U6 ``G``.\n\nAttributes:\n    name: Human-readable scheme name (echoed into the oligo set).\n    enzyme: The Type IIS enzyme whose overhangs this scheme matches.\n    top_overhang: 5' overhang prepended to the sense oligo.\n    bottom_overhang: 5' overhang prepended to the antisense oligo.\n    prepend_g: Add a 5' ``G`` to the spacer for U6 transcription start (only\n        when the spacer does not already begin with ``G``).\n    ext_top_overhang: For a pegRNA scheme, the 5' overhang on the sense\n        3'-extension oligo (``None`` for an sgRNA-only scheme).\n    ext_bottom_overhang: For a pegRNA scheme, the 5' overhang on the antisense\n        3'-extension oligo (``None`` for an sgRNA-only scheme).\n    phosphorylation: The annealing/ligation prerequisite for this scheme\n        (e.g. whether the annealed oligos need 5' phosphorylation with T4 PNK),\n        stated in every render so a ligation is not set up that cannot close.\n    citation: Protocol citation.",
   "properties": {
     "bottom_overhang": {
       "title": "Bottom Overhang",
@@ -21,9 +21,45 @@
       "title": "Enzyme",
       "type": "string"
     },
+    "ext_bottom_overhang": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ext Bottom Overhang"
+    },
+    "ext_top_overhang": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ext Top Overhang"
+    },
     "name": {
       "title": "Name",
       "type": "string"
+    },
+    "phosphorylation": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Phosphorylation"
     },
     "prepend_g": {
       "default": true,

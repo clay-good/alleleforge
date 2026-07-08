@@ -87,6 +87,10 @@ class CandidateReport(BaseModel):
             (Hsu-2013-style ``1/(1+Σ scores)``), if searched; ``1.0`` = no off-targets.
         offtarget_by_ancestry: Worst-case off-target score per ancestry.
         oligos: Cloning-ready oligos for the reagent, if requested.
+        oligos_requested: Whether oligos were requested for this report. Lets a
+            render distinguish a **reagent-free** candidate (requested, but nothing
+            to synthesize) from one where oligos were simply not asked for, so a
+            reagent-free candidate can say so rather than omitting the section.
         flags: Free-form candidate flags.
         rationale: The candidate's ranking rationale.
     """
@@ -105,6 +109,7 @@ class CandidateReport(BaseModel):
     offtarget_specificity: float | None
     offtarget_by_ancestry: tuple[AncestryOffTarget, ...]
     oligos: SgRnaOligos | PegRNAOligos | None
+    oligos_requested: bool = False
     flags: tuple[str, ...]
     rationale: str | None
 
@@ -181,6 +186,7 @@ def _candidate_report(
         offtarget_specificity=specificity,
         offtarget_by_ancestry=ancestry_rows,
         oligos=oligos,
+        oligos_requested=with_oligos,
         flags=candidate.flags,
         rationale=candidate.rationale,
     )

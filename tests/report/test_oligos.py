@@ -37,9 +37,69 @@ def test_sgrna_oligo_roundtrip(scheme: object) -> None:
 
 
 def test_sgrna_oligo_roundtrip_spacer_starting_with_g() -> None:
+    # A spacer already starting with G must NOT be double-G'd: the extra base would
+    # ship a 21-nt guide with an unintended 5' mismatch. No G is added, and that is
+    # recorded, so the emitted guide length matches the intended protospacer.
     spacer = "G" + SPACER[1:]
     oligos = sgrna_oligos(spacer)
-    assert oligos.reconstruct() == spacer  # the prepended G is stripped, not the spacer's own
+    assert oligos.g_added is False
+    assert oligos.top == "CACC" + spacer  # no extra G prepended
+    assert oligos.reconstruct() == spacer
+
+
+def test_non_g_spacer_gets_exactly_one_transcription_g() -> None:
+    assert SPACER[0] != "G"
+    oligos = sgrna_oligos(SPACER)
+    assert oligos.g_added is True
+    assert oligos.top == "CACC" + "G" + SPACER
+    assert oligos.reconstruct() == SPACER
+
+
+def test_internal_type_iis_site_in_spacer_is_flagged() -> None:
+    # A spacer carrying the scheme enzyme's own site is cloning-lethal: the enzyme
+    # cuts inside the insert during Golden-Gate assembly. It ships round-trip-valid,
+    # so it must carry a prominent warning naming the enzyme and position.
+    spacer = "CGTCTC" + "AACCGGTTAACCGG"  # 20 nt, contains BsmBI CGTCTC at 0
+    oligos = sgrna_oligos(spacer, scheme=LENTIGUIDE_BSMBI)
+    assert any(w.startswith("internal-BsmBI-site") for w in oligos.warnings)
+    assert oligos.reconstruct() == spacer  # still a valid duplex — the flag is the guard
+
+
+def test_internal_site_screened_on_both_strands() -> None:
+    # The reverse complement of BbsI GAAGAC is GTCTTC; a site on either strand is cut.
+    spacer = "AACCGGT" + "GTCTTC" + "AACCG"  # 18... pad to 20
+    spacer = (spacer + "TT")[:20]
+    oligos = sgrna_oligos(spacer, scheme=PX330_BBSI)
+    assert any("internal-BbsI-site" in w and ":-@" in w for w in oligos.warnings)
+
+
+def test_clean_spacer_carries_no_enzyme_warning() -> None:
+    oligos = sgrna_oligos(SPACER, scheme=LENTIGUIDE_BSMBI)
+    assert oligos.warnings == ()
+
+
+def test_screen_reports_position_and_extension_label() -> None:
+    from alleleforge.report.oligos import _screen_enzyme_site
+
+    # forward-strand BsaI site at index 3 in an "extension"-labeled insert
+    flags = _screen_enzyme_site("AAA" + "GGTCTC" + "TTT", "BsaI", label="pegrna-extension")
+    assert flags == ("internal-BsaI-site:pegrna-extension:+@3",)
+
+
+def test_pegrna_scheme_has_cited_extension_overhangs() -> None:
+    # Part 4: the 3'-extension overhangs are named, cited scheme fields — not bare,
+    # self-contradictory module constants — and agree with the docstring/reconstruct.
+    assert PEGRNA_GG_BSAI.ext_top_overhang == "GTGC"
+    assert PEGRNA_GG_BSAI.ext_bottom_overhang == "AAAA"
+    assert PEGRNA_GG_BSAI.citation is not None and "GTGC" in PEGRNA_GG_BSAI.citation
+
+
+def test_sgrna_scheme_has_no_extension_overhangs() -> None:
+    from alleleforge.report.oligos import _ext_overhangs
+
+    assert LENTIGUIDE_BSMBI.ext_top_overhang is None
+    with pytest.raises(ValueError, match="no pegRNA 3'-extension overhangs"):
+        _ext_overhangs(LENTIGUIDE_BSMBI)
 
 
 def test_malformed_oligo_rejected() -> None:
@@ -110,9 +170,10 @@ def test_sgrna_missing_transcription_g_rejected() -> None:
     bad = SgRnaOligos(
         kind="sgrna",
         spacer=SPACER,
-        top="CACC" + SPACER,  # no prepended G though the scheme requires it
+        top="CACC" + SPACER,  # declares a G was added, but the top carries none
         bottom="AAAC" + revcomp(SPACER),
         scheme=LENTIGUIDE_BSMBI,
+        g_added=True,
     )
     with pytest.raises(ValueError, match="transcription-start G"):
         bad.reconstruct()
@@ -194,6 +255,7 @@ def test_pegrna_missplit_extension_detected() -> None:
         ext_bottom=ext_bottom,
         nicking=None,
         scheme=scheme,
+        g_added=True,  # the spacer duplex above prepends a G
     )
     with pytest.raises(ValueError, match="RTT\\+PBS boundary"):
         oligos.reconstruct()

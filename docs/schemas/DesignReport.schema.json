@@ -44,7 +44,7 @@
       "type": "object"
     },
     "CandidateReport": {
-      "description": "One candidate, flattened for presentation and export.\n\nAttributes:\n    rank: 1-based rank within the menu.\n    chemistry: The candidate's chemistry.\n    on_pareto_front: Whether the candidate is Pareto-optimal.\n    reagent: A one-line human description of the reagent.\n    efficiency: The calibrated efficiency prediction, if scored.\n    bystander_burden: Calibrated expected bystander-edit count, for\n        base-editor candidates (``None`` otherwise).\n    p_intended: Summed probability of the intended allele(s), if scored.\n    outcome_top: The highest-probability outcome alleles (descending).\n    n_offtarget_sites: Number of nominated off-target sites, if searched.\n    offtarget_specificity: Aggregate genome-wide specificity in ``(0, 1]``\n        (Hsu-2013-style ``1/(1+\u03a3 scores)``), if searched; ``1.0`` = no off-targets.\n    offtarget_by_ancestry: Worst-case off-target score per ancestry.\n    oligos: Cloning-ready oligos for the reagent, if requested.\n    flags: Free-form candidate flags.\n    rationale: The candidate's ranking rationale.",
+      "description": "One candidate, flattened for presentation and export.\n\nAttributes:\n    rank: 1-based rank within the menu.\n    chemistry: The candidate's chemistry.\n    on_pareto_front: Whether the candidate is Pareto-optimal.\n    reagent: A one-line human description of the reagent.\n    efficiency: The calibrated efficiency prediction, if scored.\n    bystander_burden: Calibrated expected bystander-edit count, for\n        base-editor candidates (``None`` otherwise).\n    p_intended: Summed probability of the intended allele(s), if scored.\n    outcome_top: The highest-probability outcome alleles (descending).\n    n_offtarget_sites: Number of nominated off-target sites, if searched.\n    offtarget_specificity: Aggregate genome-wide specificity in ``(0, 1]``\n        (Hsu-2013-style ``1/(1+\u03a3 scores)``), if searched; ``1.0`` = no off-targets.\n    offtarget_by_ancestry: Worst-case off-target score per ancestry.\n    oligos: Cloning-ready oligos for the reagent, if requested.\n    oligos_requested: Whether oligos were requested for this report. Lets a\n        render distinguish a **reagent-free** candidate (requested, but nothing\n        to synthesize) from one where oligos were simply not asked for, so a\n        reagent-free candidate can say so rather than omitting the section.\n    flags: Free-form candidate flags.\n    rationale: The candidate's ranking rationale.",
       "properties": {
         "bystander_burden": {
           "anyOf": [
@@ -118,6 +118,11 @@
             }
           ],
           "title": "Oligos"
+        },
+        "oligos_requested": {
+          "default": false,
+          "title": "Oligos Requested",
+          "type": "boolean"
         },
         "on_pareto_front": {
           "title": "On Pareto Front",
@@ -339,7 +344,7 @@
       "type": "object"
     },
     "PegRNAOligos": {
-      "description": "The annealed oligo duplexes for one pegRNA (spacer + 3' extension).\n\nAttributes:\n    spacer: The intended pegRNA spacer (reconstruction target).\n    rtt: The intended RTT (reconstruction target).\n    pbs: The intended PBS (reconstruction target).\n    motif: The 3' epegRNA motif attached to the extension.\n    scaffold: The constant sgRNA scaffold (cloned from the vector).\n    spacer_top: Sense spacer oligo (5'->3').\n    spacer_bottom: Antisense spacer oligo (5'->3').\n    ext_top: Sense 3'-extension oligo: RTT + PBS + motif (5'->3').\n    ext_bottom: Antisense 3'-extension oligo (5'->3').\n    nicking: The ngRNA oligo duplex, when a PE3/PE3b guide is present.\n    scheme: The cloning scheme used.",
+      "description": "The annealed oligo duplexes for one pegRNA (spacer + 3' extension).\n\nAttributes:\n    spacer: The intended pegRNA spacer (reconstruction target).\n    rtt: The intended RTT (reconstruction target).\n    pbs: The intended PBS (reconstruction target).\n    motif: The 3' epegRNA motif attached to the extension.\n    scaffold: The constant sgRNA scaffold (cloned from the vector).\n    spacer_top: Sense spacer oligo (5'->3').\n    spacer_bottom: Antisense spacer oligo (5'->3').\n    ext_top: Sense 3'-extension oligo: RTT + PBS + motif (5'->3').\n    ext_bottom: Antisense 3'-extension oligo (5'->3').\n    nicking: The ngRNA oligo duplex, when a PE3/PE3b guide is present.\n    g_added: Whether a 5' U6-start ``G`` was prepended to the spacer duplex.\n    warnings: Prominent cloning-hazard flags (e.g. an internal Type IIS site in\n        the spacer or the 3' extension), empty when both inserts are clean.\n    scheme: The cloning scheme used.",
       "properties": {
         "ext_bottom": {
           "title": "Ext Bottom",
@@ -348,6 +353,11 @@
         "ext_top": {
           "title": "Ext Top",
           "type": "string"
+        },
+        "g_added": {
+          "default": false,
+          "title": "G Added",
+          "type": "boolean"
         },
         "motif": {
           "$ref": "#/$defs/ThreePrimeMotif"
@@ -388,6 +398,14 @@
         "spacer_top": {
           "title": "Spacer Top",
           "type": "string"
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
         }
       },
       "required": [
@@ -527,11 +545,16 @@
       "type": "object"
     },
     "SgRnaOligos": {
-      "description": "An annealed sgRNA oligo duplex for one spacer.\n\nAttributes:\n    kind: ``\"sgrna\"`` (Cas9), ``\"base-editor-sgrna\"``, or ``\"ngrna\"``.\n    spacer: The intended 5'->3' spacer (the reconstruction target).\n    top: The sense oligo to order (5'->3').\n    bottom: The antisense oligo to order (5'->3').\n    scheme: The cloning scheme used.",
+      "description": "An annealed sgRNA oligo duplex for one spacer.\n\nAttributes:\n    kind: ``\"sgrna\"`` (Cas9), ``\"base-editor-sgrna\"``, or ``\"ngrna\"``.\n    spacer: The intended 5'->3' spacer (the reconstruction target).\n    top: The sense oligo to order (5'->3').\n    bottom: The antisense oligo to order (5'->3').\n    g_added: Whether a 5' U6-start ``G`` was actually prepended (only when the\n        scheme asks for it *and* the spacer did not already begin with ``G``).\n    warnings: Prominent cloning-hazard flags (e.g. an internal Type IIS\n        recognition site), empty when the insert is clean.\n    scheme: The cloning scheme used.",
       "properties": {
         "bottom": {
           "title": "Bottom",
           "type": "string"
+        },
+        "g_added": {
+          "default": false,
+          "title": "G Added",
+          "type": "boolean"
         },
         "kind": {
           "title": "Kind",
@@ -547,6 +570,14 @@
         "top": {
           "title": "Top",
           "type": "string"
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
         }
       },
       "required": [
@@ -627,7 +658,7 @@
       "type": "string"
     },
     "VectorScheme": {
-      "description": "A named cloning scheme: enzyme, sticky-end overhangs, and the U6 ``G``.\n\nAttributes:\n    name: Human-readable scheme name (echoed into the oligo set).\n    enzyme: The Type IIS enzyme whose overhangs this scheme matches.\n    top_overhang: 5' overhang prepended to the sense oligo.\n    bottom_overhang: 5' overhang prepended to the antisense oligo.\n    prepend_g: Add a 5' ``G`` to the spacer for U6 transcription start.\n    citation: Protocol citation.",
+      "description": "A named cloning scheme: enzyme, sticky-end overhangs, and the U6 ``G``.\n\nAttributes:\n    name: Human-readable scheme name (echoed into the oligo set).\n    enzyme: The Type IIS enzyme whose overhangs this scheme matches.\n    top_overhang: 5' overhang prepended to the sense oligo.\n    bottom_overhang: 5' overhang prepended to the antisense oligo.\n    prepend_g: Add a 5' ``G`` to the spacer for U6 transcription start (only\n        when the spacer does not already begin with ``G``).\n    ext_top_overhang: For a pegRNA scheme, the 5' overhang on the sense\n        3'-extension oligo (``None`` for an sgRNA-only scheme).\n    ext_bottom_overhang: For a pegRNA scheme, the 5' overhang on the antisense\n        3'-extension oligo (``None`` for an sgRNA-only scheme).\n    phosphorylation: The annealing/ligation prerequisite for this scheme\n        (e.g. whether the annealed oligos need 5' phosphorylation with T4 PNK),\n        stated in every render so a ligation is not set up that cannot close.\n    citation: Protocol citation.",
       "properties": {
         "bottom_overhang": {
           "title": "Bottom Overhang",
@@ -649,9 +680,45 @@
           "title": "Enzyme",
           "type": "string"
         },
+        "ext_bottom_overhang": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ext Bottom Overhang"
+        },
+        "ext_top_overhang": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ext Top Overhang"
+        },
         "name": {
           "title": "Name",
           "type": "string"
+        },
+        "phosphorylation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phosphorylation"
         },
         "prepend_g": {
           "default": true,

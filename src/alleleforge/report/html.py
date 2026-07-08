@@ -163,11 +163,21 @@ def _candidate_html(c: CandidateReport) -> str:
     if c.flags:
         parts.append("<p class='muted'>flags: " + _esc(", ".join(c.flags)) + "</p>")
     if c.oligos is not None:
+        for warning in c.oligos.warnings:
+            parts.append(f"<p class='muted'><strong>oligo warning:</strong> {_esc(warning)}</p>")
+        if c.oligos.scheme.phosphorylation:
+            parts.append(
+                "<p class='muted'><strong>oligo prep:</strong> "
+                + _esc(c.oligos.scheme.phosphorylation)
+                + "</p>"
+            )
         parts.append(
             "<details><summary>Cloning oligos</summary><pre class='mono'>"
             + _esc(c.oligos.model_dump_json(indent=2))
             + "</pre></details>"
         )
+    elif c.oligos_requested:
+        parts.append("<p class='muted'>Cloning oligos: none required (no synthesized reagent).</p>")
     if c.rationale:
         parts.append(f"<p class='muted'>{_esc(c.rationale)}</p>")
     parts.append("</div>")

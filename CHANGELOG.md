@@ -10,6 +10,24 @@ acceptance.
 
 ### Fixed
 
+- **Cloning oligos are now guarded as a real wet-lab deliverable.** Four gaps let a
+  cloning-lethal or mis-specified oligo ship as a clean, round-trip-valid reagent
+  (`guard-cloning-oligos`):
+  - *No Type IIS site screening.* An insert carrying its own Golden-Gate enzyme's site
+    (BsmBI `CGTCTC`, BbsI `GAAGAC`, BsaI `GGTCTC`) is cut internally during assembly — the
+    classic failure. Every emitted insert (sgRNA spacer, pegRNA spacer, and the RTT+PBS+motif
+    extension) is now screened on both strands and carries an `internal-<enzyme>-site` warning
+    naming the component, strand, and position.
+  - *The U6 5' G was double-added.* A spacer already starting with `G` got a second one,
+    shipping a 21-nt guide with an unintended 5' base. The `G` is now added only when the
+    spacer does not already begin with one, and whether it was added is recorded (`g_added`).
+  - *The PDF leave-behind omitted the oligos.* The printable report now carries each
+    candidate's oligo sequences and the annealing/phosphorylation prerequisite (T4 PNK); both
+    renders state the prep note, and a reagent-free candidate says so instead of omitting the
+    section.
+  - *The pegRNA extension overhang was uncited and self-contradictory* (docstring `CGTCTC`…
+    `GTGC/CGCG` vs constant `GTGC/AAAA`). The extension overhangs are now named, cited
+    `VectorScheme` fields, with the docstring, constants, and reconstruct check in agreement.
 - **An out-of-distribution prediction can no longer present a zero-width, maximally
   confident interval.** OOD widening was purely multiplicative (`half *= 2.0`), so when
   ensemble members agreed exactly (`std == 0`, half-width 0) `0 * 2 == 0` left the interval

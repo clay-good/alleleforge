@@ -56,3 +56,12 @@ def test_pdf_includes_ancestry_offtarget(ancestry_menu: RankedMenu) -> None:
     assert b"specificity" in pdf  # the aggregate genome-wide specificity score
     assert b"PROVENANCE" in pdf
     assert b"Models: cas9-efficiency-ensemble 0.1" in pdf
+
+
+def test_pdf_leave_behind_carries_oligos_and_prep_note(prime_menu: RankedMenu) -> None:
+    # The PDF is the printable leave-behind, so it must carry the exact oligos to
+    # order and the phosphorylation prerequisite — not just point at the HTML.
+    pdf = render_pdf(build_report(prime_menu, with_oligos=True))
+    assert b"cloning oligos" in pdf
+    assert b"spacer top" in pdf and b"ext top" in pdf  # the pegRNA duplexes
+    assert b"Phosphorylate the annealed oligos with T4 PNK" in pdf  # the prep note
