@@ -14,16 +14,29 @@
   `test_pam_distal_edit_is_not_labeled_pe3b` on the proto_lo=58 / 12-nt-distal case; three
   downstream fixtures that encoded the wrong direction were corrected to a real PE3b geometry.)
 
-## 2. Allele-aware nuclease correction + re-cut-blocking donor
+## 2. Allele-aware nuclease correction + re-cut-blocking donor — DONE
 
-- [ ] In `enumerate/cas9.py`, substitute the carried allele onto the fetched window for
+- [x] In `enumerate/cas9.py`, substitute the carried allele onto the fetched window for
   CORRECT/REVERT/INSTALL intents before enumerating protospacers/PAMs, mirroring
   `enumerate/base_editor.py` and `enumerate/prime.py`.
-- [ ] In `hdr_donor` (`design/cas9.py`), introduce a PAM- or seed-blocking silent mutation
+  (`carried_allele` + `_overlay_allele` applied in `_enumerate_pam`; `design/cas9.py`
+  threads the same overlay into `guide_context` and `_cut_outcome` so on-target scoring
+  reads the carried 20-mer too. Length-preserving substitution only — indels keep the
+  reference frame, as the prime/base enumerators bail on non-single-position edits.)
+- [x] In `hdr_donor` (`enumerate/cas9.py`), introduce a PAM-blocking silent mutation
   in the donor, or explicitly report that none is available, so the corrected allele is not
   a Cas9 substrate.
-- [ ] Test: a CORRECT intent whose alt allele destroys the reference PAM does not emit that
+  (`hdr_donor` now takes the `guide` it must survive and returns an `HDRDonor` carrying the
+  sequence, an optional `BlockingMutation`, a `recut_blocked` flag, and a note. It searches
+  the PAM for a base in a homology arm whose change breaks the guide's PAM; if the
+  correction itself already disrupts the PAM/seed no mutation is added; if no arm PAM base
+  can block, `recut_blocked = False` with an explicit note.)
+- [x] Test: a CORRECT intent whose alt allele destroys the reference PAM does not emit that
   guide; one whose alt creates a PAM does emit it; the donor records its blocking mutation.
+  (`test_correct_intent_drops_guide_when_alt_destroys_pam`,
+  `test_correct_intent_finds_guide_when_alt_creates_pam`,
+  `test_hdr_donor_records_pam_blocking_mutation`,
+  `test_hdr_donor_no_block_needed_when_edit_disrupts_pam`.)
 
 ## 3. Base-editor efficiency axis — DONE
 
@@ -51,13 +64,18 @@
   on a vertical's local proxy is still returned.
   (`test_cap_keeps_composite_best_not_local_proxy_best`, `test_cap_is_per_chemistry`.)
 
-## 5. Regenerate goldens
+## 5. Regenerate goldens — DONE
 
-- [ ] Regenerate menu/ranking goldens affected by the axis and truncation changes.
+- [x] Regenerate menu/ranking goldens affected by the axis and truncation changes.
+  (No golden churn: the full suite — including the reproduce/golden tests — passes
+  unchanged. The carried-allele substitution and scoring overlay only alter output when
+  the variant sits inside a precise-intent guide's protospacer/PAM, which the golden
+  fixtures do not exercise; the axis/truncation changes shipped in their own increments.)
 
 ## Status
 
-Parts 1 (PE3b seed direction), 3 (base-editor activity efficiency axis), and 4
-(composite-preserving truncation) are **shipped**. Only part 2 (allele-aware nuclease
-correction + re-cut-blocking donor) remains open — it spans enumerate/cas9 + design/cas9
-(hdr_donor) and is deferred to its own focused increment.
+All parts are **shipped**. Part 1 (PE3b seed direction), part 3 (base-editor activity
+efficiency axis), and part 4 (composite-preserving truncation) landed earlier; part 2
+(allele-aware nuclease correction against the carried allele + a re-cut-blocking HDR donor,
+spanning `enumerate/cas9.py`, `design/cas9.py`, and the `HDRDonor`/`BlockingMutation`
+types) and part 5 (golden verification) complete the change. Ready to archive.

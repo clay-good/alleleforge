@@ -10,6 +10,25 @@ acceptance.
 
 ### Fixed
 
+- **Nuclease correction is now enumerated against the allele the target genome actually
+  carries.** For a CORRECT/REVERT/INSTALL intent the patient carries the *alternate* allele,
+  but `enumerate_cas9` scanned the plain reference — so it emitted guides whose PAM exists only
+  in the reference (destroyed by the alt allele, so uncuttable in the patient) and missed guides
+  whose PAM the alt allele *creates*. The enumerator now substitutes the carried allele onto the
+  fetched window before finding protospacers/PAMs (mirroring the base-editor and prime paths),
+  and `design_cas9` threads the same overlay into on-target efficiency (`guide_context`) and
+  outcome (`_cut_outcome`) scoring, so the whole nuclease slice reads the carried 20-mer.
+  Length-preserving substitution only — indels keep the reference frame, as the prime/base
+  enumerators bail on non-single-position edits. (Part 2 of `correct-design-verticals`.)
+- **An HDR donor is no longer silently re-cuttable.** `hdr_donor` returned a bare template
+  carrying the corrected allele; if the repair left the guide's PAM and seed intact, the same
+  Cas9 re-cleaved the corrected product. It now takes the guide it must survive and returns an
+  `HDRDonor` carrying the sequence, an optional recorded `BlockingMutation`, a `recut_blocked`
+  flag, and a note: it introduces a PAM-blocking mutation in a homology arm when the repair
+  would otherwise be re-cut, reports that the correcting edit already disrupts the guide when no
+  mutation is needed, or states plainly that no arm PAM base can block (never shipping a
+  re-cuttable donor as if it were safe). (Part 2 of `correct-design-verticals`, now complete
+  and archived.)
 - **Per-chemistry truncation no longer prunes a composite-optimal candidate.** Each vertical
   capped its candidates on a *local* proxy (prime by efficiency, Cas9 by
   efficiency-then-off-target, base by `p_intended_exact`) **before** the global 4-objective

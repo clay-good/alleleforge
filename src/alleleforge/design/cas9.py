@@ -16,7 +16,7 @@ from typing import Protocol
 
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
-from alleleforge.enumerate.cas9 import NGG_PAM, enumerate_cas9, guide_context
+from alleleforge.enumerate.cas9 import NGG_PAM, carried_allele, enumerate_cas9, guide_context
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.offtarget.engine import search as offtarget_search
 from alleleforge.scoring.base import ensure_prediction
@@ -55,7 +55,11 @@ class Cas9OutcomePredictor(Protocol):
 
 
 def _cut_outcome(
-    guide: Guide, reference: ReferenceGenome, predictor: Cas9OutcomePredictor, mark_fs: bool
+    guide: Guide,
+    reference: ReferenceGenome,
+    predictor: Cas9OutcomePredictor,
+    mark_fs: bool,
+    overlay: tuple[int, str, str] | None = None,
 ) -> EditOutcome:
     """Predict the indel spectrum at a guide's cut from local genomic context."""
     start = max(0, guide.cut_site - _OUTCOME_FLANK)
@@ -65,6 +69,11 @@ def _cut_outcome(
             GenomicInterval(chrom=guide.placement.chrom, start=start, end=end, strand=Strand.PLUS)
         )
     )
+    if overlay is not None:
+        pos, ref_base, allele = overlay
+        rel = pos - start
+        if 0 <= rel and rel + len(ref_base) <= len(context) and len(allele) == len(ref_base):
+            context = context[:rel] + allele + context[rel + len(ref_base) :]
     return predictor.predict(context, guide.cut_site - start, mark_frameshift=mark_fs)
 
 
@@ -152,12 +161,19 @@ def design_cas9(
     flank: tuple[int, int] | None = getattr(scorer, "context_flank", None)
     ctx_kwargs = {"flank_5": flank[0], "flank_3": flank[1]} if flank is not None else {}
 
+    # For a precise intent the target genome carries the alternate allele, so
+    # on-target scoring reads the carried sequence — consistent with the guides,
+    # which are enumerated against it.
+    carried = carried_allele(resolved, intent)
+    overlay = (resolved.variant.pos, resolved.variant.ref, carried) if carried is not None else None
+
     candidates: list[DesignCandidate] = []
     for guide in guides:
         efficiency = ensure_prediction(
-            scorer.score(guide_context(guide, reference, **ctx_kwargs)), who=scorer.name
+            scorer.score(guide_context(guide, reference, overlay=overlay, **ctx_kwargs)),
+            who=scorer.name,
         )
-        outcome = _cut_outcome(guide, reference, predictor, mark_fs)
+        outcome = _cut_outcome(guide, reference, predictor, mark_fs, overlay=overlay)
         offreport: OffTargetReport | None = None
         if run_offtarget:
             offreport = offtarget_search(

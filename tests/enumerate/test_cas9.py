@@ -127,10 +127,67 @@ def test_hdr_donor_precise_vs_knockout(make_reference: MakeRef) -> None:
     rv = _resolve_at(ref, "chr2", 32)  # ref allele at 32 is 'C'
     donor = hdr_donor(rv, EditIntent.CORRECT, reference=ref, arm_length=5)
     assert donor is not None
-    assert str(donor)[5] == rv.variant.ref  # correct installs the reference allele
+    assert str(donor.sequence)[5] == rv.variant.ref  # correct installs the reference allele
     install = hdr_donor(rv, EditIntent.INSTALL, reference=ref, arm_length=5)
-    assert install is not None and str(install)[5] == rv.variant.alt
+    assert install is not None and str(install.sequence)[5] == rv.variant.alt
     assert hdr_donor(rv, EditIntent.KNOCK_OUT, reference=ref) is None
+
+
+def test_correct_intent_drops_guide_when_alt_destroys_pam(make_reference: MakeRef) -> None:
+    # The reference presents an NGG (TGG) PAM, but the carried alt allele (which a
+    # CORRECT intent repairs) turns it into TAG — no guide should be enumerated.
+    ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    rv = resolve("chr2:37:G>A", reference=ref)  # 0-based 36 = 2nd PAM base, G>A
+    correct = enumerate_cas9(rv, EditIntent.CORRECT, reference=ref)
+    assert not any(str(g.spacer.sequence) == SPACER for g in correct)
+    # An INSTALL carries the reference allele, so the PAM (and the guide) is present.
+    install = enumerate_cas9(rv, EditIntent.INSTALL, reference=ref)
+    assert any(str(g.spacer.sequence) == SPACER for g in install)
+
+
+def test_correct_intent_finds_guide_when_alt_creates_pam(make_reference: MakeRef) -> None:
+    # The reference has TGT (no NGG); the carried alt allele completes an NGG (TGG),
+    # so a carried-allele-aware CORRECT enumerates the guide the reference would miss.
+    ref = make_reference({"chr2": PAD + SPACER + "TGT" + PAD})
+    rv = resolve("chr2:38:T>G", reference=ref)  # 0-based 37 = 3rd PAM base, T>G
+    correct = enumerate_cas9(rv, EditIntent.CORRECT, reference=ref)
+    assert any(str(g.spacer.sequence) == SPACER for g in correct)
+    # The reference itself carries no such PAM: an INSTALL (on the reference) finds none.
+    install = enumerate_cas9(rv, EditIntent.INSTALL, reference=ref)
+    assert not any(str(g.spacer.sequence) == SPACER for g in install)
+
+
+def test_hdr_donor_records_pam_blocking_mutation(make_reference: MakeRef) -> None:
+    # A PAM-distal correction leaves the guide's PAM and seed intact, so the repaired
+    # allele would be re-cut: the donor must carry a recorded PAM-blocking mutation.
+    ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    rv = resolve("chr2:25:T>A", reference=ref)  # 0-based 24, PAM-distal in the protospacer
+    guide = next(
+        g
+        for g in enumerate_cas9(rv, EditIntent.CORRECT, reference=ref)
+        if g.placement.strand is Strand.PLUS and str(g.pam_sequence) == "TGG"
+    )
+    donor = hdr_donor(rv, EditIntent.CORRECT, reference=ref, guide=guide)
+    assert donor is not None
+    assert donor.recut_blocked
+    assert donor.blocking_mutation is not None
+    assert donor.blocking_mutation.region == "pam"
+    assert 35 <= donor.blocking_mutation.position < 38  # inside the guide's PAM
+
+
+def test_hdr_donor_no_block_needed_when_edit_disrupts_pam(make_reference: MakeRef) -> None:
+    # When the correction itself removes the PAM the guide relied on, no blocking
+    # mutation is needed — the donor reports the repair is already re-cut-safe.
+    ref = make_reference({"chr2": PAD + SPACER + "TGT" + PAD})
+    rv = resolve("chr2:38:T>G", reference=ref)  # alt completes NGG; correcting removes it
+    guide = next(
+        g for g in enumerate_cas9(rv, EditIntent.CORRECT, reference=ref)
+        if str(g.spacer.sequence) == SPACER
+    )
+    donor = hdr_donor(rv, EditIntent.CORRECT, reference=ref, guide=guide)
+    assert donor is not None
+    assert donor.recut_blocked
+    assert donor.blocking_mutation is None
 
 
 def test_primary_pam_is_ngg(make_reference: MakeRef) -> None:

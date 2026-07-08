@@ -29,6 +29,23 @@ the declared pattern at construction, and results SHALL be sorted deterministica
 - **WHEN** a candidate window contains `N`
 - **THEN** no guide is emitted there
 
+### Requirement: Correction-intent guides are enumerated against the carried allele
+
+For a CORRECT, REVERT, or INSTALL intent — where the target genome carries the alternate
+allele — the Cas9 enumerator SHALL substitute the carried allele onto the local window
+before enumerating protospacers and PAMs, so guides are enumerated against the sequence
+the target genome actually contains, consistent with the base-editor and prime enumerators.
+A PAM the alternate allele destroys SHALL NOT be emitted; a PAM the alternate allele
+creates SHALL be found; and on-/off-target scoring SHALL run on the carried 20-mer.
+
+#### Scenario: Alt allele destroys the reference PAM
+- **WHEN** a CORRECT intent's alternate allele removes a PAM present in the reference
+- **THEN** no guide is emitted at that PAM, because it does not exist in the target genome
+
+#### Scenario: Alt allele creates a PAM
+- **WHEN** the alternate allele creates a PAM absent from the reference
+- **THEN** the corresponding guide is enumerated and scored on the carried sequence
+
 ### Requirement: Relaxed PAMs are opt-in and labeled
 
 Relaxed PAMs SHALL be emitted only on explicit opt-in and only as a fallback when no
@@ -69,6 +86,22 @@ knockout intent.
 #### Scenario: Cut outside context
 - **WHEN** the cut lies outside the outcome context window
 - **THEN** the outcome predictor raises `ValueError`
+
+### Requirement: An HDR donor is not a substrate for re-cutting
+
+When `hdr_donor` proposes an HDR template for a precise correction and is given the guide
+it must survive, it SHALL introduce a PAM-blocking silent mutation in a homology arm so the
+corrected allele is not re-cleaved by the guide, or SHALL explicitly report that none is
+available — never silently emit a donor whose corrected product the guide still matches.
+
+#### Scenario: Guide still matches the corrected allele
+- **WHEN** the correcting edit leaves the guide's PAM and seed intact
+- **THEN** the donor carries a reported PAM-blocking mutation, or `recut_blocked` is
+  `False` with a note that none is available, rather than shipping a re-cuttable donor
+
+#### Scenario: Correction itself disrupts the guide
+- **WHEN** the correcting edit removes the guide's PAM or seed
+- **THEN** the donor reports `recut_blocked` with no extra mutation needed
 
 ### Requirement: Candidates are ranked and flag their caveats
 

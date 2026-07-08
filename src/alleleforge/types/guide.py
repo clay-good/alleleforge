@@ -243,3 +243,47 @@ class PegRNA(BaseModel):
     def is_epegrna(self) -> bool:
         """Return ``True`` if a stabilizing 3' motif is attached."""
         return self.three_prime_motif is not ThreePrimeMotif.NONE
+
+
+class BlockingMutation(BaseModel):
+    """A silent PAM/seed-disrupting change carried by an HDR donor.
+
+    A correcting HDR donor whose repaired product still presents the guide's PAM
+    and seed would be re-cleaved by the same Cas9. This records the extra change
+    the donor carries to prevent that re-cut.
+
+    Attributes:
+        position: 0-based genomic coordinate of the disrupted base.
+        reference_base: The plus-strand base in the reference / repaired product.
+        donor_base: The plus-strand base the donor substitutes instead.
+        region: Where the change lands (``"pam"`` or ``"seed"``).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    position: int
+    reference_base: str
+    donor_base: str
+    region: str
+
+
+class HDRDonor(BaseModel):
+    """An HDR donor template with an explicit re-cut disposition.
+
+    Attributes:
+        sequence: The donor sequence (5'->3' plus strand), including any blocking
+            mutation applied.
+        blocking_mutation: The PAM/seed-disrupting change the donor carries, or
+            ``None`` when the repair already escapes the guide or none was found.
+        recut_blocked: ``True`` when the repaired product is not a substrate for
+            the guide (either the edit itself escapes it, or a blocking mutation
+            was applied). ``False`` when the donor remains re-cuttable.
+        note: Human-readable disposition (e.g. why no blocking mutation exists).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    sequence: DNASequence
+    blocking_mutation: BlockingMutation | None = None
+    recut_blocked: bool = False
+    note: str | None = None
