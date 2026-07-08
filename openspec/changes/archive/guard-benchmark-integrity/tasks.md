@@ -15,8 +15,8 @@
 - [x] 3.3 Tests: a markup handle is escaped; a duplicate (model, task) is rejected.
 
 ## 4. Optional metric hardening
-- [ ] 4.1 (Optional — deferred) Make `pr_auc` tie-grouping order-insensitive; note
-      `roc_auc` O(n^2) scaling for large folds.
+- [x] 4.1 Make `pr_auc` tie-grouping order-insensitive (tied scores now advance as a
+      single group); note `roc_auc` O(n^2) scaling for large folds in its docstring.
 
 ## 5. Reconcile
 - [x] 5.1 `make ci` green.

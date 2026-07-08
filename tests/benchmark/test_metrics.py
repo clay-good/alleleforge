@@ -94,6 +94,18 @@ def test_pr_auc_no_positives_is_zero() -> None:
     assert pr_auc([0.9, 0.1], [0, 0]) == 0.0
 
 
+def test_pr_auc_tied_scores_are_order_insensitive() -> None:
+    # Every example shares one score, so the ranking is fully ambiguous. Tie
+    # grouping must collapse the whole run to a single precision/recall point,
+    # giving the same average precision for every label permutation.
+    from itertools import permutations
+
+    results = {
+        round(pr_auc([0.5, 0.5, 0.5], list(labels)), 12) for labels in permutations([1, 1, 0])
+    }
+    assert results == {round(2 / 3, 12)}
+
+
 def test_ece_perfectly_calibrated_is_zero() -> None:
     # All confidences 1.0 and all correct -> zero gap.
     assert expected_calibration_error([1.0, 1.0, 1.0], [1, 1, 1]) == 0.0

@@ -125,6 +125,11 @@ def roc_auc(scores: Sequence[float], labels: Sequence[int]) -> float:
 
     ``labels`` are 0/1. Returns ``0.0`` if either class is absent. Ties in
     ``scores`` contribute 0.5, matching the Mann-Whitney U definition.
+
+    Complexity is ``O(pos * neg)`` (a quadratic pairwise sweep), which is fine
+    for the fold sizes CRISPR-Bench evaluates but scales poorly if a single fold
+    grows to tens of thousands of examples; switch to a tie-averaged rank sum
+    (``O(n log n)``) before evaluating folds that large.
     """
     if len(scores) != len(labels):
         return 0.0
@@ -148,6 +153,12 @@ def pr_auc(scores: Sequence[float], labels: Sequence[int]) -> float:
     Computed as the precision-weighted sum over recall increments as the
     decision threshold sweeps from high to low score. Returns ``0.0`` with no
     positives.
+
+    Tied scores are advanced as a single group: precision and recall are only
+    evaluated at each distinct-score boundary, never partway through a run of
+    equal scores. This makes the result **order-insensitive** — permuting the
+    inputs (or the arbitrary order tied scores happen to sort in) cannot change
+    it, which a per-example sweep would allow.
     """
     if len(scores) != len(labels):
         return 0.0
@@ -159,15 +170,25 @@ def pr_auc(scores: Sequence[float], labels: Sequence[int]) -> float:
     fp = 0
     prev_recall = 0.0
     ap = 0.0
-    for i in order:
-        if labels[i] == 1:
-            tp += 1
-        else:
-            fp += 1
+    n = len(order)
+    i = 0
+    while i < n:
+        # Consume the whole run of equal scores before evaluating precision/recall.
+        j = i
+        while j < n:
+            if labels[order[j]] == 1:
+                tp += 1
+            else:
+                fp += 1
+            if j + 1 < n and scores[order[j + 1]] == scores[order[i]]:
+                j += 1
+                continue
+            break
         recall = tp / total_pos
         precision = tp / (tp + fp)
         ap += precision * (recall - prev_recall)
         prev_recall = recall
+        i = j + 1
     return ap
 
 
