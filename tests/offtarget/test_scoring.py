@@ -12,6 +12,7 @@ from alleleforge.offtarget.scoring import (
     cas12a_cfd_score,
     cfd_score,
     mit_score,
+    published_cfd_mismatch_weights,
 )
 
 _SP = "GACCATGCAACCTTGAACGT"  # 20 nt
@@ -149,9 +150,11 @@ def test_valid_injected_weight_still_scores() -> None:
 # -- scorer matrix identity (honest labeling) ---------------------------------
 
 
-def test_cfd_scorer_reports_approximation_matrix() -> None:
-    assert CfdScorer().matrix == "doench-2016-seed-tolerance-approximation"
-    # injecting a published table changes the recorded identity
+def test_cfd_scorer_reports_matrix_identity() -> None:
+    # The default is now the published Doench 2016 matrix; the approximation is opt-in.
+    assert CfdScorer().matrix == "doench-2016-cfd"
+    assert CfdScorer(approximate=True).matrix == "doench-2016-seed-tolerance-approximation"
+    # injecting a custom table changes the recorded identity
     assert CfdScorer({("A", "C", 5): 0.5}).matrix == "custom-mismatch-matrix"
     assert CfdScorer(matrix="doench-2016-published").matrix == "doench-2016-published"
 
@@ -162,3 +165,47 @@ def test_cas12a_scorer_matrix_is_flagged_unvalidated() -> None:
 
 def test_mit_scorer_matrix_identity() -> None:
     assert MitScorer().matrix == "hsu-2013-position-weights"
+
+
+# -- published CFD matrix (Doench 2016) ---------------------------------------
+
+
+def test_published_cfd_matrix_has_expected_anchor_values() -> None:
+    # The vendored matrix is the Doench 2016 CFD table, cross-verified byte-for-byte
+    # against CRISPOR and CRISPRitz. Pin a few authoritative anchor weights so a
+    # corrupted or swapped data file is caught. Keys are (spacer, target, 0-based pos).
+    table = published_cfd_mismatch_weights()
+    assert len(table) == 240  # 12 mismatch types x 20 positions
+    assert table[("C", "A", 0)] == pytest.approx(1.0)  # PAM-distal pos 1: fully tolerated
+    assert table[("T", "G", 9)] == pytest.approx(0.5)
+    assert table[("G", "T", 13)] == pytest.approx(0.266666667)
+    assert table[("A", "C", 19)] == pytest.approx(0.227272727)  # PAM-proximal seed: penalized
+
+
+def test_default_cfd_reproduces_published_example_scores() -> None:
+    # Default CfdScorer uses the published matrix, so a known mismatch reproduces the
+    # published CFD weight exactly. Build sequences differing at exactly one position.
+    scorer = CfdScorer()
+    base = "A" * 20
+    # single mismatch spacer G / target T at position 13, NGG PAM -> weight * pam(GG)=1.0
+    spacer = _sub(base, 13, "G")
+    target = _sub(base, 13, "T")
+    assert scorer.score(spacer, target, "AGG") == pytest.approx(0.266666667, abs=1e-9)
+    # two independent mismatches multiply: (G,T,13)=0.266666667 * (A,C,19)=0.227272727
+    spacer2 = _sub(spacer, 19, "A")
+    target2 = _sub(target, 19, "C")
+    assert scorer.score(spacer2, target2, "AGG") == pytest.approx(
+        0.266666667 * 0.227272727, abs=1e-9
+    )
+    # a low-stringency PAM scales a perfect match by the published PAM weight
+    assert scorer.score(base, base, "AAG") == pytest.approx(CFD_PAM_WEIGHTS["AG"], abs=1e-9)
+
+
+def test_default_cfd_differs_from_approximation() -> None:
+    # The published default and the transparent approximation are genuinely different
+    # models — a seed mismatch scores differently under each.
+    base = "A" * 20
+    spacer, target = _sub(base, 13, "G"), _sub(base, 13, "T")
+    published = CfdScorer().score(spacer, target, "AGG")
+    approx = CfdScorer(approximate=True).score(spacer, target, "AGG")
+    assert published != pytest.approx(approx, abs=1e-6)

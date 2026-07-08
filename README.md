@@ -524,7 +524,7 @@ dependency (the same hand-rolled-renderer discipline as the PDF report).*
 | Score | Source | Status in AlleleForge |
 |---|---|---|
 | **MIT / Hsu** | Hsu et al., *Nat Biotechnol* 2013 | Exact — published 20-position weight table |
-| **CFD** | Doench et al., *Nat Biotechnol* 2016 | Published PAM table; mismatch weights default to a transparent seed model, **injectable** with the exact Doench matrix |
+| **CFD** | Doench et al., *Nat Biotechnol* 2016 | Exact — the **published Doench 2016 matrix is the default** (vendored, cross-verified byte-for-byte against CRISPOR and CRISPRitz); a transparent seed-tolerance approximation stays available via `CfdScorer(approximate=True)` |
 | **CFD-Cas12a** | analog | Seed at the PAM-proximal 5' end, `TTTV` PAM |
 
 Those score one **site**. The report also rolls every site into one **aggregate genome-wide specificity

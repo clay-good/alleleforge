@@ -35,6 +35,7 @@ def test_default_registry_lists_all_phase3_datasets() -> None:
         "1000g",
         "clinvar",
         "dbsnp",
+        "doench-2016-cfd",
         "encode",
         "gencode",
         "gnomad",

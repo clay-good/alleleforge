@@ -25,10 +25,20 @@ of per-position mismatch weights and a PAM-dinucleotide weight in `[0, 1]`.
 
 ### Requirement: Scoring-matrix provenance is explicit
 
-The CFD PAM weights SHALL be the published Doench 2016 values; the per-position mismatch
-weights default to a transparent monotonic seed-tolerance approximation, with the exact
-published 400-value matrix injectable. Which matrix produced a score SHALL be
-distinguishable so a consumer is never misled that an approximation is the published CFD.
+The CFD PAM weights SHALL be the published Doench 2016 values, and the per-position
+mismatch weights SHALL default to the published Doench 2016 CFD matrix (vendored with its
+citation). The transparent monotonic approximation SHALL remain available only behind an
+explicit, labeled option for offline/deterministic-fallback use. Every score SHALL record
+which matrix produced it, so a consumer is never misled that an approximation is the
+published CFD.
+
+#### Scenario: Default reproduces published CFD
+- **WHEN** CFD scores a site with the default weights
+- **THEN** the score matches the published Doench 2016 CFD for that mismatch pattern
+
+#### Scenario: Approximation is opt-in and labeled
+- **WHEN** the approximation weights are selected
+- **THEN** the score records that the approximation, not the published matrix, produced it
 
 #### Scenario: Injected published matrix
 - **WHEN** the published Doench mismatch table is injected

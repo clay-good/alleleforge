@@ -268,5 +268,23 @@ DEFAULT_REGISTRY = DatasetRegistry(
             redistributable=True,
             filename="encode.tracks.bedgraph.gz",
         ),
+        # The Doench 2016 CFD off-target weight matrix. Unlike the sources above, this
+        # one is vendored into the package (offtarget/cfd_matrix.json) and so carries a
+        # real pinned sha256 of the shipped file — the 240 mismatch weights are
+        # byte-identical across two independent tools (CRISPOR, CRISPRitz); see the
+        # file's own `_provenance` block for the cross-verification record.
+        "doench-2016-cfd": DatasetDescriptor(
+            name="doench-2016-cfd",
+            version="2016",
+            source_url=(
+                "https://raw.githubusercontent.com/maximilianh/crisporWebsite/master/"
+                "CFD_Scoring/mismatch_score.pkl"
+            ),
+            license="published data (Doench et al. 2016); redistributed via CRISPOR/CRISPRitz",
+            citation="Doench et al., Nat Biotechnol 2016 (CFD; Suppl. Table 19)",
+            sha256="9134bbd7609507beef37fcc3a046a56a0ab2ed78d8456ea751528e6993451496",
+            redistributable=True,
+            filename="cfd_matrix.json",
+        ),
     }
 )

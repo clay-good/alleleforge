@@ -43,13 +43,18 @@ consumer can see the scores came from the transparent approximation
 (`doench-2016-seed-tolerance-approximation`), and the Cas12a analog carries an
 explicit `unvalidated` label. Off-target and reproduce goldens were regenerated.
 
-Only task 1 (default the published matrix) remains, and it is **blocked on data**:
-the authentic Doench 2016 CFD mismatch matrix is distributed only as a binary
-pickle in the upstream tools, and it must be authoritatively sourced and
-cross-verified before being vendored — it must never be fabricated or approximated
-and then labeled "published" (that would violate the project's honesty principle).
-The default therefore stays the clearly labeled transparent approximation until the
-real matrix can be verified in.
+Task 1 (default the published matrix) has now **shipped**. The authentic Doench 2016
+CFD matrix — distributed only as a binary pickle upstream — was sourced from CRISPOR
+and **cross-verified byte-for-byte against a second independent tool, CRISPRitz**
+(all 240 mismatch weights identical, max abs diff 0.0; the 16 PAM weights match the
+previously-vetted published table), then vendored as `offtarget/cfd_matrix.json` with
+a full `_provenance` block and a pinned `doench-2016-cfd` registry descriptor.
+`CfdScorer()` now defaults to it (labeled `doench-2016-cfd`), with the transparent
+approximation kept behind `CfdScorer(approximate=True)`. The conversion into the
+scorer's key form was proven exact against the reference CFD calculator over 20k
+random pairs (max diff 1.7e-18). Nothing was fabricated or approximated-then-labeled
+"published" — the values are the authentic published matrix, independently
+corroborated.
 
 ## Impact
 

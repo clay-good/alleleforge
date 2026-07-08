@@ -8,12 +8,14 @@ without touching the engine.
   product penalizing mismatches by location, pairwise spacing, and count. The
   20-position weight vector is the published table; the implementation is exact.
 * **CFD — Cutting Frequency Determination** (Doench et al., *Nat Biotechnol*
-  2016). The CFD score is ``∏ w(position, mismatch) · w(PAM)``. The PAM
-  dinucleotide weights here are the published CFD values. The per-position
-  *mismatch* weights default to a transparent, monotonic seed-tolerance model
-  (PAM-distal mismatches tolerated, PAM-proximal seed mismatches penalized);
-  the exact 400-value Doench matrix can be supplied via ``mismatch_weights`` so
-  the published table drops in without code changes.
+  2016). The CFD score is ``∏ w(position, mismatch) · w(PAM)``. Both the PAM
+  dinucleotide weights and the per-position *mismatch* weights default to the
+  **published Doench 2016 matrix** (vendored in ``cfd_matrix.json`` and
+  cross-verified byte-for-byte against CRISPOR and CRISPRitz), so a default score
+  is the CFD number a reviewer expects. A transparent, monotonic seed-tolerance
+  approximation (PAM-distal mismatches tolerated, PAM-proximal seed mismatches
+  penalized) remains available via ``CfdScorer(approximate=True)``, and a custom
+  table can be injected via ``mismatch_weights``.
 * **Cas12a CFD analog.** Same multiplicative structure with the seed at the
   PAM-proximal **5'** end (Cas12a's PAM is 5' of the protospacer) and a ``TTTV``
   PAM model. Documented as an analog pending a Cas12a-specific published matrix.
@@ -23,6 +25,9 @@ All scores are returned in ``[0, 1]`` (1.0 = perfect match, no PAM penalty).
 
 from __future__ import annotations
 
+import json
+from functools import lru_cache
+from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from alleleforge.types.offtarget import ScoreMethod
@@ -78,6 +83,37 @@ CFD_PAM_WEIGHTS: dict[str, float] = {
 #: retained activity (``1.0`` = no effect). Used to override the default model
 #: with the published Doench matrix.
 MismatchWeights = dict[tuple[str, str, int], float]
+
+#: The vendored, cross-verified Doench 2016 CFD weight matrix (see its own
+#: ``_provenance`` block for the two-source authenticity record).
+CFD_MATRIX_FILE = Path(__file__).parent / "cfd_matrix.json"
+
+#: Matrix-identity labels recorded on a score so a consumer can tell published-CFD
+#: from the transparent fallback without inspecting the number.
+PUBLISHED_CFD_MATRIX_ID = "doench-2016-cfd"
+APPROX_CFD_MATRIX_ID = "doench-2016-seed-tolerance-approximation"
+
+
+@lru_cache(maxsize=1)
+def published_cfd_mismatch_weights() -> MismatchWeights:
+    """Return the published Doench 2016 CFD mismatch matrix as a scorer table.
+
+    Loads the vendored :data:`CFD_MATRIX_FILE` and converts each upstream
+    ``r<guide>:d<complement-of-target>,<1-based-pos>`` entry into this scorer's
+    ``(spacer_base, target_base, 0-based-pos)`` key. The guide RNA base maps to DNA
+    (``U``→``T``) and the target base is the complement of the stored ``d`` base, so
+    the table reproduces the reference CFD calculator exactly. Cached: the file is
+    read and converted once.
+    """
+    doc = json.loads(CFD_MATRIX_FILE.read_text())
+    complement = {"A": "T", "T": "A", "C": "G", "G": "C"}
+    table: MismatchWeights = {}
+    for key, weight in doc["mismatch"].items():
+        rpart, pos = key.split(",")  # e.g. "rU:dT", "12"
+        guide_rna, target_d = rpart[1], rpart[4]
+        spacer_dna = "T" if guide_rna == "U" else guide_rna
+        table[(spacer_dna, complement[target_d], int(pos) - 1)] = weight
+    return table
 
 
 def _checked_weight(weight: float, *, context: str) -> float:
@@ -254,33 +290,49 @@ class OffTargetScorer(Protocol):
 
 
 class CfdScorer:
-    """The CFD scorer (default off-target scorer)."""
+    """The CFD scorer (default off-target scorer).
+
+    By default this uses the **published Doench 2016 CFD matrix** (vendored and
+    cross-verified against two independent tools), so out-of-the-box scores are the
+    CFD numbers a reviewer expects. Pass ``approximate=True`` for the transparent
+    seed-tolerance fallback (deterministic, no data file), or inject a custom
+    ``mismatch_weights`` table. Whichever is used is recorded in :attr:`matrix`.
+    """
 
     name = "CFD"
     method = ScoreMethod.CFD
-    #: The default per-position mismatch model: the transparent seed-tolerance
-    #: approximation, not the published Doench 2016 matrix (which drops in via
-    #: ``mismatch_weights``). Named honestly so a score is never mistaken for CFD.
-    DEFAULT_MATRIX = "doench-2016-seed-tolerance-approximation"
+    #: The published-matrix identity recorded on a default score.
+    PUBLISHED_MATRIX = PUBLISHED_CFD_MATRIX_ID
+    #: The transparent-fallback identity, named honestly so an approximate score is
+    #: never mistaken for published CFD.
+    APPROXIMATE_MATRIX = APPROX_CFD_MATRIX_ID
 
     def __init__(
-        self, mismatch_weights: MismatchWeights | None = None, *, matrix: str | None = None
+        self,
+        mismatch_weights: MismatchWeights | None = None,
+        *,
+        matrix: str | None = None,
+        approximate: bool = False,
     ) -> None:
-        """Optionally bind the published Doench mismatch-weight table.
+        """Bind the CFD mismatch-weight table.
 
         Args:
-            mismatch_weights: A published ``(spacer, target, pos) -> weight`` table;
-                the transparent approximation is used when omitted.
-            matrix: Override the recorded matrix-identity label (e.g. name the
-                published table when you inject it).
+            mismatch_weights: A custom ``(spacer, target, pos) -> weight`` table. When
+                omitted, the published Doench 2016 matrix is used unless
+                ``approximate`` is set.
+            matrix: Override the recorded matrix-identity label.
+            approximate: Use the transparent seed-tolerance approximation instead of
+                the published matrix (ignored when ``mismatch_weights`` is given).
         """
-        self._mismatch_weights = mismatch_weights
-        if matrix is not None:
-            self.matrix = matrix
-        elif mismatch_weights is None:
-            self.matrix = self.DEFAULT_MATRIX
+        if mismatch_weights is not None:
+            self._mismatch_weights: MismatchWeights | None = mismatch_weights
+            self.matrix = matrix or "custom-mismatch-matrix"
+        elif approximate:
+            self._mismatch_weights = None
+            self.matrix = matrix or self.APPROXIMATE_MATRIX
         else:
-            self.matrix = "custom-mismatch-matrix"
+            self._mismatch_weights = published_cfd_mismatch_weights()
+            self.matrix = matrix or self.PUBLISHED_MATRIX
 
     def score(self, spacer: str, protospacer: str, pam_sequence: str) -> float:
         """Return the CFD score for one candidate."""

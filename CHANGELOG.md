@@ -10,6 +10,20 @@ acceptance.
 
 ### Added
 
+- **The published Doench 2016 CFD matrix is now the default off-target scorer.**
+  The default `CfdScorer` used a transparent seed-tolerance *approximation*, so
+  out-of-the-box CFD numbers were not the values a reviewer comparing against CRISPOR
+  expects. The authentic 240-weight Doench 2016 mismatch matrix (plus its 16 PAM
+  weights) is now vendored at `offtarget/cfd_matrix.json` and used by default (labeled
+  `doench-2016-cfd`). It was sourced from CRISPOR and **cross-verified byte-for-byte
+  against CRISPRitz** (an independent tool; max abs difference 0.0), and the conversion
+  into the scorer was proven exact against the reference CFD calculator over 20,000
+  random pairs — nothing fabricated or approximated. The transparent approximation stays
+  available via `CfdScorer(approximate=True)`. **Off-target scores change for real runs
+  with mismatched sites**: they now return published CFD instead of the approximation
+  (perfect-match sites, which depend only on the unchanged PAM weights, are unaffected —
+  hence the reproduce golden's only drift was the honest matrix label). Completes
+  `ship-published-cfd-matrix`.
 - **The recorded seed is now load-bearing.** `provenance.seed` drove no randomness: the
   only genuine stochastic step (the conformal-recalibration demo) drew from its own
   hardcoded `SEED = 20240501` duplicate, so the seed was decorative. `Settings.rng()` is
