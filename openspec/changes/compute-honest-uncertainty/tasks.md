@@ -1,12 +1,14 @@
 # Tasks
 
-## 1. OOD widening floor
+## 1. OOD widening floor — DONE
 
-- [ ] In `scoring/uncertainty.py`, add an additive minimum half-width floor to the OOD
+- [x] In `scoring/uncertainty.py`, add an additive minimum half-width floor to the OOD
   widening path so the interval is strictly wider than any in-distribution interval the
   same head could produce, and a zero-width interval cannot survive OOD flagging.
-- [ ] Test: an OOD prediction whose ensemble members agree exactly (`std == 0`) returns a
+  (`OOD_MIN_HALF_WIDTH = 0.05`, added on top of `OOD_WIDEN_FACTOR` in `to_prediction`.)
+- [x] Test: an OOD prediction whose ensemble members agree exactly (`std == 0`) returns a
   non-zero-width interval and `calibrated = False`.
+  (`test_ood_floor_defeats_zero_width_agreement`.)
 
 ## 2. Compute in_distribution; fail honest by default
 

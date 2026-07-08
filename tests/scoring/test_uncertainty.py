@@ -52,6 +52,19 @@ def test_ood_widens_and_stays_uncalibrated() -> None:
     assert ood.calibrated is False
 
 
+def test_ood_floor_defeats_zero_width_agreement() -> None:
+    # The failure the multiplicative factor alone missed: when ensemble members
+    # agree *exactly* the half-width is 0, and 0 * factor == 0 — an OOD input could
+    # still present a zero-width, maximally-confident interval. The additive floor
+    # guarantees a strictly-positive width, wider than the (zero-width) in-dist one.
+    exact = EnsembleResult((0.50, 0.50, 0.50, 0.50, 0.50))
+    in_dist = ensemble_prediction(exact, in_distribution=True)
+    ood = ensemble_prediction(exact, in_distribution=False)
+    assert in_dist.interval_width == 0.0  # exact agreement -> degenerate in-dist interval
+    assert ood.interval_width > 0.0  # ...but the OOD interval is never zero-width
+    assert ood.calibrated is False
+
+
 # -- DeepEnsemble -------------------------------------------------------------
 
 

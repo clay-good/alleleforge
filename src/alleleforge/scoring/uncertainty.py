@@ -47,6 +47,19 @@ DEFAULT_ENSEMBLE_SIZE = 5
 #: contract: OOD widens, never narrows).
 OOD_WIDEN_FACTOR = 2.0
 
+#: Additive minimum half-width added to each side of an out-of-distribution
+#: interval, on top of the multiplicative :data:`OOD_WIDEN_FACTOR`. The
+#: multiplicative factor alone cannot widen a *degenerate* interval — when
+#: ensemble members agree exactly the half-width is 0 and ``0 * factor == 0``, so
+#: an OOD input could still present a zero-width, maximally-confident interval, the
+#: opposite of the contract. Adding this floor guarantees an OOD interval is
+#: strictly wider than any in-distribution interval the same head could emit
+#: (``in_half * factor + floor > in_half`` for any ``in_half >= 0``) and that a
+#: zero-width interval never survives OOD flagging. On the ``[0, 1]`` efficiency /
+#: probability scale the heads predict on, ±0.05 is a deliberately un-confident
+#: minimum.
+OOD_MIN_HALF_WIDTH = 0.05
+
 
 def _z(level: float) -> float:
     """Return the two-sided standard-normal z for a coverage ``level``."""
@@ -72,8 +85,10 @@ def to_prediction(
       outside its own interval (a signal the head is inconsistent), the interval
       is widened to contain it *and* a note recording the repair is attached.
     * **Out-of-distribution widens, never narrows.** When ``in_distribution`` is
-      ``False`` the interval half-widths are inflated by :data:`OOD_WIDEN_FACTOR`,
-      so an OOD input cannot present a narrow interval even if members agree.
+      ``False`` the interval half-widths are inflated by :data:`OOD_WIDEN_FACTOR`
+      **and** an additive :data:`OOD_MIN_HALF_WIDTH` floor is added, so an OOD input
+      cannot present a narrow interval even when members agree exactly (a zero-width
+      interval that the multiplicative factor alone would leave at zero).
     """
     low, high = interval
     low, high = min(low, high), max(low, high)
@@ -85,8 +100,8 @@ def to_prediction(
             f"interval widened to contain point estimate {value:.6g} (inconsistent head)",
         )
     if not in_distribution:
-        low = value - (value - low) * OOD_WIDEN_FACTOR
-        high = value + (high - value) * OOD_WIDEN_FACTOR
+        low = value - ((value - low) * OOD_WIDEN_FACTOR + OOD_MIN_HALF_WIDTH)
+        high = value + ((high - value) * OOD_WIDEN_FACTOR + OOD_MIN_HALF_WIDTH)
     return Prediction[float](
         value=value,
         interval=(low, high),

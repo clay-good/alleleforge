@@ -8,6 +8,18 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **An out-of-distribution prediction can no longer present a zero-width, maximally
+  confident interval.** OOD widening was purely multiplicative (`half *= 2.0`), so when
+  ensemble members agreed exactly (`std == 0`, half-width 0) `0 * 2 == 0` left the interval
+  degenerate — the opposite of the contract's "OOD widens, never narrows." An additive
+  `OOD_MIN_HALF_WIDTH = 0.05` floor is now added on top of the factor, guaranteeing an OOD
+  interval is strictly wider than any in-distribution interval the same head could emit and
+  that a zero-width interval never survives OOD flagging. (First task of
+  `compute-honest-uncertainty`; the remaining OOD-computation, trained-vs-heuristic, and
+  nominal-interval-level tasks are still open.)
+
 ### Added
 
 - **Off-target strengthening is now score-based, the aggregate covers the sub-threshold
