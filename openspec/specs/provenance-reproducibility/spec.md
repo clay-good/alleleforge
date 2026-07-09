@@ -99,6 +99,13 @@ runs, not only the seed. `interval_level` and `maf_threshold` SHALL be validated
 - **WHEN** a user sets `maf_threshold` in the config file and runs a CLI command
 - **THEN** that value governs the run
 
+#### Scenario: Config file governs a web run
+- **WHEN** a user sets a value in the config file and starts the web API with no explicit
+  settings (the module-level `create_app()`)
+- **THEN** the app resolves settings through `Settings.load()` so that value governs the
+  run and appears in provenance — a bare `Settings()` that reads env but skips the file
+  does not satisfy the contract
+
 #### Scenario: Out-of-range level
 - **WHEN** `interval_level` is set to `1.5`
 - **THEN** settings construction raises a validation error

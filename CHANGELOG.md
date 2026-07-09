@@ -10,6 +10,16 @@ acceptance.
 
 ### Fixed
 
+- **The web API now honors the user config file, matching the CLI and library.** The
+  provenance-reproducibility spec requires all three interfaces to resolve settings through
+  `Settings.load()` so the config file (`~/.config/alleleforge/config.toml`) applies to web runs too,
+  but the module-level `create_app()` default used a bare `Settings()`, which reads `ALLELEFORGE_*`
+  env vars yet silently skips the config file. A machine with a `config.toml` seed/threshold saw it
+  govern `af design` and the Python API but not the web server — its provenance stamped the default
+  instead, a cross-interface reproducibility gap and a spec violation. `create_app()` now defaults to
+  `Settings.load()`. Regression test fails@HEAD → passes; the spec gains a "config file governs a web
+  run" scenario. Found by the cross-interface parity audit.
+
 - **The report TSV export now strips carriage returns from cells, so a user-influenced value can no
   longer break one row into several.** `report_to_tsv`'s `_cell` neutralized `\t` and `\n` but not
   `\r`, while its sibling `_batch_tsv._cell` already handled all three. A `\r` in a user-influenced

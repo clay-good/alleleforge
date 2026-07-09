@@ -159,7 +159,8 @@ def create_app(
     Args:
         reference: A pre-loaded :class:`ReferenceGenome`. If ``None``, one is
             loaded from ``ALLELEFORGE_REFERENCE_FASTA`` when that is set.
-        settings: Settings to thread into provenance (default: a fresh instance).
+        settings: Settings to thread into provenance (default: ``Settings.load()``,
+            resolving the user config file + env with the standard precedence).
         api_token: When set, every ``/api/*`` request (except ``/api/health``)
             SHALL carry a matching ``X-API-Token`` header or is rejected with 401.
             ``None`` (the localhost default) leaves the API open.
@@ -177,7 +178,11 @@ def create_app(
         ),
     )
     app.state.reference = reference if reference is not None else _load_reference_from_env()
-    app.state.settings = settings or Settings()
+    # Resolve through Settings.load() so the web interface honors the user config file
+    # (~/.config/alleleforge/config.toml) with the same precedence as the CLI and library
+    # — the provenance-reproducibility spec requires the config file to apply to web runs,
+    # not only the seed. A bare Settings() would read env vars but silently skip the file.
+    app.state.settings = settings or Settings.load()
     app.state.jobs = JobManager()
 
     if api_token:

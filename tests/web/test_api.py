@@ -412,6 +412,22 @@ def test_create_app_loads_reference_from_env(
     assert env_app.state.reference is not None
 
 
+def test_create_app_config_file_governs_settings(
+    tmp_path: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The web interface must resolve settings through Settings.load() (per the
+    # provenance-reproducibility spec: the config file applies to CLI *and* web),
+    # so a user config.toml governs a web run's seed — the provenance anchor — with
+    # the same precedence as the CLI and library, not a bare Settings() that skips it.
+    cfg_dir = tmp_path / "alleleforge"  # type: ignore[operator]
+    cfg_dir.mkdir()
+    (cfg_dir / "config.toml").write_text("seed = 30313233\n")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.delenv("ALLELEFORGE_SEED", raising=False)
+    app = create_app()
+    assert app.state.settings.seed == 30313233
+
+
 async def test_api_token_required_when_configured(reference: object) -> None:
     # With a token configured, /api/* needs a matching X-API-Token header; the
     # health probe stays open so liveness checks keep working.
