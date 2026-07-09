@@ -304,3 +304,16 @@ def test_zero_weights_rejected() -> None:
 def test_negative_weight_rejected() -> None:
     with pytest.raises(ValueError, match="must be non-negative"):
         RankingWeights(efficiency=-0.1)
+
+
+def test_nan_weight_rejected() -> None:
+    # A `nan` weight slips past a bare `< 0.0` check and makes every normalized
+    # fraction `nan`, corrupting the composite the ranking sorts on.
+    with pytest.raises(ValueError, match="must be finite"):
+        RankingWeights(simplicity=float("nan"))
+
+
+def test_infinite_weight_rejected() -> None:
+    # An `inf` weight collapses the finite weights to 0.0 under normalization.
+    with pytest.raises(ValueError, match="must be finite"):
+        RankingWeights(efficiency=float("inf"))

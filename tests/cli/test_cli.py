@@ -651,6 +651,16 @@ def test_non_numeric_weights_is_usage_error(
     assert result.exit_code == ExitCode.USAGE
 
 
+def test_invalid_weight_values_are_usage_errors(
+    runner: CliRunner, prime_fasta: Path, design_cmd: DesignCmd
+) -> None:
+    # Parseable-but-invalid weights (non-finite, negative) must be a clean usage
+    # error, not an uncaught RankingWeights traceback with a success exit code.
+    for spec in ("1,1,1,nan", "1,1,1,inf", "-1,1,1,1"):
+        result = runner.invoke(app, [*design_cmd(prime_fasta, "json"), "--weights", spec])
+        assert result.exit_code == ExitCode.USAGE, f"weights {spec!r} should be a usage error"
+
+
 def test_offtarget_bad_pam_is_usage_error(runner: CliRunner, nuclease_fasta: Path) -> None:
     result = runner.invoke(
         app,

@@ -27,6 +27,7 @@ larger pool whose dropped candidates the caller never sees.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from alleleforge.types.candidate import DesignCandidate
@@ -51,9 +52,16 @@ class RankingWeights:
     simplicity: float = 0.05
 
     def __post_init__(self) -> None:
-        """Validate weights are non-negative and not all zero."""
+        """Validate weights are finite, non-negative, and not all zero."""
         for name in OBJECTIVES:
-            if getattr(self, name) < 0.0:
+            weight = getattr(self, name)
+            # `nan`/`inf` slip past a bare `< 0.0` (both compare False) and would
+            # poison `normalized()` — a `nan` weight makes every fraction `nan`,
+            # an `inf` weight collapses the finite ones to 0.0 — silently
+            # corrupting the composite the ranking is sorted on. Reject them here.
+            if not math.isfinite(weight):
+                raise ValueError(f"weight {name} must be finite")
+            if weight < 0.0:
                 raise ValueError(f"weight {name} must be non-negative")
         if self.total == 0.0:
             raise ValueError("ranking weights cannot all be zero")

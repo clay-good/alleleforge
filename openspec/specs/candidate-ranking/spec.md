@@ -40,11 +40,21 @@ a real bug is not masked.
 
 Ranking SHALL project each candidate onto efficiency, cleanliness (intended-outcome
 probability), safety, and simplicity, and order by a weighted sum with published default
-weights, validated non-negative and not all-zero.
+weights, validated finite, non-negative, and not all-zero. A non-finite weight (`nan` or
+`inf`) SHALL be rejected at construction: it would otherwise pass a bare non-negativity
+check and poison normalization — a `nan` weight drives every normalized fraction to `nan`,
+an `inf` weight collapses the finite weights to zero — silently corrupting the composite
+the order is sorted on.
 
 #### Scenario: Weighted composite
 - **WHEN** candidates are ranked
 - **THEN** each carries a human-readable score breakdown naming its four objective values
+
+#### Scenario: Non-finite weight rejected
+- **WHEN** ranking weights are constructed with a `nan` or `inf` component (e.g. via the
+  CLI `--weights` flag or a config file)
+- **THEN** construction raises rather than producing a normalized composite of `nan`, and
+  the CLI surfaces it as a usage error rather than an uncaught traceback
 
 ### Requirement: Safety uses the worst-affected ancestry
 

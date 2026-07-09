@@ -10,6 +10,19 @@ acceptance.
 
 ### Fixed
 
+- **Ranking weights now reject `nan`/`inf`, so a fat-fingered `--weights` can no longer
+  silently corrupt the entire ranking.** `RankingWeights` validated that each weight was
+  non-negative and not all-zero, but a bare `weight < 0.0` check lets `nan` and `inf` through
+  (both compare `False`). The CLI `--weights` flag (and a config file, and the Python API)
+  parse those via `float()`, so `--weights 1,1,1,nan` built a weights object whose
+  `normalized()` returns `nan` for every objective — turning every candidate's composite score
+  into `nan` and scrambling the order — while `1,1,1,inf` collapsed the finite weights to `0.0`.
+  `__post_init__` now rejects any non-finite weight up front. Separately, `_parse_weights`
+  constructed `RankingWeights` *outside* its `try/except`, so any validation failure (a negative
+  weight today, a non-finite one now) escaped as an uncaught traceback with a success exit code
+  instead of a clean `USAGE` error; the construction is now inside the guard. Same NaN-poisons-a-
+  score class the benchmark-metrics NaN guard closed, on the ranking axis.
+
 - **The lint CI gate now style-checks the example notebooks, so they can no longer drift out of
   compliance silently.** The `examples` CI job executes the three teaching notebooks end to end
   (`pytest --nbmake`), but the `lint` job only ran `ruff check`/`ruff format --check` over

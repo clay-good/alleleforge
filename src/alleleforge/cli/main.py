@@ -182,10 +182,12 @@ def _parse_weights(spec: str | None) -> Any:
         raise typer.Exit(ExitCode.USAGE)
     try:
         eff, clean, safe, simple = (float(p) for p in parts)
+        # RankingWeights rejects non-finite / negative / all-zero weights; surface
+        # those as a clean usage error rather than an uncaught traceback.
+        return RankingWeights(efficiency=eff, cleanliness=clean, safety=safe, simplicity=simple)
     except ValueError as exc:
-        _echo_err(f"error: --weights must be four numbers: {exc}")
+        _echo_err(f"error: --weights must be four non-negative numbers: {exc}")
         raise typer.Exit(ExitCode.USAGE) from exc
-    return RankingWeights(efficiency=eff, cleanliness=clean, safety=safe, simplicity=simple)
 
 
 #: Run-parameter keys a config file may carry (the rest must be `Settings` fields).
