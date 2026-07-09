@@ -338,6 +338,33 @@ lens even after the core is empirically clean under fuzzing + native parity — 
 now are the seams a scientist cares about (the same number labeled two ways on two surfaces) and the
 cost model of the fallback paths (quadratic memory the native kernel hides), not the numeric core.**
 
+## Round 15 — cross-interface parity + adversarial output rendering (3 fixes)
+
+Two fresh lenses: (1) **cross-interface result parity** — does the same input produce the same
+scientific result and provenance via the Python API, the `aforge` CLI, and the web API? (2)
+**adversarial output rendering** — can a user-influenced string smuggle a break/injection into a
+rendered artifact (PDF, HTML, TSV, leaderboard, provenance)? The rendering lens returned a clean bill
+on HTML/PDF/SVG/leaderboard/provenance (each user string already escaped) apart from one TSV gap; the
+parity lens found two provenance/config divergences.
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(cohort)` batch seed provenance | provenance-reproducibility, cli, web-api | `design_many` stamped the run-level provenance seed from `get_settings().seed` (the process singleton), while the seed that governs the run is the one threaded into every per-item `design()` via `settings=`. So `af batch --seed 999888` recorded a run seed of `20240501` while every per-item menu used `999888` — the run header contradicted its own items and disagreed with `af design`. The seed is the anchor `aforge verify` reads. Test-invisible because the suite only used the default seed. **Shipped:** stamp `(design_kwargs.get("settings") or get_settings()).seed`. |
+| `fix(reporting)` TSV carriage returns | reporting | `report_to_tsv`'s `_cell` neutralized `\t` and `\n` but not `\r`, while the sibling `_batch_tsv._cell` handled all three. A `\r` in a user-influenced cell (a `worst_ancestry` label, a candidate flag) broke one logical row into several physical lines and crashed `csv.reader` (Excel / `splitlines()` / `csv` treat a bare `\r` as a row break). The pinning test shared the blind spot. **Shipped:** `.replace("\r", " ")`; strengthened the test + a direct `_cell` delimiter guard. |
+| `fix(web-api)` config file honored | provenance-reproducibility, web-api | The spec requires all interfaces to resolve settings through `Settings.load()` so the config file applies to web too, but the module-level `create_app()` default used a bare `Settings()` — reads env, silently skips `~/.config/alleleforge/config.toml`. A machine config governed the CLI/library but not the web server. **Shipped:** `create_app()` defaults to `Settings.load()`; docstring corrected. |
+
+**Honest scoping note (not shipped):** neither TSV emitter guards against CSV/spreadsheet *formula*
+injection (a leading `=`/`+`/`-`/`@`) — but no spec or docstring claims formula-injection safety (the
+stated contract is delimiter neutralization, which the `\r` bug genuinely violated), so prefixing such
+cells is flagged as a possible defense-in-depth follow-up rather than a violated guarantee. The web
+`DesignRequest` also omits `cell_context` / trained-scorer opt-ins the CLI exposes — a missing feature,
+not a same-input divergence (for the unset request the surfaces agree).
+
+Yield 5/3/3/0/7/3/7/3/2/4/4/5/3. **Lesson: once the single-surface science is clean, the remaining
+gaps live at the INTERFACE seams — the same run recorded differently on two surfaces (a batch seed,
+a config source) and a delimiter one emitter strips but its sibling doesn't. Parity across surfaces is
+its own audit axis.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
