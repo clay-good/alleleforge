@@ -19,8 +19,8 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      - run: ruff check src tests scripts
-      - run: ruff format --check src tests scripts
+      - run: ruff check src tests scripts examples
+      - run: ruff format --check src tests scripts examples
 
   type-check:
     name: Type-check (mypy --strict)

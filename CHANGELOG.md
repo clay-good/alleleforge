@@ -10,6 +10,18 @@ acceptance.
 
 ### Fixed
 
+- **The lint CI gate now style-checks the example notebooks, so they can no longer drift out of
+  compliance silently.** The `examples` CI job executes the three teaching notebooks end to end
+  (`pytest --nbmake`), but the `lint` job only ran `ruff check`/`ruff format --check` over
+  `src tests scripts` — never `examples`. Execution passing says nothing about style, so the
+  notebooks had accumulated unsorted imports, over-length lines, and formatter drift that a
+  ruff-branded project should not ship in its front-door examples. Extended both lint commands to
+  cover `examples`, added an `examples/**` pydocstyle exemption (teaching cells need no docstrings,
+  matching the existing `tests/**` and `scripts/**` rules), and reformatted the three notebooks
+  (import sorting plus wrapping long print-calls). Notebook execution is unchanged (`nbmake` still
+  green); this closes the same class of *ungated surface rots silently* gap the reproducibility and
+  format-check pins closed.
+
 - **The reproducibility golden is refreshed, so the CI reproducibility gate is green again.**
   `scripts/reproduce.py` re-derives the canonical weight-free design menu twice, asserts the two
   runs are byte-identical, and diffs a canonicalized digest against a committed golden manifest;

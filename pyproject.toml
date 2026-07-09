@@ -126,6 +126,8 @@ ignore = ["D203", "D213"]
 # Tests and the schema-export script need no public-API docstrings.
 "tests/**" = ["D"]
 "scripts/**" = ["D"]
+# Example notebooks are teaching material: their helper cells need no docstrings.
+"examples/**" = ["D"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
