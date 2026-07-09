@@ -161,6 +161,21 @@ def test_pegrna_extension_contains_motif(prime_menu: RankedMenu) -> None:
     assert oligos.scaffold == str(peg.scaffold)
 
 
+def test_pegrna_oligos_screens_enzyme_site_in_extension(prime_menu: RankedMenu) -> None:
+    # The enzyme screen must run on the assembled 3' extension via the real
+    # pegrna_oligos path — not only in the _screen_enzyme_site unit test. Plant the
+    # scheme enzyme's site (BsaI = GGTCTC) inside the RTT so the extension body
+    # carries a cloning-lethal internal site; driving pegrna_oligos must surface it.
+    from alleleforge.types.sequence import DNASequence
+
+    top = prime_menu.candidates[0]
+    peg = top.pegrna
+    assert peg is not None
+    planted = peg.model_copy(update={"rtt": DNASequence(str(peg.rtt) + "GGTCTC")})
+    oligos = pegrna_oligos(planted, scheme=PEGRNA_GG_BSAI)
+    assert any(w.startswith("internal-BsaI-site:pegrna-extension") for w in oligos.warnings)
+
+
 def test_pegrna_includes_ngrna_when_pe3(prime_menu: RankedMenu) -> None:
     top = prime_menu.candidates[0]
     peg = top.pegrna

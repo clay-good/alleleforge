@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from alleleforge.enumerate.cas9 import enumerate_cas9, guide_context, hdr_donor
+from alleleforge.enumerate.cas9 import (
+    DEFAULT_HDR_ARM,
+    enumerate_cas9,
+    guide_context,
+    hdr_donor,
+)
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.edit import EditIntent
 from alleleforge.types.guide import PAM
@@ -170,9 +175,17 @@ def test_hdr_donor_records_pam_blocking_mutation(make_reference: MakeRef) -> Non
     donor = hdr_donor(rv, EditIntent.CORRECT, reference=ref, guide=guide)
     assert donor is not None
     assert donor.recut_blocked
-    assert donor.blocking_mutation is not None
-    assert donor.blocking_mutation.region == "pam"
-    assert 35 <= donor.blocking_mutation.position < 38  # inside the guide's PAM
+    bm = donor.blocking_mutation
+    assert bm is not None
+    assert bm.region == "pam"
+    assert 35 <= bm.position < 38  # inside the guide's PAM
+    # The re-cut guarantee must be carried by the EMITTED donor sequence, not only by
+    # the recorded metadata: the substituted base is genuinely present at the blocked
+    # position, and it is a real change. A regression that records the mutation but
+    # forgets to apply it to the donor would ship a re-cuttable donor with a green flag.
+    assert bm.donor_base != bm.reference_base
+    left_start = max(0, rv.variant.pos - DEFAULT_HDR_ARM)
+    assert str(donor.sequence)[bm.position - left_start] == bm.donor_base
 
 
 def test_hdr_donor_no_block_needed_when_edit_disrupts_pam(make_reference: MakeRef) -> None:

@@ -45,9 +45,25 @@ def test_end_to_end_yields_ranked_candidates(make_reference: MakeRef) -> None:
 def test_every_candidate_has_outcome_and_offtarget(make_reference: MakeRef) -> None:
     ref, rv = _abe_case(make_reference)
     for c in design_base_editor(rv, EditIntent.INSTALL, reference=ref):
-        assert c.efficiency is not None  # p_intended_exact, the clean-edit probability
+        assert c.efficiency is not None  # target-editing activity (P target edited)
         assert c.outcome is not None and c.outcome.alleles
         assert isinstance(c.offtarget, OffTargetReport)
+
+
+def test_efficiency_axis_is_distinct_from_cleanliness(make_reference: MakeRef) -> None:
+    # The efficiency axis is the raw target-editing *activity* (P target edited,
+    # bystander-independent); cleanliness is the intended-allele probability mass
+    # (outcome.p_intended, reduced by bystander edits). On a candidate that carries
+    # bystanders the two must genuinely diverge — a regression that reconflates
+    # efficiency with the clean-edit probability (the pre-fix behavior) would make
+    # them equal and double-charge bystanders, yet leave the rest of the suite green.
+    ref, rv = _abe_case(make_reference)
+    top = design_base_editor(rv, EditIntent.INSTALL, reference=ref)[0]
+    assert any(f.startswith("bystander-") for f in top.flags)  # the case has bystanders
+    assert top.efficiency is not None and top.outcome is not None
+    activity = top.efficiency.value
+    cleanliness = float(top.outcome.p_intended)
+    assert activity > cleanliness, (activity, cleanliness)  # distinct, not the same number
 
 
 def test_bystander_tradeoff_surfaced(make_reference: MakeRef) -> None:
