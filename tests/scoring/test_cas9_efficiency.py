@@ -156,6 +156,20 @@ def test_ensemble_is_deterministic() -> None:
     assert a.value == b.value and a.interval == b.interval
 
 
+def test_ensemble_interval_is_clamped_to_unit_range() -> None:
+    # An efficiency is a fraction in [0, 1], so its predictive interval bounds must
+    # also lie in [0, 1] — a disagreement band `mean ± z·std` (further widened when
+    # OOD) must never present a bound above 1.0 or below 0.0, matching every sibling
+    # scorer's clamp. Sweep many contexts (in- and out-of-distribution) and assert
+    # the whole interval stays in range.
+    scorer = EnsembleEfficiencyScorer(embedder=StubEmbedder(dim=16))
+    for i in range(400):
+        ctx = "".join("ACGT"[(i * 7 + j * 13) % 4] for j in range(23))
+        p = scorer.score(ctx)
+        lo, hi = p.interval
+        assert 0.0 <= lo <= p.value <= hi <= 1.0, (ctx, p.interval, p.in_distribution)
+
+
 # -- trained Rule Set 3 (consent-gated model zoo) -----------------------------
 #
 # The gate behaviour (license + consent + checksum) is exercised in CI without

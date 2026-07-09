@@ -394,4 +394,9 @@ class EnsembleEfficiencyScorer:
         heads_are_trained = False  # no fitted head weights ship; see `_member_weights`
         trained = heads_are_trained and not _is_weight_free(self._embedder)
         method = UncertaintyMethod.ENSEMBLE if trained else UncertaintyMethod.HEURISTIC
-        return ensemble_prediction(result, in_distribution=in_dist, method=method)
+        # An efficiency is a fraction in [0, 1]; clamp the disagreement band to that
+        # domain so the interval never reports a bound above 1.0 or below 0.0 (a
+        # meaningless efficiency), matching every sibling scorer's [0, 1] clamp.
+        return ensemble_prediction(
+            result, in_distribution=in_dist, method=method, bounds=(0.0, 1.0)
+        )

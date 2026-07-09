@@ -75,12 +75,13 @@ def to_prediction(
     method: UncertaintyMethod,
     level: float = DEFAULT_INTERVAL_LEVEL,
     in_distribution: bool = True,
+    bounds: tuple[float, float] | None = None,
     notes: tuple[str, ...] = (),
 ) -> Prediction[float]:
     """Package a value + interval into a Phase 1 :class:`Prediction`.
 
     The result is always ``calibrated=False``: only a fitted calibrator may
-    certify calibration (see :meth:`Prediction.calibrated_by`). Two honesty
+    certify calibration (see :meth:`Prediction.calibrated_by`). Three honesty
     couplings are applied here so no builder can bypass them:
 
     * **Interval repair is recorded, not silent.** If the point estimate falls
@@ -91,6 +92,13 @@ def to_prediction(
       **and** an additive :data:`OOD_MIN_HALF_WIDTH` floor is added, so an OOD input
       cannot present a narrow interval even when members agree exactly (a zero-width
       interval that the multiplicative factor alone would leave at zero).
+    * **Physical bounds are honored.** When ``bounds`` is given the final interval
+      is clamped into it, so a scorer on a bounded scale (efficiency / probability
+      is ``(0.0, 1.0)``) can never report a bound outside its domain — the same
+      ``[0, 1]`` clamp every sibling scorer applies. Clamping runs *after* OOD
+      widening (a widened band on ``[0, 1]`` still cannot exceed ``[0, 1]``, which
+      is already maximally unconfident). ``bounds`` must contain ``value``; the
+      default ``None`` leaves ``to_prediction`` scale-agnostic.
     """
     low, high = interval
     low, high = min(low, high), max(low, high)
@@ -104,6 +112,9 @@ def to_prediction(
     if not in_distribution:
         low = value - ((value - low) * OOD_WIDEN_FACTOR + OOD_MIN_HALF_WIDTH)
         high = value + ((high - value) * OOD_WIDEN_FACTOR + OOD_MIN_HALF_WIDTH)
+    if bounds is not None:
+        lo_b, hi_b = bounds
+        low, high = max(lo_b, low), min(hi_b, high)
     return Prediction[float](
         value=value,
         interval=(low, high),
@@ -161,6 +172,7 @@ def ensemble_prediction(
     level: float = DEFAULT_INTERVAL_LEVEL,
     in_distribution: bool = True,
     method: UncertaintyMethod = UncertaintyMethod.ENSEMBLE,
+    bounds: tuple[float, float] | None = None,
 ) -> Prediction[float]:
     """Build a Gaussian predictive interval from ensemble disagreement.
 
@@ -168,7 +180,10 @@ def ensemble_prediction(
     ``calibrated=False``. ``method`` lets a caller demote a weight-free ensemble
     (content-hashed noise, not a trained backbone) to
     :attr:`UncertaintyMethod.HEURISTIC` so a heuristic result is distinguishable
-    from a trained one without reading provenance.
+    from a trained one without reading provenance. ``bounds`` (forwarded to
+    :func:`to_prediction`) clamps the interval to a scorer's physical domain — an
+    efficiency / probability ensemble passes ``(0.0, 1.0)`` so the disagreement
+    band ``mean ± z·std`` can never present a bound outside ``[0, 1]``.
     """
     half = _z(level) * result.std
     return to_prediction(
@@ -177,6 +192,7 @@ def ensemble_prediction(
         method=method,
         level=level,
         in_distribution=in_distribution,
+        bounds=bounds,
     )
 
 
