@@ -10,6 +10,15 @@ acceptance.
 
 ### Fixed
 
+- **Config precedence: environment variables now correctly override the config file.** The
+  documented order is defaults < `config.toml` < `ALLELEFORGE_*` env vars < constructor
+  overrides, but `Settings.load` passed the TOML values as init kwargs, which outrank env
+  sources in pydantic-settings — so a `config.toml` value silently beat a matching env var, the
+  exact inverse of the contract. This reached `seed` (load-bearing for reproducibility, stamped
+  into provenance) and `allow_network` (the auto-download safety gate). A file value now yields
+  to both an explicit override and a matching `ALLELEFORGE_*` env var, restoring
+  env > file > defaults. (Round 5 deep-correctness pass.)
+
 - **`ClinVarDB.get` no longer overclaims RCV/SCV resolution.** Its docstring promised to resolve
   `VCV`/`RCV`/`SCV` accessions, but the ClinVar VCF carries only the integer VariationID, so
   records are indexed solely by their reconstructed `VCV` accession. An `RCV`/`SCV` accession —

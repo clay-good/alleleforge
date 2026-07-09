@@ -118,7 +118,20 @@ class Settings(BaseSettings):
         if path.is_file():
             with path.open("rb") as fh:
                 file_values = tomllib.load(fh)
-        return cls(**{**file_values, **overrides})
+        # Documented precedence is defaults < file < env < overrides. Passing a
+        # file value as an init kwarg would place it *above* the environment (init
+        # kwargs outrank env sources in pydantic-settings), inverting "env
+        # overrides file". So a file value yields to an explicit override and to a
+        # matching ``ALLELEFORGE_*`` env var; BaseSettings then reads the env for
+        # those fields itself, leaving env > file > defaults intact.
+        env_prefix = str(cls.model_config.get("env_prefix", ""))
+        env_set = {k.upper() for k in os.environ}
+        file_kwargs = {
+            key: value
+            for key, value in file_values.items()
+            if key not in overrides and f"{env_prefix}{key}".upper() not in env_set
+        }
+        return cls(**{**file_kwargs, **overrides})
 
 
 _SETTINGS: Settings | None = None

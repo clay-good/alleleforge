@@ -60,6 +60,24 @@ def test_load_missing_file_is_ignored(tmp_path: Path) -> None:
     assert s.seed == DEFAULT_SEED
 
 
+def test_load_env_beats_file(tmp_path: Path) -> None:
+    # Documented precedence: env overrides the config file. A file value must not
+    # be injected at init priority (which would outrank the environment).
+    import os
+
+    cfg = tmp_path / "config.toml"
+    cfg.write_text("seed = 111\n")
+    os.environ["ALLELEFORGE_SEED"] = "999"
+    try:
+        assert Settings.load(config_file=cfg).seed == 999  # env wins over file
+        # ...but an explicit override still beats the environment.
+        assert Settings.load(config_file=cfg, seed=5).seed == 5
+    finally:
+        del os.environ["ALLELEFORGE_SEED"]
+    # With no env var set, the file still beats the default.
+    assert Settings.load(config_file=cfg).seed == 111
+
+
 def test_env_prefix() -> None:
     import os
 
