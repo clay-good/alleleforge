@@ -133,6 +133,37 @@ def test_lazy_streaming_does_not_materialize_input(reference: ReferenceGenome) -
     assert report.succeeded == 2 and consumed == [OK_1, OK_2]
 
 
+def test_parallel_consumes_lazily_within_a_bounded_window(
+    ref_factory: Callable[[], ReferenceGenome],
+) -> None:
+    # The parallel path must NOT eagerly drain the whole input (as ThreadPoolExecutor
+    # .map does). With a bounded window of max_workers=2 over a 3-item cohort, at most
+    # 2 items are pulled before the first result is recorded — so the first callback
+    # sees fewer than the full cohort consumed, proving O(max_workers) consumption.
+    consumed: list[str] = []
+    consumed_at_first_result: list[int] = []
+
+    def gen() -> object:
+        for v in (OK_1, OK_2, NEW_ITEM):
+            consumed.append(v)
+            yield v
+
+    def on_result(_: CohortItemResult) -> None:
+        if not consumed_at_first_result:
+            consumed_at_first_result.append(len(consumed))
+
+    report = design_many(
+        gen(),
+        reference_factory=ref_factory,
+        intent=EditIntent.INSTALL,
+        max_workers=2,
+        on_result=on_result,
+    )
+    assert report.succeeded == 3
+    assert consumed_at_first_result[0] <= 2  # bounded window, not the full cohort
+    assert consumed == [OK_1, OK_2, NEW_ITEM]  # every item still processed
+
+
 def test_parallel_matches_sequential(
     reference: ReferenceGenome, ref_factory: Callable[[], ReferenceGenome]
 ) -> None:

@@ -10,6 +10,16 @@ acceptance.
 
 ### Fixed
 
+- **Parallel cohort runs now honor the bounded-memory guarantee.** `design_many` promises the
+  input is consumed lazily and peak memory does not grow with cohort size, but the
+  `max_workers > 1` path used `ThreadPoolExecutor.map`, which is eager: it submits one task per
+  input up front, draining the entire (possibly whole-VCF) stream immediately and holding an
+  O(n) list of futures — the exact OOM the guarantee exists to prevent. The parallel path now
+  keeps at most `max_workers` futures in flight, pulling the next input only as each completes,
+  so peak memory is O(max_workers) regardless of cohort size (the sequential path was already
+  correct). Results are recorded in completion order; the manifest and resume are set-keyed on
+  `item_id`, so order is not load-bearing. (Round 3 deep-correctness pass.)
+
 - **The default Cas9 efficiency ensemble no longer mislabels itself as trained.** The
   `EnsembleEfficiencyScorer` projection heads are a deterministic pseudo-random scaffold
   (`_member_weights`, SHA-256-derived), never fitted on any activity screen — so its point

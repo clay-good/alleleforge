@@ -24,8 +24,8 @@ variant is recorded with its error and the cohort continues.
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Iterable
-from concurrent.futures import ThreadPoolExecutor
+from collections.abc import Callable, Iterable, Iterator
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -254,9 +254,7 @@ def design_many(
             results.append(result)
 
     if max_workers > 1:
-        with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            for result in pool.map(_design_one, pending):
-                _record(result)
+        _run_windowed(_design_one, pending, _record, max_workers)
     else:
         for item in pending:
             _record(_design_one(item))
@@ -270,6 +268,41 @@ def design_many(
         provenance=provenance,
         manifest_path=str(manifest) if manifest is not None else None,
     )
+
+
+def _run_windowed(
+    design_one: Callable[[CohortInput], CohortItemResult],
+    pending: Iterator[CohortInput],
+    record: Callable[[CohortItemResult], None],
+    max_workers: int,
+) -> None:
+    """Run ``pending`` through a thread pool with a bounded in-flight window.
+
+    ``ThreadPoolExecutor.map`` is eager — it submits one task per input up front,
+    draining the whole (possibly VCF-stream) generator and holding an O(n) list of
+    futures, which breaks the "consumed lazily / bounded memory" guarantee for the
+    parallel path. Instead this keeps at most ``max_workers`` futures in flight,
+    pulling the next input only as each completes, so peak memory is O(max_workers)
+    regardless of cohort size. Results are recorded in completion order (the manifest
+    and resume are set-keyed on ``item_id``, so order is not load-bearing).
+    """
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        in_flight: set[Future[CohortItemResult]] = set()
+
+        def _submit_next() -> None:
+            try:
+                item = next(pending)
+            except StopIteration:
+                return
+            in_flight.add(pool.submit(design_one, item))
+
+        for _ in range(max_workers):  # prime the window
+            _submit_next()
+        while in_flight:
+            finished, in_flight = wait(in_flight, return_when=FIRST_COMPLETED)
+            for fut in finished:
+                record(fut.result())
+                _submit_next()
 
 
 def _build_name(
