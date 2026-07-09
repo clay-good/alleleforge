@@ -10,6 +10,63 @@ acceptance.
 
 ### Fixed
 
+- **The default Cas9 efficiency interval is now clamped to `[0, 1]`.** The wired-default
+  `EnsembleEfficiencyScorer` built its predictive interval as `mean ± z·std` (further widened
+  out-of-distribution) through `ensemble_prediction` → `to_prediction`, neither of which clamped
+  to the efficiency domain — so about 14% of guide contexts emitted an interval bound above 1.0 or
+  below 0.0 (e.g. `AAGAAGTTTAGGGCAAAGGGACC` → `[0.45, 1.011]`). Every sibling efficiency/probability
+  scorer already clamps; this was the lone unclamped emitter, and the invariant was pinned for the
+  base-outcome sibling but not here. An opt-in `bounds` clamp is now threaded through
+  `to_prediction`/`ensemble_prediction` (applied after OOD widening; default keeps the helper
+  scale-agnostic) and the scorer passes `bounds=(0.0, 1.0)`. (Round 9 invariant-oriented pass.)
+
+- **PE3/PE3b off-target reports keep their scorer/matrix label and sub-threshold tail.** Every
+  two-nick pegRNA merges its pegRNA-nick and ngRNA-nick reports via `_merge_offtarget`, which
+  rebuilt a fresh report and dropped `scorer`/`score_matrix` (so the "off-target scoring basis"
+  line vanished for the flagship chemistry — a published-CFD table looked identical to an
+  approximation-scored one) and `subthreshold_score_sum` (so `specificity_score` overstated
+  specificity). The merge now carries the scorer/matrix and sums both nicks' sub-threshold tails.
+  (Round 9 invariant-oriented pass.)
+
+- **Contig naming is reconciled in the haplotype, gnomAD, and population off-target passes.** Three
+  sibling call sites compared contig identity by raw string, so a panel or database named in the
+  other style ("1" vs "chr1") than the reference silently matched nothing — gnomAD population
+  augmentation went empty and every haplotype/variant was skipped, the reference-bias blind spot
+  those passes exist to catch. The same class as the Round 3/7 `_working_interval`/`in_region`
+  fixes, three sites they missed. All three now reconcile via `canonical_contig` and rebind to the
+  reference's naming (skipping only a genuinely absent contig). (Round 9 invariant-oriented pass.)
+
+- **`ensemble_outcome` merges byte-deterministically.** It built the merged allele distribution as
+  a dict comprehension over a `set` of allele names; set iteration is `PYTHONHASHSEED`-dependent,
+  so the dict insertion order — and therefore the float summation of `total`, the probability-tie
+  order, and `EditOutcome.most_likely` on a tie — varied process-to-process, breaking the
+  determinism the provenance contract promises (it failed under 5 of 6 hash seeds). It now iterates
+  a sorted allele set with a total sort key. (Round 9 invariant-oriented pass.)
+
+- **The default heuristic scorers carry their own honest model cards.** The default prime, base-edit,
+  and nuclease-outcome scorers reported the *trained* model's card, so a default design stamped a
+  trained checkpoint (HEK293T/K562 training data, "Trained on…" failure modes) into provenance
+  although a transparent heuristic that was never trained produced the numbers — a re-run from that
+  checkpoint reproduces different numbers. The cas9-efficiency default already handled this with a
+  bespoke card; the other three now get `pridict2-baseline` / `indelphi-mh-baseline` /
+  `be-dict-baseline` cards describing the heuristic honestly, while the opt-in trained adapters keep
+  the trained cards. (Round 9 invariant-oriented pass.)
+
+- **A population/haplotype off-target is attributed by the variant's full span.** `_touches` tested
+  only the variant's anchor position against the hit's protospacer+PAM window, so a multi-base
+  deletion or MNV whose *other* changed bases reached the window — while the anchor sat just
+  outside — was dropped from nomination, a false negative in the safety-critical path. It now tests
+  half-open overlap of the variant's `[pos, pos+ref_len)` span (identical to the point test for
+  SNVs). (Round 9 invariant-oriented pass.)
+
+- **The report's "scoring basis" line shows the effective off-target matrix.** It used the scorer's
+  *nominal* configured matrix, so a table whose above-threshold hits all fell back to the
+  approximation (bulge-collapsed / off-length) still read "published CFD" while every displayed
+  score was the approximation — the per-site effective matrix from the Round 7/8 fix was present but
+  never surfaced. `OffTargetReport.effective_matrix()` now reconciles the per-site truth (the shared
+  matrix when sites agree, both when mixed, the nominal matrix when there are no sites). (Round 9
+  invariant-oriented pass.)
+
 - **Off-target nomination now scores bulge-collapsed hits the same way reporting does.** Round 7
   taught the CFD scorer to fall back off the published matrix for a DNA bulge (via a `bulged`
   flag), but the population/haplotype *nomination* gate (`_reference_best` / `_strengthens`) still
