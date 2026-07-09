@@ -96,6 +96,36 @@ def test_ensemble_on_stub_is_honest_heuristic() -> None:
     assert p.calibrated is False
 
 
+class _NonStubEmbedder:
+    """A minimal non-stub embedder: deterministic, but NOT a StubEmbedder.
+
+    Stands in for a real (weight-bearing) backbone so `_is_weight_free` is False —
+    without needing the ml extra. It lets the test assert that a real backbone alone
+    does not earn the trained-ENSEMBLE label while the heads are an unfitted scaffold.
+    """
+
+    def embed(self, sequences: list[str] | tuple[str, ...]) -> list[tuple[float, ...]]:
+        return [tuple(float((ord(c) % 7) - 3) for c in s[:16].ljust(16, "A")) for s in sequences]
+
+
+def test_ensemble_with_real_backbone_stays_heuristic_until_heads_are_fitted() -> None:
+    # Even over a non-stub (weight-bearing) backbone, the projection heads are a
+    # pseudo-random scaffold — never fitted on an activity screen — so the point
+    # estimate is NOT a trained prediction. The method must stay HEURISTIC; a
+    # trained-ENSEMBLE label would overstate what ships.
+    p = EnsembleEfficiencyScorer(embedder=_NonStubEmbedder()).score(_CTX)
+    assert p.method is UncertaintyMethod.HEURISTIC
+    assert p.point_from_trained_model is False
+
+
+def test_ensemble_card_does_not_claim_trained_weights() -> None:
+    # Honest labeling: the bundled card must not assert fitted/trained head weights
+    # while the heads are an unfitted scaffold.
+    card = EnsembleEfficiencyScorer().model_card()
+    assert "HEURISTIC" in card.training_data
+    assert "First-party weights" not in card.training_data
+
+
 def test_ensemble_model_card() -> None:
     assert EnsembleEfficiencyScorer().model_card().name == "cas9-efficiency-ensemble"
 

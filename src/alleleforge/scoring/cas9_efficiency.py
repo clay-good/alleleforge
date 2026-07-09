@@ -18,11 +18,14 @@ an out-of-distribution flag — never a bare float:
   ``cas9-rs3`` extra (``lightgbm``, ``sglearn``) and is gated behind the
   ``real_weights`` test marker, so CI stays weight-free.
 
-* :class:`EnsembleEfficiencyScorer` — the default: a backbone-fine-tuned **deep
-  ensemble** over a :class:`~alleleforge.scoring.backbone.SequenceEmbedder`. The
-  interval comes from member disagreement and the OOD flag from an embedding-space
-  :class:`~alleleforge.scoring.uncertainty.OODDetector`. CI runs it on the
-  weight-free stub embedder; real backbones are gated behind ``real_weights``.
+* :class:`EnsembleEfficiencyScorer` — the default **deep-ensemble scaffold** over a
+  :class:`~alleleforge.scoring.backbone.SequenceEmbedder`. The interval comes from member
+  disagreement and the OOD flag from an embedding-space
+  :class:`~alleleforge.scoring.uncertainty.OODDetector`. Its projection heads are a
+  deterministic pseudo-random scaffold (not yet fitted on any activity screen), so it emits
+  ``method=HEURISTIC`` — a *trained* ENSEMBLE label is earned only once fitted head weights are
+  wired through the model zoo. CI runs it on the weight-free stub embedder; real backbones are
+  gated behind ``real_weights``.
 """
 
 from __future__ import annotations
@@ -297,7 +300,18 @@ def _member_weights(index: int, dim: int) -> tuple[float, ...]:
 
 
 class EnsembleEfficiencyScorer:
-    """A backbone-fine-tuned deep-ensemble efficiency scorer (the default)."""
+    """The default deep-ensemble efficiency scaffold.
+
+    Aggregates ``n_members`` projection heads over a sequence-embedding backbone into a
+    mean point estimate and a disagreement-driven interval. The bundled heads are a
+    deterministic pseudo-random scaffold (:func:`_member_weights`), **not** fitted on any
+    activity screen, so :meth:`score` emits ``method=HEURISTIC``: the numbers are not a
+    trained on-target activity prediction and must not be read as one. The ENSEMBLE (trained)
+    label is earned only once fitted head weights are wired through the model zoo. Kept as the
+    default so the calibrated-uncertainty and OOD plumbing is exercised end to end; for
+    meaningful baseline activity today prefer :class:`RuleSet3Scorer` (a real sequence-feature
+    heuristic) or the opt-in :class:`TrainedRuleSet3Scorer`.
+    """
 
     name = "cas9-efficiency-ensemble"
 
@@ -369,9 +383,15 @@ class EnsembleEfficiencyScorer:
             if self._ood is not None
             else context_in_distribution(context)
         )
-        method = (
-            UncertaintyMethod.HEURISTIC
-            if _is_weight_free(self._embedder)
-            else UncertaintyMethod.ENSEMBLE
-        )
+        # The point estimate is a *trained* prediction only when BOTH axes carry
+        # fitted weights: the backbone (embedder) and the projection heads. The
+        # bundled heads are a deterministic pseudo-random scaffold
+        # (:func:`_member_weights`) — never fitted on an activity screen — so the head
+        # axis is always weight-free and the method is HEURISTIC regardless of the
+        # backbone. A real embedder alone does not make a random projection a trained
+        # model; labeling it ENSEMBLE would overstate what ships. Wire fitted head
+        # weights through the model zoo to earn the ENSEMBLE label.
+        heads_are_trained = False  # no fitted head weights ship; see `_member_weights`
+        trained = heads_are_trained and not _is_weight_free(self._embedder)
+        method = UncertaintyMethod.ENSEMBLE if trained else UncertaintyMethod.HEURISTIC
         return ensemble_prediction(result, in_distribution=in_dist, method=method)

@@ -3,21 +3,28 @@ name: cas9-efficiency-ensemble
 version: "0.1"
 chemistry: cas9_nuclease
 training_data: >-
-  Backbone-fine-tuned deep ensemble (N=5) over Nucleotide Transformer v2
-  embeddings of guide contexts; trained on pooled SpCas9 on-target activity
-  screens (DeepHF / DeepSpCas9 / Rule Set 3 validation). First-party weights.
+  Deep-ensemble scaffold (N=5) over a sequence-embedding backbone (Nucleotide
+  Transformer v2 in the real-weights configuration). The projection heads are a
+  deterministic pseudo-random scaffold and are NOT yet fitted on any activity
+  screen, so scores are emitted as method=HEURISTIC — not a trained on-target
+  activity prediction. Fitting on pooled SpCas9 screens (DeepHF / DeepSpCas9 /
+  Rule Set 3 validation) and publishing first-party head weights is future work.
 metrics:
   ensemble_size: 5.0
-  spearman_validation: 0.0  # populated when CRISPR-Bench scores it (Phase 14)
+  spearman_validation: 0.0  # not yet fitted/scored; heads are an unfitted scaffold
 intended_use: >-
-  Default on-target SpCas9 efficiency prediction with calibrated uncertainty and
-  embedding-space OOD flagging. Research use.
+  Exercises the calibrated-uncertainty and embedding-space OOD plumbing end to
+  end. For meaningful baseline on-target activity today use rule-set-3 (a real
+  sequence-feature heuristic) or the opt-in trained Rule Set 3 model. Research use.
 out_of_scope_use: >-
-  Clinical decision-making; non-SpCas9 chemistries; sequences far from the human
-  training distribution (the OOD flag fires, but treat such scores with caution).
+  Trusting the point estimate as a trained activity prediction (the heads are an
+  unfitted pseudo-random scaffold); clinical decision-making; non-SpCas9
+  chemistries; sequences far from the human distribution (the OOD flag fires,
+  but treat such scores with caution).
 license: MIT
-citation: "AlleleForge contributors (first-party); backbone Dalla-Torre et al. 2024"
+citation: "AlleleForge contributors (scaffold); backbone Dalla-Torre et al. 2024"
 known_failure_modes:
+  - "Heads are an unfitted pseudo-random scaffold: the point estimate is not a trained activity prediction (method=HEURISTIC). Use rule-set-3 for a real baseline."
   - "Out of distribution for non-human / synthetic contexts (flagged by the OOD detector)."
   - "Cross-cell-type generalization is a field-wide limitation, not AlleleForge-specific."
 checkpoint_sha256: null

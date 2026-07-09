@@ -10,6 +10,20 @@ acceptance.
 
 ### Fixed
 
+- **The default Cas9 efficiency ensemble no longer mislabels itself as trained.** The
+  `EnsembleEfficiencyScorer` projection heads are a deterministic pseudo-random scaffold
+  (`_member_weights`, SHA-256-derived), never fitted on any activity screen — so its point
+  estimate is not a trained on-target-activity prediction. But `score()` demoted the method to
+  `HEURISTIC` only when the *embedder* was the CI stub; with a real backbone it emitted
+  `method=ENSEMBLE` (implying a trained deep ensemble), and the model card asserted "trained on
+  pooled SpCas9 screens … First-party weights" that do not exist. The label now depends on the
+  *heads* being fitted (they never are in the shipped scaffold), so the method is `HEURISTIC`
+  regardless of the backbone until fitted head weights are wired through the model zoo; the
+  model card and docstrings now describe it honestly as an unfitted scaffold and point users to
+  `rule-set-3` (a real sequence-feature heuristic) or the opt-in trained Rule Set 3 model for a
+  meaningful baseline. Honest labeling over hype — no trained claim without trained weights.
+  (Round 3 deep-correctness pass.)
+
 - **The Cas-OFFinder cross-check no longer false-alarms on every minus-strand site.** The
   optional cross-check compares reference-site loci against the external Cas-OFFinder binary
   as `(chrom, position, strand)`. Cas-OFFinder reports the leftmost forward-strand coordinate
