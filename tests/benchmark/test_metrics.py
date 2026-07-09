@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 
 import pytest
@@ -30,6 +31,28 @@ def test_pearson_degenerate_returns_zero() -> None:
     assert pearson([1.0, 1.0, 1.0], [1.0, 2.0, 3.0]) == 0.0  # constant x
     assert pearson([1.0], [2.0]) == 0.0  # too few points
     assert pearson([1.0, 2.0], [1.0]) == 0.0  # mismatched length
+
+
+def test_metrics_treat_nan_as_degenerate_not_perfect() -> None:
+    # A NaN slips every `<= 0` / `==` guard (all NaN comparisons are False), so
+    # without an explicit check it flowed through: spearman/pr_auc scored corrupt
+    # input as a *perfect* 1.0 and pearson returned a non-JSON-serializable NaN —
+    # inverting the module's "degenerate inputs return 0.0 rather than NaN, so
+    # results stay JSON-serializable" contract. Reachable via a NaN label.
+    nan = float("nan")
+    assert pearson([1.0, 2.0, nan], [1.0, 2.0, 3.0]) == 0.0
+    assert spearman([1.0, 2.0, nan], [1.0, 2.0, 3.0]) == 0.0  # was 1.0 (perfect!)
+    assert pr_auc([nan, 0.1, 0.9], [1, 0, 1]) == 0.0  # was 1.0 (perfect!)
+    assert roc_auc([nan, 0.1, 0.9], [1, 0, 1]) == 0.0
+    assert expected_calibration_error([nan, 0.5], [1, 0]) is None  # was a crash
+    # Every metric now stays JSON-serializable (no NaN escapes).
+    json.dumps(
+        {
+            "pearson": pearson([1.0, 2.0, nan], [1.0, 2.0, 3.0]),
+            "pr_auc": pr_auc([nan, 0.1, 0.9], [1, 0, 1]),
+        },
+        allow_nan=False,
+    )
 
 
 def test_spearman_is_monotone_invariant() -> None:
