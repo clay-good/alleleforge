@@ -53,6 +53,33 @@ def test_html_has_no_unescaped_script_breakout(prime_menu: RankedMenu) -> None:
     assert "<\\/" in html or "Plotly.newPlot" in html
 
 
+def test_figure_script_cannot_break_out_of_script_element() -> None:
+    # A figure's x-values are user-supplied ancestry/population labels. Escaping
+    # only `</` left `<!--` intact, which puts the HTML tokenizer into
+    # script-data-double-escaped state and swallows the rest of the report. The
+    # inlined JSON must contain no raw `<` at all, yet still parse back to the
+    # exact data on the client.
+    import json as _json
+
+    from alleleforge.report.html import _figure_script
+
+    figure = {
+        "data": [
+            {
+                "type": "bar",
+                "x": ["<!--<script>alert(1)//", "</script><script>alert(2)</script>"],
+                "y": [0.5, 0.4],
+            }
+        ],
+        "layout": {},
+    }
+    out = _figure_script("ot-chart", figure)
+    body = out.split("<script>", 1)[1].rsplit("</script>", 1)[0]
+    assert "<" not in body  # no raw angle bracket survives inside the <script>
+    spec = body.split("var f=", 1)[1].rsplit(";Plotly", 1)[0]
+    assert _json.loads(spec)["data"][0]["x"][0] == "<!--<script>alert(1)//"  # data intact
+
+
 def test_html_renders_ancestry_offtarget_chart_and_table(ancestry_menu: RankedMenu) -> None:
     html = render_html(build_report(ancestry_menu, variant="chr11:108:A>T"))
     assert "Worst-case off-target score by ancestry" in html  # the grouped Plotly chart

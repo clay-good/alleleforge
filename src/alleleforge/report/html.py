@@ -191,7 +191,15 @@ def _figure_script(div_id: str, figure: dict[str, Any] | None) -> str:
     """Return a div + Plotly.newPlot script for a figure (empty if no figure)."""
     if figure is None:
         return ""
-    spec = json.dumps(figure).replace("</", "<\\/")  # never break out of <script>
+    # Escape every `<`, `>`, `&` to a unicode escape the JSON parser restores on
+    # the client, so the inlined data can never break out of the <script> element.
+    # Escaping only `</` left `<!--` intact — a figure axis label is a user-supplied
+    # ancestry/population string, and `<!--<script>` puts the HTML tokenizer into
+    # script-data-double-escaped state, swallowing the rest of the report. This is
+    # the standard safe JSON-in-<script> transform (Django json_script / OWASP).
+    spec = (
+        json.dumps(figure).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+    )
     return (
         f"<div id='{div_id}' class='chart'></div>"
         f"<script>var f={spec};Plotly.newPlot('{div_id}',f.data,f.layout,"
