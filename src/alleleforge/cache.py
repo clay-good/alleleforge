@@ -101,14 +101,22 @@ class ContentAddressedCache:
         data = path.read_bytes()
         if self._verify:
             sidecar = path.with_name(path.name + _SUM_SUFFIX)
-            if sidecar.exists():
-                expected = sidecar.read_text().strip()
-                actual = hashlib.sha256(data).hexdigest()
-                if actual != expected:
-                    raise CacheIntegrityError(
-                        f"cache entry {digest} failed integrity check "
-                        f"(expected {expected[:12]}…, got {actual[:12]}…)"
-                    )
+            # A verify=True cache always writes a sidecar with each entry, so a
+            # *missing* one is itself an integrity failure — an incomplete write or
+            # a tamper that removed the checksum. Fail closed rather than serve the
+            # unverifiable payload, else `rm *.sum` silently defeats the gate the
+            # docstring promises ("a corrupted-on-disk entry must never be served").
+            if not sidecar.exists():
+                raise CacheIntegrityError(
+                    f"cache entry {digest} failed integrity check (checksum sidecar is missing)"
+                )
+            expected = sidecar.read_text().strip()
+            actual = hashlib.sha256(data).hexdigest()
+            if actual != expected:
+                raise CacheIntegrityError(
+                    f"cache entry {digest} failed integrity check "
+                    f"(expected {expected[:12]}…, got {actual[:12]}…)"
+                )
         return data
 
     def put_bytes(self, digest: str, data: bytes) -> None:

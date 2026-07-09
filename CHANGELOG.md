@@ -10,6 +10,19 @@ acceptance.
 
 ### Fixed
 
+- **A `verify=True` content-addressed cache now fails closed when a checksum sidecar is missing,
+  so deleting the sidecar can no longer silently defeat tamper detection.** The cache re-checks a
+  payload against its `.sum` sidecar on read, but only *when the sidecar existed* — a missing one
+  fell through and the unverifiable bytes were served. Since a `verify=True` cache always writes a
+  sidecar with each entry, an absent one means an incomplete write or a tamper that removed the
+  checksum, so `rm *.sum` bypassed the gate the docstring promises ("a corrupted-on-disk entry
+  must never be served silently"). `get_bytes` now raises `CacheIntegrityError` on a missing
+  sidecar under `verify=True`. Latent today (production callers use the `verify=False` default),
+  but `verify=True` is a public, documented constructor option, so this hardens the integrity
+  primitive before it is wired up. Regression test fails@HEAD → passes. Found by a file-path / I/O
+  trust-safety audit (whose broader sweep — cohort names, split loader, `--out` paths, cache dirs,
+  web job ids — came back clean).
+
 - **The pure-Python FM-index fallback now builds the suffix array in O(n) memory instead of
   O(n²), so a native-less install no longer OOMs on a whole-gene off-target search.** The
   fallback built the suffix array with `sorted(range(n), key=lambda i: data[i:])`, which

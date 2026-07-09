@@ -76,6 +76,22 @@ def test_verify_cache_detects_corrupted_entry(tmp_path: Path) -> None:
         cache.get_bytes(digest)
 
 
+def test_verify_cache_fails_closed_on_missing_sidecar(tmp_path: Path) -> None:
+    import pytest
+
+    from alleleforge.cache import CacheIntegrityError, ContentAddressedCache
+
+    # Deleting the checksum sidecar must NOT downgrade a verify=True read to a
+    # silent trust — otherwise `rm *.sum` defeats the tamper-detection gate.
+    cache = ContentAddressedCache("artifacts", root=tmp_path, verify=True)
+    digest = hash_parts("artifact-key")
+    cache.put_bytes(digest, b"the-real-bytes")
+    sidecar = cache._path(digest).with_name(cache._path(digest).name + ".sum")
+    sidecar.unlink()  # remove the checksum an attacker cannot forge to match tampered bytes
+    with pytest.raises(CacheIntegrityError, match="integrity check"):
+        cache.get_bytes(digest)
+
+
 def test_unverified_cache_does_not_write_sidecars(tmp_path: Path) -> None:
     cache = ContentAddressedCache("plain", root=tmp_path)  # verify=False (default)
     cache.put_bytes(hash_parts("k"), b"v")
