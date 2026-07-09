@@ -400,9 +400,7 @@ def resolve(
     # A source record that states its assembly must agree with the requested build
     # (no liftover happens here); otherwise the mislabel would poison provenance,
     # the working interval, and the VEP assembly selection downstream.
-    if variant.source_assembly is not None and not assembly_matches(
-        variant.source_assembly, build
-    ):
+    if variant.source_assembly is not None and not assembly_matches(variant.source_assembly, build):
         raise ValueError(
             f"source assembly {variant.source_assembly!r} disagrees with requested build "
             f"{build!r}; lift the coordinates to {build!r} before resolving rather than "

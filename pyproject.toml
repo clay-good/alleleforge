@@ -77,7 +77,11 @@ docs = [
     "mkdocstrings[python]>=0.24",
 ]
 dev = [
-    "ruff>=0.4",
+    # Pin the formatter exactly: `ruff format --check` is a CI gate, and ruff's
+    # formatting evolves across releases, so an unbounded range silently turns the
+    # lint job red when CI installs a newer ruff than the tree was formatted with.
+    # Bump this deliberately (and reformat in the same commit).
+    "ruff==0.15.15",
     "mypy>=1.10",
     "pytest>=8.1",
     "pytest-cov>=5.0",

@@ -71,14 +71,25 @@ def test_query_in_other_naming_style_is_reconciled() -> None:
     # mismatch silently returns no records and population off-target augmentation
     # is empty (the reference-bias blind spot the module exists to catch).
     db = GnomadDB(
-        [PopulationFrequency(chrom="2", pos=60200, ref="G", alt="A", overall_af=0.12,
-                             populations={"afr": 0.30})]
+        [
+            PopulationFrequency(
+                chrom="2", pos=60200, ref="G", alt="A", overall_af=0.12, populations={"afr": 0.30}
+            )
+        ]
     )
     assert [r.pos for r in db.frequencies(_interval(60000, 60300, chrom="chr2"))] == [60200]
     # and the symmetric direction
     db2 = GnomadDB(
-        [PopulationFrequency(chrom="chr2", pos=60200, ref="G", alt="A", overall_af=0.12,
-                             populations={"afr": 0.30})]
+        [
+            PopulationFrequency(
+                chrom="chr2",
+                pos=60200,
+                ref="G",
+                alt="A",
+                overall_af=0.12,
+                populations={"afr": 0.30},
+            )
+        ]
     )
     assert [r.pos for r in db2.frequencies(_interval(60000, 60300, chrom="2"))] == [60200]
 

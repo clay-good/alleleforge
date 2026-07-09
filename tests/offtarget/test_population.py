@@ -34,8 +34,16 @@ def test_nomination_scores_dna_bulge_hits_like_reporting() -> None:
     approx = CfdScorer(approximate=True).score(sp, tg, "AGG")
     assert published != approx  # the two paths give different numbers here
     hit = Hit(
-        chrom="chr2", start=100, end=120, strand=Strand.PLUS, pam_sequence="AGG",
-        aligned_spacer=sp, aligned_target=tg, mismatches=1, dna_bulges=1, rna_bulges=0,
+        chrom="chr2",
+        start=100,
+        end=120,
+        strand=Strand.PLUS,
+        pam_sequence="AGG",
+        aligned_spacer=sp,
+        aligned_target=tg,
+        mismatches=1,
+        dna_bulges=1,
+        rna_bulges=0,
     )
     nominated = _reference_best([hit], CfdScorer())[(Strand.PLUS, 100, 120)][0]
     assert nominated == approx  # the bulge-collapsed approximation, matching reporting
@@ -52,9 +60,16 @@ def test_touches_uses_variant_span_not_just_anchor() -> None:
     from alleleforge.types.sequence import Strand
 
     hit = Hit(
-        chrom="chr1", start=104, end=124, strand=Strand.PLUS, pam_sequence="TGG",
-        aligned_spacer="A" * 20, aligned_target="A" * 20, mismatches=0,
-        dna_bulges=0, rna_bulges=0,
+        chrom="chr1",
+        start=104,
+        end=124,
+        strand=Strand.PLUS,
+        pam_sequence="TGG",
+        aligned_spacer="A" * 20,
+        aligned_target="A" * 20,
+        mismatches=0,
+        dna_bulges=0,
+        rna_bulges=0,
     )  # window with pam_len=3 is [101, 127)
     # anchor pos=100 is outside the window, but the 3-base span [100, 103) reaches
     # bases 101/102 inside it -> must be attributed.

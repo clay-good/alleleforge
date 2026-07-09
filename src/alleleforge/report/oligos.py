@@ -363,8 +363,13 @@ def sgrna_oligos(
     # reconstitutes a cloning-lethal internal site the ligated plasmid carries.
     warnings = _screen_enzyme_site(top, scheme.enzyme, label=kind)
     oligos = SgRnaOligos(
-        kind=kind, spacer=spacer, top=top, bottom=bottom, scheme=scheme,
-        g_added=g_added, warnings=warnings,
+        kind=kind,
+        spacer=spacer,
+        top=top,
+        bottom=bottom,
+        scheme=scheme,
+        g_added=g_added,
+        warnings=warnings,
     )
     oligos.reconstruct()  # fail fast on a malformed scheme
     return oligos

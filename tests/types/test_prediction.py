@@ -248,9 +248,7 @@ def test_trusted_context_still_cannot_calibrate_out_of_distribution() -> None:
         '{"value":0.5,"interval":[0.4,0.6],"interval_level":0.8,"method":"conformal",'
         '"in_distribution":false,"calibrated":true,"point_from_trained_model":false,"notes":[]}'
     )
-    loaded = Prediction[float].model_validate_json(
-        ood, context=trusted_deserialization_context()
-    )
+    loaded = Prediction[float].model_validate_json(ood, context=trusted_deserialization_context())
     assert loaded.calibrated is False
 
 

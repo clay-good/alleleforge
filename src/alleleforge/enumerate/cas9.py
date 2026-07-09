@@ -451,9 +451,7 @@ def hdr_donor(
     )
     right = str(
         reference.fetch(
-            GenomicInterval(
-                chrom=var.chrom, start=right_start, end=right_end, strand=Strand.PLUS
-            )
+            GenomicInterval(chrom=var.chrom, start=right_start, end=right_end, strand=Strand.PLUS)
         )
     )
     donor_seq = f"{left}{desired}{right}"

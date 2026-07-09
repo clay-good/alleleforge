@@ -13,9 +13,7 @@ _FIXTURES = Path(__file__).parent / "fixtures"
 _SPACER = "GACCATGCAACCTTGAACGT"
 
 
-def _site(
-    start: int, origin: SiteOrigin, strand: Strand = Strand.PLUS
-) -> OffTargetSite:
+def _site(start: int, origin: SiteOrigin, strand: Strand = Strand.PLUS) -> OffTargetSite:
     return OffTargetSite(
         locus=GenomicInterval(chrom="chr2", start=start, end=start + 20, strand=strand),
         mismatches=1,

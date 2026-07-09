@@ -181,7 +181,8 @@ def test_hdr_donor_no_block_needed_when_edit_disrupts_pam(make_reference: MakeRe
     ref = make_reference({"chr2": PAD + SPACER + "TGT" + PAD})
     rv = resolve("chr2:38:T>G", reference=ref)  # alt completes NGG; correcting removes it
     guide = next(
-        g for g in enumerate_cas9(rv, EditIntent.CORRECT, reference=ref)
+        g
+        for g in enumerate_cas9(rv, EditIntent.CORRECT, reference=ref)
         if str(g.spacer.sequence) == SPACER
     )
     donor = hdr_donor(rv, EditIntent.CORRECT, reference=ref, guide=guide)
