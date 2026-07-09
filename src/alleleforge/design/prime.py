@@ -106,9 +106,10 @@ def _flags(pegrna: PegRNA, efficiency: Prediction[float], run_offtarget: bool) -
 def prime_model_checkpoints() -> tuple[ModelCheckpoint, ...]:
     """Return the provenance checkpoints for the default prime scorers.
 
-    The default efficiency scorer is PRIDICT2.0 (``pridict2``), which carries a
-    model card. The default outcome predictor is a card-free heuristic, so it
-    contributes no checkpoint.
+    The default efficiency scorer is a transparent PRIDICT2.0-style geometry
+    heuristic, which carries its own ``pridict2-baseline`` card (not the trained
+    ``pridict2`` card). The default outcome predictor is a card-free heuristic, so
+    it contributes no checkpoint.
     """
     return (PridictScorer().model_card().to_checkpoint(),)
 

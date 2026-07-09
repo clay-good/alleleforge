@@ -56,7 +56,11 @@ def test_cut_out_of_range_raises() -> None:
 
 
 def test_model_card() -> None:
-    assert MicrohomologyOutcomePredictor().model_card().name == "indelphi"
+    # The transparent MMEJ baseline carries its own honest card, not the trained
+    # inDelphi card (so default provenance never misreports a trained model).
+    card = MicrohomologyOutcomePredictor().model_card()
+    assert card.name == "indelphi-mh-baseline"
+    assert "not the trained inDelphi model" in " ".join(card.known_failure_modes)
 
 
 # -- ensemble agreement -------------------------------------------------------

@@ -208,12 +208,16 @@ def test_provenance_records_weights_and_seed(make_reference: MakeRef) -> None:
 
 def test_provenance_records_invoked_models(make_reference: MakeRef) -> None:
     # An A->G install routes to base-editing + prime; provenance must record the
-    # card-backed models for both verticals (BE-DICT, PRIDICT2.0), deduped.
+    # card-backed models for both verticals, deduped. The defaults are transparent
+    # heuristics, so provenance records their honest *-baseline cards — never the
+    # trained cards (be-dict / pridict2), which would misreport trained-only
+    # training data and failure modes for numbers a heuristic produced.
     ref = _abe_ref(make_reference)
     rv = _resolve(ref, 25, "G")
     menu = design(rv, reference=ref, intent=EditIntent.INSTALL)
     recorded = {m.name for m in menu.provenance.models}
-    assert {"be-dict", "pridict2"} <= recorded
+    assert {"be-dict-baseline", "pridict2-baseline"} <= recorded
+    assert "be-dict" not in recorded and "pridict2" not in recorded  # not the trained cards
     assert "cas9-efficiency-ensemble" not in recorded  # nuclease not eligible here
     # Every recorded checkpoint carries its card metadata, not just a name.
     assert all(m.license and m.citation for m in menu.provenance.models)
@@ -226,7 +230,7 @@ def test_provenance_models_scope_to_eligible_chemistries(make_reference: MakeRef
     rv = _resolve(ref, 25, "G")
     menu = design(rv, reference=ref, intent=EditIntent.KNOCK_OUT)
     recorded = {m.name for m in menu.provenance.models}
-    assert recorded == {"cas9-efficiency-ensemble", "indelphi"}
+    assert recorded == {"cas9-efficiency-ensemble", "indelphi-mh-baseline"}
 
 
 def _prime_context() -> str:

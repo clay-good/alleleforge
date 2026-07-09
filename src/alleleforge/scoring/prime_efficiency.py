@@ -52,15 +52,25 @@ def _nick_to_edit(pegrna: PegRNA) -> int:
 class PridictScorer:
     """A transparent PRIDICT2.0-style prime-editing efficiency baseline."""
 
-    name = "pridict2"
+    name = "pridict2-baseline"
 
     def __init__(self, *, registry: ModelRegistry | None = None) -> None:
         """Configure the (optional) model-card registry."""
         self._registry = registry or default_registry()
 
     def model_card(self) -> ModelCard:
-        """Return the PRIDICT2.0 model card."""
-        return self._registry.get("pridict2")
+        """Return the heuristic baseline's own card.
+
+        This scorer is a transparent geometry heuristic (method=HEURISTIC), not
+        the trained PRIDICT2.0 model, so it carries its own ``pridict2-baseline``
+        card — describing the heuristic honestly with a HEURISTIC caveat — rather
+        than the trained ``pridict2`` card. Stamping the trained card into a
+        default run's provenance would record trained-only training data and
+        failure modes for numbers a heuristic produced, and a re-run from that
+        checkpoint would reproduce different numbers (the trained model, not this
+        prior). The opt-in trained engine keeps the ``pridict2`` card.
+        """
+        return self._registry.get("pridict2-baseline")
 
     def _logit(self, pegrna: PegRNA) -> float:
         """Return the geometry-feature efficiency logit for ``pegrna``."""

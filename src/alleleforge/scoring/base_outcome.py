@@ -111,8 +111,16 @@ class BaseEditOutcomePredictor:
         self._registry = registry or default_registry()
 
     def model_card(self) -> ModelCard:
-        """Return the BE-DICT model card (mechanism this baseline mirrors)."""
-        return self._registry.get("be-dict")
+        """Return the heuristic baseline's own card.
+
+        This is a transparent motif heuristic, not the trained BE-DICT model, so
+        it carries its own ``be-dict-baseline`` card rather than the trained
+        ``be-dict`` card — otherwise a default run's provenance records
+        trained-only training data / failure modes for a heuristic's numbers and a
+        re-run from that checkpoint reproduces different numbers. The opt-in
+        trained adapter keeps the ``be-dict`` card.
+        """
+        return self._registry.get("be-dict-baseline")
 
     def predict(self, window: BaseEditWindow, editor: BaseEditor) -> WindowOutcome:
         """Predict the window-outcome distribution and derived quantities.

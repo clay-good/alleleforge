@@ -1,0 +1,29 @@
+# Model card — bundled with AlleleForge (Phase 9 default prime efficiency).
+name: pridict2-baseline
+version: "0.1"
+chemistry: prime
+training_data: >-
+  A transparent PRIDICT2.0-*style* geometry heuristic: a weight-free logit over
+  pegRNA PBS/RTT length, nick-to-edit distance, PBS GC, and the epegRNA motif. It
+  is NOT the trained PRIDICT2.0 model and was not fitted on any prime-editing
+  screen, so scores are emitted as method=HEURISTIC — a mechanistic prior, not a
+  trained efficiency prediction. Wiring the real trained PRIDICT2.0 (see
+  pridict2) is the opt-in path for published numbers.
+metrics:
+  spearman_validation: 0.0  # not fitted/scored; transparent geometry prior
+intended_use: >-
+  A deterministic, dependency-free default that exercises the calibrated-
+  uncertainty and OOD plumbing end to end and gives a reasonable geometry-based
+  ranking prior. For published PRIDICT2.0 efficiency use the opt-in trained model
+  (pridict2). Research use.
+out_of_scope_use: >-
+  Trusting the point estimate as the trained PRIDICT2.0 prediction (it is a
+  transparent heuristic); clinical decision-making; a substitute for experimental
+  validation.
+license: MIT
+citation: "AlleleForge contributors (heuristic); mechanism after Mathis et al. 2023/2024 (PRIDICT2.0)"
+known_failure_modes:
+  - "Transparent geometry heuristic, not the trained PRIDICT2.0 model (method=HEURISTIC): a re-run from this checkpoint reproduces the heuristic, not published PRIDICT2.0 numbers. Use pridict2 for the trained model."
+  - "Cell-context OOD is flagged from the HEK293T/K562 window, but the score itself does not model chromatin without ePRIDICT + an ENCODE track."
+checkpoint_sha256: null
+source_url: null

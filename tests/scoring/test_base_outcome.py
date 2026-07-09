@@ -153,7 +153,11 @@ def _edit_prob(result: WindowOutcome) -> float:
 
 
 def test_model_card() -> None:
-    assert BaseEditOutcomePredictor().model_card().name == "be-dict"
+    # The transparent baseline carries its own honest card, not the trained
+    # be-dict card (so default provenance never misreports a trained model).
+    card = BaseEditOutcomePredictor().model_card()
+    assert card.name == "be-dict-baseline"
+    assert "not the trained BE-DICT model" in " ".join(card.known_failure_modes)
 
 
 # -- recommendation -----------------------------------------------------------

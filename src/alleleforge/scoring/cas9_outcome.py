@@ -87,8 +87,16 @@ class MicrohomologyOutcomePredictor:
         self._registry = registry or default_registry()
 
     def model_card(self) -> ModelCard:
-        """Return the inDelphi model card (mechanism this baseline mirrors)."""
-        return self._registry.get("indelphi")
+        """Return the heuristic baseline's own card.
+
+        This is a transparent MMEJ heuristic, not the trained inDelphi model, so
+        it carries its own ``indelphi-mh-baseline`` card rather than the trained
+        ``indelphi`` card — otherwise a default run's provenance records
+        trained-only training data / failure modes for a heuristic's numbers and a
+        re-run from that checkpoint reproduces different numbers. The opt-in
+        trained adapter keeps the ``indelphi`` card.
+        """
+        return self._registry.get("indelphi-mh-baseline")
 
     def predict(
         self,

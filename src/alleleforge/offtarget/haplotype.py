@@ -116,10 +116,8 @@ def enumerate_haplotype_sites(
         # even though `reference.fetch` two lines down would resolve the name.
         # Rebind to the reference's own name so downstream hits are labeled
         # consistently and dedup correctly against the reference pass.
-        chrom = next(
-            (c for c in reference.contigs if canonical_contig(c) == canonical_contig(hap.interval.chrom)),
-            None,
-        )
+        hap_canon = canonical_contig(hap.interval.chrom)
+        chrom = next((c for c in reference.contigs if canonical_contig(c) == hap_canon), None)
         if chrom is None:
             continue
         start = max(0, hap.interval.start - margin)

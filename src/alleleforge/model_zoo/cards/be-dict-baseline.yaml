@@ -1,0 +1,27 @@
+# Model card — bundled with AlleleForge (Phase 8 default base-edit outcome).
+name: be-dict-baseline
+version: "0.1"
+chemistry: base_abe
+training_data: >-
+  A transparent BE-DICT-*style* motif heuristic: it scores which editable bases
+  in the activity window are edited and the bystander spectrum from protospacer
+  position and local sequence motif with a mechanistic prior. It is NOT the
+  trained BE-DICT model and was not fitted on any base-editing library, so the
+  window outcome is a mechanistic prior, not a trained prediction. Wiring the real
+  trained BE-DICT (see be-dict) is the opt-in path for published numbers.
+metrics:
+  editors_covered: 0.0  # not fitted per editor; transparent motif prior
+intended_use: >-
+  A deterministic, dependency-free default base-editing window-outcome prior
+  (which editable bases are edited and the bystander spectrum). For the published
+  BE-DICT outcome use the opt-in trained model (be-dict). Research use.
+out_of_scope_use: >-
+  Trusting the outcome as the trained BE-DICT prediction (it is a transparent
+  heuristic); clinical decision-making; chemistries other than base editing.
+license: MIT
+citation: "AlleleForge contributors (heuristic); mechanism after Marquart et al. 2021 (BE-DICT)"
+known_failure_modes:
+  - "Transparent motif heuristic, not the trained BE-DICT model: a re-run from this checkpoint reproduces the heuristic, not published BE-DICT numbers. Use be-dict for the trained model."
+  - "Treats editable positions as independent and does not model deaminase- and context-dependent bystander transfer."
+checkpoint_sha256: null
+source_url: null

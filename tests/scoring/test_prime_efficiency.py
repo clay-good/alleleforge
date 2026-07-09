@@ -73,7 +73,14 @@ def test_chromatin_adjustment() -> None:
 
 
 def test_model_card() -> None:
-    assert PridictScorer().model_card().name == "pridict2"
+    # The transparent geometry baseline carries its own honest card, not the
+    # trained pridict2 card (so default provenance never misreports a trained
+    # model); the scorer's own name is honest too.
+    scorer = PridictScorer()
+    card = scorer.model_card()
+    assert card.name == "pridict2-baseline"
+    assert scorer.name == "pridict2-baseline"
+    assert "not the trained PRIDICT2.0 model" in " ".join(card.known_failure_modes)
 
 
 def test_adapters_interface() -> None:

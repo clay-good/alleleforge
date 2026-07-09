@@ -1,0 +1,27 @@
+# Model card — bundled with AlleleForge (Phase 7 default nuclease outcome).
+name: indelphi-mh-baseline
+version: "0.1"
+chemistry: cas9_nuclease
+training_data: >-
+  A transparent inDelphi-*style* microhomology heuristic: it enumerates MMEJ
+  deletions from local microhomology and templated 1-bp insertions with a
+  mechanistic scoring prior. It is NOT the trained inDelphi model and was not
+  fitted on any repair-outcome library, so the indel spectrum is a mechanistic
+  prior, not a trained prediction. Wiring the real trained inDelphi (see indelphi)
+  is the opt-in path for published numbers.
+metrics:
+  cell_types: 0.0  # not fitted on any cell-type library; transparent MMEJ prior
+intended_use: >-
+  A deterministic, dependency-free default nuclease indel-spectrum prior at a
+  blunt cut. For the published inDelphi spectrum use the opt-in trained model
+  (indelphi). Research use.
+out_of_scope_use: >-
+  Trusting the spectrum as the trained inDelphi prediction (it is a transparent
+  heuristic); clinical decision-making; non-SpCas9 chemistries.
+license: MIT
+citation: "AlleleForge contributors (heuristic); mechanism after Shen et al. 2018 (inDelphi)"
+known_failure_modes:
+  - "Transparent MMEJ heuristic, not the trained inDelphi model: a re-run from this checkpoint reproduces the heuristic, not published inDelphi numbers. Use indelphi for the trained model."
+  - "Models the dominant MMEJ deletions and 1-bp insertions from local microhomology, not every byproduct, and does not model cell-type dependence."
+checkpoint_sha256: null
+source_url: null
