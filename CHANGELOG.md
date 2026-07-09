@@ -10,6 +10,42 @@ acceptance.
 
 ### Fixed
 
+- **Benchmark metrics guard NaN, so corrupt input can't score as perfect.** The metrics module
+  promises "degenerate inputs (empty, constant) return `0.0` rather than `NaN` so results stay
+  JSON-serializable," but the guards test `<= 0` / `==` / emptiness, none of which a NaN satisfies
+  (every NaN comparison is `False`). So a NaN flowed straight through: `spearman` and `pr_auc` scored
+  a series containing one NaN as a **perfect 1.0** (a NaN-emitting model would top the leaderboard),
+  `pearson` returned a non-JSON-serializable NaN, and `expected_calibration_error` crashed on
+  `int(nan)`. Reachable via a NaN on the label side. A shared `_has_nan` guard now returns the
+  documented degenerate value at each entry — `0.0` for correlation/AUC, `None` (undefined) for ECE.
+  (Round 12 never-audited-surfaces pass.)
+
+- **The Markdown leaderboard neutralizes HTML and Markdown markup.** The reporting spec requires the
+  leaderboard Markdown render to escape all submitter-supplied cell content, and `_md_cell` promises
+  "a cell can only ever be data" — but it escaped only `\`, `|`, and newlines, leaving
+  `<img src=x onerror=…>` (raw HTML) and `[x](javascript:…)` (an inline link) intact on the shareable
+  Markdown board, which is active content under any HTML-passing Markdown renderer. (The HTML board
+  was already safe.) `_md_cell` now HTML-escapes the angle brackets and ampersand and backslash-
+  escapes every Markdown inline metacharacter, so a link, tag, emphasis, code span, or table break
+  cannot form, while an ordinary name stays readable. (Round 12 never-audited-surfaces pass.)
+
+- **A figure label can no longer break out of the report's `<script>` element.** `_figure_script`
+  inlines the Plotly figure JSON in a `<script>` and escaped only `</`. A figure's x-values are
+  user-supplied ancestry/population labels, and a label of `<!--<script>` puts the HTML tokenizer
+  into script-data-double-escaped state, so the report's own `</script>` no longer closes the element
+  and the rest of the document is swallowed — a crafted label defaces the whole report. Replaced with
+  the standard safe JSON-in-`<script>` transform (`<`, `>`, `&` → unicode escapes) the client parser
+  restores, so no raw `<` survives inside the script. (Round 12 never-audited-surfaces pass.)
+
+- **Cohort per-item output files are collision-free and written atomically.** `_safe_name` mapped
+  every non-`[alnum-._]` character to `_`, so two distinct items whose ids differ only in such
+  characters (e.g. `chr1:100:A:T` vs `chr1:100:A/T`, both → `chr1_100_A_T`) shared one output file
+  and silently overwrote each other — escalated to a torn write when two collided in flight on the
+  parallel path (a plain, non-atomic `write_text`). A short digest of the raw id now makes the
+  filename injective, and each report is written via a temp file plus `os.replace` (atomic), so a
+  reader or crash never observes a partial file. Resume is unaffected (it keys on the manifest's
+  `item_id`). (Round 12 never-audited-surfaces pass.)
+
 - **Patient off-targets are no longer masked on the ranking safety axis.** The safety
   objective is `1 - worst-affected-ancestry off-target score`, and `worst_ancestry()` reads
   `ancestry_stratification()`, which credited only reference sites to every ancestry. A patient

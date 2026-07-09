@@ -231,6 +231,39 @@ bills. **The lesson stands after eleven rounds: pick a decomposition the prior r
 close, reproduce-first read still finds real, test-pinned guarantee gaps — especially where a
 feature's real consumed path is only ever tested with the feature effectively off.**
 
+## Round 12 — the never-audited surfaces: concurrency, round-trip, numerics, adversarial input (4 fixes)
+
+Rounds 3–11 swept the scientific + infra core many ways; Round 12 turned to four surfaces **no
+prior round targeted**: (1) concurrency/thread-safety, (2) serialize↔deserialize round-trip &
+idempotency, (3) numerical precision / degenerate math, (4) adversarial input to the web API and
+report/leaderboard rendering. Each lens reproduced at least one real gap; four shipped as fixes,
+two are honestly deferred (below).
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(benchmark)` NaN-guard | benchmark-harness | The metrics docstring promises "degenerate inputs return 0.0 rather than NaN so results stay JSON-serializable," but the guards test `<= 0` / `==` / emptiness — none of which a NaN satisfies (all NaN comparisons are False). A NaN flowed through: `spearman`/`pr_auc` scored corrupt input as a **perfect 1.0** (a NaN-emitting model tops the leaderboard), `pearson` returned non-JSON NaN, ECE crashed. Reachable via a NaN label. **Shipped:** a `_has_nan` guard at each entry → 0.0 (corr/AUC) / None (ECE), per each function's contract. |
+| `fix(leaderboard)` md-escape | benchmark-harness, reporting | The reporting spec requires the leaderboard Markdown render to "escape all submitter-supplied cell content," and `_md_cell` promises "a cell can only ever be data" — but it escaped only `\|` and newlines, leaving `<img onerror=…>` and `[x](javascript:…)` intact on the shareable Markdown board (active content under any HTML-passing renderer). The HTML board was already safe. **Shipped:** HTML-escape angle brackets + backslash-escape every Markdown inline metacharacter; ordinary names stay readable. |
+| `fix(reporting)` script-boundary | reporting, visualization | `_figure_script` inlines the Plotly figure JSON in `<script>` and escaped only `</`. A figure x-value is a user-supplied ancestry label; `<!--<script>` puts the HTML tokenizer into script-data-double-escaped state so the report's own `</script>` no longer closes the element — a crafted label defaces the whole report. **Shipped:** the standard safe transform (`<`,`>`,`&` → unicode escapes) the client parser restores; no raw `<` survives. |
+| `fix(cohort)` atomic-output | (cohort batch design) | `_safe_name` mapped every non-`[alnum-._]` char to `_`, so two distinct items differing only in such chars (`chr1:100:A:T` vs `chr1:100:A/T`) shared a filename and silently overwrote each other — a torn write when two collided in flight on the parallel path (a plain non-atomic `write_text`). **Shipped:** append a SHA-1 digest of the raw id (injective) and write via temp-file + `os.replace` (atomic); resume is unaffected (keys on the manifest). |
+
+**Deferred, documented (not blind-fixed):** (a) `Prediction.calibrated=True` is dropped on a JSON
+round-trip and mutated in place when a calibrated prediction is nested into a frozen report — a real
+violation of "JSON is the lossless form" and of frozen immutability, but **fully latent** (the
+`ConformalCalibrator` that mints `calibrated=True` is not wired into `design()`), and a correct fix
+requires a deliberate trust-model decision — whether deserialization of trusted local JSON should
+re-honor the token-authorized calibration flag — that trades against the R1 tamper-resistance
+guarantee. Flagged for a design pass, not rushed. (b) The web-API `harden-web-api` proposal named a
+per-request **size cap**; only a variant-*count* cap shipped, so individual `spacer`/`variant`
+strings and `populations` lists are unbounded (an amplifier for a shared, non-loopback deployment).
+A cheap `max_length` hardening, deferred to avoid arbitrary limits without a deployment profile.
+
+Rounds 3–5 = 11, R6 = 0, R7 = 7, R8 = 3, R9 = 7, R10 = 3, R11 = 2, R12 = 4 (yield
+5/3/3/0/7/3/7/3/2/4). Twelve rounds, twelve decompositions; the never-audited surfaces
+(concurrency/round-trip/numerics/adversarial) each still held a real gap. **The lesson is now a
+method: the audit is never "done" — each genuinely new decomposition finds real, reproduce-first,
+test-pinned guarantee gaps, and honest deferral of a latent, design-sensitive finding beats a rushed
+edit to a load-bearing honesty mechanism.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
