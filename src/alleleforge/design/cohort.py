@@ -340,5 +340,9 @@ def _atomic_write_text(path: Path, text: str) -> None:
     atomic on POSIX and Windows, so a per-item report is never observed partial.
     """
     tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
-    tmp.write_text(text)
+    # Pin UTF-8: the payload is `model_dump_json()`, which preserves non-ASCII
+    # (a gene name / rationale like "β-globin"), but a bare `write_text` encodes
+    # with the platform locale — crashing under a non-UTF-8 locale (C/POSIX) and
+    # writing mojibake under Windows cp1252, corrupting the "lossless" export.
+    tmp.write_text(text, encoding="utf-8")
     os.replace(tmp, path)

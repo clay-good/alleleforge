@@ -13,11 +13,18 @@ from pathlib import Path
 
 
 def open_text(path: str | Path) -> Iterator[str]:
-    """Yield decoded text lines from a plain or ``.gz`` file."""
+    """Yield decoded text lines from a plain or ``.gz`` file.
+
+    Decoded as UTF-8 with ``utf-8-sig`` so a leading byte-order mark — the default
+    when a VCF/TSV is exported from Excel or edited in Windows Notepad — is
+    stripped rather than riding on the first field (which would break header
+    detection, e.g. ``'﻿#...'.startswith('#')`` is ``False``). The encoding
+    is pinned so a reader does not depend on the platform locale.
+    """
     p = Path(path)
     if p.suffix == ".gz":
-        with gzip.open(p, "rt") as fh:
+        with gzip.open(p, "rt", encoding="utf-8-sig") as fh:
             yield from fh
     else:
-        with p.open("rt") as fh:
+        with p.open("rt", encoding="utf-8-sig") as fh:
             yield from fh

@@ -421,7 +421,7 @@ def design(
         out.write_bytes(rendered)
         sidecar = out.with_suffix(out.suffix + ".provenance.json")
         if menu.provenance is not None:
-            sidecar.write_text(menu.provenance.model_dump_json(indent=2))
+            sidecar.write_text(menu.provenance.model_dump_json(indent=2), encoding="utf-8")
         typer.echo(f"wrote {out}" + (f" and {sidecar}" if menu.provenance else ""))
     elif fmt in (OutputFormat.json, OutputFormat.tsv):
         typer.echo(rendered.decode())
@@ -497,6 +497,7 @@ def _batch_tsv(rows: list[dict[str, Any]]) -> str:
         "n_candidates",
         "error",
     ]
+
     def _cell(value: Any) -> str:
         # Neutralize the delimiters so a tab/newline in a field (item_id is a raw
         # input line; error is an exception message) cannot misalign the TSV.
@@ -643,7 +644,7 @@ def batch(
 
     rows = _batch_rows(report)
     if summary_tsv is not None:
-        summary_tsv.write_text(_batch_tsv(rows))
+        summary_tsv.write_text(_batch_tsv(rows), encoding="utf-8")
     if state.verbose:
         _echo_err(f"designed {report.succeeded}/{report.total} (skipped {report.skipped})")
 
@@ -987,7 +988,7 @@ def bench_run(
     result = run_benchmark(baseline, task_obj, split=split, dataset=dataset, seed=state.seed)
 
     if out is not None:
-        out.write_text(result.model_dump_json(indent=2))
+        out.write_text(result.model_dump_json(indent=2), encoding="utf-8")
         typer.echo(f"wrote {out}")
     if as_json:
         typer.echo(result.model_dump_json(indent=2))
@@ -1066,7 +1067,7 @@ def bench_leaderboard(
 
     rendered = board.render_html() if fmt is LeaderboardFormat.html else board.render_markdown()
     if out is not None:
-        out.write_text(rendered)
+        out.write_text(rendered, encoding="utf-8")
         typer.echo(f"wrote {out}")
     else:
         typer.echo(rendered)

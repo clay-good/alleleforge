@@ -127,6 +127,18 @@ def test_output_dir_writes_per_item_menu_json(reference: ReferenceGenome, tmp_pa
     assert not list(out.glob("*.tmp"))
 
 
+def test_atomic_write_uses_utf8_not_platform_locale(tmp_path: Path) -> None:
+    # The per-item payload is model_dump_json(), which preserves non-ASCII. A bare
+    # write_text encodes with the platform locale — crashing under C/POSIX and
+    # writing mojibake under Windows cp1252, corrupting the "lossless" export. The
+    # write is pinned to UTF-8 so a non-ASCII gene name round-trips everywhere.
+    from alleleforge.design.cohort import _atomic_write_text
+
+    out = tmp_path / "menu.json"
+    _atomic_write_text(out, '{"gene": "β-globin 中文"}')
+    assert out.read_bytes().decode("utf-8") == '{"gene": "β-globin 中文"}'
+
+
 def test_safe_name_is_injective_across_sanitization_collisions() -> None:
     # Distinct ids that differ only in characters the sanitizer maps to `_` used
     # to share a filename and silently overwrite (torn-write, in parallel) each
