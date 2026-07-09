@@ -249,6 +249,25 @@ def test_conformal_tags_method_and_calibrated_flag() -> None:
     assert out.calibrated is True and out.interval_level == 0.8
 
 
+def test_conformal_does_not_narrow_ood_below_floor() -> None:
+    # OOD widens, never narrows: recalibrating an out-of-distribution prediction
+    # (calibrated stays False) must not shrink its interval below the additive
+    # OOD floor. A conformal scale < 1 (an over-covering scorer) otherwise silently
+    # narrows the OOD band into a narrow, confident-looking interval.
+    from alleleforge.scoring.uncertainty import OOD_MIN_HALF_WIDTH
+
+    # Deterministic calibration set -> scale == 0.5 (half-width 1.0, residual 0.5).
+    cal_p = [_interval(0.5, 1.0) for _ in range(20)]
+    cal = ConformalCalibrator(level=0.8).fit(cal_p, [1.0 for _ in range(20)])
+    assert cal.scale == pytest.approx(0.5)
+
+    ood = to_prediction(0.5, (0.49, 0.51), method=UncertaintyMethod.ENSEMBLE, in_distribution=False)
+    assert ood.interval_width / 2 >= OOD_MIN_HALF_WIDTH  # input respects the floor
+    out = cal.calibrate(ood)
+    assert out.in_distribution is False and out.calibrated is False
+    assert out.interval_width / 2 >= OOD_MIN_HALF_WIDTH  # ...output must too
+
+
 def test_conformal_unfitted_raises() -> None:
     with pytest.raises(ValueError, match="not fitted"):
         ConformalCalibrator().calibrate(_interval(0.5, 0.1))

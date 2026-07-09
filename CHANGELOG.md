@@ -10,6 +10,19 @@ acceptance.
 
 ### Fixed
 
+- **Re-calibrating an out-of-distribution prediction can no longer shrink its interval below
+  the honesty floor.** `ConformalCalibrator.calibrate` computes `new_half = scale * half_width`;
+  when the fitted conformal scale is `< 1` (an over-covering scorer — an ordinary case), an OOD
+  input that correctly arrived carrying the `OOD_MIN_HALF_WIDTH` floor came out *narrower* than
+  the floor. The `calibrated` flag was correctly reset to `False`, but the width axis was left
+  unguarded, so an out-of-distribution prediction could present a narrow, confident-looking
+  `method=conformal` interval — the opposite of the "OOD widens, never narrows" contract. The
+  OOD branch now floors the multiplicative scale at 1, so recalibration can only widen an OOD
+  interval, never shrink it. In-distribution conformal behavior is untouched. The gap was latent
+  because the only in-repo caller exercises `calibrate` on in-distribution data only — the same
+  "real safety input inert on its consumed axis with a green suite" pattern the audit keeps
+  surfacing. Regression test fails@HEAD → passes; uncertainty-contract spec gains a scenario.
+
 - **Ranking weights now reject `nan`/`inf`, so a fat-fingered `--weights` can no longer
   silently corrupt the entire ranking.** `RankingWeights` validated that each weight was
   non-negative and not all-zero, but a bare `weight < 0.0` check lets `nan` and `inf` through

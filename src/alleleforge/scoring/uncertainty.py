@@ -456,6 +456,13 @@ class ConformalCalibrator:
         scale = self.scale
         half_width = (prediction.interval[1] - prediction.interval[0]) / 2.0
         new_half = scale * half_width
+        if not prediction.in_distribution:
+            # OOD widens, never narrows: recalibration is refused for an
+            # out-of-distribution input (``calibrated`` stays False), so it must not
+            # shrink the interval below the (already floor-widened) width it arrived
+            # with. A conformal scale < 1 would otherwise present a narrow, confident
+            # interval on an OOD input — the opposite of the honesty contract.
+            new_half = max(new_half, half_width)
         return Prediction[float].calibrated_by(
             value=prediction.value,
             interval=(prediction.value - new_half, prediction.value + new_half),

@@ -131,6 +131,14 @@ even when model members happen to agree exactly.
 - **THEN** the returned interval still has non-zero width (the additive floor applies),
   never a zero-width confident interval
 
+#### Scenario: Re-calibrating an OOD prediction never shrinks it
+- **WHEN** an out-of-distribution prediction (already carrying the floor) is passed to
+  `ConformalCalibrator.calibrate` and the fitted conformal scale is `< 1` (an over-covering
+  scorer)
+- **THEN** the recalibrated interval is not narrowed below the width it arrived with — the
+  multiplicative scale is floored at 1 on the OOD branch (calibration is refused anyway, so
+  `calibrated` stays `False`) rather than presenting a narrow, confident interval
+
 ### Requirement: Scorers compute in_distribution and fail honest
 
 Every scorer that emits a `Prediction` SHALL derive `in_distribution` from an explicit
