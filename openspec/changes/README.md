@@ -85,6 +85,23 @@ guarantee-not-upheld bugs shipped as direct `fix(...)` commits:
 | `fix(effect)` | variant-resolution | `parse_vep_response` picked the reported consequence with `max(key=impact_of)` — a coarse 4-bucket tier — so same-tier ties fell to VEP's unsorted term order (frameshift over splice_donor mis-routes chemistry). **Shipped:** total SO severity rank from the severity-ordered `Consequence` enum. |
 | `fix(config)` | (infrastructure) | `Settings.load` passed the config file as init kwargs, which outrank env vars in pydantic-settings — inverting the documented `env > file` (reached `seed` and `allow_network`). **Shipped:** a file value yields to a matching `ALLELEFORGE_*` env var and to explicit overrides. |
 
+## Round 6 — type layer + remaining benchmark internals (clean; no fixes shipped)
+
+The last un-audited surface: the core type validators (`types/*.py`) and the benchmark modules
+not covered in Round 3 (`baseline`, `tasks`, `_canon`, splits, datasets). **This round shipped
+no fixes** — the signal that the deep-correctness sweep has reached diminishing returns:
+
+- **Types:** one finding (`Variant.variant_class` labels a normalized anchored indel `INDEL`
+  rather than `INSERTION`/`DELETION`) was **declined** — it is intentional, documented, and
+  pinned by tests (`test_variant.py`: "anchored form classifies as indel; the pure form
+  classifies as ins/del"), and `INDEL` is a correct umbrella label. Not a correctness bug.
+- **Benchmark internals:** no genuine bug — baseline quantities, split disjointness/holdout,
+  and canonicalization determinism all verified end-to-end. Only cosmetic docstring nits
+  remain (e.g. a stale `offtarget-class` name), not correctness issues.
+
+Rounds 3–5 shipped 11 real fixes; Round 6 came back clean on both fronts. The scientific and
+infrastructure core has now been swept module-by-module.
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
