@@ -192,7 +192,7 @@ def bar_chart(
             label_y = (top - 6) if value >= 0 else (bottom + 14)
             parts.append(
                 f'<text x="{bx + bar_w / 2:.1f}" y="{label_y:.1f}" fill="{_INK}" font-size="11" '
-                f'font-weight="600" text-anchor="middle">{_fmt(value)}{value_suffix}</text>'
+                f'font-weight="600" text-anchor="middle">{_fmt(value)}{_esc(value_suffix)}</text>'
             )
         cx = gx + group_w / 2
         ly = height - pad_bottom + 18

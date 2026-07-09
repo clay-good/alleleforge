@@ -89,6 +89,19 @@ def test_text_is_escaped() -> None:
     assert "A &amp; B &lt;x&gt;" in svg
 
 
+def test_value_suffix_is_escaped() -> None:
+    # value_suffix is a text node too: markup in it must be escaped so the SVG
+    # stays well-formed (the spec: bar_chart escapes ALL text nodes).
+    svg = bar_chart(
+        title="T",
+        categories=("a",),
+        series=(Series("s", (1.0,), "#000"),),
+        value_suffix=" <units>&",
+    )
+    assert " &lt;units&gt;&amp;" in svg
+    assert "<units>" not in svg  # never emitted raw
+
+
 @pytest.mark.parametrize(
     ("value", "expected"),
     [(1.0, "1"), (2.0, "2"), (0.105, "0.105"), (0.5, "0.5"), (80.0, "80")],

@@ -10,6 +10,13 @@ acceptance.
 
 ### Fixed
 
+- **`bar_chart` now escapes the value suffix like every other text node.** The visualization
+  spec requires the chart primitive to escape all text nodes, and every label did — except the
+  per-bar value suffix, which was interpolated raw. A `value_suffix` containing markup (e.g.
+  `" <units>&"`) produced malformed, non-parsing SVG. It is now escaped. (The four committed
+  figures only pass `"%"`/`""`, so no shipped figure was affected — but the public primitive's
+  guarantee was unconditional.) (Round 4 deep-correctness pass.)
+
 - **The CLI now honors every whitelisted config run-param instead of silently ignoring some.**
   `_load_config` accepts a set of run-param keys without a typo warning (signalling "this is a
   real knob"), and the CLI spec promises the config file is honored — but only `intent`,
