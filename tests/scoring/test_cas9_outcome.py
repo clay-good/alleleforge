@@ -81,6 +81,34 @@ def test_ensemble_empty_raises() -> None:
         ensemble_outcome([])
 
 
+def test_ensemble_merged_order_is_deterministic_on_ties() -> None:
+    # Two equal-probability alleles must merge into a deterministic order
+    # (probability desc, then allele name asc) independent of the input allele
+    # order — the merge iterated a set previously, so the tie order and the
+    # float summation of `total` followed hash-seed order and varied run-to-run.
+    from alleleforge.types.edit import AlleleOutcome, EditOutcome
+
+    forward = EditOutcome(
+        alleles=(
+            AlleleOutcome(allele="A", probability=0.5),
+            AlleleOutcome(allele="B", probability=0.5),
+        ),
+        partial=False,
+    )
+    reversed_ = EditOutcome(
+        alleles=(
+            AlleleOutcome(allele="B", probability=0.5),
+            AlleleOutcome(allele="A", probability=0.5),
+        ),
+        partial=False,
+    )
+    m1, _ = ensemble_outcome([forward])
+    m2, _ = ensemble_outcome([reversed_])
+    assert [a.allele for a in m1.alleles] == ["A", "B"]
+    assert [a.allele for a in m2.alleles] == ["A", "B"]  # input order does not matter
+    assert m1.most_likely.allele == "A" == m2.most_likely.allele
+
+
 # -- trained adapters (interface only; weights gated) -------------------------
 
 

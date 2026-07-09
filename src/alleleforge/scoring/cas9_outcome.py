@@ -157,7 +157,12 @@ def ensemble_outcome(predictions: Sequence[EditOutcome]) -> tuple[EditOutcome, f
     """
     if not predictions:
         raise ValueError("ensemble_outcome needs at least one prediction")
-    alleles = {a.allele for p in predictions for a in p.alleles}
+    # Build the merged distribution over a *sorted* allele set: a set comprehension
+    # iterates in hash-seed-dependent order, which would make the dict insertion
+    # order (hence the float summation order of `total`) and any probability-tie
+    # order vary run-to-run — breaking the byte-determinism the provenance contract
+    # promises. Sorting the allele order fixes both.
+    alleles = sorted({a.allele for p in predictions for a in p.alleles})
     merged_prob = {
         allele: sum(_prob_of(p, allele) for p in predictions) / len(predictions)
         for allele in alleles
@@ -166,14 +171,17 @@ def ensemble_outcome(predictions: Sequence[EditOutcome]) -> tuple[EditOutcome, f
     merged = EditOutcome(
         alleles=tuple(
             AlleleOutcome(allele=a, probability=merged_prob[a] / total)
-            for a in sorted(merged_prob, key=lambda a: merged_prob[a], reverse=True)
+            # Total order: probability descending, then allele name — a tie never
+            # falls to hash-dependent order.
+            for a in sorted(merged_prob, key=lambda a: (-merged_prob[a], a))
         ),
         partial=False,
     )
     # Agreement is how often the models pick the *same* most-likely allele: the
-    # share that match the modal top allele. Identical models agree fully.
+    # share that match the modal top allele. Identical models agree fully. Break a
+    # count tie by allele name (`sorted`) so the consensus is deterministic.
     tops = [p.most_likely.allele for p in predictions]
-    consensus = max(set(tops), key=tops.count)
+    consensus = max(sorted(set(tops)), key=tops.count)
     agreement = tops.count(consensus) / len(tops)
     return merged, agreement
 
