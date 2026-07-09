@@ -139,6 +139,24 @@ class OffTargetReport(BaseModel):
         """Return the highest off-target score across all sites (0 if none)."""
         return max((s.score for s in self.sites), default=0.0)
 
+    def effective_matrix(self) -> str | None:
+        """Return the weight source the *reported* sites were actually scored by.
+
+        The report-level :attr:`score_matrix` records the scorer's nominal matrix
+        (how it was configured). But a fixed published matrix falls back to the
+        length-relative approximation per hit — a bulge-collapsed or off-length
+        alignment cannot be scored off-register — and that effective identity is
+        recorded on each :class:`OffTargetSite`. When every reported site fell back,
+        the nominal label alone would claim published CFD for an all-approximation
+        table. This reconciles the per-site truth: the shared matrix when the
+        reported sites agree, both joined with ``" + "`` when they are mixed, and
+        the nominal :attr:`score_matrix` when there are no sites to speak for it.
+        """
+        used = sorted({s.score_matrix for s in self.sites if s.score_matrix is not None})
+        if not used:
+            return self.score_matrix
+        return " + ".join(used)
+
     def specificity_score(self) -> float:
         """Return the aggregate genome-wide specificity score in ``(0, 1]``.
 

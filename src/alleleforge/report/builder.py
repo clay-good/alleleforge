@@ -176,7 +176,10 @@ def _candidate_report(
         n_sites = candidate.offtarget.n_sites
         specificity = candidate.offtarget.specificity_score()
         offtarget_scorer = candidate.offtarget.scorer
-        offtarget_matrix = candidate.offtarget.score_matrix
+        # The *effective* matrix the reported sites were scored by, reconciled from
+        # the per-site fallbacks — so an all-bulge/off-length table is not labeled
+        # published CFD when every displayed score is the approximation.
+        offtarget_matrix = candidate.offtarget.effective_matrix()
         strata = candidate.offtarget.ancestry_stratification()
         ancestry_rows = tuple(
             AncestryOffTarget(ancestry=a, worst_score=s)

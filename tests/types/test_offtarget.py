@@ -35,6 +35,36 @@ def _pop_site(score: float, ancestry: str, freq: float) -> OffTargetSite:
     )
 
 
+def _report(sites: tuple[OffTargetSite, ...], nominal: str | None) -> OffTargetReport:
+    return OffTargetReport(
+        spacer="A" * 20, pam="NGG", sites=sites, mismatch_threshold=4,
+        reference_build="hg38", scorer="CFD", score_matrix=nominal,
+    )
+
+
+def test_effective_matrix_reconciles_per_site_fallbacks() -> None:
+    # The report-level matrix records the *nominal* configured matrix; the effective
+    # one must reflect what the reported sites were actually scored by, so an
+    # all-fallback table is not labeled published CFD.
+    pub = "doench-2016-cfd"
+    approx = "doench-2016-seed-tolerance-approximation"
+
+    def site(matrix: str) -> OffTargetSite:
+        return OffTargetSite(
+            locus=_locus(), mismatches=1, score=0.5, score_method=ScoreMethod.CFD,
+            score_matrix=matrix,
+        )
+
+    # No sites -> fall back to the nominal configured matrix.
+    assert _report((), pub).effective_matrix() == pub
+    # All reported sites fell back -> the effective matrix is the approximation.
+    assert _report((site(approx),), pub).effective_matrix() == approx
+    # All published -> published.
+    assert _report((site(pub),), pub).effective_matrix() == pub
+    # Mixed -> both, joined and sorted, never silently claiming published alone.
+    assert _report((site(pub), site(approx)), pub).effective_matrix() == f"{pub} + {approx}"
+
+
 def test_site_score_range_enforced() -> None:
     with pytest.raises(ValueError, match="score"):
         OffTargetSite(locus=_locus(), mismatches=0, score=1.5, score_method=ScoreMethod.CFD)
