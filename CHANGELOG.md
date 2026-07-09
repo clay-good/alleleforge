@@ -10,6 +10,16 @@ acceptance.
 
 ### Fixed
 
+- **Variant-effect selection now reports the SO-most-severe consequence, not a tier tie-break by
+  list order.** `parse_vep_response` picked the reported consequence with `max(key=impact_of)`,
+  but `impact_of` is only a coarse 4-bucket tier — when a transcript lists several terms in the
+  same tier, the tie fell to VEP's term order, which is not severity-sorted. So
+  `[frameshift, splice_donor]` reported FRAMESHIFT instead of SPLICE_DONOR, and
+  `[synonymous, splice_region]` reported SYNONYMOUS instead of SPLICE_REGION. Since consequence
+  drives editing-chemistry routing, the frameshift-over-splice-donor case sent the variant to
+  the wrong modality. Selection now uses a total Sequence-Ontology severity rank (derived from
+  the severity-ordered `Consequence` enum). (Round 5 deep-correctness pass.)
+
 - **Config precedence: environment variables now correctly override the config file.** The
   documented order is defaults < `config.toml` < `ALLELEFORGE_*` env vars < constructor
   overrides, but `Settings.load` passed the TOML values as init kwargs, which outrank env

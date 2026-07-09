@@ -123,6 +123,30 @@ def test_select_transcript_ignores_falsy_mane_select() -> None:
     assert effect.is_canonical is True
 
 
+def test_parse_vep_response_picks_most_severe_within_impact_tier() -> None:
+    # A transcript listing several SO terms in the same impact tier must report the
+    # SO-most-severe one, not whichever VEP happened to list first. splice_donor
+    # outranks frameshift (both HIGH); the wrong pick would mis-route chemistry.
+    payload = [
+        {
+            "transcript_consequences": [
+                {
+                    "transcript_id": "ENST_X",
+                    "consequence_terms": ["frameshift_variant", "splice_donor_variant"],
+                    "mane_select": "NM_1.1",
+                }
+            ]
+        }
+    ]
+    assert parse_vep_response(payload).consequence is Consequence.SPLICE_DONOR
+    # ...and within the LOW tier, splice_region outranks synonymous.
+    payload[0]["transcript_consequences"][0]["consequence_terms"] = [
+        "synonymous_variant",
+        "splice_region_variant",
+    ]
+    assert parse_vep_response(payload).consequence is Consequence.SPLICE_REGION
+
+
 def test_parse_vep_response_specific_transcript() -> None:
     effect = parse_vep_response(_vep_payload(), transcript="ENST00000633227")
     assert effect.consequence is Consequence.UPSTREAM

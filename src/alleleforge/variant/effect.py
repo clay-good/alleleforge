@@ -86,6 +86,22 @@ def impact_of(consequence: Consequence) -> Impact:
     return _IMPACT[consequence]
 
 
+#: Total Sequence-Ontology severity order, most severe first. The ``Consequence``
+#: enum is declared in VEP's severity order, so its member order *is* the rank. Used
+#: to pick the single most-severe term when a transcript lists several: ``impact_of``
+#: is only a coarse 4-bucket tier, so a tie within a tier (e.g. splice_region vs
+#: synonymous, or frameshift vs splice_donor) would otherwise fall to VEP's
+#: term-list order, which is not severity-sorted.
+_SEVERITY_RANK: dict[Consequence, int] = {
+    c: rank for rank, c in enumerate(reversed(tuple(Consequence)))
+}
+
+
+def _severity(consequence: Consequence) -> int:
+    """Return a total severity rank (higher = more severe) for tie-breaking."""
+    return _SEVERITY_RANK[consequence]
+
+
 class VariantEffect(BaseModel):
     """A variant's structured molecular consequence on one transcript.
 
@@ -192,7 +208,11 @@ def parse_vep_response(
 
     chosen = _select_transcript(cons, transcript)
     terms = chosen.get("consequence_terms") or [record.get("most_severe_consequence", "other")]
-    consequence = max((_term_to_consequence(t) for t in terms), key=impact_of)
+    # Pick the single most-severe SO term by the total severity rank, not the
+    # coarse impact tier: within one tier `max(key=impact_of)` would tie and fall
+    # to VEP's (unsorted) term order, e.g. picking synonymous over splice_region or
+    # frameshift over splice_donor — the latter mis-routes the editing chemistry.
+    consequence = max((_term_to_consequence(t) for t in terms), key=_severity)
     impact = _IMPACT_NAMES.get(str(chosen.get("impact", "")).upper(), impact_of(consequence))
     return VariantEffect(
         consequence=consequence,
