@@ -10,6 +10,18 @@ acceptance.
 
 ### Fixed
 
+- **The Cas-OFFinder cross-check no longer false-alarms on every minus-strand site.** The
+  optional cross-check compares reference-site loci against the external Cas-OFFinder binary
+  as `(chrom, position, strand)`. Cas-OFFinder reports the leftmost forward-strand coordinate
+  of the whole protospacer+PAM match; AlleleForge's site locus records only the protospacer
+  start (PAM excluded). SpCas9's PAM is 3' of the protospacer, so on the plus strand the two
+  anchors coincide, but on the minus strand the PAM lies at the low-coordinate end and the
+  protospacer start is `pam_len` bases higher — so every minus-strand reference site was off
+  by the PAM length, producing a spurious two-way disagreement (and able to mask a genuine one
+  that happened to line up after the 3-bp shift). `reference_loci` now shifts a minus-strand
+  locus down by `pam_len` so both engines key on the same anchor. (Round 3 deep-correctness
+  pass.)
+
 - **The working-interval clamp now fires across contig-naming styles.** The spec promises the
   ±`window` interval is clamped to `[0, contig_length]` whenever a reference is available, but
   `_working_interval` gated the clamp on raw `variant.chrom in reference.contigs` membership —

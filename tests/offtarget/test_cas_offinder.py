@@ -13,9 +13,11 @@ _FIXTURES = Path(__file__).parent / "fixtures"
 _SPACER = "GACCATGCAACCTTGAACGT"
 
 
-def _site(start: int, origin: SiteOrigin) -> OffTargetSite:
+def _site(
+    start: int, origin: SiteOrigin, strand: Strand = Strand.PLUS
+) -> OffTargetSite:
     return OffTargetSite(
-        locus=GenomicInterval(chrom="chr2", start=start, end=start + 20, strand=Strand.PLUS),
+        locus=GenomicInterval(chrom="chr2", start=start, end=start + 20, strand=strand),
         mismatches=1,
         score=0.5,
         score_method=ScoreMethod.CFD,
@@ -41,6 +43,18 @@ def test_reference_loci_excludes_population_sites() -> None:
 def test_agreement_has_no_disagreements() -> None:
     report = _report(_site(10, SiteOrigin.REFERENCE))
     diff = CasOffinderAdapter().disagreements(report, {("chr2", 10, Strand.PLUS)})
+    assert diff["only_alleleforge"] == set()
+    assert diff["only_cas_offinder"] == set()
+
+
+def test_minus_strand_locus_reconciled_to_whole_match_leftmost() -> None:
+    # AlleleForge's minus-strand locus records the protospacer start (PAM excluded);
+    # Cas-OFFinder reports the whole protospacer+PAM leftmost, which on the minus
+    # strand is pam_len (3 for NGG) below it. reference_loci must shift so a site
+    # both engines agree on is NOT flagged as a disagreement.
+    report = _report(_site(1000, SiteOrigin.REFERENCE, strand=Strand.MINUS))
+    assert CasOffinderAdapter.reference_loci(report) == {("chr2", 997, Strand.MINUS)}
+    diff = CasOffinderAdapter().disagreements(report, {("chr2", 997, Strand.MINUS)})
     assert diff["only_alleleforge"] == set()
     assert diff["only_cas_offinder"] == set()
 

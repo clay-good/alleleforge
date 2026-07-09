@@ -14,9 +14,16 @@ actual subprocess invocation is injectable (:meth:`run`'s ``runner`` argument), 
 the orchestration is tested without the binary; only the default subprocess call
 itself is never run in CI.
 
-**Coordinate convention.** Cas-OFFinder reports the 0-based location of the
-matched protospacer+PAM on the forward strand, with ``+``/``-`` giving the strand
-the guide reads on; loci are compared as ``(chrom, position, strand)``.
+**Coordinate convention.** Cas-OFFinder reports the 0-based **leftmost** forward-strand
+coordinate of the matched protospacer+PAM, with ``+``/``-`` giving the strand the guide
+reads on; loci are compared as ``(chrom, position, strand)``. AlleleForge's
+:class:`~alleleforge.types.offtarget.OffTargetSite` locus records the *protospacer*
+start (PAM excluded). SpCas9's PAM is 3' of the protospacer on the reading strand, so on
+the plus strand the PAM sits at the high-coordinate end and the two anchors coincide, but
+on the minus strand the PAM sits at the **low**-coordinate end — the protospacer start is
+``pam_len`` bases higher than the whole-match leftmost. :meth:`reference_loci` therefore
+shifts a minus-strand locus down by ``pam_len`` so both engines key on the same anchor;
+without it every minus-strand reference site would raise a spurious two-way disagreement.
 """
 
 from __future__ import annotations
@@ -55,9 +62,23 @@ class CasOffinderAdapter:
 
     @staticmethod
     def reference_loci(report: OffTargetReport) -> set[LocusKey]:
-        """Return the reference-origin site loci from ``report``."""
+        """Return the reference-origin site loci keyed to Cas-OFFinder's convention.
+
+        Each locus is the leftmost forward-strand coordinate of the whole
+        protospacer+PAM match, matching Cas-OFFinder's report so the two sets are
+        directly comparable. Because the site locus records only the protospacer
+        (PAM excluded), a minus-strand locus is shifted down by the PAM length —
+        on the minus strand the PAM lies at the low-coordinate end, so the
+        whole-match leftmost is ``pam_len`` below the protospacer start (see the
+        module "Coordinate convention" note).
+        """
+        pam_len = len(report.pam)
         return {
-            (s.locus.chrom, s.locus.start, s.locus.strand)
+            (
+                s.locus.chrom,
+                s.locus.start - pam_len if s.locus.strand is Strand.MINUS else s.locus.start,
+                s.locus.strand,
+            )
             for s in report.sites
             if s.origin is SiteOrigin.REFERENCE
         }
