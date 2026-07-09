@@ -25,7 +25,7 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict
 
 from alleleforge.data._io import open_text
-from alleleforge.types.sequence import GenomicInterval, Strand
+from alleleforge.types.sequence import GenomicInterval, Strand, canonical_contig
 from alleleforge.types.variant import Variant
 
 
@@ -84,9 +84,16 @@ class HaplotypePanel:
     def __init__(self, haplotypes: Iterable[Haplotype], *, source: str) -> None:
         """Hold ``haplotypes`` grouped by contig; record the panel ``source``."""
         self.source = source
+        # Index by canonical contig so a query named in the other style ("chr1"
+        # vs "1") still resolves — a panel built from a bare-named 1000G/HGDP VCF
+        # queried with a chr-named hg38 interval would otherwise miss its bucket
+        # and silently return no haplotypes, yielding an empty haplotype-aware
+        # off-target pass (the reference-bias blind spot this module exists to
+        # catch). `overlaps` is already naming-aware, but the bucket lookup below
+        # runs first and never reached it.
         self._by_chrom: dict[str, list[Haplotype]] = defaultdict(list)
         for hap in haplotypes:
-            self._by_chrom[hap.interval.chrom].append(hap)
+            self._by_chrom[canonical_contig(hap.interval.chrom)].append(hap)
 
     @classmethod
     def from_tsv(cls, path: str | Path, *, source: str) -> HaplotypePanel:
@@ -151,7 +158,7 @@ class HaplotypePanel:
         """
         out = [
             hap
-            for hap in self._by_chrom.get(interval.chrom, ())
+            for hap in self._by_chrom.get(canonical_contig(interval.chrom), ())
             if hap.interval.overlaps(interval)
             and (include_reference or not hap.is_reference)
             and hap.max_freq(populations) >= min_freq

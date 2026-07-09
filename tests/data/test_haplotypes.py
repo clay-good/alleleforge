@@ -52,6 +52,15 @@ def test_non_overlapping_interval_is_empty(haplotypes_tsv: Path) -> None:
     assert panel.common_haplotypes(_interval(70000, 70100)) == []
 
 
+def test_query_naming_mismatch_still_resolves(haplotypes_tsv: Path) -> None:
+    # The fixture panel is chr-named ("chr2"); a bare-named query ("2") — the
+    # 1000G/HGDP-VCF-vs-hg38-reference case — must still hit the bucket, or the
+    # haplotype-aware off-target pass silently returns nothing (a fail-open).
+    panel = HaplotypePanel.from_tsv(haplotypes_tsv, source="1000g")
+    bare = GenomicInterval(chrom="2", start=60100, end=60160, strand=Strand.PLUS)
+    assert [h.hap_id for h in panel.common_haplotypes(bare)] == ["H1", "H2"]
+
+
 def test_thousand_genomes_wrapper(haplotypes_tsv: Path) -> None:
     tg = ThousandGenomes.from_tsv(haplotypes_tsv)
     assert tg.source == "1000g"
