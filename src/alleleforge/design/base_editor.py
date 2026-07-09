@@ -134,6 +134,7 @@ def design_base_editor(
                 patient_vcf=patient_vcf,  # type: ignore[arg-type]  # Variant iterable
                 populations=populations,
                 regions=offtarget_regions,
+                on_target=window.placement,
             )
         candidate = DesignCandidate(
             chemistry=editor.chemistry,

@@ -84,6 +84,30 @@ sums over all candidate sites rather than only the reporting-threshold survivors
 - **THEN** the guide with the larger sub-threshold tail reports a lower genome-wide
   specificity, not an identical one
 
+### Requirement: The guide's own on-target is excluded from the aggregate
+
+The reference always contains the guide's own protospacer, so a genome-wide scan nominates
+it as a perfect (score 1.0) match. It is the *intended* target, not an off-target: the
+CRISPOR/Hsu aggregate excludes it, and counting it would peg every guide's `worst_score`
+at 1.0 (an inert safety axis) and cap `specificity_score` at 0.5 for even a perfectly clean
+guide. When a design pass supplies the guide's on-target locus, the engine SHALL exclude
+the single site at exactly that locus (naming-aware on the contig) from both the reported
+sites and the sub-threshold tail. The exclusion SHALL be exact, not by overlap or by
+perfect-score: a *paralogous* perfect match at any other locus is a real off-target and
+SHALL be retained. A bare off-target scan with no on-target supplied reports the on-target
+like any other match.
+
+#### Scenario: Clean guide reports full specificity
+- **WHEN** a guide's only genomic match is its own on-target locus and the design pass
+  supplies that locus
+- **THEN** the report nominates zero off-target sites, `specificity_score` is 1.0, and
+  `worst_score` is 0.0
+
+#### Scenario: Paralogous perfect match survives on-target exclusion
+- **WHEN** the guide's protospacer also occurs verbatim at a second, distinct locus
+- **THEN** the on-target locus is excluded but the paralog is retained as a perfect-score
+  off-target
+
 ### Requirement: Published CFD requires a 20-nt spacer
 
 The published Doench 2016 CFD matrix is indexed by absolute position 0–19, so `cfd_score`

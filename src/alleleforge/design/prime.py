@@ -159,7 +159,7 @@ def design_prime(
     predictor = outcome_predictor or PrimeOutcomePredictor()
     cache: dict[tuple[str, str | None], OffTargetReport] = {}
 
-    def _search(spacer: Spacer) -> OffTargetReport:
+    def _search(spacer: Spacer, on_target: GenomicInterval | None) -> OffTargetReport:
         return offtarget_search(
             spacer,
             pam,
@@ -169,6 +169,7 @@ def design_prime(
             patient_vcf=patient_vcf,
             populations=populations,
             regions=offtarget_regions,
+            on_target=on_target,
         )
 
     def offtarget_for(pegrna: PegRNA) -> OffTargetReport | None:
@@ -178,8 +179,10 @@ def design_prime(
         ng_spacer = str(ng.spacer.sequence) if ng is not None else None
         key = (str(pegrna.spacer.sequence), ng_spacer)
         if key not in cache:
-            peg_report = _search(pegrna.spacer)
-            ng_report = _search(ng.spacer) if ng is not None else None
+            # Each spacer's own protospacer is its intended nick, not an off-target,
+            # so exclude each from its own report before the two-nick merge.
+            peg_report = _search(pegrna.spacer, pegrna.placement)
+            ng_report = _search(ng.spacer, ng.placement) if ng is not None else None
             cache[key] = _merge_offtarget(peg_report, ng_report)
         return cache[key]
 

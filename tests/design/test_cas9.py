@@ -102,6 +102,29 @@ def test_offtarget_is_ancestry_stratifiable(make_reference: MakeRef) -> None:
     assert isinstance(cand.offtarget.ancestry_stratification(), dict)
 
 
+def test_offtarget_excludes_the_guides_own_on_target(make_reference: MakeRef) -> None:
+    # The reference always contains each guide's own protospacer. Counting that
+    # perfect self-match as an off-target would peg every guide's worst_score at
+    # 1.0 (an inert safety axis) and cap specificity_score at 0.5. The design path
+    # passes the guide's placement so its own locus is excluded, while a genuine
+    # paralog at another locus stays. Here the sole match is the on-target, so a
+    # clean guide reports zero off-targets and full specificity.
+    ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    cands = _design(ref, EditIntent.KNOCK_OUT)
+    for c in cands:
+        assert c.offtarget is not None
+        own = (c.guide.placement.chrom, c.guide.placement.start, c.guide.placement.end)
+        site_loci = {(s.locus.chrom, s.locus.start, s.locus.end) for s in c.offtarget.sites}
+        assert own not in site_loci  # the guide's own on-target is never an off-target
+    # The guide targeting the planted protospacer is clean once its self-match is
+    # excluded — full specificity, live (non-zero) safety, which the pre-fix path
+    # (self-match at 1.0) could never report.
+    clean = [c for c in cands if c.offtarget is not None and c.offtarget.n_sites == 0]
+    assert clean, "expected at least one guide with no off-targets after self-exclusion"
+    assert clean[0].offtarget.specificity_score() == 1.0
+    assert clean[0].offtarget.worst_score() == 0.0
+
+
 def test_run_offtarget_false_skips(make_reference: MakeRef) -> None:
     ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
     for c in _design(ref, EditIntent.KNOCK_OUT, run_offtarget=False):

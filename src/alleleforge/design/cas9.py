@@ -204,6 +204,7 @@ def design_cas9(
                 patient_vcf=patient_vcf,
                 populations=populations,
                 regions=offtarget_regions,
+                on_target=guide.placement,
             )
         candidates.append(
             DesignCandidate(

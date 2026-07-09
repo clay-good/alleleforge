@@ -39,6 +39,36 @@ def test_reference_on_target(make_reference: MakeRef) -> None:
     assert report.reference_build == "hg38"
 
 
+def test_on_target_excluded_but_paralog_kept(make_reference: MakeRef) -> None:
+    # The reference carries the guide's own protospacer at chr2:10-30(+) (the
+    # intended target) AND an identical paralog at chr2:43-63(+) (a real perfect
+    # off-target). A bare scan reports both; passing the on-target locus drops
+    # exactly that one site — the intended target is not an off-target, and the
+    # Hsu/CRISPOR aggregate excludes it — while the paralog is retained.
+    ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD + SPACER + "TGG" + PAD})
+    on_target = GenomicInterval(chrom="chr2", start=10, end=30, strand=Strand.PLUS)
+
+    bare = search(SPACER, NGG, reference=ref)
+    assert {(s.locus.start, s.locus.end) for s in bare.sites} == {(10, 30), (43, 63)}
+    assert bare.worst_score() == 1.0
+    assert bare.specificity_score() == 1.0 / 3.0  # both perfect matches counted
+
+    scoped = search(SPACER, NGG, reference=ref, on_target=on_target)
+    assert {(s.locus.start, s.locus.end) for s in scoped.sites} == {(43, 63)}
+    assert scoped.n_sites == 1  # only the genuine paralog remains
+    assert scoped.sites[0].score == 1.0  # a paralogous perfect match is real risk
+    assert scoped.specificity_score() == 0.5  # 1 / (1 + 1)
+
+
+def test_on_target_match_is_naming_aware(make_reference: MakeRef) -> None:
+    # The on-target locus given in the other contig-naming style still excludes
+    # the self-match (the codebase reconciles chr1 vs 1 everywhere).
+    ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    bare_named = GenomicInterval(chrom="2", start=10, end=30, strand=Strand.PLUS)
+    report = search(SPACER, NGG, reference=ref, on_target=bare_named)
+    assert report.n_sites == 0  # the sole site (the on-target) is excluded
+
+
 def test_report_names_scorer_and_matrix(make_reference: MakeRef) -> None:
     # The report must say which scorer + weight source produced its scores, so a
     # consumer can tell the published matrix from the transparent approximation.

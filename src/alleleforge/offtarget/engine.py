@@ -34,7 +34,13 @@ from alleleforge.offtarget.population import (
 from alleleforge.offtarget.scoring import CfdScorer, OffTargetScorer, mit_score
 from alleleforge.types.guide import PAM, Spacer
 from alleleforge.types.offtarget import OffTargetReport, OffTargetSite, ScoreMethod, SiteOrigin
-from alleleforge.types.sequence import CoordinateSystem, DNASequence, GenomicInterval, Strand
+from alleleforge.types.sequence import (
+    CoordinateSystem,
+    DNASequence,
+    GenomicInterval,
+    Strand,
+    canonical_contig,
+)
 from alleleforge.types.variant import Variant, assembly_matches
 
 #: Report any site scoring at or above either threshold (spec defaults).
@@ -135,6 +141,29 @@ def _to_site(
     )
 
 
+def _is_on_target(hit: Hit, on_target: GenomicInterval | None) -> bool:
+    """Return whether ``hit`` is the guide's own intended on-target locus.
+
+    The reference always contains the guide's own protospacer, so a genome-wide
+    scan nominates it as a perfect (score 1.0) match. It is the *intended* target,
+    not an off-target: the Hsu/CRISPOR aggregate specificity score excludes it, and
+    counting it would peg every guide's worst-case score at 1.0 (inert safety axis)
+    and cap :meth:`OffTargetReport.specificity_score` at 0.5 for even a perfectly
+    clean guide. A caller that knows the on-target placement passes it so this one
+    locus is dropped — a *paralogous* perfect match at any **other** locus is a real
+    off-target and is kept. The match is exact (not overlap, so a paralog abutting
+    the on-target survives) and naming-aware on the contig.
+    """
+    if on_target is None:
+        return False
+    return (
+        canonical_contig(hit.chrom) == canonical_contig(on_target.chrom)
+        and hit.start == on_target.start
+        and hit.end == on_target.end
+        and hit.strand == on_target.strand
+    )
+
+
 def _in_regions(hit: Hit, regions: Sequence[GenomicInterval]) -> bool:
     """Return whether ``hit``'s locus overlaps any of ``regions`` (naming-aware)."""
     locus = GenomicInterval(
@@ -185,6 +214,7 @@ def search(
     haplotypes: Iterable[Haplotype] = (),
     patient_vcf: Iterable[Variant] | None = None,
     regions: Sequence[GenomicInterval] | None = None,
+    on_target: GenomicInterval | None = None,
     scorer: OffTargetScorer | None = None,
     cfd_threshold: float = DEFAULT_CFD_THRESHOLD,
     mit_threshold: float = DEFAULT_MIT_THRESHOLD,
@@ -208,6 +238,13 @@ def search(
         haplotypes: Common haplotypes for haplotype-aware search (optional).
         patient_vcf: Personal variants to personalize the search (optional).
         regions: Restrict the search to these intervals; defaults to every contig.
+        on_target: The guide's own intended protospacer locus. When given, the site
+            at exactly this locus (the guide's perfect self-match, which the
+            reference always contains) is excluded from the report — it is the
+            intended target, not an off-target, and the Hsu/CRISPOR aggregate
+            excludes it. A paralogous perfect match at any other locus is kept.
+            Omitted (``None``) for a bare off-target scan, which reports the
+            on-target like any other match.
         scorer: The primary specificity scorer (default :class:`CfdScorer`).
         cfd_threshold: Report a site at or above this CFD (default 0.20).
         mit_threshold: ...or at or above this MIT (default 0.10).
@@ -362,6 +399,10 @@ def search(
     best: dict[tuple[str, int, int, Strand], OffTargetSite] = {}
     subthreshold: dict[tuple[str, int, int, Strand], float] = {}
     for hit, prov in tagged:
+        if _is_on_target(hit, on_target):
+            # The guide's own protospacer: the intended target, not an off-target.
+            # Excluded from both the reported sites and the sub-threshold tail.
+            continue
         cfd, mit = _scores(hit, primary)
         key = (hit.chrom, hit.start, hit.end, hit.strand)
         if cfd < cfd_threshold and (mit if mit is not None else 0.0) < mit_threshold:
