@@ -126,9 +126,7 @@ def test_undefined_ece_never_wins_calibration_tiebreak(fixed_ts: datetime) -> No
     lb.add(
         Submission(submitter="degen", model=_model(), results=(degenerate,), submitted_at=fixed_ts)
     )
-    lb.add(
-        Submission(submitter="honest", model=_model(), results=(honest,), submitted_at=fixed_ts)
-    )
+    lb.add(Submission(submitter="honest", model=_model(), results=(honest,), submitted_at=fixed_ts))
     ranked = lb.rankings("cas9-outcome")
     assert ranked[0].ece == 0.05  # the honestly-calibrated model wins the tie-break
     assert ranked[1].ece is None  # the degenerate one sorts last, not first
@@ -178,6 +176,31 @@ def test_leaderboard_escapes_submitter_markup(fixed_ts: datetime) -> None:
     md_out = lb.render_markdown()
     assert "a\\|b" in md_out  # the pipe is escaped so it cannot break the table
     assert "a|b" not in md_out
+    # The Markdown board is a shareable leave-behind: `_md_cell` promises "a cell
+    # can only ever be data", so raw HTML must not survive there either (it would
+    # be active content if the .md is rendered by any HTML-passing renderer).
+    assert "<script>" not in md_out
+    assert "&lt;script&gt;" in md_out
+
+
+def test_markdown_cell_neutralizes_link_injection(fixed_ts: datetime) -> None:
+    # A Markdown table cell renders inline links, so a submitter can inject a
+    # `javascript:` link the pipe-only escape left intact. The link syntax must be
+    # broken so the cell is inert data, while an ordinary name stays readable.
+    result = _baseline_result("cas9-efficiency", fixed_ts)
+    lb = Leaderboard()
+    lb.add(
+        Submission(
+            submitter="[pwn](javascript:alert(1))",
+            model=_model(),
+            results=(result,),
+            submitted_at=fixed_ts,
+        )
+    )
+    md_out = lb.render_markdown()
+    assert "[pwn](javascript:alert(1))" not in md_out  # link syntax is broken
+    assert "\\[pwn\\]" in md_out
+    assert "rule-set-3" in md_out or "cas9" in md_out  # ordinary text unharmed
 
 
 def test_duplicate_task_in_submission_rejected(fixed_ts: datetime) -> None:

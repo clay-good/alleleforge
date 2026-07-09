@@ -24,16 +24,27 @@ from alleleforge.benchmark.runner import BenchmarkResult, ModelInfo
 LOWER_IS_BETTER = frozenset({"kl", "ece"})
 
 
+#: Markdown inline metacharacters backslash-escaped in a table cell so submitter
+#: text cannot form a link, emphasis, code span, or break the table.
+_MD_METACHARS = "`*_[]()|"
+
+
 def _md_cell(value: object) -> str:
     """Escape a value for a GitHub-flavored Markdown table cell.
 
     A submitter handle or model name is attacker-controlled text; a raw ``|``
-    breaks the table and raw markup injects into the static board. Escape the
-    pipe and backslash and flatten newlines so a cell can only ever be data.
+    breaks the table and raw markup injects into the static board. Escaping only
+    the pipe left ``<img onerror=…>`` (raw HTML) and ``[x](javascript:…)`` (an
+    inline link) intact — active content on the shareable leave-behind if the
+    Markdown is rendered by any HTML-passing renderer. HTML-escape the angle
+    brackets and ampersand, backslash-escape every Markdown inline metacharacter,
+    and flatten newlines, so a cell can only ever be data.
     """
-    return (
-        str(value).replace("\\", "\\\\").replace("|", "\\|").replace("\r", " ").replace("\n", " ")
-    )
+    text = html.escape(str(value), quote=False)  # < > & -> entities: no raw HTML
+    text = text.replace("\\", "\\\\")  # escape backslash first, before we add any
+    for ch in _MD_METACHARS:
+        text = text.replace(ch, "\\" + ch)
+    return text.replace("\r", " ").replace("\n", " ")
 
 
 def _html_cell(value: object) -> str:
