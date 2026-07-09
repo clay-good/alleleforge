@@ -10,6 +10,14 @@ acceptance.
 
 ### Fixed
 
+- **`ClinVarDB.get` no longer overclaims RCV/SCV resolution.** Its docstring promised to resolve
+  `VCV`/`RCV`/`SCV` accessions, but the ClinVar VCF carries only the integer VariationID, so
+  records are indexed solely by their reconstructed `VCV` accession. An `RCV`/`SCV` accession —
+  which `ClinVarAccession` accepts and the resolver forwards — could therefore never be found and
+  produced a bare "no record" miss, as if the variant were simply absent. The docstring is
+  narrowed to `VCV`, and an `RCV`/`SCV` accession now raises an actionable message explaining it
+  cannot be mapped from the VCF alone. (Round 4 deep-correctness pass.)
+
 - **`bar_chart` now escapes the value suffix like every other text node.** The visualization
   spec requires the chart primitive to escape all text nodes, and every label did — except the
   per-bar value suffix, which was interpolated raw. A `value_suffix` containing markup (e.g.

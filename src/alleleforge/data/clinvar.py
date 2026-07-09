@@ -183,12 +183,26 @@ class ClinVarDB:
         return len(self._records)
 
     def get(self, accession: str | ClinVarAccession) -> ClinVarRecord:
-        """Return the record for a ``VCV``/``RCV``/``SCV`` accession.
+        """Return the record for a ``VCV`` accession.
+
+        ClinVar's VCF carries only the integer VariationID, so records are indexed
+        by their reconstructed ``VCV`` accession (see
+        :func:`accession_from_variation_id`). An ``RCV``/``SCV`` accession — though
+        accepted by :class:`~alleleforge.types.variant.ClinVarAccession` — cannot be
+        mapped from the VCF alone, so it raises with an actionable message rather
+        than a bare lookup miss.
 
         Raises:
-            KeyError: If no record carries that accession.
+            KeyError: If ``accession`` is not a ``VCV`` accession, or no ``VCV``
+                record carries it.
         """
         key = ClinVarAccession(value=str(accession)).value
+        if not key.startswith("VCV"):
+            raise KeyError(
+                f"ClinVar records are indexed by VCV accession (reconstructed from the "
+                f"VCF's VariationID); {key} is an {key[:3]} accession, which cannot be "
+                f"resolved from the VCF alone — supply this variant's VCV accession"
+            )
         if key not in self._by_accession:
             raise KeyError(f"no ClinVar record for accession {key}")
         return self._by_accession[key]

@@ -43,6 +43,16 @@ def test_get_unknown_accession_raises(clinvar_vcf: Path) -> None:
         db.get("VCV000099999")
 
 
+def test_get_rcv_scv_raises_actionable_not_bare_miss(clinvar_vcf: Path) -> None:
+    # The VCF carries only the VariationID, so records index by VCV. An RCV/SCV
+    # accession (accepted by ClinVarAccession) cannot be mapped from the VCF alone;
+    # get must say so, not present a bare "no record" miss as if it were absent.
+    db = ClinVarDB.from_vcf(clinvar_vcf)
+    for other in ("RCV000000012", "SCV000000012"):
+        with pytest.raises(KeyError, match="cannot be resolved from the VCF alone"):
+            db.get(other)
+
+
 def test_by_rsid(clinvar_vcf: Path) -> None:
     db = ClinVarDB.from_vcf(clinvar_vcf)
     recs = db.by_rsid("rs114518452")
