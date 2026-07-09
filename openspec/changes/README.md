@@ -128,6 +128,28 @@ off-target ancestry bar-chart drawing a "not evaluated" ancestry at 0.0 (informa
 in practice). Round 7 shipped 7 fixes across the same core Rounds 3–6 already swept — the
 recurring lesson that a fresh close read still finds real, test-pinned guarantee gaps.
 
+## Round 8 — integration-seam re-audit + native-kernel parity (3 fixes shipped)
+
+Round 8 targeted the two angles Round 7's decomposition covered lightest: the native Rust
+kernels (vs their Python fallbacks) and the *cross-subsystem seams* where two passes meet.
+The native kernels came back **clean** — empirically parity-checked at ~240,000 randomized +
+pathological cases (haplotype / k-mer / FM-index count-locate all 0 divergences) and confirmed
+by a close read of the Rust + PyO3 (only a LOW cosmetic error-message divergence on
+unreachable malformed input, documented not fixed). The seams yielded **three genuine bugs** —
+one of them a regression from Round 7's own DNA-bulge fix, exactly the class a single-function
+audit misses:
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(offtarget)` nomination | offtarget-nomination, offtarget-scoring | Round 7 added a `bulged` flag to `CfdScorer.score`, but the population/haplotype **nomination** path (`_reference_best`/`_strengthens`) still called `score()` without it — so nomination scored a DNA-bulge hit with the published matrix while reporting used the approximation. `_strengthens` could then drop a population hit's **POPULATION origin + ancestry attribution** by a score the report never shows. **Shipped:** pass `bulged=` in both helpers, matching `engine._scores`. |
+| `fix(offtarget)` region-scope | offtarget-nomination | An explicit `regions=` scope bounded only the reference + population passes; the **haplotype and patient** passes consumed whole (chromosome-wide) panels with no region argument, leaking out-of-scope hits. **Shipped:** filter nominated hits to the requested regions (no-op when `regions` is None). |
+| `fix(offtarget)` index-guard | genome-access | `search(…, genome_index=)` never checked the index was built from the **same assembly** as `reference`; a mismatch anchors PAMs over the index's sequence while reading coordinates from the reference — silently wrong hits. **Shipped:** fail closed when both builds are known and disagree. |
+
+Rounds 3–5 = 11 fixes, Round 6 clean, Round 7 = 7, Round 8 = 3 (yield 5/3/3/0/7/3). The native
+kernels are now empirically + statically confirmed at parity. **The lesson keeps proving out:
+each fresh audit with a *different decomposition* still surfaces real, test-pinned guarantee
+gaps — and a fix in one round can open a seam in the next, so re-audit after fixing.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

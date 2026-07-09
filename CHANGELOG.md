@@ -10,6 +10,27 @@ acceptance.
 
 ### Fixed
 
+- **Off-target nomination now scores bulge-collapsed hits the same way reporting does.** Round 7
+  taught the CFD scorer to fall back off the published matrix for a DNA bulge (via a `bulged`
+  flag), but the population/haplotype *nomination* gate (`_reference_best` / `_strengthens`) still
+  called the scorer without it — so a DNA-bulge hit was nominated on its published-matrix score
+  but reported on the approximation. `_strengthens` could then judge a real population off-target
+  "not stronger" by a number the report never shows, silently dropping its `POPULATION` origin and
+  ancestry attribution — the exact safety signal the pass exists to produce. Both helpers now pass
+  the bulge status through, matching `engine._scores`. (Round 8 integration-seam pass.)
+
+- **An explicit `regions` scope now bounds every off-target pass.** The reference and population
+  passes iterate the requested regions, but the haplotype and patient passes consumed whole
+  (often chromosome-wide) panels with no region argument, so a scoped search still reported
+  out-of-region hits those panels created. Nominated hits are now filtered to the requested
+  regions (a no-op when `regions` is unset). (Round 8 integration-seam pass.)
+
+- **A `genome_index` from a different assembly than the reference now fails closed.**
+  `search(…, genome_index=)` never checked the persistent index was built from the same assembly
+  as the passed `reference`; a mismatch anchors PAMs over the index's sequence while reading
+  bases and coordinates from the reference, yielding silently wrong hits. The engine now raises a
+  clear error when both builds are known and disagree. (Round 8 integration-seam pass.)
+
 - **Coding/protein HGVS deletions no longer crash against a reference.** `_from_hgvs` built the
   reference-base accessor *before* projecting a `c.`/`p.` expression to genomic form, so the
   closure's default-argument snapshot froze the pre-projection `chrom=None`. Any coding
