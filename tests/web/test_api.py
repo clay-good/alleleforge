@@ -198,6 +198,40 @@ async def test_offtarget(client: httpx.AsyncClient) -> None:
     assert body["worst_score"] == report.worst_score()
     assert body["specificity"] == report.specificity_score()
     assert 0.0 < body["specificity"] <= 1.0
+    # The honest effective matrix is surfaced alongside the nominal one.
+    assert body["effective_matrix"] == report.effective_matrix()
+
+
+def test_offtarget_response_surfaces_effective_matrix() -> None:
+    # The design report reconciles an all-approximation table via effective_matrix();
+    # the standalone /api/offtarget envelope must do the same, so a client reading the
+    # top-level matrix is not misled into treating an approximation as published CFD.
+    from alleleforge.types.offtarget import OffTargetSite, ScoreMethod, SiteOrigin
+    from alleleforge.types.sequence import GenomicInterval, Strand
+    from alleleforge.web.api.models import OffTargetResponse
+
+    approx = "doench-2016-seed-tolerance-approximation"
+    report = OffTargetReport(
+        spacer="A" * 20,
+        pam="NGG",
+        sites=(
+            OffTargetSite(
+                locus=GenomicInterval(chrom="chr2", start=0, end=20, strand=Strand.PLUS),
+                mismatches=1,
+                score=0.5,
+                score_method=ScoreMethod.CFD,
+                score_matrix=approx,
+                origin=SiteOrigin.REFERENCE,
+            ),
+        ),
+        mismatch_threshold=4,
+        reference_build="hg38",
+        scorer="CFD",
+        score_matrix="doench-2016-cfd",  # nominal stays published
+    )
+    envelope = OffTargetResponse.from_report(report)
+    assert envelope.report.score_matrix == "doench-2016-cfd"  # nominal preserved for fidelity
+    assert envelope.effective_matrix == approx  # ...but the honest label is exposed
 
 
 async def test_offtarget_tuning_knobs_are_honored(client: httpx.AsyncClient) -> None:

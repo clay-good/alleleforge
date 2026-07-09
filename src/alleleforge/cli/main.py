@@ -742,6 +742,7 @@ def offtarget(
             "rna_bulges": s.rna_bulges,
             "score": round(s.score, 4),
             "method": s.score_method.value,
+            "score_matrix": s.score_matrix,
             "mit_score": None if s.mit_score is None else round(s.mit_score, 4),
             "origin": s.origin.value,
             "causal_allele": s.causal_allele,
@@ -756,6 +757,7 @@ def offtarget(
         "pam": report.pam,
         "scorer": report.scorer,
         "score_matrix": report.score_matrix,
+        "effective_matrix": report.effective_matrix(),
         "n_sites": report.n_sites,
         "worst_score": round(report.worst_score(), 4),
         "specificity": round(report.specificity_score(), 4),
@@ -764,9 +766,19 @@ def offtarget(
         },
         "sites": sites,
     }
-    scorer_note = (
-        f" [scorer {report.scorer}, matrix {report.score_matrix}]" if report.scorer else ""
-    )
+    # The nominal matrix records how the scorer was configured; the effective matrix is
+    # what the reported sites were actually scored by (a published matrix falls back to the
+    # approximation per off-register hit). Show the effective one when it differs so the
+    # human line never claims published CFD for an all-approximation table.
+    effective = report.effective_matrix()
+    if not report.scorer:
+        scorer_note = ""
+    elif effective is not None and effective != report.score_matrix:
+        scorer_note = (
+            f" [scorer {report.scorer}, matrix {report.score_matrix}, effective {effective}]"
+        )
+    else:
+        scorer_note = f" [scorer {report.scorer}, matrix {report.score_matrix}]"
     human_lines = [
         f"spacer {report.spacer} / PAM {report.pam}: {report.n_sites} site(s), "
         f"worst score {report.worst_score():.3f}, "

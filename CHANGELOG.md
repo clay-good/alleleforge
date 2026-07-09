@@ -10,6 +10,20 @@ acceptance.
 
 ### Fixed
 
+- **The `aforge offtarget` CLI and `/api/offtarget` endpoint now expose the honest effective
+  matrix, so an all-approximation table is no longer mislabeled as published CFD.** The design
+  report already reconciles the per-site truth via `OffTargetReport.effective_matrix()` — a
+  published matrix falls back to the length-relative approximation per off-register (bulged /
+  non-20-nt) hit, and the report shows the matrix the reported sites were *actually* scored by.
+  But the two standalone off-target surfaces only surfaced the nominal `score_matrix`: the CLI
+  payload printed `doench-2016-cfd` (and its per-site dicts omitted the matrix entirely), and the
+  web `OffTargetResponse` projected no effective matrix, so a client reading the top-level label
+  read an approximation as published CFD — the same computation labeled honestly on one surface
+  and dishonestly on another. Added `effective_matrix` to `OffTargetResponse`, a top-level
+  `effective_matrix` plus per-site `score_matrix` to the CLI payload, and an "effective …" note to
+  the CLI human line when it differs from the nominal. Regression tests fail@HEAD → pass on both
+  surfaces; offtarget-scoring spec gains a scenario. Additive (no existing field changed).
+
 - **Re-calibrating an out-of-distribution prediction can no longer shrink its interval below
   the honesty floor.** `ConformalCalibrator.calibrate` computes `new_half = scale * half_width`;
   when the fitted conformal scale is `< 1` (an over-covering scorer — an ordinary case), an OOD

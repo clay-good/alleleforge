@@ -44,6 +44,14 @@ published CFD.
 - **WHEN** the published Doench mismatch table is injected
 - **THEN** CFD uses it verbatim
 
+#### Scenario: Standalone off-target surfaces expose the effective matrix
+- **WHEN** a report whose reported sites all fell back to the approximation is rendered by
+  the `aforge offtarget` CLI or the `/api/offtarget` endpoint
+- **THEN** the surface exposes the reconciled effective matrix (the per-site truth), not only
+  the nominal configured `score_matrix`, so a consumer reading the top-level label is never
+  misled into treating an all-approximation table as published CFD — the same honesty the
+  design report already applies via `effective_matrix()`
+
 ### Requirement: MIT/Hsu is exact and length-guarded
 
 The MIT/Hsu score SHALL implement the published Hsu 2013 formula (position-weight

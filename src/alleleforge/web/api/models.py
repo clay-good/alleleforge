@@ -208,6 +208,16 @@ class OffTargetResponse(BaseModel):
     ancestry_stratification: dict[str, float] = Field(
         description="Worst-case off-target score per annotated ancestry."
     )
+    effective_matrix: str | None = Field(
+        default=None,
+        description=(
+            "The weight matrix the *reported* sites were actually scored by. The embedded "
+            "report's nominal `score_matrix` records how the scorer was configured, but a "
+            "published matrix falls back to the length-relative approximation per off-register "
+            "hit; this reconciles the per-site truth so a client is not misled into reading an "
+            "all-approximation table as published CFD."
+        ),
+    )
 
     @classmethod
     def from_report(cls, report: OffTargetReport) -> OffTargetResponse:
@@ -218,6 +228,7 @@ class OffTargetResponse(BaseModel):
             worst_score=report.worst_score(),
             specificity=report.specificity_score(),
             ancestry_stratification=report.ancestry_stratification(),
+            effective_matrix=report.effective_matrix(),
         )
 
 
