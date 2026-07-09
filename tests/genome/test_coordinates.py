@@ -44,6 +44,17 @@ def test_flag_fires_on_either_naming_style() -> None:
     assert {r.kind for r in ensembl.regions} == {r.kind for r in ucsc.regions}
 
 
+def test_flag_fires_for_the_grch38_build_spelling() -> None:
+    # "GRCh38" and "hg38" denote the same assembly; the recommendation must fire for
+    # either spelling, not only the literal "hg38" (a raw string compare dropped the
+    # T2T recommendation for a GRCh38-labeled query sitting in a flagged region).
+    hg38 = flag_ambiguous_regions(_iv("chr1", 122_000_000, 122_000_100), source_build="hg38")
+    grch38 = flag_ambiguous_regions(_iv("chr1", 122_000_000, 122_000_100), source_build="GRCh38")
+    assert grch38.recommended
+    assert grch38.recommended_build == "T2T-CHM13v2"
+    assert {r.kind for r in grch38.regions} == {r.kind for r in hg38.regions}
+
+
 def test_flag_clears_outside_difficult_regions() -> None:
     rec = flag_ambiguous_regions(_iv("chr7", 1_000, 1_100))
     assert not rec.recommended

@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict
 
 from alleleforge.types.candidate import DesignCandidate
 from alleleforge.types.sequence import CoordinateSystem, GenomicInterval, Strand
+from alleleforge.types.variant import assembly_matches
 
 #: The reference AlleleForge recommends for hg38-ambiguous loci.
 DEFAULT_RECOMMENDED_BUILD = "T2T-CHM13v2"
@@ -134,8 +135,9 @@ def flag_ambiguous_regions(
 
     Args:
         interval: The locus to check (0-based half-open).
-        source_build: The build ``interval`` is expressed in. Recommendation
-            fires only for ``"hg38"`` (the default reference).
+        source_build: The build ``interval`` is expressed in. Recommendation fires
+            only for hg38 (the default reference), matched naming-independently so
+            the ``"GRCh38"`` spelling is honored the same as ``"hg38"``.
         regions: An explicit region table; defaults to
             :data:`HG38_DIFFICULT_REGIONS` when ``source_build`` is hg38.
         recommended_build: The build to recommend when a flag fires.
@@ -149,13 +151,10 @@ def flag_ambiguous_regions(
     """
     if interval.coordinate_system is not CoordinateSystem.ZERO_BASED_HALF_OPEN:
         raise ValueError("flag_ambiguous_regions requires a 0-based half-open interval")
-    table = (
-        regions
-        if regions is not None
-        else (HG38_DIFFICULT_REGIONS if source_build == "hg38" else ())
-    )
+    is_hg38 = assembly_matches(source_build, "hg38")
+    table = regions if regions is not None else (HG38_DIFFICULT_REGIONS if is_hg38 else ())
     hits = tuple(r for r in table if r.interval.overlaps(interval))
-    rec_build = recommended_build if hits and source_build == "hg38" else None
+    rec_build = recommended_build if hits and is_hg38 else None
     return ReferenceRecommendation(
         query=interval,
         source_build=source_build,
