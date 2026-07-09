@@ -82,6 +82,16 @@ def test_in_region(clinvar_vcf: Path) -> None:
     assert positions == [60099, 60200]  # 60399/60449 fall outside
 
 
+def test_in_region_matches_across_contig_naming(clinvar_vcf: Path) -> None:
+    # Records are chr-prefixed by default; an Ensembl-named ('2') query interval must
+    # still match them rather than silently returning nothing on the mixed-naming
+    # path — the same naming reconciliation GenomicInterval.overlaps already does.
+    db = ClinVarDB.from_vcf(clinvar_vcf)
+    ensembl = GenomicInterval(chrom="2", start=60099, end=60300, strand=Strand.PLUS)
+    positions = sorted(r.variant.pos for r in db.in_region(ensembl))
+    assert positions == [60099, 60200]
+
+
 def test_no_chr_prefix_option(clinvar_vcf: Path) -> None:
     db = ClinVarDB.from_vcf(clinvar_vcf, add_chr_prefix=False)
     assert db.get("VCV000000012").variant.chrom == "2"

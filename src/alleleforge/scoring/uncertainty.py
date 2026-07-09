@@ -16,7 +16,9 @@ the whole substrate runs in CI on a weight-free stub embedder:
   variance).
 * :func:`quantile_prediction` reads an interval straight off predicted quantiles.
 * :class:`IsotonicCalibrator` + :func:`expected_calibration_error` provide
-  post-hoc calibration that provably reduces ECE on a miscalibrated set.
+  post-hoc calibration: isotonic regression provably minimizes squared error under
+  the monotonicity constraint, which drives binned ECE toward zero on the fit set
+  in practice (it does not carry a formal guarantee on the binned ECE metric).
 * :class:`ConformalCalibrator` + :func:`empirical_coverage` recalibrate predictive
   *intervals* to a target coverage with the finite-sample split-conformal
   guarantee (the regression analog), preserving relative interval shape.

@@ -265,9 +265,11 @@ def cas12a_cfd_score(
 
     Cas12a recognizes a 5' ``TTTV`` PAM, so its seed lies at the PAM-proximal
     **5'** end of the protospacer. The default mismatch model is the same
-    monotonic seed-tolerance shape mirrored to the 5' end. A ``TTTV``-matching
-    PAM contributes full weight; a non-canonical PAM contributes none. Marked an
-    analog pending a Cas12a-specific published matrix.
+    monotonic seed-tolerance shape mirrored to the 5' end. A ``TTTV``-matching PAM
+    contributes full weight; a non-canonical PAM contributes a small residual
+    weight (0.05) rather than zero, so a mismatch-free non-``TTTV`` site still
+    surfaces for review instead of being silently dropped below threshold. Marked
+    an analog pending a Cas12a-specific published matrix.
     """
     if len(spacer) != len(protospacer):
         raise ValueError("spacer and protospacer must be the same length")

@@ -21,7 +21,7 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict
 
 from alleleforge.data._io import open_text
-from alleleforge.types.sequence import GenomicInterval
+from alleleforge.types.sequence import GenomicInterval, canonical_contig
 from alleleforge.types.variant import ClinVarAccession, DbSnpId, Variant
 
 
@@ -217,11 +217,18 @@ class ClinVarDB:
         return list(self._by_gene.get(symbol.upper(), ()))
 
     def in_region(self, interval: GenomicInterval) -> list[ClinVarRecord]:
-        """Return records whose variant start falls within ``interval``."""
+        """Return records whose variant start falls within ``interval``.
+
+        Contigs are compared naming-independently (via :func:`canonical_contig`,
+        as :meth:`GenomicInterval.overlaps` does), so a ``chr``-named record and an
+        Ensembl-named interval (or vice versa) still match rather than silently
+        returning nothing on the mixed-naming path.
+        """
+        want = canonical_contig(interval.chrom)
         return [
             rec
             for rec in self._records
-            if rec.variant.chrom == interval.chrom
+            if canonical_contig(rec.variant.chrom) == want
             and interval.start <= rec.variant.pos < interval.end
         ]
 

@@ -497,9 +497,16 @@ def _batch_tsv(rows: list[dict[str, Any]]) -> str:
         "n_candidates",
         "error",
     ]
+    def _cell(value: Any) -> str:
+        # Neutralize the delimiters so a tab/newline in a field (item_id is a raw
+        # input line; error is an exception message) cannot misalign the TSV.
+        if value is None:
+            return ""
+        return str(value).replace("\t", " ").replace("\r", " ").replace("\n", " ")
+
     lines = ["\t".join(cols)]
     for r in rows:
-        lines.append("\t".join("" if r[c] is None else str(r[c]) for c in cols))
+        lines.append("\t".join(_cell(r[c]) for c in cols))
     return "\n".join(lines) + "\n"
 
 
@@ -985,9 +992,14 @@ def bench_run(
     if as_json:
         typer.echo(result.model_dump_json(indent=2))
     elif out is None:
+        # ECE is undefined (None) for a degenerate fold with no scorable
+        # predictions; show "n/a" (as the leaderboard does) rather than crashing on
+        # None.__format__.
+        ece = result.metrics["ece"]
+        ece_str = "n/a" if ece is None else f"{ece:.4f}"
         typer.echo(
             f"{result.task} @ {result.split_version}: {result.primary_metric}="
-            f"{result.primary_value:.4f}, ece={result.metrics['ece']:.4f} "
+            f"{result.primary_value:.4f}, ece={ece_str} "
             f"(n={result.n_test}, model={result.model.name})"
         )
 
