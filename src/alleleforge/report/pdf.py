@@ -144,8 +144,16 @@ def _report_lines(report: DesignReport) -> list[str]:
 
 
 def _escape(text: str) -> str:
-    """Escape a string for a PDF literal and drop non-Latin-1 characters."""
-    safe = text.encode("latin-1", "replace").decode("latin-1")
+    """Escape a string for a PDF literal, dropping only truly unrenderable chars.
+
+    The font is declared ``/WinAnsiEncoding`` (CP1252), so encode to CP1252, not
+    Latin-1: CP1252 is a superset in ``0x80-0x9F`` that carries the ordinary
+    punctuation Latin-1 would silently turn into ``?`` — a curly apostrophe
+    (``'``), en/em dashes (``-``/``--``), and the euro sign (``EUR``) — which the PDF's
+    own font renders. Genuinely unrepresentable characters (e.g. non-Latin scripts)
+    still become ``?``, unavoidable in a Helvetica/WinAnsi core font.
+    """
+    safe = text.encode("cp1252", "replace").decode("cp1252")
     return safe.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
 
@@ -155,7 +163,7 @@ def _content_stream(page_lines: list[str]) -> bytes:
     for line in page_lines:
         parts.append(f"({_escape(line)}) Tj T*")
     parts.append("ET")
-    return "\n".join(parts).encode("latin-1")
+    return "\n".join(parts).encode("cp1252")  # matches the declared WinAnsiEncoding font
 
 
 def render_pdf(report: DesignReport) -> bytes:

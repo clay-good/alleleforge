@@ -50,6 +50,19 @@ def test_pdf_escapes_parentheses(nuclease_menu: RankedMenu) -> None:
     assert b"\\(" in pdf and b"\\)" in pdf
 
 
+def test_pdf_escape_keeps_winansi_punctuation() -> None:
+    # The font is declared /WinAnsiEncoding (CP1252). Encoding to Latin-1 silently
+    # turned ordinary punctuation the font *can* render into "?" — data loss on the
+    # printable leave-behind. CP1252 keeps the curly apostrophe, en-dash, and euro;
+    # only genuinely unrepresentable scripts still fall back to "?".
+    from alleleforge.report.pdf import _escape
+
+    assert _escape("Nature’s") == "Nature’s"  # curly apostrophe survives
+    assert _escape("exon 3–13") == "exon 3–13"  # en-dash survives
+    assert _escape("cost €5") == "cost €5"  # euro survives
+    assert _escape("中文") == "??"  # CJK is unrenderable in WinAnsi -> replaced
+
+
 def test_pdf_includes_ancestry_offtarget(ancestry_menu: RankedMenu) -> None:
     pdf = render_pdf(build_report(ancestry_menu))
     assert b"afr: worst score" in pdf
