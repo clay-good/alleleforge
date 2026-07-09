@@ -25,7 +25,7 @@ from alleleforge.offtarget._search import (
     _reindex_alt_hits,
     scan_sequence,
 )
-from alleleforge.offtarget.population import _reference_best, _strengthens
+from alleleforge.offtarget.population import _reference_best, _strengthens, _touches
 from alleleforge.offtarget.scoring import CfdScorer, OffTargetScorer
 from alleleforge.types.guide import PAM
 from alleleforge.types.offtarget import SiteOrigin
@@ -146,7 +146,7 @@ def enumerate_haplotype_sites(
         ref_best = _reference_best(
             scan_sequence(chrom, ref_seq, sp, pam, offset=start, **kw), scorer
         )
-        var_positions = [v.pos for v in applied_vars]
+        var_spans = [(v.pos, len(v.ref)) for v in applied_vars]
         applied_edits = sorted((v.pos - start, len(v.ref), len(v.alt)) for v in applied_vars)
         # A population "carries" the haplotype only at or above the safety
         # threshold; apply it whether or not the caller restricts the populations
@@ -168,7 +168,10 @@ def enumerate_haplotype_sites(
         # correctly (and the ref-vs-alt comparison keys on the true locus).
         alt_local = scan_sequence(chrom, alt_seq, sp, pam, offset=0, **kw)
         for h in _reindex_alt_hits(alt_local, len(ref_seq), start, applied_edits):
-            if not any(h.start - pam_len <= p < h.end + pam_len for p in var_positions):
+            # Attribute the alt hit to the haplotype only if it overlaps one of the
+            # applied variants' spans (span, not just the anchor, so a multi-base
+            # deletion/MNV whose non-anchor bases reach the window is not dropped).
+            if not any(_touches(h, pos, ref_len, pam_len) for pos, ref_len in var_spans):
                 continue
             if _strengthens(h, ref_best.get((h.strand, h.start, h.end)), scorer):
                 out.append((h, prov))

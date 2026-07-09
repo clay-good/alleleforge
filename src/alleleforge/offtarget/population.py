@@ -44,9 +44,19 @@ def _apply(seq: str, rel: int, ref: str, alt: str) -> str:
     return seq[:rel] + alt + seq[rel + len(ref) :]
 
 
-def _touches(hit: Hit, pos: int, pam_len: int) -> bool:
-    """Return ``True`` if ``pos`` lies in the hit's protospacer-or-PAM span."""
-    return hit.start - pam_len <= pos < hit.end + pam_len
+def _touches(hit: Hit, pos: int, ref_len: int, pam_len: int) -> bool:
+    """Return whether the variant's span intersects the hit's protospacer-or-PAM window.
+
+    The variant occupies ``[pos, pos + ref_len)`` (``ref_len`` = 1 for an SNV); the
+    hit's window with the PAM margin is ``[hit.start - pam_len, hit.end + pam_len)``.
+    Testing only the anchor ``pos`` would drop a multi-base deletion/MNV whose
+    *other* changed bases reach into the window while the anchor sits just outside —
+    a false negative in the safety-critical nomination path. Half-open overlap
+    reduces to the previous ``hit.start - pam_len <= pos < hit.end + pam_len`` when
+    ``ref_len == 1``, so SNV attribution is unchanged.
+    """
+    var_end = pos + max(1, ref_len)
+    return hit.start - pam_len < var_end and pos < hit.end + pam_len
 
 
 #: The strongest reference hit at a placement: ``(best specificity score, fewest edits)``.
@@ -161,7 +171,7 @@ def _variant_window_hits(
     alt_local = scan_sequence(chrom, alt_seq, spacer, pam, offset=0, **kw)
     created: list[Hit] = []
     for h in _reindex_alt_hits(alt_local, len(ref_seq), start, applied):
-        if not _touches(h, pos, len(pam.pattern)):
+        if not _touches(h, pos, len(ref), len(pam.pattern)):
             continue
         if _strengthens(h, ref_best.get((h.strand, h.start, h.end)), scorer):
             created.append(h)

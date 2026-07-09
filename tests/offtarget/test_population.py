@@ -42,6 +42,30 @@ def test_nomination_scores_dna_bulge_hits_like_reporting() -> None:
     assert nominated != published
 
 
+def test_touches_uses_variant_span_not_just_anchor() -> None:
+    # A multi-base deletion/MNV must be attributed to a hit when *any* of its
+    # changed bases reach the hit's protospacer+PAM window — testing only the
+    # anchor `pos` drops a hit whose overlap is at a non-anchor base (a false
+    # negative in the safety-critical nomination path). SNV behavior is unchanged.
+    from alleleforge.offtarget._search import Hit
+    from alleleforge.offtarget.population import _touches
+    from alleleforge.types.sequence import Strand
+
+    hit = Hit(
+        chrom="chr1", start=104, end=124, strand=Strand.PLUS, pam_sequence="TGG",
+        aligned_spacer="A" * 20, aligned_target="A" * 20, mismatches=0,
+        dna_bulges=0, rna_bulges=0,
+    )  # window with pam_len=3 is [101, 127)
+    # anchor pos=100 is outside the window, but the 3-base span [100, 103) reaches
+    # bases 101/102 inside it -> must be attributed.
+    assert _touches(hit, 100, 3, 3) is True
+    assert _touches(hit, 100, 1, 3) is False  # an SNV at 100 really is outside
+    # SNV equivalence with the previous point test at the window's edges.
+    assert _touches(hit, 101, 1, 3) is True  # 101 == hit.start - pam_len (inclusive)
+    assert _touches(hit, 126, 1, 3) is True  # 126 < hit.end + pam_len (127)
+    assert _touches(hit, 127, 1, 3) is False  # 127 == hit.end + pam_len (exclusive)
+
+
 def test_de_novo_pam_creation(make_reference: MakeRef) -> None:
     # Reference has no PAM (CGT); a T->G at the PAM's 3rd base creates CGG.
     ref = make_reference({"chr2": PAD + SPACER + "CGT" + PAD})
