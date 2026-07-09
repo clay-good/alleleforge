@@ -107,6 +107,16 @@ def test_to_one_based_roundtrip_semantics() -> None:
     assert one.length == iv.length
 
 
+def test_to_one_based_rejects_empty_interval() -> None:
+    # A zero-length half-open interval is a valid GenomicInterval (an insertion
+    # point), but 1-based-inclusive has no zero-length form. Converting one used to
+    # leak a misleading "end precedes start" bounds error naming coordinates the
+    # caller never supplied; it must fail with the real cause.
+    iv = GenomicInterval(chrom="chr1", start=5, end=5, strand=Strand.PLUS)
+    with pytest.raises(ValueError, match="empty interval"):
+        iv.to_one_based()
+
+
 def test_to_one_based_rejects_double_conversion() -> None:
     iv = GenomicInterval(
         chrom="c",

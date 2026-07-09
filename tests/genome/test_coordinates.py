@@ -178,6 +178,25 @@ def test_liftover_length_change_returns_none() -> None:
     assert lo.lift_interval(_iv("chr1", 10, 20), length_tolerance=5) is not None
 
 
+def test_liftover_balanced_interior_gap_returns_none() -> None:
+    # A *balanced* chain gap — a source deletion (bases 15-17 unmapped) and a
+    # target insertion of the same size — leaves the two endpoints mapped and the
+    # span length unchanged, so an endpoint-only faithfulness check passed it and
+    # emitted a scrambled interval. The interior bases map to nothing, so the lift
+    # does NOT "describe the same bases" and must fail closed.
+    def chain(c: str, p: int) -> list[tuple[str, int, str, int]]:
+        if 15 <= p < 18:
+            return []  # source 15,16,17 deleted (the dt side of the balanced gap)
+        return [("chrA", p + 200, "+", 100)]  # endpoints 10->210, 19->219: span 10 kept
+
+    lo = Liftover(chain, source_build="hg38", target_build="t2t")
+    # endpoints map cleanly and the endpoint span equals the source length...
+    assert lo.convert_position("chr1", 10) == ("chrA", 210, Strand.PLUS)
+    assert lo.convert_position("chr1", 19) == ("chrA", 219, Strand.PLUS)
+    # ...but the interior is unmapped, so the faithful-lift guard must reject it.
+    assert lo.lift_interval(_iv("chr1", 10, 20)) is None
+
+
 def test_convert_position_none_when_unmapped() -> None:
     lo = Liftover(lambda c, p: [], source_build="hg38", target_build="t2t")
     assert lo.convert_position("chr1", 5) is None

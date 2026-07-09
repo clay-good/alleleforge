@@ -228,19 +228,29 @@ class Liftover:
             raise ValueError("lift_interval requires a 0-based half-open interval")
         if interval.length == 0:
             raise ValueError("cannot lift an empty interval")
-        start = self.convert_position(interval.chrom, interval.start)
-        last = self.convert_position(interval.chrom, interval.end - 1)
-        if start is None or last is None or start[0] != last[0]:
-            return None
-        if start[2] is not last[2]:
-            return None  # endpoints split across strands (inversion boundary)
-        lo_pos, hi_pos = sorted((start[1], last[1]))
+        # Lift *every* base, not just the two endpoints. An endpoint-only check
+        # passes a **balanced** interior chain gap — a target insertion the same
+        # size as a source deletion — because it leaves the endpoints mapped and
+        # the span length unchanged while the interior bases map to nothing: a
+        # scrambled image the "describes the same bases" guarantee forbids. The
+        # lifted intervals here are short (guides/windows, ~20-200 bp), so the
+        # per-base scan is cheap.
+        lifted: list[tuple[str, int, Strand]] = []
+        for p in range(interval.start, interval.end):
+            mapped = self.convert_position(interval.chrom, p)
+            if mapped is None:
+                return None  # some base does not map (a chain deletion in the span)
+            lifted.append(mapped)
+        if len({m[0] for m in lifted}) != 1 or len({m[2] for m in lifted}) != 1:
+            return None  # the span crosses contigs or a strand/inversion boundary
+        positions = sorted(m[1] for m in lifted)
+        lo_pos, hi_pos = positions[0], positions[-1]
         lifted_length = hi_pos + 1 - lo_pos
         if abs(lifted_length - interval.length) > length_tolerance:
             return None  # a chain indel resized the span; the lift is not faithful
-        strand = interval.strand if start[2] is Strand.PLUS else interval.strand.opposite()
+        strand = interval.strand if lifted[0][2] is Strand.PLUS else interval.strand.opposite()
         return GenomicInterval(
-            chrom=start[0],
+            chrom=lifted[0][0],
             start=lo_pos,
             end=hi_pos + 1,
             strand=strand,

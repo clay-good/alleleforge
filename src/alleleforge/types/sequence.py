@@ -213,10 +213,17 @@ class GenomicInterval(BaseModel):
         ``[start + 1, end]``. Never use the result for internal arithmetic.
 
         Raises:
-            ValueError: If the interval is already 1-based.
+            ValueError: If the interval is already 1-based, or is empty (a
+                zero-length half-open interval has no 1-based-inclusive form).
         """
         if self.coordinate_system is CoordinateSystem.ONE_BASED:
             raise ValueError("interval is already 1-based")
+        if self.start == self.end:
+            # 1-based-inclusive has no zero-length representation; converting
+            # would yield end < start and trip the bounds validator with a
+            # misleading "end precedes start" error that names coordinates the
+            # caller never supplied. Fail with the real cause instead.
+            raise ValueError("cannot express an empty interval in 1-based-inclusive coordinates")
         return GenomicInterval(
             chrom=self.chrom,
             start=self.start + 1,
