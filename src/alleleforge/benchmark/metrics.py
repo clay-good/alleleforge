@@ -92,7 +92,13 @@ def kl_divergence(p: Mapping[str, float], q: Mapping[str, float], *, eps: float 
     divergence is finite even when ``q`` assigns zero mass to a category ``p``
     supports. ``p`` is the observed/true distribution, ``q`` the predicted one.
     """
-    keys = set(p) | set(q)
+    # Sort the key union: a bare set iterates in PYTHONHASHSEED-dependent order, so
+    # the non-associative float summation below (and the `_normalize` totals, whose
+    # dicts are built by comprehension over these keys) would vary run-to-run in the
+    # low bits — breaking the "bit-stable across machines" contract this module
+    # promises and perturbing the signed benchmark result. Same fix as the Round 9
+    # `ensemble_outcome` sorted-allele merge.
+    keys = sorted(set(p) | set(q))
     if not keys:
         return 0.0
     pn = _normalize({k: p.get(k, 0.0) for k in keys})

@@ -61,6 +61,35 @@ def test_kl_empty_is_zero() -> None:
     assert kl_divergence({}, {}) == 0.0
 
 
+def test_kl_is_byte_stable_across_hash_seeds() -> None:
+    # kl_divergence summed floats over a bare `set(p) | set(q)`, whose iteration
+    # order is PYTHONHASHSEED-dependent; non-associative float addition then made
+    # the low bits vary run-to-run — perturbing the signed benchmark result and
+    # breaking the module's "bit-stable across machines" contract. Run the same
+    # KL in fresh interpreters under different hash seeds; the repr must be equal.
+    import os
+    import subprocess
+    import sys
+
+    prog = (
+        "from alleleforge.benchmark.metrics import kl_divergence;"
+        "p={f'allele_{i:03d}':(i%7)+1 for i in range(60)};"
+        "q={f'allele_{i:03d}':((i*3)%5)+1 for i in range(60)};"
+        "print(repr(kl_divergence(p,q)))"
+    )
+    outs = {
+        subprocess.run(
+            [sys.executable, "-c", prog],
+            capture_output=True,
+            text=True,
+            check=True,
+            env={**os.environ, "PYTHONHASHSEED": str(seed)},
+        ).stdout.strip()
+        for seed in (0, 1, 2, 3, 4)
+    }
+    assert len(outs) == 1, f"kl_divergence is hash-seed dependent: {outs}"
+
+
 def test_topk_accuracy() -> None:
     predicted = {"del": 0.6, "ins": 0.3, "wt": 0.1}
     observed = {"del": 0.7, "ins": 0.2, "wt": 0.1}
