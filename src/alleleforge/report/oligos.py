@@ -340,8 +340,9 @@ def sgrna_oligos(
     """Build the annealed oligo duplex for an sgRNA spacer.
 
     The 5' U6-start ``G`` is added only when the spacer does not already begin with
-    ``G`` (recorded in ``g_added``), and the emitted insert is screened for the
-    scheme enzyme's own recognition site (recorded in ``warnings``).
+    ``G`` (recorded in ``g_added``), and the assembled top strand (overhang +
+    insert) is screened for the scheme enzyme's own recognition site — including
+    one straddling the overhang/insert junction — recorded in ``warnings``.
 
     Args:
         spacer: The 5'->3' spacer sequence.
@@ -356,7 +357,11 @@ def sgrna_oligos(
     g = "G" if g_added else ""
     top = scheme.top_overhang + g + spacer
     bottom = scheme.bottom_overhang + revcomp(g + spacer)
-    warnings = _screen_enzyme_site(g + spacer, scheme.enzyme, label=kind)
+    # Screen the assembled top strand (overhang + insert), not the bare insert: the
+    # enzyme site can straddle the overhang/insert junction (e.g. a BsmBI CGTCTC
+    # formed by the CACC overhang's trailing C + a spacer beginning GTCTC), which
+    # reconstitutes a cloning-lethal internal site the ligated plasmid carries.
+    warnings = _screen_enzyme_site(top, scheme.enzyme, label=kind)
     oligos = SgRnaOligos(
         kind=kind, spacer=spacer, top=top, bottom=bottom, scheme=scheme,
         g_added=g_added, warnings=warnings,
@@ -396,10 +401,13 @@ def pegrna_oligos(pegrna: PegRNA, *, scheme: VectorScheme = PEGRNA_GG_BSAI) -> P
     ext_top = ext_top_overhang + ext_body
     ext_bottom = ext_bottom_overhang + revcomp(ext_body)
 
-    # Screen both variable inserts the enzyme would see: the spacer duplex and the
-    # 3' extension (RTT+PBS+motif). An internal site in either is cloning-lethal.
-    warnings = _screen_enzyme_site(g + spacer, scheme.enzyme, label="pegrna-spacer") + (
-        _screen_enzyme_site(ext_body, scheme.enzyme, label="pegrna-extension")
+    # Screen the assembled top strand of both inserts the enzyme would see — the
+    # spacer duplex and the 3' extension (RTT+PBS+motif) — each including its
+    # overhang, so a recognition site straddling the overhang/insert junction is
+    # caught (it reconstitutes a cloning-lethal internal site in the ligated
+    # plasmid), not only a site wholly inside the bare insert body.
+    warnings = _screen_enzyme_site(spacer_top, scheme.enzyme, label="pegrna-spacer") + (
+        _screen_enzyme_site(ext_top, scheme.enzyme, label="pegrna-extension")
     )
 
     nicking = None

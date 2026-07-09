@@ -73,6 +73,17 @@ def test_internal_site_screened_on_both_strands() -> None:
     assert any("internal-BbsI-site" in w and ":-@" in w for w in oligos.warnings)
 
 
+def test_enzyme_site_straddling_the_overhang_junction_is_flagged() -> None:
+    # The recognition site can form across the overhang/insert junction, not only
+    # wholly inside the insert body. lentiGuide's CACC overhang + a spacer beginning
+    # GTCTC reconstitutes a BsmBI CGTCTC in the assembled top oligo — cloning-lethal,
+    # and previously shipped clean because only the bare insert was screened.
+    spacer = "GTCTCGGAAGATGGGTGCGT"  # 20 nt, begins with G (no U6 G prepended)
+    oligos = sgrna_oligos(spacer, scheme=LENTIGUIDE_BSMBI)
+    assert "CGTCTC" in oligos.top  # the assembled duplex carries the site
+    assert any(w.startswith("internal-BsmBI-site") for w in oligos.warnings)
+
+
 def test_clean_spacer_carries_no_enzyme_warning() -> None:
     oligos = sgrna_oligos(SPACER, scheme=LENTIGUIDE_BSMBI)
     assert oligos.warnings == ()
