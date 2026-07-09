@@ -365,7 +365,7 @@ gaps live at the INTERFACE seams — the same run recorded differently on two su
 a config source) and a delimiter one emitter strips but its sibling doesn't. Parity across surfaces is
 its own audit axis.**
 
-## Round 16 — trust-contract completeness, benchmark science, driven concurrency (3 fixes)
+## Round 16 — trust-contract completeness, benchmark science, driven concurrency (4 fixes)
 
 Three lenses (two driven by subagents, one an independent read of the `af verify` reproducibility
 command): (1) the `af verify` contract vs its spec; (2) benchmark metric correctness on edge inputs;
@@ -381,15 +381,16 @@ the `inf` guard.
 | `fix(cli)` verify re-hashes datasets | provenance-reproducibility, data-registry | The spec's tamper contract covers a "checkpoint *or dataset*" whose bytes no longer match its hash, but `af verify` re-hashed only `provenance.models`, never `provenance.datasets`. Reachable: the vendored Doench-2016 CFD matrix is a registry dataset with a real pinned `sha256`, so a tampered CFD matrix (the heart of off-target scoring) passed verification silently. **Shipped:** a symmetric dataset re-hash loop; `--cache-dir` covers both artifact kinds. |
 | `fix(benchmark)` ±inf is degenerate | benchmark-harness | The NaN guard (`v != v`) missed `±inf`, a finite-ordering value that sorts largest and passes every `<= 0` / `==` check. An `inf` score made spearman/roc_auc/pr_auc score corrupt input as a **perfect** 1.0, made pearson return non-JSON `NaN`, and *crashed* ECE on `int(inf*n_bins)`. Reachable: `Prediction` admits `value=inf`. **Shipped:** broaden the shared guard to `not math.isfinite`. |
 | `fix(cache)` put_bytes concurrency | provenance-reproducibility | (1) verify=True wrote the sidecar *after* the payload, so a concurrent reader saw a payload with no sidecar and the fail-closed check (added earlier this session) raised on valid data (16 threads → 15 spurious errors). (2) `id(data)` temp names collided for two threads sharing a bytes object → `FileNotFoundError`. **Shipped:** publish the sidecar before the payload; per-write `uuid` temp token. |
+| `fix(benchmark)` reject signed non-finite | benchmark-harness | The leaderboard sorts on `primary_value`; a `NaN` there loses every comparison, so a single externally-signed submission carrying `NaN` would make the whole board's ranking non-deterministic. The computed path is finite (the metrics guard above), but a *signed* value is a claim deserialized from JSON. **Shipped:** `BenchmarkResult` validates `primary_value` + metric values finite on construction/deserialization and raises otherwise. |
 
 **Note:** the concurrency defect (1) was an interaction with this session's own earlier
 `fix(cache)` fail-closed-on-missing-sidecar change — a fix in one round opened a seam in the next (the
 R8 meta-lesson), caught here because the concurrency lens *drove* the write/read race rather than
-reading the method. **Non-blocking follow-up flagged (not shipped):** the leaderboard trusts a
-self-signed `primary_value` and doesn't validate it finite, so a signed `NaN` would make the ranking
-sort non-deterministic — the "you sign your own numbers" trust boundary, noted for a future pass.
+reading the method. The benchmark lens's flagged follow-up (a self-signed non-finite `primary_value`
+scrambling the sort) was then shipped as the fourth fix, completing the finiteness theme — the metrics
+*compute* finite and ingestion *rejects* non-finite claims.
 
-Yield 5/3/3/0/7/3/7/3/2/4/4/5/3/3. **Lesson: the trust-contract commands (`af verify`) and the
+Yield 5/3/3/0/7/3/7/3/2/4/4/5/3/4. **Lesson: the trust-contract commands (`af verify`) and the
 fallback/concurrency cost model are where gaps now live — and driving contention (not reading it)
 is what surfaced a race that a fresh same-session fix had just opened.**
 
