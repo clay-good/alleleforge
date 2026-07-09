@@ -114,6 +114,27 @@ def test_haplotype_stage(make_reference: MakeRef) -> None:
     assert report.sites[0].origin is SiteOrigin.POPULATION
 
 
+def test_regions_scope_excludes_out_of_region_haplotype_sites(make_reference: MakeRef) -> None:
+    # An explicit `regions` scope must bound *every* pass. The haplotype panel here
+    # creates a site at chr2:10-30, but the caller scoped the search to a disjoint
+    # window — that site must not be reported (previously the haplotype/patient
+    # passes ignored `regions` and leaked out-of-scope hits).
+    ref = make_reference({"chr2": PAD + SPACER + "CGT" + PAD})
+    hap = Haplotype(
+        hap_id="H1",
+        interval=GenomicInterval(chrom="chr2", start=10, end=40, strand=Strand.PLUS),
+        variants=(Variant(chrom="chr2", pos=32, ref="T", alt="G"),),
+        frequencies={"AFR": 0.2},
+        source="1000g",
+    )
+    disjoint = GenomicInterval(chrom="chr2", start=40, end=43, strand=Strand.PLUS)
+    scoped = search(SPACER, NGG, reference=ref, haplotypes=[hap], regions=[disjoint])
+    assert scoped.n_sites == 0
+    # The same haplotype site is reported when the scope covers it (proving it exists).
+    covering = GenomicInterval(chrom="chr2", start=0, end=43, strand=Strand.PLUS)
+    assert search(SPACER, NGG, reference=ref, haplotypes=[hap], regions=[covering]).n_sites == 1
+
+
 def test_patient_vcf_stage(make_reference: MakeRef) -> None:
     ref = make_reference({"chr2": PAD + SPACER + "CGT" + PAD})
     report = search(

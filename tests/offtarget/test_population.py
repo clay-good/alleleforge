@@ -17,6 +17,31 @@ NRG = PAM(pattern="NRG")
 MakeRef = Callable[[dict[str, str]], ReferenceGenome]
 
 
+def test_nomination_scores_dna_bulge_hits_like_reporting() -> None:
+    # Nomination and reporting must score a hit the same way, or a population hit can
+    # be judged "not strengthening" (and lose its ancestry attribution) by a number
+    # the report never shows. A DNA bulge collapses the target but leaves both strings
+    # 20 nt, so the CFD fallback only fires when the bulge status is passed through —
+    # nomination must pass `bulged=` exactly as engine._scores does for reporting.
+    from alleleforge.offtarget._search import Hit
+    from alleleforge.offtarget.population import _reference_best
+    from alleleforge.offtarget.scoring import CfdScorer
+    from alleleforge.types.sequence import Strand
+
+    sp = "GACGCTAGACGATCGATCGA"
+    tg = "GACGCTAGACGATCGATCGT"  # one PAM-proximal mismatch
+    published = CfdScorer().score(sp, tg, "AGG")
+    approx = CfdScorer(approximate=True).score(sp, tg, "AGG")
+    assert published != approx  # the two paths give different numbers here
+    hit = Hit(
+        chrom="chr2", start=100, end=120, strand=Strand.PLUS, pam_sequence="AGG",
+        aligned_spacer=sp, aligned_target=tg, mismatches=1, dna_bulges=1, rna_bulges=0,
+    )
+    nominated = _reference_best([hit], CfdScorer())[(Strand.PLUS, 100, 120)][0]
+    assert nominated == approx  # the bulge-collapsed approximation, matching reporting
+    assert nominated != published
+
+
 def test_de_novo_pam_creation(make_reference: MakeRef) -> None:
     # Reference has no PAM (CGT); a T->G at the PAM's 3rd base creates CGG.
     ref = make_reference({"chr2": PAD + SPACER + "CGT" + PAD})

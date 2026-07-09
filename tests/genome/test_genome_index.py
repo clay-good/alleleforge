@@ -85,6 +85,21 @@ def test_engine_parity_with_and_without_genome_index(tmp_path: Path, mismatches:
     gi.close()
 
 
+def test_search_rejects_genome_index_from_a_different_assembly(tmp_path: Path) -> None:
+    # A genome_index built for one assembly, passed alongside a reference from
+    # another, would anchor PAMs over the index's sequence while reading coordinates
+    # from the reference — silently wrong hits. The engine fails closed instead.
+    contigs = {"chrA": PAD + SPACER + "TGG" + PAD}
+    ref_hg38 = _reference(tmp_path, contigs)  # build="hg38"
+    gi = GenomeIndex.build_genome(ref_hg38, cache_dir=tmp_path / "idx")
+    fasta = tmp_path / "grch37.fa"
+    fasta.write_text("".join(f">{c}\n{s}\n" for c, s in contigs.items()))
+    ref_grch37 = ReferenceGenome(fasta, build="GRCh37")
+    with pytest.raises(ValueError, match="mismatched index"):
+        search(SPACER, NGG, reference=ref_grch37, genome_index=gi)
+    gi.close()
+
+
 def test_cross_run_reuse_does_not_rebuild(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     contigs = {"chrA": PAD + SPACER + "TGG" + PAD}
     ref = _reference(tmp_path, contigs)

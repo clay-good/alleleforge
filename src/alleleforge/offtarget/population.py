@@ -54,7 +54,8 @@ def _reference_best(
     best: dict[tuple[Strand, int, int], ReferenceBest] = {}
     for h in hits:
         key = (h.strand, h.start, h.end)
-        s = scorer.score(h.aligned_spacer, h.aligned_target, h.pam_sequence)
+        bulged = h.dna_bulges > 0 or h.rna_bulges > 0
+        s = scorer.score(h.aligned_spacer, h.aligned_target, h.pam_sequence, bulged=bulged)
         prev = best.get(key)
         best[key] = (max(s, prev[0]), min(h.edits, prev[1])) if prev is not None else (s, h.edits)
     return best
@@ -74,7 +75,10 @@ def _strengthens(hit: Hit, prior: ReferenceBest | None, scorer: OffTargetScorer)
     if prior is None:
         return True
     prior_score, prior_edits = prior
-    alt_score = scorer.score(hit.aligned_spacer, hit.aligned_target, hit.pam_sequence)
+    bulged = hit.dna_bulges > 0 or hit.rna_bulges > 0
+    alt_score = scorer.score(
+        hit.aligned_spacer, hit.aligned_target, hit.pam_sequence, bulged=bulged
+    )
     return alt_score > prior_score or hit.edits < prior_edits
 
 

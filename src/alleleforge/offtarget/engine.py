@@ -35,7 +35,7 @@ from alleleforge.offtarget.scoring import CfdScorer, OffTargetScorer, mit_score
 from alleleforge.types.guide import PAM, Spacer
 from alleleforge.types.offtarget import OffTargetReport, OffTargetSite, ScoreMethod, SiteOrigin
 from alleleforge.types.sequence import CoordinateSystem, DNASequence, GenomicInterval, Strand
-from alleleforge.types.variant import Variant
+from alleleforge.types.variant import Variant, assembly_matches
 
 #: Report any site scoring at or above either threshold (spec defaults).
 DEFAULT_CFD_THRESHOLD = 0.20
@@ -135,6 +135,18 @@ def _to_site(
     )
 
 
+def _in_regions(hit: Hit, regions: Sequence[GenomicInterval]) -> bool:
+    """Return whether ``hit``'s locus overlaps any of ``regions`` (naming-aware)."""
+    locus = GenomicInterval(
+        chrom=hit.chrom,
+        start=hit.start,
+        end=hit.end,
+        strand=hit.strand,
+        coordinate_system=CoordinateSystem.ZERO_BASED_HALF_OPEN,
+    )
+    return any(locus.overlaps(region) for region in regions)
+
+
 def _contig_regions(reference: ReferenceGenome) -> list[GenomicInterval]:
     """Return one plus-strand interval spanning each contig of ``reference``."""
     return [
@@ -222,6 +234,17 @@ def search(
     scan_pam = low_stringency_pam(pam)
     search_regions = list(regions) if regions is not None else _contig_regions(reference)
     haplotype_list = list(haplotypes)
+
+    # A genome_index built from a different assembly than `reference` would anchor
+    # PAMs over the index's sequence while reading bases/coordinates from this
+    # reference — silently wrong hits. Fail closed when both builds are known and
+    # disagree (content-addressing guards the FM cache, but not this consumer seam).
+    if genome_index is not None and reference.build is not None and genome_index.build is not None:
+        if not assembly_matches(genome_index.build, reference.build):
+            raise ValueError(
+                f"genome_index was built for assembly {genome_index.build!r} but the reference "
+                f"is {reference.build!r}; a mismatched index yields silently wrong coordinates"
+            )
     kw: SearchBudget = {
         "mismatches": mismatches,
         "dna_bulges": dna_bulges,
@@ -322,6 +345,15 @@ def search(
                 sp, scan_pam, reference=reference, variants=patient_vcf, scorer=primary, **kw
             )
         )
+
+    # Honor an explicit `regions` scope across *every* pass. The reference and
+    # population passes iterate `search_regions` and so are already in-scope, but the
+    # haplotype and patient passes consume whole (possibly chromosome-wide) panels
+    # with no region argument — without this filter a caller who scoped the search
+    # would still see out-of-region hits those panels create. When `regions` is None
+    # the scope is every contig, so this is a no-op.
+    if regions is not None:
+        tagged = [(hit, prov) for hit, prov in tagged if _in_regions(hit, search_regions)]
 
     # Stage 5 — score, threshold, de-duplicate, sort. Sites below the reporting
     # threshold are not reported, but their best per-placement score is carried into
