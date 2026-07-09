@@ -23,7 +23,9 @@ variant is recorded with its error and the cohort continues.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
@@ -167,8 +169,9 @@ def design_many(
         resume: Skip items already recorded in ``manifest_path``.
         on_result: Called with each :class:`CohortItemResult` as it completes; when
             given, results are streamed (not accumulated) for ``O(1)`` memory.
-        output_dir: If set, each item's full menu JSON is written to
-            ``<output_dir>/<item_id>.json`` so reports survive the run.
+        output_dir: If set, each item's full menu JSON is written atomically to
+            ``<output_dir>/<sanitized-item_id>.<hash>.json`` (the hash keeps the
+            filename collision-free) so reports survive the run.
         max_workers: Thread pool size (needs ``reference_factory`` when ``> 1``).
         item_id: Maps an input to its stable id (default ``str``); used for resume
             de-duplication and the per-item output filename.
@@ -236,7 +239,7 @@ def design_many(
                 error=f"unexpected {type(exc).__name__} (likely a defect): {exc}",
             )
         if out_dir is not None:
-            (out_dir / f"{_safe_name(iid)}.json").write_text(menu.model_dump_json())
+            _atomic_write_text(out_dir / f"{_safe_name(iid)}.json", menu.model_dump_json())
         return CohortItemResult(iid, "ok", _summarize(menu), None)
 
     pending = (item for item in variants if id_of(item) not in done)
@@ -315,5 +318,27 @@ def _build_name(
 
 
 def _safe_name(item_id: str) -> str:
-    """Return a filesystem-safe form of ``item_id`` for a per-item output file."""
-    return "".join(c if c.isalnum() or c in "-._" else "_" for c in item_id)
+    """Return a filesystem-safe, collision-free stem for a per-item output file.
+
+    The sanitizer maps every non-``[alnum-._]`` character to ``_``, so distinct
+    ids that differ only in such characters (e.g. ``chr1:100:A:T`` vs
+    ``chr1:100:A/T``, both → ``chr1_100_A_T``) would share a filename and silently
+    overwrite each other — escalated to a torn write when two collide in flight on
+    the parallel path. Appending a short digest of the *raw* id makes the stem
+    injective while keeping it human-readable.
+    """
+    slug = "".join(c if c.isalnum() or c in "-._" else "_" for c in item_id)
+    digest = hashlib.sha1(item_id.encode("utf-8")).hexdigest()[:8]
+    return f"{slug}.{digest}"
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    """Write ``text`` to ``path`` atomically (temp file in the same dir + rename).
+
+    A plain ``write_text`` leaves a window in which a concurrent reader (or a
+    crash) sees a truncated file; ``os.replace`` of a fully-written temp file is
+    atomic on POSIX and Windows, so a per-item report is never observed partial.
+    """
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    tmp.write_text(text)
+    os.replace(tmp, path)

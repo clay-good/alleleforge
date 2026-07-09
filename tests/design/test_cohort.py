@@ -114,11 +114,29 @@ def test_streaming_mode_keeps_items_empty(reference: ReferenceGenome) -> None:
 
 
 def test_output_dir_writes_per_item_menu_json(reference: ReferenceGenome, tmp_path: Path) -> None:
+    import json
+
     out = tmp_path / "menus"
     design_many([OK_1], reference=reference, intent=EditIntent.INSTALL, output_dir=out)
     written = list(out.glob("*.json"))
     assert len(written) == 1
     assert "chr2_26_A_G" in written[0].name  # id sanitized for the filesystem
+    # The write is atomic (temp file + os.replace): the file is complete valid
+    # JSON and no half-written temp file is left behind.
+    json.loads(written[0].read_text())
+    assert not list(out.glob("*.tmp"))
+
+
+def test_safe_name_is_injective_across_sanitization_collisions() -> None:
+    # Distinct ids that differ only in characters the sanitizer maps to `_` used
+    # to share a filename and silently overwrite (torn-write, in parallel) each
+    # other; the appended digest of the raw id keeps the stem injective.
+    from alleleforge.design.cohort import _safe_name
+
+    a, b = "chr1:100:A:T", "chr1:100:A/T"  # both sanitize to chr1_100_A_T
+    assert _safe_name(a).split(".")[0] == _safe_name(b).split(".")[0]  # same slug
+    assert _safe_name(a) != _safe_name(b)  # but distinct filenames
+    assert _safe_name(a) == _safe_name(a)  # and stable for a given id
 
 
 def test_lazy_streaming_does_not_materialize_input(reference: ReferenceGenome) -> None:
