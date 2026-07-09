@@ -10,6 +10,17 @@ acceptance.
 
 ### Fixed
 
+- **The working-interval clamp now fires across contig-naming styles.** The spec promises the
+  ±`window` interval is clamped to `[0, contig_length]` whenever a reference is available, but
+  `_working_interval` gated the clamp on raw `variant.chrom in reference.contigs` membership —
+  the one contig access in the subsystem that skipped the naming reconciliation. On the common
+  path (a `chr`-prefixed ClinVar/dbSNP variant against the Ensembl-named built-in hg38) the
+  contig is present only under its aliased name, so the guard was `False` and the clamp was
+  silently skipped, leaking a working interval whose end ran past the true contig end. The
+  clamp now goes through the naming-reconciling `contig_length` accessor (catching `KeyError`
+  for a genuinely absent contig), so it fires under either naming style. (Round 3
+  deep-correctness pass.)
+
 - **The design report now names the off-target scoring basis (scorer + matrix).** The
   reporting spec requires every rendered report to state which scorer and specificity matrix
   produced the off-target numbers (published Doench 2016 CFD versus the labeled seed-tolerance

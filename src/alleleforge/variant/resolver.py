@@ -340,8 +340,16 @@ def _working_interval(
     """Return the +/- ``window`` analysis interval around ``variant``."""
     start = max(0, variant.pos - window)
     end = variant.pos + max(1, len(variant.ref)) + window
-    if reference is not None and variant.chrom in reference.contigs:
-        end = min(end, reference.contig_length(variant.chrom))
+    if reference is not None:
+        # Clamp through the naming-reconciling accessor, not raw `contigs`
+        # membership: a `chr`-named variant against an Ensembl-named reference (the
+        # common ClinVar/dbSNP-vs-built-in-hg38 path) is present under its aliased
+        # name, so `contig_length` resolves it while `variant.chrom in contigs`
+        # would be False and silently skip the clamp, leaking an off-contig end.
+        try:
+            end = min(end, reference.contig_length(variant.chrom))
+        except KeyError:  # genuinely absent (incl. unresolvable naming mismatch)
+            pass
     return GenomicInterval(
         chrom=variant.chrom,
         start=start,

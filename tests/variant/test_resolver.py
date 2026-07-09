@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from alleleforge.data.clinvar import ClinVarDB
@@ -191,6 +193,20 @@ def test_working_interval_clamped_to_contig(reference: ReferenceGenome) -> None:
     rv = resolve("chr2:6:A>G", reference=reference, window=100)
     assert rv.working_interval.start == 0
     assert rv.working_interval.end == len("TTTTTACGTACGTCAAAGTTGGCCAATTGG")
+
+
+def test_working_interval_clamped_across_contig_naming_styles(tmp_path: Path) -> None:
+    # The common path: a `chr`-prefixed variant (ClinVar/dbSNP style) against an
+    # Ensembl-named reference (the built-in hg38). The contig resolves under its
+    # alias, so the clamp MUST still fire — a raw `chrom in contigs` check would be
+    # False and leak an off-contig interval end.
+    seq = "TTTTTACGTACGTCAAAGTTGGCCAATTGG"
+    fasta = tmp_path / "ensembl.fa"
+    fasta.write_text(f">2\n{seq}\n")
+    ref = ReferenceGenome(fasta, build="hg38")
+    assert "chr2" not in ref.contigs  # only present under its aliased Ensembl name
+    rv = resolve("chr2:6:A>G", reference=ref, window=100)
+    assert rv.working_interval.end == len(seq)  # clamped, not pos + ref + window
 
 
 def test_effect_annotation(reference: ReferenceGenome) -> None:
