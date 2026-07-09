@@ -297,7 +297,7 @@ real gap. **The pattern holds and refines: as decompositions accumulate, some le
 clean (the R6-style signal) while a newly-chosen angle still finds real, test-pinned gaps — audit
 breadth, not depth on one axis, is what keeps surfacing them.**
 
-## Round 14 — cross-surface consistency, algorithmic complexity, uncertainty math, weight validation (4 fixes)
+## Round 14 — cross-surface consistency, algorithmic complexity, uncertainty math, weight validation, I/O trust (5 fixes)
 
 Round 14 first confirmed the whole CI job set is green locally (not just pytest — lint, format,
 mypy `--strict`, reproduce-golden, nbmake, mkdocs `--strict`, native parity, cargo fmt/clippy), then
@@ -311,6 +311,15 @@ lens's surface came back a credible clean bill.
 | `fix(uncertainty)` OOD widens | uncertainty-contract | `ConformalCalibrator.calibrate` computes `new_half = scale * half_width`; when the fitted scale is `< 1` (an over-covering scorer), an OOD input carrying the `OOD_MIN_HALF_WIDTH` floor came out **narrower** than the floor — an out-of-distribution prediction presenting a narrow, confident `method=conformal` interval, the opposite of "OOD widens, never narrows." Latent because the only caller exercises `calibrate` on in-distribution data. **Shipped:** the OOD branch floors the multiplicative scale at 1, so recalibration can only widen. |
 | `fix(offtarget)` effective matrix on standalone surfaces | offtarget-scoring, cli, web-api | The design report reconciles an all-approximation off-target table via `effective_matrix()`, but the `aforge offtarget` CLI and `/api/offtarget` surfaced only the **nominal** `score_matrix` (the CLI per-site dicts omitted the matrix entirely), so a client read `doench-2016-cfd` for an all-approximation table — the same computation labeled honestly on one surface, dishonestly on another. **Shipped:** `effective_matrix` on `OffTargetResponse` + the CLI payload (top-level and per-site), and an "effective …" note on the CLI human line. Additive. |
 | `fix(genome)` O(n) fallback suffix array | native-kernels, genome-access | The pure-Python FM-index fallback built the SA with `sorted(range(n), key=lambda i: data[i:])`, materializing every suffix as a sort key — **O(n²) memory**, O(n² log n) time on repeats. The off-target engine auto-selects the FM path for any region ≥ 1 Mb, extrapolating to ~500 GB peak (far below the 50 Mb warning) — an OOM on native-less installs, the documented norm. **Shipped:** prefix doubling (Manber–Myers), O(n log² n) time / O(n) memory, byte-identical SA (verified vs the direct sort + 400 fuzz cases; 129.7 MB → 4.0 MB at n=16k). |
+| `fix(cache)` fail closed on missing sidecar | (integrity primitive) | A `verify=True` `ContentAddressedCache` re-checked a payload against its `.sum` sidecar only *when the sidecar existed* — a missing one served the unverifiable bytes, so `rm *.sum` silently defeated the tamper-detection gate the docstring promises. Latent (production callers use the `verify=False` default) but `verify=True` is a public option. **Shipped:** `get_bytes` raises `CacheIntegrityError` on a missing sidecar under `verify=True`. Found by the file-path / I-O trust-safety lens (whose broader sweep — cohort names, split loader, `--out` paths, cache dirs, web job ids — came back clean). |
+
+**Coverage hardening (same session):** a spec-SHALL → enforcing-test sweep returned a correctness
+clean bill but found three guarantees pinned only by a flag / metadata / unit helper, where a
+regression on the real consumed path would stay green. Added non-vacuous guards (each verified to
+fail under a simulated regression) + fixed one stale comment: base-editor efficiency-vs-cleanliness
+axis distinctness (its test carried a stale comment describing the pre-fix conflation), HDR-donor
+re-cut safety on the *emitted donor sequence* (not just the `recut_blocked` flag), and pegRNA
+3'-extension enzyme screening through the real `pegrna_oligos` path (not only the unit helper).
 
 **Infra hardening (same session):** the `lint` CI job executed the example notebooks but never
 style-checked them, so `examples/` had drifted out of ruff compliance — extended `ruff check` /
@@ -324,7 +333,7 @@ the only caller is the benchmark calibration demo; it is not wired into `design(
 threads a `bounds` argument through `calibrate`, which nothing yet needs, so shipping it now would be
 speculative machinery; deferred with documentation rather than rushed.
 
-Yield 5/3/3/0/7/3/7/3/2/4/4/4. **Lesson holds: a fresh decomposition still finds one real gap per
+Yield 5/3/3/0/7/3/7/3/2/4/4/5. **Lesson holds: a fresh decomposition still finds one real gap per
 lens even after the core is empirically clean under fuzzing + native parity — the productive angles
 now are the seams a scientist cares about (the same number labeled two ways on two surfaces) and the
 cost model of the fallback paths (quadratic memory the native kernel hides), not the numeric core.**
