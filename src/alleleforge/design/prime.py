@@ -54,12 +54,24 @@ def _merge_offtarget(peg: OffTargetReport, ngrna: OffTargetReport | None) -> Off
         if key not in best or site.score > best[key].score:
             best[key] = site
     sites = tuple(sorted(best.values(), key=lambda s: s.score, reverse=True))
+    # Carry the scorer/matrix identity and the sub-threshold tail through the merge.
+    # Both nick reports come from the same off-target search (same scorer), so peg's
+    # `scorer`/`score_matrix` are the honest labels for the merged sites — without
+    # them the report renders no "scoring basis" line for every PE3/PE3b candidate
+    # (defeating the guarantee that the scorer/matrix are always named). The two
+    # sub-threshold tails are summed so `specificity_score` still aggregates over the
+    # near-threshold hits of *both* nicks rather than silently resetting to 0.0 (a
+    # locus sub-threshold in one nick but reported in the other is counted in both,
+    # which only lowers specificity — the conservative direction).
     return OffTargetReport(
         spacer=peg.spacer,
         pam=peg.pam,
         sites=sites,
         mismatch_threshold=peg.mismatch_threshold,
         reference_build=peg.reference_build,
+        scorer=peg.scorer,
+        score_matrix=peg.score_matrix,
+        subthreshold_score_sum=peg.subthreshold_score_sum + ngrna.subthreshold_score_sum,
     )
 
 

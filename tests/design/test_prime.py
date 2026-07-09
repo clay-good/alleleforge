@@ -52,6 +52,21 @@ def test_off_target_searches_both_nicks(make_reference: MakeRef) -> None:
     assert isinstance(top.offtarget.ancestry_stratification(), dict)
 
 
+def test_pe3_merged_report_keeps_scorer_and_matrix(make_reference: MakeRef) -> None:
+    # A PE3/PE3b candidate's two-nick off-target reports are merged into one. The
+    # merge must carry the scorer/matrix identity forward — otherwise the report
+    # renders no "scoring basis" line for the flagship chemistry (a published-CFD
+    # table would look identical to an approximation-scored one), and the
+    # sub-threshold tail must survive so specificity is not silently overstated.
+    top = _design(make_reference)[0]
+    assert top.pegrna is not None and top.pegrna.nicking_guide is not None  # PE3/PE3b
+    report = top.offtarget
+    assert report is not None
+    assert report.scorer == "CFD"
+    assert report.score_matrix == "doench-2016-cfd"
+    assert report.subthreshold_score_sum >= 0.0
+
+
 def test_epegrna_and_pe3b_flagged(make_reference: MakeRef) -> None:
     top = _design(make_reference)[0]
     assert any(f.startswith("epegRNA:") for f in top.flags)
