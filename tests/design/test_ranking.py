@@ -13,6 +13,7 @@ from alleleforge.design.ranking import (
 )
 from alleleforge.types.candidate import DesignCandidate
 from alleleforge.types.edit import AlleleOutcome, Chemistry, EditOutcome
+from alleleforge.types.guide import PAM, Guide, Spacer
 from alleleforge.types.offtarget import (
     OffTargetReport,
     OffTargetSite,
@@ -20,7 +21,7 @@ from alleleforge.types.offtarget import (
     SiteOrigin,
 )
 from alleleforge.types.prediction import Prediction, UncertaintyMethod
-from alleleforge.types.sequence import GenomicInterval, Strand
+from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
 
 
 def _eff(value: float, *, in_distribution: bool = True) -> Prediction[float]:
@@ -128,6 +129,83 @@ def test_ancestry_worst_case_downranks_population_dangerous_guide() -> None:
     sc = score_candidate(dangerous)
     assert sc.worst_ancestry == "AFR"
     assert abs(sc.safety - 0.2) < 1e-9
+
+
+def test_patient_offtarget_not_masked_on_safety_axis_by_benign_ancestry_site() -> None:
+    # Regression: a certain patient off-target (CFD 0.9) must dominate the safety
+    # axis. Adding a *benign* ancestry-tagged population site (0.2) must not raise
+    # safety — but it used to, because _safety keyed off worst_ancestry() and a
+    # patient site (no ancestry) was absent from every stratum, so the benign site's
+    # 0.2 became the "worst ancestry." This pair co-occurs in a real
+    # design(gnomad=…, patient_vcf=…) run (population + patient passes into one report).
+    patient = OffTargetSite(
+        locus=GenomicInterval(chrom="chr9", start=10, end=30, strand=Strand.PLUS),
+        mismatches=1,
+        score=0.9,
+        score_method=ScoreMethod.CFD,
+        origin=SiteOrigin.PATIENT,
+        causal_allele="chr9:20:A>G",
+    )
+    benign = OffTargetSite(
+        locus=GenomicInterval(chrom="chr9", start=50, end=70, strand=Strand.PLUS),
+        mismatches=2,
+        score=0.2,
+        score_method=ScoreMethod.CFD,
+        origin=SiteOrigin.POPULATION,
+        causal_allele="chr9:60:C>T",
+        populations=("AFR",),
+        frequency=0.5,
+        ancestries={"AFR": 0.5},
+    )
+    patient_only = DesignCandidate(
+        chemistry=Chemistry.CAS9_NUCLEASE,
+        efficiency=_eff(0.5),
+        outcome=_outcome(0.5),
+        offtarget=OffTargetReport(spacer="A" * 20, pam="NGG", sites=(patient,)),
+        rationale="seed",
+    )
+    with_benign = DesignCandidate(
+        chemistry=Chemistry.CAS9_NUCLEASE,
+        efficiency=_eff(0.5),
+        outcome=_outcome(0.5),
+        offtarget=OffTargetReport(spacer="A" * 20, pam="NGG", sites=(patient, benign)),
+        rationale="seed",
+    )
+    s_patient = score_candidate(patient_only)
+    s_benign = score_candidate(with_benign)
+    assert s_patient.safety == pytest.approx(1.0 - 0.9)  # 0.1: the patient hit
+    # Adding a benign off-target cannot make a guide look safer.
+    assert s_benign.safety == pytest.approx(s_patient.safety)
+
+
+def test_ranking_is_invariant_to_input_pool_order_on_full_ties() -> None:
+    # Two distinct guides (different spacers) that tie on every objective must rank
+    # in the same order regardless of how the pool was assembled — the four-key sort
+    # exhausts on a full tie, so without a final identity tiebreak the order followed
+    # input order.
+    def cand(spacer: str) -> DesignCandidate:
+        return DesignCandidate(
+            chemistry=Chemistry.CAS9_NUCLEASE,
+            guide=Guide(
+                spacer=Spacer(sequence=DNASequence(spacer)),
+                pam=PAM(pattern="NGG"),
+                pam_sequence=DNASequence("TGG"),
+                placement=GenomicInterval(chrom="c", start=0, end=20, strand=Strand.PLUS),
+                cut_site=17,
+            ),
+            efficiency=_eff(0.5),
+            outcome=_outcome(0.5),
+            offtarget=_report(0.0),
+            rationale="seed",
+        )
+
+    a, b = cand("A" * 20), cand("C" * 20)
+    order1 = [str(c.guide.spacer.sequence) for c in rank_candidates([a, b]).candidates]
+    order2 = [str(c.guide.spacer.sequence) for c in rank_candidates([b, a]).candidates]
+    assert order1 == order2  # input permutation does not change the ranked order
+    front1 = rank_candidates([a, b]).pareto_front
+    front2 = rank_candidates([b, a]).pareto_front
+    assert front1 == front2  # and the Pareto front indices are stable too
 
 
 def test_ood_candidate_ranks_below_identical_in_distribution() -> None:

@@ -37,8 +37,13 @@ def _pop_site(score: float, ancestry: str, freq: float) -> OffTargetSite:
 
 def _report(sites: tuple[OffTargetSite, ...], nominal: str | None) -> OffTargetReport:
     return OffTargetReport(
-        spacer="A" * 20, pam="NGG", sites=sites, mismatch_threshold=4,
-        reference_build="hg38", scorer="CFD", score_matrix=nominal,
+        spacer="A" * 20,
+        pam="NGG",
+        sites=sites,
+        mismatch_threshold=4,
+        reference_build="hg38",
+        scorer="CFD",
+        score_matrix=nominal,
     )
 
 
@@ -51,7 +56,10 @@ def test_effective_matrix_reconciles_per_site_fallbacks() -> None:
 
     def site(matrix: str) -> OffTargetSite:
         return OffTargetSite(
-            locus=_locus(), mismatches=1, score=0.5, score_method=ScoreMethod.CFD,
+            locus=_locus(),
+            mismatches=1,
+            score=0.5,
+            score_method=ScoreMethod.CFD,
             score_matrix=matrix,
         )
 
@@ -184,6 +192,38 @@ def test_ancestry_stratification_reference_contributes_to_all() -> None:
     assert strata["AFR"] == pytest.approx(0.9)
     assert strata["EUR"] == pytest.approx(0.4)
     assert rep.worst_ancestry() == ("AFR", pytest.approx(0.9))
+
+
+def _patient_site(score: float) -> OffTargetSite:
+    # A patient site is certain in this individual's genome: no ancestry frequency.
+    return OffTargetSite(
+        locus=_locus(80, 100),
+        mismatches=1,
+        score=score,
+        score_method=ScoreMethod.CFD,
+        origin=SiteOrigin.PATIENT,
+        causal_allele="chr2:88:A>G",
+    )
+
+
+def test_patient_site_floors_every_ancestry_stratum() -> None:
+    # A patient off-target is certain in the evaluated genome (like a reference
+    # site), so it must contribute to every ancestry's worst case. Otherwise a
+    # dangerous patient hit (absent from every stratum) is invisible to
+    # worst_ancestry — and a benign ancestry-tagged site masks it on the safety
+    # axis. This is the pair that co-occurs in a real design(gnomad=…, patient_vcf=…)
+    # run (population pass + patient pass into one report).
+    rep = OffTargetReport(
+        spacer="A" * 20,
+        pam="NGG",
+        sites=(_patient_site(0.9), _pop_site(0.2, "AFR", 0.5)),
+    )
+    strata = rep.ancestry_stratification()
+    assert strata["AFR"] == pytest.approx(0.9)  # the 0.9 patient hit floors AFR
+    assert rep.worst_ancestry() == ("AFR", pytest.approx(0.9))
+    # worst_ancestry now equals the global worst, so the safety axis cannot be
+    # gamed lower by adding a benign ancestry-tagged site.
+    assert rep.worst_ancestry()[1] == pytest.approx(rep.worst_score())
 
 
 def test_ancestry_stratification_is_deterministically_ordered() -> None:

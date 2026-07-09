@@ -122,6 +122,19 @@ def _safety(candidate: DesignCandidate) -> tuple[float, str | None]:
     return 1.0 - report.worst_score(), None
 
 
+def _candidate_identity(candidate: DesignCandidate) -> str:
+    """Return a stable identity string for a final, order-independent tiebreak.
+
+    Two candidates with an identical objective vector must still rank in a
+    deterministic order that does not depend on how the pool was assembled. Every
+    reagent (Cas9 guide, base-editor window, pegRNA) carries a spacer; that
+    sequence plus the chemistry is a stable, distinct-enough key.
+    """
+    reagent = candidate.guide or candidate.base_edit_window or candidate.pegrna
+    spacer = str(reagent.spacer.sequence) if reagent is not None else ""
+    return f"{candidate.chemistry.value}:{spacer}"
+
+
 def _simplicity(candidate: DesignCandidate) -> float:
     """Return reagent simplicity in ``[0, 1]`` (more parts -> lower)."""
     base = _CHEMISTRY_SIMPLICITY.get(candidate.chemistry, 0.5)
@@ -268,10 +281,12 @@ def rank_candidates(
 ) -> RankingOutcome:
     """Rank candidates across chemistries by the weighted-sum composite.
 
-    Ties on the composite break by efficiency, then safety, then simplicity, so
-    the order is total and deterministic. Each returned candidate has its
-    score breakdown appended to its rationale, and the Pareto front is reported
-    against the final order.
+    Ties on the composite break by efficiency, then safety, then simplicity, and
+    a final stable reagent-identity key (the spacer sequence) breaks a full
+    objective-vector tie, so the order is total and deterministic **independent of
+    the input pool's assembly order** — not merely of the enumeration order.
+    Each returned candidate has its score breakdown appended to its rationale, and
+    the Pareto front is reported against the final order.
 
     Args:
         candidates: The pooled candidates from every chemistry.
@@ -287,6 +302,12 @@ def rank_candidates(
         Pareto front, and the ranking rationale.
     """
     scored = [(c, score_candidate(c, weights=weights)) for c in candidates]
+    # Two distinct candidates can share an identical objective vector (composite,
+    # efficiency, safety, simplicity); the four-key sort then leaves their order to
+    # the input pool's assembly order. Sort by a stable reagent identity first, then
+    # stably by the objectives (descending), so a full-vector tie resolves by
+    # identity rather than by how the caller happened to assemble the pool.
+    scored.sort(key=lambda cs: _candidate_identity(cs[0]))
     scored.sort(
         key=lambda cs: (cs[1].composite, cs[1].efficiency, cs[1].safety, cs[1].simplicity),
         reverse=True,

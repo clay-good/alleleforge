@@ -50,21 +50,38 @@ weights, validated non-negative and not all-zero.
 
 The safety objective SHALL use the worst-affected ancestry off-target score, never the
 average, with a deterministic tie-break, so a guide dangerous in a single ancestry is
-penalized rather than averaged out.
+penalized rather than averaged out. A site **certain** in the evaluated genome — a
+reference site or a patient site (carried by this individual, so with no ancestry
+frequency) — SHALL contribute to the worst case of every ancestry, so a dangerous patient
+off-target is never masked on the safety axis by a benign ancestry-tagged site; the safety
+score therefore never understates the genome-wide worst off-target.
 
 #### Scenario: Single-ancestry danger
 - **WHEN** a guide is dangerous only in one ancestry
 - **THEN** its safety score reflects that worst ancestry
 
+#### Scenario: Patient off-target with a benign population site
+- **WHEN** a report carries a dangerous patient off-target and a lower-scoring
+  ancestry-tagged population site
+- **THEN** the safety score reflects the patient off-target, not the benign ancestry site,
+  and adding the benign site does not raise safety
+
 ### Requirement: Ordering is total, deterministic, and Pareto-aware
 
 Ordering SHALL be total and deterministic (composite, then efficiency, then safety, then
-simplicity), on top of deterministic enumeration order, and the non-dominated Pareto front
-over the four objectives SHALL be reported as indices into the final order.
+simplicity, then a stable reagent-identity tiebreak — the spacer sequence), so the order
+is total independent of the input pool's assembly order, not merely of the enumeration
+order. The non-dominated Pareto front over the four objectives SHALL be reported as indices
+into the final order.
 
 #### Scenario: Tie resolution
 - **WHEN** two candidates tie on the composite
 - **THEN** efficiency, then safety, then simplicity break the tie deterministically
+
+#### Scenario: Full objective-vector tie
+- **WHEN** two distinct candidates tie on all four objectives
+- **THEN** the reagent-identity tiebreak orders them, so the menu is identical regardless of
+  how the candidate pool was assembled
 
 #### Scenario: Incomparable candidates
 - **WHEN** two candidates are Pareto-incomparable

@@ -202,11 +202,18 @@ class OffTargetReport(BaseModel):
         """Return the worst-case off-target score per ancestry.
 
         For each ancestry mentioned by any site, reports the maximum site score
-        among sites carrying a non-zero frequency in that ancestry. Reference
-        sites (present in every genome) contribute to every ancestry. Ancestries
-        are emitted in sorted order so the returned mapping — and anything that
-        serializes it — is byte-stable across runs (a bare ``set`` iteration would
-        vary with the process hash seed).
+        among sites that affect it. A site **certain** in the evaluated genome —
+        a reference site (present in every genome) or a patient site (carried by
+        this individual, so no ancestry frequency; ``frequency is None``) —
+        contributes to *every* ancestry, exactly as :meth:`expected_burden`
+        weights it 1.0; a population/haplotype site contributes only to the
+        ancestries it carries a non-zero frequency in. Were the certain-site case
+        limited to reference only, a dangerous patient off-target (absent from
+        every stratum) would be invisible to :meth:`worst_ancestry` and so to the
+        ranking safety axis, letting a benign ancestry-tagged site mask it.
+        Ancestries are emitted in sorted order so the returned mapping — and
+        anything that serializes it — is byte-stable across runs (a bare ``set``
+        iteration would vary with the process hash seed).
         """
         strata: dict[str, float] = {}
         ancestries: set[str] = set()
@@ -215,7 +222,7 @@ class OffTargetReport(BaseModel):
         for ancestry in sorted(ancestries):
             best = 0.0
             for site in self.sites:
-                if site.origin is SiteOrigin.REFERENCE:
+                if site.origin is SiteOrigin.REFERENCE or site.frequency is None:
                     best = max(best, site.score)
                 elif site.ancestries.get(ancestry, 0.0) > 0.0:
                     best = max(best, site.score)
