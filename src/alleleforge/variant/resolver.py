@@ -219,29 +219,28 @@ def _from_dbsnp(rsid: DbSnpId, dbsnp: DbSnpLookup | None) -> Variant:
 def _from_hgvs(text: str, hgvs: HgvsAdapter | None, reference: ReferenceGenome | None) -> Variant:
     """Resolve an HGVS expression to a variant (genomic natively)."""
     adapter = hgvs or HgvsAdapter()
-    chrom: str | None = None
-    if adapter.is_genomic(text):
-        from alleleforge.variant.hgvs_adapter import parse_genomic_hgvs
+    from alleleforge.variant.hgvs_adapter import parse_genomic_hgvs
 
+    if adapter.is_genomic(text):
         chrom = _chrom_from_hgvs(parse_genomic_hgvs(text).reference)
+    else:
+        # A c./p. expression: project first, then read its contig prefix.
+        projected = adapter._project(text)  # noqa: SLF001 - same package
+        chrom = _chrom_from_hgvs(parse_genomic_hgvs(projected).reference)
+    # Define the reference accessor only after ``chrom`` is resolved: a c./p. input
+    # does not know its contig until the projection above, and a closure that
+    # snapshotted the pre-projection ``None`` would crash any coding
+    # deletion/dup/delins whose projector omits the reference bases.
     lookup = None
     if reference is not None:
-        captured = chrom
 
-        def lookup(start: int, end: int, _chrom: str | None = captured) -> str:
-            assert _chrom is not None
+        def lookup(start: int, end: int, _chrom: str = chrom) -> str:
             return str(
                 reference.fetch(
                     GenomicInterval(chrom=_chrom, start=start, end=end, strand=Strand.PLUS)
                 )
             )
 
-    if chrom is None:
-        # A c./p. expression: project first, then read its contig prefix.
-        from alleleforge.variant.hgvs_adapter import parse_genomic_hgvs
-
-        projected = adapter._project(text)  # noqa: SLF001 - same package
-        chrom = _chrom_from_hgvs(parse_genomic_hgvs(projected).reference)
     return adapter.to_variant(text, chrom=chrom, ref_lookup=lookup)
 
 

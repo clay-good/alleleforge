@@ -175,6 +175,20 @@ def test_coding_hgvs_via_projector(reference: ReferenceGenome) -> None:
     assert rv.source == "hgvs"
 
 
+def test_coding_hgvs_deletion_without_stated_bases(reference: ReferenceGenome) -> None:
+    # A coding deletion whose projector emits a bases-less genomic form (the normal
+    # biocommons ``c_to_g`` output) must read the deleted bases from the reference.
+    # Regression: the reference accessor was defined before the c./p. contig was
+    # projected, so it snapshotted ``None`` and crashed every such deletion.
+    from alleleforge.variant.hgvs_adapter import HgvsAdapter
+
+    adapter = HgvsAdapter(projector=lambda _c: "chr2:g.7_8del")
+    rv = resolve("NM_000518.5:c.20_21del", reference=reference, hgvs=adapter)
+    # chr2 = TTTTTACGTACGT...; g.7_8 (1-based) deletes 'CG', left-anchored on pos 6 'A'.
+    assert _key(rv.variant) == ("chr2", 5, "ACG", "A")
+    assert rv.source == "hgvs"
+
+
 def test_reference_mismatch_is_hard_error(reference: ReferenceGenome) -> None:
     with pytest.raises(ValueError, match="reference mismatch"):
         resolve("chr2:6:T>G", reference=reference)
