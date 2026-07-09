@@ -77,10 +77,9 @@ def _scores(hit: Hit, scorer: OffTargetScorer) -> tuple[float, float | None]:
     positive MIT threshold), so selection is unchanged; the ``None`` is preserved
     on the site to record that MIT does not apply, rather than implying a real 0.
     """
-    primary = scorer.score(hit.aligned_spacer, hit.aligned_target, hit.pam_sequence)
-    ungapped_20 = (
-        hit.dna_bulges == 0 and hit.rna_bulges == 0 and len(hit.aligned_spacer) == _MIT_LENGTH
-    )
+    bulged = hit.dna_bulges > 0 or hit.rna_bulges > 0
+    primary = scorer.score(hit.aligned_spacer, hit.aligned_target, hit.pam_sequence, bulged=bulged)
+    ungapped_20 = not bulged and len(hit.aligned_spacer) == _MIT_LENGTH
     mit = mit_score(hit.aligned_spacer, hit.aligned_target) if ungapped_20 else None
     return primary, mit
 
@@ -96,7 +95,8 @@ def _site_matrix(hit: Hit, scorer: OffTargetScorer) -> str | None:
     """
     matrix_for = getattr(scorer, "matrix_for", None)
     if matrix_for is not None:
-        result: str = matrix_for(hit.aligned_spacer, hit.aligned_target)
+        bulged = hit.dna_bulges > 0 or hit.rna_bulges > 0
+        result: str = matrix_for(hit.aligned_spacer, hit.aligned_target, bulged=bulged)
         return result
     matrix: str | None = getattr(scorer, "matrix", None)
     return matrix

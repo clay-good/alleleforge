@@ -300,8 +300,15 @@ class OffTargetScorer(Protocol):
     #: reading published-CFD or an approximation, not just a bare number.
     matrix: str
 
-    def score(self, spacer: str, protospacer: str, pam_sequence: str) -> float:
-        """Return the specificity score in ``[0, 1]`` for one candidate."""
+    def score(
+        self, spacer: str, protospacer: str, pam_sequence: str, *, bulged: bool = False
+    ) -> float:
+        """Return the specificity score in ``[0, 1]`` for one candidate.
+
+        ``bulged`` marks a bulge-collapsed alignment (the engine sets it from the
+        hit's bulge counts), so a fixed-matrix scorer can fall back off a table it
+        cannot apply off-register even when both strings remain 20 nt.
+        """
         ...
 
 
@@ -350,37 +357,42 @@ class CfdScorer:
             self._mismatch_weights = published_cfd_mismatch_weights()
             self.matrix = matrix or self.PUBLISHED_MATRIX
 
-    def _uses_fallback(self, spacer: str) -> bool:
+    def _uses_fallback(self, spacer: str, bulged: bool) -> bool:
         """Return whether this call must fall back off the fixed published matrix.
 
         A fixed-position matrix (published or custom) is defined only at
-        :data:`CFD_SPACER_LENGTH`. For a bulge-collapsed or off-length alignment it
-        cannot be applied honestly, so the scorer falls back to the length-relative
-        approximation for that one call. The approximation matrix (no fixed table)
-        is length-agnostic and never needs a fallback.
+        :data:`CFD_SPACER_LENGTH` and only for an **ungapped** alignment. For a
+        bulge-collapsed or off-length alignment it cannot be applied honestly, so
+        the scorer falls back to the length-relative approximation for that one
+        call. A DNA bulge collapses the *target* but leaves both strings at 20 nt,
+        so the length check alone would not catch it — ``bulged`` (set by the engine
+        from the hit's bulge counts) closes that hole. The approximation matrix (no
+        fixed table) is length-agnostic and never needs a fallback.
         """
-        return self._mismatch_weights is not None and len(spacer) != CFD_SPACER_LENGTH
+        return self._mismatch_weights is not None and (bulged or len(spacer) != CFD_SPACER_LENGTH)
 
-    def score(self, spacer: str, protospacer: str, pam_sequence: str) -> float:
+    def score(
+        self, spacer: str, protospacer: str, pam_sequence: str, *, bulged: bool = False
+    ) -> float:
         """Return the CFD score for one candidate.
 
-        When a fixed published/custom matrix is bound but the alignment is not
-        :data:`CFD_SPACER_LENGTH` (a bulge-collapsed or off-length hit), the
+        When a fixed published/custom matrix is bound but the alignment is
+        bulge-collapsed (``bulged``) or not :data:`CFD_SPACER_LENGTH`, the
         length-relative approximation is used instead of scoring off-register; the
         effective matrix for that call is reported by :meth:`matrix_for`.
         """
-        weights = None if self._uses_fallback(spacer) else self._mismatch_weights
+        weights = None if self._uses_fallback(spacer, bulged) else self._mismatch_weights
         return cfd_score(spacer, protospacer, pam_sequence, mismatch_weights=weights)
 
-    def matrix_for(self, spacer: str, protospacer: str) -> str:
+    def matrix_for(self, spacer: str, protospacer: str, *, bulged: bool = False) -> str:
         """Return the matrix identity that :meth:`score` uses for this alignment.
 
-        Equals :attr:`matrix` for an in-length alignment; for a fallback call
-        (bulge-collapsed or off-length under a fixed matrix) it returns the
-        approximation identity, so an off-length score is never labeled published
-        CFD.
+        Equals :attr:`matrix` for an ungapped, in-length alignment; for a fallback
+        call (bulge-collapsed via ``bulged``, or off-length under a fixed matrix) it
+        returns the approximation identity, so a bulged/off-length score is never
+        labeled published CFD.
         """
-        return self.APPROXIMATE_MATRIX if self._uses_fallback(spacer) else self.matrix
+        return self.APPROXIMATE_MATRIX if self._uses_fallback(spacer, bulged) else self.matrix
 
 
 class MitScorer:
@@ -390,8 +402,14 @@ class MitScorer:
     method = ScoreMethod.MIT
     matrix = "hsu-2013-position-weights"
 
-    def score(self, spacer: str, protospacer: str, pam_sequence: str) -> float:
-        """Return the MIT score for one candidate (PAM is not used)."""
+    def score(
+        self, spacer: str, protospacer: str, pam_sequence: str, *, bulged: bool = False
+    ) -> float:
+        """Return the MIT score for one candidate (PAM and ``bulged`` are not used).
+
+        The MIT score is only reported for an ungapped 20-nt alignment (the engine
+        gates that separately), so the bulge flag does not change this computation.
+        """
         return mit_score(spacer, protospacer)
 
 
@@ -417,8 +435,14 @@ class Cas12aCfdScorer:
         else:
             self.matrix = "custom-mismatch-matrix (unvalidated cas12a analog)"
 
-    def score(self, spacer: str, protospacer: str, pam_sequence: str) -> float:
-        """Return the Cas12a CFD-analog score for one candidate."""
+    def score(
+        self, spacer: str, protospacer: str, pam_sequence: str, *, bulged: bool = False
+    ) -> float:
+        """Return the Cas12a CFD-analog score for one candidate.
+
+        The analog is length-relative (no fixed table), so ``bulged`` does not
+        change the computation; the parameter is accepted for interface parity.
+        """
         return cas12a_cfd_score(
             spacer, protospacer, pam_sequence, mismatch_weights=self._mismatch_weights
         )

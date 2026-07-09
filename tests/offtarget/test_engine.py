@@ -156,6 +156,22 @@ def test_bulge_site_records_approximation_matrix(make_reference: MakeRef) -> Non
     assert report.score_matrix == "doench-2016-cfd"  # report-level scorer is unchanged
 
 
+def test_dna_bulge_site_records_approximation_matrix(make_reference: MakeRef) -> None:
+    # A DNA-bulge alignment collapses the *target* by one base but leaves both the
+    # aligned spacer and target at 20 nt, so a length-only fallback check would miss
+    # it and score/label the hit as published CFD — the published matrix is 20-nt
+    # *ungapped*-only, so a bulge-collapsed hit must use the length-relative
+    # approximation. Regression: the fallback now keys on the hit's bulge status.
+    dna_bulge = SPACER[:10] + "A" + SPACER[10:]  # 21-nt protospacer (one extra base)
+    ref = make_reference({"chr2": PAD + dna_bulge + "TGG" + PAD})
+    report = search(SPACER, NGG, reference=ref)
+    bulged = [s for s in report.sites if s.dna_bulges == 1]
+    assert bulged, "expected a DNA-bulge site"
+    assert bulged[0].score_matrix == "doench-2016-seed-tolerance-approximation"
+    assert bulged[0].mit_score is None  # MIT is undefined for a bulged alignment
+    assert report.score_matrix == "doench-2016-cfd"  # report-level scorer is unchanged
+
+
 def test_region_restriction(make_reference: MakeRef) -> None:
     ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
     empty = GenomicInterval(chrom="chr2", start=0, end=5, strand=Strand.PLUS)
