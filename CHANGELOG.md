@@ -10,6 +10,16 @@ acceptance.
 
 ### Fixed
 
+- **The PE3b nicking guide is now templated from the edited strand, so it actually nicks only
+  the edited product.** PE3b's entire benefit is that its ngRNA seed base-pairs only after the
+  edit is installed — nicking only the edited strand and avoiding the concurrent-nick DSB that
+  causes indels. A prior round corrected which end of the seed is measured (the PE3b *detection*),
+  but the emitted spacer was still reverse-complemented from the *unedited* allele: it
+  Watson-Crick matched the original target (nicking it, before/independent of editing) and
+  carried a seed mismatch against the edited product — the exact inverse of PE3b. A researcher
+  ordering that spacer got a guide that nicks the wrong molecule. The seed-disrupting branch now
+  templates the spacer from the edited allele. (Round 5 deep-correctness pass.)
+
 - **Variant-effect selection now reports the SO-most-severe consequence, not a tier tie-break by
   list order.** `parse_vep_response` picked the reported consequence with `max(key=impact_of)`,
   but `impact_of` is only a coarse 4-bucket tier — when a transcript lists several terms in the

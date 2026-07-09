@@ -102,7 +102,6 @@ def _select_nicking_guide(
             continue
         nick_local = proto_lo + cut_offset  # nick on the opposite strand (frame coords)
         offset = nick_local - pegrna_nick_local
-        spacer = _rc(start[proto_lo:proto_hi])
         placement = place(proto_lo, proto_hi, Strand.MINUS)
         nick_genomic = place(nick_local, nick_local + 1, Strand.MINUS).start
         # The ngRNA protospacer reads on the minus strand, so its PAM-proximal end
@@ -117,6 +116,14 @@ def _select_nicking_guide(
             and (edit_local - proto_lo) < _SEED_LENGTH
             and start[edit_local] != edited[edit_local]
         )
+        # A PE3b ngRNA must match the *edited* strand so its seed base-pairs only
+        # after the edit is installed — that temporal separation (it mismatches the
+        # unedited allele) is the whole PE3b benefit. Templating the spacer from
+        # ``start`` would nick the *unedited* molecule and fail on the edited
+        # product, the exact inverse of the guarantee. A PE3 ngRNA lies away from
+        # the edit, where ``start`` and ``edited`` agree, so ``start`` is fine there.
+        template = edited if seed_disrupting else start
+        spacer = _rc(template[proto_lo:proto_hi])
         guide = NickingGuide(
             spacer=Spacer(sequence=DNASequence(spacer)),
             placement=placement,

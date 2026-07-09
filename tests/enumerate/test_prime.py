@@ -87,6 +87,24 @@ def test_pe3b_preferred_when_seed_disrupting(make_reference: MakeRef) -> None:
     assert plus.nicking_guide.seed_disrupting
 
 
+def test_pe3b_spacer_is_templated_from_the_edited_strand(make_reference: MakeRef) -> None:
+    # PE3b's whole benefit is nicking ONLY the edited strand: the emitted ngRNA
+    # spacer must match the EDITED allele (seed-matches the product, mismatches the
+    # original). Templating it from the unedited allele nicks the original molecule
+    # and fails on the product — the exact inverse of the guarantee.
+    ref, pegs = _pegs(make_reference, alt="C")
+    seq = str(ref.fetch(GenomicInterval(chrom="chr2", start=0, end=140, strand=Strand.PLUS)))
+    edited = seq[:70] + "C" + seq[71:]
+    plus = next(p for p in pegs if p.placement.strand is Strand.PLUS)
+    ng = plus.nicking_guide
+    assert ng is not None and ng.seed_disrupting
+    lo, hi = ng.placement.start, ng.placement.end
+    edited_spacer = str(DNASequence(edited[lo:hi]).reverse_complement())
+    original_spacer = str(DNASequence(seq[lo:hi]).reverse_complement())
+    assert str(ng.spacer.sequence) == edited_spacer  # matches the edited strand
+    assert str(ng.spacer.sequence) != original_spacer  # NOT the unedited allele
+
+
 def test_pam_distal_edit_is_not_labeled_pe3b(make_reference: MakeRef) -> None:
     # With the ngRNA PAM one codon further 5' (proto_lo=58), the edit at 70 is 12 nt
     # away — in the PAM-DISTAL half, not the seed. The prior code measured the seed
