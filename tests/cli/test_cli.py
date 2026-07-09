@@ -699,7 +699,9 @@ def test_design_verbose_reports_to_stderr(
 # -- aforge verify -----------------------------------------------------------
 
 
-def _menu_with_provenance(tmp_path: Path, *, provenance: bool = True, models: tuple = ()) -> Path:
+def _menu_with_provenance(
+    tmp_path: Path, *, provenance: bool = True, models: tuple = (), datasets: tuple = ()
+) -> Path:
     from datetime import UTC, datetime
 
     from alleleforge.types.provenance import Provenance
@@ -711,6 +713,7 @@ def _menu_with_provenance(tmp_path: Path, *, provenance: bool = True, models: tu
             seed=7,
             timestamp=datetime(2024, 1, 1, tzinfo=UTC),
             models=models,
+            datasets=datasets,
             config_snapshot={"intent": "install"},
         )
     menu = RankedMenu(candidates=(), rationale="test", provenance=prov)
@@ -748,6 +751,33 @@ def test_verify_detects_tampered_checkpoint(runner: CliRunner, tmp_path: Path) -
     assert ok.exit_code == 0 and "ok" in ok.output
 
     (cache / "demo.1.0.ckpt").write_bytes(b"tampered")
+    bad = runner.invoke(app, ["verify", str(path), "--cache-dir", str(cache)])
+    assert bad.exit_code == ExitCode.UNAVAILABLE
+    assert "MISMATCH" in bad.output
+
+
+def test_verify_detects_tampered_dataset(runner: CliRunner, tmp_path: Path) -> None:
+    # A pinned dataset (the vendored Doench-2016 CFD matrix is the load-bearing case)
+    # is a result-determining artifact: the tamper contract covers a checkpoint *or
+    # dataset* whose bytes no longer match its hash, so verify must re-hash it too.
+    import hashlib
+
+    from alleleforge.data.registry import DEFAULT_REGISTRY
+    from alleleforge.types.provenance import DatasetVersion
+
+    payload = b'{"cfd": "matrix"}'
+    digest = hashlib.sha256(payload).hexdigest()
+    ds = DatasetVersion(name="doench-2016-cfd", version="2016", sha256=digest)
+    cache = tmp_path / "cache"
+    ds_path = DEFAULT_REGISTRY.cache_path("doench-2016-cfd", cache_dir=cache)
+    ds_path.parent.mkdir(parents=True)
+    ds_path.write_bytes(payload)
+    path = _menu_with_provenance(tmp_path, datasets=(ds,))
+
+    ok = runner.invoke(app, ["verify", str(path), "--cache-dir", str(cache)])
+    assert ok.exit_code == 0 and "ok" in ok.output
+
+    ds_path.write_bytes(b"tampered-cfd-matrix")
     bad = runner.invoke(app, ["verify", str(path), "--cache-dir", str(cache)])
     assert bad.exit_code == ExitCode.UNAVAILABLE
     assert "MISMATCH" in bad.output

@@ -800,7 +800,7 @@ def verify(
     ],
     cache_dir: Annotated[
         Path | None,
-        typer.Option(help="Model cache dir; re-hash pinned checkpoints found here."),
+        typer.Option(help="Artifact cache dir; re-hash pinned checkpoints and datasets here."),
     ] = None,
     as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
@@ -809,9 +809,10 @@ def verify(
     Turns provenance from a record into a checkable contract: it confirms the block
     names every model and dataset the result used and carries a seed, version, and
     config snapshot; with ``--cache-dir`` it re-hashes each pinned model checkpoint
-    found there against the hash recorded in provenance. Exits non-zero on
-    incomplete provenance or a checkpoint hash mismatch.
+    *and pinned dataset* found there against the hash recorded in provenance. Exits
+    non-zero on incomplete provenance or an artifact hash mismatch.
     """
+    from alleleforge.data.registry import DEFAULT_REGISTRY
     from alleleforge.types.candidate import RankedMenu
     from alleleforge.types.prediction import trusted_deserialization_context
 
@@ -864,6 +865,32 @@ def verify(
                 problems.append(
                     f"checkpoint {ck.name}.{ck.version} hash mismatch: "
                     f"expected {ck.sha256[:12]}…, got {actual[:12]}…"
+                )
+        # A pinned dataset (e.g. the vendored Doench-2016 CFD matrix) is a
+        # result-determining artifact too: the spec's tamper contract covers a
+        # "checkpoint *or dataset*" whose bytes no longer match its pinned hash, so
+        # re-hash datasets symmetrically rather than trusting them on name alone.
+        for ds in prov.datasets:
+            label = f"{ds.name}.{ds.version}"
+            if ds.sha256 is None:
+                checks.append({"artifact": label, "status": "unpinned"})
+                continue
+            if ds.name not in DEFAULT_REGISTRY:
+                # No known cache layout to locate the bytes; report rather than pass.
+                checks.append({"artifact": label, "status": "unknown"})
+                continue
+            ds_path = DEFAULT_REGISTRY.cache_path(ds.name, cache_dir=cache_dir)
+            if not ds_path.is_file():
+                checks.append({"artifact": label, "status": "not-cached"})
+                continue
+            ds_actual = hashlib.sha256(ds_path.read_bytes()).hexdigest()
+            if ds_actual == ds.sha256:
+                checks.append({"artifact": label, "status": "ok"})
+            else:
+                checks.append({"artifact": label, "status": "MISMATCH"})
+                problems.append(
+                    f"dataset {label} hash mismatch: "
+                    f"expected {ds.sha256[:12]}…, got {ds_actual[:12]}…"
                 )
 
     payload: dict[str, Any] = {

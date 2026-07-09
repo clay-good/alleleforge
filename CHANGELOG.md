@@ -10,6 +10,19 @@ acceptance.
 
 ### Fixed
 
+- **`aforge verify` now re-hashes pinned datasets, so a tampered CFD matrix no longer passes
+  verification silently.** The provenance-reproducibility spec's tamper contract covers "a recorded
+  checkpoint *or dataset*" whose bytes no longer match its pinned hash, but `verify` only re-hashed
+  `provenance.models` — never `provenance.datasets`. This was reachable, not latent: the vendored
+  Doench-2016 CFD matrix (`doench-2016-cfd`, the default off-target scorer's weight source) is a
+  registry dataset that carries a real pinned `sha256`, so every off-target-inclusive design records
+  it in provenance with a hash — and a tampered CFD matrix, the scientific heart of off-target
+  scoring, was undetectable by `verify`. Added a symmetric dataset loop that locates each pinned
+  dataset via the registry cache path and re-hashes it (`unpinned`/`unknown`/`not-cached`/`ok`/
+  `MISMATCH`, mirroring the checkpoint checks); `--cache-dir` now covers both artifact kinds.
+  Regression test (tampered dataset → non-zero exit) fails@HEAD → passes. Found by an audit of the
+  `af verify` reproducibility-contract command against its spec.
+
 - **The web API now honors the user config file, matching the CLI and library.** The
   provenance-reproducibility spec requires all three interfaces to resolve settings through
   `Settings.load()` so the config file (`~/.config/alleleforge/config.toml`) applies to web runs too,
