@@ -135,8 +135,15 @@ haplotype, patient, or custom-scorer augmentation is present.
 
 #### Scenario: Concurrent writers
 - **WHEN** two processes write the same cache key at once
-- **THEN** each uses a unique temp file and the final replace is atomic; a reader never
-  sees a torn value
+- **THEN** each uses a unique temp file (a per-write token, not the payload object's
+  identity, so writers of the same key never collide) and the final replace is atomic; a
+  reader never sees a torn value
+
+#### Scenario: Concurrent verified writes
+- **WHEN** a `verify=True` cache is written and read concurrently under the same key
+- **THEN** the checksum sidecar is published before the payload, so a concurrent reader
+  never sees a payload without its sidecar and the fail-closed check raises only on genuine
+  tampering, never on an in-progress write
 
 #### Scenario: Augmented search is not cached
 - **WHEN** an off-target search adds populations, haplotypes, or a custom scorer

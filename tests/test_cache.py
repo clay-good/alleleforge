@@ -97,3 +97,43 @@ def test_unverified_cache_does_not_write_sidecars(tmp_path: Path) -> None:
     cache.put_bytes(hash_parts("k"), b"v")
     assert cache.get_bytes(hash_parts("k")) == b"v"
     assert not list(tmp_path.rglob("*.sum"))  # no sidecars written
+
+
+def test_verify_cache_concurrent_writes_dont_race(tmp_path: Path) -> None:
+    import sys
+    import threading
+
+    from alleleforge.cache import CacheIntegrityError, ContentAddressedCache
+
+    # Concurrent put/get on a verify=True cache must not raise on valid data. Two
+    # races previously lurked in put_bytes: (1) the sidecar was written *after* the
+    # payload was published, so a reader in that window saw a payload without its
+    # sidecar and the fail-closed check raised CacheIntegrityError on good data;
+    # (2) a shared bytes object gave a colliding temp name (id(data)), so the losing
+    # writer's rename hit FileNotFoundError. A shared payload object exercises both.
+    cache = ContentAddressedCache("concurrent", root=tmp_path, verify=True)
+    digest = hash_parts("shared-key")
+    payload = b"the-shared-payload-object"  # one object shared across threads
+    errors: list[Exception] = []
+
+    def worker() -> None:
+        try:
+            for _ in range(60):
+                cache.put_bytes(digest, payload)
+                got = cache.get_bytes(digest)
+                assert got is None or got == payload
+        except (CacheIntegrityError, FileNotFoundError) as exc:  # pragma: no cover - race
+            errors.append(exc)
+
+    old = sys.getswitchinterval()
+    sys.setswitchinterval(1e-6)  # widen the interleaving window so the race is reliable
+    try:
+        threads = [threading.Thread(target=worker) for _ in range(16)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+    finally:
+        sys.setswitchinterval(old)
+
+    assert not errors, f"concurrent verified put/get raised on valid data: {errors[:3]}"

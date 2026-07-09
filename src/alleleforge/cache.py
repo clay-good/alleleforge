@@ -25,6 +25,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -124,12 +125,28 @@ class ContentAddressedCache:
         path = self._path(digest)
         path.parent.mkdir(parents=True, exist_ok=True)
         # Unique temp name so concurrent writers of the same key never collide.
-        tmp = path.with_name(f"{path.name}.{os.getpid()}.{id(data)}.tmp")
+        # `id(data)` is only unique among *live* objects, so two threads writing the
+        # same key with the same bytes object would collide on this name and the
+        # loser's `replace` would race a FileNotFoundError; a per-call uuid is unique
+        # regardless of the payload object's identity.
+        token = f"{os.getpid()}.{uuid.uuid4().hex}"
+        if self._verify:
+            # Publish the checksum sidecar *before* the payload, each via its own
+            # temp+rename. The read path (`get_bytes`) treats a present payload with
+            # a missing sidecar as corruption and fails closed, so a payload must
+            # never become visible ahead of its sidecar — otherwise a concurrent
+            # reader raises CacheIntegrityError on a perfectly valid entry. A lone
+            # sidecar is harmless: get_bytes returns None on the absent payload
+            # before it ever looks for the sidecar. (Content-addressing guarantees a
+            # re-put writes byte-identical data, so an updated sidecar can never
+            # disagree with an already-published payload.)
+            sidecar = path.with_name(path.name + _SUM_SUFFIX)
+            stmp = sidecar.with_name(f"{sidecar.name}.{token}.tmp")
+            stmp.write_text(hashlib.sha256(data).hexdigest())
+            stmp.replace(sidecar)
+        tmp = path.with_name(f"{path.name}.{token}.tmp")
         tmp.write_bytes(data)
         tmp.replace(path)  # atomic on POSIX and Windows
-        if self._verify:
-            sidecar = path.with_name(path.name + _SUM_SUFFIX)
-            sidecar.write_text(hashlib.sha256(data).hexdigest())
 
     def get_text(self, digest: str) -> str | None:
         """Return the cached UTF-8 text for ``digest``, or ``None``."""

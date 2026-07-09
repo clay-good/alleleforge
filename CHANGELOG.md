@@ -10,6 +10,22 @@ acceptance.
 
 ### Fixed
 
+- **Two concurrency races in the content-addressed cache's `put_bytes` are fixed.** (1) A
+  `verify=True` cache wrote the checksum sidecar *after* renaming the payload into place, so a
+  concurrent `get_bytes` landing in that window saw a payload with no sidecar and — because the read
+  path now fails closed on a missing sidecar — raised `CacheIntegrityError` on perfectly valid,
+  freshly-written data (16 threads → 15 spurious errors). The sidecar is now published *before* the
+  payload (each via its own temp+rename), so a reader never sees a payload without its checksum and
+  the fail-closed check fires only on genuine tampering. (2) The temp-file name used `id(data)`,
+  which is unique only among *live* objects, so two threads writing the same key with the same bytes
+  object collided on the temp path and the loser's `replace` raised `FileNotFoundError`; the temp
+  name now uses a per-write `uuid` token. Race (2) was latent (current callers serialize fresh bytes
+  per call) but a landmine for any future caller writing a shared/memoized payload concurrently.
+  Non-flaky regression test (16 threads, widened switch interval) fails@HEAD → passes; the
+  cache-atomicity spec gains a concurrent-verified-writes scenario. Found by a concurrency audit that
+  drove real contention against the cohort parallel path, the web JobManager, and ReferenceGenome
+  (all three held: 0 determinism mismatches, cap never exceeded, 0 wrong bytes over 72k fetches).
+
 - **Benchmark metrics now treat `±inf` as degenerate, closing the gap the NaN guard left one value
   short.** A prior round added a `NaN` guard (`v != v`) so corrupt data couldn't score as perfect,
   but `v != v` is `False` for `±inf`, and `inf` is a finite-*ordering* value — it sorts as the
