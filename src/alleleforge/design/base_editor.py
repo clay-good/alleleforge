@@ -16,6 +16,7 @@ from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.enumerate.base_editor import BASE_EDITORS, BaseEditor, enumerate_base_edits
 from alleleforge.genome.reference import ReferenceGenome
+from alleleforge.model_zoo.registry import ModelCard
 from alleleforge.offtarget.engine import search as offtarget_search
 from alleleforge.scoring.base_outcome import (
     BaseEditOutcomePredictor,
@@ -26,7 +27,6 @@ from alleleforge.types.candidate import DesignCandidate
 from alleleforge.types.edit import EditIntent
 from alleleforge.types.guide import BaseEditWindow
 from alleleforge.types.offtarget import OffTargetReport
-from alleleforge.model_zoo.registry import ModelCard
 from alleleforge.types.provenance import ModelCheckpoint
 from alleleforge.types.sequence import GenomicInterval
 from alleleforge.variant.resolver import ResolvedVariant

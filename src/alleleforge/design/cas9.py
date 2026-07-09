@@ -18,6 +18,7 @@ from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.enumerate.cas9 import NGG_PAM, carried_allele, enumerate_cas9, guide_context
 from alleleforge.genome.reference import ReferenceGenome
+from alleleforge.model_zoo.registry import ModelCard
 from alleleforge.offtarget.engine import search as offtarget_search
 from alleleforge.scoring.base import ensure_prediction
 from alleleforge.scoring.cas9_efficiency import EnsembleEfficiencyScorer
@@ -27,7 +28,6 @@ from alleleforge.types.edit import Chemistry, EditIntent, EditOutcome
 from alleleforge.types.guide import PAM, Guide
 from alleleforge.types.offtarget import OffTargetReport
 from alleleforge.types.prediction import Prediction
-from alleleforge.model_zoo.registry import ModelCard
 from alleleforge.types.provenance import ModelCheckpoint
 from alleleforge.types.sequence import GenomicInterval, Strand
 from alleleforge.types.variant import Variant
@@ -115,7 +115,9 @@ def cas9_model_checkpoints(
     the default it replaced.
     """
     efficiency = efficiency_scorer if efficiency_scorer is not None else EnsembleEfficiencyScorer()
-    outcome = outcome_predictor if outcome_predictor is not None else MicrohomologyOutcomePredictor()
+    outcome = (
+        outcome_predictor if outcome_predictor is not None else MicrohomologyOutcomePredictor()
+    )
     return (
         efficiency.model_card().to_checkpoint(),
         outcome.model_card().to_checkpoint(),
