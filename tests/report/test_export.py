@@ -47,7 +47,19 @@ def test_tsv_cells_have_no_tabs_or_newlines(prime_menu: RankedMenu) -> None:
     body = report_to_tsv(report).strip().split("\n")[1:]
     for row in body:
         for cell in row.split("\t"):
-            assert "\n" not in cell
+            assert "\n" not in cell and "\r" not in cell
+
+
+def test_tsv_cell_neutralizes_every_delimiter() -> None:
+    # A user-influenced cell (ancestry label, flags) must not smuggle a row/column
+    # break into the TSV. A bare \r is a line separator to Excel and csv.reader, so
+    # it must be neutralized alongside \t and \n — the sibling batch emitter already
+    # does, and dropping it broke one logical row into several physical lines.
+    from alleleforge.report.export import _cell
+
+    for raw in ("a\tb", "a\nb", "a\rb", "a\r\nb", "EUR\rINJECT\tcol"):
+        out = _cell(raw)
+        assert "\t" not in out and "\n" not in out and "\r" not in out
 
 
 def test_parquet_export(prime_menu: RankedMenu, tmp_path: Path) -> None:

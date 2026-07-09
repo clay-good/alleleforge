@@ -36,13 +36,21 @@ markup breakout.
 ### Requirement: Exports are lossless or fixed-schema
 
 JSON SHALL be the lossless form; TSV SHALL follow a fixed column order, one row per
-candidate, with tabs and newlines stripped from cells; Parquet SHALL import its backend
-lazily and raise a clear directive error if it is absent. Every export SHALL carry a
-schema version so a downstream consumer can detect a field addition or reordering.
+candidate, with every row/column delimiter — tabs, carriage returns, and line feeds —
+stripped from cells so a user-influenced value (an ancestry label, a candidate flag)
+cannot smuggle a row or column break; Parquet SHALL import its backend lazily and raise a
+clear directive error if it is absent. Every export SHALL carry a schema version so a
+downstream consumer can detect a field addition or reordering.
 
 #### Scenario: Export schema version
 - **WHEN** a TSV or Parquet export is produced
 - **THEN** it carries a schema version identifying its column layout
+
+#### Scenario: Cell delimiters are neutralized
+- **WHEN** a TSV cell value contains a tab, a carriage return, or a line feed (e.g. an
+  ancestry label or flag carrying `\r`)
+- **THEN** the delimiter is replaced so the row stays a single physical line that a
+  standard CSV/TSV reader parses to the fixed column count
 
 #### Scenario: Missing Parquet backend
 - **WHEN** Parquet export runs without its backend installed

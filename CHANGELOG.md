@@ -10,6 +10,18 @@ acceptance.
 
 ### Fixed
 
+- **The report TSV export now strips carriage returns from cells, so a user-influenced value can no
+  longer break one row into several.** `report_to_tsv`'s `_cell` neutralized `\t` and `\n` but not
+  `\r`, while its sibling `_batch_tsv._cell` already handled all three. A `\r` in a user-influenced
+  cell (a `worst_ancestry` label sourced from population input, or a free-form candidate flag)
+  survived into the row — Excel, `str.splitlines()`, and `csv.reader` all treat a bare `\r` as a row
+  break, so one logical candidate row rendered as several physical lines and `csv.reader` raised on
+  the unquoted line break. Added `.replace("\r", " ")` to match the sibling emitter. The pinning test
+  shared the blind spot (it split on `\n` and asserted only `\n`-absence); strengthened it and added a
+  direct `_cell` guard over every delimiter. Regression test fails@HEAD → passes; reporting spec now
+  names carriage returns explicitly. Found by an adversarial output-rendering audit (whose broader
+  sweep of HTML/PDF/SVG/leaderboard/provenance escaping came back clean).
+
 - **A cohort/batch run now records the seed that actually governed it, not the process-singleton
   default.** `design_many` stamped the run-level provenance seed from `get_settings().seed` (the
   singleton), while the seed threaded into every per-item `design()` call comes from the `settings=`

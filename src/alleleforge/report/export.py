@@ -79,7 +79,7 @@ def _cell(value: Any) -> str:
     """Render one cell for TSV (empty for ``None``, no embedded tabs/newlines)."""
     if value is None:
         return ""
-    return str(value).replace("\t", " ").replace("\n", " ")
+    return str(value).replace("\t", " ").replace("\r", " ").replace("\n", " ")
 
 
 def report_to_tsv(report: DesignReport) -> str:
