@@ -79,6 +79,38 @@ meaning, and the flags SHALL be tamper-resistant, not honor-system:
 - **WHEN** a prediction has `in_distribution = False`
 - **THEN** it also has `calibrated = False`
 
+### Requirement: Calibration survives faithful round-trip but not forgery
+
+The `calibrated` guarantee SHALL be enforced by gating the **raw input** to
+construction, not by mutating a built `Prediction`. Because the model is frozen and may
+be aliased (nested in a `RankedMenu`, revalidated), constructing a container around a
+calibrated prediction SHALL NOT downgrade or mutate it. AlleleForge's own serialized
+output SHALL be faithfully round-trippable: a calibrated prediction serializes with
+`calibrated = true`, and re-loading it through the **trusted deserialization context**
+(the sole path, besides the fitted-calibrator path, that carries the calibration token)
+SHALL preserve `calibrated = True`. A plain load of untrusted JSON SHALL still coerce
+`calibrated` to `False`, so a hand-crafted or tampered payload cannot forge calibration,
+and the `in_distribution = False` guard SHALL hold through the trusted path as well.
+
+#### Scenario: Nesting a calibrated prediction
+- **WHEN** a calibrated `Prediction` is placed inside another model (e.g. a
+  `DesignCandidate` in a `RankedMenu`)
+- **THEN** the nested prediction still reports `calibrated = True`
+- **AND** the original prediction instance is not mutated
+
+#### Scenario: Trusted round-trip preserves calibration
+- **WHEN** a serialized menu is re-loaded through the trusted deserialization context
+- **THEN** a prediction serialized with `calibrated = true` loads back as `calibrated = True`
+
+#### Scenario: Untrusted load cannot forge calibration
+- **WHEN** arbitrary JSON asserting `calibrated = true` is loaded without the trusted context
+- **THEN** the loaded prediction reports `calibrated = False`
+
+#### Scenario: OOD cannot be calibrated even under trust
+- **WHEN** JSON with `in_distribution = false` and `calibrated = true` is loaded through the
+  trusted deserialization context
+- **THEN** the loaded prediction reports `calibrated = False`
+
 ### Requirement: Out-of-distribution predictions widen, never narrow
 
 When a prediction is flagged `in_distribution = False`, its interval SHALL be at least as

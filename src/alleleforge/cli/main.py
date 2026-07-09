@@ -799,12 +799,18 @@ def verify(
     incomplete provenance or a checkpoint hash mismatch.
     """
     from alleleforge.types.candidate import RankedMenu
+    from alleleforge.types.prediction import trusted_deserialization_context
 
     if not result.is_file():
         _echo_err(f"error: result file not found: {result}")
         raise typer.Exit(ExitCode.MISSING_DATA)
     try:
-        menu = RankedMenu.model_validate_json(result.read_text())
+        # This is AlleleForge's own prior `af design` output, so re-read it through
+        # the trusted context: a calibrated efficiency/bystander prediction keeps its
+        # `calibrated=True` instead of being silently coerced to False on load.
+        menu = RankedMenu.model_validate_json(
+            result.read_text(), context=trusted_deserialization_context()
+        )
     except ValueError as exc:
         _echo_err(f"error: not a valid result JSON: {exc}")
         raise typer.Exit(ExitCode.USAGE) from exc

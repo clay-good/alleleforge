@@ -5,9 +5,14 @@ from __future__ import annotations
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
+from pydantic import BaseModel
 
 from alleleforge.types.edit import AlleleOutcome, EditOutcome
-from alleleforge.types.prediction import Prediction, UncertaintyMethod
+from alleleforge.types.prediction import (
+    Prediction,
+    UncertaintyMethod,
+    trusted_deserialization_context,
+)
 
 
 def _pred(value: float, low: float, high: float, **kw: object) -> Prediction[float]:
@@ -189,6 +194,64 @@ def test_combine_ands_trained_flag() -> None:
     assert Prediction.combine([trained, also_trained]).point_from_trained_model is True
     # one heuristic input makes the aggregate no longer purely trained
     assert Prediction.combine([trained, heuristic]).point_from_trained_model is False
+
+
+# -- calibration survives nesting and a trusted round-trip --------------------
+
+
+class _Holder(BaseModel):
+    """Minimal container that nests a Prediction, like a DesignCandidate does."""
+
+    efficiency: Prediction[float]
+
+
+def test_nesting_does_not_downgrade_or_mutate_calibration() -> None:
+    # Placing a certified prediction inside another model must not silently reset
+    # its calibrated flag, and must not mutate the shared frozen instance: the
+    # gate runs on raw input, so an already-built Prediction passes through intact.
+    p = Prediction[float].calibrated_by(
+        value=0.5, interval=(0.4, 0.6), method=UncertaintyMethod.CONFORMAL
+    )
+    holder = _Holder(efficiency=p)
+    assert holder.efficiency.calibrated is True
+    assert p.calibrated is True  # original not mutated in place
+
+
+def test_serialized_output_reports_true_and_round_trips_under_trust() -> None:
+    # AlleleForge's own serialized output must be faithfully re-loadable: the JSON
+    # says calibrated:true, and re-reading it through the trusted context (used
+    # when we load a file we wrote) preserves the flag rather than dropping it.
+    p = Prediction[float].calibrated_by(
+        value=0.5, interval=(0.4, 0.6), method=UncertaintyMethod.CONFORMAL
+    )
+    payload = _Holder(efficiency=p).model_dump_json()
+    assert '"calibrated":true' in payload
+    trusted = _Holder.model_validate_json(payload, context=trusted_deserialization_context())
+    assert trusted.efficiency.calibrated is True
+
+
+def test_untrusted_deserialization_cannot_forge_calibration() -> None:
+    # A plain load of arbitrary JSON (no trust token) still coerces calibrated to
+    # False, so hand-crafted JSON cannot forge a calibration claim.
+    forged = (
+        '{"efficiency":{"value":0.5,"interval":[0.4,0.6],"interval_level":0.8,'
+        '"method":"conformal","in_distribution":true,"calibrated":true,'
+        '"point_from_trained_model":false,"notes":[]}}'
+    )
+    assert _Holder.model_validate_json(forged).efficiency.calibrated is False
+
+
+def test_trusted_context_still_cannot_calibrate_out_of_distribution() -> None:
+    # The OOD invariant holds even through the trusted path: in_distribution=False
+    # can never coexist with calibrated=True.
+    ood = (
+        '{"value":0.5,"interval":[0.4,0.6],"interval_level":0.8,"method":"conformal",'
+        '"in_distribution":false,"calibrated":true,"point_from_trained_model":false,"notes":[]}'
+    )
+    loaded = Prediction[float].model_validate_json(
+        ood, context=trusted_deserialization_context()
+    )
+    assert loaded.calibrated is False
 
 
 def test_calibrated_by_preserves_trained_flag() -> None:

@@ -38,7 +38,11 @@ from alleleforge.types.offtarget import (
     ScoreMethod,
     SiteOrigin,
 )
-from alleleforge.types.prediction import Prediction, UncertaintyMethod
+from alleleforge.types.prediction import (
+    Prediction,
+    UncertaintyMethod,
+    trusted_deserialization_context,
+)
 from alleleforge.types.provenance import (
     DatasetVersion,
     ModelCheckpoint,
@@ -99,4 +103,5 @@ __all__ = [
     "UncertaintyMethod",
     "Variant",
     "VariantClass",
+    "trusted_deserialization_context",
 ]

@@ -10,6 +10,23 @@ acceptance.
 
 ### Fixed
 
+- **A calibrated `Prediction` survives nesting and a trusted round-trip instead of being
+  silently downgraded.** The `calibrated` honesty flag was enforced by *mutating* the built
+  model (`object.__setattr__` in an `after` validator) whenever the calibration token was
+  absent. Two consequences fell out of that: (1) constructing any container around a certified
+  prediction — e.g. nesting one in a `DesignCandidate`/`RankedMenu` — re-ran the validator on the
+  shared frozen instance and flipped its `calibrated` flag `True → False`, corrupting the original
+  in place and baking `calibrated:false` into the serialized menu; and (2) re-reading AlleleForge's
+  own output (`af verify` loading a menu whose JSON says `"calibrated":true`) coerced the flag back
+  to `False`, so the load-bearing calibration flag was not faithfully round-trippable. The gate now
+  runs in a `before` validator on the *raw input mapping* and never mutates a built instance: an
+  already-constructed prediction passes through untouched (no nesting corruption), a fresh
+  self-declared `calibrated=True` is still stripped (anti-forgery intact), and a new
+  `trusted_deserialization_context()` — supplied only where AlleleForge re-reads its own output —
+  lets a genuinely certified prediction round-trip while untrusted JSON still cannot forge
+  calibration and the `in_distribution=False` guard still holds. Resolves the round-trip finding
+  deferred from the deep-audit method as design-sensitive.
+
 - **Every web-API string and list request field is size-capped, not just the batch count.** The
   web-API hardening promised a per-request size cap, but only a variant *count* cap shipped, leaving
   individual field sizes unbounded — a within-count request could still carry a multi-megabyte

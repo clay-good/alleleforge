@@ -11,6 +11,7 @@ This module is pure: it imports no genome, model, or I/O code.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from enum import StrEnum
 from typing import Any, Generic, TypeVar
 
@@ -33,10 +34,36 @@ COUNT_INTERVAL_NOTE = "count-valued quantity: interval is a nominal spread, not 
 
 #: Module-private capability token. ``calibrated=True`` is honored only when a
 #: construction supplies this exact object through the pydantic validation
-#: context — which only :meth:`Prediction.calibrated_by` does. A scorer building
-#: a ``Prediction`` directly has no way to obtain it, so it cannot self-declare
-#: calibration; the flag becomes a guarantee rather than an honor-system field.
+#: context — which only :meth:`Prediction.calibrated_by` and
+#: :func:`trusted_deserialization_context` do. A scorer building a ``Prediction``
+#: directly has no way to obtain it, so it cannot self-declare calibration; the
+#: flag becomes a guarantee rather than an honor-system field.
 _CALIBRATION_TOKEN = object()
+
+
+def trusted_deserialization_context() -> dict[str, Any]:
+    """Return the validation context that lets ``calibrated=True`` survive a load.
+
+    A :class:`Prediction`'s ``calibrated`` flag is coerced to ``False`` on any
+    construction that does not present the calibration token — including a plain
+    ``model_validate`` / ``model_validate_json`` of a stored prediction, which
+    would otherwise silently drop the flag and make AlleleForge's own serialized
+    output un-round-trippable (the JSON says ``"calibrated":true`` but reloading
+    it yields ``False``). Pass this context to the *outermost*
+    ``model_validate_json`` / ``model_validate`` call when — and only when — the
+    bytes are AlleleForge's own prior serialized output that you trust; pydantic
+    propagates it to every nested ``Prediction`` so a calibrated prediction buried
+    in a :class:`~alleleforge.types.candidate.RankedMenu` round-trips faithfully.
+
+    The trust is placed on the *source of the bytes*, not on the field value: a
+    scorer building a prediction in memory never round-trips itself through this
+    path, so the anti-forgery guarantee (a scorer cannot self-declare calibration)
+    is unaffected. Feeding untrusted or hand-edited JSON here would honor a forged
+    ``calibrated`` claim, so restrict it to files AlleleForge itself wrote. The
+    ``in_distribution=False`` guard still fires through this path — an
+    out-of-distribution prediction can never load back as calibrated.
+    """
+    return {"calibration_token": _CALIBRATION_TOKEN}
 
 
 class UncertaintyMethod(StrEnum):
@@ -96,14 +123,42 @@ class Prediction(BaseModel, Generic[T]):
     point_from_trained_model: bool = False
     notes: tuple[str, ...] = ()
 
-    @model_validator(mode="after")
-    def _check_interval(self, info: ValidationInfo) -> Prediction[T]:
-        """Validate the interval and enforce the tamper-resistant honesty flags.
+    @model_validator(mode="before")
+    @classmethod
+    def _gate_calibration(cls, data: Any, info: ValidationInfo) -> Any:
+        """Downgrade an unauthorized ``calibrated=True`` on the *raw* input.
 
-        Beyond interval ordering, level, and point containment, this coerces
-        ``calibrated`` to ``False`` unless the construction was authorized by a
-        fitted calibrator (via :meth:`calibrated_by`), and forbids an
-        out-of-distribution prediction from also claiming calibration.
+        Coercion happens here, on the incoming mapping of field values, rather
+        than by mutating a constructed instance. An already-built
+        :class:`Prediction` (passed through by nesting it in another model or by
+        re-validating it) is not a mapping, so it flows through untouched — a
+        certified prediction is never silently downgraded, nor mutated in place,
+        just because it was placed inside a :class:`RankedMenu` or revalidated.
+
+        A ``calibrated=True`` claim on fresh mapping/keyword input is honored only
+        when the caller presents the module-private calibration token — which only
+        :meth:`calibrated_by` (fresh certification) and
+        :func:`trusted_deserialization_context` (loading AlleleForge's own output)
+        can supply — and the input is in-distribution. Otherwise the flag is reset
+        to ``False``, so a scorer still cannot self-declare calibration and an
+        out-of-distribution prediction can never load or construct as calibrated.
+        """
+        if not isinstance(data, Mapping) or not data.get("calibrated"):
+            return data
+        context = info.context or {}
+        authorized = context.get("calibration_token") is _CALIBRATION_TOKEN
+        if not authorized or not data.get("in_distribution", True):
+            data = dict(data)
+            data["calibrated"] = False
+        return data
+
+    @model_validator(mode="after")
+    def _check_interval(self) -> Prediction[T]:
+        """Validate interval ordering, level, and point containment.
+
+        The honesty-flag gate lives in :meth:`_gate_calibration` (a
+        ``before`` validator) so this ``after`` pass never mutates ``self`` —
+        keeping the frozen model genuinely immutable and safe to alias.
         """
         low, high = self.interval
         if low > high:
@@ -114,11 +169,6 @@ class Prediction(BaseModel, Generic[T]):
         if not isinstance(value, bool) and isinstance(value, (int, float)):
             if not low <= float(value) <= high:
                 raise ValueError(f"point estimate {value} lies outside interval {self.interval}")
-        if self.calibrated:
-            context = info.context or {}
-            authorized = context.get("calibration_token") is _CALIBRATION_TOKEN
-            if not authorized or not self.in_distribution:
-                object.__setattr__(self, "calibrated", False)
         return self
 
     @classmethod
