@@ -37,6 +37,19 @@ and a non-empty variant list.
 - **WHEN** a request supplies a weights list whose length is not 4
 - **THEN** it is rejected at the boundary with 422 before any compute
 
+### Requirement: String and list request fields are size-capped
+
+Every string and list request field SHALL be bounded at the schema boundary — not only the
+batch variant *count*: a variant/spacer/PAM/build string and the populations/chemistries
+lists (and their elements) SHALL carry a generous maximum far above any legitimate input, so
+a within-count request cannot smuggle a multi-megabyte field into genome-scale compute. This
+is the request-size cap that bounds the work a caller can queue in one request.
+
+#### Scenario: Oversized field
+- **WHEN** a request supplies a spacer, variant, or populations list longer than its cap
+- **THEN** it is rejected at the boundary with 422 before any scan, while any legitimate
+  (real-world-sized) input is accepted unchanged
+
 ### Requirement: Async jobs have a defined lifecycle
 
 Async design jobs SHALL follow `pending → running → done|error`, exposing state,

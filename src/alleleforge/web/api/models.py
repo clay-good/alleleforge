@@ -9,6 +9,7 @@ validate the library. FastAPI generates the OpenAPI spec from these.
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -19,14 +20,41 @@ from alleleforge.types.offtarget import OffTargetReport
 #: flooded with an unbounded cohort. Callers with more variants page across requests.
 MAX_BATCH_VARIANTS = 1000
 
+#: Per-field size caps. The batch *count* cap alone left individual field sizes
+#: unbounded, so a within-count request could still carry multi-megabyte strings or
+#: lists that reach genome-scale work — the request-size cap the web-API hardening
+#: promised. These bounds are generous — far above any legitimate input (a real
+#: spacer is <=~30 nt, an HGVS/coords string is short, gnomAD/1000G/HGDP expose
+#: ~30 ancestry labels) — so no genuine request is rejected while pathological
+#: inputs are refused at the boundary before any scan.
+MAX_VARIANT_LEN = 8192  # HGVS delins can inline an inserted sequence; still generous
+MAX_BUILD_LEN = 128
+MAX_SPACER_LEN = 512
+MAX_PAM_LEN = 64
+MAX_POPULATIONS = 64
+MAX_CHEMISTRIES = 16
+
+#: A variant input string bounded to :data:`MAX_VARIANT_LEN`, usable as a list item.
+VariantStr = Annotated[str, Field(max_length=MAX_VARIANT_LEN)]
+#: An ancestry/population label bounded so a huge list element can't slip the count cap.
+PopulationStr = Annotated[str, Field(max_length=MAX_BUILD_LEN)]
+#: A chemistry name bounded likewise.
+ChemistryStr = Annotated[str, Field(max_length=MAX_BUILD_LEN)]
+
 
 class ResolveRequest(BaseModel):
     """A request to normalize any variant input form."""
 
     model_config = ConfigDict(frozen=True)
 
-    variant: str = Field(description="ClinVar / rsID / HGVS / VCF / coords input.")
-    build: str = Field(default="hg38", description="Reference build the input is expressed in.")
+    variant: str = Field(
+        max_length=MAX_VARIANT_LEN, description="ClinVar / rsID / HGVS / VCF / coords input."
+    )
+    build: str = Field(
+        default="hg38",
+        max_length=MAX_BUILD_LEN,
+        description="Reference build the input is expressed in.",
+    )
 
 
 class ResolveResponse(BaseModel):
@@ -47,13 +75,19 @@ class DesignRequest(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    variant: str = Field(description="ClinVar / rsID / HGVS / VCF / coords input.")
-    intent: str = Field(default="correct", description="correct | knock_out | install | revert.")
-    chemistries: list[str] | None = Field(
-        default=None, description="Restrict to these chemistries (default: all eligible)."
+    variant: str = Field(
+        max_length=MAX_VARIANT_LEN, description="ClinVar / rsID / HGVS / VCF / coords input."
     )
-    populations: list[str] | None = Field(
-        default=None, description="Ancestry labels to query and stratify off-target by."
+    intent: str = Field(default="correct", description="correct | knock_out | install | revert.")
+    chemistries: list[ChemistryStr] | None = Field(
+        default=None,
+        max_length=MAX_CHEMISTRIES,
+        description="Restrict to these chemistries (default: all eligible).",
+    )
+    populations: list[PopulationStr] | None = Field(
+        default=None,
+        max_length=MAX_POPULATIONS,
+        description="Ancestry labels to query and stratify off-target by.",
     )
     weights: list[float] | None = Field(
         default=None,
@@ -72,17 +106,21 @@ class BatchRequest(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    variants: list[str] = Field(
+    variants: list[VariantStr] = Field(
         min_length=1,
         max_length=MAX_BATCH_VARIANTS,
         description="Variant input forms (ClinVar / rsID / HGVS / coords).",
     )
     intent: str = Field(default="correct", description="correct | knock_out | install | revert.")
-    chemistries: list[str] | None = Field(
-        default=None, description="Restrict to these chemistries (default: all eligible)."
+    chemistries: list[ChemistryStr] | None = Field(
+        default=None,
+        max_length=MAX_CHEMISTRIES,
+        description="Restrict to these chemistries (default: all eligible).",
     )
-    populations: list[str] | None = Field(
-        default=None, description="Ancestry labels to query and stratify off-target by."
+    populations: list[PopulationStr] | None = Field(
+        default=None,
+        max_length=MAX_POPULATIONS,
+        description="Ancestry labels to query and stratify off-target by.",
     )
     weights: list[float] | None = Field(
         default=None,
@@ -127,8 +165,8 @@ class OffTargetRequest(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    spacer: str = Field(description="The on-target spacer (5'->3').")
-    pam: str = Field(default="NGG", description="PAM pattern (IUPAC).")
+    spacer: str = Field(max_length=MAX_SPACER_LEN, description="The on-target spacer (5'->3').")
+    pam: str = Field(default="NGG", max_length=MAX_PAM_LEN, description="PAM pattern (IUPAC).")
     mismatches: int = Field(default=4, ge=0, le=8, description="Max mismatches.")
     dna_bulges: int = Field(default=1, ge=0, le=4, description="Max DNA bulges.")
     rna_bulges: int = Field(default=1, ge=0, le=4, description="Max RNA bulges.")
@@ -144,8 +182,8 @@ class OffTargetRequest(BaseModel):
         le=1.0,
         description="Min population allele frequency to consider carrying.",
     )
-    populations: list[str] | None = Field(
-        default=None, description="Ancestry labels to stratify by."
+    populations: list[PopulationStr] | None = Field(
+        default=None, max_length=MAX_POPULATIONS, description="Ancestry labels to stratify by."
     )
 
 

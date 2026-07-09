@@ -303,6 +303,30 @@ async def test_batch_bad_intent_is_422(client: httpx.AsyncClient) -> None:
     assert res.status_code == 422
 
 
+async def test_oversized_string_and_list_fields_are_422(client: httpx.AsyncClient) -> None:
+    # The batch *count* cap alone left individual field sizes unbounded, so a
+    # within-count request could still carry a multi-megabyte spacer/variant or a
+    # huge populations list into genome-scale work. Every string/list field is now
+    # size-capped at the boundary, rejected with 422 before any scan.
+    from alleleforge.web.api.models import MAX_POPULATIONS, MAX_SPACER_LEN
+
+    big_spacer = await client.post("/api/offtarget", json={"spacer": "A" * (MAX_SPACER_LEN + 1)})
+    assert big_spacer.status_code == 422
+    big_pops = await client.post(
+        "/api/offtarget",
+        json={"spacer": "GACCATGCAACCTTGAACGT", "populations": ["afr"] * (MAX_POPULATIONS + 1)},
+    )
+    assert big_pops.status_code == 422
+    huge_variant = await client.post("/api/batch", json={"variants": ["A" * 100_000]})
+    assert huge_variant.status_code == 422
+    # ...while a legitimate, real-world-sized request is still accepted.
+    ok = await client.post(
+        "/api/offtarget",
+        json={"spacer": "GACCATGCAACCTTGAACGT", "populations": ["afr", "eur"]},
+    )
+    assert ok.status_code in (200, 503)  # 503 only if no reference is loaded, never 422
+
+
 async def test_batch_requires_reference(app_no_reference: FastAPI) -> None:
     transport = httpx.ASGITransport(app=app_no_reference)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as c:
