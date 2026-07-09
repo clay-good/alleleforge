@@ -10,6 +10,33 @@ acceptance.
 
 ### Fixed
 
+- **Cross-build liftover rejects a balanced interior chain gap.** `lift_interval` fails closed to
+  avoid emitting a "scrambled interval" when a chain indel makes the lifted coordinates "no longer
+  describe the same bases," but it lifted only the two endpoints and compared the span length. A
+  *balanced* chain gap — a source deletion and a target insertion of equal size — leaves both
+  endpoints mapped and the span length unchanged while the interior bases map to nothing, so the
+  endpoint-only check passed it and returned a divergent interval as if it were a faithful 1:1 image.
+  `lift_interval` now lifts every base of the (short) interval and fails closed on any unmapped base
+  or contig/strand split. Also guards `GenomicInterval.to_one_based` on an empty interval (which
+  1-based-inclusive cannot represent) with the real cause instead of a misleading bounds error.
+  (Round 13 property-fuzzing / liftover / encoding pass.)
+
+- **Text I/O is pinned to UTF-8 and strips a byte-order mark.** Data-layer reads (`open_text`) and the
+  CLI/cohort file writes were left at the platform-default encoding while the content is UTF-8
+  (`model_dump_json` preserves non-ASCII; a VCF/TSV can carry a BOM). A UTF-8 BOM rode on the first
+  field, so `'﻿#…'.startswith('#')` was False and ClinVar header detection / source-assembly
+  auto-detection silently broke; and the "lossless" JSON export crashed under a non-UTF-8 locale
+  (C/POSIX) or wrote mojibake under Windows cp1252. `open_text` now decodes `utf-8-sig` (stripping a
+  BOM), and the per-item cohort write and the CLI `write_text` sites pass `encoding="utf-8"`. (Round
+  13 property-fuzzing / liftover / encoding pass.)
+
+- **The PDF is encoded as CP1252 to match its declared WinAnsi font.** The PDF declares its font
+  `/WinAnsiEncoding` (CP1252) but `_escape` encoded Latin-1, so ordinary punctuation the font renders
+  — a curly apostrophe, en/em dashes, the euro sign — was silently replaced with `?`, data loss on the
+  printable reagent leave-behind. Both `_escape` and the content-stream serialization now encode
+  CP1252; genuinely unrepresentable scripts still fall back to `?`. (Round 13 property-fuzzing /
+  liftover / encoding pass.)
+
 - **Benchmark metrics guard NaN, so corrupt input can't score as perfect.** The metrics module
   promises "degenerate inputs (empty, constant) return `0.0` rather than `NaN` so results stay
   JSON-serializable," but the guards test `<= 0` / `==` / emptiness, none of which a NaN satisfies

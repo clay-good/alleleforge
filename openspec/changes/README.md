@@ -264,6 +264,34 @@ method: the audit is never "done" — each genuinely new decomposition finds rea
 test-pinned guarantee gaps, and honest deferral of a latent, design-sensitive finding beats a rushed
 edit to a load-bearing honesty mechanism.**
 
+## Round 13 — property fuzzing, liftover round-trip, encoding/locale, native adversarial parity (4 fixes)
+
+Round 13 ran four fresh lenses: (1) `hypothesis`-style property fuzzing of the scoring / normalize /
+coordinate / revcomp cores, (2) liftover A→B→A round-trip + coordinate-system conversions, (3)
+encoding / timezone / locale portability, (4) native Rust kernel vs Python fallback under
+**adversarial** (not random) inputs. Two lenses returned rigorous clean bills — property fuzzing
+(~22,000 cases; one LOW error-clarity edge) and native parity (**~76 million** comparisons across
+homopolymers/repeats/max-budget-bulges/empty/`N`-laden inputs, 0 reachable divergence, native crate
+confirmed built). The liftover and encoding lenses each surfaced real gaps.
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(coordinates)` liftover | genome-access, variant-resolution | `lift_interval` fails closed on an interval a chain indel "silently resized" so the lifted coordinates "no longer describe the same bases" (its guarantee) — but it checked only the two endpoints + the span length. A **balanced** chain gap (equal-size source deletion + target insertion) keeps both endpoints mapped and the span length unchanged while the interior bases map to nothing, so it passed and emitted a scrambled interval (divergent bases in a cross-build lift). **Shipped:** lift every base of the short interval and fail closed on any unmapped base or contig/strand split; also guarded `to_one_based` on an empty interval (LOW, from the property lens). |
+| `fix(io)` utf-8/BOM | data-registry, cli, (cohort) | `open_text` and the CLI/cohort file writes were left at the platform-default encoding while the content is UTF-8 (`model_dump_json` preserves non-ASCII; VCF/TSV can carry a BOM). A BOM rode on the first field so `'﻿#…'.startswith('#')` was False — ClinVar header detection and source-assembly auto-detection broke; and the "lossless" export crashed under a non-UTF-8 locale / wrote mojibake under Windows cp1252. **Shipped:** `open_text` decodes `utf-8-sig` (strips BOM); the cohort/CLI writes pass `encoding="utf-8"`. |
+| `fix(reporting)` pdf-cp1252 | reporting | The PDF declares its font `/WinAnsiEncoding` (CP1252) but `_escape` encoded Latin-1, silently turning ordinary punctuation the font renders — a curly apostrophe, en/em dashes, the euro sign — into `?`: data loss on the printable leave-behind. **Shipped:** encode CP1252 to match the declared font; only truly unrenderable scripts still fall back to `?`. |
+
+**Native kernels re-confirmed:** with the crate built, FM-index / k-mer / haplotype are byte-for-byte
+identical to the Python fallbacks and brute force across every adversarial/pathological class (the
+one k-mer UTF-8 divergence is unreachable — the scan sanitizes to `ACGTN` before any kernel). The
+`Prediction.calibrated` round-trip and web-API size-cap items from R12 remain deferred by design.
+
+Rounds 3–5 = 11, R6 = 0, R7 = 7, R8 = 3, R9 = 7, R10 = 3, R11 = 2, R12 = 4, R13 = 4 (yield
+5/3/3/0/7/3/7/3/2/4/4). Thirteen rounds; two R13 lenses (property fuzzing, native adversarial parity)
+came back genuinely clean while the portability and coordinate-faithfulness lenses each still held a
+real gap. **The pattern holds and refines: as decompositions accumulate, some lenses converge to
+clean (the R6-style signal) while a newly-chosen angle still finds real, test-pinned gaps — audit
+breadth, not depth on one axis, is what keeps surfacing them.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
