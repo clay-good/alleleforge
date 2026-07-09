@@ -10,6 +10,16 @@ acceptance.
 
 ### Fixed
 
+- **The design report now names the off-target scoring basis (scorer + matrix).** The
+  reporting spec requires every rendered report to state which scorer and specificity matrix
+  produced the off-target numbers (published Doench 2016 CFD versus the labeled seed-tolerance
+  approximation), so a reader can tell the scoring basis without inspecting the code. The
+  builder dropped `OffTargetReport.scorer`/`score_matrix` on the way into `CandidateReport`, so
+  the HTML and PDF renders — and the JSON/TSV exports — never carried it: an approximation-scored
+  table was presented identically to a published-CFD one. `CandidateReport` now carries
+  `offtarget_scorer`/`offtarget_matrix`, both renderers print a "scoring basis" line beside the
+  off-target table, and the JSON export is lossless again. (Round 3 deep-correctness pass.)
+
 - **The out-of-distribution flag is now computed, not hardcoded — fail-honest by default.**
   Several default scorers stamped `in_distribution = True` unconditionally: the default
   ensemble efficiency scorer with no detector wired, the prime-outcome and base-outcome

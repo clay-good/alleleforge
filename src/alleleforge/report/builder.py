@@ -86,6 +86,11 @@ class CandidateReport(BaseModel):
         offtarget_specificity: Aggregate genome-wide specificity in ``(0, 1]``
             (Hsu-2013-style ``1/(1+Σ scores)``), if searched; ``1.0`` = no off-targets.
         offtarget_by_ancestry: Worst-case off-target score per ancestry.
+        offtarget_scorer: Name of the specificity scorer that produced the site
+            scores (e.g. ``"CFD"``), so a reader can tell which scorer was used.
+        offtarget_matrix: Identity of the weight source the scorer used (published
+            CFD versus the labeled approximation), so a reader can tell the scoring
+            basis without inspecting the code.
         oligos: Cloning-ready oligos for the reagent, if requested.
         oligos_requested: Whether oligos were requested for this report. Lets a
             render distinguish a **reagent-free** candidate (requested, but nothing
@@ -108,6 +113,8 @@ class CandidateReport(BaseModel):
     n_offtarget_sites: int | None
     offtarget_specificity: float | None
     offtarget_by_ancestry: tuple[AncestryOffTarget, ...]
+    offtarget_scorer: str | None = None
+    offtarget_matrix: str | None = None
     oligos: SgRnaOligos | PegRNAOligos | None
     oligos_requested: bool = False
     flags: tuple[str, ...]
@@ -163,9 +170,13 @@ def _candidate_report(
     n_sites: int | None = None
     specificity: float | None = None
     ancestry_rows: tuple[AncestryOffTarget, ...] = ()
+    offtarget_scorer: str | None = None
+    offtarget_matrix: str | None = None
     if candidate.offtarget is not None:
         n_sites = candidate.offtarget.n_sites
         specificity = candidate.offtarget.specificity_score()
+        offtarget_scorer = candidate.offtarget.scorer
+        offtarget_matrix = candidate.offtarget.score_matrix
         strata = candidate.offtarget.ancestry_stratification()
         ancestry_rows = tuple(
             AncestryOffTarget(ancestry=a, worst_score=s)
@@ -185,6 +196,8 @@ def _candidate_report(
         n_offtarget_sites=n_sites,
         offtarget_specificity=specificity,
         offtarget_by_ancestry=ancestry_rows,
+        offtarget_scorer=offtarget_scorer,
+        offtarget_matrix=offtarget_matrix,
         oligos=oligos,
         oligos_requested=with_oligos,
         flags=candidate.flags,

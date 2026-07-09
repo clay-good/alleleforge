@@ -54,6 +54,7 @@ def test_pdf_includes_ancestry_offtarget(ancestry_menu: RankedMenu) -> None:
     pdf = render_pdf(build_report(ancestry_menu))
     assert b"afr: worst score" in pdf
     assert b"specificity" in pdf  # the aggregate genome-wide specificity score
+    assert b"scoring basis: CFD / doench-2016-cfd" in pdf  # the scorer + matrix identity
     assert b"PROVENANCE" in pdf
     assert b"Models: cas9-efficiency-ensemble 0.1" in pdf
 

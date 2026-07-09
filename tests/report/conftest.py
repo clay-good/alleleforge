@@ -102,6 +102,8 @@ def ancestry_menu() -> RankedMenu:
     report = OffTargetReport(
         spacer=spacer,
         pam="NGG",
+        scorer="CFD",
+        score_matrix="doench-2016-cfd",
         sites=(
             OffTargetSite(
                 locus=GenomicInterval(chrom="chr3", start=10, end=30, strand=Strand.PLUS),

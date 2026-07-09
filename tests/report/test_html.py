@@ -59,6 +59,10 @@ def test_html_renders_ancestry_offtarget_chart_and_table(ancestry_menu: RankedMe
     assert "off-target score by ancestry" in html  # the per-candidate table caption
     assert "specificity" in html  # the aggregate genome-wide specificity score
     assert "afr" in html and "eur" in html
+    # The scoring basis (scorer + matrix identity) is named alongside the table so a
+    # reader can tell published-CFD from the labeled approximation without the code.
+    assert "scoring basis" in html
+    assert "doench-2016-cfd" in html
 
 
 def test_empty_menu_renders(prime_menu: RankedMenu) -> None:

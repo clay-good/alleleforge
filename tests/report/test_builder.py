@@ -98,3 +98,11 @@ def test_ancestry_stratification_populated(ancestry_menu: RankedMenu) -> None:
     assert [r.worst_score for r in top.offtarget_by_ancestry] == sorted(
         (r.worst_score for r in top.offtarget_by_ancestry), reverse=True
     )
+
+
+def test_candidate_carries_offtarget_scoring_basis(ancestry_menu: RankedMenu) -> None:
+    # The scorer identity and matrix are surfaced onto the report so the render can
+    # name the scoring basis (published CFD vs. the labeled approximation).
+    top = build_report(ancestry_menu).candidates[0]
+    assert top.offtarget_scorer == "CFD"
+    assert top.offtarget_matrix == "doench-2016-cfd"
