@@ -170,7 +170,13 @@ def test_design_config_toml(runner: CliRunner, prime_fasta: Path, tmp_path: Path
         ],
     )
     assert result.exit_code == 0
-    assert json.loads(result.output)["intent"] == "install"
+    menu = json.loads(result.output)
+    assert menu["intent"] == "install"
+    # max_per_chemistry from the config must actually cap the menu, not be ignored.
+    per_chem: dict[str, int] = {}
+    for cand in menu["candidates"]:
+        per_chem[cand["chemistry"]] = per_chem.get(cand["chemistry"], 0) + 1
+    assert all(n <= 2 for n in per_chem.values())
 
 
 def test_design_config_toml_governs_settings(
@@ -198,6 +204,35 @@ def test_design_config_toml_governs_settings(
     sidecar = out.with_suffix(".html.provenance.json")
     prov = json.loads(sidecar.read_text())
     assert prov["config_snapshot"]["settings"]["maf_threshold"] == 0.05
+
+
+def test_design_config_honors_run_params(
+    runner: CliRunner, prime_fasta: Path, tmp_path: Path
+) -> None:
+    # Whitelisted run-params carried only in the config file must be honored, not
+    # silently ignored: run_offtarget=false and cell_context flow into the run
+    # (visible in the provenance snapshot). Before the fix both were dropped —
+    # run_offtarget stayed True and cell_context stayed null.
+    cfg = tmp_path / "run.toml"
+    cfg.write_text('intent = "install"\nrun_offtarget = false\ncell_context = "HEK293T"\n')
+    out = tmp_path / "report.html"
+    result = runner.invoke(
+        app,
+        [
+            "design",
+            "chr2:71:A>C",
+            "--reference-fasta",
+            str(prime_fasta),
+            "--config",
+            str(cfg),
+            "--out",
+            str(out),
+        ],
+    )
+    assert result.exit_code == 0
+    prov = json.loads(out.with_suffix(".html.provenance.json").read_text())
+    assert prov["config_snapshot"]["run_offtarget"] is False
+    assert prov["config_snapshot"]["cell_context"] == "HEK293T"
 
 
 def test_reference_build_is_honored(runner: CliRunner, prime_fasta: Path, tmp_path: Path) -> None:

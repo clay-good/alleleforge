@@ -10,6 +10,17 @@ acceptance.
 
 ### Fixed
 
+- **The CLI now honors every whitelisted config run-param instead of silently ignoring some.**
+  `_load_config` accepts a set of run-param keys without a typo warning (signalling "this is a
+  real knob"), and the CLI spec promises the config file is honored — but only `intent`,
+  `populations`, `chemistry`, and `weights` were actually read from it. `max_per_chemistry`,
+  `no_offtarget`/`run_offtarget`, `trained_efficiency`, `trained_outcome`,
+  `trained_base_outcome`, and `cell_context` were whitelisted yet consumed by nothing, so a
+  config that set them changed nothing and printed no warning (worse than a typo, which at least
+  warns). Both `design` and `batch` now read every run-param they expose from the config as a
+  fallback (a CLI flag still overrides), and `design` passes `cell_context` through to the
+  designer. (Round 4 deep-correctness pass.)
+
 - **Parallel cohort runs now honor the bounded-memory guarantee.** `design_many` promises the
   input is consumed lazily and peak memory does not grow with cohort size, but the
   `max_workers > 1` path used `ThreadPoolExecutor.map`, which is eager: it submits one task per

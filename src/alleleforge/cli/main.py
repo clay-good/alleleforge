@@ -208,6 +208,19 @@ _RUN_PARAM_KEYS = frozenset(
 )
 
 
+def _resolve_run_offtarget(no_offtarget: bool, cfg: dict[str, Any]) -> bool:
+    """Return whether to run the off-target search, honoring the config file.
+
+    A CLI ``--no-offtarget`` always skips. Otherwise the config may skip via either
+    spelling — ``no_offtarget = true`` or ``run_offtarget = false`` — so a
+    whitelisted config key is honored rather than silently ignored.
+    """
+    skip = no_offtarget or bool(cfg.get("no_offtarget", False))
+    if "run_offtarget" in cfg:
+        skip = skip or not bool(cfg["run_offtarget"])
+    return not skip
+
+
 def _load_config(path: Path | None) -> dict[str, Any]:
     """Load a run-config TOML (warning on unknown keys), or exit if it is absent."""
     if path is None:
@@ -320,6 +333,17 @@ def design(
     pops_str = populations if populations is not None else cfg.get("populations")
     chem_list = chemistry if chemistry else cfg.get("chemistry")
     weights_obj = _parse_weights(weights or cfg.get("weights"))
+    # Honor the remaining whitelisted run-params from the config file (a CLI flag
+    # still wins). Without this a config key that _load_config accepts silently
+    # (no typo warning) would do nothing — the "config file is honored" contract.
+    max_per_chemistry = (
+        max_per_chemistry if max_per_chemistry is not None else cfg.get("max_per_chemistry")
+    )
+    cell_context = cfg.get("cell_context")
+    trained_efficiency = trained_efficiency or bool(cfg.get("trained_efficiency", False))
+    trained_outcome = trained_outcome or bool(cfg.get("trained_outcome", False))
+    trained_base_outcome = trained_base_outcome or bool(cfg.get("trained_base_outcome", False))
+    run_offtarget = _resolve_run_offtarget(no_offtarget, cfg)
 
     try:
         edit_intent = EditIntent(intent_str)
@@ -365,8 +389,9 @@ def design(
             chemistries=chemistries,
             weights=weights_obj,
             populations=pops,
-            run_offtarget=not no_offtarget,
+            run_offtarget=run_offtarget,
             max_candidates_per_chemistry=max_per_chemistry,
+            cell_context=cell_context,
             settings=settings,
             cas9_efficiency_scorer=cas9_scorer,
             cas9_outcome_predictor=cas9_outcome,
@@ -546,6 +571,12 @@ def batch(
     intent_str = intent or cfg.get("intent", "correct")
     pops_str = populations if populations is not None else cfg.get("populations")
     weights_obj = _parse_weights(weights or cfg.get("weights"))
+    # Honor the whitelisted run-params this command exposes from the config file
+    # (a CLI flag still wins), so an accepted config key is not silently ignored.
+    max_per_chemistry = (
+        max_per_chemistry if max_per_chemistry is not None else cfg.get("max_per_chemistry")
+    )
+    run_offtarget = _resolve_run_offtarget(no_offtarget, cfg)
 
     try:
         edit_intent = EditIntent(intent_str)
@@ -594,7 +625,7 @@ def batch(
             build=state.reference_build,
             weights=weights_obj,
             populations=pops,
-            run_offtarget=not no_offtarget,
+            run_offtarget=run_offtarget,
             max_candidates_per_chemistry=max_per_chemistry,
             settings=settings,
             **ref_kwargs,
