@@ -246,7 +246,12 @@ def design(
         seed=cfg.seed,
         reference_build=reference.build or build,
         timestamp=timestamp,
-        models=_collect_model_checkpoints(eligible),
+        models=_collect_model_checkpoints(
+            eligible,
+            cas9_efficiency_scorer=cas9_efficiency_scorer,
+            cas9_outcome_predictor=cas9_outcome_predictor,
+            base_outcome_predictor=base_outcome_predictor,
+        ),
         datasets=_collect_datasets(reference, gnomad, clinvar),
         config_snapshot={
             "intent": intent.value,
@@ -379,19 +384,36 @@ def _collect_datasets(
     return tuple(seen.values())
 
 
-def _collect_model_checkpoints(eligible: Sequence[Chemistry]) -> tuple[ModelCheckpoint, ...]:
+def _collect_model_checkpoints(
+    eligible: Sequence[Chemistry],
+    *,
+    cas9_efficiency_scorer: Cas9EfficiencyScorer | None = None,
+    cas9_outcome_predictor: Cas9OutcomePredictor | None = None,
+    base_outcome_predictor: BaseOutcomePredictor | None = None,
+) -> tuple[ModelCheckpoint, ...]:
     """Return the deduped model checkpoints for every eligible chemistry's scorers.
 
-    ``design`` always runs each vertical with its default, card-backed scorers, so
-    the models invoked are fully determined by which chemistries were eligible.
-    Each contributing checkpoint is stamped into the menu's provenance block; a
-    model shared across chemistries (keyed by name + version) is recorded once.
+    The models invoked are determined by which chemistries were eligible *and* by
+    any scorer overrides the caller passed to ``design`` — the opt-in trained Rule
+    Set 3 / Lindel / BE-DICT models. Each override's own card is recorded (falling
+    back to the vertical's default when it is ``None``), so provenance names the
+    model that actually scored the candidates rather than the default it replaced;
+    otherwise a re-run from the stamped provenance would reproduce different
+    numbers. Each contributing checkpoint is stamped into the menu's provenance
+    block; a model shared across chemistries (keyed by name + version) is recorded
+    once.
     """
     seen: dict[tuple[str, str], ModelCheckpoint] = {}
     contributors: list[tuple[bool, Callable[[], tuple[ModelCheckpoint, ...]]]] = [
-        (bool(_BASE_CHEMISTRIES.intersection(eligible)), base_editor_model_checkpoints),
+        (
+            bool(_BASE_CHEMISTRIES.intersection(eligible)),
+            lambda: base_editor_model_checkpoints(base_outcome_predictor),
+        ),
         (Chemistry.PRIME in eligible, prime_model_checkpoints),
-        (Chemistry.CAS9_NUCLEASE in eligible, cas9_model_checkpoints),
+        (
+            Chemistry.CAS9_NUCLEASE in eligible,
+            lambda: cas9_model_checkpoints(cas9_efficiency_scorer, cas9_outcome_predictor),
+        ),
     ]
     for is_eligible, checkpoints in contributors:
         if not is_eligible:

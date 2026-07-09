@@ -27,6 +27,7 @@ from alleleforge.types.edit import Chemistry, EditIntent, EditOutcome
 from alleleforge.types.guide import PAM, Guide
 from alleleforge.types.offtarget import OffTargetReport
 from alleleforge.types.prediction import Prediction
+from alleleforge.model_zoo.registry import ModelCard
 from alleleforge.types.provenance import ModelCheckpoint
 from alleleforge.types.sequence import GenomicInterval, Strand
 from alleleforge.types.variant import Variant
@@ -45,12 +46,20 @@ class Cas9EfficiencyScorer(Protocol):
         """Return a calibrated efficiency prediction."""
         ...
 
+    def model_card(self) -> ModelCard:
+        """Return the model card whose checkpoint is stamped into provenance."""
+        ...
+
 
 class Cas9OutcomePredictor(Protocol):
     """Structural type a Cas9 outcome predictor must satisfy (see scoring)."""
 
     def predict(self, context: str, cut: int, *, mark_frameshift: bool = False) -> EditOutcome:
         """Return the predicted indel spectrum at ``cut``."""
+        ...
+
+    def model_card(self) -> ModelCard:
+        """Return the model card whose checkpoint is stamped into provenance."""
         ...
 
 
@@ -91,17 +100,25 @@ def _flags(
     return tuple(flags)
 
 
-def cas9_model_checkpoints() -> tuple[ModelCheckpoint, ...]:
-    """Return the provenance checkpoints for the default Cas9 scorers.
+def cas9_model_checkpoints(
+    efficiency_scorer: Cas9EfficiencyScorer | None = None,
+    outcome_predictor: Cas9OutcomePredictor | None = None,
+) -> tuple[ModelCheckpoint, ...]:
+    """Return the provenance checkpoints for the Cas9 scorers actually used.
 
     The default efficiency ensemble (``cas9-efficiency-ensemble``) and outcome
     predictor (``indelphi``) carry model cards; their card-derived
     :class:`ModelCheckpoint`s are stamped into a menu's provenance whenever the
-    nuclease vertical runs.
+    nuclease vertical runs. When ``design`` is handed an override scorer (e.g. the
+    opt-in trained Rule Set 3 / Lindel model), the override's card is recorded
+    instead, so provenance names the model that scored the candidates rather than
+    the default it replaced.
     """
+    efficiency = efficiency_scorer if efficiency_scorer is not None else EnsembleEfficiencyScorer()
+    outcome = outcome_predictor if outcome_predictor is not None else MicrohomologyOutcomePredictor()
     return (
-        EnsembleEfficiencyScorer().model_card().to_checkpoint(),
-        MicrohomologyOutcomePredictor().model_card().to_checkpoint(),
+        efficiency.model_card().to_checkpoint(),
+        outcome.model_card().to_checkpoint(),
     )
 
 

@@ -26,6 +26,7 @@ from alleleforge.types.candidate import DesignCandidate
 from alleleforge.types.edit import EditIntent
 from alleleforge.types.guide import BaseEditWindow
 from alleleforge.types.offtarget import OffTargetReport
+from alleleforge.model_zoo.registry import ModelCard
 from alleleforge.types.provenance import ModelCheckpoint
 from alleleforge.types.sequence import GenomicInterval
 from alleleforge.variant.resolver import ResolvedVariant
@@ -46,14 +47,19 @@ def _flags(
     return tuple(flags)
 
 
-def base_editor_model_checkpoints() -> tuple[ModelCheckpoint, ...]:
-    """Return the provenance checkpoint for the default base-edit outcome model.
+def base_editor_model_checkpoints(
+    outcome_predictor: BaseOutcomePredictor | None = None,
+) -> tuple[ModelCheckpoint, ...]:
+    """Return the provenance checkpoint for the base-edit outcome model used.
 
     The default window-outcome predictor is the BE-DICT baseline (``be-dict``),
     which carries a model card stamped into a menu's provenance whenever the
-    base-editing vertical runs.
+    base-editing vertical runs. When ``design`` is handed an override predictor
+    (e.g. the opt-in trained BE-DICT model), the override's card is recorded
+    instead, so provenance names the model that scored the candidates.
     """
-    return (BaseEditOutcomePredictor().model_card().to_checkpoint(),)
+    predictor = outcome_predictor if outcome_predictor is not None else BaseEditOutcomePredictor()
+    return (predictor.model_card().to_checkpoint(),)
 
 
 class BaseOutcomePredictor(Protocol):
@@ -67,6 +73,10 @@ class BaseOutcomePredictor(Protocol):
 
     def predict(self, window: BaseEditWindow, editor: BaseEditor) -> WindowOutcome:
         """Return the predicted window outcome for ``window`` under ``editor``."""
+        ...
+
+    def model_card(self) -> ModelCard:
+        """Return the model card whose checkpoint is stamped into provenance."""
         ...
 
 

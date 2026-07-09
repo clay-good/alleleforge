@@ -88,6 +88,49 @@ def test_knock_out_routes_to_nuclease_only(make_reference: MakeRef) -> None:
     assert {c.chemistry for c in menu.candidates} == {Chemistry.CAS9_NUCLEASE}
 
 
+def test_provenance_records_the_override_scorer_not_the_default(make_reference: MakeRef) -> None:
+    # Provenance must name the model that actually scored the candidates. When the
+    # caller overrides the default efficiency scorer (e.g. the opt-in trained Rule
+    # Set 3 model), the menu's provenance.models must record the override's card,
+    # not the default ensemble it replaced — otherwise a re-run from the stamped
+    # provenance reproduces different numbers.
+    from alleleforge.model_zoo.registry import ModelCard
+    from alleleforge.scoring.cas9_efficiency import EnsembleEfficiencyScorer
+    from alleleforge.types.prediction import Prediction
+
+    class _OverrideScorer:
+        name = "rule-set-3-override"
+
+        def score(self, context: str) -> Prediction[float]:
+            return EnsembleEfficiencyScorer().score(context)
+
+        def model_card(self) -> ModelCard:
+            return ModelCard(
+                name="rule-set-3-override",
+                version="9.9",
+                chemistry="cas9_nuclease",
+                training_data="test override",
+                intended_use="test",
+                out_of_scope_use="test",
+                license="mit",
+                citation="test",
+                known_failure_modes=("test-only",),
+            )
+
+    ref = make_reference({"chr2": PAD + "ACGTAACGTTACGTAACGTT" + "TGG" + PAD})
+    rv = _resolve(ref, 25, "G")
+    menu = design(
+        rv,
+        reference=ref,
+        intent=EditIntent.KNOCK_OUT,
+        cas9_efficiency_scorer=_OverrideScorer(),  # type: ignore[arg-type]
+    )
+    assert menu.provenance is not None
+    names = {m.name for m in menu.provenance.models}
+    assert "rule-set-3-override" in names
+    assert "cas9-efficiency-ensemble" not in names
+
+
 def test_chemistries_filter_restricts(make_reference: MakeRef) -> None:
     ref = _abe_ref(make_reference)
     rv = _resolve(ref, 25, "G")
