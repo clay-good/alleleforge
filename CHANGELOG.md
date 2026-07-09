@@ -10,6 +10,20 @@ acceptance.
 
 ### Fixed
 
+- **Benchmark metrics now treat `±inf` as degenerate, closing the gap the NaN guard left one value
+  short.** A prior round added a `NaN` guard (`v != v`) so corrupt data couldn't score as perfect,
+  but `v != v` is `False` for `±inf`, and `inf` is a finite-*ordering* value — it sorts as the
+  largest element and satisfies every `<= 0` / `==` degenerate check. So an `inf` score made
+  `spearman`/`roc_auc`/`pr_auc` rank corrupt input as a **perfect** `1.0`, made `pearson` return a
+  non-JSON-serializable `NaN`, and *crashed* `expected_calibration_error` with an `OverflowError` on
+  `int(inf * n_bins)`. Reachable: the `Prediction` contract admits `value=inf` with an `(lo, inf)`
+  interval, so a scorer whose point estimate overflows flows straight into the metrics. Broadened the
+  shared guard from `is NaN` to `not math.isfinite` (renamed `_has_nan` → `_has_nonfinite` at its five
+  call sites); `NaN` is still caught and finite inputs are unchanged. Regression test fails@HEAD →
+  passes; benchmark-harness spec gains a "metrics treat non-finite inputs as degenerate" requirement.
+  Found by a benchmark scientific-correctness audit (which verified pr_auc/roc_auc/spearman/pearson/
+  ECE/KL, splits, leaderboard, and the generalization gap correct on their edge inputs).
+
 - **`aforge verify` now re-hashes pinned datasets, so a tampered CFD matrix no longer passes
   verification silently.** The provenance-reproducibility spec's tamper contract covers "a recorded
   checkpoint *or dataset*" whose bytes no longer match its pinned hash, but `verify` only re-hashed

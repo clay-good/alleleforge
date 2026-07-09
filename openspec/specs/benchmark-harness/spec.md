@@ -49,6 +49,21 @@ attributed to the scorer by name.
 - **WHEN** a scorer returns a bare float during benchmarking
 - **THEN** the harness raises, naming the offending scorer
 
+### Requirement: Metrics treat non-finite inputs as degenerate
+
+Every ranking/correlation/calibration metric SHALL treat a non-finite input value — `NaN`
+**or** `±inf` — as degenerate and return the degenerate result (`0.0`, or `null` for an
+undefined ECE), never a **perfect** score and never a non-JSON-serializable `NaN` or a
+crash. A `NaN` slips every `<= 0` / `==` guard, and an `inf` sorts as the largest value and
+satisfies those guards too, so both would otherwise let a corrupt or overflowing prediction
+top the leaderboard.
+
+#### Scenario: Infinite score is not perfect
+- **WHEN** a scorer emits an `inf` (or `NaN`) point estimate that reaches a metric
+- **THEN** `spearman`/`pearson`/`roc_auc`/`pr_auc` return the degenerate `0.0` and
+  `expected_calibration_error` returns undefined — the corrupt prediction never scores as
+  perfect, the result stays JSON-serializable, and no metric crashes
+
 ### Requirement: Results are signed and verifiable
 
 A benchmark result SHALL carry a SHA-256 signature over its own canonical JSON body minus

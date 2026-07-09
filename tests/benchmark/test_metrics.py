@@ -55,6 +55,21 @@ def test_metrics_treat_nan_as_degenerate_not_perfect() -> None:
     )
 
 
+def test_metrics_treat_inf_as_degenerate_not_perfect() -> None:
+    # `±inf` is a finite-*ordering* value: it sorts as the largest element and
+    # satisfies every `<= 0` / `==` guard, so it slipped the NaN-only check. An inf
+    # score then ranked corrupt input as a *perfect* 1.0 (spearman/roc_auc/pr_auc),
+    # pearson returned a non-JSON-serializable NaN, and ECE *crashed* on
+    # `int(inf * n_bins)`. Reachable: the Prediction contract admits value=inf.
+    inf = float("inf")
+    assert spearman([1.0, 2.0, inf], [1.0, 2.0, 3.0]) == 0.0  # was 1.0 (perfect!)
+    assert pearson([1.0, 2.0, inf], [1.0, 2.0, 3.0]) == 0.0  # was NaN
+    assert roc_auc([inf, 0.1, 0.2], [1, 0, 0]) == 0.0  # was 1.0 (perfect!)
+    assert pr_auc([inf, 0.1, 0.2], [1, 0, 0]) == 0.0  # was 1.0 (perfect!)
+    assert expected_calibration_error([inf, 0.5], [1, 0]) is None  # was an OverflowError crash
+    json.dumps({"pearson": pearson([1.0, 2.0, inf], [1.0, 2.0, 3.0])}, allow_nan=False)
+
+
 def test_spearman_is_monotone_invariant() -> None:
     # A monotone (non-linear) relationship: Spearman == 1, Pearson < 1.
     x = [1.0, 2.0, 3.0, 4.0]

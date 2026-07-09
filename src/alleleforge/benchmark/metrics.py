@@ -32,25 +32,31 @@ def _mean(xs: Sequence[float]) -> float:
     return sum(xs) / len(xs) if xs else 0.0
 
 
-def _has_nan(*seqs: Sequence[float]) -> bool:
-    """Return whether any value in any sequence is NaN (``NaN != NaN``).
+def _has_nonfinite(*seqs: Sequence[float]) -> bool:
+    """Return whether any value in any sequence is non-finite (NaN or ±inf).
 
     A NaN slips every ``<= 0`` / ``==`` degenerate guard (all NaN comparisons are
-    ``False``), so without this check a NaN flows straight through: ``spearman``
-    and ``pr_auc`` would score corrupt input as a **perfect** 1.0 and ``pearson``
-    would return a non-JSON-serializable ``NaN`` — the opposite of the module's
-    "degenerate inputs return 0.0 rather than NaN" contract.
+    ``False``), and ``±inf`` slips them too: an ``inf`` score sorts as the largest
+    value, so ``spearman``/``roc_auc``/``pr_auc`` rank corrupt input as a
+    **perfect** 1.0; ``pearson`` returns a non-JSON-serializable ``NaN`` (its
+    ``inf - inf`` mean gap is NaN); and ``expected_calibration_error`` *crashes*
+    with ``OverflowError`` when it bins ``int(inf * n_bins)``. Both cases invert
+    the module's "degenerate inputs return 0.0 rather than NaN, so results stay
+    JSON-serializable" contract, so both must be caught. ``NaN`` is reachable via a
+    corrupt label; ``inf`` via a scorer whose point estimate overflows — the
+    ``Prediction`` contract admits ``value=inf`` with an ``(lo, inf)`` interval.
     """
-    return any(v != v for seq in seqs for v in seq)
+    return any(not math.isfinite(v) for seq in seqs for v in seq)
 
 
 def pearson(x: Sequence[float], y: Sequence[float]) -> float:
     """Return the Pearson correlation between ``x`` and ``y``.
 
     Returns ``0.0`` when the inputs differ in length, are shorter than two
-    points, either series is constant (zero variance), or either contains a NaN.
+    points, either series is constant (zero variance), or either contains a
+    non-finite value (NaN or ±inf).
     """
-    if len(x) != len(y) or len(x) < 2 or _has_nan(x, y):
+    if len(x) != len(y) or len(x) < 2 or _has_nonfinite(x, y):
         return 0.0
     mx, my = _mean(x), _mean(y)
     sxy = sum((a - mx) * (b - my) for a, b in zip(x, y, strict=True))
@@ -85,7 +91,7 @@ def spearman(x: Sequence[float], y: Sequence[float]) -> float:
     ranking, because ``_rank`` sorts on NaN (all comparisons ``False``) and would
     otherwise emit finite-but-meaningless ranks that score as a perfect 1.0.
     """
-    if len(x) != len(y) or len(x) < 2 or _has_nan(x, y):
+    if len(x) != len(y) or len(x) < 2 or _has_nonfinite(x, y):
         return 0.0
     return pearson(_rank(x), _rank(y))
 
@@ -151,7 +157,7 @@ def roc_auc(scores: Sequence[float], labels: Sequence[int]) -> float:
     grows to tens of thousands of examples; switch to a tie-averaged rank sum
     (``O(n log n)``) before evaluating folds that large.
     """
-    if len(scores) != len(labels) or _has_nan(scores):
+    if len(scores) != len(labels) or _has_nonfinite(scores):
         return 0.0
     pos = [s for s, y in zip(scores, labels, strict=True) if y == 1]
     neg = [s for s, y in zip(scores, labels, strict=True) if y == 0]
@@ -180,7 +186,7 @@ def pr_auc(scores: Sequence[float], labels: Sequence[int]) -> float:
     inputs (or the arbitrary order tied scores happen to sort in) cannot change
     it, which a per-example sweep would allow.
     """
-    if len(scores) != len(labels) or _has_nan(scores):
+    if len(scores) != len(labels) or _has_nonfinite(scores):
         return 0.0
     order = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
     total_pos = sum(1 for y in labels if y == 1)
@@ -228,7 +234,7 @@ def expected_calibration_error(
     real prediction win the calibration ranking; ``None`` keeps "undefined" and
     "perfectly calibrated" distinct.
     """
-    if len(confidences) != len(correct) or not confidences or _has_nan(confidences):
+    if len(confidences) != len(correct) or not confidences or _has_nonfinite(confidences):
         return None
     n = len(confidences)
     bins: list[list[tuple[float, int]]] = [[] for _ in range(n_bins)]
