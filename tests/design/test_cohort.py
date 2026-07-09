@@ -74,6 +74,19 @@ def test_provenance_is_recorded(reference: ReferenceGenome) -> None:
     assert prov["seed"] and prov["alleleforge_version"]
 
 
+def test_provenance_seed_reflects_passed_settings(reference: ReferenceGenome) -> None:
+    # The run-level provenance seed must be the seed that actually governed the run
+    # (threaded via settings=), not the process-singleton default — it is the anchor
+    # `aforge verify` reads, and a --seed-overridden batch stamping the singleton seed
+    # contradicts the per-item menus it summarizes and disagrees with `af design`.
+    from alleleforge.config import Settings
+
+    report = design_many(
+        [OK_1], reference=reference, intent=EditIntent.INSTALL, settings=Settings(seed=777001)
+    )
+    assert report.provenance["seed"] == 777001
+
+
 def test_manifest_written_and_resume_skips(reference: ReferenceGenome, tmp_path: Path) -> None:
     manifest = tmp_path / "run.jsonl"
     first = design_many(

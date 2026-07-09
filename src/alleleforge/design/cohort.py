@@ -195,7 +195,13 @@ def design_many(
     done = _read_done_ids(manifest) if (manifest is not None and resume) else set()
     provenance = {
         "alleleforge_version": __version__,
-        "seed": get_settings().seed,
+        # The seed that actually governs the run is the one threaded into every
+        # design() call via `settings=` — not the process singleton. Stamping the
+        # singleton made a `--seed`-overridden batch record the wrong seed, so the
+        # run header contradicted its own per-item menus and disagreed with what
+        # `af design` records for the same seed. Fall back to the singleton only
+        # when no settings were passed (matching design()'s own default).
+        "seed": (design_kwargs.get("settings") or get_settings()).seed,
         "reference_build": _build_name(reference, reference_factory),
         "intent": intent.value,
         "started_at": datetime.now(UTC).isoformat(),

@@ -10,6 +10,18 @@ acceptance.
 
 ### Fixed
 
+- **A cohort/batch run now records the seed that actually governed it, not the process-singleton
+  default.** `design_many` stamped the run-level provenance seed from `get_settings().seed` (the
+  singleton), while the seed threaded into every per-item `design()` call comes from the `settings=`
+  argument the CLI `batch`/web `/api/batch` pass. So `af batch --seed 999888` recorded a run seed of
+  `20240501` (the default) even though every per-item menu correctly used `999888` — the run header
+  contradicted the items it summarizes and disagreed with what `af design --seed 999888` records. The
+  seed is the reproducibility anchor `aforge verify` reads, so a wrong run seed breaks re-derivation.
+  Now stamps `(design_kwargs.get("settings") or get_settings()).seed`, falling back to the singleton
+  only when no settings are passed (matching `design()`'s own default). Test-invisible before because
+  the suite only exercised the default seed, which equals the singleton. Regression test fails@HEAD →
+  passes; provenance-reproducibility spec gains a scenario. Found by a cross-interface parity audit.
+
 - **A `verify=True` content-addressed cache now fails closed when a checksum sidecar is missing,
   so deleting the sidecar can no longer silently defeat tamper detection.** The cache re-checks a
   payload against its `.sum` sidecar on read, but only *when the sidecar existed* — a missing one

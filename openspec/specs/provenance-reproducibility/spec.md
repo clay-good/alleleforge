@@ -74,6 +74,14 @@ so the recorded seed actually determines any randomness rather than being decora
 - **WHEN** a run includes a stochastic step and the seed is changed
 - **THEN** the output changes, and re-running with the original seed reproduces it
 
+#### Scenario: Batch run records the governing seed, not the singleton default
+- **WHEN** a cohort/batch run is given a non-default seed via `settings=` (e.g. CLI
+  `af batch --seed …` or the web `/api/batch`)
+- **THEN** the run-level provenance records that seed — the one threaded into every
+  per-item `design()` call — rather than the process-singleton default, so the run header
+  agrees with the per-item menus it summarizes and with what `af design` records for the
+  same seed
+
 ### Requirement: Configuration resolves by a documented precedence
 
 `Settings` SHALL be immutable and resolve later-wins in the order: field defaults →
