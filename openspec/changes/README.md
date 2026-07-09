@@ -282,8 +282,13 @@ confirmed built). The liftover and encoding lenses each surfaced real gaps.
 
 **Native kernels re-confirmed:** with the crate built, FM-index / k-mer / haplotype are byte-for-byte
 identical to the Python fallbacks and brute force across every adversarial/pathological class (the
-one k-mer UTF-8 divergence is unreachable — the scan sanitizes to `ACGTN` before any kernel). The
-`Prediction.calibrated` round-trip and web-API size-cap items from R12 remain deferred by design.
+one k-mer UTF-8 divergence is unreachable — the scan sanitizes to `ACGTN` before any kernel).
+
+**R12 defer resolved:** the web-API per-field **size cap** deferred in Round 12 shipped here as
+`fix(web-api)` — generous per-field caps (spacer 512, variant 8192, populations 64, …, all far above
+any legitimate input) reject an oversized field with 422 before any scan, closing the flood/O(work)
+amplifier the `harden-web-api` "request-size cap" guarantee named. The remaining R12 defer
+(`Prediction.calibrated` round-trip) stays deferred by design — a latent, trust-model-sensitive change.
 
 Rounds 3–5 = 11, R6 = 0, R7 = 7, R8 = 3, R9 = 7, R10 = 3, R11 = 2, R12 = 4, R13 = 4 (yield
 5/3/3/0/7/3/7/3/2/4/4). Thirteen rounds; two R13 lenses (property fuzzing, native adversarial parity)

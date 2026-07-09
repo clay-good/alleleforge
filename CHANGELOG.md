@@ -10,6 +10,15 @@ acceptance.
 
 ### Fixed
 
+- **Every web-API string and list request field is size-capped, not just the batch count.** The
+  web-API hardening promised a per-request size cap, but only a variant *count* cap shipped, leaving
+  individual field sizes unbounded — a within-count request could still carry a multi-megabyte
+  spacer/variant string or a huge populations list into genome-scale off-target work. Generous
+  per-field caps now bound every string and list field at the schema boundary (spacer 512, PAM 64,
+  variant 8192, build 128, populations 64, chemistries 16, plus per-element caps), all far above any
+  legitimate input, so an oversized field is rejected with 422 before any scan while genuine requests
+  are accepted unchanged. Resolves the item deferred in the Round 12 audit.
+
 - **Cross-build liftover rejects a balanced interior chain gap.** `lift_interval` fails closed to
   avoid emitting a "scrambled interval" when a chain indel makes the lifted coordinates "no longer
   describe the same bases," but it lifted only the two endpoints and compared the span length. A
