@@ -39,6 +39,25 @@ def test_metric_direction() -> None:
     assert not metric_is_descending("ece")
 
 
+def test_result_rejects_non_finite_primary_value(fixed_ts: datetime) -> None:
+    # The leaderboard sorts on primary_value, so a signed NaN (via an external
+    # submission deserialized from JSON) would make the whole ranking order
+    # non-deterministic. Reject a non-finite primary_value / metric on ingestion.
+    from pydantic import ValidationError
+
+    base = _baseline_result("cas9-efficiency", fixed_ts)
+
+    nan_pv = base.model_dump()
+    nan_pv["primary_value"] = float("nan")
+    with pytest.raises(ValidationError, match="finite"):
+        BenchmarkResult.model_validate(nan_pv)
+
+    inf_metric = base.model_dump()
+    inf_metric["metrics"] = {**base.metrics, "ece": float("inf")}
+    with pytest.raises(ValidationError, match="finite"):
+        BenchmarkResult.model_validate(inf_metric)
+
+
 def test_valid_submission_admits(fixed_ts: datetime) -> None:
     result = _baseline_result("cas9-efficiency", fixed_ts)
     sub = Submission(

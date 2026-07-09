@@ -15,10 +15,11 @@ seed and timestamp the signature is reproducible, which is the point.
 
 from __future__ import annotations
 
+import math
 from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from alleleforge._version import __version__
 from alleleforge.benchmark._canon import content_hash, reproducibility_digest
@@ -131,6 +132,28 @@ class BenchmarkResult(BaseModel):
     provenance: Provenance
     reproducibility_digest: str
     signature: str
+
+    @field_validator("primary_value")
+    @classmethod
+    def _primary_value_is_finite(cls, v: float) -> float:
+        # The leaderboard sorts on primary_value, so a non-finite one (a signed NaN
+        # from an external submission) would make the ranking order non-deterministic
+        # for the whole board — NaN loses every comparison. The computed path is
+        # already finite (the metrics guard); reject a non-finite *signed* value on
+        # ingestion so a submitter cannot scramble the sort.
+        if not math.isfinite(v):
+            raise ValueError(f"primary_value must be finite, got {v!r}")
+        return v
+
+    @field_validator("metrics")
+    @classmethod
+    def _metric_values_are_finite(cls, v: dict[str, float | None]) -> dict[str, float | None]:
+        # A metric value is finite or explicitly None (undefined); a non-finite one
+        # (e.g. a NaN ece) would likewise break the deterministic calibration tie-break.
+        for name, value in v.items():
+            if value is not None and not math.isfinite(value):
+                raise ValueError(f"metric {name!r} must be finite or None, got {value!r}")
+        return v
 
     def verify_signature(self) -> bool:
         """Return ``True`` if the stored signature matches the recomputed one."""

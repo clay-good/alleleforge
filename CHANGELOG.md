@@ -10,6 +10,17 @@ acceptance.
 
 ### Fixed
 
+- **A benchmark result now rejects a non-finite `primary_value`/metric, so a signed `NaN` can't make
+  the leaderboard order non-deterministic.** The leaderboard sorts on `primary_value`, and a `NaN`
+  there loses every comparison — a single externally-signed submission carrying `NaN` would scramble
+  the whole board's ranking order. The computed path is already finite (the metrics guard above), but
+  a signed value is a *claim* deserialized from JSON, not a fresh computation, so `BenchmarkResult`
+  now validates `primary_value` (and each metric value) finite at construction/deserialization and
+  raises otherwise. Regression test (deserialize a result with `NaN` primary_value / `inf` ece →
+  rejected) fails@HEAD → passes; benchmark-harness spec gains a "signed non-finite result rejected"
+  scenario. Completes the finiteness theme: the metrics *compute* finite, and ingestion *rejects*
+  non-finite claims. Flagged as a follow-up by the benchmark scientific-correctness audit.
+
 - **Two concurrency races in the content-addressed cache's `put_bytes` are fixed.** (1) A
   `verify=True` cache wrote the checksum sidecar *after* renaming the payload into place, so a
   concurrent `get_bytes` landing in that window saw a payload with no sidecar and — because the read

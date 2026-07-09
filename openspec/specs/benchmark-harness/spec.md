@@ -64,6 +64,17 @@ top the leaderboard.
   `expected_calibration_error` returns undefined — the corrupt prediction never scores as
   perfect, the result stays JSON-serializable, and no metric crashes
 
+A `BenchmarkResult`'s `primary_value` and metric values are a signed *claim*, not a fresh
+computation, so a non-finite one SHALL be rejected at construction/deserialization (not made
+degenerate) — the leaderboard sorts on `primary_value`, and a `NaN` there loses every
+comparison and would make the whole ranking order non-deterministic.
+
+#### Scenario: Signed non-finite result rejected
+- **WHEN** a `BenchmarkResult` is constructed or deserialized with a non-finite
+  `primary_value` or metric value (e.g. an external submission signing `NaN`)
+- **THEN** validation raises, so a submitter cannot scramble the leaderboard's deterministic
+  order with a non-finite headline number
+
 ### Requirement: Results are signed and verifiable
 
 A benchmark result SHALL carry a SHA-256 signature over its own canonical JSON body minus
