@@ -15,9 +15,23 @@ from collections.abc import Mapping
 from enum import StrEnum
 from typing import Any, Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, ValidationInfo, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    TypeAdapter,
+    ValidationError,
+    ValidationInfo,
+    model_validator,
+)
 
 T = TypeVar("T")
+
+#: Resolves the raw ``in_distribution`` input to a real bool with pydantic's own
+#: (lax) coercion, so the calibration gate decides against the *same* value the
+#: field will ultimately hold — not a raw ``"false"``/``"0"`` string that is truthy
+#: in Python yet coerces to ``False``, which would otherwise slip an
+#: out-of-distribution prediction through as calibrated.
+_BOOL_ADAPTER = TypeAdapter(bool)
 
 #: Auditable note stamped on a fixed-width heuristic interval so its
 #: ``interval_level`` is never read as a *measured* coverage. A constant half-width
@@ -147,7 +161,13 @@ class Prediction(BaseModel, Generic[T]):
             return data
         context = info.context or {}
         authorized = context.get("calibration_token") is _CALIBRATION_TOKEN
-        if not authorized or not data.get("in_distribution", True):
+        try:
+            in_distribution = _BOOL_ADAPTER.validate_python(data.get("in_distribution", True))
+        except ValidationError:
+            # A non-bool-coercible in_distribution is rejected by the field
+            # validator below; don't preserve calibration on junk input.
+            in_distribution = False
+        if not authorized or not in_distribution:
             data = dict(data)
             data["calibrated"] = False
         return data

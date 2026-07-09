@@ -254,6 +254,26 @@ def test_trusted_context_still_cannot_calibrate_out_of_distribution() -> None:
     assert loaded.calibrated is False
 
 
+@pytest.mark.parametrize("raw", ["false", "0", "no", 0])
+def test_ood_invariant_holds_for_truthy_raw_in_distribution(raw: object) -> None:
+    # The gate resolves in_distribution with pydantic's bool coercion, so a value
+    # that is truthy in Python but coerces to False (e.g. the string "false")
+    # cannot slip an out-of-distribution prediction through as calibrated.
+    data = {
+        "value": 0.5,
+        "interval": [0.4, 0.6],
+        "interval_level": 0.8,
+        "method": "conformal",
+        "in_distribution": raw,
+        "calibrated": True,
+        "point_from_trained_model": False,
+        "notes": [],
+    }
+    loaded = Prediction[float].model_validate(data, context=trusted_deserialization_context())
+    assert loaded.in_distribution is False
+    assert loaded.calibrated is False
+
+
 def test_calibrated_by_preserves_trained_flag() -> None:
     p = Prediction[float].calibrated_by(
         value=0.5,
