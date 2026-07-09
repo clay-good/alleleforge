@@ -297,6 +297,38 @@ real gap. **The pattern holds and refines: as decompositions accumulate, some le
 clean (the R6-style signal) while a newly-chosen angle still finds real, test-pinned gaps — audit
 breadth, not depth on one axis, is what keeps surfacing them.**
 
+## Round 14 — cross-surface consistency, algorithmic complexity, uncertainty math, weight validation (4 fixes)
+
+Round 14 first confirmed the whole CI job set is green locally (not just pytest — lint, format,
+mypy `--strict`, reproduce-golden, nbmake, mkdocs `--strict`, native parity, cargo fmt/clippy), then
+ran three fresh parallel lenses no prior round had taken as a dedicated pass, plus two finds from an
+independent read. Each lens returned exactly one real, reproduced, test-pinned gap; the rest of each
+lens's surface came back a credible clean bill.
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(ranking)` non-finite weights | candidate-ranking, cli | `RankingWeights` validated weights non-negative + not-all-zero, but a bare `weight < 0.0` check lets `nan`/`inf` through (both compare False). The CLI `--weights`, a config file, and the Python API parse via `float()`, so `--weights 1,1,1,nan` built weights whose `normalized()` is `nan` for every objective — every candidate's composite becomes `nan` and the order scrambles; `inf` collapses the finite weights to 0. **Shipped:** reject any non-finite weight in `__post_init__`; `_parse_weights` now builds `RankingWeights` inside its try/except so a bad weight is a clean USAGE error, not an uncaught traceback. |
+| `fix(uncertainty)` OOD widens | uncertainty-contract | `ConformalCalibrator.calibrate` computes `new_half = scale * half_width`; when the fitted scale is `< 1` (an over-covering scorer), an OOD input carrying the `OOD_MIN_HALF_WIDTH` floor came out **narrower** than the floor — an out-of-distribution prediction presenting a narrow, confident `method=conformal` interval, the opposite of "OOD widens, never narrows." Latent because the only caller exercises `calibrate` on in-distribution data. **Shipped:** the OOD branch floors the multiplicative scale at 1, so recalibration can only widen. |
+| `fix(offtarget)` effective matrix on standalone surfaces | offtarget-scoring, cli, web-api | The design report reconciles an all-approximation off-target table via `effective_matrix()`, but the `aforge offtarget` CLI and `/api/offtarget` surfaced only the **nominal** `score_matrix` (the CLI per-site dicts omitted the matrix entirely), so a client read `doench-2016-cfd` for an all-approximation table — the same computation labeled honestly on one surface, dishonestly on another. **Shipped:** `effective_matrix` on `OffTargetResponse` + the CLI payload (top-level and per-site), and an "effective …" note on the CLI human line. Additive. |
+| `fix(genome)` O(n) fallback suffix array | native-kernels, genome-access | The pure-Python FM-index fallback built the SA with `sorted(range(n), key=lambda i: data[i:])`, materializing every suffix as a sort key — **O(n²) memory**, O(n² log n) time on repeats. The off-target engine auto-selects the FM path for any region ≥ 1 Mb, extrapolating to ~500 GB peak (far below the 50 Mb warning) — an OOM on native-less installs, the documented norm. **Shipped:** prefix doubling (Manber–Myers), O(n log² n) time / O(n) memory, byte-identical SA (verified vs the direct sort + 400 fuzz cases; 129.7 MB → 4.0 MB at n=16k). |
+
+**Infra hardening (same session):** the `lint` CI job executed the example notebooks but never
+style-checked them, so `examples/` had drifted out of ruff compliance — extended `ruff check` /
+`ruff format --check` to cover `examples`, exempted teaching cells from docstring rules, and
+reformatted the notebooks (`ci(lint)`, the same *ungated-surface-rots-silently* class the reproduce
+and format-check pins closed in R14's CI-gate work).
+
+**Honest defer:** `ConformalCalibrator.calibrate` takes no `bounds` and can emit an efficiency
+interval outside `[0,1]` on the calibrated path when the fitted scale is `> 1`. Genuinely latent —
+the only caller is the benchmark calibration demo; it is not wired into `design()`. A correct fix
+threads a `bounds` argument through `calibrate`, which nothing yet needs, so shipping it now would be
+speculative machinery; deferred with documentation rather than rushed.
+
+Yield 5/3/3/0/7/3/7/3/2/4/4/4. **Lesson holds: a fresh decomposition still finds one real gap per
+lens even after the core is empirically clean under fuzzing + native parity — the productive angles
+now are the seams a scientist cares about (the same number labeled two ways on two surfaces) and the
+cost model of the fallback paths (quadratic memory the native kernel hides), not the numeric core.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
