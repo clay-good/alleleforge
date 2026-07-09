@@ -10,6 +10,20 @@ acceptance.
 
 ### Fixed
 
+- **The reproducibility golden is refreshed, so the CI reproducibility gate is green again.**
+  `scripts/reproduce.py` re-derives the canonical weight-free design menu twice, asserts the two
+  runs are byte-identical, and diffs a canonicalized digest against a committed golden manifest;
+  the `reproduce` CI job runs it in diff mode (exit 1 on drift). The golden was last regenerated
+  before the Round 3–13 correctness series, and a long run of *intentional, reviewed, test-pinned*
+  output changes since then — clamping the default efficiency/probability intervals to `[0, 1]`,
+  excluding the guide's own on-target from the off-target report, reflecting patient off-targets on
+  the safety axis, attributing a hit by the variant's full span, and giving the default heuristic
+  scorers their own honest provenance cards — moved the canonical digest without the golden being
+  refreshed. The audit therefore failed on `main` even though the run is still deterministic (two
+  runs are byte-identical) and the scientific output is sound (one `base_abe` candidate, efficiency
+  `0.6` in `[0.45, 0.75]`, `calibrated=False`, honest `be-dict-baseline`/`pridict2-baseline` cards).
+  Regenerated the golden to pin the current correct baseline; the audit now passes.
+
 - **A calibrated `Prediction` survives nesting and a trusted round-trip instead of being
   silently downgraded.** The `calibrated` honesty flag was enforced by *mutating* the built
   model (`object.__setattr__` in an `after` validator) whenever the calibration token was
