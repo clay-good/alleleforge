@@ -10,6 +10,21 @@ acceptance.
 
 ### Fixed
 
+- **The pure-Python FM-index fallback now builds the suffix array in O(n) memory instead of
+  O(n²), so a native-less install no longer OOMs on a whole-gene off-target search.** The
+  fallback built the suffix array with `sorted(range(n), key=lambda i: data[i:])`, which
+  materializes every suffix as a sort key — peak memory Θ(n²), and time degrading to Θ(n² log n)
+  on repetitive text (microsatellites, tandem repeats, homopolymers). The off-target engine
+  auto-enables the FM path for any search region ≥ 1 Mb with no opt-in, so an ordinary search
+  over a gene locus / chromosome arm silently triggered the build — extrapolating to ~500 GB
+  peak at n = 1 Mb, well below the 50 Mb size warning. This only bit **native-less** installs
+  (the documented norm; the native SA-IS kernel, when built, is linear), which is why the green
+  suite masked it. Replaced the direct sort with prefix doubling (Manber–Myers): O(n log² n) time,
+  **O(n) memory**, and byte-identical output — verified against the direct sort over the
+  parity-text set plus 400+ fuzz cases (the SA is unique because the sentinel makes every suffix
+  distinct). Measured at n = 16,001 repetitive: 129.7 MB → 4.0 MB peak (33× less, and the ratio
+  grows with n). Found by an algorithmic-complexity audit of the internal (non-web-API) paths.
+
 - **The `aforge offtarget` CLI and `/api/offtarget` endpoint now expose the honest effective
   matrix, so an all-approximation table is no longer mislabeled as published CFD.** The design
   report already reconciles the per-site truth via `OffTargetReport.effective_matrix()` — a

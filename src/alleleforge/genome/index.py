@@ -23,7 +23,7 @@ import json
 import mmap
 import warnings
 from dataclasses import dataclass
-from itertools import product
+from itertools import pairwise, product
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -83,13 +83,36 @@ def native_sais_available() -> bool:
 def _suffix_array(s: str, data: str, n: int) -> list[int]:
     """Return the suffix array of ``data`` (``s`` + sentinel), native when built.
 
-    The native SA-IS kernel builds it in linear time; the pure-Python fallback is
-    the direct sort. The unique sentinel makes every suffix distinct, so the two
-    are byte-identical (pinned by ``tests/genome/test_native.py``).
+    The native SA-IS kernel builds it in linear time; the pure-Python fallback uses
+    prefix doubling (Manber–Myers): O(n log^2 n) time and **O(n) memory**. The earlier
+    fallback — ``sorted(range(n), key=lambda i: data[i:])`` — materialized every suffix
+    as a sort key, so peak memory was O(n^2) (fatal at the ~1 Mb regions the off-target
+    engine auto-selects the FM path for) and time degraded to O(n^2 log n) on repetitive
+    text. Both kernels yield the byte-identical SA — the unique sentinel makes every
+    suffix distinct, so the SA is unique — pinned by ``tests/genome/test_native.py``.
     """
     if native_sais_available():  # pragma: no cover - native not built in the CI test matrix
         return list(_native._ext.fm_suffix_array(s))  # type: ignore[attr-defined]
-    return sorted(range(n), key=lambda i: data[i:])
+    # Prefix doubling: rank suffixes by their first character, then repeatedly by the
+    # first 2k characters using the previous round's ranks, until every rank is distinct.
+    sa = list(range(n))
+    rank = [ord(c) for c in data]
+    tmp = [0] * n
+    k = 1
+    while True:
+        # A suffix's order key is (rank of its first k chars, rank of its next k chars);
+        # -1 for the tail that runs past the end sorts a shorter suffix first, matching
+        # the direct sort (the sentinel `\x00` is already the smallest real character).
+        keys = [(rank[i], rank[i + k] if i + k < n else -1) for i in range(n)]
+        sa.sort(key=keys.__getitem__)
+        tmp[sa[0]] = 0
+        for a, b in pairwise(sa):
+            tmp[b] = tmp[a] + (1 if keys[a] < keys[b] else 0)
+        rank = tmp[:]
+        if rank[sa[-1]] == n - 1:  # all ranks distinct -> the order is final
+            break
+        k <<= 1
+    return sa
 
 
 @dataclass(frozen=True)
@@ -214,9 +237,9 @@ class FMIndex:
         n = len(data)
         # Suffix array: the native SA-IS kernel (O(n)) when the crate is built —
         # this is what makes the on-disk, memory-mapped index scale to whole
-        # chromosomes; otherwise the pure-Python direct sort (O(n^2 log n), fine for
-        # the small contigs CI builds without the crate). Both yield the identical
-        # SA (the unique sentinel makes every suffix distinct), pinned by parity.
+        # chromosomes; otherwise the pure-Python prefix-doubling fallback (O(n log^2 n)
+        # time, O(n) memory). Both yield the identical SA (the unique sentinel makes
+        # every suffix distinct), pinned by parity.
         suffix_array = _suffix_array(s, data, n)
         bwt = "".join(data[(i - 1) % n] for i in suffix_array)
 

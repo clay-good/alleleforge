@@ -39,10 +39,19 @@ vectors, low-complexity stress inputs, and seeded fuzz.
 
 The suffix array SHALL be built by linear-time SA-IS and SHALL match a ground-truth
 direct sort exactly, guaranteed by a unique sentinel that makes every suffix distinct.
+The pure-Python fallback (used when the crate is unbuilt) SHALL build the same suffix array
+in **O(n) memory** — it SHALL NOT materialize every suffix as a sort key, which would make
+peak memory O(n²) and OOM on the ≥ 1 Mb regions the off-target engine auto-selects the FM
+path for.
 
 #### Scenario: SA-IS equivalence
 - **WHEN** fuzzed inputs are indexed
 - **THEN** the SA-IS suffix array equals the direct-sort suffix array
+
+#### Scenario: Python fallback equivalence and bounded memory
+- **WHEN** the pure-Python fallback builds the suffix array (native kernel unavailable)
+- **THEN** it equals the direct-sort suffix array byte-for-byte over the parity-text and fuzz
+  sets, while using memory linear in the input rather than quadratic
 
 ### Requirement: The build asserts version agreement
 

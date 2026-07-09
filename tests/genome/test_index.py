@@ -163,3 +163,53 @@ def test_verify_detects_corrupted_index(tmp_path: Path) -> None:
     bad = FMIndex.load(cache, in_memory=True)
     with pytest.raises(FMIndexIntegrityError, match="integrity check"):
         bad.verify()
+
+
+def _ground_truth_sa(text: str) -> list[int]:
+    """The suffix array of ``text`` + sentinel by the O(n^2) direct sort."""
+    data = text + "\x00"
+    return sorted(range(len(data)), key=lambda i: data[i:])
+
+
+# Prefix-doubling stresses exactly where the naive sort is worst: long shared
+# prefixes (homopolymers, tandem repeats, alternation) and short/edge inputs.
+_SA_TEXTS = [
+    "A",
+    "N",
+    "AC",
+    "ACGT",
+    "A" * 200,
+    "N" * 200,
+    "AC" * 100,
+    "ACGT" * 64,
+    "GGGG" + "A" * 50 + "TTTT" + "C" * 50,
+    "ATATATATGCGCGC",
+    "AAAACAAAAC" * 10,
+    "ACACGTGTACAC",
+]
+
+
+@pytest.mark.parametrize("text", _SA_TEXTS)
+def test_python_suffix_array_matches_direct_sort(
+    text: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The prefix-doubling fallback (O(n) memory) must be byte-identical to the
+    # direct sort it replaced — the SA is unique because the sentinel makes every
+    # suffix distinct. Force the pure-Python path so the assertion holds whether or
+    # not the native SA-IS kernel is built (native-less installs are where it runs).
+    monkeypatch.setattr(index_mod, "native_sais_available", lambda: False)
+    data = text + "\x00"
+    n = len(data)
+    assert index_mod._suffix_array(text, data, n) == _ground_truth_sa(text)
+
+
+def test_python_suffix_array_fuzz_matches_direct_sort(monkeypatch: pytest.MonkeyPatch) -> None:
+    import random
+
+    monkeypatch.setattr(index_mod, "native_sais_available", lambda: False)
+    rng = random.Random(12345)
+    for _ in range(200):
+        alphabet = rng.choice(["AC", "ACG", "ACGT", "ACGTN", "A", "AN"])
+        text = "".join(rng.choice(alphabet) for _ in range(rng.randint(1, 60)))
+        data = text + "\x00"
+        assert index_mod._suffix_array(text, data, len(data)) == _ground_truth_sa(text), text
