@@ -20,7 +20,7 @@ from pydantic import BaseModel, ConfigDict
 
 from alleleforge.config import get_settings
 from alleleforge.data._io import open_text
-from alleleforge.types.sequence import GenomicInterval
+from alleleforge.types.sequence import GenomicInterval, canonical_contig
 
 #: gnomAD v4.1 genetic-ancestry group labels.
 GNOMAD_POPULATIONS = ("afr", "amr", "asj", "eas", "fin", "nfe", "sas")
@@ -73,9 +73,13 @@ class GnomadDB:
 
     def __init__(self, records: Iterable[PopulationFrequency]) -> None:
         """Hold ``records`` grouped by contig for interval queries."""
+        # Index by canonical contig so a query named in the other style ("chr1"
+        # vs "1") still resolves — otherwise a reference-vs-gnomAD naming mismatch
+        # silently returns no records and population off-target augmentation is
+        # empty (the reference-bias blind spot this module exists to catch).
         self._by_chrom: dict[str, list[PopulationFrequency]] = {}
         for rec in records:
-            self._by_chrom.setdefault(rec.chrom, []).append(rec)
+            self._by_chrom.setdefault(canonical_contig(rec.chrom), []).append(rec)
         for recs in self._by_chrom.values():
             recs.sort(key=lambda r: r.pos)
 
@@ -128,7 +132,7 @@ class GnomadDB:
             Matching records, sorted by position.
         """
         out: list[PopulationFrequency] = []
-        for rec in self._by_chrom.get(interval.chrom, ()):
+        for rec in self._by_chrom.get(canonical_contig(interval.chrom), ()):
             if not interval.start <= rec.pos < interval.end:
                 continue
             if populations is not None:

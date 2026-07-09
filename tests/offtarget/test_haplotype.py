@@ -40,6 +40,27 @@ def test_haplotype_creates_de_novo_site(make_reference: MakeRef) -> None:
     assert "chr2:32:T>G" in (prov.causal_allele or "")
 
 
+def test_haplotype_panel_in_other_naming_style_is_reconciled(make_reference: MakeRef) -> None:
+    # A 1000G/HGDP panel named Ensembl-style ("2") against a UCSC-named ("chr2")
+    # reference must still create its de-novo site — a raw membership check would
+    # silently skip every haplotype (zero haplotype-aware off-targets), even though
+    # reference.fetch reconciles the name. The emitted hit is labeled in the
+    # reference's naming style so it dedups against the reference pass.
+    ref = make_reference({"chr2": PAD + SPACER + "CGT" + PAD})
+    hap = Haplotype(
+        hap_id="H1",
+        interval=GenomicInterval(chrom="2", start=10, end=40, strand=Strand.PLUS),
+        variants=(Variant(chrom="2", pos=32, ref="T", alt="G"),),
+        frequencies={"AFR": 0.2},
+        source="1000g",
+    )
+    sites = enumerate_haplotype_sites(SPACER, NRG, reference=ref, haplotypes=[hap], min_freq=0.001)
+    assert len(sites) == 1
+    hit, prov = sites[0]
+    assert hit.chrom == "chr2"  # rebound to the reference's naming
+    assert prov.origin is SiteOrigin.POPULATION
+
+
 def test_below_threshold_population_excluded_from_ancestry(make_reference: MakeRef) -> None:
     # AFR carries the haplotype above threshold; EUR is present but below min_freq.
     # Only the carrying population may appear in the site's populations *and*

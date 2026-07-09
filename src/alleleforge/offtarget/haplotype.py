@@ -29,7 +29,13 @@ from alleleforge.offtarget.population import _reference_best, _strengthens
 from alleleforge.offtarget.scoring import CfdScorer, OffTargetScorer
 from alleleforge.types.guide import PAM
 from alleleforge.types.offtarget import SiteOrigin
-from alleleforge.types.sequence import CoordinateSystem, DNASequence, GenomicInterval, Strand
+from alleleforge.types.sequence import (
+    CoordinateSystem,
+    DNASequence,
+    GenomicInterval,
+    Strand,
+    canonical_contig,
+)
 from alleleforge.types.variant import Variant
 
 
@@ -104,8 +110,17 @@ def enumerate_haplotype_sites(
     for hap in haplotypes:
         if hap.is_reference or hap.max_freq(populations) < min_freq:
             continue
-        chrom = hap.interval.chrom
-        if chrom not in reference.contigs:
+        # Reconcile the panel's contig name against the reference's naming style
+        # ("1" vs "chr1"): a raw membership check would silently skip every
+        # haplotype on a naming mismatch, yielding zero haplotype-aware off-targets
+        # even though `reference.fetch` two lines down would resolve the name.
+        # Rebind to the reference's own name so downstream hits are labeled
+        # consistently and dedup correctly against the reference pass.
+        chrom = next(
+            (c for c in reference.contigs if canonical_contig(c) == canonical_contig(hap.interval.chrom)),
+            None,
+        )
+        if chrom is None:
             continue
         start = max(0, hap.interval.start - margin)
         end = hap.interval.end + margin

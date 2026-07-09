@@ -29,7 +29,13 @@ from alleleforge.offtarget._search import (
 from alleleforge.offtarget.scoring import CfdScorer, OffTargetScorer
 from alleleforge.types.guide import PAM
 from alleleforge.types.offtarget import SiteOrigin
-from alleleforge.types.sequence import CoordinateSystem, DNASequence, GenomicInterval, Strand
+from alleleforge.types.sequence import (
+    CoordinateSystem,
+    DNASequence,
+    GenomicInterval,
+    Strand,
+    canonical_contig,
+)
 from alleleforge.types.variant import Variant
 
 
@@ -106,8 +112,18 @@ def _variant_window_hits(
     at an unchanged edit count, so scoring the comparison — not counting edits —
     catches the strengthened site the edit-count gate would silently drop.
     """
-    if chrom not in reference.contigs:
+    # Reconcile the variant's contig name against the reference's naming style
+    # ("1" vs "chr1") so a naming mismatch does not silently drop the variant
+    # (`fetch_result` below reconciles the name, so the raw membership guard
+    # contradicted its own downstream behavior). Rebind to the reference's name
+    # for consistent hit labeling and dedup.
+    matched = next(
+        (c for c in reference.contigs if canonical_contig(c) == canonical_contig(chrom)),
+        None,
+    )
+    if matched is None:
         return []
+    chrom = matched
     margin = len(spacer) + len(pam.pattern) + 1
     start = max(0, pos - margin)
     end = pos + len(ref) + margin
