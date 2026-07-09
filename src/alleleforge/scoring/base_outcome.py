@@ -201,9 +201,13 @@ def _prediction(
     ``in_distribution`` is computed by the caller from the reagent, never hardcoded.
     """
     note = COUNT_INTERVAL_NOTE if count_valued else NOMINAL_INTERVAL_NOTE
+    # A probability's band is clamped to [0, 1] (an interval upper bound above 1.0
+    # is meaningless), matching every sibling scorer. A count-valued quantity (the
+    # expected bystander count) is left unclamped — it legitimately exceeds 1.
+    high = value + _INTERVAL_HALF if count_valued else min(1.0, value + _INTERVAL_HALF)
     return Prediction[float](
         value=value,
-        interval=(max(0.0, value - _INTERVAL_HALF), value + _INTERVAL_HALF),
+        interval=(max(0.0, value - _INTERVAL_HALF), high),
         interval_level=0.80,
         method=UncertaintyMethod.HEURISTIC,
         in_distribution=in_distribution,

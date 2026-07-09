@@ -85,6 +85,22 @@ def test_target_activity_is_distinct_from_clean_fraction() -> None:
     assert 0.0 < r.p_target_edited.value <= 1.0
 
 
+def test_probability_interval_upper_bound_is_clamped_to_one() -> None:
+    # A probability's ±0.15 band must not exceed 1.0 — an interval upper bound above
+    # 1.0 is meaningless. A near-certain edit (here the trained model returns 0.95 at
+    # the sole target with no bystanders, so p_intended_exact = p_target_edited =
+    # 0.95) would otherwise report an upper bound of 1.10. The count-valued bystander
+    # burden stays unclamped because a count legitimately exceeds 1.
+    from alleleforge.scoring.base_outcome import _assemble_window_outcome
+
+    w = _window("TTTAAACGTTTTTTTTTTTT", target=6)
+    r = _assemble_window_outcome(w, _ABE, {6: 0.95}, from_trained=True)
+    assert r.p_intended_exact.value > 0.85
+    assert r.p_intended_exact.interval[1] <= 1.0
+    assert r.p_target_edited.interval[1] <= 1.0
+    assert r.p_intended_exact.interval[0] >= 0.0
+
+
 def test_heuristic_band_is_flagged_nominal_not_measured() -> None:
     # The fixed ±0.15 band asserts interval_level 0.80 without ever measuring
     # coverage; the honest reading (nominal, unmeasured) must be auditable so a
