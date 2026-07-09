@@ -206,6 +206,31 @@ search primitive (correctly returns the on-target) and its design-time consumer 
 it). The lesson holds once more: **a decomposition the prior rounds didn't take — here, driving
 the real pipeline end-to-end rather than reading functions — still finds real, test-pinned gaps.**
 
+## Round 11 — guarantee-coverage + metamorphic invariants (2 fixes shipped)
+
+Round 11 sharpened Round 10's lesson into its decomposition: hunt the *class* of bug R10 exposed —
+a guarantee with no test driving its real consumed path — plus **metamorphic invariants** (permute
+input order, reverse-complement the reference, scale a score; assert the relation that must hold).
+Five parallel lenses: (1) features tested only with the feature off / via synthetic stand-ins, (2)
+input-order/permutation determinism, (3) reverse-complement strand symmetry, (4) spec-`SHALL` →
+test-existence gaps, (5) monotonicity/scaling. The **revcomp** (200+ fuzz cases across
+scan/scoring/engine/population) and **spec→test** lenses came back clean — credible negatives. The
+headline finding was reached **independently by two different lenses** (feature-off coverage and
+monotonicity), the strongest signal yet that it is real.
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(ranking)` patient-safety | candidate-ranking, offtarget-scoring | Patient off-targets were dropped from the ranking safety axis. `_safety` keys off `worst_ancestry()`, but `ancestry_stratification` credited only REFERENCE sites to every ancestry — a PATIENT site (certain in this genome, no ancestry frequency) landed in no stratum. So any benign ancestry-tagged population site coexisting made `worst_ancestry` return the benign score and the dangerous patient hit vanished: a CFD-0.9 patient off-target reported safety 0.70 not 0.05, and *adding* a benign site *raised* safety (monotonicity violation). Reachable in any `design(gnomad=…, patient_vcf=…)` run; uncaught because design tests use `run_offtarget=False` and ranking tests never mixed a patient site with an ancestry one. Found independently by two lenses. **Shipped:** `ancestry_stratification` credits a *certain* site (reference OR `frequency is None`) to every ancestry — the discriminator `expected_burden` already uses — so `worst_ancestry` equals the genome-wide worst; one source of truth, no `_safety` change. |
+| `fix(ranking)` total-order | candidate-ranking | `rank_candidates` documented a "total and deterministic" order, but two distinct candidates with an identical objective vector fell to input-pool order (the four-key sort exhausts on a full tie). The spec sanctioned relying on deterministic *enumeration* order, so this was latent, not live — but the stronger, self-contained guarantee is cheap. **Shipped:** a final stable reagent-identity (spacer) tiebreak makes the order independent of how the pool was assembled; docstring + spec strengthened. |
+
+Rounds 3–5 = 11, R6 = 0, R7 = 7, R8 = 3, R9 = 7, R10 = 3, R11 = 2 (yield 5/3/3/0/7/3/7/3/2). The
+metamorphic + coverage decomposition proved out twice over: the same guarantee-vs-test-coverage
+gap R10 exposed recurred in a sibling axis (patient sites on the safety term), and it was found
+*independently by two lenses* — while the revcomp and spec→test lenses returned rigorous clean
+bills. **The lesson stands after eleven rounds: pick a decomposition the prior rounds didn't, and a
+close, reproduce-first read still finds real, test-pinned guarantee gaps — especially where a
+feature's real consumed path is only ever tested with the feature effectively off.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

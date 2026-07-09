@@ -10,6 +10,32 @@ acceptance.
 
 ### Fixed
 
+- **Patient off-targets are no longer masked on the ranking safety axis.** The safety
+  objective is `1 - worst-affected-ancestry off-target score`, and `worst_ancestry()` reads
+  `ancestry_stratification()`, which credited only reference sites to every ancestry. A patient
+  off-target — certain in this individual's genome, so carrying no ancestry frequency — landed in
+  no ancestry stratum, so the moment any benign ancestry-tagged population site coexisted,
+  `worst_ancestry()` returned the benign score and the far more dangerous patient hit vanished from
+  the safety term: a CFD-0.9 patient off-target reported safety `0.70` instead of `0.05`, and
+  *adding* a benign off-target *raised* safety (a monotonicity violation on the axis the module
+  exists to protect). Reachable in any `design(gnomad=…, patient_vcf=…)` run, where the population
+  and patient passes merge into one report. It survived because the design verticals' tests run with
+  `run_offtarget=False` and the ranking tests never mixed a patient site with an ancestry-tagged
+  one. `ancestry_stratification` now credits a *certain* site (a reference site or any site with no
+  ancestry frequency — i.e. a patient site) to the worst case of every ancestry, the same
+  discriminator `expected_burden` already uses, so `worst_ancestry()` equals the genome-wide worst
+  and the safety score can never understate a patient off-target. (Round 11 metamorphic /
+  guarantee-coverage pass — found independently by two lenses.)
+
+- **The candidate ranking is a true total order, independent of input pool order.** `rank_candidates`
+  sorts by `(composite, efficiency, safety, simplicity)` and documented a "total and deterministic"
+  order, but two distinct candidates with an identical objective vector exhaust that four-key sort
+  and fell to the input pool's assembly order. The spec sanctioned relying on deterministic
+  enumeration order (so this was latent, not a live bug), but the stronger self-contained guarantee
+  is cheap: a final stable reagent-identity tiebreak (the spacer sequence) now orders full ties, so
+  the menu — and its Pareto-front indices — are identical regardless of how the candidate pool was
+  assembled. (Round 11 metamorphic / guarantee-coverage pass.)
+
 - **The guide's own on-target is no longer counted as an off-target.** The reference always
   contains the guide's own protospacer, so the genome-wide off-target scan nominated it as a
   perfect (CFD 1.0) match at the guide's exact placement. That self-match pegged every candidate's
