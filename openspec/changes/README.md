@@ -102,6 +102,32 @@ no fixes** — the signal that the deep-correctness sweep has reached diminishin
 Rounds 3–5 shipped 11 real fixes; Round 6 came back clean on both fronts. The scientific and
 infrastructure core has now been swept module-by-module.
 
+## Round 7 — parallel deep re-audit of the scientific core (7 fixes shipped)
+
+Round 6 was clean, but the memory rule holds: *empty backlog ≠ done — audit before declaring
+clean.* Round 7 ran a fresh five-way parallel audit (off-target, design/enumeration,
+scoring/uncertainty, genome/variant/data, output/report) plus an independent read of the
+previously un-audited glue (model-zoo gate, content-addressed caches, cohort streaming — all
+clean). Every candidate was reproduced and pinned by a regression test before the fix shipped;
+each is a place a *claimed* guarantee was not upheld, grounded in `file:line` evidence and
+duplicate-checked against Rounds 1–6.
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(variant)` | variant-resolution | The reference-base accessor for an HGVS resolve was defined before a `c.`/`p.` expression was projected to genomic, so its default-arg closure froze `chrom=None` and **crashed every coding deletion/dup/delins** whose projector omits the ref bases (the biocommons `c_to_g` norm). **Shipped:** resolve the contig first, then build the accessor. |
+| `fix(provenance)` | provenance-reproducibility, candidate-ranking | `design()`'s trained-scorer overrides (Rule Set 3 / Lindel / BE-DICT) scored the candidates, but provenance stamped the **default** scorers' cards — a re-run from the stamped provenance reproduces different numbers. **Shipped:** record each override's own card. |
+| `fix(offtarget)` | offtarget-scoring | A **DNA bulge** collapses the target but leaves both strings 20 nt, so it slipped the length-only CFD fallback and was scored *and labeled* published CFD off-register. **Shipped:** thread the hit's bulge status into the fallback decision. |
+| `fix(oligos)` | oligo-output, reporting | The Type IIS enzyme screen ran on the bare insert, not the assembled `overhang+insert`, so a recognition site **straddling the overhang/insert junction** shipped as clean — a cloning-lethal re-cut (the default BsmBI/lentiGuide `CACC`+`GTCTC…` case). **Shipped:** screen the assembled strand. *(safety-critical)* |
+| `fix(base-editor)` | uncertainty-contract | The base-edit probability interval clamped its lower bound but not its upper, so a near-certain edit reported an interval upper bound `> 1.0`. **Shipped:** clamp the probability band to `[0, 1]` (the count-valued burden stays unclamped). |
+| `fix(coordinates)` | genome-access, variant-resolution | The T2T ambiguous-region recommendation gated on a raw `== "hg38"`, dropping it for the equivalent `GRCh38` spelling. **Shipped:** gate via `assembly_matches`. |
+| `fix(data/cli)` | data-registry, cli | `ClinVarDB.in_region` compared contigs by raw string (mixed-naming miss); `bench run` crashed formatting a `None` ECE; the batch TSV didn't escape tab/newline. **Shipped:** `canonical_contig` reconciliation, an `n/a` ECE guard, per-cell delimiter neutralization, and three code-matching docstring corrections. |
+
+**Deferred (not fixed):** the VEP live-REST GRCh37 host/species (opt-in, `# pragma: no cover`,
+untestable in CI — flagged for verification against the live API, not blind-edited); the
+off-target ancestry bar-chart drawing a "not evaluated" ancestry at 0.0 (informational, uniform
+in practice). Round 7 shipped 7 fixes across the same core Rounds 3–6 already swept — the
+recurring lesson that a fresh close read still finds real, test-pinned guarantee gaps.
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

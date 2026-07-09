@@ -10,6 +10,63 @@ acceptance.
 
 ### Fixed
 
+- **Coding/protein HGVS deletions no longer crash against a reference.** `_from_hgvs` built the
+  reference-base accessor *before* projecting a `c.`/`p.` expression to genomic form, so the
+  closure's default-argument snapshot froze the pre-projection `chrom=None`. Any coding
+  deletion/dup/delins whose projector omits the reference bases (the normal biocommons `c_to_g`
+  output) then hit `assert _chrom is not None` and crashed — the genomic path worked only
+  because its contig is known before the closure is built. The accessor is now defined after the
+  contig is resolved. (Round 7 deep-correctness pass.)
+
+- **Design provenance now records the override scorer, not the default it replaced.** `design()`
+  exposes `cas9_efficiency_scorer` / `cas9_outcome_predictor` / `base_outcome_predictor`
+  overrides (the opt-in trained Rule Set 3 / Lindel / BE-DICT models) and scores candidates with
+  them, but `_collect_model_checkpoints` ignored the arguments and stamped the *default* scorers'
+  cards into `provenance.models`. A run overridden with trained scorers therefore recorded the
+  weight-free defaults, so anyone re-deriving from the stamped provenance reproduced different
+  numbers — the "menu is reproducible from its inputs" guarantee was silently false. The override
+  instances' own cards are now recorded. (Round 7 deep-correctness pass.)
+
+- **DNA-bulge off-targets are now scored and labeled with the approximation, not published CFD.**
+  The CFD fallback keyed only on spacer length ≠ 20, on the assumption that a bulge-collapsed
+  alignment is never 20 nt. That holds for RNA bulges (which collapse the spacer to 19) but not
+  DNA bulges: a DNA bulge collapses the *target* while leaving both aligned strings at 20 nt. Such
+  a hit slipped past the length check and was scored *and* labeled with the published Doench
+  matrix — but that matrix is defined only for an ungapped 20-mer, so the bulge shifts every base
+  3′ of it off-register. The hit's bulge status is now threaded into the scorer's fallback
+  decision. (Round 7 deep-correctness pass.)
+
+- **The cloning-oligo enzyme screen now catches a recognition site across the overhang/insert
+  junction.** The Type IIS site screen ran on the bare insert body (`g + spacer`, `ext_body`),
+  but the oligo that actually ligates is the assembled top strand (`top_overhang + g + spacer`).
+  A site straddling the junction was never screened, so a cloning-lethal insert shipped as clean —
+  the exact Golden-Gate hazard the module advertises it guards against (e.g. lentiGuide's default
+  BsmBI scheme with a spacer beginning `GTCTC` reconstitutes `CGTCTC` via the `CACC` overhang, and
+  the assembled plasmid is re-cut in the same one-pot reaction). The screen now covers the
+  assembled strand. (Round 7 deep-correctness pass — safety-critical.)
+
+- **Base-editor probability intervals are now clamped to `[0, 1]`.** The `_prediction` helper
+  clamped the lower bound to 0 but left the upper unclamped, so a near-certain edit probability
+  produced an interval upper bound above 1.0 (e.g. value 0.95 → upper 1.10). It wraps two genuine
+  probabilities (`p_intended_exact`, `p_target_edited`) alongside the count-valued bystander
+  burden; the probabilities now clamp with `min(1.0, …)` like every sibling scorer, while the
+  count stays legitimately unclamped. (Round 7 deep-correctness pass.)
+
+- **The T2T ambiguous-region recommendation now fires for the `GRCh38` build spelling.**
+  `flag_ambiguous_regions` gated the difficult-region table and the recommendation on a raw
+  `source_build == "hg38"` compare, so a legitimate `source_build="GRCh38"` query sitting in a
+  flagged centromere/segdup came back with no recommendation. It now matches naming-independently
+  via `assembly_matches`. (Round 7 deep-correctness pass.)
+
+- **`ClinVarDB.in_region` now reconciles contig naming, plus periphery hardening.** `in_region`
+  compared contigs by raw string, so a `chr`-named record and an Ensembl-named query interval
+  silently matched nothing on the mixed-naming path; it now compares via `canonical_contig`, as
+  `GenomicInterval.overlaps` does. Also in this pass: `bench run`'s human-readable line no longer
+  crashes formatting an undefined (`None`) ECE (it prints `n/a`), the batch TSV export neutralizes
+  tabs/newlines in a field so they can't misalign columns, and three docstrings were corrected to
+  match the code (the Cas12a non-canonical-PAM 0.05 floor, an isotonic "provably reduces ECE"
+  overclaim, and the Pareto front's post-cap scope). (Round 7 deep-correctness pass.)
+
 - **The PE3b nicking guide is now templated from the edited strand, so it actually nicks only
   the edited product.** PE3b's entire benefit is that its ngRNA seed base-pairs only after the
   edit is installed — nicking only the edited strand and avoiding the concurrent-nick DSB that
