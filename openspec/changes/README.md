@@ -178,6 +178,34 @@ to a guarantee that lives in the *seam between* a scorer, its label, and its rep
 holds and sharpens: **change the decomposition and the audit keeps finding real, test-pinned
 gaps.**
 
+## Round 10 — adversarial-input / unhappy-path / end-to-end decomposition (3 fixes shipped)
+
+Rounds 3–9 decomposed by module, subsystem, seam+kernel, and cross-cutting invariant. Round 10
+used the angle none of those took: **what the code does on the paths a happy-path read skips** —
+five parallel lenses for (1) boundary/degenerate genomic inputs, (2) error/unhappy paths and
+fail-open-vs-closed, (3) end-to-end numeric correctness on real pathogenic variants, (4)
+off-target safety edge cases, (5) aggregation on degenerate collections. The boundary-input and
+end-to-end-numeric lenses came back **clean** (coordinate/allele/strand math verified end-to-end,
+including minus-strand pegRNA mapping, and cross-export reconciliation). Every finding was
+reproduced by a regression test that fails at HEAD before the fix shipped.
+
+The headline is a bug nine prior off-target-focused rounds missed because no test drove the real
+design pipeline with off-target search on: the guide's **own on-target** was counted as an
+off-target, silently zeroing the ranking safety axis for *every* candidate.
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(offtarget)` on-target | offtarget-scoring, candidate-ranking, cas9/prime/base-editor-design | The reference always contains the guide's own protospacer, so the genome-wide scan nominated it as a perfect (CFD 1.0) "off-target" at the guide's exact placement — pegging every candidate's `worst_score` at 1.0 (the ranking safety axis `1 − worst` inert at 0.0 for all) and capping `specificity_score` at 0.5 for even a clean guide, though the spec promises the CRISPOR/Hsu aggregate (which excludes the on-target). Uncaught because design tests use `run_offtarget=False` and ranking tests build synthetic reports. **Shipped:** opt-in `search(on_target=…)` drops the single site at exactly that locus (naming-aware, exact — a paralogous perfect match elsewhere is retained) from sites and the sub-threshold tail; all three verticals pass each guide's placement; spec records the requirement. |
+| `fix(haplotypes)` contig-naming | offtarget-nomination, data-registry | `HaplotypePanel` indexed `_by_chrom` by the raw contig and looked it up by the raw query contig, so a bare-named ("1") 1000G/HGDP panel queried with a chr-named ("chr1") hg38 interval missed its bucket and returned no haplotypes — the haplotype-aware off-target pass silently contributed zero sites (the reference-bias fail-open the module exists to catch). Same class as the Round 3/9 reconciliations, the one sibling they missed (the bucket `.get()` runs before the naming-aware `overlaps`). **Shipped:** canonicalize both the index key and the query via `canonical_contig`. |
+| `fix(benchmark)` KL-determinism | benchmark-harness, provenance-reproducibility | `kl_divergence` summed `pk·log(pk/qk)` over a bare `set(p) | set(q)`, whose `PYTHONHASHSEED`-dependent order made the non-associative float sum (and the `_normalize` totals) vary run-to-run — perturbing the un-rounded metric in the signed `BenchmarkResult`, defeating the module's "bit-stable across machines" contract. The Round 9 sibling (`ensemble_outcome`) was fixed; this one was left. Cross-platform digest survived only by 6-decimal rounding absorbing the ~1e-15 noise. **Shipped:** `keys = sorted(set(p) | set(q))`, fixing both the summation order and the normalization totals. |
+
+Rounds 3–5 = 11, R6 = 0, R7 = 7, R8 = 3, R9 = 7, R10 = 3 (yield 5/3/3/0/7/3/7/3). The
+unhappy-path/end-to-end decomposition surfaced the single highest-impact off-target bug of all ten
+rounds — one that lived not in any single function but in the **untested seam** between a general
+search primitive (correctly returns the on-target) and its design-time consumer (must not count
+it). The lesson holds once more: **a decomposition the prior rounds didn't take — here, driving
+the real pipeline end-to-end rather than reading functions — still finds real, test-pinned gaps.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

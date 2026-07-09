@@ -10,6 +10,42 @@ acceptance.
 
 ### Fixed
 
+- **The guide's own on-target is no longer counted as an off-target.** The reference always
+  contains the guide's own protospacer, so the genome-wide off-target scan nominated it as a
+  perfect (CFD 1.0) match at the guide's exact placement. That self-match pegged every candidate's
+  `worst_score` at 1.0 — leaving the ranking safety axis (`1 − worst`) inert at 0.0 for *every*
+  guide — and capped `specificity_score` at 0.5 for even a perfectly clean guide, though the
+  offtarget-scoring spec promises the CRISPOR/Hsu aggregate, which excludes the on-target. No test
+  caught it: the design verticals' tests run with `run_offtarget=False` and the ranking tests build
+  synthetic reports, so the real pipeline was never driven with off-target search on. `search()`
+  now takes an opt-in `on_target` locus; when supplied it drops the single site at exactly that
+  locus (naming-aware on the contig, exact — a *paralogous* perfect match at any other locus is a
+  real off-target and is retained) from both the reported sites and the sub-threshold tail. The
+  three design verticals pass each guide's protospacer placement. Reproduced end-to-end: pre-fix
+  every candidate carried a score-1.0 site at its own placement; post-fix the safety axis
+  discriminates and a clean guide reports `specificity=1.0` / `worst=0.0`. (Round 10 adversarial /
+  unhappy-path / end-to-end pass.)
+
+- **The haplotype panel reconciles contig naming, so it isn't silently empty.** `HaplotypePanel`
+  indexed `_by_chrom` by the raw contig and looked the bucket up by the raw query contig, so a
+  bare-named ("1") 1000 Genomes / HGDP panel queried with a chr-named ("chr1") hg38 interval missed
+  its bucket and returned no haplotypes — the haplotype-aware off-target pass then ran over an empty
+  list and contributed zero sites, the reference-bias fail-open the module exists to catch. The
+  Round 3 `reconcile-assembly-coordinates` change made `overlaps` naming-aware and fixed
+  gnomAD/ClinVar but never reached here, because the bucket `.get()` runs first. Both the index key
+  and the query are now canonicalized via `canonical_contig`, mirroring `GnomadDB`. (Round 10
+  adversarial / unhappy-path / end-to-end pass.)
+
+- **The outcome-distribution KL metric is byte-deterministic.** `kl_divergence` summed
+  `pk·log(pk/qk)` over a bare `set(p) | set(q)`; set iteration is `PYTHONHASHSEED`-dependent and
+  float addition is non-associative, so the KL value's low bits (and the `_normalize` totals) varied
+  run-to-run — perturbing the un-rounded metric in the signed `BenchmarkResult` body, against the
+  metrics module's "bit-stable numbers across machines" contract. The Round 9 `ensemble_outcome`
+  fix closed the sibling; this one was left, saved only by the cross-platform digest's 6-decimal
+  rounding absorbing the ~1e-15 noise. The key union is now sorted once (`keys = sorted(...)`),
+  fixing both the summation order and the normalization totals. (Round 10 adversarial /
+  unhappy-path / end-to-end pass.)
+
 - **The default Cas9 efficiency interval is now clamped to `[0, 1]`.** The wired-default
   `EnsembleEfficiencyScorer` built its predictive interval as `mean ± z·std` (further widened
   out-of-distribution) through `ensemble_prediction` → `to_prediction`, neither of which clamped
