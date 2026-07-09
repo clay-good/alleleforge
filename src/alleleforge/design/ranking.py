@@ -19,7 +19,10 @@ The default ranking is a **transparent weighted sum** of the four, with the
 spec's weights. Alongside the scalar order the ranker exposes the **Pareto
 front** — the candidates that are not dominated on all four objectives at once —
 so a user who weights the objectives differently can still see the
-trade-off-optimal set.
+trade-off-optimal set. The front is computed over the **returned** candidates: it
+is evaluated after any ``max_per_chemistry`` cap, so it identifies the
+trade-off-optimal members of the menu the caller actually receives, not of a
+larger pool whose dropped candidates the caller never sees.
 """
 
 from __future__ import annotations
