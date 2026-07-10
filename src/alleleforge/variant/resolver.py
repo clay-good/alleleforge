@@ -294,6 +294,12 @@ def _left_align(variant: Variant, reference: ReferenceGenome) -> Variant:
         ref, alt = ref[:-1], alt[:-1]
     while ref and alt and ref[0] == alt[0]:  # strip shared prefix
         ref, alt, pos = ref[1:], alt[1:], pos + 1
+    if ref and alt:
+        # A true delins (both alleles non-empty after minimal trimming) is not a
+        # pure indel: it has no single anchor base to roll and no repeat to roll
+        # into. The rolling loop below assumes exactly one allele is empty, so
+        # letting a delins fall through would drop its deleted bases entirely.
+        return v.model_copy(update={"ref": ref, "alt": alt, "pos": pos})
     while pos > 0:  # roll the indel left through a repeat
         indel = ref if alt == "" else alt
         prev = _ref_base(reference, v.chrom, pos - 1)

@@ -166,6 +166,19 @@ def test_suffix_anchored_deletion_left_aligns(reference: ReferenceGenome) -> Non
     assert _key(rv.variant) == ("chr2", 13, "CA", "C")
 
 
+def test_delins_is_not_corrupted_into_insertion(reference: ReferenceGenome) -> None:
+    # A true delins (both alleles non-empty after trimming) must NOT fall into the
+    # pure-indel roll. At HEAD, chr2:6:AC>T — whose preceding reference base 'T'
+    # equals alt[-1] — rolled ref to '' through the leading T-homopolymer, discarding
+    # the 'AC' deletion and relocating the variant to pos 0: a completely different
+    # biological event, silently accepted. It must stay the parsimonious delins.
+    rv = resolve("chr2:6:AC>T", reference=reference)
+    assert _key(rv.variant) == ("chr2", 5, "AC", "T")
+    # The g.delins spelling of the same event resolves identically.
+    rv2 = resolve("chr2:g.6_7delinsT", reference=reference)
+    assert _key(rv2.variant) == ("chr2", 5, "AC", "T")
+
+
 def test_coding_hgvs_via_projector(reference: ReferenceGenome) -> None:
     from alleleforge.variant.hgvs_adapter import HgvsAdapter
 

@@ -10,6 +10,22 @@ acceptance.
 
 ### Fixed
 
+- **A delins is no longer silently corrupted into a wrong-position insertion during left-alignment.**
+  `_left_align` ran its "roll the indel left through a repeat" loop for any `len(ref) != len(alt)`, but
+  that loop assumes a *pure* indel (exactly one allele empty). A true delins (e.g. `AC>T`, both alleles
+  non-empty after trimming) whose alt's last base equals the preceding reference base rolled `ref` to
+  `""` — discarding the deleted bases and relocating the variant. `chr2:6:AC>T` against a `TTTTT…`
+  lead-in resolved to `pos=0, ref='', alt='T'` (an insertion at the wrong locus) instead of `pos=5,
+  ref='AC', alt='T'`; because the mangled `ref` was empty, `_validate_ref` returned early and the
+  corruption was accepted with no error. It fires whenever a delins sits near a homopolymer/repeat with
+  its alt's last base matching the preceding base — a common ClinVar pattern — and corrupts every
+  downstream consumer (working interval, effect prediction, guide design). Fixed: after parsimonious
+  trimming, a still-both-non-empty variant is a genuine delins with no anchor to roll, so it is
+  returned in its parsimonious form rather than falling into the pure-indel loop. Regression test
+  (coordinate and `g.delins` spellings) fails@HEAD → passes; the variant-resolution spec now scopes
+  rolling to pure indels explicitly and gains a delins scenario. Found by a variant-resolution
+  edge-case audit.
+
 - **The `Prediction` contract now rejects non-finite bounds and values, closing the non-finite class
   at its source.** `_check_interval` validated ordering, level, and point containment but not
   finiteness: a `NaN` value was caught only incidentally (it fails the containment check), and `±inf`

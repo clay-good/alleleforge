@@ -26,12 +26,22 @@ HGVS → `chrom:pos:ref>alt`), raising `ValueError` on an unrecognized string.
 
 `Variant.normalized` SHALL apply anchored trimming (bcftools-norm semantics), keep both
 alleles at least one base, and be idempotent. When a reference is supplied, `resolve`
-SHALL left-align pure indels through reference repeats and re-anchor; when omitted, it
-SHALL only normalize.
+SHALL left-align **pure** indels (exactly one allele empty after parsimonious trimming)
+through reference repeats and re-anchor; when omitted, it SHALL only normalize. A true
+delins — both alleles still non-empty after trimming — SHALL be returned in its
+parsimonious form and SHALL NOT be rolled: it has no single anchor to roll on, and feeding
+it through the pure-indel roll would drop its deleted bases and relocate the variant
+(silently turning a delins into a different, wrong insertion).
 
 #### Scenario: Indel in a homopolymer
 - **WHEN** a deletion inside a homopolymer is resolved with a reference
 - **THEN** it left-aligns to the repeat start
+
+#### Scenario: Delins is not rolled into an insertion
+- **WHEN** a delins (e.g. `AC>T`) whose alt's last base equals the preceding reference
+  base is resolved with a reference
+- **THEN** it stays the parsimonious `ref=AC, alt=T` at its own position — the deleted
+  bases are preserved, not discarded by a pure-indel roll that relocates it
 
 #### Scenario: Idempotence
 - **WHEN** `normalized` is applied twice
