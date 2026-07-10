@@ -892,6 +892,41 @@ opens a surface, the FIRST things it finds are the old classes that example-base
 modality (per R33's note): metamorphic/differential testing against a reference implementation (bcftools norm,
 a real HGVS library) — the enumeration lens already showed metamorphic fetch-back is the sharpest check here.**
 
+## Round 35 — the third modality: differential/metamorphic testing vs an independent oracle (0 fixes; clean bill + a new permanent property test)
+
+Ran the next modality R34's note flagged: differential testing against an independent oracle. No external
+reference tools (`bcftools`, a real `hgvs` library) are installed, so the oracle is a naive-but-obviously-correct
+in-test implementation. The highest-value target not yet covered this way is variant normalization/left-alignment,
+whose core correctness property — *resolving a variant must never change the edit the caller asked for* — is the
+single most safety-critical invariant of the whole pipeline (a changed edit is a wrong reagent).
+
+- **Edit-preservation differential (CLEAN):** an independent splice-in oracle (`genome[:pos] + alt +
+  genome[pos+len(ref):]`) computed the edited genome implied by each resolved (normalized, left-aligned) variant
+  and compared it to the edit implied by the caller's original assertion. Over **4,136** fuzzed valid variants
+  (SNV/MNV/ins/del/delins across six repeat- and homopolymer-rich references), **0 mismatches** — normalization
+  provably preserves the edit. This is strictly stronger than the R33 idempotence check and would have caught the
+  R18 delins-corruption and R33 wrong-build-laundering defects. **Promoted to a permanent property test**
+  (`tests/variant/test_normalization_property.py`), the pipeline's first differential guard on this invariant.
+- **Left-alignment leftmost-canonical (oracle discarded, code confirmed correct):** an attempted "resolved indel
+  is the leftmost equivalent representation" oracle flagged 2,454/3,166 cases — but every one was the *oracle*
+  being wrong, not the code: it conflated "same edited genome" with "same indel identity," admitting
+  representations that change the indel's bases (e.g. it claimed a `T` insertion in a poly-A run could roll to
+  position 0, which would insert a different base). Spot-checked: the resolved forms are correctly left-aligned by
+  the VCF/bcftools definition (roll only through exact repeats of the indel unit). No finding — recorded honestly
+  rather than shipped as a false positive. The existing suite (`test_deletion_left_aligns_to_repeat_start` et al.)
+  plus R18/R33 already pin left-alignment canonicalization.
+
+Yield ...0/1/4/0. **Lesson: the third independent modality (differential vs an oracle) on the most safety-critical
+transform returns clean — after R33 (property fuzzing) + R34 (property fuzzing of the remaining surfaces) closed
+five real defects, the variant pipeline's edit-preserving core is now validated by three orthogonal techniques
+(example-based, property-based invariant, differential-oracle) and holds. That convergence across *modalities* —
+not just decompositions — is a credible done-marker for the reachable surface, the same signal R31 reached within
+the example-based modality. Equally important: a differential oracle is only as trustworthy as its own
+correctness — the discarded leftmost oracle is the reminder that a failing differential test must first be checked
+against the code's actual (correct) contract before it's called a bug. A future session's genuinely-new leverage
+is an *external* oracle (install bcftools / a real HGVS library and cross-check) or new feature code — not another
+in-house oracle over the same converged transforms.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
