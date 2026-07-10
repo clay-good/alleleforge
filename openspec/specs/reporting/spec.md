@@ -25,6 +25,12 @@ plots `0.0`.
 - **WHEN** a candidate is out of distribution
 - **THEN** the HTML and PDF renders annotate it explicitly
 
+#### Scenario: Uncalibrated interval marked nominal
+- **WHEN** a candidate's efficiency or bystander interval is not calibrated (`calibrated=False`,
+  so its `interval_level` is a nominal target, not measured coverage)
+- **THEN** the HTML and PDF renders qualify the interval as nominal — coverage not measured — so a
+  reader cannot mistake it for an achieved-coverage band; a calibrated interval carries no such qualifier
+
 #### Scenario: Rationale on every surface
 - **WHEN** a candidate carries a ranking rationale
 - **THEN** it appears on the PDF as well as the HTML and JSON — no human-readable surface
@@ -61,6 +67,11 @@ downstream consumer can detect a field addition or reordering.
 #### Scenario: Export schema version
 - **WHEN** a TSV or Parquet export is produced
 - **THEN** it carries a schema version identifying its column layout
+
+#### Scenario: Calibration is a flat-export column
+- **WHEN** a candidate is scored
+- **THEN** the flat TSV/Parquet export carries a `calibrated` column alongside `in_distribution`, so a
+  machine consumer can tell a calibrated band from a nominal heuristic one without parsing the JSON form
 
 #### Scenario: Cell delimiters are neutralized
 - **WHEN** a TSV cell value contains a tab, a carriage return, or a line feed (e.g. an

@@ -154,7 +154,18 @@ def enumerate_haplotype_sites(
         # the carrying set so a below-threshold population cannot inflate the
         # per-ancestry off-target burden in ``ancestry_stratification``.
         candidate_pops = populations if populations is not None else hap.populations
-        pops = tuple(sorted(p for p in candidate_pops if hap.frequencies.get(p, 0.0) >= min_freq))
+        # A population carries the haplotype only if it is *recorded* at/above the
+        # threshold. Require presence in ``frequencies``: a ``.get(p, 0.0)`` default
+        # would admit an unrecorded population when ``min_freq <= 0`` (0.0 >= 0.0),
+        # which then KeyErrors at ``frequencies[p]`` below and, semantically, would
+        # claim a population carries a haplotype for which no frequency is known.
+        pops = tuple(
+            sorted(
+                p
+                for p in candidate_pops
+                if p in hap.frequencies and hap.frequencies[p] >= min_freq
+            )
+        )
         prov = SiteProvenance(
             origin=SiteOrigin.POPULATION,
             causal_allele=";".join(f"{v.chrom}:{v.pos}:{v.ref}>{v.alt}" for v in applied_vars),

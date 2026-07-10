@@ -18,7 +18,7 @@ from alleleforge.types.candidate import RankedMenu
 
 #: Schema version for the flat TSV/Parquet candidate export. Bump when a column is
 #: added, removed, or reinterpreted so a downstream consumer can detect the drift.
-EXPORT_SCHEMA_VERSION = 1
+EXPORT_SCHEMA_VERSION = 2
 
 #: The flat TSV column order (one row per candidate). ``schema_version`` leads so a
 #: reader can branch on the format before touching any other column.
@@ -31,6 +31,7 @@ TSV_COLUMNS = (
     "efficiency_low",
     "efficiency_high",
     "in_distribution",
+    "calibrated",
     "bystander_burden",
     "p_intended",
     "n_offtarget_sites",
@@ -65,6 +66,7 @@ def _row(candidate: Any) -> dict[str, Any]:
         "efficiency_low": None if eff is None else round(eff.interval[0], 4),
         "efficiency_high": None if eff is None else round(eff.interval[1], 4),
         "in_distribution": None if eff is None else eff.in_distribution,
+        "calibrated": None if eff is None else eff.calibrated,
         "bystander_burden": None if burden is None else round(burden.value, 4),
         "p_intended": None if candidate.p_intended is None else round(candidate.p_intended, 4),
         "n_offtarget_sites": candidate.n_offtarget_sites,

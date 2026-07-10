@@ -46,6 +46,30 @@ def test_insertion_wrong_anchor_raises_before_reanchoring(reference: ReferenceGe
         resolve(VcfRecord(chrom="chr2", pos=6, ref="C", alt="CT"), reference=reference)
 
 
+def test_hgvs_dup_with_wrong_build_bases_fails_closed(reference: ReferenceGenome) -> None:
+    # A dup may state its duplicated bases (legal HGVS). reference[5:7] == "AC", so a
+    # caller stating "CC" (wrong genome build) must fail closed exactly as a mismatched
+    # del/sub does — not silently fabricate an insertion of the un-checked bases. The
+    # resulting insertion has ref="", so _validate_ref cannot catch it; the adapter must.
+    with pytest.raises(ValueError, match="reference mismatch"):
+        resolve("chr2:g.6_7dupCC", reference=reference)
+    # The honest forms still resolve: bases matching the reference, and the bare form.
+    assert _key(resolve("chr2:g.6_7dupAC", reference=reference).variant) == ("chr2", 4, "T", "TAC")
+    assert _key(resolve("chr2:g.6_7dup", reference=reference).variant) == ("chr2", 4, "T", "TAC")
+
+
+def test_hgvs_del_stated_bases_disagreeing_with_span_fails_closed(
+    reference: ReferenceGenome,
+) -> None:
+    # A del may state its deleted bases; when they disagree with the spanned reference
+    # (wrong build, or a span length that contradicts the stated bases) it must raise,
+    # not silently produce a mis-sized deletion. reference[5:8] == "ACG".
+    with pytest.raises(ValueError, match="reference mismatch"):
+        resolve("chr2:g.6_8delAC", reference=reference)  # span is 3 bases, stated 2
+    with pytest.raises(ValueError, match="reference mismatch"):
+        resolve("chr2:g.6_7delAG", reference=reference)  # right length, wrong base
+
+
 def test_insertion_correct_anchor_resolves(reference: ReferenceGenome) -> None:
     # The mirror: a correctly-anchored insertion (reference really has 'A' there)
     # resolves normally — the new guard rejects only a genuine mismatch.

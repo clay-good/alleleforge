@@ -120,3 +120,36 @@ def test_empty_menu_renders(prime_menu: RankedMenu) -> None:
     html = render_html(build_report(empty))
     assert "No candidates" in html
     assert html.rstrip().endswith("</html>")
+
+
+def test_html_marks_uncalibrated_interval_as_nominal(prime_menu: RankedMenu) -> None:
+    # Every default scorer emits calibrated=False, so "@ 80%" is a nominal target,
+    # not measured coverage. The render must say so (the design contract puts that
+    # caveat "in the notes"); otherwise a reader reads the band as achieved coverage.
+    html = render_html(build_report(prime_menu))
+    assert "nominal — coverage not measured" in html
+
+
+def test_html_omits_nominal_caveat_for_calibrated_interval(prime_menu: RankedMenu) -> None:
+    from alleleforge.types.prediction import Prediction, UncertaintyMethod
+
+    report = build_report(prime_menu)
+
+    def _calibrate(cand: object) -> object:
+        e = cand.efficiency  # type: ignore[attr-defined]
+        if e is None:
+            return cand
+        cal = Prediction.calibrated_by(
+            value=e.value,
+            interval=e.interval,
+            method=UncertaintyMethod.CONFORMAL,
+            interval_level=e.interval_level,
+        )
+        return cand.model_copy(update={"efficiency": cal})  # type: ignore[attr-defined]
+
+    calibrated = report.model_copy(
+        update={"candidates": tuple(_calibrate(c) for c in report.candidates)}
+    )
+    html = render_html(calibrated)
+    assert "Efficiency" in html  # the efficiency lines still render
+    assert "nominal — coverage not measured" not in html

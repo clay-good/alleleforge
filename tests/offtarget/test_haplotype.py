@@ -76,6 +76,24 @@ def test_below_threshold_population_excluded_from_ancestry(make_reference: MakeR
     assert set(prov.ancestries) == {"AFR"}
 
 
+def test_zero_min_freq_with_uncarried_population_does_not_crash(make_reference: MakeRef) -> None:
+    # A requested super-population the haplotype has no frequency for must not enter
+    # the carrying set — a `.get(p, 0.0) >= min_freq` filter admitted it at min_freq<=0
+    # (0.0 >= 0.0) and then KeyError'd on `frequencies[p]`, aborting the whole search.
+    # This path is CLI-reachable via `off-target --maf 0 --populations AFR,EUR`, and a
+    # region-frequent haplotype carrying only a subset of super-populations is the norm.
+    ref = make_reference({"chr2": PAD + SPACER + "CGT" + PAD})
+    hap = _hap((Variant(chrom="chr2", pos=32, ref="T", alt="G"),), {"AFR": 0.2})  # no EUR
+    sites = enumerate_haplotype_sites(
+        SPACER, NRG, reference=ref, haplotypes=[hap], populations=["AFR", "EUR"], min_freq=0.0
+    )
+    assert len(sites) == 1
+    _, prov = sites[0]
+    # EUR is not recorded, so it never enters the carrying set or the ancestry map.
+    assert prov.populations == ("AFR",)
+    assert set(prov.ancestries) == {"AFR"}
+
+
 def test_two_variant_haplotype_lists_both(make_reference: MakeRef) -> None:
     # One variant creates the PAM, a second sits in the protospacer; the
     # haplotype's causal-allele string records both.

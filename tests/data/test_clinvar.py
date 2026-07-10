@@ -89,6 +89,26 @@ def test_conflicting_significance_normalizes(clinvar_vcf: Path) -> None:
     assert rec.significance is ClinicalSignificance.CONFLICTING
 
 
+def test_combined_assertion_significance_classifies_by_primary(tmp_path: Path) -> None:
+    # ClinVar joins a secondary assertion onto the primary class with a comma
+    # (e.g. HFE C282Y as "Pathogenic,_risk_factor"). The primary class must survive;
+    # collapsing it to OTHER silently drops the pathogenic signal.
+    vcf = tmp_path / "combined.vcf"
+    vcf.write_text(
+        "##fileformat=VCFv4.1\n"
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+        "6\t26092913\t9\tG\tA\t.\t.\tCLNSIG=Pathogenic,_risk_factor;RS=1800562\n"
+        "1\t100\t10\tA\tG\t.\t.\tCLNSIG=Pathogenic/Likely_pathogenic,_risk_factor\n"
+        "1\t200\t11\tC\tT\t.\t.\tCLNSIG=Likely_pathogenic,_low_penetrance\n"
+    )
+    db = ClinVarDB.from_vcf(vcf)
+    assert db.get("VCV000000009").significance is ClinicalSignificance.PATHOGENIC
+    assert db.get("VCV000000010").significance is ClinicalSignificance.PATHOGENIC
+    assert db.get("VCV000000011").significance is ClinicalSignificance.LIKELY_PATHOGENIC
+    # The verbatim token is still preserved for auditing.
+    assert db.get("VCV000000009").raw_significance == "Pathogenic,_risk_factor"
+
+
 def test_in_region(clinvar_vcf: Path) -> None:
     db = ClinVarDB.from_vcf(clinvar_vcf)
     region = GenomicInterval(chrom="chr2", start=60099, end=60300, strand=Strand.PLUS)

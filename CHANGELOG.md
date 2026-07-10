@@ -10,6 +10,61 @@ acceptance.
 
 ### Fixed
 
+- **A ClinVar `CLNSIG` carrying a secondary assertion now classifies by its primary clinical class
+  instead of collapsing to `OTHER`.** ClinVar joins a variant's primary assertion with secondary ones in
+  a single comma-separated `CLNSIG` token (e.g. `Pathogenic,_risk_factor`, `Likely_pathogenic,_low_penetrance`,
+  `Pathogenic/Likely_pathogenic,_risk_factor`) — a form carried by clinically major variants such as HFE
+  C282Y (`rs1800562`), Factor V Leiden (`rs6025`), and prothrombin G20210A (`rs1799963`). `_normalize_significance`
+  did an exact-match lookup against a single-token map and defaulted every combined form to
+  `ClinicalSignificance.OTHER`, silently dropping the pathogenic signal a downstream filter on
+  `{PATHOGENIC, LIKELY_PATHOGENIC}` would key on. It now classifies by the primary assertion (the token
+  before the first comma) while preserving the verbatim `raw_significance` for auditing. Regression test
+  (three combined-assertion records → correct primary class) fails@HEAD → passes. Found by a data-population
+  ingestion audit (which cleared gnomAD AF selection, dbSNP `chrM` mapping, symbolic-ALT skipping, and the
+  registry fail-closed gates).
+
+- **An HGVS `dup`/`delins` that states its bases from the wrong genome build now fails closed, closing a
+  hole in the "asserted ref that disagrees is a hard error" guarantee.** A `dup`/`del`/`delins` may state
+  its duplicated/deleted bases (legal HGVS, emitted by real tools as `c.4_6dupTGA`). `HgvsAdapter.to_variant`
+  short-circuited the reference read whenever bases were stated (`parsed.ref_bases or self._fill(...)`), so
+  the stated bases were used verbatim and never checked against `reference[start:end)`. For a `dup` the
+  resulting variant has `ref=""`, so the resolver's `_validate_ref` early-returns — the reference is *never*
+  consulted. `chr2:g.6_7dupCC` against a reference reading `AC` at that span was accepted, fabricating an
+  insertion of the un-checked `CC`; the identical `del` correctly failed closed. A stated-base `delins`/`del`
+  additionally discarded the parsed span length, so `g.6_8delAC` (a 3-base span, 2 stated bases) silently
+  became a 2-base deletion. `to_variant` now validates stated `dup`/`del`/`delins` bases against the
+  reference span (identity and length) when a reference is available, exactly as `sub`/`del` already do.
+  Regression tests (wrong-build `dupCC`, span-length `delAC`, wrong-base `delAG` → raise; honest forms still
+  resolve) fail@HEAD → pass. Found by a variant-resolution + coordinate audit (which cleared 0/1-based
+  conversions, left-alignment, insertion anchoring, VCF multi-allelic/symbolic handling, and liftover
+  fail-closed).
+
+- **The off-target search no longer crashes with a `KeyError` when `--maf 0` is combined with requested
+  populations a haplotype doesn't carry.** `enumerate_haplotype_sites` filtered the carrying populations
+  with `hap.frequencies.get(p, 0.0) >= min_freq`; at `min_freq <= 0` the `.get` default `0.0` satisfied
+  `>= 0.0`, admitting populations absent from the haplotype's frequency dict, which then raised `KeyError`
+  at `ancestries={p: hap.frequencies[p] ...}` — aborting the entire search. This is CLI-reachable via
+  `aforge off-target --maf 0 --populations AFR,EUR,...`, and a region-frequent haplotype carrying only a
+  subset of super-populations is the normal case. The filter now requires the population to be *recorded*
+  in `frequencies` (a population with no known frequency does not carry the haplotype), matching the robust
+  sibling behavior of the population-variant path. Regression test (`min_freq=0.0` with an uncarried
+  requested population → one clean site, no crash) fails@HEAD → passes. Found by a cohort/population audit
+  (which cleared the de-novo/strengthen nomination gate, indel coordinate lift, minus-strand PAM creation,
+  and cohort key injectivity).
+
+- **The design report now marks an uncalibrated interval as nominal instead of presenting it identically
+  to a calibrated one.** Every default scorer emits `calibrated=False` (a fixed heuristic ±0.15 band whose
+  `interval_level` is a *nominal* target, not measured coverage — the `Prediction` records this "in the
+  notes" by contract), yet the HTML and PDF renders surfaced only the `in_distribution` flag and printed
+  the band as `@ 80%`, so a reader could not tell a calibrated 80%-coverage interval from an unvalidated
+  heuristic one; the TSV/Parquet export exposed `in_distribution` but had no `calibrated` column at all.
+  The renders now append `(nominal — coverage not measured)` to an uncalibrated efficiency/bystander line
+  (mirroring the existing OOD qualifier), and the flat export gains a `calibrated` column (schema version
+  bumped 1 → 2). This reads only the already-correct in-memory `calibrated` field and does not touch the
+  deferred `Prediction.calibrated` serialization round-trip. Regression tests (default menu render carries
+  the caveat; a calibrated menu omits it; TSV carries the column) fail@HEAD → pass. Found by a report-render
+  audit (which cleared HTML/SVG/PDF injection, off-target chart arithmetic, and column ordering).
+
 - **A cached-but-unpinned dataset now fails closed too, closing the same fail-open as the checkpoint
   gate.** `DatasetRegistry.resolve` refuses to *download* an unpinned dataset (`ChecksumError`), but the
   cached branch only re-verified when the descriptor *pinned* a `sha256` (`elif desc.sha256 is not

@@ -42,6 +42,21 @@ def test_tsv_has_header_and_one_row_per_candidate(prime_menu: RankedMenu) -> Non
         assert len(row.split("\t")) == len(TSV_COLUMNS)
 
 
+def test_tsv_carries_calibrated_column(prime_menu: RankedMenu) -> None:
+    # The flat export exposes in_distribution but had no calibrated column, so a
+    # machine consumer could not tell a calibrated band from a nominal heuristic one.
+    # Default scorers are uncalibrated, so the column reads False (not blank).
+    report = build_report(prime_menu)
+    lines = report_to_tsv(report).strip().split("\n")
+    header = lines[0].split("\t")
+    assert "calibrated" in header
+    col = header.index("calibrated")
+    scored = [r.split("\t") for r in lines[1:] if r.split("\t")[header.index("efficiency")]]
+    assert scored, "fixture should have at least one scored candidate"
+    for row in scored:
+        assert row[col] == "False"
+
+
 def test_tsv_cells_have_no_tabs_or_newlines(prime_menu: RankedMenu) -> None:
     report = build_report(prime_menu)
     body = report_to_tsv(report).strip().split("\n")[1:]

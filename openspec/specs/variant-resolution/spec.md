@@ -57,6 +57,14 @@ no reference is supplied, `resolve` SHALL normalize without validation.
 - **WHEN** the asserted `ref` disagrees with the reference base at that position
 - **THEN** `resolve` raises `ValueError` ("reference mismatch")
 
+#### Scenario: HGVS dup/del states bases from the wrong build
+- **WHEN** an HGVS `dup`/`del`/`delins` states its duplicated/deleted bases and those bases (or their
+  length) disagree with `reference[start:end)` — e.g. `g.6_7dupCC` where the span reads `AC`, or a stated
+  allele shorter than the parsed span
+- **THEN** `resolve` raises a reference-mismatch `ValueError`, rather than trusting the stated bases and
+  fabricating an insertion or a mis-sized deletion (a `dup` yields `ref=""`, so the general ref check cannot
+  catch it); the honest bare form, whose bases are filled from the reference, still resolves
+
 #### Scenario: No reference available
 - **WHEN** no reference is supplied
 - **THEN** the variant is normalized but not reference-validated

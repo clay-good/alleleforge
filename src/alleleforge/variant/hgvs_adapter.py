@@ -247,11 +247,22 @@ class HgvsAdapter:
         parsed = parse_genomic_hgvs(genomic)
         if parsed.op is HgvsOp.DUP:
             # A duplication is an insertion of the duplicated span just after it.
-            dup_bases = parsed.ref_bases or self._fill(ref_lookup, parsed.start, parsed.end, "dup")
+            if parsed.ref_bases is not None:
+                self._check_stated_bases(
+                    ref_lookup, parsed.start, parsed.end, parsed.ref_bases, "dup"
+                )
+                dup_bases = parsed.ref_bases
+            else:
+                dup_bases = self._fill(ref_lookup, parsed.start, parsed.end, "dup")
             return self._variant(chrom, parsed.end, "", dup_bases, text)
         ref_bases = parsed.ref_bases
-        if parsed.op in (HgvsOp.DEL, HgvsOp.DELINS) and ref_bases is None:
-            ref_bases = self._fill(ref_lookup, parsed.start, parsed.end, parsed.op.value)
+        if parsed.op in (HgvsOp.DEL, HgvsOp.DELINS):
+            if ref_bases is None:
+                ref_bases = self._fill(ref_lookup, parsed.start, parsed.end, parsed.op.value)
+            else:
+                self._check_stated_bases(
+                    ref_lookup, parsed.start, parsed.end, ref_bases, parsed.op.value
+                )
         return self._variant(chrom, parsed.start, ref_bases or "", parsed.alt_bases, text)
 
     @staticmethod
@@ -265,6 +276,33 @@ class HgvsAdapter:
         if ref_lookup is None:
             raise ValueError(f"{op} needs a reference to fill its bases")
         return ref_lookup(start, end)
+
+    @staticmethod
+    def _check_stated_bases(
+        ref_lookup: Callable[[int, int], str] | None,
+        start: int,
+        end: int,
+        stated: str,
+        op: str,
+    ) -> None:
+        """Assert caller-stated ``del``/``dup`` bases agree with the reference span.
+
+        A ``del``/``dup``/``delins`` may state the deleted/duplicated bases (legal
+        HGVS, emitted by real tools). Those bases must equal ``reference[start:end)``;
+        when they do not — a wrong genome build, or a span length that contradicts
+        the stated bases — that is a hard error, exactly as an asserted ``sub``/``del``
+        ref that disagrees is. Trusting them silently fabricates an insertion or a
+        mis-sized deletion. Without a reference (``ref_lookup is None``) the bases
+        cannot be checked and are trusted, as before.
+        """
+        if ref_lookup is None:
+            return
+        actual = ref_lookup(start, end)
+        if stated.upper() != actual.upper():
+            raise ValueError(
+                f"{op} reference mismatch at [{start}, {end}): stated {stated!r} but "
+                f"reference has {actual!r} (usually the wrong genome build)"
+            )
 
     def _project(self, text: str) -> str:
         """Project a ``c.``/``p.`` expression to ``g.`` via the projector."""

@@ -127,15 +127,17 @@ def _candidate_html(c: CandidateReport) -> str:
     if c.efficiency is not None:
         e = c.efficiency
         ood = "" if e.in_distribution else " <strong>(out-of-distribution)</strong>"
+        cal = "" if e.calibrated else " <em>(nominal — coverage not measured)</em>"
         parts.append(
             f"<p>Efficiency <strong>{e.value:.2f}</strong> "
-            f"[{e.interval[0]:.2f}, {e.interval[1]:.2f}] @ {e.interval_level:.0%}{ood}</p>"
+            f"[{e.interval[0]:.2f}, {e.interval[1]:.2f}] @ {e.interval_level:.0%}{cal}{ood}</p>"
         )
     if c.bystander_burden is not None:
         b = c.bystander_burden
+        cal = "" if b.calibrated else " <em>(nominal — coverage not measured)</em>"
         parts.append(
             f"<p>Bystander burden <strong>{b.value:.2f}</strong> "
-            f"[{b.interval[0]:.2f}, {b.interval[1]:.2f}] @ {b.interval_level:.0%}</p>"
+            f"[{b.interval[0]:.2f}, {b.interval[1]:.2f}] @ {b.interval_level:.0%}{cal}</p>"
         )
     if c.p_intended is not None:
         parts.append(f"<p>P(intended) = <strong>{c.p_intended:.2f}</strong></p>")

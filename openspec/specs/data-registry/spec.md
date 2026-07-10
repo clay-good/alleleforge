@@ -94,7 +94,11 @@ overwritten onto — the source data.
 
 ClinVar parsing SHALL skip reference-only/symbolic rows and short (`<8`-column) rows,
 normalize `CLNSIG` to an ACMG class (unknown → `OTHER`, missing → `NOT_PROVIDED`), and
-reconstruct the `VCV` accession as `VCV{id:09d}`. A row whose `ALT` (or `REF`) is not a
+reconstruct the `VCV` accession as `VCV{id:09d}`. A comma-combined `CLNSIG` — the primary
+clinical class with a secondary assertion appended (`Pathogenic,_risk_factor`,
+`Likely_pathogenic,_low_penetrance`) — SHALL be classified by its primary assertion (the token
+before the first comma), not collapsed to `OTHER`, so the pathogenic signal of a variant carrying
+a secondary modifier survives. A row whose `ALT` (or `REF`) is not a
 plain `ACGTN` sequence — `.`, a spanning deletion `*`, or a symbolic allele like `<DEL>` —
 SHALL be skipped and the parse SHALL continue; a single such row (which real releases
 contain) must never abort the whole file by reaching the allele validator. The gnomAD and
@@ -103,6 +107,12 @@ dbSNP parsers SHALL apply the same skip so the three loaders agree on a usable r
 #### Scenario: Symbolic ALT
 - **WHEN** a ClinVar row has `ALT = .`, `*`, or `<DEL>`
 - **THEN** the row is skipped and the remaining valid rows in the file are still parsed
+
+#### Scenario: Combined-assertion CLNSIG
+- **WHEN** a ClinVar row's `CLNSIG` combines a primary class with a secondary assertion (e.g.
+  `Pathogenic,_risk_factor`)
+- **THEN** it normalizes to the primary class (`PATHOGENIC`), not `OTHER`, and `raw_significance` keeps
+  the verbatim token for auditing
 
 ### Requirement: Population-frequency queries support ancestry and MAF thresholds
 

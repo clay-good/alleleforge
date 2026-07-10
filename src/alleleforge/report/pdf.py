@@ -67,16 +67,18 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
     if c.efficiency is not None:
         e = c.efficiency
         ood = "" if e.in_distribution else "  (OUT-OF-DISTRIBUTION)"
+        cal = "" if e.calibrated else "  (nominal - coverage not measured)"
         lines += _wrap(
             f"efficiency {e.value:.2f} [{e.interval[0]:.2f}, {e.interval[1]:.2f}] "
-            f"@ {e.interval_level:.0%}{ood}",
+            f"@ {e.interval_level:.0%}{cal}{ood}",
             indent="    ",
         )
     if c.bystander_burden is not None:
         b = c.bystander_burden
+        cal = "" if b.calibrated else "  (nominal - coverage not measured)"
         lines += _wrap(
             f"bystander burden {b.value:.2f} [{b.interval[0]:.2f}, {b.interval[1]:.2f}] "
-            f"@ {b.interval_level:.0%}",
+            f"@ {b.interval_level:.0%}{cal}",
             indent="    ",
         )
     if c.p_intended is not None:

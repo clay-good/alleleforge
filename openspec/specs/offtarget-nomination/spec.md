@@ -125,6 +125,12 @@ The patient-VCF pass SHALL apply the same created/strengthened logic tagged as p
 - **WHEN** a population on a haplotype is below `min_freq`
 - **THEN** it appears in neither the populations nor the ancestry burden
 
+#### Scenario: Zero threshold with an uncarried requested population
+- **WHEN** the search runs at `min_freq <= 0` (e.g. `--maf 0`) and the requested populations include one
+  the haplotype records no frequency for
+- **THEN** the uncarried population is excluded from the carrying set (a population with no known frequency
+  does not carry the haplotype) and the search completes — it does not crash by indexing an absent frequency
+
 ### Requirement: Nomination is deduplicated, sorted, and deterministic
 
 The system SHALL de-duplicate by locus keeping the highest score, return sites sorted by

@@ -54,10 +54,21 @@ _CLNSIG_MAP: dict[str, ClinicalSignificance] = {
 
 
 def _normalize_significance(raw: str | None) -> ClinicalSignificance:
-    """Map a raw ``CLNSIG`` value to a :class:`ClinicalSignificance`."""
+    """Map a raw ``CLNSIG`` value to a :class:`ClinicalSignificance`.
+
+    ClinVar appends secondary assertions to the primary clinical class in a single
+    comma-joined ``CLNSIG`` token (e.g. ``Pathogenic,_risk_factor``,
+    ``Likely_pathogenic,_low_penetrance``). Classify by the primary assertion — the
+    token before the first comma — so a pathogenic call carrying a secondary
+    modifier is not collapsed to ``OTHER``.
+    """
     if not raw:
         return ClinicalSignificance.NOT_PROVIDED
-    return _CLNSIG_MAP.get(raw.strip().lower(), ClinicalSignificance.OTHER)
+    token = raw.strip().lower()
+    if token in _CLNSIG_MAP:
+        return _CLNSIG_MAP[token]
+    primary = token.split(",", 1)[0]
+    return _CLNSIG_MAP.get(primary, ClinicalSignificance.OTHER)
 
 
 def accession_from_variation_id(variation_id: str | int) -> ClinVarAccession:
