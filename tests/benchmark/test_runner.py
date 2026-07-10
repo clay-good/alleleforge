@@ -99,9 +99,7 @@ def test_provenance_seed_matches_config_snapshot_seed(fixed_ts: datetime) -> Non
     # and the config_snapshot — capturing the singleton verbatim recorded the default
     # seed while provenance.seed said otherwise, a self-contradictory, non-re-derivable
     # provenance block on a signed result. The design path holds this invariant.
-    result = run_benchmark(
-        StubRegressionScorer(), "cas9-efficiency", seed=777, timestamp=fixed_ts
-    )
+    result = run_benchmark(StubRegressionScorer(), "cas9-efficiency", seed=777, timestamp=fixed_ts)
     assert result.provenance.seed == 777
     assert result.provenance.config_snapshot["seed"] == 777
 

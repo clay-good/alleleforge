@@ -103,9 +103,7 @@ def _eff_by_pegrna(cands: list[DesignCandidate]) -> dict[str, float]:
     # pegRNAs share a spacer but differ in PBS/RTT geometry, so key on the full
     # pegRNA identity, not the spacer, to compare like with like.
     return {
-        c.pegrna.model_dump_json(): c.efficiency.value
-        for c in cands
-        if c.pegrna and c.efficiency
+        c.pegrna.model_dump_json(): c.efficiency.value for c in cands if c.pegrna and c.efficiency
     }
 
 

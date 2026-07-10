@@ -161,9 +161,7 @@ def enumerate_haplotype_sites(
         # claim a population carries a haplotype for which no frequency is known.
         pops = tuple(
             sorted(
-                p
-                for p in candidate_pops
-                if p in hap.frequencies and hap.frequencies[p] >= min_freq
+                p for p in candidate_pops if p in hap.frequencies and hap.frequencies[p] >= min_freq
             )
         )
         prov = SiteProvenance(
