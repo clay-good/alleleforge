@@ -963,6 +963,27 @@ leverage is now unambiguously *new feature code* (or a new external oracle for a
 reference set, though R24 already cross-checked CFD to 5.55e-17), not another pass over this one. Session R33–36:
 5 fixes + 6 clean bills (2 of them external/differential) + 1 permanent property test, all pushed.**
 
+## Round 37 — external differential of the VCF ingestion path vs pysam's real parser (clean bill)
+
+The complement to R36: R36 externally validated *normalization*; this validates *ingestion*. `iter_vcf` (the
+multiallelic-split + PASS-filter + concrete-allele adapter) has only ever been tested with a **fake cyvcf2-shaped
+reader** — the repo avoids the native VCF dependency in CI on purpose (`variant/vcf.py`'s injectable-reader
+design). With `pysam` now available, its **real VCF parser** is the external oracle: 600 fuzzed multi-record VCFs
+(**2,127 rows** — multiallelic `G,T`, symbolic `<DEL>`, spanning `*`, `N`-bearing and mixed `AT,*,G` alleles,
+`PASS`/`.`/`q10` filters) were parsed by `pysam.VariantFile`, adapted to the cyvcf2 shape, and run through
+`iter_vcf`; its output was compared to an independent expansion of `iter_vcf`'s documented rules over the same
+pysam records. **0 mismatches.** `iter_vcf`'s split/filter/skip logic behaves identically on a real parser's
+tokenization as on the fake reader — the same symbolic/spanning alleles are skipped, the same multiallelic rows
+split, the same soft-filtered rows dropped. No test added (same dependency-free-suite rationale as R36); the
+existing fake-reader unit tests remain the permanent guard, this is a one-time external cross-check.
+
+Yield ...0/0/0. **Lesson: with R36 (normalization vs bcftools) and R37 (ingestion vs pysam), the *entire variant
+input pipeline* — VCF row → concrete allele → resolved, normalized, left-aligned variant — is now validated
+end-to-end against the two field-standard external tools, both clean. Four modalities (example-based,
+property-based, in-house differential, external differential) converge across the whole input surface. This is the
+honest terminus for the current codebase: the audit-as-method needs new *code* to bite on, not another lens.
+Session R33–37: 5 fixes + 7 clean bills (3 external/differential) + 1 permanent property test, all pushed to main.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
