@@ -45,6 +45,26 @@ def test_genes_in_region(gencode_gtf: Path) -> None:
     assert sorted(g.symbol for g in hits) == ["HBB", "HBD"]
 
 
+def test_genes_in_is_contig_naming_independent(gencode_gtf: Path) -> None:
+    # The GTF is chr-named; a bare-named ("11") query must still find the genes — the
+    # reference-vs-source naming reconciliation every sibling loader applies. Without
+    # it, a pipeline pairing an Ensembl-named query with a UCSC GTF silently gets "no
+    # genes" and mis-selects a transcript in the resolver.
+    models = GeneModels.from_gtf(gencode_gtf)
+    hits = models.genes_in(_interval(5225000, 5226200, chrom="11"))
+    assert sorted(g.symbol for g in hits) == ["HBB", "HBD"]
+
+
+def test_signal_is_contig_naming_independent(encode_bedgraph: Path) -> None:
+    # The bedGraph is chr-named; a bare-named ("2") query must return the same signal —
+    # without the reconciliation, an Ensembl-named prime-editing efficiency query gets
+    # 0.0 chromatin signal against a UCSC track and designs on an empty result.
+    tracks = EncodeTracks.from_bedgraph(encode_bedgraph)
+    chr_named = tracks.signal("DNase", _interval(60000, 60400, chrom="chr2"))
+    bare_named = tracks.signal("DNase", _interval(60000, 60400, chrom="2"))
+    assert bare_named == pytest.approx(chr_named) == pytest.approx(3.0)
+
+
 def test_signal_overlap_weighted_mean(encode_bedgraph: Path) -> None:
     tracks = EncodeTracks.from_bedgraph(encode_bedgraph)
     # interval [60000, 60400): 200 bp at 5.0 then 200 bp at 1.0 -> mean 3.0

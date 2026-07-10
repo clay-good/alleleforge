@@ -24,7 +24,7 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict
 
 from alleleforge.data._io import open_text
-from alleleforge.types.sequence import GenomicInterval, Strand
+from alleleforge.types.sequence import GenomicInterval, Strand, canonical_contig
 
 _ATTR_RE = re.compile(r'(\w+) "([^"]*)"')
 
@@ -57,7 +57,10 @@ class GeneModels:
         self._by_chrom: dict[str, list[Gene]] = defaultdict(list)
         for gene in self._genes:
             self._by_symbol[gene.symbol.upper()].append(gene)
-            self._by_chrom[gene.interval.chrom].append(gene)
+            # Key by the canonical contig so a bare-named ("11") query finds a
+            # chr-named ("chr11") gene — the reference-vs-source naming reconciliation
+            # every sibling loader applies (a GENCODE GTF and an Ensembl query mix).
+            self._by_chrom[canonical_contig(gene.interval.chrom)].append(gene)
 
     @classmethod
     def from_gtf(cls, path: str | Path) -> GeneModels:
@@ -111,7 +114,11 @@ class GeneModels:
 
     def genes_in(self, interval: GenomicInterval) -> list[Gene]:
         """Return genes overlapping ``interval``, sorted by start."""
-        hits = [g for g in self._by_chrom.get(interval.chrom, ()) if g.interval.overlaps(interval)]
+        hits = [
+            g
+            for g in self._by_chrom.get(canonical_contig(interval.chrom), ())
+            if g.interval.overlaps(interval)
+        ]
         hits.sort(key=lambda g: g.interval.start)
         return hits
 
@@ -133,8 +140,19 @@ class EncodeTracks:
     """
 
     def __init__(self, segments: dict[tuple[str, str], list[_Segment]]) -> None:
-        """Hold pre-grouped ``(track, chrom) -> segments`` lists (sorted)."""
-        self._segments = segments
+        """Hold pre-grouped ``(track, chrom) -> segments`` lists (sorted).
+
+        Contigs are keyed by their canonical form so a bare-named ("11") query finds a
+        chr-named ("chr11") track — the reference-vs-source naming reconciliation the
+        sibling loaders apply; two source spellings of one contig merge rather than
+        splitting the signal.
+        """
+        merged: dict[tuple[str, str], list[_Segment]] = defaultdict(list)
+        for (track, chrom), segs in segments.items():
+            merged[(track, canonical_contig(chrom))].extend(segs)
+        for segs in merged.values():
+            segs.sort(key=lambda s: s.start)
+        self._segments = dict(merged)
 
     @classmethod
     def from_bedgraph(cls, path: str | Path) -> EncodeTracks:
@@ -168,7 +186,7 @@ class EncodeTracks:
             raise KeyError(f"unknown track {track!r}; known: {self.tracks}")
         total = 0.0
         covered = 0
-        for seg in self._segments.get((track, interval.chrom), ()):
+        for seg in self._segments.get((track, canonical_contig(interval.chrom)), ()):
             lo = max(seg.start, interval.start)
             hi = min(seg.end, interval.end)
             if hi > lo:

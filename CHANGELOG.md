@@ -10,6 +10,19 @@ acceptance.
 
 ### Fixed
 
+- **Gene-model and ENCODE-track lookups are now contig-naming-independent, closing the last two
+  un-reconciled loaders.** `GeneModels` and `EncodeTracks` keyed and queried `_by_chrom`/`_segments`
+  by the raw contig, so a bare-named (`11`) query against a chr-named (`chr11`, from a GENCODE GTF or
+  ENCODE bedGraph) index returned `[]` genes / `0.0` signal — the `.get()` missed before the
+  naming-aware `overlaps` ever ran. `GeneModels` feeds transcript selection in the variant resolver and
+  `EncodeTracks` feeds prime-editing efficiency, so a pipeline pairing an Ensembl-named query with a
+  UCSC-named annotation silently designed on an empty result rather than a flagged one. Both now key on
+  `canonical_contig` (index/construction + lookup), merging two spellings of one contig; this is the
+  same recurring reference-vs-source class the dbSNP fix closed, in its final two loaders. Regression
+  tests (bare-named query finds chr-named genes/signal) fail@HEAD → pass. The data-registry
+  contig-naming requirement already covers these. Found by a genome-access edge-case audit (which
+  verified reference fetch edges, N-runs/soft-masking, coordinate math, and liftover all correct).
+
 - **The off-target chart no longer paints an unsearched candidate as the safest guide, and the PDF no
   longer drops the ranking rationale.** Two report-fidelity fixes: (1) the HTML "worst-case off-target
   score by ancestry" figure built a bar trace for every candidate using `by.get(ancestry, 0.0)`, so a
