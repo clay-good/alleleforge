@@ -747,6 +747,19 @@ R27 docs are accurate.
 
 Yield ...3/3/1/0/4/0/2. **Lesson: R28's diminishing-returns marker on the compute/routing/index core did NOT mean the audit was exhausted — rotating to the seams the log itself had flagged (a deferred opt-in path, cross-interface parity, doc drift) still yielded two real defects: a wrong VEP region for the one variant class its tests never exercised, and a whitelisted-but-unread config key that made `batch` diverge from every other interface. The productive vein remains the seams — a deferred path tested on the happy class only, and a run recorded differently on two surfaces — exactly as R15/R22 found. Keep a running list of un-swept seams; when the core converges clean, that list is the backlog.**
 
+## Round 30 — three lenses on the un-swept seams the log listed: off-target adapter, data/bench CLI, benchmark loaders (1 fix, 2 clean bills)
+
+Took the "still-un-swept seams" the R29 log named. Two returned rigorous clean bills; the `data`/`bench`
+CLI lens found one real defect — the seed-provenance class, recurring on a new interface.
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(benchmark)` bench-run seed provenance consistency | benchmark-harness, provenance-reproducibility | `run_benchmark` captured `provenance.seed` from its `seed` argument but `config_snapshot` from the `get_settings()` singleton, which the CLI never updates with `--seed`. `aforge --seed 777 bench run <task>` recorded `provenance.seed = 777` while `config_snapshot["seed"] = 20240501` (default) — a self-contradictory, non-re-derivable provenance block on a *signed* result (the signature verifies the contradictory body, so tamper-detection stays silent). **Shipped:** apply the run's seed to the resolved settings before snapshotting, so `provenance.seed == config_snapshot["seed"]` for every caller — the design path's invariant. The R15 batch-seed-provenance class, on the `bench run` interface. |
+
+**Clean bills:** the **off-target-adapter** lens verified the cas-offinder parser's coordinate/strand/mismatch conventions (the minus-strand `pam_len` shift reconciles exactly against the internal scan's own convention), the format discriminator (6- vs 8-column) cannot misclassify, and the off-target cache key folds in every result-affecting input while the excluded ones are provably inert under `cache_eligible` — and confirmed the adapter feeds only the standalone `disagreements` cross-check, never merged into a report, so there is no merge seam. The **benchmark-loader** lens verified prediction↔label alignment is bulletproof by construction (a single shared `examples` list feeds both sides, `zip(strict=True)` everywhere), split load order is deterministic, metric argument order/KL direction are correct, and split disjointness/leakage is enforced — one honest latent non-bug noted (an intra-fold duplicate id would double-weight, but requires an adversarially hand-crafted hash-consistent split, absent from all shipped data).
+
+Yield ...4/0/2/1. **Lesson: the running list of un-swept seams keeps paying out — the `bench run` seed-provenance divergence is the exact R15 batch-seed class on a new interface, confirming that once a class is found it should be swept across EVERY interface that stamps provenance (design ✓ R15, batch ✓ R15, bench ✗ until now). The two clean bills (external-tool adapter, benchmark loaders) are credible negatives that further narrow the un-swept surface. A signature that verifies a self-contradictory body is not integrity — internal consistency of the signed content is its own audit axis.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

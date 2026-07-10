@@ -417,6 +417,14 @@ def run_benchmark(
     n_ood = sum(1 for p in predictions if not p.in_distribution)
 
     card = scorer.model_card()
+    # Snapshot the resolved settings with the run's seed applied, so the top-level
+    # provenance seed and config_snapshot["seed"] always agree (the design path's
+    # invariant: both derive from one Settings). Capturing the singleton verbatim would
+    # record the default seed while `seed` says otherwise — a self-contradictory,
+    # non-re-derivable provenance block on a signed result when a caller passes --seed.
+    run_settings = get_settings()
+    if run_settings.seed != seed:
+        run_settings = run_settings.model_copy(update={"seed": seed})
     provenance = Provenance.capture(
         alleleforge_version=__version__,
         seed=seed,
@@ -426,7 +434,7 @@ def run_benchmark(
         # Record the full resolved settings (like the design path), not a hand-built
         # 2-key subset — so interval_level and every setting that governed the
         # metrics is captured and a result is re-derivable from what actually ran.
-        config_snapshot=get_settings().snapshot(),
+        config_snapshot=run_settings.snapshot(),
     )
     model_info = ModelInfo(
         name=card.name,

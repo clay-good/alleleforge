@@ -88,11 +88,18 @@ comparison and would make the whole ranking order non-deterministic.
 
 A benchmark result SHALL carry a SHA-256 signature over its own canonical JSON body minus
 the signature field, verifiable after the fact; editing a signed result SHALL invalidate
-its signature.
+its signature. The signed body SHALL be internally consistent: the seed recorded at the top
+of provenance SHALL equal the seed in its `config_snapshot`, so a re-deriver reading either
+reproduces the run that actually happened.
 
 #### Scenario: Tampered result
 - **WHEN** a signed result is edited after signing
 - **THEN** signature verification fails and it is rejected from the leaderboard
+
+#### Scenario: Seed is consistent within provenance
+- **WHEN** a result is produced with a non-default seed
+- **THEN** `provenance.seed` and `provenance.config_snapshot["seed"]` are equal — the signed body does not
+  record two different seeds
 
 ### Requirement: Results carry a portable reproducibility digest
 

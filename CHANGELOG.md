@@ -10,6 +10,20 @@ acceptance.
 
 ### Fixed
 
+- **`aforge bench run --seed` now records a consistent seed in provenance instead of a self-contradictory
+  one.** `run_benchmark` captured the top-level `provenance.seed` from its `seed` argument but the
+  `config_snapshot` from the global `get_settings()` singleton — which the CLI callback never updates with
+  `--seed` (it exports only `ALLELEFORGE_CACHE_DIR`). So `aforge --seed 777 bench run <task>` produced a
+  signed result whose `provenance.seed` was `777` while `provenance.config_snapshot["seed"]` was the default
+  `20240501` — an internally contradictory, non-re-derivable provenance block (the signature still verifies
+  because it signs the contradictory body, so tamper-detection does not flag it). The design path holds the
+  intended invariant by deriving both from one `Settings` object. `run_benchmark` now applies the run's seed
+  to the resolved settings before snapshotting, so `provenance.seed == config_snapshot["seed"]` for every
+  caller. The built-in baseline is seed-independent so no metric changes, but this is the CLI seam a
+  seed-sensitive model's signed leaderboard submission flows through. Regression test (`seed=777` → both
+  seeds agree) fails@HEAD → passes. This is the sibling of the Round 15 batch-seed provenance divergence,
+  found by a `data`/`bench` CLI-subcommand audit.
+
 - **The VEP live-REST predictor now sends the correct region for an insertion instead of consuming a
   reference base.** `VepRestPredictor.request_url` computed the region end as `start + max(len(ref), 1) - 1`,
   clamping the span to a minimum width of 1. For an insertion (`ref=""`, the canonical form this codebase
