@@ -6,6 +6,7 @@ import json
 from collections.abc import Callable
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from alleleforge._version import __version__
@@ -35,6 +36,23 @@ def test_no_args_shows_help(runner: CliRunner) -> None:
     result = runner.invoke(app, [])
     assert result.exit_code == ExitCode.USAGE
     assert "Usage" in result.output or "design" in result.output
+
+
+def test_global_cache_dir_is_honored(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # `--cache-dir` was parsed but read nowhere, so the cache root the dataset
+    # registry / model loader / FM-index / reference index all consume via the
+    # get_settings() singleton stayed the XDG default — a user redirecting the cache
+    # (CI, sandbox, read-only home) was silently sent elsewhere. It must be honored.
+    import alleleforge.config as config
+
+    custom = tmp_path / "cache"
+    monkeypatch.setattr(config, "_SETTINGS", None)  # fresh singleton for this run
+    monkeypatch.delenv("ALLELEFORGE_CACHE_DIR", raising=False)  # restored at teardown
+    result = runner.invoke(app, ["--cache-dir", str(custom), "resolve", "chr2:100:A>G", "--json"])
+    assert result.exit_code == 0
+    assert str(config.get_settings().cache_dir) == str(custom)
 
 
 # --- resolve ----------------------------------------------------------------

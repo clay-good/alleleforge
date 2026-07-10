@@ -28,11 +28,18 @@ Every command SHALL accept a global `--seed` (default `20240501`), `--reference`
 `--cache-dir`, and `--verbose`, and every structured-output command SHALL support `--json`
 emitting stable, indented JSON. The CLI SHALL resolve settings through `Settings.load()`
 so the user's config file is honored (not only the seed), and SHALL resolve a variant at
-the user-supplied reference build rather than a hard-coded one.
+the user-supplied reference build rather than a hard-coded one. A supplied `--cache-dir`
+SHALL actually redirect the cache root that the dataset registry, model loader, FM-index,
+and reference index consume via the settings singleton — not merely be accepted and ignored.
 
 #### Scenario: JSON output
 - **WHEN** `design` is run with `--format json`
 - **THEN** the ranked menu is printed as JSON to stdout and it exits `0`
+
+#### Scenario: Cache directory honored
+- **WHEN** a command is run with `--cache-dir <dir>`
+- **THEN** the resolved settings' cache root is `<dir>`, so every cache consumer reads and
+  writes there rather than the XDG default
 
 #### Scenario: Config file honored
 - **WHEN** a user's config file sets `maf_threshold` and a CLI command runs

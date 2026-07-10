@@ -10,6 +10,19 @@ acceptance.
 
 ### Fixed
 
+- **The global `--cache-dir` flag now actually redirects the cache, instead of being silently ignored.**
+  `--cache-dir` was declared and stored on the CLI's global state but read nowhere: `design`/`batch`
+  forwarded only the seed into `Settings.load(...)`, and the cache root is consumed process-wide via the
+  `get_settings()` singleton (dataset registry, model loader, FM-index, reference index, gnomAD fetch) —
+  which the CLI never configured. So a user redirecting the cache (CI, a sandbox, a read-only home) was
+  silently sent to the default `~/.cache/alleleforge`, violating the cli spec's "every command accepts
+  `--cache-dir`" and "settings resolve through `Settings.load()`" guarantees. The root callback now
+  exports `ALLELEFORGE_CACHE_DIR` (the env var the whole settings stack already resolves, env > file >
+  default), redirecting every consumer at once with no threading changes — safe because the singleton
+  loads lazily, after the callback. Regression test (`aforge --cache-dir X … → resolved cache_dir == X`)
+  fails@HEAD → passes; cli spec gains a cache-directory scenario. Found by a CLI end-to-end audit (which
+  verified exit codes, weights, config precedence, batch, and verify all correct).
+
 - **Gene-model and ENCODE-track lookups are now contig-naming-independent, closing the last two
   un-reconciled loaders.** `GeneModels` and `EncodeTracks` keyed and queried `_by_chrom`/`_segments`
   by the raw contig, so a bare-named (`11`) query against a chr-named (`chr11`, from a GENCODE GTF or

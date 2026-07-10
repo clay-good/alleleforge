@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import tomllib
 from dataclasses import dataclass
 from enum import IntEnum, StrEnum
@@ -102,6 +103,14 @@ def main(
     ctx.obj = GlobalState(
         seed=seed, reference_build=reference, cache_dir=cache_dir, verbose=verbose
     )
+    # Honor --cache-dir at the process boundary: the cache root is consumed via the
+    # get_settings() singleton by the dataset registry, model loader, FM-index,
+    # reference index, and gnomAD fetch — none of which read the CLI's local Settings.
+    # Exporting the ALLELEFORGE_CACHE_DIR env var the whole settings stack already
+    # resolves (env > file > default) redirects every consumer at once, so the flag
+    # stops being silently ignored. Safe because the singleton loads lazily, after this.
+    if cache_dir is not None:
+        os.environ["ALLELEFORGE_CACHE_DIR"] = str(cache_dir)
 
 
 def _load_reference(fasta: Path | None, build: str = DEFAULT_REFERENCE) -> Any:
