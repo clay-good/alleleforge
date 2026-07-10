@@ -13,11 +13,12 @@ repair template carrying the desired allele flanked by reference homology arms,
 and — given the guide it must survive — a PAM-blocking silent mutation so the
 repaired allele is not re-cleaved.
 
-For a CORRECT/REVERT/INSTALL intent the target genome carries the *alternate*
-allele, so the carried allele is substituted onto the fetched window before
-protospacers and PAMs are enumerated (mirroring the base-editor and prime
-enumerators): a PAM the alternate allele destroys is not emitted, and one it
-creates is found.
+The allele the target genome *carries* depends on the intent — for CORRECT/REVERT
+it is the *alternate* (disease) allele the edit repairs, and for INSTALL it is the
+*reference* (the alt is what you install). That carried allele is substituted onto
+the fetched window before protospacers and PAMs are enumerated (mirroring the
+base-editor and prime enumerators): a PAM the carried allele destroys is not
+emitted, and one it creates is found.
 
 All coordinates are 0-based half-open; spacers are stored 5'->3' on their own
 strand with the genomic placement and strand recorded.
