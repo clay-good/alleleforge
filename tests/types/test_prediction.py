@@ -38,6 +38,24 @@ def test_interval_ordering_enforced() -> None:
         _pred(0.5, 0.6, 0.4)
 
 
+def test_non_finite_interval_bound_rejected() -> None:
+    # A predictive interval bounds a finite quantity; an inf bound (which satisfies
+    # `low <= value <= high` and so slipped the containment check) would propagate —
+    # e.g. scrambling the ranking composite sort. Reject it at the source.
+    inf = float("inf")
+    with pytest.raises(ValueError, match="bounds must be finite"):
+        _pred(0.5, 0.4, inf)
+    with pytest.raises(ValueError, match="bounds must be finite"):
+        _pred(inf, 0.0, inf)
+
+
+def test_non_finite_point_estimate_rejected() -> None:
+    with pytest.raises(ValueError, match="finite"):
+        _pred(float("nan"), 0.0, 1.0)  # NaN
+    with pytest.raises(ValueError, match="finite"):
+        _pred(float("inf"), 0.0, 1.0)  # inf value outside a finite interval
+
+
 def test_interval_level_range_enforced() -> None:
     with pytest.raises(ValueError, match="not in"):
         Prediction[float](

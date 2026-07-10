@@ -11,6 +11,7 @@ This module is pure: it imports no genome, model, or I/O code.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from enum import StrEnum
 from typing import Any, Generic, TypeVar
@@ -181,12 +182,21 @@ class Prediction(BaseModel, Generic[T]):
         keeping the frozen model genuinely immutable and safe to alias.
         """
         low, high = self.interval
+        # A predictive interval bounds a finite scientific quantity; a non-finite
+        # bound (NaN/±inf) is meaningless and would propagate — an inf efficiency
+        # value scrambles the ranking composite sort, and a NaN breaks JSON. Nothing
+        # legitimate produces one, but a Prediction is deserializable, so reject a
+        # non-finite bound at the source rather than trust each downstream consumer.
+        if not (math.isfinite(low) and math.isfinite(high)):
+            raise ValueError(f"interval bounds must be finite, got {self.interval}")
         if low > high:
             raise ValueError(f"interval low {low} exceeds high {high}")
         if not 0.0 < self.interval_level <= 1.0:
             raise ValueError(f"interval_level {self.interval_level} not in (0, 1]")
         value = self.value
         if not isinstance(value, bool) and isinstance(value, (int, float)):
+            if not math.isfinite(float(value)):
+                raise ValueError(f"point estimate must be finite, got {value}")
             if not low <= float(value) <= high:
                 raise ValueError(f"point estimate {value} lies outside interval {self.interval}")
         return self

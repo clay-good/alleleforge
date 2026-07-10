@@ -10,6 +10,20 @@ acceptance.
 
 ### Fixed
 
+- **The `Prediction` contract now rejects non-finite bounds and values, closing the non-finite class
+  at its source.** `_check_interval` validated ordering, level, and point containment but not
+  finiteness: a `NaN` value was caught only incidentally (it fails the containment check), and `±inf`
+  slipped through entirely — `value=inf` with `interval=(0, inf)` satisfies `low <= value <= high`,
+  and a finite value with an `interval=(lo, inf)` bound passed too. No current scorer produces one (a
+  scoring-layer overflow audit confirmed every log/exp/sqrt/division is guarded), but a `Prediction`
+  is deserializable, so a non-finite one loaded from JSON would flow into the ranking composite (an
+  `inf` efficiency scrambles the sort) or a report (a `NaN` breaks JSON) — the same class the metrics
+  and leaderboard finiteness guards closed on the benchmark side. Now rejects a non-finite interval
+  bound or numeric value at construction/deserialization. Regression tests fail@HEAD → pass;
+  uncertainty-contract spec gains a "non-finite bound or value" scenario. This is the source-level
+  completion of the finiteness theme (scorers compute finite, the prediction contract rejects
+  non-finite, benchmark ingestion rejects non-finite claims).
+
 - **A benchmark result now rejects a non-finite `primary_value`/metric, so a signed `NaN` can't make
   the leaderboard order non-deterministic.** The leaderboard sorts on `primary_value`, and a `NaN`
   there loses every comparison — a single externally-signed submission carrying `NaN` would scramble

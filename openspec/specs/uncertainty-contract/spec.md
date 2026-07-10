@@ -30,12 +30,22 @@ Every numeric efficiency or outcome value the system returns SHALL be wrapped in
 ### Requirement: The interval is well-formed and contains the point
 
 A `Prediction` SHALL reject construction unless `interval` is ordered (`low <= high`),
-`interval_level` lies in `(0, 1]`, and — when `value` is numeric and not boolean — the
-point estimate lies within `[low, high]`.
+its bounds are **finite**, `interval_level` lies in `(0, 1]`, and — when `value` is numeric
+and not boolean — the point estimate is finite and lies within `[low, high]`. A non-finite
+bound or value (`NaN`/`±inf`) is meaningless for a bounded scientific quantity and would
+propagate — an `inf` efficiency scrambles the ranking composite sort and a `NaN` breaks JSON
+— so it is rejected at the source rather than trusted to each downstream consumer; a
+`Prediction` is deserializable, so this holds on load, not only on fresh construction.
 
 #### Scenario: Inverted interval
 - **WHEN** a `Prediction` is constructed with `interval` low greater than high
 - **THEN** construction raises `ValueError`
+
+#### Scenario: Non-finite bound or value
+- **WHEN** a `Prediction` is constructed or deserialized with a non-finite interval bound
+  or a non-finite numeric `value` (`NaN` or `±inf`)
+- **THEN** construction raises `ValueError`, so no non-finite prediction reaches ranking,
+  reporting, or the benchmark metrics
 
 #### Scenario: Point outside interval
 - **WHEN** a numeric `value` lies outside its `[low, high]` interval
