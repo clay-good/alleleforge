@@ -454,6 +454,33 @@ one real gap (the R18 delins) already closed — is the R6/R13-style diminishing
 input seam. The productive next angles are axes not yet swept this session (e.g. the data-loader →
 Variant ingestion path, or a documentation-vs-behavior sweep), not more depth on resolve/route.
 
+## Round 20 — data-loader ingestion + documentation accuracy (2 code fixes + 4 doc fixes)
+
+Took R19's own suggested next angles. The data-loader lens verified all eight loaders' coordinate
+conversion, indel anchoring, INFO parsing, per-ancestry alignment, and ClinVar identifier semantics
+correct — and found two real defects. The documentation lens verified the scoring modules, all 17
+model cards, the README (LGTM), and the CHANGELOG accurate — and found four factual doc contradictions.
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(data)` dbSNP contig naming | data-registry | dbSNP was the one loader never given the contig-naming reconciliation its siblings have. A bare `MT` rsID → `chrMT` (hg38 uses `chrM`), so a mito variant resolved via `dbsnp.locus` carried a contig absent from the reference — silent miss; and `rsids_at` keyed `_by_chrom` raw, so a bare `2` interval returned `[]` while `chr2` returned records. **Shipped:** key on `canonical_contig` (index + query), map `MT`/`M` → `chrM`. The recurring reference-vs-source naming class, in its last un-reconciled loader. |
+| `fix(data)` symbolic-ALT skip | data-registry | ClinVar's filter skipped only `ALT` in `.`/empty, so a spanning-deletion `*` or symbolic `<DEL>` (real releases contain them) reached the allele validator, raised, and aborted the *entire* `from_vcf` — losing every valid record after it. dbSNP shared it; gnomAD silently stored garbage. **Shipped:** a shared `is_sequence_allele` guard in all three loaders skips a non-`ACGTN` row and continues. |
+
+**Documentation (`docs:`, all doc-only — no code bugs):** population.md said CFD *defaults* to the
+seed-tolerance approximation (backwards — it defaults to the published Doench matrix; the approximation
+is opt-in) with a "400-value" matrix (it has 240); data.md gave the contig-normalization direction as
+UCSC-ward (it reconciles via the bare canonical form); the index.md uncertainty snippet passed
+`calibrated=True` without noting it is coerced to `False`; and `gc_content`'s docstring said
+"unambiguous" while the code counts the strong code `S`. All four verified by running the code and
+corrected. The population.md one was honesty-relevant — it claimed the default scorer is an
+approximation when it is the published matrix.
+
+Yield ...1/1/2. **Lesson: the *ingestion* seam (external record → Variant/frequency) is a distinct,
+productive axis from the *resolution* seam — dbSNP had missed a naming reconciliation every sibling
+received, and one malformed VCF row could silently discard a whole release. And a documentation-vs-code
+sweep is worth running periodically: docs drift as behavior changes (the CFD default flipped from
+approximation to published matrix on 2026-07-08, but population.md still described the old default).**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
