@@ -10,6 +10,17 @@ acceptance.
 
 ### Fixed
 
+- **A cached-but-unpinned dataset now fails closed too, closing the same fail-open as the checkpoint
+  gate.** `DatasetRegistry.resolve` refuses to *download* an unpinned dataset (`ChecksumError`), but the
+  cached branch only re-verified when the descriptor *pinned* a `sha256` (`elif desc.sha256 is not
+  None`), so a file at the cache path for an unpinned descriptor resolved **unverified** — contradicting
+  the method's docstring and the download branch. Found by a proactive sweep for the "fail-open gate
+  that only fires on one branch" class the model-zoo fix (this session) surfaced. The cached branch now
+  fails closed on an unpinned descriptor, exactly like the download path; the user-provides-file
+  workflow is unaffected (it loads via the loaders' explicit-path API, not this consent-gated fetch, and
+  `resolve` has no production callers today). Regression test (a cached file for an unpinned descriptor →
+  `ChecksumError`) fails@HEAD → passes; data-registry spec makes the cached-unpinned refusal explicit.
+
 - **A cached-but-unpinned model checkpoint now fails closed, closing a fail-open in the weight-load
   trust gate.** `ModelRegistry.checkpoint` refuses to *download* an unpinned checkpoint (`ChecksumError`,
   "refusing to fetch an unverifiable artifact"), but the **cached** branch only re-verified when the

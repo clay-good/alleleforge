@@ -76,6 +76,18 @@ def test_resolve_without_checksum_refuses(tmp_path: Path) -> None:
         reg.resolve("demo", cache_dir=tmp_path, consent=True)
 
 
+def test_cached_unpinned_dataset_fails_closed(tmp_path: Path) -> None:
+    # The download path refuses an unpinned dataset; the *cached* path must too.
+    # A file at the cache path for an unpinned descriptor would otherwise resolve
+    # unverified — a fail-open bypass, the sibling of the model-zoo checkpoint gap.
+    reg = DatasetRegistry({"demo": _descriptor(sha256=None)})
+    p = reg.cache_path("demo", cache_dir=tmp_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_bytes(b"unverifiable-out-of-band-file")
+    with pytest.raises(ChecksumError, match="unverifiable cached artifact"):
+        reg.resolve("demo", cache_dir=tmp_path)
+
+
 def test_resolve_downloads_and_verifies(tmp_path: Path) -> None:
     payload = b"chrom\tpos\n"
     digest = hashlib.sha256(payload).hexdigest()

@@ -12,11 +12,13 @@ provenance-tagged, coordinate-normalized models.
 ### Requirement: External datasets are consent- and checksum-gated
 
 `DatasetRegistry.resolve` SHALL raise `ConsentError` for an uncached dataset without
-`consent=True`, `ChecksumError` when the descriptor's `sha256` is `None`, and
-`ConsentError` when `source_url` is `None`; downloaded bytes SHALL be SHA-256 verified.
-When the descriptor pins a `sha256`, `resolve` SHALL ALSO re-verify an already-cached
-artifact against it on every load, so a corrupted or tampered cached dataset cannot be
-served. An unregistered name SHALL raise `KeyError`.
+`consent=True`, `ChecksumError` when the descriptor's `sha256` is `None` — whether the
+artifact is cached or not, so an unpinned dataset never resolves through this gated fetch
+(a file dropped at the cache path for an unpinned descriptor SHALL fail closed, not resolve
+unverified) — and `ConsentError` when `source_url` is `None`; downloaded bytes SHALL be
+SHA-256 verified. When the descriptor pins a `sha256`, `resolve` SHALL ALSO re-verify an
+already-cached artifact against it on every load, so a corrupted or tampered cached dataset
+cannot be served. An unregistered name SHALL raise `KeyError`.
 
 #### Scenario: Uncached dataset without consent
 - **WHEN** `resolve` is called for an uncached dataset without consent
@@ -25,6 +27,10 @@ served. An unregistered name SHALL raise `KeyError`.
 #### Scenario: Unpinned checksum
 - **WHEN** consent is given but the descriptor's `sha256` is `None`
 - **THEN** it raises `ChecksumError`
+
+#### Scenario: Cached but unpinned dataset
+- **WHEN** a file exists at the cache path but the descriptor's `sha256` is `None`
+- **THEN** `resolve` raises `ChecksumError` (fail-closed), never returns the unverified file
 
 #### Scenario: Tampered cached dataset
 - **WHEN** a cached dataset's bytes no longer match the pinned `sha256`

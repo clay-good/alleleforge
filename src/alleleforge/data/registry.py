@@ -178,7 +178,18 @@ class DatasetRegistry:
             path.parent.mkdir(parents=True, exist_ok=True)
             (downloader or _default_downloader)(desc.source_url, path)
             _verify_sha256(path, desc.sha256)
-        elif desc.sha256 is not None:
+        elif desc.sha256 is None:
+            # A cached but *unpinned* dataset must fail closed exactly like the
+            # download path (which refuses an unverifiable artifact) — a file at the
+            # cache path for an unpinned descriptor would otherwise resolve unverified,
+            # a fail-open bypass of the "no pinned checksum -> refuse" guarantee the
+            # download branch and the docstring already state. (The user-provides-file
+            # workflow loads via the loaders' explicit-path API, not this gated fetch.)
+            raise ChecksumError(
+                f"dataset {desc.name!r} has no pinned checksum; refusing to resolve "
+                "an unverifiable cached artifact"
+            )
+        else:
             # Hash-on-read: re-verify a cached dataset against its pinned checksum
             # on every resolve, so a tampered cache entry is rejected on load.
             _verify_sha256(path, desc.sha256)
