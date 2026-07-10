@@ -481,6 +481,24 @@ received, and one malformed VCF row could silently discard a whole release. And 
 sweep is worth running periodically: docs drift as behavior changes (the CFD default flipped from
 approximation to published matrix on 2026-07-08, but population.md still described the old default).**
 
+## Round 21 — the OUTPUT surfaces: cloning oligos + report rendering (3 fixes)
+
+Two lenses on what the researcher actually *takes away* — the ordered oligos and the rendered report.
+Both found real defects on hardened surfaces (each verified clean elsewhere: U6-G/reconstruct/revcomp/
+scaffold on the oligo side; rank order, worst-ancestry selection, and cross-surface efficiency/interval/
+specificity agreement on the report side).
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(oligos)` 3' junction screen | oligo-output | The Type IIS enzyme screen covered the 5' overhang/insert junction (a prior fix) but screened only `top` (= `top_overhang + insert`), which stops at the insert's 3' end. In the ligated plasmid the top strand runs `top_overhang + insert + revcomp(bottom_overhang)`, so a site straddling the 3' seam shipped clean — on the **default** BsmBI scheme a spacer ending `GAGAC` + the `AAAC` bottom overhang reconstitutes `CGTCTC` on the antisense oligo (a silent Golden-Gate failure). **Shipped:** screen `top + revcomp(bottom_overhang)` for sgRNA and pegRNA — both junctions, both strands, one pass. |
+| `fix(reporting)` chart safety-honesty | reporting | The off-target-by-ancestry figure plotted an *unsearched* candidate (`n_offtarget_sites is None`) as `0.0` in every ancestry — the lowest/safest bar — while the text body showed nothing; the chart could flip a visual ranking toward the least-evidenced guide (the "safety unknown as safety-clean" class). **Shipped:** skip unsearched candidates; a searched zero-site candidate still plots `0.0`. |
+| `fix(reporting)` PDF rationale | reporting | The PDF renderer dropped each candidate's ranking `rationale`, though HTML and JSON render it and the report spec lists it — the printable leave-behind omitted *why* a candidate ranks where it does. **Shipped:** emit it in `_candidate_lines`. |
+
+Yield ...1/2/3. **Lesson: the OUTPUT surfaces (oligos, report renders) are a productive axis of their
+own — the science can be right while the artifact the researcher orders/prints is cloning-lethal or
+paints "unknown risk" as "safest." Audit what leaves the tool, not only what it computes; and a
+"safety unknown rendered as safety-clean" bug recurs across axes (ranking R10/R11, now the chart).**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
