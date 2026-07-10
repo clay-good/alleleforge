@@ -222,8 +222,9 @@ def build_report(
 
     Args:
         menu: The ranked menu to report on.
-        variant: The target variant string (falls back to provenance if absent).
-        intent: The edit intent (falls back to provenance if absent).
+        variant: The target variant string, recorded verbatim (no provenance
+            fallback — the config snapshot carries no variant field).
+        intent: The edit intent (falls back to the provenance snapshot if absent).
         title: Report title.
         top_alleles: How many outcome alleles to surface per candidate.
         with_oligos: Attach cloning-ready oligos to each candidate.

@@ -760,6 +760,38 @@ CLI lens found one real defect — the seed-provenance class, recurring on a new
 
 Yield ...4/0/2/1. **Lesson: the running list of un-swept seams keeps paying out — the `bench run` seed-provenance divergence is the exact R15 batch-seed class on a new interface, confirming that once a class is found it should be swept across EVERY interface that stamps provenance (design ✓ R15, batch ✓ R15, bench ✗ until now). The two clean bills (external-tool adapter, benchmark loaders) are credible negatives that further narrow the un-swept surface. A signature that verifies a self-contradictory body is not integrity — internal consistency of the signed content is its own audit axis.**
 
+## Round 31 — two lenses on the aggregation/leaderboard surfaces (0 code fixes; 1 doc fix; 2 clean bills — diminishing returns)
+
+Two lenses on the last un-swept report/benchmark surfaces: the report-builder aggregation (menu → DesignReport
+flattening) and the leaderboard submission-validation + board rendering. Both returned rigorous clean bills;
+the only finding was a factual docstring error.
+
+- **report-builder aggregation** — every aggregate is a faithful delegation: no min/max inversion
+  (`outcome_top` and `offtarget_by_ancestry` both sort worst/best-first correctly, `offtarget_specificity`
+  uses `specificity_score()` not `worst_score()`), no ancestry mis-attribution or dropped stratum (traced
+  through a two-population adversarial case), flags copied verbatim, every field read from the single source
+  candidate, and Pareto-front indices aligned to the preserved menu order. Clean.
+- **leaderboard** — the ranking direction is correct for every metric (`kl` ascending/lower-wins, everything
+  else descending; the rendered arrow matches the sort), the admission gate enforces card completeness +
+  per-result signature verification + model-name match + within-submission task uniqueness, tie-breaks are
+  pure-data (no PYTHONHASHSEED dependence), and no cross-wiring of a cell to the wrong model. The two residual
+  gaps (no `primary_value == metrics[primary]` cross-check, no canonical-metric restriction) are the
+  explicitly-accepted self-signed threat model, not defects. Clean.
+
+**Doc fix (`docs(report)`):** `build_report`'s docstring claimed the `variant` argument "falls back to
+provenance if absent," but the code passes it verbatim (only `intent` has a fallback) and the config snapshot
+carries no variant field, so the claimed fallback is impossible — an unbackable doc-vs-code contradiction (the
+R19/R20 doc-drift class). Corrected to state the variant is recorded verbatim with no fallback.
+
+Yield ...2/1/0. **Lesson: after R30's bench-seed fix, the two remaining benchmark/report surfaces
+(aggregation, leaderboard) both return clean under adversarial tracing — the R6/R13/R19/R26/R28 convergence
+signal, now covering essentially every seam this session enumerated. Across R27–R31 the seams yielded
+4/2/1(+doc)/… on a clearly declining curve, and the one finding this round is a docstring, not a defect. That
+is the honest diminishing-returns marker for the currently-reachable surface: the ingress/egress seams, the
+compute/routing/index core, the CLI interfaces, and the report/benchmark output are all now swept clean or
+fixed. A future session should either drive a genuinely new modality (concurrency-under-contention re-sweep,
+property-fuzzing the R27–31 code paths) or await new feature code to audit — not re-sweep converged surfaces.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
