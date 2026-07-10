@@ -26,6 +26,21 @@ def test_parse_skips_ref_only_rows(clinvar_vcf: Path) -> None:
     assert len(db) == 4  # the ALT='.' row is dropped
 
 
+def test_symbolic_alt_row_is_skipped_not_fatal(tmp_path: Path) -> None:
+    # A spanning-deletion `*` or symbolic `<DEL>` ALT is not literal sequence; it must
+    # be skipped, not passed to the allele validator where it would raise and abort the
+    # whole release — losing every valid record after it.
+    vcf = tmp_path / "clinvar.vcf"
+    vcf.write_text(
+        "##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+        "2\t100\t12\tA\t*\t.\t.\tCLNSIG=Pathogenic\n"
+        "2\t200\t13\tC\t<DEL>\t.\t.\tCLNSIG=Pathogenic\n"
+        "2\t300\t14\tG\tT\t.\t.\tCLNSIG=Pathogenic\n"
+    )
+    db = ClinVarDB.from_vcf(vcf)
+    assert len(db) == 1  # the two symbolic rows skipped, the valid row survives
+
+
 def test_get_by_accession_and_coordinate_conversion(clinvar_vcf: Path) -> None:
     db = ClinVarDB.from_vcf(clinvar_vcf)
     rec = db.get("VCV000000012")

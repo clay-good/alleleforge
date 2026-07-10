@@ -19,7 +19,7 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict
 
 from alleleforge.config import get_settings
-from alleleforge.data._io import open_text
+from alleleforge.data._io import is_sequence_allele, open_text
 from alleleforge.types.sequence import GenomicInterval, canonical_contig
 
 #: gnomAD v4.1 genetic-ancestry group labels.
@@ -102,6 +102,11 @@ class GnomadDB:
             if header is None:
                 raise ValueError("gnomAD TSV is missing its '#chrom ...' header line")
             row = dict(zip(header, cols, strict=False))
+            # A symbolic/spanning-deletion ALT (`*`, `<DEL>`) is not literal sequence;
+            # skip it instead of storing a bogus PopulationFrequency (clinvar/dbsnp skip
+            # it too — the three loaders agree on what a usable row is).
+            if not is_sequence_allele(row["ref"], row["alt"]):
+                continue
             pops = {p: float(row[p]) for p in header[5:] if row.get(p) not in (None, "", ".")}
             yield PopulationFrequency(
                 chrom=row["chrom"],

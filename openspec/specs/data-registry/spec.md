@@ -86,13 +86,17 @@ overwritten onto — the source data.
 
 ### Requirement: ClinVar rows are filtered and normalized
 
-ClinVar parsing SHALL skip reference-only/symbolic rows (`ALT` in `.`/empty) and
-short (`<8`-column) rows, normalize `CLNSIG` to an ACMG class (unknown → `OTHER`,
-missing → `NOT_PROVIDED`), and reconstruct the `VCV` accession as `VCV{id:09d}`.
+ClinVar parsing SHALL skip reference-only/symbolic rows and short (`<8`-column) rows,
+normalize `CLNSIG` to an ACMG class (unknown → `OTHER`, missing → `NOT_PROVIDED`), and
+reconstruct the `VCV` accession as `VCV{id:09d}`. A row whose `ALT` (or `REF`) is not a
+plain `ACGTN` sequence — `.`, a spanning deletion `*`, or a symbolic allele like `<DEL>` —
+SHALL be skipped and the parse SHALL continue; a single such row (which real releases
+contain) must never abort the whole file by reaching the allele validator. The gnomAD and
+dbSNP parsers SHALL apply the same skip so the three loaders agree on a usable row.
 
 #### Scenario: Symbolic ALT
-- **WHEN** a ClinVar row has `ALT = .`
-- **THEN** the row is skipped
+- **WHEN** a ClinVar row has `ALT = .`, `*`, or `<DEL>`
+- **THEN** the row is skipped and the remaining valid rows in the file are still parsed
 
 ### Requirement: Population-frequency queries support ancestry and MAF thresholds
 

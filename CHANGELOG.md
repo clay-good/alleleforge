@@ -10,6 +10,17 @@ acceptance.
 
 ### Fixed
 
+- **A symbolic or spanning-deletion ALT no longer aborts a whole ClinVar/dbSNP parse.** ClinVar's row
+  filter skipped only `ALT` in `.`/empty, so a spanning-deletion `*` or a symbolic `<DEL>`/`<INS>`
+  (both of which real VCF releases contain) reached the `Variant` allele validator, raised, and aborted
+  the entire `from_vcf` — losing every valid record after the bad row. dbSNP had the same exposure;
+  gnomAD silently stored the garbage allele instead. Added a shared `is_sequence_allele` helper and
+  applied it in all three loaders: a row whose ALT/REF is not a plain `ACGTN` sequence is skipped and
+  the parse continues, so one malformed row can no longer discard the rest of the release, and the
+  three loaders now agree on what a usable row is. Regression test (a `*` and a `<DEL>` row followed by
+  a valid row → only the valid row survives) fails@HEAD → passes; data-registry spec generalizes the
+  symbolic-ALT skip. Found by a data-loader ingestion audit.
+
 - **dbSNP lookups are now contig-naming-independent, so a bare-named query and a mitochondrial rsID no
   longer silently miss.** dbSNP was the one loader that never received the contig-naming reconciliation
   its siblings (gnomAD, ClinVar, haplotype panels) all have. Two facets from the same root: (a) a bare

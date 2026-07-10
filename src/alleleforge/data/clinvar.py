@@ -20,7 +20,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
 
-from alleleforge.data._io import open_text
+from alleleforge.data._io import is_sequence_allele, open_text
 from alleleforge.types.sequence import GenomicInterval, canonical_contig
 from alleleforge.types.variant import ClinVarAccession, DbSnpId, Variant
 
@@ -153,7 +153,10 @@ class ClinVarDB:
             if len(cols) < 8:
                 continue
             chrom, pos_s, vid, ref, alt = cols[0], cols[1], cols[2], cols[3], cols[4]
-            if alt in (".", ""):  # ClinVar includes ref-only / structural rows; skip
+            # ClinVar includes ref-only / structural / spanning-deletion rows whose ALT
+            # is not literal sequence (`.`, `*`, `<DEL>`). Skip them rather than letting
+            # one reach the allele validator and abort the whole release.
+            if alt in (".", "") or not is_sequence_allele(ref if ref != "." else "", alt):
                 continue
             info = _parse_info(cols[7])
             chrom_norm = _with_chr(chrom) if add_chr_prefix else chrom

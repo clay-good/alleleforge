@@ -12,7 +12,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 
-from alleleforge.data._io import open_text
+from alleleforge.data._io import is_sequence_allele, open_text
 from alleleforge.types.sequence import GenomicInterval, canonical_contig
 from alleleforge.types.variant import DbSnpId, Variant
 
@@ -64,6 +64,10 @@ class DbSnpDB:
             if header is None:
                 raise ValueError("dbSNP TSV is missing its '#rsid ...' header line")
             row = dict(zip(header, cols, strict=False))
+            # Skip a symbolic/spanning-deletion allele rather than letting it reach the
+            # allele validator and abort the whole file (mirrors clinvar/gnomad).
+            if not is_sequence_allele(row["ref"], row["alt"]):
+                continue
             chrom = row["chrom"]
             if add_chr_prefix and not chrom.lower().startswith("chr"):
                 # hg38 spells the mitochondrion "chrM", not "chrMT" — mirror clinvar's
