@@ -499,6 +499,23 @@ own — the science can be right while the artifact the researcher orders/prints
 paints "unknown risk" as "safest." Audit what leaves the tool, not only what it computes; and a
 "safety unknown rendered as safety-clean" bug recurs across axes (ranking R10/R11, now the chart).**
 
+## Round 22 — genome-access reference layer + CLI end-to-end (2 fixes)
+
+Two lenses, each clearing its primary surface and finding one real defect. The genome lens verified
+reference fetch edges (boundary/empty/over-run padding), N-runs/soft-masking (upper-cased), coordinate
+math, and liftover fail-closed all correct. The CLI lens verified exit codes, `--weights`, config
+precedence, batch, and verify all correct.
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(data)` annotations contig naming | data-registry, genome-access | `GeneModels` and `EncodeTracks` keyed/queried `_by_chrom`/`_segments` by the *raw* contig, so a bare-named (`11`) query against a chr-named (`chr11`) GTF/bedGraph returned `[]` genes / `0.0` signal — the `.get()` missed before the naming-aware `overlaps` ran. Feeds transcript selection (resolver) and prime-editing efficiency, so a naming mismatch silently designed on an empty result. **Shipped:** key on `canonical_contig` (construction + lookup), merging spellings — the last two un-reconciled loaders in the recurring naming class. |
+| `fix(cli)` --cache-dir honored | cli | The global `--cache-dir` was declared and stored but read nowhere: `design`/`batch` forwarded only the seed, and the cache root is consumed process-wide via the `get_settings()` singleton the CLI never configured. A user redirecting the cache (CI, sandbox, read-only home) was silently sent to `~/.cache/alleleforge`. **Shipped:** the root callback exports `ALLELEFORGE_CACHE_DIR`, redirecting every consumer at once (env > file > default), safe because the singleton loads lazily after the callback. |
+
+Yield ...2/3/2. **Lesson: the recurring contig-naming class had TWO more instances (GeneModels,
+EncodeTracks) even after the dbSNP fix a round earlier — when a bug class recurs, grep EVERY sibling
+(`_by_chrom`/`.get(...chrom)`) in one pass rather than fixing instances as lenses surface them. And a
+parsed-but-unconsumed CLI flag (`--cache-dir`) is the "flag honored?" class on the config axis.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
