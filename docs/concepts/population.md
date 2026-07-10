@@ -54,9 +54,11 @@ Two published single-guide specificity scores are implemented behind one swappab
 - **MIT / Hsu** (Hsu et al., *Nat Biotechnol* 2013) — exact, from the published 20-position weight
   table.
 - **CFD** (Doench et al., *Nat Biotechnol* 2016) — `∏ w(position, mismatch) · w(PAM)`. The PAM
-  dinucleotide weights are the published CFD values; the per-position mismatch weights default to a
-  transparent monotonic seed-tolerance model and accept the exact 400-value Doench matrix via
-  injection, so the published table drops in without code changes.
+  dinucleotide weights and the per-position mismatch weights both **default to the published Doench
+  2016 CFD matrix** (vendored with its citation). A transparent monotonic seed-tolerance approximation
+  is available behind an explicit `CfdScorer(approximate=True)` option for offline/deterministic
+  fallback, and every score records which matrix produced it so an approximation is never mislabeled
+  as published CFD.
 - A **Cas12a CFD analog** with the seed at the PAM-proximal 5' end and a `TTTV` PAM model.
 
 Those score one site. The report rolls them into an **aggregate genome-wide specificity score**,

@@ -119,12 +119,15 @@ from alleleforge.types import Prediction, UncertaintyMethod
 
 p = Prediction(
     value=0.72,
-    interval=(0.61, 0.83),           # calibrated 80% predictive interval
+    interval=(0.61, 0.83),           # 80% predictive interval
     method=UncertaintyMethod.ENSEMBLE,
     in_distribution=True,
-    calibrated=True,
+    calibrated=True,                 # self-declared -> coerced to False (anti-forgery)
 )
 assert p.interval[0] <= p.value <= p.interval[1]   # always holds
+# `calibrated` is True only via the token-authorized path (a fitted calibrator's
+# Prediction.calibrated_by / ConformalCalibrator), never a direct construction:
+assert p.calibrated is False
 ```
 
 See the [uncertainty contract](concepts/uncertainty.md) and [population-aware safety](concepts/population.md)

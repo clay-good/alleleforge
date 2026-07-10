@@ -141,7 +141,7 @@ class DNASequence(BaseModel):
         return DNASequence("".join(_COMPLEMENT[base] for base in reversed(self.sequence)))
 
     def gc_content(self) -> float:
-        """Return the fraction of unambiguous G/C bases, ``0.0`` for empty."""
+        """Return the fraction of G/C bases (counting the strong code ``S``), ``0.0`` for empty."""
         if not self.sequence:
             return 0.0
         gc = sum(base in "GCS" for base in self.sequence)

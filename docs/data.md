@@ -62,8 +62,11 @@ coordinates at the boundary:
 | GENCODE GTF | 1-based inclusive | `[start − 1, end)` |
 | ENCODE bedGraph | 0-based half-open | unchanged |
 
-Contig names from NCBI-style sources (`2`, `MT`) are normalized to the UCSC
-convention (`chr2`, `chrM`) so they align with the hg38 reference.
+Contig names are reconciled so an NCBI-style source (`2`, `MT`) and a UCSC-style hg38
+reference (`chr2`, `chrM`) align: parsers prefix bare names to the `chr…` form (mapping the
+mitochondrion to `chrM`, not `chrMT`), and every cross-source lookup compares contigs
+through a canonical form (`canonical_contig`) so a naming mismatch never silently returns
+nothing.
 
 ## Testing without genome-scale files
 
