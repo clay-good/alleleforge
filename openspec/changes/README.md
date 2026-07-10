@@ -394,6 +394,24 @@ Yield 5/3/3/0/7/3/7/3/2/4/4/5/3/4. **Lesson: the trust-contract commands (`af ve
 fallback/concurrency cost model are where gaps now live — and driving contention (not reading it)
 is what surfaced a race that a fresh same-session fix had just opened.**
 
+## Round 17 — non-finite at the source (1 fix; scoring-overflow lens clean)
+
+A scoring-layer overflow audit drove every `log`/`exp`/`sigmoid`/`sqrt`/division/normalization in
+`scoring/` and `offtarget/` against degenerate-but-legal inputs and returned a rigorous clean bill —
+every one is guarded (sigmoids clamp output, CFD/MIT factors are range-checked, outcome divisors have
+`or 0.01` floors, conformal `fit` rejects non-positive-width intervals). It confirmed that no scorer
+*produces* a non-finite value, but that the `Prediction` contract still *admits* one.
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(uncertainty)` Prediction rejects non-finite | uncertainty-contract | `_check_interval` validated ordering/level/containment but not finiteness. A `NaN` value was caught only incidentally (fails containment); `±inf` slipped through entirely (`value=inf` with `(0, inf)` satisfies `low <= value <= high`, and a finite value with an `(lo, inf)` bound passed). No scorer produces one, but a `Prediction` is **deserializable**, so a non-finite one from JSON would scramble the ranking composite sort or break a report's JSON — the same class the metrics/leaderboard guards closed on the benchmark side. **Shipped:** reject a non-finite bound or numeric value at construction/deserialization. |
+
+This is the **source-level completion of the finiteness theme** that ran across R16–R17: scorers
+*compute* finite (clean bill), the `Prediction` contract *rejects* non-finite on construction/load,
+the benchmark metrics *degrade* a non-finite input to the degenerate result, and benchmark ingestion
+*rejects* a non-finite signed claim. Four complementary layers, each closing the class at a different
+seam. Yield ...5/3/4/1.
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
