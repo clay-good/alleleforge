@@ -30,7 +30,12 @@ uses, with ECE flagged against its threshold.
 ### Requirement: Chart primitives validate and escape input
 
 `bar_chart` SHALL raise if any series length does not match the category count, escape all
-text nodes, and draw an emphasized zero baseline when the value range spans negatives.
+text nodes, and draw an emphasized zero baseline when the value range spans negatives. Every
+value that reaches an SVG **attribute** rather than a text node — the `Series`/`ReferenceLine`
+`color` — SHALL be validated to a hex code or a bare CSS color name at construction, since the
+text-node escaper does not cover attributes: an unvalidated color carrying `"`/`<`/`>`/`&`
+would break out of the `fill=`/`stroke=` attribute (the same injection class the text escaping
+closes on the text-node surface).
 
 #### Scenario: Length mismatch
 - **WHEN** a series length differs from the category count
@@ -39,3 +44,9 @@ text nodes, and draw an emphasized zero baseline when the value range spans nega
 #### Scenario: Signed range
 - **WHEN** values span negative and positive
 - **THEN** an emphasized zero baseline is drawn and negative bars grow downward
+
+#### Scenario: Color with markup is rejected
+- **WHEN** a `Series` or `ReferenceLine` is constructed with a color that is not a hex code
+  or a bare CSS name (e.g. one containing a quote or `<script>`)
+- **THEN** construction raises `ValueError`, so a color can never break out of the SVG
+  attribute it is interpolated into

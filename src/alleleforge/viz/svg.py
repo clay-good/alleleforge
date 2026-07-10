@@ -14,7 +14,24 @@ labels atop every bar.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
+
+#: A color is a hex triplet/quad/6/8-digit (`#rgb`…`#rrggbbaa`) or a bare CSS name.
+#: Colors are interpolated into SVG `fill=`/`stroke=` **attributes**, which `_esc`
+#: (scoped to text nodes) does not cover — so a color carrying `"`/`<`/`>`/`&` would
+#: break out of the attribute (the R12 injection class, on the one caller-controlled
+#: value that reaches an attribute). A legitimate color never contains markup, so it
+#: is validated at construction rather than escaped.
+_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{3,8}$|^[a-zA-Z]+$")
+
+
+def _check_color(color: str) -> str:
+    """Return ``color`` if it is a safe hex/named color, else raise ``ValueError``."""
+    if not _COLOR_RE.fullmatch(color):
+        raise ValueError(f"invalid color {color!r}: expected a hex code or a CSS color name")
+    return color
+
 
 #: Slate ink for axes, labels, and the frame.
 _INK = "#1f2933"
@@ -34,6 +51,10 @@ class Series:
     values: tuple[float, ...]
     color: str
 
+    def __post_init__(self) -> None:
+        """Reject a color that could break out of the SVG `fill=` attribute."""
+        _check_color(self.color)
+
 
 @dataclass(frozen=True)
 class ReferenceLine:
@@ -42,6 +63,10 @@ class ReferenceLine:
     value: float
     label: str
     color: str = "#e53e3e"
+
+    def __post_init__(self) -> None:
+        """Reject a color that could break out of the SVG `stroke=` attribute."""
+        _check_color(self.color)
 
 
 def _fmt(value: float) -> str:

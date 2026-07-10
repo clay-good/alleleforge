@@ -102,6 +102,21 @@ def test_value_suffix_is_escaped() -> None:
     assert "<units>" not in svg  # never emitted raw
 
 
+def test_series_color_rejects_attribute_breakout() -> None:
+    # color is the one caller-controlled value that lands in an SVG *attribute*
+    # (`fill=`), which the text-node escaper does not cover. A color carrying a
+    # quote/markup would break out into a `<script>`; reject it at construction
+    # (the R12 injection class, closed on the attribute surface).
+    hostile = '#000"/><script>alert(1)</script><rect fill="#000'
+    with pytest.raises(ValueError, match="invalid color"):
+        Series("s", (1.0,), hostile)
+    with pytest.raises(ValueError, match="invalid color"):
+        ReferenceLine(0.5, "r", color='red" onload="alert(1)')
+    # Legitimate hex and named colors still construct.
+    assert Series("s", (1.0,), "#2b6cb0").color == "#2b6cb0"
+    assert ReferenceLine(0.5, "r", color="red").color == "red"
+
+
 @pytest.mark.parametrize(
     ("value", "expected"),
     [(1.0, "1"), (2.0, "2"), (0.105, "0.105"), (0.5, "0.5"), (80.0, "80")],
