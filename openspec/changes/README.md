@@ -537,6 +537,40 @@ proactive sweep for `sha256 is not None` verify branches turned up the third gat
 it before a lens had to. Two agents crashing mid-run still delivered — a reproduced finding in an
 agent's last message is actionable even when the agent doesn't finish.**
 
+## Round 24 — five parallel lenses on the compute core: offtarget/ranking/benchmark/uncertainty (3 fixes, 2 clean bills)
+
+Five independent lenses, each a fresh reconstruction of one under-audited compute surface. Three found
+real, test-pinned defects; two returned rigorous clean bills with strong credible-negatives. Every one
+of the three defects is an instance of a class this method has hit before — an output-changing input
+that a cache key forgot, a non-finite value that a `max()` launders into a perfect score, and a real
+danger rendered safe because its attribution was unknown.
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(offtarget)` on-target keys the cache | offtarget-scoring, offtarget-nomination | The cross-run reference cache keyed on `regions` but **not** on `on_target` — the locus the engine drops as the guide's own self-match. Two `search()` calls that differ *only* in `on_target` collided on one key, so the second was served the first's report: a bare scan served an on-target-excluding report **silently hides a perfect-score (1.0) off-target**, and the reverse **counts the self-match** and understates specificity. Its sibling filter `regions` was already in the key — `on_target`, equally output-changing, was forgotten. **Shipped:** fold `on_target` into `search_signature` (naming-aware, exactly as `_is_on_target` matches), so an `on_target` change is a cache miss. The "cache key omits an output-changing input" class. |
+| `fix(types)` distribution masses must be finite | uncertainty-contract, benchmark-harness | `Prediction._check_interval` checked point-estimate finiteness only for a **scalar** `value`; a **distribution**-valued prediction (outcome→mass mapping) had its masses unchecked. An `inf` mass then makes `kl_divergence` normalize to `nan`, and `max(0.0, nan)` collapses to a **perfect `0.0`** on that lower-is-better metric — a broken distribution scorer tops the `cas9-outcome`/`be-outcome` leaderboards with a finite `0.0` headline that sails past the finite-`primary_value` validator. **Shipped:** give the Mapping case the same finiteness guard the scalar branch has (rejects a corrupt `Prediction` at construction/deserialization), plus defense-in-depth in `kl_divergence` — a non-finite mass returns `+inf` (the *worst*, direction-aware), not `0.0`. The "NaN/inf laundered into a perfect score" class, on the metric where the degenerate value's *direction* was itself the trap. |
+| `fix(offtarget)` unattributed off-target floors every stratum | offtarget-scoring, candidate-ranking | `ancestry_stratification` routed a site into every ancestry's worst case only when it was a reference or patient (`frequency is None`) site. A **population** site with a known frequency but an **empty per-ancestry breakdown** (a report built from a global AF with no stratum split) was neither — so it vanished from every stratum, while `expected_burden` still counted it as a real hit. Once any benign ancestry-tagged site made `worst_ancestry()` non-`None`, the ranking safety axis switched to the stratified path that never saw the danger: a CFD-0.9 hit rendered as safety 0.8 instead of 0.1. **Shipped:** a site whose per-ancestry attribution is unavailable (reference, patient, **or** known-frequency-but-empty-breakdown) contributes to every stratum, restoring consistency with `expected_burden`. The R11 patient-masking fix, generalized to its last un-covered site shape — the recurring "safety-unknown rendered as safety-clean" class. |
+
+**Clean bills (2):** the **off-target scoring** lens cross-checked `cfd_score` against an independent
+CRISPOR `calc_cfd` reconstruction over 20,000 random 20-nt/0–5-mismatch cases (max abs diff **5.55e-17**)
+and `mit_score` against `calcHitScore` over 50,000 cases (**bit-identical**), and cleared the seed-and-extend
+superset, the aggregate, the fallback relabeling, and the weight-range gate — one honestly-deferred `N`-base
+edge flagged for a future nomination round. The **uncertainty-contract** lens confirmed the long-deferred
+`Prediction.calibrated` round-trip finding is now **closed** (the gate acts on the raw input mapping; nesting
+never downgrades a built prediction), and cleared calibration/interval/coverage math and the OOD width floor.
+
+Yield ...3/2/3/3. **Lesson: the three live compute-core defects were the same three classes this method
+keeps surfacing, wearing new clothes — (1) a cache/trust key that omits an output-changing input (`on_target`,
+like R23's cache branches and R22's `--cache-dir`), (2) a non-finite value a reduction launders into a perfect
+score (here the trap was *direction*: `0.0` is worst for correlation but perfect for a divergence), and (3) a
+real danger rendered safe because its attribution was unknown (R10/R11 safety-unknown-as-safe, now the empty
+ancestry breakdown). When a bug class recurs, the productive move is to ask where else the same shape hides:
+`on_target` was the forgotten sibling of an already-keyed `regions`; the Mapping value was the forgotten sibling
+of an already-guarded scalar; the empty-breakdown population site was the forgotten sibling of the already-fixed
+patient site. Fresh parallel reconstruction plus a strong CFD/MIT cross-check clean bill is the R6/R13/R19
+diminishing-returns signal that the *scoring math itself* is empirically solid — the remaining defects live at
+the seams (cache keys, contract edges, attribution gaps), not in the formulas.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
