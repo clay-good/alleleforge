@@ -81,3 +81,42 @@ def test_custom_scorer_is_never_cached(reference: ReferenceGenome, tmp_path: Pat
     cache = OffTargetCache(root=tmp_path)
     search(SPACER, NGG, reference=reference, scorer=CfdScorer(), cache=cache)
     assert len(cache) == 0
+
+
+def test_on_target_is_part_of_the_signature(reference: ReferenceGenome) -> None:
+    # `on_target` drops the guide's own self-match from the report, so it changes
+    # the result and MUST key a distinct entry — otherwise a bare scan and an
+    # on-target-excluding scan collide (regression for the R24 cache-key gap).
+    from alleleforge.types.sequence import GenomicInterval, Strand
+
+    common = dict(
+        reference=reference,
+        mismatches=4,
+        dna_bulges=1,
+        rna_bulges=1,
+        cfd_threshold=0.2,
+        mit_threshold=0.1,
+        regions=[],
+    )
+    on_target = GenomicInterval(chrom="chr2", start=len(PAD), end=len(PAD) + 20, strand=Strand.PLUS)
+    bare = search_signature(SPACER, NGG, **common)  # type: ignore[arg-type]
+    excluded = search_signature(SPACER, NGG, on_target=on_target, **common)  # type: ignore[arg-type]
+    assert bare != excluded
+    # Naming-aware and stable: a bare-contig spelling keys the same entry.
+    on_target_bare = on_target.model_copy(update={"chrom": "2"})
+    assert excluded == search_signature(SPACER, NGG, on_target=on_target_bare, **common)  # type: ignore[arg-type]
+
+
+def test_on_target_change_is_a_cache_miss(reference: ReferenceGenome, tmp_path: Path) -> None:
+    # End-to-end: a bare scan and a scan that excludes the on-target self-match must
+    # not share a cached report. Before the fix the second call was served the first
+    # call's report — silently either counting the self-match or hiding a perfect site.
+    from alleleforge.types.sequence import GenomicInterval, Strand
+
+    cache = OffTargetCache(root=tmp_path)
+    on_target = GenomicInterval(chrom="chr2", start=len(PAD), end=len(PAD) + 20, strand=Strand.PLUS)
+    bare = search(SPACER, NGG, reference=reference, cache=cache)
+    excluded = search(SPACER, NGG, reference=reference, on_target=on_target, cache=cache)
+    assert len(cache) == 2  # distinct keys, not a collision
+    # The on-target-excluding scan really dropped the self-match the bare scan kept.
+    assert len(excluded.sites) < len(bare.sites)

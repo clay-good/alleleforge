@@ -103,7 +103,11 @@ the single site at exactly that locus (naming-aware on the contig) from both the
 sites and the sub-threshold tail. The exclusion SHALL be exact, not by overlap or by
 perfect-score: a *paralogous* perfect match at any other locus is a real off-target and
 SHALL be retained. A bare off-target scan with no on-target supplied reports the on-target
-like any other match.
+like any other match. Because `on_target` changes the report, the cross-run reference cache
+SHALL fold it into the content-addressed key (naming-aware, exactly as the exclusion match
+is), so a bare scan and an on-target-excluding scan never collide on one entry and get
+served the other's report — which would silently either count the self-match or hide a
+perfect-score off-target.
 
 #### Scenario: Clean guide reports full specificity
 - **WHEN** a guide's only genomic match is its own on-target locus and the design pass
@@ -115,6 +119,12 @@ like any other match.
 - **WHEN** the guide's protospacer also occurs verbatim at a second, distinct locus
 - **THEN** the on-target locus is excluded but the paralog is retained as a perfect-score
   off-target
+
+#### Scenario: On-target locus keys the cross-run cache
+- **WHEN** the same guide is searched against the same reference once as a bare scan and
+  once with an on-target locus supplied, sharing one cache root
+- **THEN** the two searches key distinct cache entries — the on-target-excluding scan is
+  not served the bare scan's report (which still counts the self-match), nor vice versa
 
 ### Requirement: Published CFD requires a 20-nt spacer
 

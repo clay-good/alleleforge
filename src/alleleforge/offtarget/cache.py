@@ -22,7 +22,7 @@ from alleleforge.cache import ContentAddressedCache, hash_parts
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.guide import PAM
 from alleleforge.types.offtarget import OffTargetReport
-from alleleforge.types.sequence import GenomicInterval
+from alleleforge.types.sequence import GenomicInterval, canonical_contig
 
 
 def reference_key(reference: ReferenceGenome) -> list[object]:
@@ -48,13 +48,29 @@ def search_signature(
     cfd_threshold: float,
     mit_threshold: float,
     regions: Sequence[GenomicInterval],
+    on_target: GenomicInterval | None = None,
 ) -> str:
     """Return the content-addressed key for a reference-only default-scorer search.
 
     Excludes inputs that do not affect a reference-only result (``populations``,
     ``maf``, ``use_fm_index`` — the FM path is byte-identical to the linear scan).
+    ``on_target`` — the locus the engine drops as the guide's own self-match — DOES
+    change the result, so it is folded in here (naming-aware, matching
+    ``engine._is_on_target``): otherwise a bare scan and an on-target-excluding scan
+    collide on one key and one is served the other's report, silently either counting
+    the self-match or hiding a perfect-score site.
     """
     region_parts = sorted((r.chrom, r.start, r.end, r.strand.value) for r in regions)
+    on_target_part = (
+        None
+        if on_target is None
+        else (
+            canonical_contig(on_target.chrom),
+            on_target.start,
+            on_target.end,
+            on_target.strand.value,
+        )
+    )
     return hash_parts(
         "offtarget-reference",
         spacer.upper(),
@@ -66,6 +82,7 @@ def search_signature(
         mit_threshold,
         reference_key(reference),
         region_parts,
+        on_target_part,
     )
 
 

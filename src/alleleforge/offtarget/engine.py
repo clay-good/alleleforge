@@ -310,6 +310,7 @@ def search(
             cfd_threshold=cfd_threshold,
             mit_threshold=mit_threshold,
             regions=search_regions,
+            on_target=on_target,
         )
         cached = cache.get(signature)
         if cached is not None:
