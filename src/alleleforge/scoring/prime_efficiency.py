@@ -8,9 +8,14 @@ cell context is unlike that training distribution the prediction is flagged
 number outside the training context is exactly the kind of false confidence the
 uncertainty contract exists to prevent.
 
-`ePRIDICT` adjusts the prediction for **chromatin context** using Phase 3 ENCODE
-tracks when a cell context is supplied (open chromatin edits better). The trained
-PRIDICT2.0 / DeepPrime / GenET models load through the license-gated model zoo.
+`ePRIDICT` adjusts the prediction for **chromatin context** (open chromatin edits
+better) when Phase 3 ENCODE tracks are passed **explicitly** to
+:meth:`PridictScorer.score` via its ``chromatin`` argument. This is opt-in and
+independent of ``cell_context`` (a string that only sets the OOD flag): the default
+:func:`~alleleforge.design.prime.design_prime` path supplies ``cell_context`` alone
+and does **not** apply the chromatin adjustment, so a default run's efficiency is the
+pure pegRNA-geometry baseline. The trained PRIDICT2.0 / DeepPrime / GenET models load
+through the license-gated model zoo.
 """
 
 from __future__ import annotations
