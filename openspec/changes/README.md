@@ -792,6 +792,45 @@ compute/routing/index core, the CLI interfaces, and the report/benchmark output 
 fixed. A future session should either drive a genuinely new modality (concurrency-under-contention re-sweep,
 property-fuzzing the R27–31 code paths) or await new feature code to audit — not re-sweep converged surfaces.**
 
+## Round 32 — regression-hardening: adversarially fuzz this session's own changes (clean bill)
+
+A closing pass that turns the audit lens on the session's own work (Rounds 27–31) rather than a new surface —
+the discipline of proving a fix set robust before declaring done. Every change was driven with adversarial
+inputs; all held.
+
+- **ClinVar CLNSIG primary-token split** — empty primary (`,_risk_factor` → `other`), comma-only (`,` →
+  `other`), multi-comma, slash-form-with-comma (→ `pathogenic`), whitespace/case, unknown primary: no crash,
+  no misclassification (ClinVar class names never contain commas, only slashes, so the primary token is always
+  the true class — the split only reclassifies strings that previously fell to `OTHER`).
+- **HGVS stated-base validation** — length mismatch, `N`-vs-base, wrong bases, lowercase, a contig-end
+  `ref_lookup` returning a short string, and `ref_lookup=None` (trusted, as documented): no valid variant
+  wrongly rejected, no invalid one accepted.
+- **haplotype pops filter** — negative `min_freq`, a recorded `0.0` frequency, empty/duplicate populations, a
+  frequency exactly at threshold, an absent population at `min_freq <= 0`: no `KeyError`, correct inclusion.
+- **VEP `request_url`** — deletion/SNV at pos 0, MNV/long-ref, insertion at contig start (`1-0`): no malformed
+  region; the insertion's `end < start` is VEP's intended zero-width convention.
+- **export `calibrated` column (schema 2)** — `efficiency=None` → blank cell (no crash), a genuine calibrated
+  prediction preserved through nesting and round-trip, untrusted JSON downgraded: every row splits to exactly
+  16 columns.
+- **CLI batch chemistry/cell_context** — an invalid chemistry name → clean usage error (exit 2, no traceback);
+  an empty list ignored; a malformed value degrades per-item under `design_many`'s failure isolation, no
+  run-aborting traceback.
+- **Fresh micro-surface — `report/oligos.py` Type IIS screen** — ~700,000 randomized spacer/RTT/PBS/motif
+  combinations compared against a ground-truth scan of the full 76 nt constant scaffold context (BsaI +
+  BsmBI): the module's 4-base-overhang junction model missed **zero** variable-touching enzyme sites; the only
+  window it omits (a 5-scaffold-base straddle) can never complete a recognition sequence. The R21 3'-junction
+  fix plus the scaffold context leave no uncovered cloning-lethal site.
+
+**Session close (Rounds 27–32).** 7 code fixes + 2 doc fixes + 1 CI-gate fix (a `ruff format --check` gate that
+had been red on `main` since the prior commit) + 9 clean bills, all pushed. The yield curve (4 / 0 / 2 / 1 / 0 /
+0) is a sustained, evidence-backed diminishing-returns marker across every enumerated seam — ingestion,
+resolution, cohort, render, effect/config/cache, routing/ranking/index, VEP, cross-interface parity, docs,
+off-target adapter, data/bench CLI, benchmark loaders, report-builder, leaderboard — with the session's own
+changes fuzzed clean. The remaining known gaps are externally-blocked (real model weights) or
+maintainer/design-call (VEP GRCh37 host routing, the self-signed leaderboard threat model), not
+autonomously-shippable defects. A future session should drive a genuinely new modality (a concurrency-under-
+contention re-sweep, property-fuzzing) or await new feature code — not re-sweep converged surfaces.
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
