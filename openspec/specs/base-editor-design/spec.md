@@ -33,6 +33,15 @@ or non-SNV SHALL yield no candidates.
 A candidate SHALL require the target base to sit within the activity window (default
 protospacer positions 4–8) on the editing strand, choosing plus or minus strand as the
 editor's chemistry requires; other in-window target bases SHALL be recorded as bystanders.
+A `BaseEditWindow` SHALL validate at construction that every target/bystander position is
+within the spacer (`1..len(spacer)`), so a hand-built or deserialized window can never carry
+a position the outcome predictor (`spacer[position - 2]`) would read out of bounds.
+
+#### Scenario: Edit position outside the spacer
+- **WHEN** a `BaseEditWindow` is constructed with a target or bystander position below 1 or
+  past the spacer length
+- **THEN** construction raises `ValueError` (rather than deferring to an opaque `IndexError`
+  or a silent garbage-but-finite score at prediction time)
 
 #### Scenario: Minus-strand editing
 - **WHEN** a correction needs a `G→A` change on the plus strand

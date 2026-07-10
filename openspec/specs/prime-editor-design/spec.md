@@ -23,11 +23,18 @@ design is rejected up front rather than deep in scoring.
 For each candidate PAM the nick SHALL sit 3 bp 5' of the PAM and the edit SHALL lie 3' of
 the nick; the PBS SHALL be enumerated over its length range (skipping lengths that run off
 the window), and the RTT SHALL encode the edited allele plus at least 5 nt 3' homology and
-not run past the template. Results SHALL be deterministically sorted.
+not run past the template. Every synthesized span (spacer, PBS, and RTT) SHALL be concrete
+A/C/G/T; a pegRNA whose RTT window covers a reference `N` (assembly gap) SHALL be skipped,
+consistent with the cas9/base-editor enumerators. Results SHALL be deterministically sorted.
 
 #### Scenario: No reachable nick
 - **WHEN** no PAM places a nick 5' of the edit within RT reach
 - **THEN** enumeration returns empty
+
+#### Scenario: RTT spans an assembly gap
+- **WHEN** a pegRNA's RT template window reaches a reference `N` (an assembly gap)
+- **THEN** that pegRNA is skipped (its RTT would be an unsynthesizable oligo templating an
+  ambiguous base into the genome), while shorter RTTs that stop before the gap still resolve
 
 #### Scenario: Deterministic order
 - **WHEN** multiple pegRNAs are enumerated

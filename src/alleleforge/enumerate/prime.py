@@ -198,7 +198,15 @@ def _enumerate_frame(
                     continue
                 if nick_local + rtt_len > len(edited):
                     continue
-                rtt = _rc(edited[nick_local : nick_local + rtt_len])
+                rtt_window = edited[nick_local : nick_local + rtt_len]
+                if "N" in rtt_window:
+                    # The RT template spans an assembly-gap N (the reference is unknown
+                    # there). Skip it, mirroring the spacer/PAM N-guards above and the
+                    # per-span guards in the cas9/base-editor enumerators: a pegRNA whose
+                    # RTT carries an N is an unsynthesizable oligo that, if forced, would
+                    # template an ambiguous base into the genome exactly at the gap.
+                    continue
+                rtt = _rc(rtt_window)
                 out.append(
                     PegRNA(
                         spacer=Spacer(sequence=DNASequence(proto)),

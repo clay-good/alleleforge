@@ -58,6 +58,14 @@ construction.
 - **THEN** construction raises `ValueError`, so a corrupt distribution can never reach
   `kl_divergence` and score a perfect `0.0`
 
+#### Scenario: Scorer rejects a non-finite upstream score
+- **WHEN** a scorer that clamps an external score into `[0, 1]` (e.g. the PRIDICT2 adapter's
+  `min(1, max(0, score/100))`) receives a non-finite score — such as a `NaN` cell in the
+  model's output file
+- **THEN** the scorer raises `ValueError` rather than clamping, because the clamp would
+  otherwise launder `NaN` into a confident `0.0` (a finite value the `Prediction` contract
+  accepts) and `inf` into a perfect `1.0`, defeating the finiteness guarantee at the source
+
 #### Scenario: Point outside interval
 - **WHEN** a numeric `value` lies outside its `[low, high]` interval
 - **THEN** construction raises `ValueError`

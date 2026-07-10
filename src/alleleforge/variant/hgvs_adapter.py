@@ -104,6 +104,13 @@ def parse_genomic_hgvs(text: str) -> ParsedGenomicHgvs:
         raise ValueError(f"unsupported genomic HGVS expression: {text!r}")
     start1 = int(rng.group("start"))
     end1 = int(rng.group("end")) if rng.group("end") else start1
+    # A range whose end precedes its start (e.g. `g.5_3del`, `g.5_3delinsAC`) is not a
+    # valid span. Fail closed: an un-guarded reversed range makes `ref_lookup(start, end)`
+    # read a backwards, empty Python slice, so the deleted/duplicated bases silently
+    # vanish and a delins collapses into a pure insertion that deletes nothing — a phantom
+    # variant accepted with no error, the wrong side of the "raise on malformed input" line.
+    if end1 < start1:
+        raise ValueError(f"range end precedes start: {text!r}")
     op = HgvsOp(rng.group("op"))
     bases = rng.group("bases")
     start0, end0 = start1 - 1, end1

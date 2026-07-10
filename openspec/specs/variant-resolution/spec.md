@@ -12,11 +12,19 @@ This is the variant-first entry point of the whole tool.
 ### Requirement: Any supported input form resolves canonically
 
 `resolve` SHALL dispatch by input type and, for strings, by pattern (rsID → ClinVar →
-HGVS → `chrom:pos:ref>alt`), raising `ValueError` on an unrecognized string.
+HGVS → `chrom:pos:ref>alt`), raising `ValueError` on an unrecognized string. A recognized
+but malformed genomic HGVS range — one whose end position precedes its start — SHALL raise
+`ValueError`, never be turned into a phantom variant.
 
 #### Scenario: Unrecognized string
 - **WHEN** a string matching no supported pattern is resolved
 - **THEN** it raises `ValueError`
+
+#### Scenario: Reversed HGVS range
+- **WHEN** a genomic HGVS range operation has `end < start` (e.g. `g.5_3del`, `g.5_3delinsAC`)
+- **THEN** parsing raises `ValueError`, rather than reading a backwards empty reference slice
+  that silently drops the deleted/duplicated bases (a `delins` collapsing into a pure
+  insertion); a single-base range (`end == start`) still parses
 
 #### Scenario: Coordinate string
 - **WHEN** `chrom:pos:ref>alt` is resolved (1-based)

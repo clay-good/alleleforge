@@ -23,6 +23,7 @@ plan (P1 sequence-level wrap, here; P2 per-pegRNA parity, later).
 from __future__ import annotations
 
 import csv
+import math
 import os
 import subprocess
 import tempfile
@@ -127,6 +128,14 @@ class PridictEngineAdapter(WeightGate):
         cell lines — so the trained path is at least as OOD-honest as the heuristic
         baseline (which applies the same cell-context check), never hardcoded ``True``.
         """
+        # A non-finite score is corruption, not a prediction: `max(0.0, nan)` is `0.0`, so a
+        # NaN cell in the PRIDICT2 output CSV would launder into a confident "won't edit" 0.0
+        # (ranked last, but indistinguishable from a real low score), and `inf` into a perfect
+        # 1.0. Fail closed instead — matching the module-wide finiteness contract (a Prediction
+        # rejects non-finite bounds; the benchmark metrics reject non-finite inputs). Finite but
+        # out-of-range scores (e.g. 250, -50) still clamp to [0, 1] as documented.
+        if not math.isfinite(score_percent):
+            raise ValueError(f"PRIDICT2 score is not finite: {score_percent!r}")
         value = min(1.0, max(0.0, score_percent / 100.0))
         return Prediction[float](
             value=value,

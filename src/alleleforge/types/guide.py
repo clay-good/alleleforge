@@ -151,6 +151,14 @@ class BaseEditWindow(BaseModel):
             raise ValueError(f"invalid window {self.window}")
         if end > len(self.spacer):
             raise ValueError(f"window end {end} exceeds spacer length {len(self.spacer)}")
+        # Positions are 1-based within the spacer. An out-of-range one is not just invalid
+        # geometry: the outcome predictor reads `spacer[position - 2]`, so a position past the
+        # spacer either raises an opaque IndexError (motif editors) or, worse, silently returns a
+        # finite garbage score (non-motif editors). Validate the type contract here — the enumerate
+        # pipeline never produces such a window, but a hand-built or deserialized one can.
+        for position in (*self.target_positions, *self.bystander_positions):
+            if position < 1 or position > len(self.spacer):
+                raise ValueError(f"edit position {position} outside spacer 1..{len(self.spacer)}")
         return self
 
     @property

@@ -77,6 +77,17 @@ def test_efficiency_prediction_clamps() -> None:
     assert PridictEngineAdapter._efficiency(0.0, cell_line="HEK").value == 0.0
     assert PridictEngineAdapter._efficiency(100.0, cell_line="HEK").value == 1.0
     assert PridictEngineAdapter._efficiency(140.0, cell_line="HEK").value == 1.0  # clamped
+    assert PridictEngineAdapter._efficiency(-50.0, cell_line="HEK").value == 0.0  # clamped
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
+def test_efficiency_rejects_non_finite_score(bad: float) -> None:
+    # A non-finite score is corruption, not a prediction. `max(0.0, nan)` is `0.0`, so a NaN
+    # cell in the PRIDICT2 output CSV would silently become a confident "won't edit" 0.0
+    # (indistinguishable from a real low score) and `inf` a perfect 1.0. Fail closed, like
+    # the module-wide finiteness contract — finite out-of-range values still clamp above.
+    with pytest.raises(ValueError, match="not finite"):
+        PridictEngineAdapter._efficiency(bad, cell_line="HEK")
 
 
 def test_efficiency_ood_computed_from_cell_line_not_hardcoded() -> None:

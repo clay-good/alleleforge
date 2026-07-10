@@ -10,6 +10,51 @@ acceptance.
 
 ### Fixed
 
+- **The prime enumerator no longer emits a pegRNA whose RT template spans an assembly-gap `N`.** The cas9
+  and base-editor enumerators skip any emitted span that covers a reference `N` (an unknown assembly gap),
+  and the prime enumerator N-guards the pegRNA spacer and the nicking-guide protospacer — but it omitted the
+  **RTT window** (`_enumerate_frame`, `enumerate/prime.py`). A pegRNA whose RT template reached a downstream
+  `N` was emitted as a valid design: an unsynthesizable oligo that, if forced, would template an ambiguous/
+  uncontrolled base into the genome exactly at the gap. `DNASequence` permits IUPAC `N` (needed for degenerate
+  PAMs), so `PegRNA` construction never rejected it and the suite stayed green. The RTT window is now N-guarded
+  before templating, mirroring the two sibling enumerators; the shorter RTTs that stop before the gap still
+  resolve. Regression test (a contig with a gap `N` inside the RTT reach) fails@HEAD (10 of 80 pegRNAs carry an
+  `N` in the RTT) → passes (0). The recurring "wet-lab-relevant defect passing under a green suite" class, in the
+  prime-editing flagship. Found by a Round-34 property-based fuzzing sweep that fetched every enumerated reagent
+  back against the reference.
+
+- **`BaseEditWindow` now validates its edit positions against the spacer length instead of admitting an
+  out-of-range one.** `_check_window` (`types/guide.py`) validated the `window` bounds but not
+  `target_positions`/`bystander_positions`, so a position past the spacer was accepted at construction. The
+  base-edit outcome predictor then reads `spacer[position - 2]` (`base_outcome.py`), which for a motif editor
+  (CBE4max/APOBEC) raises an opaque `IndexError` and for a non-motif editor (ABE8e) silently returns a
+  garbage-but-finite score. The enumerate pipeline can't produce such a window, but a hand-built or deserialized
+  one can. `_check_window` now rejects any target/bystander position outside `1..len(spacer)`. Parametrized
+  regression test (position 0, past-end, one-past-window) fails@HEAD → passes. The R17 type-contract-completeness
+  discipline (a model admitting a value its consumers can't handle), on the base-edit window.
+
+- **`PridictEngineAdapter._efficiency` now fails closed on a non-finite PRIDICT2 score instead of laundering
+  it into a confident prediction.** `value = min(1.0, max(0.0, score_percent / 100.0))` maps `NaN` to `0.0`
+  (because `max(0.0, nan)` is `0.0`) and `±inf` to `1.0` — so a `NaN` cell in the PRIDICT2 output CSV (reachable
+  via `_parse_predictions`' `float(row[...])`) became a confident "won't edit" `0.0`, indistinguishable from a
+  real low score and ranked last, while `inf` became a perfect `1.0`. A non-finite score is corruption, not a
+  prediction. `_efficiency` now raises `ValueError` on a non-finite score, matching the module-wide finiteness
+  contract (`Prediction` rejects non-finite bounds; the benchmark metrics reject non-finite inputs). Finite
+  out-of-range scores (250, -50) still clamp to `[0, 1]` as documented. Parametrized regression test
+  (`nan`/`inf`/`-inf`) fails@HEAD → passes. Extends the finiteness theme (R12/R16/R17/R24) onto the trained
+  PRIDICT2 efficiency path.
+
+- **`parse_genomic_hgvs` now fails closed on a reversed range (`end < start`) instead of fabricating a phantom
+  variant.** A range operation whose end precedes its start (e.g. `g.5_3delinsAC`, `g.2_0del`) had no guard, so
+  `ref_lookup(start, end)` read a backwards, empty Python slice: the deleted/duplicated bases silently vanished
+  and a `delins` collapsed into a pure insertion that deletes nothing — a corrupt variant accepted with no error
+  (only masked when a real `ref_lookup` is supplied; with `ref_lookup=None` it raised "needs a reference"). The
+  parser now raises `ValueError` when `end < start`, allowing a single-base range (`end == start`) as before.
+  Parametrized regression test (five reversed forms across del/delins/dup/ins) fails@HEAD → passes; the
+  single-base mirror still parses. Real HGVS emitters never produce a reversed range, so exposure is low, but a
+  *silent* corruption is the wrong side of the repo's "raise on malformed variant input" line (R18/R27/R33).
+  Found by a Round-34 property-based fuzzing sweep of the HGVS parser.
+
 - **`resolve` now fails closed on a wrong-build base hidden in a trimmed position instead of silently
   laundering it.** Reference validation ran *after* parsimonious normalization: the input adapters called
   `Variant.normalized()` eagerly (in `VcfRecord.to_variant`, the `chrom:pos:ref>alt` string parser, and the

@@ -855,6 +855,43 @@ surfaces returned credible clean bills under tens of thousands of examples each.
 
 Yield ...2/1/0/1. **Lesson: R32's diminishing-returns marker was scoped to the *modalities already run* (adversarial example-based lenses on the enumerated seams), not to the code itself — switching to property-based invariant fuzzing, a modality never applied to the scientific transformation core, immediately surfaced the same recurring headline class (a wrong-build safety signal laundered by an upstream transform, green suite) on the most-audited surface in the repo. The five clean bills are credible negatives precisely because property fuzzing explores the input space a hand-written example cannot. The productive vein is now the *modality*, not the surface: when example-based audits converge, a new proof technique (invariant fuzzing, concurrency contention, and next: metamorphic/differential testing against a reference implementation) is the backlog.**
 
+## Round 34 — property-based fuzzing of the surfaces R33 did NOT cover: enumeration/design, scoring engines, effect/HGVS (4 fixes)
+
+R33 fuzzed uncertainty, off-target, variant-coordinate, and ranking/oligo. This round pointed the same new
+modality at the surfaces those four agents left untouched — the guide/edit **enumeration + design verticals**,
+the **scoring engines** (efficiency/outcome predictors), and **effect/HGVS parsing**. Every enumerated reagent
+was fetched back against the reference (metamorphic verification). Four real defects surfaced, one CONFIRMED
+correctness bug in the prime flagship and three fail-open robustness gaps — each a recurring class on a
+not-yet-fuzzed surface.
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(prime)` RTT N-guard | prime-editor-design | The cas9/base-editor enumerators skip any emitted span covering a reference `N` (assembly gap); the prime enumerator N-guarded the spacer and ngRNA protospacer but **omitted the RTT window** — so a pegRNA whose RT template reached a downstream `N` was emitted as a valid but unsynthesizable design that would template an ambiguous base into the genome at the gap. `DNASequence` admits IUPAC `N` (for degenerate PAMs), so `PegRNA` construction never caught it. **Shipped:** N-guard the RTT window before templating, mirroring the sibling enumerators. fail@HEAD (10/80 pegRNAs carry an N in the RTT) → pass (0). The recurring wet-lab-relevant-defect-under-a-green-suite class, in the flagship. |
+| `fix(types)` base-edit window position validation | base-editor-design | `BaseEditWindow._check_window` validated the `window` bounds but not `target_positions`/`bystander_positions`, so an out-of-range position was admitted at construction; the outcome predictor's `spacer[position - 2]` then raised an opaque `IndexError` (motif editors) or silently returned a garbage-but-finite score (non-motif editors). Unreachable via the enumerate pipeline, reachable via a hand-built/deserialized window. **Shipped:** reject any position outside `1..len(spacer)`. The R17 type-contract-completeness class (a model admitting a value its consumers can't handle). |
+| `fix(scoring)` PRIDICT2 non-finite score | uncertainty-contract | `PridictEngineAdapter._efficiency` clamped with `min(1.0, max(0.0, score/100))`, so a `NaN` cell in the PRIDICT2 output CSV became a confident "won't edit" `0.0` (`max(0.0, nan) == 0.0`), indistinguishable from a real low score, and `inf` a perfect `1.0`. **Shipped:** raise on a non-finite score; finite out-of-range values still clamp. Extends the finiteness theme (R12/R16/R17/R24) onto the trained PRIDICT2 path. |
+| `fix(variant)` reversed-range HGVS | variant-resolution | `parse_genomic_hgvs` had no `end >= start` guard, so a reversed range (`g.5_3delinsAC`, `g.2_0del`) made `ref_lookup` read a backwards empty slice — the deleted/duplicated bases vanished and a `delins` collapsed into a pure insertion, a phantom variant accepted with no error (masked precisely when a real reference is supplied). **Shipped:** raise on `end < start`, allowing `end == start`. The R18/R27/R33 malformed-variant-input fail-closed class. |
+
+**Clean bills:** the enumeration lens verified (~3,900 metamorphic examples) that every cas9/base-editor
+protospacer+PAM+cut-site fetches back exactly on its reported strand with carried-allele overlay, base-edit
+target/bystander bases and transition class match the editor chemistry, prime PBS/RTT/spacer reconstruct the
+intended edit, PE3/PE3b nicking matches its predicate, the HDR donor genuinely blocks re-cut, and routing never
+advertises a chemistry the enumerator can't produce — all clean but the RTT N-gap. The scoring lens verified
+(~2,600 examples, 4 PYTHONHASHSEED values) every efficiency/probability and interval bound finite and in `[0,1]`,
+outcome distributions normalized and non-negative, determinism (content-keyed sorts, no hash-order dependence),
+documented monotonicity (scaffold, epegRNA), and OOD-honesty (no engine self-declares `calibrated=True`) — clean
+but the two robustness gaps above. The effect/HGVS lens verified substitution/deletion/insertion/dup/delins
+coordinate round-trips, severity/impact monotonicity (exhaustive 19×19), and VEP most-severe selection — clean
+but the reversed-range gap.
+
+Yield ...1/0/1/4. **Lesson: R33 proved the *modality* is the productive axis; R34 confirms it by exhausting the
+same modality across the surfaces R33's four agents didn't reach — and it paid out four more, including a
+CONFIRMED correctness bug in the most safety-critical vertical (an unsynthesizable pegRNA templating an ambiguous
+base into the genome). Three of the four are the same fail-open-on-out-of-contract-input class the repo has
+closed a dozen times (finiteness, malformed HGVS, an admitted-but-unhandleable type value) — when a new lens
+opens a surface, the FIRST things it finds are the old classes that example-based tests never generated. Next
+modality (per R33's note): metamorphic/differential testing against a reference implementation (bcftools norm,
+a real HGVS library) — the enumeration lens already showed metamorphic fetch-back is the sharpest check here.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

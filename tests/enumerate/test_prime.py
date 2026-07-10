@@ -53,6 +53,21 @@ def test_pbs_rtt_within_ranges(make_reference: MakeRef) -> None:
         assert p.rtt_homology_3prime <= len(p.rtt)
 
 
+def test_rtt_never_spans_an_assembly_gap_n(make_reference: MakeRef) -> None:
+    # The RT template is synthesized DNA: it must be concrete A/C/G/T, exactly like the
+    # spacer and the nicking-guide protospacer (both N-guarded). A pegRNA whose RTT window
+    # reaches a downstream reference 'N' (assembly gap) is an unsynthesizable oligo that
+    # would template an ambiguous base into the genome at the gap. The enumerator must skip
+    # it, mirroring the cas9/base-editor per-span N-guards. `DNASequence` permits IUPAC 'N'
+    # (needed for degenerate PAMs), so PegRNA construction never caught this.
+    ctx = "A" * 24 + "GG" + "A" * 7 + "N" + "A" * 55  # PAM 'AGG' at [23,26); gap N at pos 33
+    ref = make_reference({"chr1": ctx})
+    rv = resolve("chr1:21:A>C", reference=ref)  # A>C at 0-based 20 (CORRECT)
+    pegs = enumerate_prime(rv, EditIntent.CORRECT, reference=ref)
+    assert pegs  # the shorter RTTs that stop before the gap still resolve
+    assert all("N" not in str(p.rtt) for p in pegs)
+
+
 def test_pbs_binds_5prime_of_nick(make_reference: MakeRef) -> None:
     ref, pegs = _pegs(make_reference)
     seq = str(ref.fetch(GenomicInterval(chrom="chr2", start=0, end=140, strand=Strand.PLUS)))

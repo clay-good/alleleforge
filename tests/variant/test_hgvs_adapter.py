@@ -52,6 +52,32 @@ def test_insertion_requires_bases() -> None:
         parse_genomic_hgvs("chr2:g.100_101ins")
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "chr2:g.5_3del",  # del: end 3 < start 5
+        "chr2:g.5_3delinsAC",  # delins would collapse to a pure insertion (deletes nothing)
+        "chr2:g.5_3dup",
+        "chr2:g.6_5insA",  # insertion positions must be adjacent-ascending
+        "chr2:g.2_0del",  # end 0 < start 2
+    ],
+)
+def test_reversed_range_fails_closed(text: str) -> None:
+    # A range whose end precedes its start is not a valid span. Un-guarded, it made
+    # ref_lookup read a backwards empty slice, so the deleted/duplicated bases silently
+    # vanished and a delins collapsed into an insertion — a phantom variant accepted with
+    # no error. It must raise, like every other malformed-input case.
+    with pytest.raises(ValueError, match="range end precedes start"):
+        parse_genomic_hgvs(text)
+
+
+def test_single_base_range_still_parses() -> None:
+    # The guard allows end == start (a single-base range like `g.6_6del`); only a strictly
+    # reversed span is rejected.
+    p = parse_genomic_hgvs("chr2:g.6_6del")
+    assert p.op is HgvsOp.DEL and p.start == 5 and p.end == 6
+
+
 def test_adapter_substitution_to_variant() -> None:
     var = HgvsAdapter().to_variant("chr2:g.60100A>T", chrom="chr2")
     assert var.chrom == "chr2" and var.pos == 60099

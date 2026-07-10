@@ -109,6 +109,20 @@ def test_base_edit_window_rejects_inverted() -> None:
         BaseEditWindow(spacer=_spacer(), editor="ABE8e", window=(8, 4))
 
 
+@pytest.mark.parametrize("positions", [(0,), (100,), (6,)])
+def test_base_edit_window_rejects_out_of_range_positions(positions: tuple[int, ...]) -> None:
+    # target/bystander positions are 1-based within the spacer. An out-of-range one is not
+    # just bad geometry: the outcome predictor reads `spacer[position - 2]`, so it either
+    # raises an opaque IndexError (motif editors) or silently returns a garbage-but-finite
+    # score (non-motif editors). Validate the type contract at construction.
+    with pytest.raises(ValueError, match="outside spacer"):
+        BaseEditWindow(spacer=_spacer(5), editor="ABE8e", window=(1, 5), target_positions=positions)
+    with pytest.raises(ValueError, match="outside spacer"):
+        BaseEditWindow(
+            spacer=_spacer(5), editor="ABE8e", window=(1, 5), bystander_positions=positions
+        )
+
+
 def test_pegrna_valid_defaults_to_epegrna() -> None:
     peg = PegRNA(
         spacer=_spacer(),
