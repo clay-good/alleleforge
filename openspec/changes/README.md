@@ -412,6 +412,25 @@ the benchmark metrics *degrade* a non-finite input to the degenerate result, and
 *rejects* a non-finite signed claim. Four complementary layers, each closing the class at a different
 seam. Yield ...5/3/4/1.
 
+## Round 18 — variant-resolution edge cases + prime-editor flagship (1 fix; prime clean)
+
+Two correctness lenses on the hardest verticals. The prime-editing lens built an **independent
+biological reconstruction** (rebuild the edited genome from only the emitted `strand`/`pbs`/`rtt`/
+`nick_site`, never the enumerator internals) and verified **800,420** pegRNAs across all intents and
+both strands reconstruct the intended edit, PBS complementarity on both strands, PE3/PE3b nicking over
+**493,590** ngRNAs (including the never-tested minus-frame PE3b seed path), oligo round-trip, and
+edit-class coverage — a rigorous **clean bill** for the supported SNV class. The variant lens found one
+severe bug.
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(variant)` delins not rolled | variant-resolution | `_left_align` ran its pure-indel "roll left through a repeat" loop for any `len(ref) != len(alt)`, but a true **delins** (both alleles non-empty after trimming) whose alt's last base equals the preceding reference base rolled `ref` to `""` — discarding the deleted bases and relocating the variant. `chr2:6:AC>T` against a `TTTTT…` lead-in resolved to `pos=0, ref='', alt='T'` (an insertion at the wrong locus) instead of `pos=5, ref='AC', alt='T'`; the empty `ref` then made `_validate_ref` return early, so it was accepted silently. Common near homopolymers/repeats (a frequent ClinVar pattern); corrupts interval/effect/guide design. **Shipped:** a still-both-non-empty variant after trimming is a genuine delins with no anchor to roll — return the parsimonious form instead of rolling. |
+
+Yield ...5/3/4/1/1. **Lesson: the multi-modality *design verticals* (prime/base/cas9) are now
+empirically clean under large-scale independent reconstruction, but the *upstream* normalization that
+feeds them still held a severe silent-corruption bug — the input pipeline (resolve/normalize/liftover)
+deserves as much scrutiny as the scorers, because a mis-normalized variant mis-designs every modality.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
