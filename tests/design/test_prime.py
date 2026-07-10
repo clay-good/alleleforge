@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+import pytest
+
+from alleleforge.data.annotations import EncodeTracks, _Segment
 from alleleforge.design.prime import design_prime
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.candidate import DesignCandidate
@@ -88,6 +91,86 @@ def test_ood_honesty_surfaced(make_reference: MakeRef) -> None:
 def test_run_offtarget_false(make_reference: MakeRef) -> None:
     for c in _design(make_reference, run_offtarget=False):
         assert c.offtarget is None
+
+
+def _atac(value: float) -> EncodeTracks:
+    # An accessibility track covering the whole synthetic chr2, so every pegRNA
+    # placement gets the same signal.
+    return EncodeTracks({("atac", "chr2"): [_Segment(start=0, end=300, value=value)]})
+
+
+def _eff_by_pegrna(cands: list[DesignCandidate]) -> dict[str, float]:
+    # pegRNAs share a spacer but differ in PBS/RTT geometry, so key on the full
+    # pegRNA identity, not the spacer, to compare like with like.
+    return {
+        c.pegrna.model_dump_json(): c.efficiency.value
+        for c in cands
+        if c.pegrna and c.efficiency
+    }
+
+
+def test_chromatin_opt_in_leaves_baseline_unchanged(make_reference: MakeRef) -> None:
+    # With no tracks, efficiency is the pure geometry baseline — wiring chromatin
+    # must not perturb the default path.
+    base = _eff_by_pegrna(_design(make_reference, run_offtarget=False))
+    # Passing tracks but no track name is also a no-op (adjustment needs both).
+    none_track = _eff_by_pegrna(
+        _design(make_reference, encode_tracks=_atac(2.0), run_offtarget=False)
+    )
+    assert base == none_track
+    assert all("chromatin-adjusted" not in c.rationale for c in _design(make_reference))
+
+
+def test_open_chromatin_raises_efficiency_and_labels_it(make_reference: MakeRef) -> None:
+    base = _eff_by_pegrna(_design(make_reference, run_offtarget=False))
+    adjusted = _design(
+        make_reference, encode_tracks=_atac(2.0), chromatin_track="atac", run_offtarget=False
+    )
+    moved = 0
+    for c in adjusted:
+        assert c.pegrna is not None and c.efficiency is not None
+        if c.efficiency.value > base[c.pegrna.model_dump_json()]:
+            moved += 1
+            assert "chromatin-adjusted" in c.rationale  # the boost is disclosed
+    assert moved  # open chromatin raised at least one candidate's efficiency
+
+
+def test_chromatin_does_not_launder_an_ood_prediction(make_reference: MakeRef) -> None:
+    # A chromatin boost must never flip the OOD flag to in-distribution.
+    top = _design(
+        make_reference,
+        cell_context="primary_T_cell",
+        encode_tracks=_atac(2.0),
+        chromatin_track="atac",
+        run_offtarget=False,
+    )[0]
+    assert top.efficiency is not None and top.efficiency.in_distribution is False
+    assert "ood" in top.flags
+
+
+def test_uncovered_locus_is_a_no_op(make_reference: MakeRef) -> None:
+    # A track with no coverage over the pegRNA loci (signal 0) leaves efficiency at
+    # the baseline — no penalty for missing data, and no false "adjusted" label.
+    base = _eff_by_pegrna(_design(make_reference, run_offtarget=False))
+    empty = EncodeTracks({("atac", "chr2"): [_Segment(start=5000, end=5100, value=9.0)]})
+    for c in _design(
+        make_reference, encode_tracks=empty, chromatin_track="atac", run_offtarget=False
+    ):
+        assert c.pegrna is not None and c.efficiency is not None
+        assert c.efficiency.value == base[c.pegrna.model_dump_json()]
+        assert "chromatin-adjusted" not in c.rationale
+
+
+def test_unknown_chromatin_track_fails_closed(make_reference: MakeRef) -> None:
+    # A mis-named track must raise, not silently return an unadjusted efficiency
+    # that the caller believes is chromatin-aware.
+    with pytest.raises(KeyError):
+        _design(
+            make_reference,
+            encode_tracks=_atac(2.0),
+            chromatin_track="missing",
+            run_offtarget=False,
+        )
 
 
 def test_non_editable_variant_empty(make_reference: MakeRef) -> None:

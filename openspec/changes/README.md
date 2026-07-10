@@ -654,6 +654,26 @@ and the remaining gaps are maintainer/spec-driven wiring choices (chromatin) or 
 forward pass) — not autonomously-shippable bugs. The discipline holds: audit, reproduce, ship what's real, and
 name the clean bills and honest deferrals rather than manufacturing a marginal find.**
 
+## Feature — wire the ePRIDICT open-chromatin adjustment into the design path (1 change, spec-driven)
+
+Unlike the audit rounds above, this is a **spec-driven feature**: R26 flagged that the ePRIDICT
+open-chromatin efficiency adjustment was implemented on `PridictScorer.score` but **unreachable
+through `design_prime`** (the `PrimeEfficiencyScorer` Protocol did not expose the `chromatin`
+parameter, and no spec covered it). Rather than autonomously wire a feature with no spec behind
+it, R26 documented it as a maintainer/spec decision. This change authors that spec and implements
+it (proposal + tasks + a new `prime-editor-design` requirement, folded in and archived under
+`archive/wire-chromatin-efficiency`).
+
+| Change | Capabilities | What shipped |
+|--------|--------------|--------------|
+| `feat(prime)` chromatin-aware efficiency | prime-editor-design | Expose `chromatin` on the `PrimeEfficiencyScorer` protocol and thread optional `encode_tracks` / `chromatin_track` through `design_prime`: each pegRNA is scored with the ENCODE accessibility signal at its own edit locus, so a variant in open chromatin is predicted to edit better. **Opt-in and honesty-preserving:** no tracks → the pure pegRNA-geometry baseline, byte-identical to before (an existing-caller regression test pins this); the adjustment only scales the point estimate and **never flips the OOD flag** (an OOD context stays OOD after a boost); an uncovered locus (signal 0) is a **no-op**, never a penalty for missing data; a mis-named track **fails closed** (raises) rather than silently returning an unadjusted efficiency labeled chromatin-aware; and a chromatin-adjusted candidate **records the adjustment in its rationale** so a researcher can tell it from a pure-geometry one. Six scenarios pinned in `tests/design/test_prime.py`. |
+
+**Note:** this closes the primary spec-able deferral surfaced this session. The sibling observation —
+the cell-context string convention differing between the baseline (`HEK293T`) and the engine (`HEK`) —
+was deliberately **not** changed: treating the ambiguous `"HEK"` as in-distribution would *weaken* the
+honesty flag (falsely asserting training-context confidence for a non-training cell line), so the
+current spurious-OOD-on-`"HEK"` behavior is the safe, honest direction and is left as-is.
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import Protocol
 
+from alleleforge.data.annotations import EncodeTracks
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.enumerate.prime import NGG_PAM, enumerate_prime
@@ -39,8 +40,19 @@ class PrimeEfficiencyScorer(Protocol):
 
     name: str
 
-    def score(self, pegrna: PegRNA, *, cell_context: str | None = None) -> Prediction[float]:
-        """Return a calibrated efficiency prediction for a pegRNA."""
+    def score(
+        self,
+        pegrna: PegRNA,
+        *,
+        cell_context: str | None = None,
+        chromatin: tuple[EncodeTracks, GenomicInterval, str] | None = None,
+    ) -> Prediction[float]:
+        """Return a calibrated efficiency prediction for a pegRNA.
+
+        ``chromatin`` is an optional ``(tracks, interval, track_name)`` for an
+        ePRIDICT-style open-chromatin adjustment; a scorer that does not model
+        chromatin ignores it.
+        """
         ...
 
 
@@ -122,6 +134,8 @@ def design_prime(
     efficiency_scorer: PrimeEfficiencyScorer | None = None,
     outcome_predictor: PrimeOutcomePredictor | None = None,
     cell_context: str | None = None,
+    encode_tracks: EncodeTracks | None = None,
+    chromatin_track: str | None = None,
     pam: PAM = NGG_PAM,
     gnomad: GnomadDB | None = None,
     haplotypes: Iterable[Haplotype] = (),
@@ -141,6 +155,11 @@ def design_prime(
         outcome_predictor: Outcome predictor (default: the byproduct baseline).
         cell_context: Target cell context; outside HEK293T/K562 flags every
             efficiency prediction out-of-distribution.
+        encode_tracks: Optional ENCODE accessibility tracks for an ePRIDICT-style
+            open-chromatin efficiency adjustment. Opt-in: with no tracks the
+            efficiency is the pure pegRNA-geometry baseline (unchanged default).
+        chromatin_track: The track name to read from ``encode_tracks`` (required to
+            enable the adjustment). An unknown track name fails closed (raises).
         pam: The pegRNA PAM (default ``NGG``).
         gnomad: gnomAD DB for population-aware off-target (optional).
         haplotypes: Common haplotypes for haplotype-aware off-target (optional).
@@ -186,10 +205,28 @@ def design_prime(
             cache[key] = _merge_offtarget(peg_report, ng_report)
         return cache[key]
 
+    # Opt-in ePRIDICT open-chromatin adjustment: enabled only when both a tracks
+    # source and a track name are supplied. `EncodeTracks.signal` raises on an
+    # unknown track, so a mis-named track fails closed rather than silently
+    # producing an unadjusted efficiency labeled chromatin-aware.
+    chromatin_enabled = encode_tracks is not None and chromatin_track is not None
+
     scored: list[tuple[DesignCandidate, float]] = []
     for pegrna in pegrnas:
+        chromatin: tuple[EncodeTracks, GenomicInterval, str] | None = None
+        chromatin_note = ""
+        if chromatin_enabled and pegrna.placement is not None:
+            assert encode_tracks is not None and chromatin_track is not None
+            signal = encode_tracks.signal(chromatin_track, pegrna.placement)
+            chromatin = (encode_tracks, pegrna.placement, chromatin_track)
+            # An uncovered locus (signal 0) is a no-op in the scorer, so only note an
+            # adjustment that actually moved the estimate — never claim chromatin
+            # evidence where the track had none.
+            if signal > 0.0:
+                chromatin_note = f"; chromatin-adjusted (accessibility {signal:.2f})"
         efficiency = ensure_prediction(
-            scorer.score(pegrna, cell_context=cell_context), who=scorer.name
+            scorer.score(pegrna, cell_context=cell_context, chromatin=chromatin),
+            who=scorer.name,
         )
         outcome = predictor.predict(pegrna)
         candidate = DesignCandidate(
@@ -204,6 +241,7 @@ def design_prime(
                 f"PBS {len(pegrna.pbs)} / RTT {len(pegrna.rtt)} "
                 f"(+{pegrna.rtt_homology_3prime} homology); "
                 f"efficiency {efficiency.value:.2f}, intended P={outcome.p_intended.value:.2f}"
+                f"{chromatin_note}"
             ),
         )
         scored.append((candidate, efficiency.value))
