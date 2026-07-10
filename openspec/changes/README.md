@@ -613,6 +613,47 @@ kernel divergence, byte-stable digests under hash-seed variation, and a re-confi
 diminishing-returns marker that the seams are sound. When the reachable defects dry up, the honest move is to
 harden the latent asymmetry, pin the deferral where it lives, and say so — not to manufacture a marginal find.**
 
+## Round 26 — the efficiency-scoring engine internals (2 clean bills; diminishing-returns confirmed)
+
+Two lenses on the numeric heart not directly swept this session: the prime/PRIDICT efficiency engine and
+the cas9/base-editor efficiency + outcome engines. **Both returned rigorous clean bills** — no code change.
+This is the conclusive R6/R13/R19 diminishing-returns marker for the scoring math: after R24's three
+compute-core fixes, the last two rounds (R25 output/provenance/native, R26 scoring engines) are dominated by
+credible negatives, not defects.
+
+- **prime/PRIDICT efficiency** (`prime_efficiency.py`, `pridict_engine.py`, `backbone.py`) — actively
+  *disproved* three candidate defects with evidence rather than manufacturing a finding: the `_nick_to_edit`
+  recovery matches the enumerator's own geometry exactly for every reachable SNV pegRNA (rtt∈{7,20,34},
+  homology∈{5,6,7,13}); every feature direction is correct (PBS length peaks at the published ~13 nt optimum
+  and falls both sides, nick-to-edit strictly decreasing, epegRNA motif +logit); and no value/interval escapes
+  `[0,1]` (`_sigmoid` clamps, logit analytically bounded, empty-`_gc` guarded). The fixed ±0.15 band on the
+  heuristic scorers is intentional and honestly labeled (`NOMINAL_INTERVAL_NOTE`), consistent across all three
+  fixed-band scorers — the OOD-widening contract binds the *ensemble* path.
+- **cas9/base-editor efficiency + outcome** (`cas9_efficiency.py`, `cas9_outcome.py`, `base_outcome.py`) — all
+  seven hunted classes negative: every outcome distribution normalizes to 1.0 (±1e-12) including degenerate
+  contexts; the base-editing window index (`spacer[position-2]` 5' neighbor, `by_basepos.get(p-1)` 1↔0-based
+  bridge) is correct; efficiency (`p_target_edited`) and cleanliness (`p_intended_exact`) stay distinct; no
+  `[0,1]` escape or NaN laundering; and `ensemble_outcome` is byte-identical across `PYTHONHASHSEED` ∈ {0,1,42,
+  12345} on a tie-prone input (the R9 determinism class stays closed).
+
+**Two honest non-defect observations (documented, not fixed — maintainer/spec territory):** (1) the ePRIDICT
+open-chromatin adjustment is implemented and unit-tested on `PridictScorer.score` but **not wired into the
+default `design_prime` path** (the `PrimeEfficiencyScorer` Protocol omits the `chromatin` param), so it is only
+reachable by calling the scorer directly — an integration gap, not a scoring-math bug, and not required by the
+prime-editor-design spec; wiring a new feature param through the design layer is speculative machinery absent a
+spec requirement (the R14 "honest defer to avoid speculative machinery" discipline). (2) the cell-context string
+convention differs between the baseline (`HEK293T`) and the engine (`HEK`); they never compare against each other
+so there is no live bug, but a user passing `cell_context="HEK"` to the default baseline path would get a spurious
+OOD flag — cosmetic/ergonomic.
+
+Yield ...3/3/1/0. **Lesson: three rounds this session rotated compute-core → output/provenance/native →
+scoring-engines; R24 found three real defects, R25/R26 returned to credible negatives (400k+ kernel fuzz, CFD
+5.55e-17 / MIT bit-identical cross-checks, all-classes-negative scoring-engine probes, multi-seed determinism).
+That convergence to clean across independent fresh decompositions is the signal that the empirical core is sound
+and the remaining gaps are maintainer/spec-driven wiring choices (chromatin) or externally-blocked (real-weights
+forward pass) — not autonomously-shippable bugs. The discipline holds: audit, reproduce, ship what's real, and
+name the clean bills and honest deferrals rather than manufacturing a marginal find.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
