@@ -693,6 +693,43 @@ real, test-pinned defect. Every one is an instance of a class this method has hi
 
 Yield ...3/3/1/0/4. **Lesson: rotating to the least-swept surfaces — ingestion, resolution, cohort, render — after the compute core converged clean yielded four real defects in one round, each a known class recurring on a fresh surface: an annotation inert on its own axis (ClinVar), a fail-closed gate with a hole (HGVS dup), a degenerate-input crash reachable from the CLI (haplotype maf=0), and safety-context dropped at the render (calibration). The compute math is empirically solid; the productive defects now live at the seams where an external record enters or a computed honesty flag leaves.**
 
+## Round 28 — three lenses on the last un-swept compute/routing/index surfaces (0 fixes; 3 clean bills — diminishing-returns confirmed)
+
+After R27's four fresh-seam fixes, this round swept the surfaces not yet dedicated-audited this session:
+variant effect/consequence prediction + config/cache precedence, design routing + ranking composite +
+designer orchestration, and the FM-index/suffix-array build + sequence-embedding backbone. **All three
+returned rigorous clean bills** — no code change — the R6/R13/R19/R26 diminishing-returns marker on these
+surfaces.
+
+- **variant effect + config + cache** — every defect class disproved against a concrete input: the SO
+  severity ranking is strictly monotone (frameshift never below missense, stop-gain never missed),
+  transcript selection applies exact→MANE→canonical→first in separate passes (a merely-canonical block
+  can't beat MANE), config precedence holds default < file < env < override across all four combinations,
+  and the VEP cache key carries every output-determining input (variant, assembly, transcript) with no
+  missing axis or spurious collision. Two honest latent non-bugs noted (the unreachable pure-insertion VEP
+  region convention on the never-exercised live GET path; a safe-directional impact from an unmodeled SO
+  term) — neither test-pinnable.
+- **routing + ranking + designer** — routing gates on the *same* `installs()`/SNV predicates enumeration
+  uses (no chemistry advertised that can't be delivered); the base-editor efficiency vs cleanliness axes
+  stay distinct (`p_target_edited` vs `p_intended`); `_dominates` is correct and the Pareto front is
+  post-cap-aligned by design; the safety axis folds every unattributed site (reference/patient/empty-
+  breakdown) into every stratum so `worst_ancestry() ≥ worst_score()` always holds (R11 class robust); and
+  the OOD-discounted efficiency feeds composite and Pareto consistently. The only residual tie-break case
+  is the already-fixed same-spacer full-vector tie.
+- **genome index + backbone** — the pure-Python suffix array is byte-identical to a naive sort over
+  thousands of strings; `locate`/`count` matched `str.find` over **~612,000** queries across
+  checkpoint/sampling rates (0 mismatches, mmap and in-memory); `pam_sites` matched a brute-force scanner
+  over **18,000** degenerate-PAM/N-laden cases; contig-alias reconciliation (`chr1↔1`, `chrM↔MT↔M`) does
+  not over-match (`chr1` never resolves to `chr11`); and the backbone's hash/tokenizer embedding is
+  deterministic (no one-hot/positional encoding lives here, so that defect class does not apply).
+
+Yield ...3/3/1/0/4/0. **Lesson: R27 found four defects at the ingress/egress seams; one round later, three
+independent rigorous lenses on the adjacent compute/routing/index surfaces all return clean — the same
+convergence signal seen at R6/R13/R19/R26. The productive vein is the *seams* (external record in, honesty
+flag out, CLI-reachable degenerate input), not the numeric/routing/index core, which is now empirically
+clean across many independent fresh decompositions. Record the clean bills honestly rather than manufacture
+a marginal find.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
