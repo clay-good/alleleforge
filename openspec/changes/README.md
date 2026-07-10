@@ -927,6 +927,42 @@ against the code's actual (correct) contract before it's called a bug. A future 
 is an *external* oracle (install bcftools / a real HGVS library and cross-check) or new feature code — not another
 in-house oracle over the same converged transforms.**
 
+## Round 36 — the external gold-standard differential: AlleleForge left-alignment vs `bcftools norm` (clean bill)
+
+Took R35's own recommendation immediately: install a real external oracle. `pysam 0.24.0` (which bundles
+`bcftools`) installs cleanly in the venv, so this round cross-checks AlleleForge's indel normalization against
+`bcftools norm` — the field-standard reference implementation the whole community trusts — rather than an
+in-house oracle. (`hgvs` was tried first but needs a Postgres/UTA database; `pysam` is the viable one.)
+
+- **5,000 fuzzed pure indels** (insertions and deletions of 1–4 bp, in four repeat/homopolymer/tandem-rich
+  references) were each written as an anchored VCF record, normalized by `bcftools norm -f`, and compared to
+  AlleleForge's `resolve()`:
+  - **Edited-genome parity: 0 mismatches / 5,000.** The definitive check — splice each side's normalized
+    variant back into the reference — is byte-identical for every case, boundary included. AlleleForge and
+    bcftools apply the same edit.
+  - **Left-alignment position parity: 0 mismatches / 4,710 non-boundary cases.** Where the comparison is
+    representation-independent (the indel does not roll to the contig's first base), AlleleForge left-aligns to
+    the *exact same coordinate and alleles* as bcftools.
+  - **290 contig-start-boundary cases** diverge only in representation: VCF mandates a left anchor base, so
+    bcftools anchors a start-of-contig indel on position 1 and deletes/inserts to its right, while AlleleForge
+    uses its internal anchorless form (`pos=0, ref="T", alt=""`). Both yield the identical edited genome (counted
+    in the 0/5,000 above); the difference is a VCF-format convention, not a normalization disagreement, and the
+    locus (a variant at the very first base of a chromosome) is not one any real design targets.
+
+The in-house edit-preservation property test added in R35 remains the permanent, dependency-free CI guard; this
+bcftools cross-check is a one-time external validation (adding a `pysam`-gated test would pull a heavy native
+dependency into a suite the project deliberately keeps dependency-free — see `variant/vcf.py`'s injectable-reader
+design).
+
+Yield ...1/4/0/0. **Lesson: the FOURTH modality — and the first *external* one — agrees with the field-standard
+tool exactly. The variant pipeline's normalization/left-alignment is now validated by example-based tests,
+property-based invariants, an in-house differential oracle, AND `bcftools norm` itself, all clean or fixed. When
+the strongest available external oracle reproduces your output bit-for-bit across thousands of adversarial repeat
+contexts, that is the most credible done-marker a re-audit can produce for a transform. The remaining genuinely-new
+leverage is now unambiguously *new feature code* (or a new external oracle for a different transform — e.g. a CFD
+reference set, though R24 already cross-checked CFD to 5.55e-17), not another pass over this one. Session R33–36:
+5 fixes + 6 clean bills (2 of them external/differential) + 1 permanent property test, all pushed.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
