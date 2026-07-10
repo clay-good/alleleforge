@@ -730,6 +730,23 @@ flag out, CLI-reachable degenerate input), not the numeric/routing/index core, w
 clean across many independent fresh decompositions. Record the clean bills honestly rather than manufacture
 a marginal find.**
 
+## Round 29 — three lenses on the deferred/fresh seams: VEP live-REST, cross-interface parity, doc-vs-behavior (2 fixes, 1 clean bill)
+
+Prompted by R28's own "rotate to a seam not yet swept" note, this round took the three fresh seams the
+audit log had flagged: the VEP live-REST path (deliberately deferred in prior rounds as opt-in / `#
+pragma: no cover`), a cross-interface parity re-sweep (Python API vs CLI vs web), and a doc-vs-behavior
+sweep of the Round 27 changes. Two lenses found a real, test-pinned defect; the doc sweep confirmed the
+R27 docs are accurate.
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(variant)` VEP insertion region convention | variant-resolution | `VepRestPredictor.request_url` computed the region end as `start + max(len(ref), 1) - 1`. For an insertion (`ref=""`, which `normalized()` produces with no anchor base) the `max(..., 1)` clamp emitted a 1-base region (`17:101-101/ACGT`) that VEP reads as a substitution consuming the base at that position — a consequence for the wrong span. VEP's convention for an insertion is a zero-width region (`start = end + 1`). **Shipped:** `end = start + len(ref) - 1`, correct for every class (SNV/deletion/MNV unchanged; insertion → `start - 1`). The "green suite, wrong answer" class on a path that was tested only with SNVs. |
+| `fix(cli)` batch honors chemistry/cell_context config | cli | `chemistry` and `cell_context` are whitelisted config keys (no typo warning), and `design`/web `/api/batch`/`design_many` all honor them — but CLI `batch` read neither, so a `config.toml` restricting chemistry or setting cell_context was silently dropped for a whole cohort (menus carried every chemistry, provenance `cell_context = None`), diverging from the same run on every other interface with no user signal. **Shipped:** `batch` reads both keys and forwards them to `design_many`. The R22 "flag parsed/whitelisted but not consumed" class, now on the `batch`-vs-everything-else parity axis. |
+
+**Clean bill:** the doc-vs-behavior lens verified all five Round 27 changes against the docs and found no drift — the export schema-2 `calibrated` column, the `(nominal — coverage not measured)` interval qualifier, the ClinVar primary-token classification, the HGVS stated-base validation, and the `--maf 0` haplotype behavior are each either accurately documented or not described (nothing to contradict); it also re-confirmed the R20-fixed CFD-default passage, the dataset versions, and the off-target thresholds still match the code. The VEP lens noted one honest deferral (the assembly→host/species routing places the build in the species path rather than the `grch37.rest.ensembl.org` host — network-only, `# pragma: no cover`, and pinned as intended by an existing test), left as-is.
+
+Yield ...3/3/1/0/4/0/2. **Lesson: R28's diminishing-returns marker on the compute/routing/index core did NOT mean the audit was exhausted — rotating to the seams the log itself had flagged (a deferred opt-in path, cross-interface parity, doc drift) still yielded two real defects: a wrong VEP region for the one variant class its tests never exercised, and a whitelisted-but-unread config key that made `batch` diverge from every other interface. The productive vein remains the seams — a deferred path tested on the happy class only, and a run recorded differently on two surfaces — exactly as R15/R22 found. Keep a running list of un-swept seams; when the core converges clean, that list is the backlog.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

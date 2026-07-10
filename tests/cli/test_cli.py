@@ -455,6 +455,44 @@ def test_batch_output_dir_writes_menus(
     assert json.loads(written[0].read_text())["candidates"]
 
 
+def test_batch_honors_chemistry_and_cell_context_from_config(
+    runner: CliRunner, cohort_fasta: Path, tmp_path: Path
+) -> None:
+    # `chemistry` and `cell_context` are whitelisted config keys (no typo warning), so
+    # `batch` must honor them like `design`/`design_many`/the web `/api/batch` do —
+    # otherwise a restriction the user set is silently ignored. OK_1 (chr2:26:A>G) makes
+    # only base_abe, so restricting to prime must empty the menu, and cell_context must
+    # land in each menu's provenance.
+    listing = _write_list(tmp_path, OK_1)
+    cfg = tmp_path / "batch.toml"
+    cfg.write_text('cell_context = "HEK293T"\nchemistry = ["prime"]\n')
+    menus = tmp_path / "menus"
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            str(listing),
+            "--reference-fasta",
+            str(cohort_fasta),
+            "--intent",
+            "install",
+            "--config",
+            str(cfg),
+            "--output-dir",
+            str(menus),
+        ],
+    )
+    assert result.exit_code == 0
+    assert "unknown config key" not in result.output  # both keys are whitelisted
+    written = list(menus.glob("*.json"))
+    assert len(written) == 1
+    menu = json.loads(written[0].read_text())
+    # chemistry=["prime"] is honored: the base_abe-only variant yields no candidates.
+    assert menu["candidates"] == []
+    # cell_context is honored: it reaches the per-item menu provenance (was None before).
+    assert menu["provenance"]["config_snapshot"]["cell_context"] == "HEK293T"
+
+
 def test_batch_missing_input_is_missing_data(runner: CliRunner, cohort_fasta: Path) -> None:
     result = runner.invoke(
         app, ["batch", "/no/such/cohort.txt", "--reference-fasta", str(cohort_fasta)]

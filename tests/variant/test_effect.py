@@ -177,6 +177,23 @@ def test_vep_request_url_maps_assembly() -> None:
     assert "custombuild/region/chr1:11-11/G" in VepRestPredictor().request_url(novel)
 
 
+def test_vep_request_url_region_convention_by_variant_class() -> None:
+    # VEP's region convention: an insertion is zero-width (start = end + 1), a deletion/
+    # MNV spans len(ref). Clamping the span to a minimum width of 1 sent an insertion as a
+    # 1-base region VEP reads as a substitution consuming the base at start — a consequence
+    # for the wrong span. Empty-ref insertions are reachable (normalized() keeps no anchor).
+    pred = VepRestPredictor()
+
+    def region(variant: Variant) -> str:
+        return pred.request_url(variant).split("/region/")[1].split("?")[0]
+
+    assert region(Variant(chrom="17", pos=99, ref="A", alt="T")) == "17:100-100/T"
+    assert region(Variant(chrom="17", pos=99, ref="ACG", alt="")) == "17:100-102/-"
+    assert region(Variant(chrom="17", pos=99, ref="AC", alt="TT")) == "17:100-101/TT"
+    # The insertion: start=101, end=100 (zero-width), not the wrong 101-101.
+    assert region(Variant(chrom="17", pos=100, ref="", alt="ACGT")) == "17:101-100/ACGT"
+
+
 def test_parse_vep_response_specific_transcript_absent_falls_back() -> None:
     # Asking for a transcript not present falls through to the canonical one.
     effect = parse_vep_response(_vep_payload(), transcript="ENST_NOT_PRESENT")

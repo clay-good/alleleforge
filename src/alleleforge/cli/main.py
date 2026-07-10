@@ -583,7 +583,7 @@ def batch(
     """
     from alleleforge.config import Settings
     from alleleforge.design.cohort import design_many
-    from alleleforge.types.edit import EditIntent
+    from alleleforge.types.edit import Chemistry, EditIntent
 
     state: GlobalState = ctx.obj
     cfg = _load_config(config)
@@ -595,6 +595,11 @@ def batch(
     max_per_chemistry = (
         max_per_chemistry if max_per_chemistry is not None else cfg.get("max_per_chemistry")
     )
+    # `chemistry`/`cell_context` are whitelisted config keys (no typo warning), so they
+    # must actually restrict/route the run — otherwise batch silently ignores them while
+    # `design`, the web `/api/batch`, and `design_many` all honor them (a parity gap).
+    chem_list = cfg.get("chemistry")
+    cell_context = cfg.get("cell_context")
     run_offtarget = _resolve_run_offtarget(no_offtarget, cfg)
 
     try:
@@ -602,6 +607,13 @@ def batch(
     except ValueError as exc:
         _echo_err(f"error: unknown intent {intent_str!r}")
         raise typer.Exit(ExitCode.USAGE) from exc
+    chemistries = None
+    if chem_list:
+        try:
+            chemistries = [Chemistry(c) for c in chem_list]
+        except ValueError as exc:
+            _echo_err(f"error: unknown chemistry: {exc}")
+            raise typer.Exit(ExitCode.USAGE) from exc
     if not inputs.is_file():
         _echo_err(f"error: input file not found: {inputs}")
         raise typer.Exit(ExitCode.MISSING_DATA)
@@ -646,6 +658,8 @@ def batch(
             populations=pops,
             run_offtarget=run_offtarget,
             max_candidates_per_chemistry=max_per_chemistry,
+            chemistries=chemistries,
+            cell_context=cell_context,
             settings=settings,
             **ref_kwargs,
         )

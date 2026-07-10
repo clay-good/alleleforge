@@ -154,8 +154,15 @@ bases for ins/delins; unstated deleted/duplicated bases SHALL be filled from a s
 
 `StaticEffectPredictor` SHALL never fail resolution, defaulting unknown variants to
 `OTHER`/`MODIFIER`; a live VEP predictor SHALL cache by `(variant, assembly,
-transcript)` and prefer MANE-select, then canonical, then the first transcript.
+transcript)` and prefer MANE-select, then canonical, then the first transcript. Its region
+string SHALL follow Ensembl VEP's convention for every variant class, including a zero-width
+insertion region (`start = end + 1`), so no consequence is returned for the wrong span.
 
 #### Scenario: Unknown variant effect
 - **WHEN** the static predictor cannot classify a variant
 - **THEN** it returns `OTHER`/`MODIFIER` rather than raising
+
+#### Scenario: Insertion region convention
+- **WHEN** the live VEP predictor builds the region URL for an insertion (empty `ref`)
+- **THEN** it emits a zero-width region (`start = end + 1`, e.g. `17:101-100/ACGT`), not a 1-base region
+  VEP would read as a substitution consuming the reference base at that position

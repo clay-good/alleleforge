@@ -67,11 +67,19 @@ sidecar.
 ### Requirement: Batch is streaming, resumable, and failure-isolating
 
 `batch` SHALL stream a VCF or one-variant-per-line list, be resumable through a JSONL
-manifest, and isolate per-item failures so one bad variant does not abort the cohort.
+manifest, and isolate per-item failures so one bad variant does not abort the cohort. It
+SHALL honor every whitelisted run-parameter config key it accepts — including `chemistry`
+and `cell_context` — so a config restriction is not silently dropped for a cohort while the
+same config governs `design`, the web `/api/batch`, and `design_many`.
 
 #### Scenario: Resume
 - **WHEN** `batch` re-runs against an existing manifest
 - **THEN** already-recorded items are skipped and the run continues
+
+#### Scenario: Batch honors chemistry and cell_context from config
+- **WHEN** a `batch` config file sets `chemistry` (a chemistry restriction) or `cell_context`
+- **THEN** the run restricts to those chemistries and records the cell context in each menu's provenance —
+  it does not silently ignore a whitelisted key, matching `design`/web/`design_many`
 
 ### Requirement: Trained-model opt-ins are explicit
 

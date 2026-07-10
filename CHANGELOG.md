@@ -10,6 +10,30 @@ acceptance.
 
 ### Fixed
 
+- **The VEP live-REST predictor now sends the correct region for an insertion instead of consuming a
+  reference base.** `VepRestPredictor.request_url` computed the region end as `start + max(len(ref), 1) - 1`,
+  clamping the span to a minimum width of 1. For an insertion (`ref=""`, the canonical form this codebase
+  produces — `Variant.normalized()` keeps no anchor base for it) this emitted a 1-base region
+  (`17:101-101/ACGT`), which Ensembl VEP reads as a substitution replacing the base at that position,
+  returning a consequence for the wrong span. VEP's documented convention for an insertion is a zero-width
+  region (`start = end + 1`, i.e. `17:101-100/ACGT`). Dropping the `max(..., 1)` clamp — `end = start +
+  len(ref) - 1` — yields the correct region for every class (SNV → `start`, deletion/MNV → `start +
+  len(ref) - 1`, insertion → `start - 1`). Regression test (region string for SNV/deletion/MNV/insertion)
+  fails@HEAD for the insertion → passes. Found by a VEP live-REST audit (which cleared the deletion/MNV/SNV
+  conventions, `parse_vep_response` allele alignment, and transcript selection).
+
+- **`aforge batch` now honors the `chemistry` and `cell_context` config-file keys instead of silently
+  ignoring them.** Both keys are whitelisted in `_RUN_PARAM_KEYS` (so no "unknown config key" warning
+  fires), and `aforge design`, the web `/api/batch`, and the Python `design_many` all honor them — but the
+  CLI `batch` command read only `intent`/`populations`/`weights`/`max_per_chemistry`/`run_offtarget` from
+  the config and passed neither `chemistries` nor `cell_context` to `design_many`. So a `config.toml`
+  restricting `chemistry = ["cas9_nuclease"]` or setting `cell_context` was silently dropped for a whole
+  cohort run — the menus included every chemistry and recorded `cell_context = None` in provenance, diverging
+  from the same run via `design`/web/Python, with no signal to the user (the whitelist suppresses the warning
+  that would otherwise flag an unread key). `batch` now reads both keys and forwards them to `design_many`,
+  a CLI flag still winning. Regression test (a `chemistry`/`cell_context` config restriction actually empties
+  a non-matching menu and reaches provenance) fails@HEAD → passes. Found by a cross-interface parity re-sweep.
+
 - **A ClinVar `CLNSIG` carrying a secondary assertion now classifies by its primary clinical class
   instead of collapsing to `OTHER`.** ClinVar joins a variant's primary assertion with secondary ones in
   a single comma-separated `CLNSIG` token (e.g. `Pathogenic,_risk_factor`, `Likely_pathogenic,_low_penetrance`,

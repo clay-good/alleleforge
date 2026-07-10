@@ -278,9 +278,17 @@ class VepRestPredictor:
         self._cache: dict[tuple[str, str, str], VariantEffect] = {}
 
     def request_url(self, variant: Variant) -> str:
-        """Return the VEP region-endpoint URL for ``variant``."""
+        """Return the VEP region-endpoint URL for ``variant``.
+
+        For an insertion (empty ``ref``) VEP's region convention is ``start = end + 1``
+        (a zero-width span between two bases), so ``end`` is ``start - 1``. Clamping the
+        span to a minimum width of 1 would send a 1-base region VEP reads as a
+        substitution that consumes the base at ``start`` — a consequence for the wrong
+        span. ``end = start + len(ref) - 1`` gives the correct region for every class:
+        SNV → ``start``, deletion/MNV → ``start + len(ref) - 1``, insertion → ``start - 1``.
+        """
         start = variant.pos + 1  # VEP regions are 1-based
-        end = start + max(len(variant.ref), 1) - 1
+        end = start + len(variant.ref) - 1
         region = f"{variant.chrom}:{start}-{end}"
         return (
             f"{self._server}/vep/{_assembly_of(variant).lower()}/region/"
