@@ -51,6 +51,22 @@ pass through unchanged.
 - **WHEN** a gnomAD record lists a variant at 1-based position 100
 - **THEN** it is stored at 0-based position 99
 
+### Requirement: Parsers reconcile contig naming
+
+Every dataset parser and interval query SHALL be contig-naming-independent — indexing and
+looking up by the canonical contig (via `canonical_contig`) so a `chr`-named record and a
+bare-named (`2`, `MT`) query reconcile, and normalizing the mitochondrion to the hg38
+spelling `chrM` (not `chrMT`) when prefixing bare names — so a reference-vs-source naming
+mismatch never silently returns nothing.
+
+#### Scenario: Bare-named query finds a chr-named record
+- **WHEN** a loader holds records stored as `chr2` and is queried with a bare `2` interval
+- **THEN** the matching records are returned, not an empty result
+
+#### Scenario: Mitochondrion uses the hg38 spelling
+- **WHEN** a record's source contig is `MT` and bare names are prefixed
+- **THEN** it is stored as `chrM`, the contig an hg38 reference is keyed by
+
 ### Requirement: Database parsers record each record's native assembly
 
 ClinVar, dbSNP, and other assembly-bound parsers SHALL record the native assembly of each

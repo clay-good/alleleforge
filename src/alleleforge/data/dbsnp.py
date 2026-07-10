@@ -13,7 +13,7 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 from alleleforge.data._io import open_text
-from alleleforge.types.sequence import GenomicInterval
+from alleleforge.types.sequence import GenomicInterval, canonical_contig
 from alleleforge.types.variant import DbSnpId, Variant
 
 
@@ -28,7 +28,10 @@ class DbSnpDB:
             if var.rsid is None:
                 raise ValueError(f"dbSNP variant {var} has no rsid")
             self._by_rsid[var.rsid.value] = var
-            self._by_chrom[var.chrom].append(var)
+            # Key by the canonical contig so a bare-named ("2") interval query still
+            # finds a chr-named ("chr2") record — the reference-vs-source naming blind
+            # spot the sibling loaders (gnomad/clinvar/haplotype) all reconcile.
+            self._by_chrom[canonical_contig(var.chrom)].append(var)
         for recs in self._by_chrom.values():
             recs.sort(key=lambda v: v.pos)
 
@@ -63,7 +66,9 @@ class DbSnpDB:
             row = dict(zip(header, cols, strict=False))
             chrom = row["chrom"]
             if add_chr_prefix and not chrom.lower().startswith("chr"):
-                chrom = f"chr{chrom}"
+                # hg38 spells the mitochondrion "chrM", not "chrMT" — mirror clinvar's
+                # _with_chr so a bare "MT" rsID lands on the reference's contig.
+                chrom = "chrM" if chrom in {"MT", "M"} else f"chr{chrom}"
             yield Variant(
                 chrom=chrom,
                 pos=int(row["pos"]) - 1,  # dbSNP VCF is 1-based; store 0-based
@@ -92,6 +97,6 @@ class DbSnpDB:
         """Return rsIDs whose variant start falls within ``interval``."""
         return [
             v.rsid
-            for v in self._by_chrom.get(interval.chrom, ())
+            for v in self._by_chrom.get(canonical_contig(interval.chrom), ())
             if v.rsid is not None and interval.start <= v.pos < interval.end
         ]

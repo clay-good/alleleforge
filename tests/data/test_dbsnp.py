@@ -40,6 +40,23 @@ def test_no_chr_prefix_option(dbsnp_tsv: Path) -> None:
     assert db.locus("rs334").chrom == "2"
 
 
+def test_rsids_at_is_contig_naming_independent(dbsnp_tsv: Path) -> None:
+    # The records are stored chr-named; a bare-named interval query must still find
+    # them (the reference-vs-source naming blind spot the sibling loaders reconcile).
+    db = DbSnpDB.from_tsv(dbsnp_tsv)
+    bare = GenomicInterval(chrom="2", start=60000, end=60250, strand=Strand.PLUS)
+    assert sorted(str(r) for r in db.rsids_at(bare)) == ["rs114518452", "rs334"]
+
+
+def test_mitochondrial_contig_uses_hg38_spelling(tmp_path: Path) -> None:
+    # hg38 spells the mitochondrion "chrM", not "chrMT"; a bare "MT" rsID must land
+    # on the reference's contig or it is a silent downstream miss.
+    tsv = tmp_path / "mito.tsv"
+    tsv.write_text("#rsid\tchrom\tpos\tref\talt\nrs9999\tMT\t7028\tC\tT\n")
+    db = DbSnpDB.from_tsv(tsv)
+    assert db.locus("rs9999").chrom == "chrM"
+
+
 def test_from_tsv_records_native_assembly(dbsnp_tsv: Path) -> None:
     db = DbSnpDB.from_tsv(dbsnp_tsv, assembly="GRCh37")
     assert db.locus("rs334").source_assembly == "GRCh37"

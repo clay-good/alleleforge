@@ -10,6 +10,19 @@ acceptance.
 
 ### Fixed
 
+- **dbSNP lookups are now contig-naming-independent, so a bare-named query and a mitochondrial rsID no
+  longer silently miss.** dbSNP was the one loader that never received the contig-naming reconciliation
+  its siblings (gnomAD, ClinVar, haplotype panels) all have. Two facets from the same root: (a) a bare
+  `MT` rsID was prefixed to `chrMT`, which is not an hg38 contig (hg38 uses `chrM`), so a mitochondrial
+  variant resolved via `dbsnp.locus(rsid)` carried a contig absent from the reference — a silent
+  downstream miss; (b) `rsids_at` indexed and queried `_by_chrom` by the raw contig, so `rsids_at`
+  with a bare `2` interval returned `[]` while `chr2` returned the records (the same bare query
+  correctly returns records from gnomAD/ClinVar/haplotypes). Both fixed by keying on `canonical_contig`
+  (index + query) and mapping `MT`/`M` → `chrM` when prefixing, mirroring the siblings. This is the
+  recurring reference-vs-source naming class prior rounds closed in the other loaders. Regression tests
+  fail@HEAD → pass; data-registry spec gains a contig-naming reconciliation requirement. Found by a
+  data-loader ingestion audit.
+
 - **A delins is no longer silently corrupted into a wrong-position insertion during left-alignment.**
   `_left_align` ran its "roll the indel left through a repeat" loop for any `len(ref) != len(alt)`, but
   that loop assumes a *pure* indel (exactly one allele empty). A true delins (e.g. `AC>T`, both alleles
