@@ -99,6 +99,17 @@ def test_kl_empty_is_zero() -> None:
     assert kl_divergence({}, {}) == 0.0
 
 
+def test_kl_treats_nonfinite_mass_as_worst_not_perfect() -> None:
+    # A non-finite predicted mass normalizes to `nan`, and `max(0.0, nan)` is `0.0`
+    # — a *perfect* score on this lower-is-better metric, so a broken scorer would
+    # top the leaderboard. It must instead be the WORST value (inf), which the
+    # runner's finite-headline validator then rejects outright. (R24)
+    truth = {"a": 0.5, "b": 0.5}
+    assert kl_divergence(truth, {"a": float("inf"), "b": 1.0}) == float("inf")  # was 0.0
+    assert kl_divergence(truth, {"a": float("nan"), "b": 1.0}) == float("inf")
+    assert kl_divergence({"a": float("inf")}, {"a": 1.0}) == float("inf")
+
+
 def test_kl_is_byte_stable_across_hash_seeds() -> None:
     # kl_divergence summed floats over a bare `set(p) | set(q)`, whose iteration
     # order is PYTHONHASHSEED-dependent; non-associative float addition then made

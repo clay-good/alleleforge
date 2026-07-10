@@ -199,6 +199,18 @@ class Prediction(BaseModel, Generic[T]):
                 raise ValueError(f"point estimate must be finite, got {value}")
             if not low <= float(value) <= high:
                 raise ValueError(f"point estimate {value} lies outside interval {self.interval}")
+        elif isinstance(value, Mapping):
+            # A distribution-valued prediction (per-outcome mass) is a point estimate
+            # too, and a non-finite mass is just as corrupting: an `inf` mass makes
+            # `kl_divergence` normalize to `nan` and collapse to a perfect `0.0`,
+            # topping a lower-is-better leaderboard with a broken scorer. Give the
+            # Mapping case the same finiteness guard the scalar branch has.
+            for outcome, mass in value.items():
+                if isinstance(mass, (int, float)) and not isinstance(mass, bool):
+                    if not math.isfinite(float(mass)):
+                        raise ValueError(
+                            f"distribution mass for {outcome!r} must be finite, got {mass}"
+                        )
         return self
 
     @classmethod

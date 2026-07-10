@@ -31,11 +31,16 @@ Every numeric efficiency or outcome value the system returns SHALL be wrapped in
 
 A `Prediction` SHALL reject construction unless `interval` is ordered (`low <= high`),
 its bounds are **finite**, `interval_level` lies in `(0, 1]`, and — when `value` is numeric
-and not boolean — the point estimate is finite and lies within `[low, high]`. A non-finite
-bound or value (`NaN`/`±inf`) is meaningless for a bounded scientific quantity and would
-propagate — an `inf` efficiency scrambles the ranking composite sort and a `NaN` breaks JSON
-— so it is rejected at the source rather than trusted to each downstream consumer; a
-`Prediction` is deserializable, so this holds on load, not only on fresh construction.
+and not boolean — the point estimate is finite and lies within `[low, high]`. When `value`
+is a **distribution** (an outcome→mass mapping), every mass SHALL likewise be finite: a
+distribution mass is a point estimate too, and a non-finite mass is just as corrupting —
+an `inf` mass makes `kl_divergence` normalize to `NaN` and collapse to a perfect `0.0`,
+topping a lower-is-better leaderboard with a broken scorer. A non-finite bound, numeric
+value, or distribution mass (`NaN`/`±inf`) is meaningless for a bounded scientific quantity
+and would propagate — an `inf` efficiency scrambles the ranking composite sort and a `NaN`
+breaks JSON — so it is rejected at the source rather than trusted to each downstream
+consumer; a `Prediction` is deserializable, so this holds on load, not only on fresh
+construction.
 
 #### Scenario: Inverted interval
 - **WHEN** a `Prediction` is constructed with `interval` low greater than high
@@ -46,6 +51,12 @@ propagate — an `inf` efficiency scrambles the ranking composite sort and a `Na
   or a non-finite numeric `value` (`NaN` or `±inf`)
 - **THEN** construction raises `ValueError`, so no non-finite prediction reaches ranking,
   reporting, or the benchmark metrics
+
+#### Scenario: Non-finite distribution mass
+- **WHEN** a `Prediction` whose `value` is an outcome distribution is constructed or
+  deserialized with any non-finite mass (`NaN` or `±inf`)
+- **THEN** construction raises `ValueError`, so a corrupt distribution can never reach
+  `kl_divergence` and score a perfect `0.0`
 
 #### Scenario: Point outside interval
 - **WHEN** a numeric `value` lies outside its `[low, high]` interval

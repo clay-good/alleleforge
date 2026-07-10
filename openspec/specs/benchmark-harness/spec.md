@@ -52,17 +52,26 @@ attributed to the scorer by name.
 ### Requirement: Metrics treat non-finite inputs as degenerate
 
 Every ranking/correlation/calibration metric SHALL treat a non-finite input value — `NaN`
-**or** `±inf` — as degenerate and return the degenerate result (`0.0`, or `null` for an
-undefined ECE), never a **perfect** score and never a non-JSON-serializable `NaN` or a
-crash. A `NaN` slips every `<= 0` / `==` guard, and an `inf` sorts as the largest value and
-satisfies those guards too, so both would otherwise let a corrupt or overflowing prediction
-top the leaderboard.
+**or** `±inf` — as degenerate and return the metric's **worst** value, never a **perfect**
+score and never a non-JSON-serializable `NaN` or a crash. A `NaN` slips every `<= 0` / `==`
+guard, and an `inf` sorts as the largest value and satisfies those guards too, so both would
+otherwise let a corrupt or overflowing prediction top the leaderboard. The degenerate value
+is direction-aware: for a higher-is-better metric (correlation, ROC/PR-AUC) the worst value
+is `0.0` (and ECE returns `null`); for the lower-is-better distribution divergence
+`kl_divergence`, `0.0` is *perfect*, so a non-finite mass SHALL instead return `+inf` (the
+worst), which the finite-headline validator then rejects rather than crowns.
 
 #### Scenario: Infinite score is not perfect
 - **WHEN** a scorer emits an `inf` (or `NaN`) point estimate that reaches a metric
 - **THEN** `spearman`/`pearson`/`roc_auc`/`pr_auc` return the degenerate `0.0` and
   `expected_calibration_error` returns undefined — the corrupt prediction never scores as
   perfect, the result stays JSON-serializable, and no metric crashes
+
+#### Scenario: Non-finite distribution mass is worst, not perfect
+- **WHEN** a distribution scorer emits a non-finite mass (`inf`/`NaN`) that reaches
+  `kl_divergence`
+- **THEN** it returns `+inf` — its worst value — not the `0.0` a `max(0.0, NaN)` collapse
+  would produce, so a broken distribution scorer cannot top the lower-is-better leaderboard
 
 A `BenchmarkResult`'s `primary_value` and metric values are a signed *claim*, not a fresh
 computation, so a non-finite one SHALL be rejected at construction/deserialization (not made

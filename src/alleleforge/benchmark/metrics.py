@@ -121,6 +121,14 @@ def kl_divergence(p: Mapping[str, float], q: Mapping[str, float], *, eps: float 
     keys = sorted(set(p) | set(q))
     if not keys:
         return 0.0
+    # Defense-in-depth: a non-finite mass corrupts `_normalize` to `nan`, and
+    # `max(0.0, nan)` is `0.0` — a *perfect* score on this lower-is-better metric,
+    # so a broken scorer would top the leaderboard. Return the worst value, not the
+    # best; the runner's finite-headline validator then rejects the entry outright
+    # rather than crowning it. (The `Prediction` contract already blocks a non-finite
+    # distribution mass at construction; this guards a direct raw-dict call.)
+    if _has_nonfinite(list(p.values()), list(q.values())):
+        return math.inf
     pn = _normalize({k: p.get(k, 0.0) for k in keys})
     qn = _normalize({k: q.get(k, 0.0) for k in keys})
     total = 0.0

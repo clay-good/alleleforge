@@ -56,6 +56,26 @@ def test_non_finite_point_estimate_rejected() -> None:
         _pred(float("inf"), 0.0, 1.0)  # inf value outside a finite interval
 
 
+def test_non_finite_distribution_mass_rejected() -> None:
+    # A distribution-valued prediction (per-outcome mass) is a point estimate too,
+    # and a non-finite mass is just as corrupting: an `inf` mass makes
+    # `kl_divergence` normalize to `nan` and collapse to a perfect `0.0`, topping a
+    # lower-is-better benchmark leaderboard with a broken scorer. The Mapping case
+    # must get the same finiteness guard the scalar branch has. (R24)
+    for bad in (float("inf"), float("nan"), float("-inf")):
+        with pytest.raises(ValueError, match="mass.*must be finite"):
+            Prediction(
+                value={"A": bad, "C": 1.0},
+                interval=(0.0, 1.0),
+                method=UncertaintyMethod.ENSEMBLE,
+            )
+    # A finite distribution still constructs.
+    ok = Prediction(
+        value={"A": 0.9, "C": 0.1}, interval=(0.0, 1.0), method=UncertaintyMethod.ENSEMBLE
+    )
+    assert ok.value == {"A": 0.9, "C": 0.1}
+
+
 def test_interval_level_range_enforced() -> None:
     with pytest.raises(ValueError, match="not in"):
         Prediction[float](
