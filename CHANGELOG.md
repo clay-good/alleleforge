@@ -10,6 +10,20 @@ acceptance.
 
 ### Fixed
 
+- **The cloning enzyme screen now catches a Type IIS site at the 3' overhang junction too, so a
+  cloning-lethal insert can no longer ship clean on the default scheme.** A prior round fixed the screen
+  to cover the 5' overhang/insert junction, but it screened only the `top` oligo (`top_overhang +
+  insert`), which stops at the insert's 3' end. In the ligated plasmid the top strand runs `top_overhang
+  + insert + revcomp(bottom_overhang)`, so a site straddling the insert's 3' end and the bottom overhang
+  was never seen: on the **default** lentiGuide/BsmBI scheme, a spacer ending in `GAGAC` plus the `AAAC`
+  bottom overhang reconstitutes `CGTCTC` on the antisense oligo (the plasmid top strand reads
+  `…GAGACGTTT`, and `GAGACG` = revcomp of the BsmBI site) — BsmBI would recut the assembled plasmid at
+  the junction, a silent Golden-Gate failure, yet no warning was emitted. Now screens the full
+  ligated-insert top strand (`top + revcomp(bottom_overhang)`) for both sgRNA and pegRNA inserts;
+  `_screen_enzyme_site` already scans both strands, so one pass covers both junctions and both strands.
+  Regression test (a `…GAGAC` spacer → the bottom-junction site is flagged) fails@HEAD → passes;
+  oligo-output spec now requires screening the full ligated insert. Found by an oligo-cloning audit.
+
 - **A symbolic or spanning-deletion ALT no longer aborts a whole ClinVar/dbSNP parse.** ClinVar's row
   filter skipped only `ALT` in `.`/empty, so a spanning-deletion `*` or a symbolic `<DEL>`/`<INS>`
   (both of which real VCF releases contain) reached the `Variant` allele validator, raised, and aborted

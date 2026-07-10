@@ -38,18 +38,28 @@ construction rather than silently shipped in the deliverable.
 
 ### Requirement: Inserts are screened for the cloning enzyme's recognition site
 
-Every emitted insert sequence — the sgRNA spacer, the pegRNA spacer, and the pegRNA 3'
-extension (RTT + PBS + motif) — SHALL be screened on **both strands** against its scheme's
-Type IIS recognition site (BsmBI `CGTCTC`, BbsI `GAAGAC`, BsaI `GGTCTC`). On a match the
-oligo builder SHALL attach a prominent `internal-<enzyme>-site` flag naming the component,
-strand, and position, so an insert the cloning enzyme would cut internally is never shipped
-as a clean, round-trip-valid deliverable.
+Every emitted insert — the sgRNA spacer, the pegRNA spacer, and the pegRNA 3' extension
+(RTT + PBS + motif) — SHALL be screened against its scheme's Type IIS recognition site
+(BsmBI `CGTCTC`, BbsI `GAAGAC`, BsaI `GGTCTC`) over the **full ligated-insert top strand** —
+`top_overhang + insert + revcomp(bottom_overhang)` — on **both strands**, so a site
+straddling **either** overhang/insert junction (the 5' seam *and* the insert/3'-overhang
+seam) is caught, not only one inside the insert body or at the 5' seam. On a match the oligo
+builder SHALL attach a prominent `internal-<enzyme>-site` flag naming the component, strand,
+and position, so an insert the cloning enzyme would cut internally is never shipped as a
+clean, round-trip-valid deliverable.
 
 #### Scenario: Spacer contains the enzyme site
 - **WHEN** a spacer or extension contains the scheme's Type IIS recognition site on either
   strand
 - **THEN** the oligo set carries an `internal-<enzyme>-site` flag naming the position — never
   emitted as clean
+
+#### Scenario: Site straddles the 3' overhang junction
+- **WHEN** a spacer ending in the bases that, joined with the scheme's bottom overhang,
+  reconstitute the enzyme site on the antisense oligo (e.g. `…GAGAC` + lentiGuide `AAAC`
+  bottom overhang → `CGTCTC`)
+- **THEN** the oligo set carries the `internal-<enzyme>-site` flag — the 3'-overhang junction
+  is screened, not only the 5' one
 
 #### Scenario: Clean insert
 - **WHEN** no insert contains the scheme's recognition site

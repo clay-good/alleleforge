@@ -357,11 +357,14 @@ def sgrna_oligos(
     g = "G" if g_added else ""
     top = scheme.top_overhang + g + spacer
     bottom = scheme.bottom_overhang + revcomp(g + spacer)
-    # Screen the assembled top strand (overhang + insert), not the bare insert: the
-    # enzyme site can straddle the overhang/insert junction (e.g. a BsmBI CGTCTC
-    # formed by the CACC overhang's trailing C + a spacer beginning GTCTC), which
-    # reconstitutes a cloning-lethal internal site the ligated plasmid carries.
-    warnings = _screen_enzyme_site(top, scheme.enzyme, label=kind)
+    # Screen the *full ligated-insert top strand* — `top_overhang + insert +
+    # revcomp(bottom_overhang)` — not just `top`. The site can straddle either
+    # junction: the 5' overhang/insert seam (e.g. a BsmBI CGTCTC from the CACC
+    # overhang's trailing C + a spacer beginning GTCTC) OR the insert/3'-overhang
+    # seam (a spacer ending GAGAC + the AAAC bottom overhang reconstitutes CGTCTC on
+    # the antisense oligo). Appending revcomp(bottom_overhang) covers the second seam;
+    # _screen_enzyme_site scans both strands, so one pass catches all four cases.
+    warnings = _screen_enzyme_site(top + revcomp(scheme.bottom_overhang), scheme.enzyme, label=kind)
     oligos = SgRnaOligos(
         kind=kind,
         spacer=spacer,
@@ -406,13 +409,15 @@ def pegrna_oligos(pegrna: PegRNA, *, scheme: VectorScheme = PEGRNA_GG_BSAI) -> P
     ext_top = ext_top_overhang + ext_body
     ext_bottom = ext_bottom_overhang + revcomp(ext_body)
 
-    # Screen the assembled top strand of both inserts the enzyme would see — the
-    # spacer duplex and the 3' extension (RTT+PBS+motif) — each including its
-    # overhang, so a recognition site straddling the overhang/insert junction is
-    # caught (it reconstitutes a cloning-lethal internal site in the ligated
-    # plasmid), not only a site wholly inside the bare insert body.
-    warnings = _screen_enzyme_site(spacer_top, scheme.enzyme, label="pegrna-spacer") + (
-        _screen_enzyme_site(ext_top, scheme.enzyme, label="pegrna-extension")
+    # Screen the *full ligated-insert top strand* of both inserts — the spacer duplex
+    # and the 3' extension (RTT+PBS+motif) — each as `top_overhang + insert +
+    # revcomp(bottom_overhang)`, so a recognition site straddling *either* junction is
+    # caught (it reconstitutes a cloning-lethal internal site in the ligated plasmid),
+    # not only a site at the 5' seam or wholly inside the insert body.
+    warnings = _screen_enzyme_site(
+        spacer_top + revcomp(scheme.bottom_overhang), scheme.enzyme, label="pegrna-spacer"
+    ) + _screen_enzyme_site(
+        ext_top + revcomp(ext_bottom_overhang), scheme.enzyme, label="pegrna-extension"
     )
 
     nicking = None

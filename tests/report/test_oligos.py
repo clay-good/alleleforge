@@ -84,6 +84,18 @@ def test_enzyme_site_straddling_the_overhang_junction_is_flagged() -> None:
     assert any(w.startswith("internal-BsmBI-site") for w in oligos.warnings)
 
 
+def test_enzyme_site_straddling_the_bottom_overhang_junction_is_flagged() -> None:
+    # The mirror of the top-junction case: a spacer *ending* in GAGAC plus lentiGuide's
+    # AAAC bottom overhang reconstitutes a BsmBI CGTCTC on the antisense oligo (the
+    # ligated plasmid top strand reads ...GAGACGTTT, i.e. GAGACG = revcomp(CGTCTC)).
+    # This shipped clean because only `top` — which stops at the insert's 3' end — was
+    # screened; the full ligated top strand must be screened so both junctions are seen.
+    spacer = "AAAAAAAAAAAAAAAGAGAC"  # 20 nt, ends in GAGAC
+    oligos = sgrna_oligos(spacer, scheme=LENTIGUIDE_BSMBI)
+    assert "CGTCTC" in oligos.bottom  # the antisense oligo carries the site
+    assert any(w.startswith("internal-BsmBI-site") for w in oligos.warnings)
+
+
 def test_clean_spacer_carries_no_enzyme_warning() -> None:
     oligos = sgrna_oligos(SPACER, scheme=LENTIGUIDE_BSMBI)
     assert oligos.warnings == ()
