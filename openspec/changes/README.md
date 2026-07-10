@@ -516,7 +516,7 @@ EncodeTracks) even after the dbSNP fix a round earlier — when a bug class recu
 (`_by_chrom`/`.get(...chrom)`) in one pass rather than fixing instances as lenses surface them. And a
 parsed-but-unconsumed CLI flag (`--cache-dir`) is the "flag honored?" class on the config axis.**
 
-## Round 23 — web-API lifecycle + model-zoo gates (2 fixes)
+## Round 23 — web-API lifecycle + model-zoo gates + fail-open-gate sweep (3 fixes)
 
 Two lenses on the remaining fresh surfaces; both agents crashed mid-run (stream watchdog / API error)
 but each had already reproduced its finding, verified and shipped here. The web lens otherwise cleared
@@ -527,12 +527,15 @@ the license and consent gates and the download-path checksum gate.
 |--------|--------------|--------------------------|
 | `fix(web-api)` invalid weights → 422 | web-api | `/api/design` and `/api/batch` build `RankingWeights` from the request without catching its `ValueError`, so a well-typed but invalid weights vector (negative / all-zero / non-finite) leaked an unhandled **500** instead of a **422** — the web sibling of the CLI `--weights` hardening. **Shipped:** `_design_options` catches the validation error and raises `HTTPException(422)`. |
 | `fix(model-zoo)` cached-unpinned fails closed | model-zoo | `ModelRegistry.checkpoint` refuses to *download* an unpinned checkpoint, but the **cached** branch only re-verified when the card *pinned* a hash (`elif checkpoint_sha256 is not None`), so a file at the cache path for an unpinned card (all cards but `rule-set-3`) was returned **unverified** — a fail-open bypass of "a pinned hash is required to load," contradicting the method's own docstring. **Shipped:** the cached branch fails closed on an unpinned card, exactly like the download path. The sibling of the R16 content-addressed-cache fail-closed fix. |
+| `fix(data)` cached-unpinned dataset fails closed | data-registry | **Found by a proactive sweep** for the same class immediately after the model-zoo fix: `DatasetRegistry.resolve` had the identical structure — download-branch refuses an unpinned dataset, cached branch (`elif desc.sha256 is not None`) returned an unpinned cached file **unverified**. **Shipped:** the cached branch fails closed, matching the download path, the docstring, and the `test_resolve_without_checksum_refuses` intent; the user-provides-file workflow is unaffected (it uses the loaders' explicit-path API, not this gated fetch). |
 
-Yield ...3/2/2. **Lesson: a **fail-open trust gate that only fires on one branch** recurs across the
-codebase — the content-addressed cache (R16: missing sidecar), and now the model checkpoint gate
-(cached vs download). When a gate has two entry paths (download/cache, top/bottom junction, 5'/3'
-overhang), verify BOTH fail closed. Two agents crashing mid-run still delivered — a reproduced finding
-in an agent's last message is actionable even when the agent doesn't finish.**
+Yield ...3/2/3. **Lesson: a **fail-open trust gate that only fires on one branch** recurs across the
+codebase — content-addressed cache (R16: missing sidecar), model checkpoint gate, and dataset resolve
+(both this round: cached vs download). When a gate has two entry paths (download/cache, top/bottom
+junction, 5'/3' overhang), verify BOTH fail closed — and after finding one, GREP THE CLASS: the
+proactive sweep for `sha256 is not None` verify branches turned up the third gate immediately, closing
+it before a lens had to. Two agents crashing mid-run still delivered — a reproduced finding in an
+agent's last message is actionable even when the agent doesn't finish.**
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
