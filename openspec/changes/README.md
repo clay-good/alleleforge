@@ -431,6 +431,29 @@ empirically clean under large-scale independent reconstruction, but the *upstrea
 feeds them still held a severe silent-corruption bug — the input pipeline (resolve/normalize/liftover)
 deserves as much scrutiny as the scorers, because a mis-normalized variant mis-designs every modality.**
 
+## Round 19 — input-seam re-audit (0 code fixes; 2 clean bills — diminishing returns on this axis)
+
+After R18's delins fix flagged the input pipeline as under-audited, two lenses re-swept it and both
+returned rigorous **clean bills** — the credible-negative signal that this axis is now well-covered:
+- **resolve→design handoff**: reproduced end-to-end the working-interval math (MNV/delins full span,
+  contig-end clamp via the naming-reconciling `contig_length`, pos-0 boundary), the carried-allele
+  overlay actually changing enumeration (an alt-created PAM found by CORRECT, not by reference-based
+  KNOCK_OUT — consistent across cas9/base/prime), minus-strand coordinate math in all three modalities,
+  and liftover fail-closed off the design path. No defect.
+- **effect prediction + chemistry routing**: matched **48/48** intent×substitution combinations against
+  an independent ABE/CBE transition oracle (transversions correctly excluded from base editing on both
+  edit directions), confirmed intent→allele consistent across all four enumerator siblings, and the SO
+  severity ranking correct with no coarse-tier sibling. No defect.
+
+The only finding was a documentation error (`docs(enumerate)`): the cas9 module docstring claimed the
+genome carries the *alternate* allele for INSTALL — backwards (it carries the reference; the code was
+correct, only the prose wrong). Fixed.
+
+**Signal:** two independent rigorous lenses on the same axis returning credible clean bills — with the
+one real gap (the R18 delins) already closed — is the R6/R13-style diminishing-returns marker for the
+input seam. The productive next angles are axes not yet swept this session (e.g. the data-loader →
+Variant ingestion path, or a documentation-vs-behavior sweep), not more depth on resolve/route.
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
