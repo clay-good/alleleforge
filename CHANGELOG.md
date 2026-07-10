@@ -10,6 +10,25 @@ acceptance.
 
 ### Fixed
 
+- **`resolve` now fails closed on a wrong-build base hidden in a trimmed position instead of silently
+  laundering it.** Reference validation ran *after* parsimonious normalization: the input adapters called
+  `Variant.normalized()` eagerly (in `VcfRecord.to_variant`, the `chrom:pos:ref>alt` string parser, and the
+  raw-`Variant` branch of `_to_variant`), trimming a shared prefix/suffix base — one where `ref == alt`, so
+  it carries no edit — before `_validate_ref` ever saw it. An assertion like `chr2:6 AT>GT` against a
+  reference whose span reads `AC` is a textbook wrong-build/`REF_MISMATCH` signal (the unchanged `T`
+  disagrees with the reference `C`), but trimming reduced it to `A>G`, whose retained `A` matches, so the
+  resolver accepted it **and** changed the caller's requested edit — applying `A>G` (yielding `GC` against
+  the real reference) instead of the asserted `GT`. This is the recurring "safety input inert on its consumed
+  axis with a green suite" class: the fail-closed check existed but the value it needed was destroyed
+  upstream. `resolve` now validates the **full asserted `ref` span, un-normalized**, against the reference
+  before `_left_align`/`normalized()` can trim it (the coordinate-family adapters defer normalization to
+  `resolve` for exactly this reason; RawTarget and the HGVS path already validated their asserted bases
+  pre-normalization, so both were already safe). Regression tests cover the suffix-trim MNV→SNV case, the
+  prefix-trim case, and all three coordinate input forms (string / `VcfRecord` / raw `Variant`); each fails
+  @HEAD (accepts the wrong build) → passes with the fix, and the legit multi-base mirror (`AC>GT` where the
+  span really is `AC`) still resolves. Found by a Round-33 property-based fuzzing sweep of `normalized()` /
+  `_left_align` fail-closed behavior (~58,000 examples).
+
 - **`aforge bench run --seed` now records a consistent seed in provenance instead of a self-contradictory
   one.** `run_benchmark` captured the top-level `provenance.seed` from its `seed` argument but the
   `config_snapshot` from the global `get_settings()` singleton — which the CLI callback never updates with

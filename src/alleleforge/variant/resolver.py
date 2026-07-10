@@ -85,14 +85,19 @@ class VcfRecord(BaseModel):
     rsid: str | None = None
 
     def to_variant(self) -> Variant:
-        """Return the 0-based normalized :class:`Variant` for this record."""
+        """Return the 0-based :class:`Variant` for this record (un-normalized).
+
+        Normalization is deferred to :func:`resolve` so it can validate the *full*
+        asserted ref span against the reference first — trimming a shared prefix/
+        suffix base here would discard a wrong-build base before it is ever checked.
+        """
         return Variant(
             chrom=self.chrom,
             pos=self.pos - 1,
             ref=self.ref,
             alt=self.alt,
             rsid=DbSnpId(value=self.rsid) if self.rsid else None,
-        ).normalized()
+        )
 
 
 class RawTarget(BaseModel):
@@ -192,12 +197,15 @@ def _from_string(
     if m is None:
         raise ValueError(f"unrecognized variant input: {text!r}")
     return (
+        # Un-normalized on purpose: resolve() validates the full asserted ref span
+        # against the reference before parsimony trims a shared prefix/suffix base
+        # (which could carry a wrong-build mismatch — see _to_variant / resolve).
         Variant(
             chrom=m.group("chrom"),
             pos=int(m.group("pos")) - 1,  # human-facing coordinate strings are 1-based
             ref=m.group("ref").upper(),
             alt=m.group("alt").upper(),
-        ).normalized(),
+        ),
         "coordinates",
     )
 
@@ -252,9 +260,18 @@ def _to_variant(
     hgvs: HgvsAdapter | None,
     reference: ReferenceGenome | None,
 ) -> tuple[Variant, str]:
-    """Convert any accepted input form to a (variant, source) pair."""
+    """Convert any accepted input form to a (variant, source) pair.
+
+    Coordinate-family inputs (a raw :class:`Variant`, a :class:`VcfRecord`, or a
+    ``chrom:pos:ref>alt`` string) are returned **un-normalized** so :func:`resolve`
+    can validate their full asserted ref span against the reference before parsimony
+    trims a shared prefix/suffix base — otherwise a wrong-build base hidden in that
+    trimmed base is silently laundered instead of failing closed. The database/HGVS
+    forms validate their asserted bases before this point (RawTarget against its
+    embedded sequence, HGVS against the stated ref), so they are already safe.
+    """
     if isinstance(inp, Variant):
-        return inp.normalized(), "variant"
+        return inp, "variant"
     if isinstance(inp, ClinVarAccession):
         return _from_clinvar(inp, clinvar), "clinvar"
     if isinstance(inp, DbSnpId):
@@ -414,6 +431,15 @@ def resolve(
         )
     variant = variant.model_copy(update={"build": build})
     if reference is not None:
+        # Validate the FULL asserted ref span *before* normalization. `normalized()`
+        # (applied inside `_left_align`, and in the no-reference branch below) trims a
+        # shared prefix/suffix base whenever ref==alt there — so a wrong-build base in
+        # that trimmed position (e.g. asserted `AT>GT` where the reference is `AC`; the
+        # unchanged `T` is trimmed to leave `A>G`, which validates) would be laundered
+        # away, silently accepting a wrong build and changing the caller's edit. The
+        # post-normalization check below only sees the trimmed ref, so this earlier
+        # full-span check on the raw assertion is what actually closes the hole.
+        _validate_ref(variant, reference)
         variant = _left_align(variant, reference)
         _validate_ref(variant, reference)
     else:

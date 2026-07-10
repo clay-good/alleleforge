@@ -77,6 +77,34 @@ def test_insertion_correct_anchor_resolves(reference: ReferenceGenome) -> None:
     assert rv.variant.alt.endswith("T") and len(rv.variant.alt) > len(rv.variant.ref)
 
 
+@pytest.mark.parametrize(
+    "inp",
+    [
+        "chr2:6:AT>GT",  # suffix-trim: reference[5:7]=='AC', the unchanged 'T' is trimmed
+        VcfRecord(chrom="chr2", pos=6, ref="AT", alt="GT"),
+        Variant(chrom="chr2", pos=5, ref="AT", alt="GT"),
+        "chr2:6:CC>CT",  # prefix-trim: shared 'C' trimmed, hiding the pos-5 'C'-vs-'A' mismatch
+    ],
+)
+def test_wrong_build_base_in_trimmed_position_fails_closed(
+    reference: ReferenceGenome, inp: object
+) -> None:
+    # reference[5:7] == "AC". A caller asserting "AT>GT" (or "CC>CT") is a wrong-build
+    # signal — the *unchanged* base disagrees with the reference. Parsimony trims that
+    # base (AT>GT -> A>G, CC>CT -> C>T), and the retained base validates, so the mismatch
+    # was silently laundered and the caller's edit changed against the real reference.
+    # Validating the FULL asserted ref span before normalization fails closed instead.
+    with pytest.raises(ValueError, match="reference mismatch"):
+        resolve(inp, reference=reference)
+
+
+def test_correct_multibase_ref_still_resolves(reference: ReferenceGenome) -> None:
+    # The mirror of the guard above: an MNV whose full asserted ref matches the
+    # reference (reference[5:7] == "AC") resolves normally and normalizes as before.
+    rv = resolve("chr2:6:AC>GT", reference=reference)
+    assert _key(rv.variant) == ("chr2", 5, "AC", "GT")
+
+
 def test_resolve_genomic_hgvs(reference: ReferenceGenome) -> None:
     rv = resolve("chr2:g.6A>G", reference=reference)
     assert _key(rv.variant) == ("chr2", 5, "A", "G")

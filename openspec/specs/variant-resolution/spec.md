@@ -51,11 +51,23 @@ it through the pure-indel roll would drop its deleted bases and relocate the var
 
 When a reference is supplied, an asserted `ref` disagreeing with the reference (or
 over-running into N-padding) SHALL raise `ValueError` naming a reference mismatch. When
-no reference is supplied, `resolve` SHALL normalize without validation.
+no reference is supplied, `resolve` SHALL normalize without validation. The check SHALL
+cover the **full asserted `ref` span as the caller wrote it**, validated *before*
+normalization (parsimonious trimming) discards any base — so a wrong-build base sitting in
+a shared prefix/suffix that trimming would remove cannot escape the check.
 
 #### Scenario: Wrong asserted ref
 - **WHEN** the asserted `ref` disagrees with the reference base at that position
 - **THEN** `resolve` raises `ValueError` ("reference mismatch")
+
+#### Scenario: Wrong-build base in a trimmed position
+- **WHEN** a multi-base assertion disagrees with the reference only in a base that parsimony
+  trims because it is unchanged between `ref` and `alt` — e.g. `chr2:6 AT>GT` where the
+  reference span reads `AC` (the unchanged `T` is trimmed to leave `A>G`, which validates),
+  or the prefix analog `CC>CT`
+- **THEN** `resolve` raises a reference-mismatch `ValueError` on the full asserted span,
+  rather than silently laundering the wrong-build base away and applying a different edit
+  against the real reference
 
 #### Scenario: HGVS dup/del states bases from the wrong build
 - **WHEN** an HGVS `dup`/`del`/`delins` states its duplicated/deleted bases and those bases (or their
