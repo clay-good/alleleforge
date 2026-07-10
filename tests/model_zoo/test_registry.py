@@ -133,6 +133,16 @@ def test_checkpoint_requires_pinned_hash(tmp_path: Path) -> None:
         reg.checkpoint("demo", cache_dir=tmp_path, consent=True)
 
 
+def test_cached_unpinned_checkpoint_fails_closed(tmp_path: Path) -> None:
+    # The download path refuses an unpinned checkpoint; the *cached* path must too.
+    # An out-of-band file dropped at the cache path for an unpinned card would
+    # otherwise load unverified — a fail-open bypass of "a pinned hash is required".
+    reg = ModelRegistry({"demo": _card(checkpoint_sha256=None)})
+    (tmp_path / "demo.1.0.ckpt").write_bytes(b"unverifiable-out-of-band-weights")
+    with pytest.raises(ChecksumError, match="unverifiable cached artifact"):
+        reg.checkpoint("demo", cache_dir=tmp_path, use=ModelUse.RESEARCH)
+
+
 def test_checkpoint_downloads_and_verifies(tmp_path: Path) -> None:
     payload = b"weights"
     digest = hashlib.sha256(payload).hexdigest()

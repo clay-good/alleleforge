@@ -268,7 +268,17 @@ class ModelRegistry:
             path.parent.mkdir(parents=True, exist_ok=True)
             (downloader or _default_downloader)(card.source_url, path)
             _verify_sha256(path, card.checkpoint_sha256)
-        elif card.checkpoint_sha256 is not None:
+        elif card.checkpoint_sha256 is None:
+            # A cached but *unpinned* checkpoint must fail closed exactly like the
+            # download path (which refuses to fetch an unverifiable artifact) — an
+            # out-of-band file dropped at the cache path for an unpinned card would
+            # otherwise load unverified, bypassing the "a pinned hash is required to
+            # load" guarantee. Only the pinned+cached case is trusted (after re-hash).
+            raise ChecksumError(
+                f"model {name!r} pins no checkpoint hash; refusing to load an unverifiable "
+                "cached artifact"
+            )
+        else:
             # Hash-on-read: a cached checkpoint is re-verified against its pinned
             # hash on every load, not only when first downloaded, so a tampered or
             # truncated cache entry fails closed rather than being trusted silently.

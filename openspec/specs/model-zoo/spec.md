@@ -46,7 +46,11 @@ licenses (markers `-nc`, `noncommercial`, `research-only`). The default use is r
 "refusing to fetch an unverifiable artifact"), and a `source_url`; downloaded bytes
 SHALL be stream-hashed and rejected on mismatch (`ChecksumError`). It SHALL ALSO verify an
 **already-cached** artifact against its pinned hash on every load, not only on download,
-so a tampered or truncated cache entry cannot pass silently.
+so a tampered or truncated cache entry cannot pass silently. An **unpinned** card
+(`checkpoint_sha256 is None`) SHALL fail closed on **both** paths — a cached file dropped at
+the checkpoint path for an unpinned card SHALL raise `ChecksumError`, exactly like the
+download path, so "a pinned hash is required to load" holds whether or not the file is
+already present.
 
 #### Scenario: No consent
 - **WHEN** an uncached checkpoint is requested without consent
@@ -63,6 +67,10 @@ so a tampered or truncated cache entry cannot pass silently.
 #### Scenario: Tampered cache entry
 - **WHEN** a cached checkpoint's bytes no longer match the pinned `checkpoint_sha256`
 - **THEN** loading it raises `ChecksumError`
+
+#### Scenario: Cached but unpinned artifact
+- **WHEN** a file exists at the checkpoint cache path but the card pins no `checkpoint_sha256`
+- **THEN** loading it raises `ChecksumError` (fail-closed), never returns the unverified file
 
 ### Requirement: One shared gate resolves weights for provenance
 

@@ -10,6 +10,19 @@ acceptance.
 
 ### Fixed
 
+- **A cached-but-unpinned model checkpoint now fails closed, closing a fail-open in the weight-load
+  trust gate.** `ModelRegistry.checkpoint` refuses to *download* an unpinned checkpoint (`ChecksumError`,
+  "refusing to fetch an unverifiable artifact"), but the **cached** branch only re-verified when the
+  card *pinned* a hash (`elif card.checkpoint_sha256 is not None`), so a file already present at the
+  cache path for a card with `checkpoint_sha256 is None` was returned **unverified** — contradicting the
+  method's own docstring ("ChecksumError: If the card pins no hash") and the registry's "a pinned hash
+  is required to load" guarantee. An out-of-band file dropped at the checkpoint path for any unpinned
+  card (all cards but `rule-set-3` are unpinned by design) would load unverified. The cached branch now
+  fails closed on an unpinned card exactly like the download path. Regression test (a cached file for an
+  unpinned card → `ChecksumError`) fails@HEAD → passes; model-zoo spec gains a cached-but-unpinned
+  scenario. Found by a model-zoo gate audit (the sibling of the R16 content-addressed-cache fail-closed
+  fix — a verify gate that only fired on the pinned path).
+
 - **The web API returns 422 for semantically-invalid ranking weights instead of leaking a 500.** The
   `weights` request field is length-validated (exactly 4) at the schema boundary, but the *values* are
   only checked when `RankingWeights` is constructed inside `_design_options` — which `/api/design` and
