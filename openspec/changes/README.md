@@ -571,6 +571,48 @@ patient site. Fresh parallel reconstruction plus a strong CFD/MIT cross-check cl
 diminishing-returns signal that the *scoring math itself* is empirically solid — the remaining defects live at
 the seams (cache keys, contract edges, attribution gaps), not in the formulas.**
 
+## Round 25 — the output/provenance/native seams: viz, provenance, native-kernel parity (1 hardening, 2.5 clean bills)
+
+Three lenses on surfaces this session hadn't touched: the visualization output, the provenance/
+reproducibility contract, and native-vs-Python kernel parity. **No new reachable production defect** —
+a strong diminishing-returns marker (the R6/R13/R19 signal) that these seams are empirically solid.
+The round shipped one proportionate defense-in-depth hardening and re-confirmed the one known-deferred
+item is still contained and already pinned where it lives.
+
+| Change | Capabilities | What was wrong / shipped |
+|--------|--------------|--------------------------|
+| `fix(viz)` validate color attributes | visualization | The SVG renderer rigorously escapes every **text node** (title, labels, series names, rationale — pinned by `test_text_is_escaped`), but `Series.color`/`ReferenceLine.color` are interpolated straight into `fill=`/`stroke=` **attributes**, which the text-node escaper does not cover. A color carrying `"`/`<`/`>` would break out into a `<script>` — the exact R12 injection class, on the one caller-controlled value that reaches an attribute. **Not exploitable today** (every color is a `PALETTE`/`_INK` hex constant; no untrusted→color data flow exists), so this is a latent asymmetry, not a live vuln — but text-is-escaped-while-color-is-trusted is precisely the kind of seam that bites a future caller who wires a theme/user color. **Shipped:** validate `color` to a hex code or bare CSS name at `Series`/`ReferenceLine` construction (a color with markup is never legitimate, so reject rather than escape), with a test mirroring `test_text_is_escaped`. |
+
+**Clean bills (2, plus one re-confirmed deferral):**
+- **native-kernel parity** — differential fuzzed the three native/Python kernel pairs (k-mer seed, haplotype
+  materialize, FM-index count/locate) over **400,000+** randomized cases including the boundaries the suite
+  skips (empty seq, pure-insertion `ref`, seq shorter than seed): **zero result-level divergences** on every
+  reachable (ACGTN-validated) input. The only reachable native-vs-Python difference is the FM-build error
+  *message* text (native reports the first bad byte, Python the full sorted set) — both fail closed with a
+  `ValueError` naming `ACGTN`; cosmetic, would churn the Rust crate to align, deferred. Two further divergences
+  (negative `k`, non-ASCII bytes) are provably unreachable behind the caller's `k>=5` gate and the `^[ACGTN]*$`
+  input validation.
+- **visualization text/HTML escaping** — the R12-class text-injection defense holds end-to-end: `report/html.py`
+  routes every user string through `html.escape(quote=True)` and JSON-neutralizes the Plotly-in-`<script>` path
+  (the documented R12 fix), and `svg.py` escapes every text node. Only the color-attribute asymmetry above was open.
+- **provenance/reproducibility** *(re-confirmed deferral, not a new hit)* — every `Provenance` field round-trips;
+  the benchmark digest/signature and design-menu hash are byte-stable across `PYTHONHASHSEED` variation; the R24
+  cache-key fix is present. The one round-trip asymmetry is the **known, deliberately-deferred**
+  `Prediction.calibrated` gate: a plain (untrusted) reload of a calibrated prediction coerces `calibrated=False`
+  (anti-forgery), and only a trusted-context reload preserves it. This is by design and **already pinned at the
+  Prediction level in both directions** (`test_serialized_output_reports_true_and_round_trips_under_trust`,
+  `test_untrusted_deserialization_cannot_forge_calibration`); the default `af design` pipeline emits no calibrated
+  prediction and the CLI's own reload threads the token. Per the standing judgment that honest deferral beats
+  rushing this load-bearing honesty mechanism, the gate is left untouched.
+
+Yield ...3/2/3/3/1. **Lesson: after the R24 sweep of the compute core, a fresh sweep of the output/provenance/
+native seams turned up no new *reachable* production bug — three empirically-clean surfaces and one latent
+attribute-escaping asymmetry worth closing proactively (text-escaped-but-attribute-trusted is the injection
+class one seam over). The productive signal here is a *negative*: 400k+ differential-fuzz cases with zero
+kernel divergence, byte-stable digests under hash-seed variation, and a re-confirmed-contained deferral are the
+diminishing-returns marker that the seams are sound. When the reachable defects dry up, the honest move is to
+harden the latent asymmetry, pin the deferral where it lives, and say so — not to manufacture a marginal find.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
