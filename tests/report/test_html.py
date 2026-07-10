@@ -35,6 +35,27 @@ def test_html_embeds_interactive_plotly(prime_menu: RankedMenu) -> None:
     assert "Plotly.newPlot" in html
 
 
+def test_offtarget_chart_excludes_unsearched_candidates(ancestry_menu: RankedMenu) -> None:
+    # A candidate that was never off-target-searched (n_offtarget_sites is None) must
+    # NOT appear in the worst-case-by-ancestry chart: plotting it as 0.0 would paint
+    # "risk unknown" as the safest bar and could flip a visual ranking. A searched-but-
+    # clean candidate (n == 0) legitimately plots 0.0 and stays.
+    from alleleforge.report.html import _offtarget_figure
+
+    report = build_report(ancestry_menu)
+    searched = [c for c in report.candidates if c.n_offtarget_sites is not None]
+    assert searched  # the fixture has off-target-searched candidates
+    unsearched = searched[0].model_copy(
+        update={"n_offtarget_sites": None, "offtarget_by_ancestry": ()}
+    )
+    mixed = report.model_copy(update={"candidates": (*report.candidates, unsearched)})
+    fig = _offtarget_figure(mixed)
+    assert fig is not None
+    # One trace per *searched* candidate — the unsearched one contributes none.
+    n_searched = sum(1 for c in mixed.candidates if c.n_offtarget_sites is not None)
+    assert len(fig["data"]) == n_searched
+
+
 def test_html_offtarget_table_is_ancestry_stratified(abe_menu: RankedMenu) -> None:
     report = build_report(abe_menu)
     html = render_html(report)

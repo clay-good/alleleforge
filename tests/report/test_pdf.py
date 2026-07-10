@@ -79,3 +79,10 @@ def test_pdf_leave_behind_carries_oligos_and_prep_note(prime_menu: RankedMenu) -
     assert b"cloning oligos" in pdf
     assert b"spacer top" in pdf and b"ext top" in pdf  # the pegRNA duplexes
     assert b"Phosphorylate the annealed oligos with T4 PNK" in pdf  # the prep note
+
+
+def test_pdf_includes_ranking_rationale(ancestry_menu: RankedMenu) -> None:
+    # The printable leave-behind must carry each candidate's ranking rationale, like
+    # the HTML and JSON surfaces — it explains why a candidate ranks where it does.
+    pdf = render_pdf(build_report(ancestry_menu))
+    assert b"synthetic ancestry fixture" in pdf

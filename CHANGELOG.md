@@ -10,6 +10,21 @@ acceptance.
 
 ### Fixed
 
+- **The off-target chart no longer paints an unsearched candidate as the safest guide, and the PDF no
+  longer drops the ranking rationale.** Two report-fidelity fixes: (1) the HTML "worst-case off-target
+  score by ancestry" figure built a bar trace for every candidate using `by.get(ancestry, 0.0)`, so a
+  candidate that was never off-target-searched (`n_offtarget_sites is None`, no ancestry rows) was
+  plotted as `0.0` in every ancestry — the lowest, best-looking bar — while the text body correctly
+  showed nothing, so the chart could flip a visual ranking toward the least-evidenced guide (the
+  recurring "safety unknown masquerading as safety-clean" class). The trace loop now skips unsearched
+  candidates; a *searched* candidate with zero sites still legitimately plots `0.0`. (2) The PDF
+  renderer never emitted each candidate's `rationale`, though HTML and JSON do and the report spec lists
+  it as a per-candidate field — the printable leave-behind a researcher carries into the lab was missing
+  the explanation of *why* a candidate ranks where it does. Both regression-tested (fail@HEAD → pass);
+  reporting spec gains cross-surface-rationale and unsearched-not-drawn-as-safest scenarios. Found by a
+  report-fidelity audit (which verified rank order, worst-ancestry selection, and efficiency/interval/
+  specificity agreement across HTML/PDF/JSON/TSV correct).
+
 - **The cloning enzyme screen now catches a Type IIS site at the 3' overhang junction too, so a
   cloning-lethal insert can no longer ship clean on the default scheme.** A prior round fixed the screen
   to cover the 5' overhang/insert junction, but it screened only the `top` oligo (`top_overhang +

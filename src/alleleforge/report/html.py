@@ -93,6 +93,12 @@ def _offtarget_figure(report: DesignReport) -> dict[str, Any] | None:
         return None
     traces = []
     for c in report.candidates:
+        # A candidate that was never off-target-searched has no worst-case score;
+        # drawing it as 0.0 would paint "risk unknown" as the safest possible bar and
+        # could flip a visual ranking toward the least-evidenced guide. A *searched*
+        # candidate with no sites (n == 0) legitimately plots 0.0 — only skip None.
+        if c.n_offtarget_sites is None:
+            continue
         by = {r.ancestry: r.worst_score for r in c.offtarget_by_ancestry}
         traces.append(
             {

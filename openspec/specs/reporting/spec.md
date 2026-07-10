@@ -13,11 +13,27 @@ leaving the page.
 
 Every report SHALL lead with the research-use disclaimer and carry, per candidate, the
 reagent summary, calibrated efficiency, top outcome alleles, an ancestry-stratified
-off-target table sorted worst-first, cloning oligos, flags, and rationale.
+off-target table sorted worst-first, cloning oligos, flags, and rationale — on **every**
+human-readable surface (HTML and PDF alike), so the printable leave-behind is not missing a
+field the on-screen report shows. A candidate that was **not** off-target-searched
+(`n_offtarget_sites is None`) SHALL NOT be plotted in the worst-case-by-ancestry figure as a
+`0.0` (best) score — "risk unknown" must never render as "safest," which would flip a visual
+ranking toward the least-evidenced guide; a *searched* candidate with zero sites legitimately
+plots `0.0`.
 
 #### Scenario: Out-of-distribution candidate
 - **WHEN** a candidate is out of distribution
 - **THEN** the HTML and PDF renders annotate it explicitly
+
+#### Scenario: Rationale on every surface
+- **WHEN** a candidate carries a ranking rationale
+- **THEN** it appears on the PDF as well as the HTML and JSON — no human-readable surface
+  silently drops it
+
+#### Scenario: Unsearched candidate not drawn as safest
+- **WHEN** the menu mixes off-target-searched and unsearched candidates
+- **THEN** the ancestry off-target chart plots only the searched ones, so an unsearched
+  candidate is never drawn as a `0.0` best-in-class bar
 
 #### Scenario: No candidates
 - **WHEN** the menu has no candidates

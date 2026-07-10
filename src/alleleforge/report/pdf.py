@@ -104,6 +104,10 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
         lines += _oligo_lines(c.oligos)
     elif c.oligos_requested:
         lines += _wrap("cloning oligos: none required (no synthesized reagent)", indent="    ")
+    if c.rationale:
+        # The printable leave-behind must carry the ranking rationale too — HTML and
+        # JSON render it, and it explains *why* the candidate ranks where it does.
+        lines += _wrap(c.rationale, indent="    ")
     lines.append("")
     return lines
 
