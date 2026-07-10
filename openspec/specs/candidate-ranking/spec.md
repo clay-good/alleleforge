@@ -60,11 +60,14 @@ the order is sorted on.
 
 The safety objective SHALL use the worst-affected ancestry off-target score, never the
 average, with a deterministic tie-break, so a guide dangerous in a single ancestry is
-penalized rather than averaged out. A site **certain** in the evaluated genome — a
-reference site or a patient site (carried by this individual, so with no ancestry
-frequency) — SHALL contribute to the worst case of every ancestry, so a dangerous patient
-off-target is never masked on the safety axis by a benign ancestry-tagged site; the safety
-score therefore never understates the genome-wide worst off-target.
+penalized rather than averaged out. A site whose per-ancestry attribution is **not
+available** — a reference site, a patient site (carried by this individual, so with no
+ancestry frequency), **or** a population site with a known frequency but an empty
+per-ancestry breakdown (carried at some frequency, but the stratum is unknown) — SHALL
+contribute to the worst case of every ancestry, so a dangerous off-target is never masked
+on the safety axis by a benign ancestry-tagged site; the safety score therefore never
+understates the genome-wide worst off-target, and the per-ancestry view stays consistent
+with the frequency-weighted `expected_burden`, which counts such a site as a real hit.
 
 #### Scenario: Single-ancestry danger
 - **WHEN** a guide is dangerous only in one ancestry
@@ -75,6 +78,12 @@ score therefore never understates the genome-wide worst off-target.
   ancestry-tagged population site
 - **THEN** the safety score reflects the patient off-target, not the benign ancestry site,
   and adding the benign site does not raise safety
+
+#### Scenario: Unattributed population off-target with a benign ancestry-tagged site
+- **WHEN** a report carries a dangerous population off-target with a known frequency but no
+  per-ancestry breakdown, alongside a lower-scoring ancestry-tagged population site
+- **THEN** the safety score reflects the dangerous unattributed site (it floors every
+  stratum), not the benign ancestry site, so adding the benign site does not raise safety
 
 ### Requirement: Ordering is total, deterministic, and Pareto-aware
 

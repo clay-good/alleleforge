@@ -226,6 +226,38 @@ def test_patient_site_floors_every_ancestry_stratum() -> None:
     assert rep.worst_ancestry()[1] == pytest.approx(rep.worst_score())
 
 
+def test_population_site_without_ancestry_breakdown_floors_every_stratum() -> None:
+    # A population site with a KNOWN frequency but an EMPTY per-ancestry breakdown
+    # (a report built from a source giving only a global AF) is neither reference
+    # nor patient, yet its ancestry attribution is unknown. It must still contribute
+    # to every stratum's worst case — exactly as expected_burden already counts it —
+    # or it vanishes from the stratified view while a benign ancestry-tagged site
+    # makes worst_ancestry non-None, understating the genome-wide worst on the
+    # ranking safety axis (the R24 sibling of the R11 patient-masking fix).
+    dangerous = OffTargetSite(
+        locus=_locus(100, 120),
+        mismatches=1,
+        score=0.9,
+        score_method=ScoreMethod.CFD,
+        origin=SiteOrigin.POPULATION,
+        causal_allele="chr2:110:A>G",
+        frequency=0.9,
+        ancestries={},  # global AF known, per-ancestry breakdown absent
+    )
+    rep = OffTargetReport(
+        spacer="A" * 20,
+        pam="NGG",
+        sites=(dangerous, _pop_site(0.2, "AFR", 0.5)),
+    )
+    strata = rep.ancestry_stratification()
+    assert strata["AFR"] == pytest.approx(0.9)  # the unattributed 0.9 hit floors AFR
+    assert rep.worst_ancestry() == ("AFR", pytest.approx(0.9))
+    # The stratified worst equals the global worst and matches expected_burden's
+    # accounting: adding a benign ancestry-tagged site cannot lower the safety axis.
+    assert rep.worst_ancestry()[1] == pytest.approx(rep.worst_score())
+    assert rep.expected_burden() == pytest.approx(0.9 * 0.9 + 0.2 * 0.5)
+
+
 def test_ancestry_stratification_is_deterministically_ordered() -> None:
     # The strata mapping must come out in sorted-key order, and a worst-case tie
     # must resolve to the alphabetically-first ancestry, so the serialized report

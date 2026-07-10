@@ -202,15 +202,18 @@ class OffTargetReport(BaseModel):
         """Return the worst-case off-target score per ancestry.
 
         For each ancestry mentioned by any site, reports the maximum site score
-        among sites that affect it. A site **certain** in the evaluated genome —
-        a reference site (present in every genome) or a patient site (carried by
-        this individual, so no ancestry frequency; ``frequency is None``) —
-        contributes to *every* ancestry, exactly as :meth:`expected_burden`
-        weights it 1.0; a population/haplotype site contributes only to the
-        ancestries it carries a non-zero frequency in. Were the certain-site case
-        limited to reference only, a dangerous patient off-target (absent from
-        every stratum) would be invisible to :meth:`worst_ancestry` and so to the
-        ranking safety axis, letting a benign ancestry-tagged site mask it.
+        among sites that affect it. A site whose attribution to a specific ancestry
+        is **not** available contributes to *every* ancestry, exactly as
+        :meth:`expected_burden` still counts it: a reference site (present in every
+        genome), a patient site (carried by this individual, so no ancestry
+        frequency; ``frequency is None``), **and** a population/haplotype site with a
+        known frequency but an empty per-ancestry breakdown (``ancestries`` empty —
+        we know it is carried but not in which stratum, so worst-case it is all of
+        them). A population site *with* a breakdown contributes only to the
+        ancestries it carries a non-zero frequency in. Were an unattributed site
+        instead dropped from every stratum, a dangerous off-target would be invisible
+        to :meth:`worst_ancestry` and so to the ranking safety axis, letting a benign
+        ancestry-tagged site mask it — understating the genome-wide worst case.
         Ancestries are emitted in sorted order so the returned mapping — and
         anything that serializes it — is byte-stable across runs (a bare ``set``
         iteration would vary with the process hash seed).
@@ -222,7 +225,12 @@ class OffTargetReport(BaseModel):
         for ancestry in sorted(ancestries):
             best = 0.0
             for site in self.sites:
-                if site.origin is SiteOrigin.REFERENCE or site.frequency is None:
+                unattributed = (
+                    site.origin is SiteOrigin.REFERENCE
+                    or site.frequency is None
+                    or not site.ancestries
+                )
+                if unattributed:
                     best = max(best, site.score)
                 elif site.ancestries.get(ancestry, 0.0) > 0.0:
                     best = max(best, site.score)
