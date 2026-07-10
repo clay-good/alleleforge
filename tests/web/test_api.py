@@ -128,6 +128,21 @@ async def test_design_valid_weights(client: httpx.AsyncClient) -> None:
     assert res.json()["candidates"]
 
 
+@pytest.mark.parametrize("weights", [[-1.0, 0.5, 0.5, 0.5], [0.0, 0.0, 0.0, 0.0]])
+async def test_design_invalid_weight_values_are_422(
+    client: httpx.AsyncClient, weights: list[float]
+) -> None:
+    # Well-typed but semantically invalid weights (negative / all-zero) are a bad
+    # request, not a server fault: RankingWeights rejects them and the endpoint must
+    # map that to 422, never leak a 500.
+    res = await client.post("/api/design", json={**DESIGN_BODY, "weights": weights})
+    assert res.status_code == 422
+    batch = await client.post(
+        "/api/batch", json={"variants": ["chr2:71:A>C"], "intent": "install", "weights": weights}
+    )
+    assert batch.status_code == 422
+
+
 async def test_design_unknown_chemistry_is_422(client: httpx.AsyncClient) -> None:
     body = {**DESIGN_BODY, "chemistries": ["telepathy"]}
     res = await client.post("/api/design", json=body)

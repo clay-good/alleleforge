@@ -31,11 +31,19 @@ reference is configured.
 
 Numeric request fields SHALL be bounded at the schema boundary: mismatches 0–8, bulges
 0–4, thresholds and MAF 0–1, max-per-chemistry at least 1, weights of length exactly 4,
-and a non-empty variant list.
+and a non-empty variant list. A well-typed but semantically-invalid weights vector (a
+negative, all-zero, or non-finite component that the length check cannot catch) SHALL map to
+`422` — a bad request — not leak a `500`: the endpoint catches the `RankingWeights`
+validation error and returns 422 rather than a server fault.
 
 #### Scenario: Wrong weights length
 - **WHEN** a request supplies a weights list whose length is not 4
 - **THEN** it is rejected at the boundary with 422 before any compute
+
+#### Scenario: Invalid weight values
+- **WHEN** a `/api/design` or `/api/batch` request supplies four weights that are negative,
+  all-zero, or non-finite
+- **THEN** the service returns `422` (a bad request), never a `500`
 
 ### Requirement: String and list request fields are size-capped
 

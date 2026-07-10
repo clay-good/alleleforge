@@ -117,7 +117,10 @@ def _design_options(
     weights = DEFAULT_WEIGHTS
     if weights_in is not None:
         e, c, s, p = weights_in
-        weights = RankingWeights(efficiency=e, cleanliness=c, safety=s, simplicity=p)
+        try:
+            weights = RankingWeights(efficiency=e, cleanliness=c, safety=s, simplicity=p)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=f"invalid ranking weights: {exc}") from exc
     return intent, chemistries, weights
 
 

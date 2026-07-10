@@ -10,6 +10,17 @@ acceptance.
 
 ### Fixed
 
+- **The web API returns 422 for semantically-invalid ranking weights instead of leaking a 500.** The
+  `weights` request field is length-validated (exactly 4) at the schema boundary, but the *values* are
+  only checked when `RankingWeights` is constructed inside `_design_options` — which `/api/design` and
+  `/api/batch` both call without catching the `ValueError` it raises for a negative, all-zero, or
+  non-finite weight. So a well-typed but invalid weights vector (e.g. `[-1, 0.5, 0.5, 0.5]` or
+  `[0,0,0,0]`) surfaced as an unhandled 500 server fault rather than a 422 bad request. This is the web
+  sibling of the CLI `--weights` hardening — the CLI mapped it to a usage error, the web path did not.
+  `_design_options` now catches the validation error and raises `HTTPException(422)`. Regression test
+  (negative and all-zero weights → 422 on both endpoints) fails@HEAD → passes; web-api spec gains an
+  invalid-weight-values scenario. Found by a web-API lifecycle audit.
+
 - **The global `--cache-dir` flag now actually redirects the cache, instead of being silently ignored.**
   `--cache-dir` was declared and stored on the CLI's global state but read nowhere: `design`/`batch`
   forwarded only the seed into `Settings.load(...)`, and the cache root is consumed process-wide via the
