@@ -81,7 +81,7 @@ dev = [
     # formatting evolves across releases, so an unbounded range silently turns the
     # lint job red when CI installs a newer ruff than the tree was formatted with.
     # Bump this deliberately (and reformat in the same commit).
-    "ruff==0.15.15",
+    "ruff==0.15.21",
     "mypy>=1.10",
     "pytest>=8.1",
     "pytest-cov>=5.0",
