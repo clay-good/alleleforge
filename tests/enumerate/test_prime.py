@@ -165,10 +165,19 @@ def test_correct_intent_rtt_encodes_reference(make_reference: MakeRef) -> None:
         assert str(plus.spacer.sequence)[70 - proto_start] == alt
 
 
-def test_non_single_position_edit_empty(make_reference: MakeRef) -> None:
+def test_multi_base_edit_enumerates(make_reference: MakeRef) -> None:
+    # The variable-length RTT path templates a deletion as readily as an SNV.
     ref = make_reference({"chr2": _context()})
-    rv = resolve("chr2:71:ATA>A", reference=ref)  # a deletion (not single-position)
-    assert enumerate_prime(rv, EditIntent.CORRECT, reference=ref) == []
+    rv = resolve("chr2:71:ATA>A", reference=ref)
+    assert enumerate_prime(rv, EditIntent.CORRECT, reference=ref)
+
+
+def test_untemplatable_allele_empty(make_reference: MakeRef) -> None:
+    # No RTT in range can carry a 40-nt insertion plus its 3' homology, so the
+    # enumerator declines rather than emitting a truncated template.
+    ref = make_reference({"chr2": _context()})
+    rv = resolve("chr2:71:A>" + "A" + "CGTA" * 10, reference=ref)
+    assert enumerate_prime(rv, EditIntent.INSTALL, reference=ref) == []
 
 
 def test_empty_pbs_lengths_returns_empty_not_crash(make_reference: MakeRef) -> None:

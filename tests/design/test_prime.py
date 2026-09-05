@@ -171,10 +171,18 @@ def test_unknown_chromatin_track_fails_closed(make_reference: MakeRef) -> None:
         )
 
 
-def test_non_editable_variant_empty(make_reference: MakeRef) -> None:
+def test_multi_base_edit_designs(make_reference: MakeRef) -> None:
+    # A deletion is a prime edit; the design vertical carries it end to end.
     ref = make_reference({"chr2": _context()})
-    rv = resolve("chr2:71:ATA>A", reference=ref)  # not a single-position edit
-    assert design_prime(rv, EditIntent.CORRECT, reference=ref) == []
+    rv = resolve("chr2:71:ATA>A", reference=ref)
+    assert design_prime(rv, EditIntent.CORRECT, reference=ref, run_offtarget=False)
+
+
+def test_non_editable_variant_empty(make_reference: MakeRef) -> None:
+    # A 40-nt insertion exceeds what any in-range RTT can template.
+    ref = make_reference({"chr2": _context()})
+    rv = resolve("chr2:71:A>" + "A" + "CGTA" * 10, reference=ref)
+    assert design_prime(rv, EditIntent.INSTALL, reference=ref) == []
 
 
 def test_pol3_gc_and_5prime_g_annotated(make_reference: MakeRef) -> None:

@@ -14,18 +14,34 @@ nicking guide** (preferring a seed-disrupting PE3b ngRNA, which nicks only the
 edited strand and so reduces indels). Both strands are handled by enumerating in
 a reverse-complemented frame for minus-strand pegRNAs.
 
+The RTT is templated at **variable length**, so the full prime-editing repertoire
+is enumerated: substitutions (SNV/MNV), short insertions, short deletions, and
+delins. The RT template always reads *5' homology (nick to edit) + the desired
+allele + 3' homology*, so a deletion simply omits the removed bases (its span
+costs no RTT length) while an insertion pays for every templated base. The
+practical limits follow from :data:`~alleleforge.types.guide.RTT_RANGE`:
+:data:`PRIME_MAX_TEMPLATED_EDIT` bounds the allele the RTT must *write*, and
+:data:`PRIME_MAX_EDIT` bounds the reference span it may replace.
+
+Enumeration runs over the **start genome** — the reference window with the allele
+the target genome actually carries substituted in — whose coordinates drift from
+the reference downstream of a length-changing edit. :class:`_Frame` owns that
+mapping so every emitted placement is a truthful *reference* interval.
+
 The design layer (:mod:`alleleforge.design.prime`) scores efficiency / outcome
 and runs the off-target engine on both nicks.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
+from dataclasses import dataclass
 
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.edit import EditIntent
 from alleleforge.types.guide import (
     DEFAULT_SPACER_LENGTH,
+    MIN_RTT_3PRIME_HOMOLOGY,
     PAM,
     PBS_RANGE,
     RTT_RANGE,
@@ -49,11 +65,18 @@ NGG_PAM = PAM(pattern="NGG")
 #: PE3 nicking-guide optimal nick-to-nick offset range (nt, opposite strand).
 DEFAULT_PE3_OFFSET = (40, 90)
 
+#: Longest reference span (bp) a pegRNA may replace or delete. Beyond this the
+#: edit is better served by nuclease-plus-HDR or a larger tool. A deleted span
+#: costs no RT template, so this bound is independent of the RTT budget.
+PRIME_MAX_EDIT = 44
+
+#: Longest allele (bp) an RTT can *template*. The RT template must carry the
+#: whole desired allele plus the minimum 3' homology inside ``RTT_RANGE``, so an
+#: insertion or replacement longer than this cannot be written at any nick.
+PRIME_MAX_TEMPLATED_EDIT = RTT_RANGE[1] - MIN_RTT_3PRIME_HOMOLOGY
+
 #: The ngRNA seed length (PAM-proximal nt) used to classify PE3b.
 _SEED_LENGTH = 10
-
-#: Maps a frame-local ``(lo, hi, frame_strand)`` to a genomic interval.
-_Placer = Callable[[int, int, Strand], GenomicInterval]
 
 
 def _rc(seq: str) -> str:
@@ -69,6 +92,67 @@ def _required_alleles(resolved: ResolvedVariant, intent: EditIntent) -> tuple[st
     return var.ref, var.alt  # install the alternate allele
 
 
+@dataclass(frozen=True)
+class _Frame:
+    """Maps enumeration-frame coordinates back onto reference loci.
+
+    Enumeration runs over the *start* genome (the reference window carrying the
+    start allele), whose coordinates shift by ``start_len - ref_len`` downstream
+    of the edit. This frame maps a start-genome span to the **reference
+    footprint** its bases derive from: a span that does not cross the edit maps
+    exactly (the common case — a 20 nt protospacer nicking 5' of a small edit),
+    and one that does maps to the reference interval it was read from, which is
+    wider for a deletion and narrower for an insertion. That is the honest
+    answer; the alternative (pretending the span keeps its own length) would
+    report a locus the bases do not come from.
+
+    Attributes:
+        chrom: Contig of the fetched window.
+        offset: Genomic start of the fetched reference window.
+        edit_plus: Plus-frame index where the edit span begins.
+        start_len: Length of the carried (start) allele.
+        ref_len: Length of the reference span that allele replaces.
+        span: Length of the start-genome string this frame indexes.
+        reverse: ``True`` when the frame is the reverse complement of the plus frame.
+    """
+
+    chrom: str
+    offset: int
+    edit_plus: int
+    start_len: int
+    ref_len: int
+    span: int
+    reverse: bool
+
+    def _reference(self, index: int) -> int:
+        """Return the reference coordinate of plus-frame index ``index``."""
+        if index <= self.edit_plus:
+            return self.offset + index
+        if index >= self.edit_plus + self.start_len:
+            return self.offset + index - self.start_len + self.ref_len
+        # Inside the carried allele: walk the reference span it replaces, then
+        # stay pinned at its 3' boundary once the allele outruns it.
+        return self.offset + self.edit_plus + min(index - self.edit_plus, self.ref_len)
+
+    def interval(self, lo: int, hi: int, strand: Strand) -> GenomicInterval | None:
+        """Return the reference footprint of frame span ``[lo, hi)``.
+
+        Returns ``None`` when the footprint is zero-width — the span lies wholly
+        inside inserted bases the reference does not contain, so it has no
+        reference locus to report (an unplaced reagent, not an invalid one).
+        """
+        lo_plus, hi_plus = (self.span - hi, self.span - lo) if self.reverse else (lo, hi)
+        start, end = self._reference(lo_plus), self._reference(hi_plus)
+        if end <= start:
+            return None
+        out_strand = strand.opposite() if self.reverse else strand
+        return GenomicInterval(chrom=self.chrom, start=start, end=end, strand=out_strand)
+
+    def coord(self, index: int) -> int:
+        """Return the reference coordinate of frame position ``index``."""
+        return self._reference(self.span - 1 - index if self.reverse else index)
+
+
 def _select_nicking_guide(
     start: str,
     edited: str,
@@ -78,7 +162,7 @@ def _select_nicking_guide(
     pam: PAM,
     spacer_length: int,
     cut_offset: int,
-    place: _Placer,
+    frame: _Frame,
     pegrna_nick_genomic: int,
     pe3_offset: tuple[int, int],
 ) -> NickingGuide | None:
@@ -102,8 +186,10 @@ def _select_nicking_guide(
             continue
         nick_local = proto_lo + cut_offset  # nick on the opposite strand (frame coords)
         offset = nick_local - pegrna_nick_local
-        placement = place(proto_lo, proto_hi, Strand.MINUS)
-        nick_genomic = place(nick_local, nick_local + 1, Strand.MINUS).start
+        placement = frame.interval(proto_lo, proto_hi, Strand.MINUS)
+        if placement is None:
+            continue  # no reference locus for this protospacer; cannot be placed
+        nick_genomic = frame.coord(nick_local)
         # The ngRNA protospacer reads on the minus strand, so its PAM-proximal end
         # (where the Cas9 seed lives) is the LOW genomic boundary ``proto_lo``,
         # adjacent to the PAM at ``[k, k+pam_len)``. The seed is therefore the
@@ -111,10 +197,20 @@ def _select_nicking_guide(
         # ``edit_local - proto_lo < _SEED_LENGTH``. Measuring from ``proto_hi`` (the
         # PAM-distal 5' end) mislabels a genuine PE3b as plain PE3 and falsely
         # promotes a PAM-distal edit to PE3b.
+        #
+        # ``proto_lo <= edit_local`` also keeps the ngRNA's PAM and seed inside the
+        # prefix ``start`` and ``edited`` share, so the *same* index addresses the
+        # same locus in both — the precondition for templating the PE3b spacer from
+        # ``edited`` at all. Past the edit a length-changing variant shifts the two
+        # strings apart, and the comparison below would read misaligned windows.
+        # Disruption is then decided by comparing the seed windows themselves
+        # rather than a single base, which is what an indel actually changes.
         seed_disrupting = (
-            proto_lo <= edit_local < proto_hi
-            and (edit_local - proto_lo) < _SEED_LENGTH
-            and start[edit_local] != edited[edit_local]
+            proto_lo <= edit_local
+            and edit_local - proto_lo < _SEED_LENGTH
+            and proto_hi <= len(edited)
+            and start[proto_lo : proto_lo + _SEED_LENGTH]
+            != edited[proto_lo : proto_lo + _SEED_LENGTH]
         )
         # A PE3b ngRNA must match the *edited* strand so its seed base-pairs only
         # after the edit is installed — that temporal separation (it mismatches the
@@ -143,6 +239,7 @@ def _enumerate_frame(
     edited: str,
     *,
     edit_local: int,
+    edit_len: int,
     spacer_length: int,
     cut_offset: int,
     pam: PAM,
@@ -151,12 +248,17 @@ def _enumerate_frame(
     motif: ThreePrimeMotif,
     pe3: bool,
     pe3_offset: tuple[int, int],
-    place: _Placer,
+    frame: _Frame,
     frame_strand: Strand,
 ) -> list[PegRNA]:
-    """Enumerate frame-plus pegRNAs (the strand whose protospacer is ``start``)."""
+    """Enumerate frame-plus pegRNAs (the strand whose protospacer is ``start``).
+
+    ``edit_local`` is the index at which the edit begins — the same index in
+    ``start`` and ``edited``, which share that prefix — and ``edit_len`` is the
+    length of the **desired** allele, i.e. how many bases the RTT must write
+    there (0 for a pure deletion).
+    """
     pam_len = len(pam.pattern)
-    edit_len = 1  # SNV / single-position edit on the (equal-length) templates
     out: list[PegRNA] = []
     for k in range(spacer_length, len(start) - pam_len + 1):
         if "N" in start[k : k + pam_len] or not pam.matches(start[k : k + pam_len]):
@@ -170,8 +272,8 @@ def _enumerate_frame(
         distance = edit_local - nick_local  # edit must be 3' of the nick (>= 0)
         if distance < 0:
             continue
-        placement = place(k - spacer_length, k, frame_strand)
-        nick_genomic = place(nick_local, nick_local + 1, frame_strand).start
+        placement = frame.interval(k - spacer_length, k, frame_strand)
+        nick_genomic = frame.coord(nick_local)
         nicking = (
             _select_nicking_guide(
                 start,
@@ -181,7 +283,7 @@ def _enumerate_frame(
                 pam=pam,
                 spacer_length=spacer_length,
                 cut_offset=cut_offset,
-                place=place,
+                frame=frame,
                 pegrna_nick_genomic=nick_genomic,
                 pe3_offset=pe3_offset,
             )
@@ -239,8 +341,11 @@ def enumerate_prime(
 ) -> list[PegRNA]:
     """Enumerate pegRNAs that install a variant's edit (both strands).
 
+    Handles the full small-edit repertoire — substitution, MNV, insertion,
+    deletion, and delins — by templating a variable-length RTT.
+
     Args:
-        resolved: The resolved variant (SNV / single-position edit).
+        resolved: The resolved variant to install or correct.
         intent: What the edit must accomplish (sets start/desired alleles).
         reference: The reference genome.
         pam: The pegRNA PAM (default ``NGG``).
@@ -255,17 +360,25 @@ def enumerate_prime(
     Returns:
         Validated :class:`PegRNA`s (with placement, nick site, and an attached
         nicking guide), sorted by nick site then PBS then RTT length. Empty when
-        the variant is not a single-position edit.
+        the edit is a no-op, replaces more than :data:`PRIME_MAX_EDIT` reference
+        bases, or must template more than :data:`PRIME_MAX_TEMPLATED_EDIT` bases
+        (no RTT inside ``RTT_RANGE`` can carry it plus its 3' homology).
     """
     var = resolved.variant
-    if len(var.ref) != 1 or len(var.alt) != 1:
-        return []  # the equal-length template path supports single-position edits
     start_allele, desired_allele = _required_alleles(resolved, intent)
+    if start_allele == desired_allele:
+        return []  # nothing to write
+    if len(var.ref) > PRIME_MAX_EDIT or len(var.alt) > PRIME_MAX_EDIT:
+        return []  # beyond the practical prime-editing span
+    if len(desired_allele) > PRIME_MAX_TEMPLATED_EDIT:
+        return []  # no RTT in range can template the desired allele + 3' homology
+    ref_len = len(var.ref)
     margin = (
         spacer_length
         + len(pam.pattern)
-        + max(rtt_homologies, default=5)
+        + RTT_RANGE[1]
         + max(pbs_lengths, default=PBS_RANGE[1])
+        + max(ref_len, len(start_allele), len(desired_allele))
     )
     region = GenomicInterval(
         chrom=var.chrom,
@@ -276,24 +389,40 @@ def enumerate_prime(
     fetched = reference.fetch_result(region)
     plus = str(fetched.sequence)
     rel = var.pos - region.start
-    start_plus = plus[:rel] + start_allele + plus[rel + 1 :]
-    edited_plus = plus[:rel] + desired_allele + plus[rel + 1 :]
-    n = len(plus)
+    prefix, suffix = plus[:rel], plus[rel + ref_len :]
+    start_plus = prefix + start_allele + suffix
+    edited_plus = prefix + desired_allele + suffix
     offset = region.start
 
-    def place_plus(lo: int, hi: int, strand: Strand) -> GenomicInterval:
-        return GenomicInterval(chrom=var.chrom, start=offset + lo, end=offset + hi, strand=strand)
+    plus_frame = _Frame(
+        chrom=var.chrom,
+        offset=offset,
+        edit_plus=rel,
+        start_len=len(start_allele),
+        ref_len=ref_len,
+        span=len(start_plus),
+        reverse=False,
+    )
+    minus_frame = _Frame(
+        chrom=var.chrom,
+        offset=offset,
+        edit_plus=rel,
+        start_len=len(start_allele),
+        ref_len=ref_len,
+        span=len(start_plus),
+        reverse=True,
+    )
+    # In the reverse-complemented frame the shared *suffix* becomes the shared
+    # prefix, so the edit begins that many bases in — the one index that addresses
+    # the edit identically in both the start and edited strings of that frame.
+    minus_edit_local = len(suffix)
 
-    def place_minus(lo: int, hi: int, strand: Strand) -> GenomicInterval:
-        return GenomicInterval(
-            chrom=var.chrom, start=offset + n - hi, end=offset + n - lo, strand=strand.opposite()
-        )
-
-    def run(start: str, edited: str, edit_local: int, place: _Placer) -> list[PegRNA]:
+    def run(start: str, edited: str, edit_local: int, frame: _Frame) -> list[PegRNA]:
         return _enumerate_frame(
             start,
             edited,
             edit_local=edit_local,
+            edit_len=len(desired_allele),
             spacer_length=spacer_length,
             cut_offset=cut_offset,
             pam=pam,
@@ -302,11 +431,11 @@ def enumerate_prime(
             motif=motif,
             pe3=pe3,
             pe3_offset=pe3_offset,
-            place=place,
+            frame=frame,
             frame_strand=Strand.PLUS,
         )
 
-    results = run(start_plus, edited_plus, rel, place_plus)
-    results += run(_rc(start_plus), _rc(edited_plus), n - 1 - rel, place_minus)
+    results = run(start_plus, edited_plus, rel, plus_frame)
+    results += run(_rc(start_plus), _rc(edited_plus), minus_edit_local, minus_frame)
     results.sort(key=lambda p: (p.nick_site or 0, len(p.pbs), len(p.rtt)))
     return results

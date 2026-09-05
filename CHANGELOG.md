@@ -8,6 +8,40 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **Prime editing now designs the whole small-edit repertoire — insertions, deletions, MNVs, and delins,
+  not just single-base substitutions.** `enumerate_prime` templated an equal-length edit only and returned
+  `[]` for everything else, and routing (correctly) declined those classes rather than under-deliver the
+  flagship silently. Most of the monogenic disease prime editing exists for is an indel — the CFTR ΔF508
+  3 bp deletion is the textbook case — so the flagship chemistry could not design a reagent for any of them.
+  The RT template is now **variable-length**: *5' homology (nick → edit) + the whole desired allele + 3'
+  homology*. A deleted span therefore costs no template length (a 44 bp deletion is as cheap to write as a
+  1 bp one) while a written one costs a base each. Three knock-on contracts came with it:
+  - **A second budget, mirrored in routing.** `PRIME_MAX_EDIT` (44 bp) still bounds the reference span an
+    edit may replace; the new `PRIME_MAX_TEMPLATED_EDIT` (29 bp = the `RTT_RANGE` ceiling less the minimum
+    3' homology) bounds the allele the RTT must *write*. `_prime_eligible` checks the **intent-specific**
+    desired allele against it, so routing still never advertises an edit enumeration cannot produce — an
+    over-long insertion is declined for `INSTALL` while `CORRECT` on the same variant (which writes one
+    reference base back) stays eligible.
+  - **Placements are reference footprints.** Enumeration runs over the genome the target actually carries,
+    whose coordinates drift from the reference past a length-changing edit. A new `_Frame` maps every
+    emitted span to the reference footprint its bases derive from — exact when it does not cross the edit,
+    wider across a deletion, narrower across an insertion — and reports **no placement** for a protospacer
+    lying wholly inside carried bases the reference does not contain, rather than naming a locus the
+    reagent does not occupy. A nicking guide with no reference locus is dropped, not invented.
+  - **PE3b classification survives an indel.** Seed disruption is decided by comparing the ngRNA's seed
+    *window* in the start and edited genomes (a single-base comparison is meaningless once lengths differ)
+    and is confined to the prefix the two genomes share — past a length-changing edit the two strings shift
+    apart and the old single-index test would read misaligned windows.
+
+  Verified metamorphically rather than by example: a new suite fetches every emitted pegRNA back and proves,
+  with an oracle that shares no arithmetic with the enumerator, that its reverse-transcribed product is a
+  unique locus of the edited genome, that its PBS anneals at that same locus in the start genome, that its
+  protospacer reads off the start genome behind a real NGG PAM, and that the template spans the edit with
+  the minimum 3' homology — across six edit classes, both intents, and both strands. The canonical
+  reproducibility golden is unchanged (an SNV run; the SNV path is byte-identical).
+
 ### Fixed
 
 - **The prime enumerator no longer emits a pegRNA whose RT template spans an assembly-gap `N`.** The cas9

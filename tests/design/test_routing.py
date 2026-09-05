@@ -45,17 +45,32 @@ def test_knock_out_routes_to_nuclease_only() -> None:
     assert elig == [Chemistry.CAS9_NUCLEASE]
 
 
-def test_small_deletion_not_routed_to_prime_until_enumerable() -> None:
-    # An indel is biologically a prime edit, but enumeration templates SNVs only,
-    # so routing must not advertise prime for it (that would silently under-deliver
-    # the flagship). No chemistry is eligible, and prime's decision states why.
+def test_small_indel_routes_to_prime_only() -> None:
+    # An indel is a prime edit and the variable-length RTT path enumerates it, so
+    # routing advertises prime — and only prime: a base editor cannot make an
+    # indel, and disruption is the nuclease's job.
     rv = _rv("ACGT", "A")
     elig = eligible_chemistries(rv, EditIntent.CORRECT)
-    assert Chemistry.PRIME not in elig
-    assert elig == []  # not a base-editable SNV, not a knock-out, not yet enumerable by prime
+    assert elig == [Chemistry.PRIME]
     prime = next(d for d in route(rv, EditIntent.CORRECT) if d.chemistry is Chemistry.PRIME)
-    assert prime.eligible is False
-    assert "SNV" in prime.rationale and "not yet enumerated" in prime.rationale
+    assert prime.eligible is True
+    assert "insertion, deletion" in prime.rationale
+
+
+def test_insertion_and_delins_route_to_prime() -> None:
+    for ref, alt in (("A", "AGGCT"), ("ACGT", "TT"), ("ACG", "TTA"), ("", "GGC"), ("ACG", "")):
+        elig = eligible_chemistries(_rv(ref, alt), EditIntent.INSTALL)
+        assert elig == [Chemistry.PRIME], f"{ref}>{alt}"
+
+
+def test_untemplatable_allele_excludes_prime() -> None:
+    # The RTT must carry the whole written allele plus its 3' homology inside
+    # RTT_RANGE. A 40-nt insertion fits PRIME_MAX_EDIT but no RT template, so
+    # routing must not advertise what enumeration cannot produce.
+    rv = _rv("A", "A" + "CGTA" * 10)
+    assert Chemistry.PRIME not in eligible_chemistries(rv, EditIntent.INSTALL)
+    # Correcting the same variant only writes the single reference base back.
+    assert Chemistry.PRIME in eligible_chemistries(rv, EditIntent.CORRECT)
 
 
 def test_large_edit_excludes_prime() -> None:

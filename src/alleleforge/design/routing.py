@@ -28,13 +28,20 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from alleleforge.enumerate.base_editor import BASE_EDITORS
+from alleleforge.enumerate.prime import PRIME_MAX_EDIT, PRIME_MAX_TEMPLATED_EDIT
 from alleleforge.types.edit import Chemistry, EditIntent
 from alleleforge.types.variant import VariantClass
 from alleleforge.variant.resolver import ResolvedVariant
 
-#: Practical upper bound (bp) on an edit prime editing can template in an RTT.
-#: Beyond this the edit is better served by nuclease-plus-HDR or a larger tool.
-PRIME_MAX_EDIT = 44
+__all__ = [
+    "PRIME_MAX_EDIT",
+    "PRIME_MAX_TEMPLATED_EDIT",
+    "ROUTING_RULES",
+    "ChemistryDecision",
+    "RoutingRule",
+    "eligible_chemistries",
+    "route",
+]
 
 
 def _required_change(resolved: ResolvedVariant, intent: EditIntent) -> tuple[str, str]:
@@ -68,23 +75,39 @@ def _base_eligible(resolved: ResolvedVariant, intent: EditIntent, chemistry: Che
     )
 
 
+#: The edit classes the variable-length RTT path can template.
+_PRIME_CLASSES = frozenset(
+    {
+        VariantClass.SNV,
+        VariantClass.MNV,
+        VariantClass.INSERTION,
+        VariantClass.DELETION,
+        VariantClass.INDEL,
+    }
+)
+
+
 def _prime_eligible(resolved: ResolvedVariant, intent: EditIntent) -> bool:
     """Prime editing handles a precise small edit that enumeration can produce.
 
-    Prime editing is biologically capable of substitutions, short insertions, and
-    short deletions, but the enumeration layer currently templates only a
-    single-base substitution (SNV) — an indel or MNV would need the variable-length
-    RTT path that is not yet built. Routing must not advertise prime for an edit
-    class enumeration cannot produce (that surfaces only as a generic "no candidate"
-    note and silently under-delivers the flagship), so eligibility is gated on the
-    SNV feasibility check here. Widen it when the variable-length RTT path lands.
+    The enumerator templates a variable-length RTT, so the whole small-edit
+    repertoire — substitution, MNV, insertion, deletion, delins — is reachable.
+    Routing must not advertise prime for an edit enumeration cannot produce (that
+    surfaces only as a generic "no candidate" note and silently under-delivers the
+    flagship), so the two RTT budgets that actually bind are mirrored here: the
+    reference span the edit replaces must fit :data:`PRIME_MAX_EDIT`, and the
+    allele the RTT must *write* must fit :data:`PRIME_MAX_TEMPLATED_EDIT` — the
+    deleted span costs no template, the written one does.
     """
     if intent is EditIntent.KNOCK_OUT:
         return False
     var = resolved.variant
+    if var.variant_class not in _PRIME_CLASSES:
+        return False
     if len(var.ref) > PRIME_MAX_EDIT or len(var.alt) > PRIME_MAX_EDIT:
         return False
-    return var.variant_class is VariantClass.SNV
+    _, desired = _required_change(resolved, intent)
+    return len(desired) <= PRIME_MAX_TEMPLATED_EDIT
 
 
 @dataclass(frozen=True)
@@ -136,10 +159,10 @@ ROUTING_RULES: tuple[RoutingRule, ...] = (
         name="prime-precise-small-edit",
         rationale=(
             "Prime editing writes a precise small edit from an RTT template without "
-            "a break. Enumeration currently templates a single-base substitution "
-            "(SNV) only, so routing advertises prime for a precise SNV up to the "
-            "practical RTT length today; insertion, deletion, and MNV templating "
-            "via a variable-length RTT is not yet enumerated."
+            "a break. The variable-length RTT path enumerates the whole small-edit "
+            "repertoire — substitution, MNV, insertion, deletion, and delins — so "
+            "routing advertises prime for any precise edit whose replaced span and "
+            "templated allele both fit the practical RTT budget."
         ),
         predicate=_prime_eligible,
     ),

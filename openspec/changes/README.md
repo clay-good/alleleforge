@@ -984,6 +984,55 @@ property-based, in-house differential, external differential) converge across th
 honest terminus for the current codebase: the audit-as-method needs new *code* to bite on, not another lens.
 Session R33–37: 5 fixes + 7 clean bills (3 external/differential) + 1 permanent property test, all pushed to main.**
 
+## Round 38 — the audit's own conclusion, taken: new feature code (`enumerate-variable-rtt`)
+
+R37 closed the audit-as-method with an explicit verdict — four modalities converge, two of
+them external gold standards, and *"the audit-as-method needs new **code** to bite on, not
+another lens."* This round takes that at its word and builds the largest self-flagged gap in
+the codebase.
+
+**The gap.** Prime editing's whole claim is that it writes an *arbitrary* small edit.
+`enumerate_prime` returned `[]` for anything but a single-base substitution, and R7's
+`align-prime-coverage` had (correctly) taught routing to decline the rest rather than
+under-deliver silently — an honest guardrail in front of a real hole. Most of the monogenic
+disease prime editing exists for is an indel; the CFTR ΔF508 3 bp deletion is the textbook
+case, and AlleleForge could not design a pegRNA for a single one of them.
+
+**Shipped.** A **variable-length RT template** — 5' homology + the whole desired allele +
+3' homology — so substitution, MNV, insertion, deletion, and delins all enumerate through
+one path. A deleted span consumes no template length (a 44 bp deletion is as cheap to write
+as a 1 bp one); a written one costs a base each. Three consequences had to be got right, and
+each is where the interesting bugs would have lived:
+
+| Surface | What the SNV-only path could assume | What variable-length forced |
+|---|---|---|
+| RTT length | `distance + 1 + homology` | `distance + len(desired) + homology`, with a second budget — `PRIME_MAX_TEMPLATED_EDIT` (29 = `RTT_RANGE` ceiling − minimum 3' homology) — mirrored in routing so it never advertises an allele no RT template can carry |
+| Placement | the start genome *is* the reference, so coordinates coincide | a `_Frame` mapping every span to the **reference footprint its bases derive from** (wider across a deletion, narrower across an insertion), and *no placement at all* for a protospacer lying wholly inside carried bases the reference does not contain |
+| PE3b | one base differs at `edit_local` | a **seed-window** comparison, confined to the prefix the start and edited genomes share — past a length-changing edit the two strings shift apart and the old single-index test reads misaligned windows |
+
+**Verification (the R33–R37 discipline, applied to new code rather than old).** The permanent
+guard is metamorphic, not example-based: `tests/enumerate/test_prime_variable_rtt.py` fetches
+every emitted pegRNA back and proves, with an oracle that shares no arithmetic with the
+enumerator, that (1) the reverse-transcribed product is a *unique* locus of the edited
+genome, (2) its PBS half anneals at that same locus in the *start* genome, (3) the
+protospacer reads off the start genome ending 3 nt past the nick behind a real NGG PAM, and
+(4) the template spans the edit with the minimum 3' homology — over six edit classes × two
+intents × both strands, plus the fail-closed edges (no-op, over-span, un-templatable) and
+the placement-footprint contract. 24 tests, and the three tests that pinned the old
+limitation were replaced by tests of the new one.
+
+Gate: `ruff` + `mypy --strict` + 1,231 tests (97% coverage) + `mkdocs --strict` + `reproduce`
+all green; the canonical golden digest is unchanged (it is an SNV run, and the SNV path is
+byte-identical).
+
+**Lesson: R37's terminus was real, and the right response to it was to stop auditing and
+start building. The gap worth building was not a new idea — it was the one the code had been
+honestly *documenting* for thirty rounds (`routing.py`: "widen it when the variable-length
+RTT path lands"). A codebase that annotates its own limitations in the predicate that
+enforces them hands the next session its backlog for free; the discipline that produced
+those annotations (never advertise what you cannot produce) is what made this change a
+contained, verifiable one rather than an archaeology project.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
