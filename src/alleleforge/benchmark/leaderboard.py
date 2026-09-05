@@ -57,6 +57,18 @@ def _fmt_ece(ece: float | None) -> str:
     return "n/a" if ece is None else f"{ece:.4f}"
 
 
+def _fmt_ood(entry: LeaderboardEntry) -> str:
+    """Format the out-of-distribution cell as a share of the scored test fold.
+
+    ``n/a`` when the submission predates the field or scored nothing — deliberately
+    distinct from ``0%``, which is a model asserting it stood behind every prediction.
+    """
+    fraction = entry.ood_fraction
+    if fraction is None:
+        return "n/a"
+    return f"{fraction:.0%} ({entry.n_out_of_distribution}/{entry.n_test})"
+
+
 def metric_is_descending(metric: str) -> bool:
     """Return ``True`` if higher values of ``metric`` rank ahead of lower ones."""
     return metric not in LOWER_IS_BETTER
@@ -134,6 +146,20 @@ class LeaderboardEntry(BaseModel):
     primary_value: float
     ece: float | None
     metrics: dict[str, float | None]
+    #: Test-fold size and how many of those predictions the model self-flagged as
+    #: out-of-distribution. Carried because a leaderboard that shows a score without
+    #: it puts two very different models on the same row: one that stood behind every
+    #: prediction, and one that disclaimed nine in ten of them and scored the same.
+    #: The uncertainty contract makes models declare this; the board hid it.
+    n_test: int = 0
+    n_out_of_distribution: int = 0
+
+    @property
+    def ood_fraction(self) -> float | None:
+        """Return the share of test predictions self-flagged OOD, if measurable."""
+        if self.n_test <= 0:
+            return None
+        return self.n_out_of_distribution / self.n_test
 
 
 class Leaderboard:
@@ -162,6 +188,8 @@ class Leaderboard:
                     primary_value=r.primary_value,
                     ece=r.metrics.get("ece"),
                     metrics=r.metrics,
+                    n_test=r.n_test,
+                    n_out_of_distribution=r.n_out_of_distribution,
                 )
             )
 
@@ -204,13 +232,14 @@ class Leaderboard:
             lines.append(f"## {_md_cell(task)}")
             lines.append("")
             lines.append(
-                f"| Rank | Model | Submitter | {_md_cell(metric)} {arrow} | ECE ↓ | Split |"
+                f"| Rank | Model | Submitter | {_md_cell(metric)} {arrow} | ECE ↓ | OOD ↓ | Split |"
             )
-            lines.append("| ---: | :--- | :--- | ---: | ---: | :--- |")
+            lines.append("| ---: | :--- | :--- | ---: | ---: | ---: | :--- |")
             for i, e in enumerate(ranked, start=1):
                 lines.append(
                     f"| {i} | {_md_cell(e.model_name)} | {_md_cell(e.submitter)} | "
-                    f"{e.primary_value:.4f} | {_fmt_ece(e.ece)} | {_md_cell(e.split_version)} |"
+                    f"{e.primary_value:.4f} | {_fmt_ece(e.ece)} | {_fmt_ood(e)} | "
+                    f"{_md_cell(e.split_version)} |"
                 )
             lines.append("")
         return "\n".join(lines)
@@ -231,13 +260,16 @@ class Leaderboard:
             parts.append(f"<h2>{_html_cell(task)}</h2>")
             parts.append(
                 "<table><thead><tr><th>Rank</th><th>Model</th><th>Submitter</th>"
-                f"<th>{_html_cell(metric)}</th><th>ECE</th><th>Split</th></tr></thead><tbody>"
+                f"<th>{_html_cell(metric)}</th><th>ECE</th>"
+                '<th title="share of test predictions the model self-flagged '
+                'out-of-distribution">OOD</th><th>Split</th></tr></thead><tbody>'
             )
             for i, e in enumerate(ranked, start=1):
                 parts.append(
                     f"<tr><td>{i}</td><td>{_html_cell(e.model_name)}</td>"
                     f"<td>{_html_cell(e.submitter)}</td>"
                     f"<td>{e.primary_value:.4f}</td><td>{_fmt_ece(e.ece)}</td>"
+                    f"<td>{_fmt_ood(e)}</td>"
                     f"<td>{_html_cell(e.split_version)}</td></tr>"
                 )
             parts.append("</tbody></table>")

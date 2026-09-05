@@ -30,6 +30,16 @@
       "title": "Model Name",
       "type": "string"
     },
+    "n_out_of_distribution": {
+      "default": 0,
+      "title": "N Out Of Distribution",
+      "type": "integer"
+    },
+    "n_test": {
+      "default": 0,
+      "title": "N Test",
+      "type": "integer"
+    },
     "primary_metric": {
       "title": "Primary Metric",
       "type": "string"

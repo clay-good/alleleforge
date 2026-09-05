@@ -2606,6 +2606,36 @@ output to a consumer before anything else. An expensive dead end is worse than a
 makes it findable: ask what the user was buying. This one became visible only because the round before had
 put a price tag on it.**
 
+## Round 95 — the column that was missing from the honest table
+
+The last productive entry on the R90 no-readers list: `BenchmarkResult.n_out_of_distribution`, computed by
+the runner and read by nothing.
+
+The leaderboard's columns are Rank, Model, Submitter, primary metric, ECE, Split. Including ECE is a
+deliberately honest choice — calibration next to accuracy, so a confident-and-wrong model cannot hide
+behind a good score. Its sibling was left off. `n_test` and `n_out_of_distribution` were both sitting on
+the result, so the share was one division away, and without it two models with the same number in the
+metric column are indistinguishable: one that stood behind every prediction, and one that disclaimed 87% of
+them. The uncertainty contract *makes* models declare this. The board then hid the declaration.
+
+Two small distinctions were worth keeping:
+
+**`n/a` is not `0%`.** A model that scored nothing must not appear to have stood behind everything. The
+board already draws this line for an undefined ECE — a degenerate model cannot win the calibration
+tie-break with a perfect `0.0` it never earned — so the OOD cell follows it.
+
+**Report, do not rank.** Making the OOD share a ranking term needs a defensible exchange rate between
+accuracy and coverage, and there isn't one to hand. Same call as R89's nick distance: show it, let the
+reader weigh it, and do not manufacture a number that makes the ranking look better informed than it is.
+
+An incidental confirmation: the first version of the test edited a result with `model_copy` and the
+submission gate rejected it, because the signature is a content hash over the body. The gate works. The
+test now re-signs properly and asserts `verify_signature()` on the way through.
+
+**Lesson: when a table already contains one honesty column, ask what its siblings are. Whoever added ECE
+was answering "what would let a bad model look good here?" — that question has more than one answer, and
+the first one usually ships alone. This closes the R90 sweep; the next round needs a different query.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

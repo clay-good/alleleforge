@@ -237,3 +237,69 @@ def test_benchmark_result_carries_schema_version(fixed_ts: datetime) -> None:
     result = _baseline_result("cas9-efficiency", fixed_ts)
     assert result.schema_version == RESULT_SCHEMA_VERSION
     assert result.verify_signature()  # schema_version is inside the signed body
+
+
+def test_the_board_shows_how_much_a_model_disclaimed(fixed_ts: datetime) -> None:
+    """A score without the OOD share puts two very different models on one row.
+
+    The uncertainty contract makes every model declare which of its predictions are
+    out of distribution, `BenchmarkResult` records the count — and the board dropped
+    it, so a model that stood behind every prediction and one that disclaimed nine in
+    ten of them and scored the same were indistinguishable. ECE was already shown for
+    exactly this reason; its sibling was left behind.
+    """
+    from alleleforge.benchmark._canon import content_hash
+
+    result = _baseline_result("cas9-efficiency", fixed_ts)
+    # Re-sign after editing: the submission gate verifies the content hash, and a
+    # hand-edited result is correctly rejected — which is itself worth having seen.
+    body = result.model_dump(mode="json")
+    body["n_out_of_distribution"] = result.n_test - result.n_test // 10
+    body.pop("signature")
+    disclaimed = BenchmarkResult.model_validate({**body, "signature": content_hash(body)})
+    assert disclaimed.verify_signature()
+
+    board = Leaderboard()
+    board.add(
+        Submission(
+            submitter="alleleforge",
+            model=_model(),
+            results=(disclaimed,),
+            submitted_at=fixed_ts,
+        )
+    )
+    entry = board.rankings("cas9-efficiency")[0]
+    assert entry.n_test == result.n_test
+    assert entry.ood_fraction is not None and entry.ood_fraction > 0.85
+
+    markdown = board.render_markdown()
+    assert "| OOD ↓ |" in markdown
+    assert f"({disclaimed.n_out_of_distribution}/{result.n_test})" in markdown
+    html = board.render_html()
+    assert "<th title=" in html and ">OOD</th>" in html
+    assert f"({disclaimed.n_out_of_distribution}/{result.n_test})" in html
+
+
+def test_an_unmeasurable_ood_share_is_not_reported_as_zero(fixed_ts: datetime) -> None:
+    """`n/a` and `0%` are different claims — one is silence, the other is a boast.
+
+    Same distinction the board already makes for an undefined ECE: a model that
+    scored nothing must not appear to have stood behind everything.
+    """
+    from alleleforge.benchmark.leaderboard import LeaderboardEntry, _fmt_ood
+
+    empty = LeaderboardEntry(
+        task="t",
+        submitter="s",
+        model_name="m",
+        split_version="v1",
+        primary_metric="spearman",
+        primary_value=0.5,
+        ece=None,
+        metrics={},
+        n_test=0,
+        n_out_of_distribution=0,
+    )
+    assert empty.ood_fraction is None
+    assert _fmt_ood(empty) == "n/a"
+    assert _fmt_ood(empty.model_copy(update={"n_test": 10})) == "0% (0/10)"

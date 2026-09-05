@@ -202,3 +202,25 @@ rather than as its optimum.
 #### Scenario: Non-empty evaluation
 - **WHEN** the same task is evaluated over at least one example
 - **THEN** `kl` is a finite number, so the two cases are distinguishable
+
+### Requirement: The leaderboard reports each model's out-of-distribution share
+
+A score alone puts a model that stood behind every prediction on the same row as one
+that self-flagged most of them. Every leaderboard render SHALL show the share of the
+scored test fold the model declared out-of-distribution, alongside the calibration
+column that exists for the same reason.
+
+An unmeasurable share SHALL render as `n/a`, never as `0%`: a model that scored nothing
+must not appear to have stood behind everything.
+
+The share SHALL NOT enter the ranking. Trading it against accuracy needs a defensible
+exchange rate the project does not have, and a fabricated one would be a worse dishonesty
+than the omission.
+
+#### Scenario: A model that disclaimed most of its predictions
+- **WHEN** a result reports a large out-of-distribution count against its test-fold size
+- **THEN** the board shows that share, and the model's rank is unaffected by it
+
+#### Scenario: Nothing scored
+- **WHEN** the test-fold size is zero
+- **THEN** the cell reads `n/a`

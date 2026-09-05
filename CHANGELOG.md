@@ -10,6 +10,20 @@ acceptance.
 
 ### Added
 
+- **The leaderboard now shows how much of its output each model disclaimed.** The uncertainty contract
+  makes every model declare which predictions are out of distribution, and `BenchmarkResult` records the
+  count — and the board dropped it. A model that stood behind every prediction and one that flagged nine in
+  ten of them as out-of-distribution and scored the same appeared on identical rows. ECE was already shown
+  for exactly this reason; its sibling was left behind. Both renders gain an **OOD** column showing the
+  share of the scored test fold (`87% (261/300)`), with `n/a` — not `0%` — when it is unmeasurable, the same
+  distinction the board already draws for an undefined ECE: silence and a clean bill are different claims.
+
+  Ranking is unchanged. The OOD share is reported, not scored: turning it into a ranking term would need a
+  defensible exchange rate between accuracy and coverage, and inventing one would be a worse dishonesty
+  than the omission it replaces.
+
+### Added
+
 - **The predicted molecular consequence now appears in the menu; it was computed and read by nothing.**
   Supplying an effect predictor made AlleleForge annotate the variant, store a full `VariantEffect` on
   `ResolvedVariant.effect` — gene, Sequence-Ontology consequence, VEP impact tier, HGVS c./p., transcript,
