@@ -819,7 +819,7 @@
       "type": "object"
     }
   },
-  "description": "A complete, serializable design report.\n\nAttributes:\n    title: Report title.\n    disclaimer: The research-use disclaimer (leads every render).\n    variant: The target variant string, if supplied.\n    intent: The edit intent, if known.\n    weights: The ranking weights used.\n    candidates: One :class:`CandidateReport` per menu candidate, in rank order.\n    provenance: The menu's provenance block (ends every render).",
+  "description": "A complete, serializable design report.\n\nAttributes:\n    title: Report title.\n    disclaimer: The research-use disclaimer (leads every render).\n    variant: The target variant string, if supplied.\n    intent: The edit intent, if known.\n    weights: The ranking weights used.\n    candidates: One :class:`CandidateReport` per menu candidate, in rank order.\n    rationale: The **menu-level** rationale \u2014 which chemistries routed and why,\n        which ran, and any that were skipped or failed. Without it a report can\n        be empty with no explanation anywhere in it: the designer degrades\n        gracefully when one chemistry fails, records exactly what happened here,\n        and every renderer would otherwise drop it.\n    provenance: The menu's provenance block (ends every render).",
   "properties": {
     "candidates": {
       "items": {
@@ -852,6 +852,18 @@
           "type": "null"
         }
       ]
+    },
+    "rationale": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rationale"
     },
     "title": {
       "title": "Title",

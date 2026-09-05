@@ -167,3 +167,17 @@ def test_a_precise_nuclease_reagent_line_names_its_donor() -> None:
     assert "re-cut blocked" in summary
     # A knock-out candidate has no donor and must not grow the clause.
     assert "HDR donor" not in _reagent_summary(candidate.model_copy(update={"hdr_donor": None}))
+
+
+def test_the_report_carries_the_menu_rationale(prime_menu: RankedMenu) -> None:
+    """An empty report with no explanation is the worst artifact a render can produce.
+
+    The designer degrades gracefully when a chemistry fails and records exactly what
+    happened in the menu's rationale — which chemistries routed, which ran, which
+    were skipped and why. `DesignReport` had no field for it, so every renderer
+    dropped it: a mistyped option produced zero candidates, exit 0, and no
+    explanation anywhere in the JSON, TSV, HTML or PDF.
+    """
+    report = build_report(prime_menu)
+    assert report.rationale == prime_menu.rationale
+    assert report.rationale

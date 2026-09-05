@@ -143,6 +143,11 @@ class DesignReport(BaseModel):
         intent: The edit intent, if known.
         weights: The ranking weights used.
         candidates: One :class:`CandidateReport` per menu candidate, in rank order.
+        rationale: The **menu-level** rationale — which chemistries routed and why,
+            which ran, and any that were skipped or failed. Without it a report can
+            be empty with no explanation anywhere in it: the designer degrades
+            gracefully when one chemistry fails, records exactly what happened here,
+            and every renderer would otherwise drop it.
         provenance: The menu's provenance block (ends every render).
     """
 
@@ -154,6 +159,7 @@ class DesignReport(BaseModel):
     intent: str | None
     weights: dict[str, float]
     candidates: tuple[CandidateReport, ...]
+    rationale: str | None = None
     provenance: Provenance | None
 
     @property
@@ -297,5 +303,6 @@ def build_report(
         intent=intent,
         weights=weights,
         candidates=candidates,
+        rationale=menu.rationale,
         provenance=menu.provenance,
     )

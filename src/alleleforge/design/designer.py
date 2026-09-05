@@ -26,6 +26,7 @@ from datetime import datetime
 
 from alleleforge._version import __version__
 from alleleforge.config import Settings, get_settings
+from alleleforge.data.annotations import EncodeTracks
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.design.base_editor import (
@@ -107,6 +108,8 @@ def design(
     gnomad: GnomadDB | None = None,
     haplotypes: Iterable[Haplotype] = (),
     offtarget_regions: Sequence[GenomicInterval] | None = None,
+    encode_tracks: EncodeTracks | None = None,
+    chromatin_track: str | None = None,
     cell_context: str | None = None,
     run_offtarget: bool = True,
     max_candidates_per_chemistry: int | None = None,
@@ -139,6 +142,10 @@ def design(
         offtarget_regions: Restrict the off-target search to these intervals
             (default: every contig). Scoping a whole-genome scan to a gene panel
             is usually what makes a run over a real reference practical.
+        encode_tracks: Optional ENCODE accessibility tracks for the ePRIDICT-style
+            open-chromatin efficiency adjustment (prime editing only).
+        chromatin_track: Which track to read from ``encode_tracks``; both are
+            required together for the adjustment to apply.
         cell_context: Target cell context (prime efficiency OOD honesty).
         cas9_efficiency_scorer: Override the SpCas9 on-target efficiency scorer
             (e.g. the opt-in trained Rule Set 3 model); default is the weight-free
@@ -229,6 +236,8 @@ def design(
                     reference=reference,
                     efficiency_scorer=prime_efficiency_scorer,
                     outcome_predictor=prime_outcome_predictor,
+                    encode_tracks=encode_tracks,
+                    chromatin_track=chromatin_track,
                     cell_context=cell_context,
                     gnomad=gnomad,
                     haplotypes=haplotypes,

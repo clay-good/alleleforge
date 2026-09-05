@@ -237,6 +237,21 @@ def _provenance_html(report: DesignReport) -> str:
     return "<footer><strong>Provenance.</strong> " + " · ".join(lines) + "</footer>"
 
 
+def _rationale_html(report: DesignReport) -> str:
+    """Render the menu-level rationale (routing verdicts, skips, failures).
+
+    An empty report with no explanation is the worst artifact this renderer can
+    produce, and it is exactly what a mistyped option yields: the designer degrades
+    gracefully, records the reason, and every renderer used to drop it.
+    """
+    if not report.rationale:
+        return ""
+    return (
+        "<details open><summary>How this menu was assembled</summary>"
+        f"<pre class='mono'>{_esc(report.rationale)}</pre></details>"
+    )
+
+
 def render_html(
     report: DesignReport, *, max_candidates: int | None = DEFAULT_RENDER_CANDIDATES
 ) -> str:
@@ -267,6 +282,7 @@ def render_html(
         f"intent {intent} · ranking weights: {_esc(weights)}</p></header>",
         f"<div class='disclaimer'><strong>Research use only.</strong> "
         f"{_esc(report.disclaimer)}</div>",
+        _rationale_html(report),
         _figure_script("eff-chart", _efficiency_figure(report)),
         _figure_script("ot-chart", _offtarget_figure(report)),
         "<h2>Candidates</h2>",

@@ -153,3 +153,11 @@ def test_html_omits_nominal_caveat_for_calibrated_interval(prime_menu: RankedMen
     html = render_html(calibrated)
     assert "Efficiency" in html  # the efficiency lines still render
     assert "nominal — coverage not measured" not in html
+
+
+def test_the_menu_rationale_is_rendered(prime_menu: RankedMenu) -> None:
+    """The explanation must survive into the page a reader actually opens."""
+    report = build_report(prime_menu)
+    html = render_html(report)
+    assert "How this menu was assembled" in html
+    assert "Routing:" in html

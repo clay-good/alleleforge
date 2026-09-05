@@ -133,6 +133,11 @@ def _report_lines(report: DesignReport, max_candidates: int | None) -> list[str]
         weights = ", ".join(f"{k} {v:.2f}" for k, v in report.weights.items())
         lines += _wrap(f"Ranking weights: {weights}")
     lines.append("")
+    if report.rationale:
+        lines += _wrap("HOW THIS MENU WAS ASSEMBLED")
+        for para in report.rationale.split("\n"):
+            lines += _wrap(para)
+        lines.append("")
     lines += _wrap(f"Candidates ({len(report.candidates)})")
     lines.append("-" * _WRAP)
     shown, withheld = visible_candidates(report, max_candidates)

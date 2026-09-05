@@ -2124,6 +2124,34 @@ the shells were faithful to it. When a capability is present in N specific imple
 the thing that composes them, every caller of the composer silently loses it — and it looks like a shell
 problem right up until you read the composer's signature. Check the aggregator, not just the endpoints.**
 
+## Round 79 — mistyping my own new flag found a bigger bug than the flag
+
+Exposed the last library-only capability, the ePRIDICT open-chromatin adjustment: `--encode-tracks` +
+`--chromatin-track` on `design` and `batch`, requiring the pair together (one alone would be silently
+ignored, leaving efficiency unadjusted while the user believes it is chromatin-aware). `design()` was
+missing these parameters too — the same aggregator gap as R78 — so they were threaded through to the prime
+vertical. Verified: efficiency moves 0.4521 → 0.4972 with an open-chromatin track.
+
+Then I mistyped the track name to check the failure path, and got **zero candidates, exit code 0, and no
+error**. The designer had done its job perfectly: it caught the failure, degraded gracefully instead of
+crashing the whole design, and recorded `prime: skipped (KeyError: "unknown track 'missing'; known:
+('atac',)")` in `menu.rationale`. **`DesignReport` has no rationale field.** Every renderer dropped it.
+
+So the diagnostic existed, was precise, and reached nobody. Worse, the same drop had been silently
+discarding the empty-menu explanation added earlier in this session — routing's per-chemistry reasons lived
+on the `RankedMenu` object and never appeared in a single user-facing artifact. Two rounds of careful work
+on "explain why the menu is empty", invisible.
+
+**Shipped:** `DesignReport.rationale`, rendered by the HTML under "How this menu was assembled" and printed
+by the PDF above the candidates, with a spec requirement that a render explain how its menu was assembled.
+
+**Lesson: graceful degradation and honest reporting are two halves of one mechanism, and only the first
+half was built. Catching an error so one failure does not kill a run is right; it converts a crash into a
+silence, and the silence is only acceptable if something downstream speaks. Worth checking wherever a
+codebase "records a note and continues": follow the note all the way to a rendered artifact, because the
+recording is the easy half and the delivery is where it gets dropped. Also, plainly: mistyping your own new
+option is a cheap test worth running every time.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

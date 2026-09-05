@@ -170,3 +170,19 @@ static board and a table-delimiter character cannot break the layout.
 #### Scenario: Markup in a handle
 - **WHEN** a submission's model name or submitter contains markup or a table delimiter
 - **THEN** it is escaped in the rendered leaderboard
+
+### Requirement: A report explains how its menu was assembled
+
+A report SHALL carry the **menu-level** rationale — which chemistries routed and
+why, which ran, and any that were skipped or failed — and every render SHALL show
+it. The designer degrades gracefully when one chemistry fails and records the reason
+there, so a report that drops it can be empty with no explanation anywhere in it,
+which is the least useful artifact this layer can produce.
+
+#### Scenario: A chemistry fails
+- **WHEN** a chemistry's vertical is skipped or errors
+- **THEN** the reason reaches the report and appears in the rendered page
+
+#### Scenario: An empty menu
+- **WHEN** no candidate is produced
+- **THEN** the render still states which chemistries routed and what became of them

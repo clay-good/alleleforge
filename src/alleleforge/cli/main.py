@@ -266,6 +266,27 @@ class OutputFormat(StrEnum):
     pdf = "pdf"
 
 
+def _load_encode_tracks(path: Path | None, track: str | None) -> tuple[Any | None, str | None]:
+    """Load the accessibility tracks, requiring the pair to be given together.
+
+    The adjustment needs both a source and a track name; supplying one alone is a
+    mistake that would otherwise be silently ignored, leaving the efficiency
+    unadjusted while the user believes it is chromatin-aware.
+    """
+    if path is None and track is None:
+        return None, None
+    if path is None or track is None:
+        _echo_err("error: --encode-tracks and --chromatin-track must be given together")
+        raise typer.Exit(ExitCode.USAGE)
+    from alleleforge.data.annotations import EncodeTracks
+
+    try:
+        return EncodeTracks.from_bedgraph(path), track
+    except (OSError, ValueError) as exc:
+        _echo_err(f"error: could not read --encode-tracks {path}: {exc}")
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
+
+
 def _load_regions(regions: list[str] | None, bed: Path | None) -> list[GenomicInterval] | None:
     """Merge ``--region`` loci and a ``--regions-bed`` file into one restriction list.
 
@@ -382,6 +403,21 @@ def design(
     ] = None,
     populations: Annotated[
         str | None, typer.Option(help="Comma-separated ancestry labels to stratify by.")
+    ] = None,
+    encode_tracks: Annotated[
+        Path | None,
+        typer.Option(
+            "--encode-tracks",
+            help=(
+                "ENCODE accessibility bedGraph ('track chrom start end value') for the "
+                "ePRIDICT-style open-chromatin efficiency adjustment. Needs "
+                "--chromatin-track to name which track to read."
+            ),
+        ),
+    ] = None,
+    chromatin_track: Annotated[
+        str | None,
+        typer.Option("--chromatin-track", help="Which track in --encode-tracks to read."),
     ] = None,
     regions: Annotated[
         list[str] | None,
@@ -552,6 +588,7 @@ def design(
     gnomad_db = _load_gnomad(gnomad)
     haplotype_panel = _load_haplotypes(haplotypes)
     region_list = _load_regions(regions, regions_bed)
+    tracks, track_name = _load_encode_tracks(encode_tracks, chromatin_track)
 
     reference = _load_reference(reference_fasta, state.reference_build)
     patient_variants = _load_patient_variants(patient_vcf, reference)
@@ -587,6 +624,8 @@ def design(
             gnomad=gnomad_db,
             haplotypes=haplotype_panel,
             offtarget_regions=region_list,
+            encode_tracks=tracks,
+            chromatin_track=track_name,
             patient_vcf=patient_variants,
             run_offtarget=run_offtarget,
             max_candidates_per_chemistry=max_per_chemistry,
@@ -732,6 +771,21 @@ def batch(
     populations: Annotated[
         str | None, typer.Option(help="Comma-separated ancestry labels to stratify by.")
     ] = None,
+    encode_tracks: Annotated[
+        Path | None,
+        typer.Option(
+            "--encode-tracks",
+            help=(
+                "ENCODE accessibility bedGraph ('track chrom start end value') for the "
+                "ePRIDICT-style open-chromatin efficiency adjustment. Needs "
+                "--chromatin-track to name which track to read."
+            ),
+        ),
+    ] = None,
+    chromatin_track: Annotated[
+        str | None,
+        typer.Option("--chromatin-track", help="Which track in --encode-tracks to read."),
+    ] = None,
     regions: Annotated[
         list[str] | None,
         typer.Option(
@@ -865,6 +919,7 @@ def batch(
     gnomad_db = _load_gnomad(gnomad)
     haplotype_panel = _load_haplotypes(haplotypes)
     region_list = _load_regions(regions, regions_bed)
+    tracks, track_name = _load_encode_tracks(encode_tracks, chromatin_track)
 
     reference = _load_reference(reference_fasta, state.reference_build)
     patient_variants = _load_patient_variants(patient_vcf, reference)
@@ -907,6 +962,8 @@ def batch(
             gnomad=gnomad_db,
             haplotypes=haplotype_panel,
             offtarget_regions=region_list,
+            encode_tracks=tracks,
+            chromatin_track=track_name,
             patient_vcf=patient_variants,
             run_offtarget=run_offtarget,
             max_candidates_per_chemistry=max_per_chemistry,
