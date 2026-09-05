@@ -10,6 +10,18 @@ acceptance.
 
 ### Added
 
+- **A precise edit no break-free chemistry can reach now routes to nuclease + HDR instead of returning an
+  empty menu.** Correcting a 40 bp deletion used to route to *nothing*: beyond prime's RT template budget,
+  not an SNV transition, not a knock-out. The user got a blank menu. Now that a precise nuclease candidate
+  is a complete reagent (previous entry), the nuclease routes as an explicit **last resort** — offered only
+  when neither base nor prime editing can reach the edit. That ordering is the point: HDR is inefficient,
+  restricted to dividing cells in S/G2, and the same break yields NHEJ indels as its majority product, so
+  it must not crowd menus a break-free chemistry already serves (tested: a small indel, a small insertion,
+  and a transition SNV all keep the nuclease out). The 41-base restoration now returns two complete
+  candidates, each with a 141 nt donor whose re-cut is blocked by the correction itself. Their cleanliness
+  score is 0 because the NHEJ spectrum they carry contains no intended allele — that is the honest number,
+  and no HDR efficiency is invented to improve it; the `outcome-is-nhej-spectrum` flag says why.
+
 - **A precise-intent Cas9 candidate now carries the HDR donor that actually makes the edit.** `design_cas9`
   produced bare guides for CORRECT / REVERT / INSTALL intents — advertising a double-strand break as a
   correction it cannot make, since NHEJ repair yields indels, not the intended allele. `DesignCandidate`

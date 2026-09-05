@@ -140,6 +140,12 @@ which wants the break itself, SHALL carry no donor and none of these flags.
 - **WHEN** a precise nuclease candidate is summarized for a reader
 - **THEN** the line names the donor and its re-cut disposition, not the guide alone
 
+#### Scenario: Cleanliness of a precise nuclease candidate
+- **WHEN** a precise nuclease candidate is ranked
+- **THEN** its cleanliness score reflects the NHEJ spectrum it carries — which
+  contains no intended allele — rather than an assumed HDR rate, and the
+  `outcome-is-nhej-spectrum` flag says so; no HDR efficiency is invented
+
 ### Requirement: An HDR donor is not a substrate for re-cutting
 
 When `hdr_donor` proposes an HDR template for a precise correction and is given the guide

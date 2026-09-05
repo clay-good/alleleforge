@@ -1415,6 +1415,38 @@ scope: the honest move when a feature is half-built is to ship the half that is 
 candidate that carries its donor) and leave the rule that would expose it switched off, with the reason
 written down — not to flip the switch and let the menu advertise a break as a correction.**
 
+## Round 53 — the switch R52 left off (1 feature completed)
+
+R52 built the complete reagent and deliberately left routing untouched. This round flips it, having first
+confirmed the vertical actually delivers: the 41-base restoration produces two candidates, each with a
+141 nt donor whose re-cut the correction itself blocks.
+
+**Shipped:** `_nuclease_eligible` admits a precise intent when — and only when — no break-free chemistry
+can reach the edit. The "only when" is the whole design. HDR is inefficient, S/G2-restricted, and the same
+break yields NHEJ indels as its majority product, so routing it as a peer of base and prime editing would
+bury every small-edit menu under a strictly worse option. Tested from both sides: the 40 bp deletion now
+routes to `[cas9_nuclease]` where it previously routed to nothing, and a transition SNV, a small indel, and
+a small insertion all keep the nuclease out.
+
+Two consequences worth naming:
+- **This is the one rule that reads the others**, and the docstring says so and why: "last resort" is not a
+  property of the variant alone. It remains a pure function of `(resolved, intent)` — it re-evaluates the
+  same predicates rather than reaching for shared state.
+- **Routing can no longer return nothing**, which made R51's empty-menu explanation unreachable *through
+  routing*. It is still reachable when a caller restricts chemistries, so the test was re-pointed at that
+  path rather than deleted — the explanation still has a job.
+
+A precise nuclease candidate scores **0 on cleanliness**, because the NHEJ spectrum it carries contains no
+intended allele. That is the honest number. Inventing an HDR rate to improve it would be the R43 mistake —
+a fabricated coefficient inside a calibrated-looking interval — so the flag `outcome-is-nhej-spectrum`
+carries the explanation instead.
+
+**Lesson: splitting "build the reagent" from "offer the reagent" across two rounds was worth it. R52 could
+be reviewed on one question (is this candidate complete and honestly labelled?) and R53 on a different one
+(when should it be offered?), and the second question turned out to be the harder and more consequential
+of the two — the naive answer, route it for every precise intent, is defensible in a sentence and wrong in
+practice. A feature flag's off position is a legitimate place to stop for a round.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

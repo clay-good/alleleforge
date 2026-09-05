@@ -14,7 +14,9 @@ Routing SHALL evaluate a data-driven table of pure predicates and return one dec
 chemistry: nuclease for knockout intents, ABE/CBE for a transition SNV an editor can
 install, and prime for a non-knockout precise small edit — SNV, MNV, insertion, deletion,
 or delins — whose replaced reference span and written allele both fit the RT template
-budgets, each with a rationale. Ineligible or unrequested chemistries SHALL be recorded
+budgets, each with a rationale. The nuclease SHALL additionally route for a precise edit
+**no break-free chemistry can reach**, as an explicit last resort, so such an edit yields
+a complete reagent (guide plus HDR donor) rather than an empty menu. Ineligible or unrequested chemistries SHALL be recorded
 with a note.
 
 #### Scenario: Knockout intent
@@ -28,6 +30,14 @@ with a note.
 #### Scenario: Allele beyond the RT template budget
 - **WHEN** the allele the edit must write exceeds what any in-range RTT can carry
 - **THEN** prime is recorded as not eligible
+
+#### Scenario: A precise edit beyond every break-free chemistry
+- **WHEN** a precise edit can be reached by neither base nor prime editing
+- **THEN** the nuclease routes eligible and is the only eligible chemistry
+
+#### Scenario: A break-free chemistry can serve
+- **WHEN** base or prime editing can reach a precise edit
+- **THEN** the nuclease is recorded as not eligible, so HDR does not crowd the menu
 
 #### Scenario: No chemistry is eligible
 - **WHEN** no chemistry can make the requested edit

@@ -94,21 +94,48 @@ def test_eligible_order_is_cleanest_first() -> None:
     assert elig.index(Chemistry.BASE_ABE) < elig.index(Chemistry.PRIME)
 
 
+def test_a_large_precise_edit_falls_back_to_nuclease_plus_hdr() -> None:
+    """The case that used to return an empty menu: a 41-base restoration.
+
+    No RT template can write it and no base editor can make an indel, so the only
+    remaining route is a break plus an HDR donor. It is a genuinely worse option —
+    which is why it is offered *only* here, and why it is the last rule in the
+    table rather than a peer of the break-free chemistries.
+    """
+    rv = _rv("A" + "CGTA" * 10, "A")
+    elig = eligible_chemistries(rv, EditIntent.CORRECT)
+    assert elig == [Chemistry.CAS9_NUCLEASE]
+    nuclease = next(
+        d for d in route(rv, EditIntent.CORRECT) if d.chemistry is Chemistry.CAS9_NUCLEASE
+    )
+    assert "last resort" in nuclease.rationale
+
+
+def test_nuclease_stays_out_of_a_menu_a_break_free_chemistry_can_serve() -> None:
+    """HDR must not crowd menus where prime or a base editor already reaches."""
+    for ref, alt, intent in (
+        ("A", "G", EditIntent.INSTALL),  # ABE + prime
+        ("ACGT", "A", EditIntent.CORRECT),  # a small indel: prime
+        ("A", "AGGCT", EditIntent.INSTALL),  # a small insertion: prime
+    ):
+        elig = eligible_chemistries(_rv(ref, alt), intent)
+        assert Chemistry.CAS9_NUCLEASE not in elig, f"{ref}>{alt} {intent.value}"
+
+
 def test_an_empty_menu_says_why_each_chemistry_declined() -> None:
-    """A blank menu with four `no`s tells the reader nothing they can act on."""
+    """A blank menu with four `no`s tells the reader nothing they can act on.
+
+    Routing itself now always admits something (the nuclease backstops every
+    precise intent), so an empty *menu* arises when the caller restricts the
+    chemistries — the rationale assembly must still explain itself there.
+    """
     from alleleforge.design.designer import _menu_rationale
 
-    rv = _rv("A" + "CGTA" * 10, "A")  # a 40-bp deletion to correct: nothing fits
-    decisions = route(rv, EditIntent.CORRECT)
-    assert not any(d.eligible for d in decisions)
-
+    decisions = route(_rv("A", "G"), EditIntent.INSTALL)
     text = _menu_rationale(decisions, [], [], "ranking blurb")
     assert "No chemistry can make this edit. Why each declined:" in text
     for decision in decisions:
         assert decision.rationale in text
-    # And it names the route that does apply, with its honest status.
-    assert "nuclease-plus-HDR" in text
-    assert "does not yet route" in text
 
 
 def test_a_non_empty_menu_does_not_repeat_every_rationale() -> None:

@@ -805,7 +805,7 @@ and `route()` explains every verdict — kept *and* dropped.
 | Base editing (ABE) | transition SNV, required change `A:T→G:C` | one in-window transition, no double-strand break — the cleanest fix |
 | Base editing (CBE) | transition SNV, required change `G:C→A:T` | same, complementary transition |
 | Prime editing | any precise small edit (SNV, MNV, insertion, deletion, delins), non-disruptive intent, replaced span ≤ 44 bp and templated allele ≤ 29 bp | writes the edit from a variable-length RTT template with no break; the two bounds are exactly what the RT template can carry, so routing never advertises an edit enumeration cannot produce |
-| SpCas9 nuclease | disruption (knock-out) intent | a break repaired by NHEJ yields frameshifting indels |
+| SpCas9 nuclease | disruption (knock-out) intent; **or** a precise edit no break-free chemistry can reach | a break repaired by NHEJ yields frameshifting indels — the knock-out route. For a precise edit it needs an HDR donor and is strictly worse (inefficient, S/G2-restricted, NHEJ indels as the majority product), so it is the **last resort**: offered only when neither base nor prime editing can reach the edit, e.g. a deletion longer than any RT template can write back. Such a candidate carries its donor and is flagged `outcome-is-nhej-spectrum`. |
 
 **Ranking puts every chemistry on one footing.** Candidates are projected onto four shared,
 higher-is-better objectives and ordered by a transparent weighted sum, with the Pareto front always

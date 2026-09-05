@@ -57,8 +57,29 @@ def _required_change(resolved: ResolvedVariant, intent: EditIntent) -> tuple[str
 
 
 def _nuclease_eligible(resolved: ResolvedVariant, intent: EditIntent) -> bool:
-    """Nuclease is for disruption: a knock-out via NHEJ-induced frameshifts."""
-    return intent is EditIntent.KNOCK_OUT
+    """Nuclease for disruption, or as the last resort for a precise edit.
+
+    A double-strand break repaired by NHEJ is the canonical knock-out. For a
+    *precise* edit the nuclease needs an HDR donor, and that route is strictly
+    worse than the break-free chemistries: HDR is inefficient, restricted to
+    dividing cells in S/G2, and the same break yields NHEJ indels as its majority
+    product. So it is offered only when nothing break-free can reach the edit —
+    which is exactly the case that would otherwise return an empty menu, such as
+    correcting a deletion longer than any RT template can write.
+
+    This is the one rule that looks at the others, and deliberately: "last resort"
+    is not a property of the variant alone. It stays a pure function of
+    ``(resolved, intent)`` — it re-evaluates the same predicates rather than
+    reading any shared state.
+    """
+    if intent is EditIntent.KNOCK_OUT:
+        return True
+    break_free = (
+        _base_eligible(resolved, intent, Chemistry.BASE_ABE)
+        or _base_eligible(resolved, intent, Chemistry.BASE_CBE)
+        or _prime_eligible(resolved, intent)
+    )
+    return not break_free
 
 
 def _base_eligible(resolved: ResolvedVariant, intent: EditIntent, chemistry: Chemistry) -> bool:
@@ -172,11 +193,12 @@ ROUTING_RULES: tuple[RoutingRule, ...] = (
         rationale=(
             "An SpCas9 double-strand break repaired by error-prone NHEJ yields "
             "frameshifting indels that ablate gene function — the canonical "
-            "knock-out route, eligible only for disruption intent. A precise "
-            "correction larger than prime editing's RT template budget is a "
-            "nuclease-plus-HDR job instead; `enumerate_cas9` and `hdr_donor` build "
-            "that reagent pair today, but the designer does not yet route, score, "
-            "or rank it, so this menu will not offer it."
+            "knock-out route. For a precise edit the break needs an HDR donor and "
+            "is strictly worse than the break-free chemistries (HDR is inefficient, "
+            "S/G2-restricted, and the same break yields NHEJ indels as its majority "
+            "product), so it is offered only as the last resort: when no base or "
+            "prime editing route can reach the edit at all — for instance a deletion "
+            "longer than any RT template can write back."
         ),
         predicate=_nuclease_eligible,
     ),
