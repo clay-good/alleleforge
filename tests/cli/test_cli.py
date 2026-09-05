@@ -1225,3 +1225,79 @@ def test_a_malformed_region_is_a_usage_error(
         app, ["offtarget", spacer, "--reference-fasta", str(fasta), "--region", "nonsense"]
     )
     assert result.exit_code == ExitCode.USAGE
+
+
+def test_supplied_sources_are_pinned_in_provenance(
+    runner: CliRunner, bias_case: tuple[Path, Path, str], tmp_path: Path
+) -> None:
+    """A user-supplied file has no upstream version, so pin it by what it contained.
+
+    Two runs agree iff the bytes did. Without this a population-aware result names
+    neither which data made it so nor whether any was supplied.
+    """
+    fasta, sites, _spacer = bias_case
+    panel = tmp_path / "hap.tsv"
+    panel.write_text(
+        "#hap_id\tchrom\tstart\tend\tpopulation\tfrequency\tvariants\n"
+        "H1\tchr2\t0\t43\tafr\t0.08\tchr2:32:T>G\n"
+    )
+    result = runner.invoke(
+        app,
+        [
+            "design",
+            "chr2:6:T>G",
+            "--reference-fasta",
+            str(fasta),
+            "--intent",
+            "install",
+            "--no-offtarget",
+            "--format",
+            "json",
+            "--gnomad",
+            str(sites),
+            "--haplotypes",
+            str(panel),
+        ],
+    )
+    assert result.exit_code == 0
+    datasets = json.loads(result.output)["provenance"]["datasets"]
+    by_name = {d["name"]: d for d in datasets}
+    assert "gnomad-sites" in by_name and "haplotype-panel" in by_name
+    for name in ("gnomad-sites", "haplotype-panel"):
+        assert by_name[name]["version"].startswith("sha256:")
+        assert by_name[name]["sha256"]
+
+
+def test_the_patient_source_is_recorded_without_fingerprinting_it(
+    runner: CliRunner, bias_case: tuple[Path, Path, str], tmp_path: Path
+) -> None:
+    """Record *that* the scan was personalized, not a hash of someone's genotypes.
+
+    A reader needs to know a `patient`-origin site could appear and over how many
+    variants; putting a content hash of a personal VCF into a report meant to be
+    shared would be an identifier for that file, which reproducibility does not
+    require.
+    """
+    fasta, _sites, _spacer = bias_case
+    patient = tmp_path / "patient.txt"
+    patient.write_text("chr2:33:T>G\n")
+    result = runner.invoke(
+        app,
+        [
+            "design",
+            "chr2:6:T>G",
+            "--reference-fasta",
+            str(fasta),
+            "--intent",
+            "install",
+            "--no-offtarget",
+            "--format",
+            "json",
+            "--patient-vcf",
+            str(patient),
+        ],
+    )
+    assert result.exit_code == 0
+    datasets = {d["name"]: d for d in json.loads(result.output)["provenance"]["datasets"]}
+    assert datasets["patient-variants"]["version"] == "n=1"
+    assert datasets["patient-variants"]["sha256"] is None

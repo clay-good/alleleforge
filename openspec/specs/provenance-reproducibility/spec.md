@@ -186,3 +186,26 @@ otherwise a re-run from the stamped provenance reproduces different numbers.
 #### Scenario: Overridden scorer
 - **WHEN** a chemistry's scorer is overridden through `design`
 - **THEN** provenance names the override's card and not the default's
+
+### Requirement: A run names every data source it consumed
+
+A menu's provenance SHALL record a descriptor for every dataset the run read,
+including a haplotype panel and a patient variant set, not only the reference,
+gnomAD and ClinVar. A user-supplied file has no upstream version string, so it
+SHALL be pinned by the content hash of what it contained — two runs agree iff the
+bytes did. A source carrying no descriptor SHALL be omitted rather than given an
+invented one.
+
+Personal variants are the exception to content-hashing: the run SHALL record that
+it was personalized and over how many variants, and SHALL NOT embed a fingerprint
+of the file, which reproducibility does not require and which would put an
+identifier for someone's genotypes into a shareable report.
+
+#### Scenario: A haplotype-aware run
+- **WHEN** a design consumes a haplotype panel
+- **THEN** its provenance names the panel and its content pin
+
+#### Scenario: A personalized run
+- **WHEN** a design consumes personal variants
+- **THEN** its provenance records that fact and the variant count, with no content
+  hash of the source

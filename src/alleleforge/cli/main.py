@@ -21,14 +21,16 @@ Exit codes are meaningful and distinct: ``0`` success, ``2`` usage/input error
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
 import tomllib
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import IntEnum, StrEnum
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, TypeVar
 
 import typer
 
@@ -36,6 +38,7 @@ from alleleforge._version import __version__
 from alleleforge.config import DEFAULT_REFERENCE, DEFAULT_SEED
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
+from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import GenomicInterval, Strand
 from alleleforge.types.variant import Variant
 
@@ -318,14 +321,22 @@ def _load_regions(regions: list[str] | None, bed: Path | None) -> list[GenomicIn
     return out or None
 
 
-def _load_haplotypes(path: Path | None) -> tuple[Haplotype, ...]:
-    """Load a phased-haplotype panel, or return empty when none was given."""
+def _load_haplotypes(path: Path | None) -> Iterable[Haplotype]:
+    """Load a phased-haplotype panel, or return empty when none was given.
+
+    Returns the *panel*, not a tuple of its haplotypes: the panel carries the
+    provenance descriptor, and flattening it here would strip the record of which
+    data made the run haplotype-aware. A panel is re-iterable, which is what
+    ``design`` needs of it.
+    """
     if path is None:
         return ()
     from alleleforge.data.haplotypes import HaplotypePanel
 
     try:
-        return tuple(HaplotypePanel.from_tsv(path, source=str(path)))
+        return _attach_source(
+            HaplotypePanel.from_tsv(path, source=str(path)), path, "haplotype-panel"
+        )
     except (OSError, ValueError) as exc:
         _echo_err(f"error: could not read --haplotypes {path}: {exc}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
@@ -349,10 +360,54 @@ def _load_patient_variants(path: Path | None, reference: Any) -> list[Variant] |
             records: list[Any] = list(iter_vcf(path))
         else:
             records = _read_variant_list(path)
-        return [resolve_one(rec, reference=reference).variant for rec in records]
+        variants = _PatientVariants(
+            resolve_one(rec, reference=reference).variant for rec in records
+        )
+        # Deliberately *not* a content hash. Recording that the scan was
+        # personalized, and over how many variants, is what a reader needs to
+        # interpret a `patient`-origin site; fingerprinting the file itself would
+        # put an identifier for a person's genotypes into a report meant to be
+        # shared.
+        variants.dataset_version = DatasetVersion(
+            name="patient-variants", version=f"n={len(variants)}"
+        )
+        return variants
     except (OSError, ValueError, KeyError) as exc:
         _echo_err(f"error: could not read --patient-vcf {path}: {exc}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
+
+
+class _PatientVariants(list[Variant]):
+    """A patient's variants, able to carry a provenance descriptor.
+
+    A bare ``list`` cannot hold the attribute ``_collect_datasets`` looks for, and
+    a run personalized with someone's genotypes should say so in its provenance.
+    """
+
+    dataset_version: DatasetVersion
+
+
+def _describe_source(path: Path, name: str) -> DatasetVersion:
+    """Return a provenance descriptor pinning ``path`` by its content hash.
+
+    A file a user supplies has no upstream version string, so the honest pin is
+    what it *contained* on this run: two runs agree iff the bytes did. Without
+    this a population- or haplotype-aware result records neither which data made
+    it so nor whether any was supplied at all — and the whole point of the
+    provenance block is that a result can be re-derived from it.
+    """
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    return DatasetVersion(name=name, version=f"sha256:{digest[:12]}", sha256=digest)
+
+
+_T = TypeVar("_T")
+
+
+def _attach_source(obj: _T, path: Path, name: str) -> _T:
+    """Tag a loaded source with its provenance descriptor, if it accepts one."""
+    with contextlib.suppress(AttributeError, ValueError):
+        obj.dataset_version = _describe_source(path, name)  # type: ignore[attr-defined]
+    return obj
 
 
 def _warn_if_ancestries_unbacked(
@@ -381,7 +436,7 @@ def _load_gnomad(path: Path | None) -> GnomadDB | None:
     if path is None:
         return None
     try:
-        return GnomadDB.from_sites_tsv(path)
+        return _attach_source(GnomadDB.from_sites_tsv(path), path, "gnomad-sites")
     except (OSError, ValueError) as exc:
         _echo_err(f"error: could not read --gnomad {path}: {exc}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc

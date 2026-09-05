@@ -2206,6 +2206,37 @@ the cost was a capability withheld from a whole surface for a reason that did no
 exclusions are cheap to write and hard to notice being wrong, because nothing fails — the capability is
 simply missing, and the reason sounds sound.**
 
+## Round 82 — the inputs I had just made reachable were not being recorded
+
+Having spent several rounds making the safety inputs reachable, asked the obvious follow-on: does a run
+that uses them *say* it did? The project's stated principle is that a result is re-derivable from its
+provenance, and `specs/` requires every consumed dataset be recorded.
+
+**It recorded none of them.** `_collect_datasets` consulted the reference, gnomAD and ClinVar, and only
+kept a source carrying a `dataset_version` descriptor — which a file loaded from a path does not have. The
+haplotype panel and patient variants were not consulted at all. So a run could be population-aware,
+haplotype-aware *and* personalized while its provenance named nothing of it. Beyond reproducibility, a
+reader could not tell a populated scan from an unpopulated one — the same ambiguity R56 fixed in the
+cohort summary, one layer up.
+
+**Shipped:** each supplied file is pinned by the **content hash of what it contained** (a user's file has
+no upstream version, so the honest pin is the bytes); `design()` collects the haplotype and chromatin
+sources; and the CLI now passes the *panel* rather than a flattened tuple, so the descriptor survives the
+trip. A source with no descriptor is omitted rather than given an invented one.
+
+**One deliberate asymmetry.** Personal variants are recorded as *that the run was personalized, and over
+how many variants* — no content hash. Reproducibility does not require one, and a content hash of a
+personal VCF embedded in a shareable report is an identifier for that file and, transitively, for a
+person. The reader's actual need is to know a `patient`-origin site could appear and at what scale, which
+the count gives. Written into the spec so the asymmetry reads as a decision rather than an oversight.
+
+**Lesson: making a capability reachable and making it *accountable* are separate pieces of work, and the
+second does not follow from the first. Every round that adds an input should ask what the result now
+depends on that it did not before — because provenance is a whitelist, and a whitelist silently omits
+whatever nobody added to it. Also worth naming: the flattening (`tuple(panel)`) that dropped the
+descriptor was a line I wrote two rounds earlier for a good reason. Convenience conversions are where
+metadata goes to die.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

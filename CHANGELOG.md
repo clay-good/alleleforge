@@ -249,6 +249,21 @@ acceptance.
 
 ### Fixed
 
+- **A population- or haplotype-aware run recorded none of the data that made it so.** `_collect_datasets`
+  looked at the reference, gnomAD and ClinVar, and only recorded a source carrying a `dataset_version`
+  descriptor — which a file loaded from a path does not have. A haplotype panel and a patient variant set
+  were not consulted at all. So the moment those inputs became reachable from the CLI, a run could be
+  population-aware, haplotype-aware and personalized while its provenance named **none** of it: not
+  re-derivable, and a reader could not distinguish a populated scan from an unpopulated one. Each supplied
+  file is now pinned by the **content hash of what it contained** — a user's file has no upstream version
+  string, so the honest pin is the bytes, and two runs agree iff those agree. `design()` collects the
+  haplotype and chromatin sources too, and the CLI passes the *panel* rather than a flattened tuple of its
+  haplotypes so the descriptor survives. A source with no descriptor is omitted rather than given an
+  invented one. **Personal variants are deliberately handled differently**: the run records that it was
+  personalized and over how many variants, with no content hash — reproducibility does not need one, and
+  embedding a fingerprint of a personal VCF in a shareable report would be an identifier for someone's
+  genotypes.
+
 - **A prediction's free-text caveats never reached the rendered page.** `Prediction.notes` sits beside the
   `calibrated` and `in_distribution` flags, and the renderers spell *those* out inline ("nominal — coverage
   not measured", "out-of-distribution") — but nothing rendered `notes` at all. So the note added earlier in

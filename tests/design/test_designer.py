@@ -400,3 +400,51 @@ def test_no_shipped_trained_prime_scorer_satisfies_the_override_protocol() -> No
         assert "refuse" in doc or "placeholder" in doc, (
             f"{placeholder.__name__} looks like a real scorer now; wire it and update the docs"
         )
+
+
+def test_provenance_names_every_data_source_a_run_consumed(make_reference: MakeRef) -> None:
+    """A population/haplotype-aware result must say *which* data made it so.
+
+    `_collect_datasets` recorded only the reference, gnomAD and ClinVar, and only
+    when they carried a descriptor. A haplotype panel was never collected at all,
+    so a run could be haplotype-aware and record nothing about it — leaving a
+    reader unable to tell an unpopulated scan from a populated one, and the result
+    not re-derivable from its own provenance.
+    """
+    from alleleforge.data.gnomad import GnomadDB
+    from alleleforge.data.haplotypes import HaplotypePanel
+    from alleleforge.types.provenance import DatasetVersion
+
+    reference = _prime_ref(make_reference)
+    gnomad = GnomadDB([])
+    gnomad.dataset_version = DatasetVersion(name="gnomad-sites", version="sha256:aaa")  # type: ignore[attr-defined]
+    panel = HaplotypePanel([], source="panel")
+    panel.dataset_version = DatasetVersion(name="haplotype-panel", version="sha256:bbb")  # type: ignore[attr-defined]
+
+    menu = design(
+        "chr2:71:A>C",
+        reference=reference,
+        intent=EditIntent.INSTALL,
+        run_offtarget=False,
+        gnomad=gnomad,
+        haplotypes=panel,
+    )
+    assert menu.provenance is not None
+    recorded = {(d.name, d.version) for d in menu.provenance.datasets}
+    assert ("gnomad-sites", "sha256:aaa") in recorded
+    assert ("haplotype-panel", "sha256:bbb") in recorded
+
+
+def test_an_undescribed_source_is_simply_absent(make_reference: MakeRef) -> None:
+    """A source with no descriptor must not invent one — silence beats a guess."""
+    from alleleforge.data.gnomad import GnomadDB
+
+    menu = design(
+        "chr2:71:A>C",
+        reference=_prime_ref(make_reference),
+        intent=EditIntent.INSTALL,
+        run_offtarget=False,
+        gnomad=GnomadDB([]),
+    )
+    assert menu.provenance is not None
+    assert not any(d.name == "gnomad-sites" for d in menu.provenance.datasets)

@@ -287,7 +287,15 @@ def design(
             prime_efficiency_scorer=prime_efficiency_scorer,
             prime_outcome_predictor=prime_outcome_predictor,
         ),
-        datasets=_collect_datasets(reference, gnomad, clinvar),
+        datasets=_collect_datasets(
+            reference,
+            gnomad,
+            clinvar,
+            # A haplotype panel and a patient variant set are inputs a result
+            # depends on as much as gnomAD is; a run that used them and does not
+            # name them is not re-derivable from its own provenance.
+            extra=(haplotypes, patient_vcf, encode_tracks),
+        ),
         config_snapshot={
             "intent": intent.value,
             "weights": outcome.weights,
@@ -402,6 +410,8 @@ def _collect_datasets(
     reference: ReferenceGenome,
     gnomad: GnomadDB | None,
     clinvar: ClinVarLookup | None,
+    *,
+    extra: Sequence[object] = (),
 ) -> tuple[DatasetVersion, ...]:
     """Return the deduped dataset versions the run actually consumed.
 
@@ -410,11 +420,14 @@ def _collect_datasets(
     :func:`_collect_model_checkpoints` for datasets: the reference build's
     :class:`DatasetVersion` (present when the reference was resolved through a
     pinned build) is recorded, and gnomAD/ClinVar are recorded when they carry a
-    version descriptor, so no result silently omits a dataset it read. Deduped by
+    version descriptor, so no result silently omits a dataset it read. ``extra``
+    carries any further source the caller attached a descriptor to — a haplotype
+    panel or a patient variant set, say — so a population/haplotype-aware run
+    records *which* data made it so rather than only that it ran. Deduped by
     ``(name, version)``.
     """
     seen: dict[tuple[str, str], DatasetVersion] = {}
-    for source in (reference, gnomad, clinvar):
+    for source in (reference, gnomad, clinvar, *extra):
         version = getattr(source, "dataset_version", None)
         if isinstance(version, DatasetVersion):
             seen.setdefault((version.name, version.version), version)
