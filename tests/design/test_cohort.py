@@ -276,3 +276,29 @@ def test_unexpected_defect_is_tagged_in_cohort(
     failed = next(r for r in report.items if r.status == "error")
     assert "unexpected AttributeError" in (failed.error or "")
     assert "defect" in (failed.error or "")
+
+
+def test_a_skipped_offtarget_search_reports_none_not_zero(reference: ReferenceGenome) -> None:
+    """ "We did not look" must not render as the reassuring value.
+
+    A cohort manifest is triaged by scanning a column. `worst_offtarget = 0.0`
+    reads as "measured, nothing dangerous"; defaulting an unmeasured axis to it
+    makes a run with the search switched off indistinguishable from a clean one —
+    on the single axis where that confusion is unsafe.
+    """
+    skipped = design_many(
+        [OK_1], reference=reference, intent=EditIntent.INSTALL, run_offtarget=False
+    )
+    summary = skipped.items[0].summary
+    assert summary is not None
+    assert summary["worst_offtarget"] is None
+    assert summary["best_specificity"] is None
+
+    searched = design_many(
+        [OK_1], reference=reference, intent=EditIntent.INSTALL, run_offtarget=True
+    )
+    measured = searched.items[0].summary
+    assert measured is not None
+    assert isinstance(measured["worst_offtarget"], float), (
+        "a run that did search must report a number, so the two are distinguishable"
+    )

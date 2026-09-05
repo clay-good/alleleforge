@@ -175,3 +175,20 @@ local proxy sort before the composite is computed.
 - **WHEN** a cohort run sets a per-chemistry cap
 - **THEN** the returned menu still contains the composite-optimal candidate for each
   eligible chemistry
+
+### Requirement: An unmeasured axis is reported as unmeasured
+
+A cohort summary SHALL distinguish "not measured" from "measured and safe" on every
+safety axis. When no candidate carries an off-target report — the search was
+skipped — the summary's worst-off-target field SHALL be null, never a numeric
+default. A cohort manifest is triaged by scanning a column, and the reassuring
+value is the dangerous default.
+
+#### Scenario: Off-target search skipped
+- **WHEN** a cohort item is designed with the off-target search disabled
+- **THEN** its summary reports a null worst-off-target, not `0.0`
+
+#### Scenario: Off-target search run
+- **WHEN** the search runs
+- **THEN** the summary reports the measured number, so the two cases are
+  distinguishable in the manifest

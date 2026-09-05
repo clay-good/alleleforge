@@ -30,6 +30,17 @@ acceptance.
 
 ### Fixed
 
+- **A cohort summary no longer reports `worst_offtarget = 0.0` when the off-target search never ran.**
+  `_summarize` took the max over candidates carrying a report with `default=0.0`, so a run with
+  `--no-offtarget` produced the same value as a run that searched and found nothing — and `0.0` is the
+  *reassuring* one. A cohort manifest is triaged by scanning that column, so a whole cohort designed with
+  the search off read as "no off-target risk anywhere". It is now `None` when nothing was measured,
+  matching `best_specificity`, which already did this correctly. The harm is concrete: in a three-variant
+  cohort used to check this, the first variant's **measured** worst off-target is `1.0` — a perfect-match
+  hit — and the old code reported `0.0` for that same variant whenever the search was skipped. Found by
+  running the real `aforge batch` command rather than by reading the code. Regression test pins both
+  directions, since a fix that made *every* run report `None` would be equally wrong.
+
 - **`hdr_donor` no longer builds a repair template over an assembly gap.** Its homology arms reach 50 bp
   either side — far enough to touch a reference `N` the guide itself never sees — and it spliced them in
   unguarded, producing an unsynthesizable oligo that, if forced, would template an ambiguous base into the

@@ -1499,6 +1499,32 @@ scope ends at its own module boundary. The end-to-end test is cheap, it is the o
 a hop being silently dropped, and the right time to write it is when the last hop lands — while the whole
 chain is still in view.**
 
+## Round 56 — the reassuring default (1 safety fix, found by running the tool)
+
+Drove the real `aforge batch` over a three-variant cohort — an SNV, a small deletion, a 41-base deletion —
+to check the whole session's work through the cohort path. It routed all three correctly. One column in
+the output looked wrong: `worst_offtarget = 0.0` on a run invoked with `--no-offtarget`.
+
+**`fix(cohort)` "we did not look" rendered as the reassuring value.** `_summarize` took
+`max(..., default=0.0)` over the candidates carrying an off-target report, so a skipped search produced
+**exactly the same number** as a search that ran and found nothing. `best_specificity`, right beside it,
+already used `None` correctly — the two fields disagreed about how to say "absent". A cohort manifest is
+triaged by scanning that column, so an entire cohort designed with the search off read as *no off-target
+risk anywhere*. Now `None` when nothing was measured.
+
+The harm is not hypothetical. In the very cohort used to check this, the first variant's **measured**
+worst off-target is `1.0` — a perfect-match hit — and the old code reported `0.0` for that same variant
+whenever the search was skipped. The regression test pins both directions: a fix that made every run
+report `None` would be equally wrong, and only the pair distinguishes them.
+
+**Lesson: this is the repo's most-repeated defect class (a safety input inert on its consumed axis, green
+suite) in its purest form yet — not a wrong computation but a *wrong default for absence*. `default=0.0`
+is what `max()` wants to be given; that it is also the safest-looking number on a safety axis is a
+coincidence of the domain, and the coincidence is the bug. Rule of thumb: on any axis where one end means
+"safe", absence must never be encoded as a value on that axis. And the neighbouring field already had it
+right — when two adjacent fields disagree about how to represent "not available", one of them is wrong,
+and it is worth stopping to ask which.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

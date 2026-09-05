@@ -101,12 +101,18 @@ class CohortRunReport:
 
 
 def _summarize(menu: RankedMenu) -> dict[str, Any]:
-    """Return the compact, memory-cheap summary kept for one designed variant."""
+    """Return the compact, memory-cheap summary kept for one designed variant.
+
+    ``worst_offtarget`` is ``None`` when no candidate carries an off-target report
+    — the search was skipped — and a number only when one was actually run. The
+    distinction is the whole point: a cohort manifest is triaged by scanning a
+    column, and ``0.0`` there is the *reassuring* value. Defaulting an unmeasured
+    axis to it makes "we did not look" indistinguishable from "we looked and it is
+    clean", on the one axis where that confusion is dangerous.
+    """
     best = menu.best
-    worst_ot = max(
-        (c.offtarget.worst_score() for c in menu.candidates if c.offtarget is not None),
-        default=0.0,
-    )
+    scored = [c.offtarget for c in menu.candidates if c.offtarget is not None]
+    worst_ot = max((report.worst_score() for report in scored), default=None)
     best_specificity = (
         best.offtarget.specificity_score() if best and best.offtarget is not None else None
     )
