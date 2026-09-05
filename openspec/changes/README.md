@@ -1277,6 +1277,11 @@ implementations, two interleaved passes. Result: original ≈6s, R46 ≈1.2s, R4
 machine drift — this box varies by a factor of two between runs — and R46's own recorded 0.72s is equally
 un-comparable across sessions. Nothing was wrong.
 
+A third correction, made after the round was already pushed: the changelog claimed the committed
+differential test runs 400,000 inputs. It ran 4,000 — the 400,000 was a one-off development sweep, and the
+two got conflated in the write-up. The committed test now runs 25,000 (still under a second) and the
+wording distinguishes the two.
+
 **Lesson: R46 ended by warning that a performance number needs the query fixed, repeats, and more than one
 workload. R47 shows the same rule has a second half: a number is only comparable to another number measured
 *in the same conditions*. A prior session's recorded timing is not a baseline — it is a different

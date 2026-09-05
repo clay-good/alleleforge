@@ -92,8 +92,9 @@ acceptance.
   original ≈6s, the previous round ≈1.2s, and now ≈0.3-0.5s — **>10x cumulative**, with this round
   contributing ~2.5x. (Absolute timings on this machine drift by a factor of two between runs, so only the
   interleaved A/B ordering is quoted.) Output is unchanged: the differential test against the naive oracle
-  now runs 400,000 randomized inputs spanning budgets 0-10 and lengths 0-22, so both the bail-immediately
-  and never-bail regimes are covered, with zero mismatches.
+  runs 25,000 randomized inputs per run, spanning budgets 0-10 and lengths 0-24 so both the
+  bail-immediately and never-bail regimes are covered, with zero mismatches; a one-off 400,000-input sweep
+  during development was also clean.
 
 - **The off-target scan's innermost alignment is now linear instead of quadratic — a 4.2-4.6x speedup on the
   whole scan, with byte-identical output.** `_best_with_removed_base` prices every single-base-removal

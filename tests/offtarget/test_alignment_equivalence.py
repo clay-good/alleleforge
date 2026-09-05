@@ -13,7 +13,7 @@ The shipped version also bails out of both passes as soon as the running
 mismatch count passes the budget, which prunes most windows after a handful of
 bases. That bail is only sound because each count is monotone in its direction,
 so the randomized inputs below deliberately span budgets from 0 (bail
-immediately) to 10 (never bail) and lengths from 0 to 22.
+immediately) to 10 (never bail) and lengths from 0 to 24.
 
 The oracle here is the naive implementation, kept verbatim.
 """
@@ -40,11 +40,11 @@ def _naive(longer: str, shorter: str, max_mm: int) -> tuple[int, str] | None:
 
 def test_matches_the_naive_definition_over_randomized_inputs() -> None:
     rng = random.Random(20260905)
-    for _ in range(4000):
-        n = rng.randint(0, 22)
+    for _ in range(25_000):
+        n = rng.randint(0, 24)
         shorter = "".join(rng.choice("ACGTN") for _ in range(n))
         longer = "".join(rng.choice("ACGTN") for _ in range(n + 1))
-        max_mm = rng.randint(0, 8)
+        max_mm = rng.randint(0, 10)
         assert _best_with_removed_base(longer, shorter, max_mm) == _naive(longer, shorter, max_mm)
 
 
