@@ -8,6 +8,20 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Every PE3/PE3b candidate reported the *default* off-target cut-offs, whatever the run actually used.**
+  A prime design searches twice — once around the pegRNA nick, once around the ngRNA nick — and merges the
+  two reports. The merge rebuilt the report field by field, so it silently reset anything it did not name
+  back to that field's default. It had already lost the scorer/matrix identity once and the sub-threshold
+  tail once; adding the bulge budgets and CFD/MIT cut-offs made it three. A prime run at `cfd_threshold=0.05`
+  therefore emitted a report labelled `0.20`, which is worse than an absent label: it asserts a scan that
+  did not happen. The merge is now a copy-and-update — only the deduplicated sites and the summed
+  sub-threshold tails are named, because those are the only two fields that genuinely aggregate — so any
+  field added to `OffTargetReport` later is carried through without touching the merge. The regression test
+  compares the merged report against the pegRNA report **field by field over `model_fields`** rather than
+  naming fields, so it covers fields that do not exist yet.
+
 ### Added
 
 - **An off-target report said how many mismatches it allowed, but not the four other knobs that decided

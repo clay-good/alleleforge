@@ -86,6 +86,17 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
   overlay, grep for the other ones first. The older implementation has usually already
   paid for the lesson, and its docstring is where the lesson is written down.
 
+- **Never reconstruct a shared model field by field.** Adding a field to a pydantic
+  model is only half the change: every place that rebuilds one by listing its fields
+  silently resets whatever it forgot to that field's *default*, which is worse than
+  leaving it blank — a report that says `cfd_threshold=0.20` asserts a scan that did
+  not happen. Use `model_copy(update={...})`, naming only the fields that genuinely
+  differ. `_merge_offtarget` lost three fields this way across three rounds before the
+  mechanism itself was replaced. So: after adding a field to a model, grep for the
+  model's other constructors; and when writing a merge, prefer copy-and-update. A test
+  that iterates `Model.model_fields` instead of naming fields covers the fields that do
+  not exist yet.
+
 ## Existing planning docs (background, not OpenSpec)
 
 `SPEC.md` (v1 build phases), `SPEC_V2.md` (R0–R6 roadmap), and `specs/*.md` (model-

@@ -240,3 +240,46 @@ def test_the_offtarget_cache_key_names_the_placements_not_just_the_spacers() -> 
     assert here.spacer == elsewhere.spacer  # identical reagent...
     assert _offtarget_cache_key(here) != _offtarget_cache_key(elsewhere)  # ...different locus
     assert _offtarget_cache_key(here) == _offtarget_cache_key(_peg(100))  # and stable
+
+
+def test_merging_the_two_nick_reports_keeps_every_setting_that_narrowed_the_search() -> None:
+    """A PE3 merge must not quietly restore the search settings to their defaults.
+
+    The two nick reports come from the same search, so the merged report's budgets,
+    cut-offs, scorer and build are all still `peg`'s. The previous field-by-field
+    rebuild reset whatever it forgot — which by then was the bulge budgets and the
+    CFD/MIT cut-offs, so every PE3/PE3b candidate claimed a 0.20 CFD cut-off no matter
+    what the run used, and a two-site report was indistinguishable from a fifteen-site
+    one. Asserting field-by-field equality (rather than naming the fields) is the
+    point: a field added to `OffTargetReport` later is covered without editing this.
+    """
+    from alleleforge.design.prime import _merge_offtarget
+
+    def _report(**kw: object) -> OffTargetReport:
+        base: dict[str, object] = {
+            "spacer": "A" * 20,
+            "pam": "NGG",
+            "sites": (),
+            "mismatch_threshold": 2,
+            "dna_bulge_budget": 0,
+            "rna_bulge_budget": 0,
+            "cfd_threshold": 0.05,
+            "mit_threshold": 0.01,
+            "reference_build": "hg38",
+            "scorer": "cfd-doench2016",
+            "score_matrix": "doench2016",
+            "subthreshold_score_sum": 0.25,
+        }
+        base.update(kw)
+        return OffTargetReport(**base)  # type: ignore[arg-type]
+
+    peg = _report()
+    ngrna = _report(subthreshold_score_sum=0.5)
+    merged = _merge_offtarget(peg, ngrna)
+
+    aggregated = {"sites", "subthreshold_score_sum"}
+    for field in OffTargetReport.model_fields:
+        if field in aggregated:
+            continue
+        assert getattr(merged, field) == getattr(peg, field), f"{field} lost in the merge"
+    assert merged.subthreshold_score_sum == pytest.approx(0.75)

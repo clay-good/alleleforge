@@ -71,24 +71,26 @@ def _merge_offtarget(peg: OffTargetReport, ngrna: OffTargetReport | None) -> Off
         if key not in best or site.score > best[key].score:
             best[key] = site
     sites = tuple(sorted(best.values(), key=lambda s: s.score, reverse=True))
-    # Carry the scorer/matrix identity and the sub-threshold tail through the merge.
-    # Both nick reports come from the same off-target search (same scorer), so peg's
-    # `scorer`/`score_matrix` are the honest labels for the merged sites — without
-    # them the report renders no "scoring basis" line for every PE3/PE3b candidate
-    # (defeating the guarantee that the scorer/matrix are always named). The two
-    # sub-threshold tails are summed so `specificity_score` still aggregates over the
-    # near-threshold hits of *both* nicks rather than silently resetting to 0.0 (a
-    # locus sub-threshold in one nick but reported in the other is counted in both,
-    # which only lowers specificity — the conservative direction).
-    return OffTargetReport(
-        spacer=peg.spacer,
-        pam=peg.pam,
-        sites=sites,
-        mismatch_threshold=peg.mismatch_threshold,
-        reference_build=peg.reference_build,
-        scorer=peg.scorer,
-        score_matrix=peg.score_matrix,
-        subthreshold_score_sum=peg.subthreshold_score_sum + ngrna.subthreshold_score_sum,
+    # Copy-and-update rather than rebuild field by field. Both nick reports come from
+    # the same search over the same reference with the same scorer, so every remaining
+    # field on `peg` — the scorer/matrix identity, the reference build, and each budget
+    # and cut-off that narrowed the scan — is already the honest label for the merged
+    # sites. Only the two that genuinely aggregate are named: the deduplicated sites,
+    # and the summed sub-threshold tails so `specificity_score` still accounts for the
+    # near-threshold hits of *both* nicks (a locus sub-threshold in one nick but
+    # reported in the other is counted twice, which only lowers specificity — the
+    # conservative direction).
+    #
+    # The field-by-field rebuild this replaces silently reset every field it forgot to
+    # its default, and it forgot three times: the scorer/matrix identity, the
+    # sub-threshold tail, and the bulge budgets and CFD/MIT cut-offs. `model_copy`
+    # makes that class of omission impossible — a field added to `OffTargetReport`
+    # tomorrow is carried through the merge without touching this function.
+    return peg.model_copy(
+        update={
+            "sites": sites,
+            "subthreshold_score_sum": peg.subthreshold_score_sum + ngrna.subthreshold_score_sum,
+        }
     )
 
 

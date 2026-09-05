@@ -2290,6 +2290,35 @@ story. The cheapest form of that search is "this module takes five parameters of
 the output?", and the answer being *one, added deliberately* is evidence the rule is right, not evidence
 the gap is closed.**
 
+## Round 85 — the round before had already broken something
+
+R84 added four fields to `OffTargetReport`. The obvious next question is not "what else needs recording?"
+but **"who else builds one of these?"** — because a model gains fields, and every place that *reconstructs*
+one field by field silently drops what it does not name.
+
+`grep 'OffTargetReport('` returned exactly two call sites: the engine that creates it, and
+`design/prime.py:_merge_offtarget`, which merges the pegRNA-nick and ngRNA-nick reports for every PE3/PE3b
+candidate. It rebuilt the report field by field. R84 had therefore, three commits earlier, made every prime
+candidate report `cfd_threshold=0.20` regardless of what the run used.
+
+The comment above that rebuild is the real finding. It documented — carefully, with reasoning — two earlier
+occurrences of the identical bug: the scorer/matrix identity lost through the merge, and the sub-threshold
+tail reset to `0.0`. Each had been fixed by adding the forgotten field to the constructor call. Three
+instances, three point fixes, and the mechanism untouched. The comment was a monument to a bug that kept
+being patched instead of removed.
+
+**Shipped:** `peg.model_copy(update={...})`, naming only the two fields that genuinely aggregate — the
+deduplicated sites and the summed sub-threshold tails. Everything else is `peg`'s already, because both
+reports come from the same search. The regression test compares the merged report against the pegRNA report
+**by iterating `OffTargetReport.model_fields`** rather than naming fields, so it covers fields that do not
+exist yet; mutation-checked by restoring the old rebuild, which fails on `dna_bulge_budget`.
+
+**Lesson: a *narrowly wrong* value is worse than a missing one — an absent cut-off invites a question, a
+default cut-off answers it falsely. And when a comment explains why a particular field is carried through a
+manual reconstruction, that comment is the bug report: the fix is not to add the next field to the list, it
+is to stop keeping a list. After adding a field to a shared model, grep for the model's other constructors
+before doing anything else — that is a two-second check that R84 skipped and R85 paid for.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
