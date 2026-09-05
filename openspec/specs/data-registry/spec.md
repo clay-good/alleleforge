@@ -149,3 +149,24 @@ descending frequency.
 #### Scenario: Common haplotypes
 - **WHEN** `common_haplotypes(min_freq=f)` is queried
 - **THEN** only haplotypes with `max_freq >= f` are returned, sorted by descending frequency
+
+### Requirement: One predicate decides whether an artifact may be downloaded
+
+Permission to fetch an external artifact SHALL be decided by a single shared predicate,
+so the dataset registry, the model zoo and the reference-genome registry cannot drift on
+what counts as consent. A fetch is permitted when the caller passes explicit per-call
+consent **or** the environment has opted in via `allow_network`. With neither, nothing is
+downloaded.
+
+This permission covers downloads only. It SHALL NOT be read as authorizing the disclosure
+of user data to a third party, which is gated separately at the call site that would do
+it — see the variant-resolution capability.
+
+#### Scenario: Environment opt-in
+- **WHEN** `allow_network` is true and no per-call consent is given
+- **THEN** the fetch proceeds to its next guard (the checksum pin) rather than being
+  refused for lack of consent
+
+#### Scenario: Neither form of consent
+- **WHEN** `allow_network` is false and no per-call consent is given
+- **THEN** the fetch is refused, and the refusal names both ways to permit it

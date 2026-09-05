@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from alleleforge.config import (
     DEFAULT_MAF_THRESHOLD,
     DEFAULT_REFERENCE,
@@ -123,3 +125,54 @@ def test_seed_governs_a_stochastic_step() -> None:
     baseline = conformal_demo(Settings(seed=20240501).rng())
     assert conformal_demo(Settings(seed=20240501).rng()) == baseline
     assert conformal_demo(Settings(seed=7).rng()) != baseline
+
+
+def test_allow_network_actually_governs_artifact_downloads() -> None:
+    """The setting documented as the download switch was read by nothing.
+
+    `allow_network` had a docstring saying the registries "must never auto-download"
+    when it is false, and not one of the three consulted it. It is the standing form
+    of the per-call `consent=True`: an environment that has already agreed to download
+    should not have to thread consent through every entry point, and one that has not
+    should not be silently overridden either way.
+    """
+    from alleleforge.config import Settings, artifact_download_permitted
+
+    off = Settings(allow_network=False)
+    on = Settings(allow_network=True)
+
+    # Explicit consent works regardless — today's behavior, unchanged.
+    assert artifact_download_permitted(True, settings=off) is True
+    assert artifact_download_permitted(True, settings=on) is True
+    # Without consent, the setting is the whole answer. Both directions asserted, or
+    # a predicate that ignored `settings` entirely would pass on one of them.
+    assert artifact_download_permitted(False, settings=off) is False
+    assert artifact_download_permitted(False, settings=on) is True
+
+
+def test_allow_network_reaches_a_real_registry(tmp_path: Path) -> None:
+    """...and the predicate is wired in, not merely defined beside the setting.
+
+    Asserted through `DEFAULT_REGISTRY.resolve` rather than the predicate alone: a
+    correct helper that no gate calls is exactly the state this round found.
+    """
+    from alleleforge.config import Settings
+    from alleleforge.data.registry import DEFAULT_REGISTRY, ConsentError
+
+    with pytest.raises(ConsentError, match="allow_network"):
+        DEFAULT_REGISTRY.resolve("gnomad", cache_dir=tmp_path)
+
+    # An environment that opted in gets past the consent gate — and lands on the next
+    # guard (the checksum pin), which proves it passed the first one rather than
+    # short-circuiting somewhere earlier.
+    settings = Settings(allow_network=True)
+    import alleleforge.config as config
+
+    original = config._SETTINGS
+    config._SETTINGS = settings
+    try:
+        with pytest.raises(Exception) as exc:  # noqa: PT011 - the guard past consent
+            DEFAULT_REGISTRY.resolve("gnomad", cache_dir=tmp_path)
+        assert not isinstance(exc.value, ConsentError)
+    finally:
+        config._SETTINGS = original

@@ -31,6 +31,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from alleleforge.config import artifact_download_permitted
 from alleleforge.types.provenance import ModelCheckpoint
 
 #: Directory of bundled model cards shipped with AlleleForge.
@@ -253,10 +254,10 @@ class ModelRegistry:
             )
         path = Path(cache_dir) / f"{card.name}.{card.version}.ckpt"
         if not path.exists():
-            if not consent:
+            if not artifact_download_permitted(consent):
                 raise ConsentError(
                     f"checkpoint for {name!r} is not cached; pass consent=True to download "
-                    f"from {card.source_url}"
+                    f"from {card.source_url}, or set allow_network for this environment"
                 )
             if card.checkpoint_sha256 is None:
                 raise ChecksumError(

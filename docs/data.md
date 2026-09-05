@@ -14,6 +14,24 @@ two invariants:
   `sha256`; AlleleForge refuses to fetch what it cannot checksum-verify, and
   raises on a mismatch.
 
+## Two ways to say yes
+
+Nothing is downloaded unless you say so, in one of two forms:
+
+| Form | Scope | Use it when |
+|---|---|---|
+| `consent=True` at the call | That one fetch | A script or notebook opts in for a specific artifact |
+| `allow_network = true` in config (or `ALLELEFORGE_ALLOW_NETWORK=1`) | Every artifact fetch in the process | The machine has already agreed — a container build, a lab workstation |
+
+Both are checked by the same predicate, `alleleforge.config.artifact_download_permitted`,
+so the model zoo, the dataset registry and the reference-genome registry cannot drift
+apart on what counts as permission.
+
+Neither one authorizes sending your data *out*. Fetching a reference genome and
+disclosing a variant to a third-party API are different acts, and the second is asked for
+separately at the only place that does it — `VepRestPredictor`, which will not send a
+variant to Ensembl without its own explicit consent, whatever `allow_network` says.
+
 Access returns the cached path together with a `DatasetVersion`, which is
 embedded in every result's provenance block so an analysis can be traced back to
 the exact release it used.

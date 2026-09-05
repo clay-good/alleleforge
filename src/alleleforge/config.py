@@ -72,8 +72,17 @@ class Settings(BaseSettings):
     interval_level: float = Field(default=DEFAULT_INTERVAL_LEVEL, ge=0.0, le=1.0)
     maf_threshold: float = Field(default=DEFAULT_MAF_THRESHOLD, ge=0.0, le=1.0)
 
-    #: When false, the data/model registries must never auto-download; callers
-    #: pass an explicit consent flag to fetch external artifacts.
+    #: Environment-level opt-in to fetching external **artifacts** — datasets,
+    #: model checkpoints, reference genomes. It is the standing form of the
+    #: per-call ``consent=True`` flag, for a machine where downloading is already
+    #: agreed (a container build, a lab workstation), so a caller does not have to
+    #: thread consent through every entry point. Default ``False``: with neither
+    #: this nor an explicit ``consent``, nothing is downloaded.
+    #:
+    #: It does **not** authorize sending anything *out*. A variant sent to a
+    #: third-party effect API is a disclosure, not a download, and is gated
+    #: separately at its own call site — see
+    #: :class:`~alleleforge.variant.effect.VepRestPredictor`.
     allow_network: bool = False
 
     def rng(self) -> random.Random:
@@ -143,3 +152,28 @@ def get_settings() -> Settings:
     if _SETTINGS is None:
         _SETTINGS = Settings.load()
     return _SETTINGS
+
+
+def artifact_download_permitted(consent: bool, *, settings: Settings | None = None) -> bool:
+    """Return whether an external *artifact* may be downloaded.
+
+    One predicate for all three registries. The check was written out three times
+    identically, and the setting that was supposed to govern it — ``allow_network`` —
+    was read by none of them, so an environment that had opted in still had to pass
+    ``consent=True`` at every call and an environment that had not could still
+    download by passing it.
+
+    Args:
+        consent: The caller's explicit per-call opt-in.
+        settings: Settings to consult; defaults to the process singleton.
+
+    Returns:
+        ``True`` if either the caller consented or the environment has opted in.
+
+    Note:
+        This governs downloads only. It never authorizes disclosing user data to a
+        third party — that is asked separately at the call site that would do it.
+    """
+    if consent:
+        return True
+    return (settings or get_settings()).allow_network

@@ -10,6 +10,21 @@ acceptance.
 
 ### Fixed
 
+- **`Settings.allow_network` did nothing.** Its docstring said the registries "must never auto-download"
+  when it is false; none of the three consulted it, so the setting was decorative — an environment that had
+  already agreed to download still had to thread `consent=True` through every entry point, and a user who
+  believed they had switched the network off had switched nothing. It is now the standing form of the
+  per-call consent: a fetch proceeds if the caller passed `consent=True` **or** the environment opted in.
+  The default stays `False`, so nothing about today's behavior changes for anyone not setting it. All three
+  registries now call one predicate, `artifact_download_permitted()`, instead of three identical copies of
+  `if not consent`, and the refusal messages name both ways to say yes.
+
+  `allow_network` governs **downloads only**. It does not authorize sending anything out: disclosing a
+  variant to a third-party effect API is a different act from fetching an artifact, and stays gated
+  separately at its own call site regardless of this setting.
+
+### Fixed
+
 - **A VEP effect lookup sent the user's variant to a third-party public API with no consent gate.** Three
   of AlleleForge's four network paths — the model zoo, the dataset registry, the reference genome — refuse
   to fetch without an explicit `consent=True`. `VepRestPredictor.predict()` did not, and it is the one that

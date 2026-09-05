@@ -25,7 +25,7 @@ import hashlib
 from collections.abc import Callable
 from pathlib import Path
 
-from alleleforge.config import get_settings
+from alleleforge.config import artifact_download_permitted, get_settings
 from alleleforge.types.provenance import DatasetVersion
 
 #: A downloader writes the artifact at ``url`` to ``dest``. Injected so tests
@@ -163,10 +163,10 @@ class DatasetRegistry:
         desc = self.get(name)
         path = self.cache_path(name, cache_dir=cache_dir)
         if not path.exists():
-            if not consent:
+            if not artifact_download_permitted(consent):
                 raise ConsentError(
                     f"dataset {desc.name!r} is not cached; pass consent=True to download "
-                    f"from {desc.source_url}"
+                    f"from {desc.source_url}, or set allow_network for this environment"
                 )
             if desc.sha256 is None:
                 raise ChecksumError(

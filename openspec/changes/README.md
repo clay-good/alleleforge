@@ -2473,6 +2473,40 @@ three places and would have to mean "may I disclose" in the fourth, and only the
 on the other end of it. A consistency sweep that had simply copied the existing gate would have got the
 mechanism right and the reasoning wrong.**
 
+## Round 91 — finishing the switch that wasn't wired
+
+R90 deferred this deliberately: `Settings.allow_network`, documented as the switch that stops the
+registries auto-downloading, read by nothing.
+
+The interesting part was not the wiring, it was deciding what the setting *means*, because two readings of
+the same field name are both plausible. As a **floor**, a fetch would need `consent AND allow_network` — a
+hard kill switch. As a **standing consent**, a fetch needs `consent OR allow_network` — an environment-level
+form of the per-call flag. The field name argues for the floor; the docstring argues for the standing
+consent, saying callers "pass an explicit consent flag" as the alternative to it.
+
+Both readings agree on the default, which is the part that matters: `allow_network=False` and no per-call
+consent means nothing is downloaded, either way. They differ only on whether `consent=True` should keep
+working when the setting is false — and today it does, everywhere, including in the CLI's own
+`--trained-efficiency` path. The floor reading would have been a silent breaking change to the documented
+API, justified by nothing more than my preference for how the name reads. So: standing consent, stated
+plainly in the docstring and in `docs/data.md`, and the default preserves current behavior exactly.
+
+The scope limit is the R90 finding carried forward. `allow_network` permits **downloads**. It does not
+authorize disclosure — a variant sent to Ensembl stays gated at its own call site whatever this setting
+says, because the two are different acts and one of them has a patient on the other end.
+
+**Shipped:** `artifact_download_permitted()` in `config.py`, called by all three registries in place of
+three identical `if not consent` copies (R85's rule about duplicated checks), refusal messages naming both
+ways to consent, and a docs table. Two tests, both mutation-checked: one on the predicate in both
+directions, one through a real registry — because a correct helper that no gate calls is precisely the
+state this round found.
+
+**Lesson: when a dormant flag is finally wired up, the ambiguity in its meaning is the change, not the
+wiring. Prefer the reading the existing docstring and call sites already assume, and prefer the one that
+does not silently break a documented API — then write the choice down where the next reader will see it.
+Picking the interpretation that sounds stricter is not the safer option if it changes behavior nobody asked
+to change.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
