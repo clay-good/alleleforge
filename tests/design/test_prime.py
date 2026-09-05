@@ -194,3 +194,16 @@ def test_pol3_gc_and_5prime_g_annotated(make_reference: MakeRef) -> None:
     assert top.pegrna is not None
     spacer = str(top.pegrna.spacer.sequence).upper()
     assert ("no-5prime-g" in top.flags) == (not spacer.startswith("G"))
+
+
+def test_multi_base_edit_is_flagged_with_what_it_writes(make_reference: MakeRef) -> None:
+    """A menu must show whether a candidate installs one base or many."""
+    ref = make_reference({"chr2": _context()})
+    snv = resolve("chr2:71:A>C", reference=ref)
+    deletion = resolve("chr2:71:ATA>A", reference=ref)
+
+    snv_cands = design_prime(snv, EditIntent.INSTALL, reference=ref, run_offtarget=False)
+    del_cands = design_prime(deletion, EditIntent.CORRECT, reference=ref, run_offtarget=False)
+    assert snv_cands and del_cands
+    assert not any(f.startswith("templated-edit:") for f in snv_cands[0].flags)
+    assert "templated-edit:3nt" in del_cands[0].flags

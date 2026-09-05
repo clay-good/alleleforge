@@ -10,6 +10,19 @@ acceptance.
 
 ### Added
 
+- **A geometry-only efficiency score now says what it cannot see.** The default `PridictScorer` is a
+  transparent geometry prior — its features are PBS/RTT length, nick-to-edit distance, PBS GC, and the
+  epegRNA motif — with **no edit-size or edit-class term**. That was unremarkable while the enumerator
+  could only template a single base; now that it writes anything up to a 29 nt insertion, two designs with
+  identical geometry receive an identical score whether they install one base or twenty-nine, and the
+  RTT-length penalty is the only indirect proxy. Rather than invent a size coefficient the heuristic has no
+  basis for, the limitation is now stated in three places a user actually reads: the prediction carries an
+  explicit `EDIT_SIZE_BLIND_NOTE` whenever it scores a non-single-base edit, the `pridict2-baseline` model
+  card records it as a known failure mode (pointing at the trained `pridict2` model for size-aware
+  numbers), and each candidate carries a `templated-edit:<n>nt` flag so a menu shows whether a design
+  installs one base or many. The reproducibility golden was regenerated for the model-card line — its
+  catching a card edit is the provenance machinery working; the canonical run's numbers are byte-identical.
+
 - **A fourth runnable notebook, `04_indel_prime_correction.ipynb`, demonstrates the variable-length RT
   template on a ΔF508-shaped in-frame 3 bp deletion.** It shows routing admitting prime and only prime
   (with its rationale), designs the correcting pegRNA, reads the RT template apart into *5' homology +

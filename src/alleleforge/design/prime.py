@@ -99,6 +99,12 @@ def _flags(pegrna: PegRNA, efficiency: Prediction[float], run_offtarget: bool) -
         flags.append(f"epegRNA:{pegrna.three_prime_motif.value}")
     ng = pegrna.nicking_guide
     flags.append("pe3b" if (ng and ng.seed_disrupting) else "pe3" if ng else "no-nick")
+    # What the RT template actually writes. A menu that shows only geometry hides
+    # whether a candidate installs a single base or a 29-nt insertion — the same
+    # numbers, very different reagents at the bench.
+    written = pegrna.templated_edit_length
+    if written != 1:
+        flags.append(f"templated-edit:{written}nt")
     if ng is not None and run_offtarget:
         flags.append("both-nicks-searched")
     if not efficiency.in_distribution:
@@ -148,7 +154,8 @@ def design_prime(
     """Design prime-editing candidates for a resolved variant.
 
     Args:
-        resolved: The resolved variant (single-position edit).
+        resolved: The resolved variant (any precise small edit — substitution,
+            MNV, insertion, deletion, or delins — within the RT template budgets).
         intent: What the edit must accomplish (sets start/desired alleles).
         reference: The reference genome.
         efficiency_scorer: Prime-efficiency scorer (default: PRIDICT2.0 baseline).

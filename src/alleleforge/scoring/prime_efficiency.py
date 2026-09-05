@@ -44,6 +44,13 @@ def _sigmoid(x: float) -> float:
     return min(0.99, max(0.01, 1.0 / (1.0 + math.exp(-x))))
 
 
+#: Attached when the geometry prior scores an edit it has no feature for.
+EDIT_SIZE_BLIND_NOTE = (
+    "geometry prior: the logit has no edit-size or edit-class term, so this score "
+    "does not reflect that the edit writes more or fewer than one base"
+)
+
+
 def _gc(seq: str) -> float:
     """Return the GC fraction of ``seq`` (0 for empty)."""
     return sum(b in "GC" for b in seq) / len(seq) if seq else 0.0
@@ -123,6 +130,15 @@ class PridictScorer:
             signal = tracks.signal(track, interval)
             value = min(0.99, value * (1.0 + 0.1 * math.tanh(signal)))  # open chromatin helps
         in_dist = cell_context is None or cell_context in PRIDICT_TRAINING_CONTEXTS
+        notes = [NOMINAL_INTERVAL_NOTE]
+        # The logit's features are PBS/RTT length, nick-to-edit distance, PBS GC and
+        # the epegRNA motif — there is no edit-size or edit-class term. Two designs
+        # with identical geometry therefore score identically whether they write one
+        # base or twenty-nine, which the RTT-length penalty only indirectly proxies.
+        # Say so on the prediction rather than let a geometry number be read as an
+        # edit-size-aware one.
+        if pegrna.templated_edit_length != 1:
+            notes.append(EDIT_SIZE_BLIND_NOTE)
         return Prediction[float](
             value=value,
             interval=(max(0.0, value - _INTERVAL_HALF), min(1.0, value + _INTERVAL_HALF)),
@@ -130,7 +146,7 @@ class PridictScorer:
             method=UncertaintyMethod.HEURISTIC,
             in_distribution=in_dist,
             calibrated=False,
-            notes=(NOMINAL_INTERVAL_NOTE,),
+            notes=tuple(notes),
         )
 
 

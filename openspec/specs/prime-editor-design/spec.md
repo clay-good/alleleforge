@@ -151,6 +151,26 @@ guide), rather than assigned a locus it does not occupy.
 - **WHEN** a candidate nicking-guide protospacer lies wholly inside carried inserted bases
 - **THEN** it is not emitted, and no emitted nicking guide has a zero-width placement
 
+### Requirement: A geometry-only efficiency score says what it cannot see
+
+The default prime-efficiency scorer is a geometry prior: its features are PBS/RTT
+length, nick-to-edit distance, PBS GC, and the epegRNA motif — there is no edit-size
+or edit-class term. When it scores an edit that writes other than a single base, the
+prediction SHALL carry an explicit note saying the score does not reflect the edit's
+size, the model card SHALL record the limitation as a known failure mode, and the
+candidate SHALL carry an inspectable flag naming how many bases the RT template
+writes.
+
+#### Scenario: Multi-base edit scored by the geometry prior
+- **WHEN** the default scorer scores a pegRNA whose RT template writes other than one
+  base
+- **THEN** the returned prediction carries the edit-size-blind note, and a single-base
+  edit's prediction does not
+
+#### Scenario: Menu shows what a candidate writes
+- **WHEN** a prime candidate installs an edit of other than one base
+- **THEN** its flags name the templated length
+
 ### Requirement: A pegRNA records the geometry its scorers consume
 
 A `PegRNA` SHALL record both RT-template homology arms — the 5' arm between the

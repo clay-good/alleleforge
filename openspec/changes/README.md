@@ -1145,6 +1145,39 @@ it was written and quietly false from the moment R38 landed — the comment just
 still cited, still wrong. When a capability is widened in one module, its own docstrings are not the
 blast radius: every *other* module's justification for opting out is.**
 
+## Round 43 — what the model cannot see, said out loud (1 honesty gap; 1 stale docstring)
+
+R42's sweep for stale opt-out justifications turned up one more docstring
+(`design_prime`'s "resolved: The resolved variant (single-position edit)") and, behind it, a subtler
+question: the enumerator can now write a 29 nt insertion — *can the scorer tell?*
+
+It cannot. The default `PridictScorer` is a geometry prior whose own model card enumerates its features:
+PBS/RTT length, nick-to-edit distance, PBS GC, the epegRNA motif. There is no edit-size or edit-class
+term. Two pegRNAs with identical geometry score identically whether they install one base or
+twenty-nine. That was invisible while only SNVs were reachable and became a live honesty gap the moment
+R38 landed — a number that looks like an efficiency prediction for *this* edit but is really an
+efficiency prediction for this *geometry*.
+
+The tempting fix is a size penalty. That would be fabrication: the heuristic was never fitted on anything,
+so any coefficient would be invented and would then be laundered through a `Prediction` that already
+reports `calibrated=False`. **Shipped instead:** state the blindness in the three places a user reads —
+an explicit note on the prediction whenever it scores a non-single-base edit, a `known_failure_modes`
+entry on the card (pointing at the trained `pridict2` for size-aware numbers), and a
+`templated-edit:<n>nt` flag on the candidate so a menu shows what each design writes. Also fixed the
+stale `design_prime` docstring.
+
+The reproducibility golden moved — and only because of the model-card line. Diffing the canonical run's
+body before and after confirmed the numbers are byte-identical; the digest catching a *card* edit is the
+provenance machinery doing precisely its job, so the golden was regenerated rather than worked around.
+
+**Lesson: when a feature widens the input space, the honest question is not only "does the code handle
+it" but "does the model *know* about it." A heuristic with no feature for the thing that just became
+variable is not wrong — it is silent, which is worse, because its output is shaped exactly like an
+answer. The repo's own line ("no scorer returns a bare float") extends here: a prediction should carry
+what it did not look at. And the fix for an un-modeled axis is documentation plus a flag, never an
+invented coefficient — a fabricated number inside a calibrated-looking interval is the one failure mode
+this project cannot afford.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

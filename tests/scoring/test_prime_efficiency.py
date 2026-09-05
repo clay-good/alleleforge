@@ -5,7 +5,12 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from alleleforge.scoring.prime_efficiency import DeepPrimeAdapter, GenETAdapter, PridictScorer
+from alleleforge.scoring.prime_efficiency import (
+    EDIT_SIZE_BLIND_NOTE,
+    DeepPrimeAdapter,
+    GenETAdapter,
+    PridictScorer,
+)
 from alleleforge.types.guide import PegRNA, Spacer, ThreePrimeMotif
 from alleleforge.types.prediction import UncertaintyMethod
 from alleleforge.types.sequence import DNASequence
@@ -187,3 +192,21 @@ def test_nick_to_edit_is_not_inflated_by_the_templated_allele() -> None:
 def test_homology_arms_may_not_outrun_the_template() -> None:
     with pytest.raises(ValidationError):
         _geom_peg(rtt="A" * 12, pbs="ACGTACGTACGTA", homology_5=8, homology_3=5)
+
+
+def test_a_multi_base_edit_score_says_it_is_edit_size_blind() -> None:
+    """The geometry prior has no edit-size feature; the prediction must admit it.
+
+    The logit reads PBS/RTT length, nick-to-edit distance, PBS GC and the motif —
+    nothing about how many bases the RT template writes. Two designs with the same
+    geometry score identically whether they install one base or twenty-nine, so a
+    non-single-base score that arrives unannotated would be read as edit-size-aware
+    when it is not.
+    """
+    pbs = "ACGTACGTACGTA"
+    snv = _geom_peg(rtt="A" * 16, pbs=pbs, homology_5=10, homology_3=5)
+    insertion = _geom_peg(rtt="A" * 16, pbs=pbs, homology_5=6, homology_3=5)
+
+    scorer = PridictScorer()
+    assert EDIT_SIZE_BLIND_NOTE not in scorer.score(snv).notes
+    assert EDIT_SIZE_BLIND_NOTE in scorer.score(insertion).notes

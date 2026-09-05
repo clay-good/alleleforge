@@ -25,5 +25,6 @@ citation: "AlleleForge contributors (heuristic); mechanism after Mathis et al. 2
 known_failure_modes:
   - "Transparent geometry heuristic, not the trained PRIDICT2.0 model (method=HEURISTIC): a re-run from this checkpoint reproduces the heuristic, not published PRIDICT2.0 numbers. Use pridict2 for the trained model."
   - "Cell-context OOD is flagged from the HEK293T/K562 window, but the score itself does not model chromatin without ePRIDICT + an ENCODE track."
+  - "No edit-size or edit-class feature: two pegRNAs with identical geometry score identically whether they write one base or a 29-nt insertion, which the RTT-length penalty only indirectly proxies. A score for a non-single-base edit carries an explicit note saying so; use the trained pridict2 model for size-aware numbers."
 checkpoint_sha256: null
 source_url: null
