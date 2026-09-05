@@ -575,11 +575,25 @@ call is opt-in (`live_integration`-marked, never run in CI).
 | Adapter | Role | Pure (CI-tested) | Live (opt-in) |
 |---|---|---|---|
 | **Cas-OFFinder** | off-target cross-check vs. the native engine | input-deck builder, legacy/bulge output parser, `disagreements()` | the binary subprocess (injectable `runner`) |
-| **VEP** (Ensembl REST) | molecular consequence for chemistry routing | `parse_vep_response` (MANE/canonical selection, SO term → impact), `(variant, assembly, transcript)` cache | the region-endpoint GET (injectable `fetcher`) |
+| **VEP** (Ensembl REST) | molecular consequence, stated in the menu rationale (routing itself is by variant class and intent, not consequence) | `parse_vep_response` (MANE/canonical selection, SO term → impact), `(variant, assembly, transcript)` cache | the region-endpoint GET (injectable `fetcher`, **consent-gated** — see below) |
 | **HGVS** (`hgvs`/UTA/SeqRepo) | `c.`/`p.` ⇄ `g.` projection | dependency-free `g.` parser; import-guarded `HgvsLibraryProjector` | `AssemblyMapper.c_to_g` against UTA |
 
 Disagreements are **surfaced as flags, never hidden**: a Cas-OFFinder locus the native engine misses
 (or vice versa) is reported, not silently dropped.
+
+**Two kinds of consent, and they are not interchangeable.** Downloading an artifact and disclosing
+your data are different acts, so AlleleForge asks for them separately:
+
+| | Governs | How to permit it |
+|---|---|---|
+| **Artifact download** | fetching a dataset, checkpoint or reference genome into your cache | `consent=True` at the call, **or** `allow_network = true` in your config / `ALLELEFORGE_ALLOW_NETWORK=1` for the whole process |
+| **Variant disclosure** | sending a variant to the Ensembl VEP REST API | `VepRestPredictor(consent=True)` — asked separately, and never satisfied by `allow_network` |
+
+A VEP lookup sends the chromosome, position and both alleles off your machine, and AlleleForge accepts
+patient VCFs as input. Agreeing to download a reference genome is not agreeing to that. Injecting your
+own `fetcher` needs no consent flag — you supplied the transport and know where it goes, which is also
+how CI replays recorded responses with no network at all. With neither form of consent, nothing is
+downloaded and nothing is sent.
 
 ---
 
@@ -776,7 +790,13 @@ flowchart LR
 efficiency prediction out-of-distribution and raises an `ood` flag rather than hiding it. The
 off-target engine runs on the pegRNA nick **and** the ngRNA nick, merging into one ancestry-stratified
 report. The PE3b nicking guide is preferred when a seed-disrupting ngRNA exists (it nicks only the
-edited strand, suppressing indels). **Edit-class scope:** the enumeration templates a **variable-length
+edited strand, suppressing indels). **Every PE3 candidate states where its second nick is** — a signed
+`nick-distance:+62nt` flag and `PE3 (+62 nt nick)` on the reagent line — because that distance is the one
+parameter PE3 design turns on, and two opposite-strand nicks close together are a staggered double-strand
+break, the outcome prime editing is chosen to avoid. A nick inside a conservative floor is annotated
+`close-nick`. It is **shown, not scored**: turning nick distance into a ranking term needs a byproduct
+model calibrated against real PE3 data, which this project does not have, and a fabricated weight would
+make the composite look better informed than it is. **Edit-class scope:** the enumeration templates a **variable-length
 RTT**, so the whole small-edit repertoire is designed — substitutions, MNVs, short insertions, short
 deletions, and delins. The RT template reads *5' homology + the desired allele + 3' homology*, so a
 deleted span costs no template length (a 44 bp deletion is as cheap to write as a 1 bp one) while an
@@ -854,6 +874,27 @@ and each candidate's interval and OOD status appear in its score breakdown. The 
 dangerous in one population is correctly down-ranked. The designer **degrades gracefully**: an unavailable
 model, a failing enumeration, or a chemistry that finds nothing is recorded with its reason in the menu
 rationale while the rest of the menu still returns.
+
+**The menu leads with what is known about the target, not with chemistry.** When the variant came from
+ClinVar, or an effect predictor annotated it, the rationale states so before anything else — because a
+menu is only meaningful once the reader knows what is being edited:
+
+```
+Predicted effect: missense variant (moderate impact) in HBB, p.Glu7Val on ENST00000335295
+ClinVar: pathogenic (criteria provided, multiple submitters)
+```
+
+The review status is carried alongside the class deliberately: *Pathogenic, no assertion criteria
+provided* and *Pathogenic, reviewed by expert panel* are the same class and very different evidence.
+When the intent and what is known pull in different directions — correcting a variant ClinVar calls
+benign, correcting a variant of uncertain significance, correcting a variant with only modifier impact,
+or *installing* a pathogenic allele (a disease model, not a therapy) — the menu says so plainly.
+
+These **annotate; they never refuse**. Correcting a benign variant can be entirely right — a research
+control, a reclassification the database has not caught up with — and a variant with no predicted protein
+consequence can still be a splice or regulatory target. The job is to make sure you are not doing it by
+accident. A design whose intent and evidence agree gets no caution at all, so the caution means something
+when it appears.
 
 ```python
 from alleleforge.design import design, eligible_chemistries
@@ -979,6 +1020,25 @@ needed and **no sequence data leaves the page**. Off-target tables are
 ancestry-stratified, surfacing the worst-affected population per candidate. The PDF
 is a small self-contained writer (no weasyprint / reportlab) for a clean leave-behind.
 
+**Every number says what it is conditional on.** A report a collaborator receives has to be readable on
+its own, so each render carries the settings its numbers depend on:
+
+- **The off-target search.** `2 nominated site(s), specificity 0.82` means one thing at a 0.20 CFD
+  cut-off and another at 0.05, so the mismatch budget, the DNA/RNA bulge budgets and the CFD/MIT
+  reporting thresholds are printed beside the count — plus the scorer and the effective weight matrix.
+- **Model limitations.** A *Model limitations* section names, per model, what its card says it is **not**
+  for and how it fails. This is not boilerplate: the default Cas9 efficiency scorer's card states that
+  trusting its point estimate as a trained activity prediction is out of scope, "the heads are an
+  unfitted pseudo-random scaffold". A model documenting nothing produces no line and no heading — an
+  empty *Model limitations* heading would read as a claim that there are none.
+- **The datasets, not just the models.** The provenance footer names the datasets and tools a run
+  consumed alongside its model checkpoints. "Population-aware" is a claim about data; a footer that
+  names only the code cannot support it.
+- **What an HDR donor quietly adds.** A donor marked *re-cut blocked* is blocked because it carries a
+  second, unrequested base change in the guide's PAM or seed, written into the genome permanently. The
+  order states its position, its base change and the check to run — *confirm it is synonymous in your
+  reading frame* — rather than filing it in a note nobody opens.
+
 ```python
 from alleleforge.report import build_report, render_html, render_pdf, report_to_tsv
 
@@ -1034,6 +1094,7 @@ flowchart LR
 > file-read primitive, so that surface needs server-side configuration like the reference already has.
 > Everything that is *data* rather than a path — region scoping, cell context, the render cap, the
 > on-target locus — is available over HTTP.
+| `aforge verify <result.json>` | Check a result's provenance is complete — it names every model and dataset used and carries seed, version and config — and, with `--cache-dir`, re-hash each pinned checkpoint and dataset found there against the recorded hash. Exits non-zero on incomplete provenance or a hash mismatch: provenance as a *checkable contract*, not a record. |
 | `aforge data list` / `show <name>` | Inspect the dataset registry (versions, licenses, provenance). |
 | `aforge bench list` / `run` | List and run CRISPR-Bench tasks against frozen splits. |
 | `aforge bench leaderboard <result.json…>` | Aggregate signed results into the model-card-gated leaderboard (Markdown/HTML). |
@@ -1157,7 +1218,11 @@ oriented so a positive gap means worse generalization (R5; reported in the calib
 **Honest by construction.** Results are content-addressed (`signature`) so a published number cannot be
 silently edited, and the leaderboard refuses any submission lacking a model card (name, license, citation) or
 carrying a bad signature — `aforge bench leaderboard *.json` aggregates signed results into the board
-(Markdown/HTML), enforcing both gates on read. The regression-task ECE is **interval-coverage calibration**
+(Markdown/HTML), enforcing both gates on read. The board shows **ECE** and an **OOD** column — the share of
+the scored test fold the model itself declared out-of-distribution — so a model that stood behind every
+prediction is not on the same row as one that disclaimed 87% of them and scored the same. An unmeasurable
+share reads `n/a`, never `0%`: silence and a clean bill are different claims. Neither column enters the
+ranking; trading coverage against accuracy needs an exchange rate this project does not have. The regression-task ECE is **interval-coverage calibration**
 (`|empirical coverage − nominal|`), and because that is only well-defined against a single nominal level it
 is computed **per `interval_level` and count-weighted** — a scorer that mixes interval levels in one batch is
 scored correctly, never pooled against one prediction's level. The shipped datasets are **small synthetic fixtures** so the
@@ -1249,7 +1314,7 @@ Every default is overridable; these are the spec-mandated starting points.
 | Off-target search | ≤ 4 mismatches, ≤ 1 DNA + ≤ 1 RNA bulge | report CFD ≥ 0.20 **or** MIT ≥ 0.10 |
 | Population inclusion | MAF ≥ 0.001, all populations | de-novo PAM &amp; seed-mismatch changes always evaluated |
 | Base-editing window | protospacer positions **4–8** | ABE8e (A→G), CBE4max / evoCDA1 (C→T); bystanders always reported |
-| Prime editing | **PE5max + epegRNA (tevopreQ1)** | PBS 8–17 nt, RTT 7–34 nt; PE3b nicking guide when seed-disrupting |
+| Prime editing | **PE5max + epegRNA (tevopreQ1)** | PBS 8–17 nt, RTT 7–34 nt; PE3b nicking guide when seed-disrupting; nick-to-nick distance shown on every PE3 candidate, `close-nick` below 30 nt |
 | Uncertainty | **80%** predictive interval | deep ensemble (N=5) + isotonic calibration |
 | Seed | `20240501` | threaded through every stochastic step, recorded in provenance |
 

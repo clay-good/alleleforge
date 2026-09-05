@@ -8,6 +8,27 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The README said VEP's molecular consequence drives "chemistry routing". It never did.** Routing is a
+  pure function of variant class and intent; nothing read the consequence at all until it was surfaced in
+  the menu rationale. The row now says what the adapter actually does.
+
+- **`aforge verify` shipped complete and was documented nowhere.** The command that turns provenance from a
+  record into a checkable contract — confirming a result names every model and dataset it used, and
+  re-hashing each pinned artifact in a cache against the recorded hash — appeared in neither the README nor
+  `docs/`. An undiscoverable feature is, in practice, an unshipped one, and nothing could catch it: the
+  command worked and its own tests passed. It is now in the CLI table, and
+  `tests/test_readme_documents_the_cli.py` asserts every registered command is named in the prose, with a
+  guard-the-guard case so the assertion cannot pass blindly.
+
+### Changed
+
+- **README brought current with twelve rounds of behavior change**, each of which had shipped without the
+  prose catching up: the two kinds of consent and why they are not interchangeable, the clinical and
+  predicted-effect notes that now lead a menu, the settings and model limitations every render carries, the
+  PE3 nick distance, the HDR donor's blocking mutation, and the leaderboard's OOD column.
+
 ### Added
 
 - **The leaderboard now shows how much of its output each model disclaimed.** The uncertainty contract

@@ -86,6 +86,12 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
   overlay, grep for the other ones first. The older implementation has usually already
   paid for the lesson, and its docstring is where the lesson is written down.
 
+- **Never `git checkout <file>` to undo a local mutation test.** It reverts the whole
+  file to HEAD, taking every deliberate edit in the round with it. Copy the file aside
+  (`cp f /tmp/f.bak`) before mutating and restore from the copy — which is what the
+  source-code mutation checks already do; the prose ones drifted from that habit and
+  cost a round's README edits.
+
 - **Never reconstruct a shared model field by field.** Adding a field to a pydantic
   model is only half the change: every place that rebuilds one by listing its fields
   silently resets whatever it forgot to that field's *default*, which is worse than

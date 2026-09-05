@@ -2636,6 +2636,43 @@ test now re-signs properly and asserts `verify_signature()` on the way through.
 was answering "what would let a bad model look good here?" — that question has more than one answer, and
 the first one usually ships alone. This closes the R90 sweep; the next round needs a different query.**
 
+## Round 96 — reading the README as a claim
+
+The R90 field sweep is exhausted, so: a different query, and an overdue one. Twelve rounds had changed what
+the tool does for a user without once checking whether the README still described it. Read the README not
+as documentation but as a **list of assertions**, and test them.
+
+Two findings, of opposite kinds.
+
+**A false claim.** The external-adapter table said VEP supplies "molecular consequence for chemistry
+routing". Routing is `route(resolved, intent)` — a pure function of variant class and intent that has never
+seen a consequence, and until R94 *nothing at all* read one. Not a stale claim that used to be true: an
+architectural description of a wire that was never connected. Those are the dangerous ones, because they
+survive every test the code has.
+
+**A missing one.** Checking mechanically that every registered CLI command appears somewhere in the prose
+turned up `aforge verify` — the command that re-hashes a result's pinned checkpoints and datasets against
+provenance, the thing that makes "provenance is a checkable contract" more than a slogan — documented in
+neither the README nor `docs/`. It shipped complete, its tests pass, and no user would ever find it.
+
+The mechanical half is now a test. It cannot judge whether documentation is *good*, only whether each
+command is mentioned at all — which is exactly the check that was missing, and it comes with a
+guard-the-guard case so it cannot pass on prose it never read.
+
+The rest of the round was catching the prose up to twelve rounds of shipped change: the two kinds of
+consent, the clinical and effect notes that now lead a menu, the settings and model limitations every
+render carries, the PE3 nick distance, the HDR blocking mutation, the leaderboard's OOD column.
+
+An honest note on process: mid-round I ran `git checkout README.md` to undo a one-line mutation test and
+destroyed every README edit in the round. Recoverable only because each edit was scripted. **Never
+`git checkout <file>` to revert a deliberate local mutation — copy the file aside first, as the source
+mutation checks in every other round already do.**
+
+**Lesson: documentation drift is invisible to a test suite by construction, so it needs its own pass, and
+the pass that finds the most is the mechanical one — every command, every flag, every file path in the
+prose, checked against the code. Prose claims about *architecture* deserve the most suspicion: "X feeds Y"
+is exactly the sentence nobody re-reads after Y stops reading X, and no test will ever notice.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
