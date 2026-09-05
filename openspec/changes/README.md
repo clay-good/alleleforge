@@ -1593,12 +1593,12 @@ invokes two: an efficiency scorer and a byproduct predictor.
   the same blindness R43 surfaced on the efficiency side.
 - **`feat(design)` `design()` could not be given prime overrides at all.** The signature tell: its siblings
   are `cas9_model_checkpoints(scorer, predictor)` and `base_editor_model_checkpoints(predictor)`, while
-  `prime_model_checkpoints()` took nothing — correct only because there was nothing to take. So the
-  trained PRIDICT2 engine, which the README presents as the opt-in path for the flagship, was reachable
-  only by calling `design_prime` directly, never through the unified entry point that the CLI and web API
-  are thin shells over. `design()` now accepts `prime_efficiency_scorer` / `prime_outcome_predictor`, and
-  records the override's card rather than the default it replaced — otherwise a re-run from the stamped
-  provenance reproduces different numbers.
+  `prime_model_checkpoints()` took nothing — correct only because there was nothing to take. A caller
+  could substitute a scorer for the nuclease and for base editing, but not for the flagship. `design()`
+  now accepts `prime_efficiency_scorer` / `prime_outcome_predictor`, and records the override's card
+  rather than the default it replaced — otherwise a re-run from the stamped provenance reproduces
+  different numbers. (**Corrected in R60:** this round's first write-up claimed the change made the
+  trained PRIDICT2 engine reachable through `design()`. It does not — see R60.)
 
 Golden regenerated for exactly one added model, verified by diffing the canonical run's body; no number
 changed.
@@ -1610,6 +1610,42 @@ explaining why one branch is different is not evidence that it should be; it is 
 someone stopped. When N implementations of a pattern exist and one differs, the useful question is not
 "why is this one different" but "would anyone choose this difference today" — here the answer was no, on
 the chemistry the project calls its flagship.**
+
+## Round 60 — correcting my own claim from one round ago
+
+R59's own lesson said to look for the odd one out among parallel implementations, so this round checked the
+CLI: it has `--trained-efficiency` and `--trained-outcome` (SpCas9) and `--trained-base-outcome` (base
+editing), and nothing for the flagship. The obvious completion was a `--trained-prime-efficiency` flag.
+
+**There is nothing to wire it to, and R59's write-up said otherwise.** Reading the adapters before adding
+the flag:
+
+- `PridictEngineAdapter` — the real PRIDICT2.0 path — exposes `design(sequence)`, **not**
+  `score(pegrna, ...)`. It is a sequence-level engine and does not satisfy `PrimeEfficiencyScorer`.
+- `DeepPrimeAdapter` / `GenETAdapter` *do* implement `score(pegrna, ...)` — and raise
+  `NotImplementedError` by design, documented placeholders because "DeepPrime's per-pegRNA API needs edit
+  metadata a `PegRNA` does not carry".
+
+So no trained per-pegRNA prime scorer exists to pass to `design()`. R59's changelog and commit message
+claimed its change made the trained PRIDICT2 engine "reachable ... not through the unified entry point",
+implying it was reachable through `design_prime`. It never was — the adapter does not fit that protocol
+either. The R59 *change* stands (the asymmetry was real, and provenance is now override-aware); the
+justification overstated what it unlocks.
+
+**Shipped:** the claim corrected in the changelog and the round log, the real state written into
+`design()`'s and `prime_model_checkpoints()`'s docstrings so the next reader is not misled the same way,
+and no CLI flag added — there is nothing valid behind it. A test now pins the gap: it asserts
+`PridictEngineAdapter` has no `score` and that the two placeholders still document refusing, so it fails
+the moment a genuine trained scorer lands and the "no trained scorer today" docstrings need updating with
+it.
+
+**Lesson: the most dangerous inaccuracy in this session was one I wrote myself, one round earlier, while
+fixing an inaccuracy. It came from reasoning about an adapter's *role* ("the trained PRIDICT2 engine")
+instead of its *signature* — and it read as plausible precisely because the surrounding facts were right.
+The check that caught it was mechanical and took a minute: before writing that X can be passed to Y, look
+at whether X has Y's method. Also: the right response to "there is no flag for the flagship" was to find
+out why, not to add one — the asymmetry was load-bearing, and a flag would have shipped a
+`NotImplementedError` to users.**
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

@@ -136,10 +136,12 @@ def prime_model_checkpoints(
     ``pridict2-baseline`` and ``prime-outcome-baseline`` — rather than the trained
     ``pridict2`` card, so a default run's provenance never records trained-only
     training data or failure modes for numbers a heuristic produced. When an
-    override is supplied (e.g. the opt-in trained PRIDICT2 engine), the override's
-    card is recorded instead, so provenance names the model that scored the
-    candidates rather than the default it replaced — matching the nuclease and
-    base-editor verticals.
+    override is supplied, the override's card is recorded instead, so provenance
+    names the model that scored the candidates rather than the default it replaced
+    — matching the nuclease and base-editor verticals. No *trained* per-pegRNA
+    prime scorer ships today (``PridictEngineAdapter`` is sequence-level; the
+    cross-check adapters are refusing placeholders), so in practice the defaults
+    are what a run records until that R1 gap closes.
     """
     efficiency = efficiency_scorer if efficiency_scorer is not None else PridictScorer()
     outcome = outcome_predictor if outcome_predictor is not None else PrimeOutcomePredictor()

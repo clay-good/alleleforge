@@ -22,11 +22,15 @@ acceptance.
     context, cell type, or edit-size term; three modeled byproduct channels, not an exhaustive account).
   - `prime_model_checkpoints()` took no arguments while `cas9_model_checkpoints(scorer, predictor)` and
     `base_editor_model_checkpoints(predictor)` took the overrides — because `design()` exposed no prime
-    overrides at all. The trained PRIDICT2 engine was therefore reachable only by calling `design_prime`
-    directly, not through the unified entry point the CLI and web API are thin shells over. `design()`
-    now accepts `prime_efficiency_scorer` / `prime_outcome_predictor` and records the override's card
-    instead of the default's, matching the other two verticals. The reproducibility golden moved by
-    exactly one added model, verified by diffing the canonical run's body; no number changed.
+    overrides at all, so a caller could substitute a scorer for the nuclease and for base editing but not
+    for the flagship. `design()` now accepts `prime_efficiency_scorer` / `prime_outcome_predictor` and
+    records the override's card instead of the default's, matching the other two verticals. **What this
+    does not do** is make a trained model reachable: there is no drop-in trained per-pegRNA prime scorer
+    today. `PridictEngineAdapter` is the real PRIDICT2.0 path but a *sequence-level* `design()` API rather
+    than a `score(pegrna, ...)` one, and `DeepPrimeAdapter` / `GenETAdapter` implement the scorer protocol
+    only to refuse — documented placeholders, because DeepPrime's per-pegRNA API needs edit metadata a
+    `PegRNA` does not carry. That remains an R1 gap. The reproducibility golden moved by exactly one added
+    model, verified by diffing the canonical run's body; no number changed.
 
 - **`aforge offtarget` gained `--on-target`, and says when it is missing.** The standalone command passed
   no on-target locus, so the guide's own perfect match was reported like any other site: the worst score

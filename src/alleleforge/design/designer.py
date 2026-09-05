@@ -142,8 +142,13 @@ def design(
             opt-in trained Lindel model); default is the microhomology baseline.
         base_outcome_predictor: Override the base-edit window-outcome predictor (e.g.
             the opt-in trained BE-DICT model); default is the weight-free baseline.
-        prime_efficiency_scorer: Override the prime-efficiency scorer (e.g. the
-            opt-in trained PRIDICT2 engine); default is the geometry baseline.
+        prime_efficiency_scorer: Override the prime-efficiency scorer with any
+            per-pegRNA ``score(pegrna, ...)`` implementation; default is the
+            geometry baseline. Note there is no drop-in *trained* prime scorer
+            today: ``PridictEngineAdapter`` is the real PRIDICT2.0 path but exposes
+            a sequence-level ``design()`` API rather than this protocol, and the
+            ``DeepPrimeAdapter`` / ``GenETAdapter`` placeholders implement the
+            protocol only to refuse.
         prime_outcome_predictor: Override the prime byproduct predictor; default is
             the geometry baseline.
         run_offtarget: Run the off-target engine for every candidate.

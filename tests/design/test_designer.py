@@ -377,3 +377,26 @@ def test_a_prime_override_is_the_model_recorded(make_reference: MakeRef) -> None
     assert "pridict2-baseline" not in names, "the replaced default must not be"
     assert menu.best is not None and menu.best.efficiency is not None
     assert menu.best.efficiency.value == pytest.approx(0.42)
+
+
+def test_no_shipped_trained_prime_scorer_satisfies_the_override_protocol() -> None:
+    """Pins the R1 gap so a future session does not rediscover it as a surprise.
+
+    `design()` accepts a prime-efficiency override, but nothing trained can be
+    passed to it today: the real PRIDICT2.0 path is a *sequence-level* `design()`
+    API rather than a `score(pegrna, ...)` one, and the two cross-check adapters
+    implement the protocol only to refuse. This test fails the moment a genuine
+    trained per-pegRNA scorer lands — which is the point, since the docstrings that
+    say "no trained scorer today" will need updating with it.
+    """
+    from alleleforge.scoring.pridict_engine import PridictEngineAdapter
+    from alleleforge.scoring.prime_efficiency import DeepPrimeAdapter, GenETAdapter
+
+    assert not hasattr(PridictEngineAdapter, "score"), (
+        "PridictEngineAdapter is sequence-level; if it grew score(), wire it into design()"
+    )
+    for placeholder in (DeepPrimeAdapter, GenETAdapter):
+        doc = placeholder.score.__doc__ or ""
+        assert "refuse" in doc or "placeholder" in doc, (
+            f"{placeholder.__name__} looks like a real scorer now; wire it and update the docs"
+        )
