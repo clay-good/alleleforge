@@ -3020,6 +3020,38 @@ side, tell a consistent story?" A truncation that is invisible is a missing qual
 next to a total computed over the whole distribution reads as a mistake, and readers who spot mistakes stop
 trusting the rest of the page.**
 
+## Round 107 — the surface with the least technical audience
+
+R105's rule again: run the part of the product you have not run. This round drove the **web API** and read
+the served SPA.
+
+The API itself came back clean — the design endpoint returns the full report, so every field added in the
+last twenty rounds reaches a client automatically, and the SPA embeds the *server-rendered* HTML report in
+an iframe, which means caveats, model limitations and search settings all arrive without the frontend
+knowing anything about them. That is a good design and it held.
+
+The cohort tab did not. It builds its own table from the batch JSON, and it had both problems:
+
+**A bare estimate, again.** R103 fixed exactly this on the CLI line and in the machine-readable row, and I
+did not follow it into the browser. The interval, the OOD flag and the hazards were all sitting in the
+response; the table printed `0.61`. This is the triage view for the audience the web UI exists for — the
+README says "users who will not touch a terminal" — so it is the surface where a lone number is most likely
+to be believed, and it was the last one to get the guarantee.
+
+**An XSS hole.** `item_id` is a raw line from the pasted variant list, `error` is an exception message
+quoting it back, and both were interpolated straight into `innerHTML`. A list containing
+`<img src=x onerror=…>` executed. Not something I went looking for — it surfaced because writing the caveats
+column meant reading the row builder closely enough to notice what else was in it.
+
+**Shipped:** interval, `OOD` marker and a caveats column on the browser table; escaping on every value it
+inserts. Both pinned by structural tests against the served `app.js` and mutation-checked.
+
+**Lesson: a fix is not done at the layer where it was found. R103's "never a bare float" landed on two of
+three surfaces and I logged it as complete, because the third was written in a different language and
+reached by a different route. Ask which *other* renderers exist for the same data — including the ones that
+are not Python — before closing a presentation fix. And read the untouched lines around the ones you are
+changing: the injection had been there the whole time and no query would have found it.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

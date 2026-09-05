@@ -134,23 +134,44 @@ function readBatchForm() {
 }
 
 function renderBatch(data) {
-  const cell = (v) => (v === null || v === undefined ? "—" : v);
+  // Everything here is interpolated into innerHTML, and a cohort row is built from
+  // *user input*: `item_id` is a raw line from the pasted variant list, and `error` is
+  // an exception message that quotes it back. Both were inserted unescaped, so a line
+  // like `<img src=x onerror=...>` executed in the page. Escape at the boundary.
+  const esc = (v) =>
+    String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const cell = (v) => (v === null || v === undefined ? "—" : esc(v));
   const rows = data.items
     .map((it) => {
       const s = it.summary || {};
-      const eff = typeof s.best_efficiency === "number" ? s.best_efficiency.toFixed(2) : "—";
+      // Never a bare estimate: the interval and the out-of-distribution flag travel
+      // with the number here as they do everywhere else. This table is the surface
+      // aimed at people who will not open a terminal, and it is scanned to decide
+      // which variants deserve a closer look — the moment a lone number is trusted.
+      let eff = "—";
+      if (typeof s.best_efficiency === "number") {
+        eff = s.best_efficiency.toFixed(2);
+        if (typeof s.best_efficiency_low === "number" && typeof s.best_efficiency_high === "number") {
+          eff += ` [${s.best_efficiency_low.toFixed(2)}, ${s.best_efficiency_high.toFixed(2)}]`;
+        }
+        if (s.best_efficiency_in_distribution === false) {
+          eff += ' <span class="err">OOD</span>';
+        }
+      }
       const worst = typeof s.worst_offtarget === "number" ? s.worst_offtarget.toFixed(3) : "—";
+      const flagged = Array.isArray(s.best_caveats) ? s.best_caveats : [];
+      const caveats = flagged.length ? `<span class="err">${flagged.map(esc).join(", ")}</span>` : "—";
       const detail =
         it.status === "ok"
-          ? `<td>${cell(s.best_chemistry)}</td><td>${eff}</td><td>${worst}</td><td>${cell(s.n_candidates)}</td>`
-          : `<td colspan="4" class="err">${cell(it.error)}</td>`;
-      return `<tr class="${it.status}"><td>${it.item_id}</td><td>${it.status}</td>${detail}</tr>`;
+          ? `<td>${cell(s.best_chemistry)}</td><td>${eff}</td><td>${worst}</td><td>${caveats}</td><td>${cell(s.n_candidates)}</td>`
+          : `<td colspan="5" class="err">${cell(it.error)}</td>`;
+      return `<tr class="${it.status}"><td>${esc(it.item_id)}</td><td>${it.status}</td>${detail}</tr>`;
     })
     .join("");
   batchResults.innerHTML = `
     <table class="results">
       <thead><tr><th>variant</th><th>status</th><th>best</th><th>efficiency</th>
-        <th>worst off-target</th><th>candidates</th></tr></thead>
+        <th>worst off-target</th><th>caveats</th><th>candidates</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }

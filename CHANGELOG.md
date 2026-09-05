@@ -8,6 +8,19 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The browser's cohort table interpolated a raw user-supplied line into `innerHTML`.** A cohort row is
+  built from the pasted variant list: `item_id` is a raw input line and `error` is an exception message
+  quoting it back, and both went in unescaped — so a list line like `<img src=x onerror=…>` executed in the
+  page. Every value in that table is now escaped at the boundary.
+
+- **The browser's cohort table still showed a bare efficiency estimate.** The interval, the
+  out-of-distribution flag and the recommended candidate's hazards were already in the batch response; the
+  table rendered the point estimate alone. It is the triage view for the audience the web UI exists to
+  serve — people who will not open a terminal — and the surface where a lone number is most likely to be
+  trusted. It now shows `0.61 [0.46, 0.76]`, marks `OOD`, and carries a **caveats** column.
+
 ### Added
 
 - **A truncated outcome table now says it is truncated.** A knock-out card read `P(intended) = 0.87` above

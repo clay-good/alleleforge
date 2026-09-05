@@ -155,3 +155,25 @@ scan to nothing and report every guide spotless.
 #### Scenario: Empty interval
 - **WHEN** a region's end is not after its start
 - **THEN** the request is rejected with 422
+
+### Requirement: The served frontend escapes everything it inserts
+
+A cohort row is built from user input — the pasted variant list, and exception messages
+quoting it back — and inserted with `innerHTML`. Every value the frontend interpolates
+into markup SHALL be escaped at the boundary.
+
+#### Scenario: A markup-bearing variant line
+- **WHEN** a cohort list contains a line with HTML in it
+- **THEN** it is displayed as text and nothing in it executes
+
+### Requirement: The browser's cohort table honours the uncertainty contract
+
+The cohort tab renders its own table rather than embedding a server-rendered report, so
+the contract has to be met there too: an efficiency estimate SHALL appear with its
+interval and its in-distribution status, and the recommended candidate's hazards SHALL be
+shown. This is the triage view for users who will not open a terminal.
+
+#### Scenario: An out-of-distribution recommendation
+- **WHEN** a cohort row's best candidate has an out-of-distribution efficiency
+- **THEN** the browser table shows the interval and marks it, rather than showing the
+  estimate alone

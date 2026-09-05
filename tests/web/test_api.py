@@ -46,6 +46,43 @@ async def test_frontend_has_cohort_ui(client: httpx.AsyncClient) -> None:
     assert "/api/batch" in app_js  # the cohort form posts to the batch endpoint
 
 
+async def test_the_browser_cohort_table_never_shows_a_bare_estimate(
+    client: httpx.AsyncClient,
+) -> None:
+    """The SPA is aimed at people who will not open a terminal, and it showed `0.61`.
+
+    The interval, the out-of-distribution flag and the recommended candidate's hazards
+    all reach the browser in the batch response; the table rendered the point estimate
+    alone. Triage is when a lone number is trusted, and this is the triage view for
+    the least technical audience the project has.
+    """
+    app_js = (await client.get("/app.js")).text
+    for field in (
+        "best_efficiency_low",
+        "best_efficiency_high",
+        "best_efficiency_in_distribution",
+        "best_caveats",
+    ):
+        assert field in app_js, f"the cohort table ignores {field}"
+    assert "OOD" in app_js
+
+
+async def test_the_browser_cohort_table_escapes_user_input(client: httpx.AsyncClient) -> None:
+    """A cohort row is built from a pasted variant list and inserted with innerHTML.
+
+    `item_id` is a raw input line and `error` is an exception message quoting it back;
+    both went in unescaped, so a line like `<img src=x onerror=...>` executed in the
+    page. This pins the escaper's existence and its use on both fields — a JS unit
+    runner is out of scope here, so the check is structural.
+    """
+    app_js = (await client.get("/app.js")).text
+    assert "&amp;" in app_js and "&lt;" in app_js and "&quot;" in app_js
+    assert "esc(it.item_id)" in app_js
+    # `cell` is what wraps the error and every other value, so it must escape too.
+    assert 'const cell = (v) => (v === null || v === undefined ? "—" : esc(v));' in app_js
+    assert "${it.item_id}" not in app_js  # never interpolated raw
+
+
 async def test_openapi_is_generated(client: httpx.AsyncClient) -> None:
     res = await client.get("/openapi.json")
     assert res.status_code == 200
