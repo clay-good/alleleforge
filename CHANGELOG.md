@@ -10,6 +10,17 @@ acceptance.
 
 ### Added
 
+- **An off-target report said how many mismatches it allowed, but not the four other knobs that decided
+  what it found.** `OffTargetReport` carried `mismatch_threshold` — recorded, correctly, so that a site
+  count could be read against the budget that produced it — and nothing about the DNA/RNA bulge budgets or
+  the CFD/MIT reporting cut-offs, which narrow the result just as hard: the same guide yields two sites at
+  a 0.20 CFD cut-off and fifteen at 0.05, and a zero-bulge scan cannot report the bulged hits a one-bulge
+  scan finds. Two reports could disagree by an order of magnitude with nothing on either of them to explain
+  it. The report now records `dna_bulge_budget`, `rna_bulge_budget`, `cfd_threshold` and `mit_threshold`
+  beside the mismatch budget. This is the R83 rule — *any parameter that narrows what was examined must
+  appear beside the result* — applied as a sweep rather than a one-off: the tell was five settings of the
+  same kind with one recorded.
+
 - **Region scoping is now available over HTTP too — I had mis-classified it as a file input.** The
   file-backed safety sources stay CLI-only for a real reason (a client-supplied path is a server-side
   file-read primitive), but a *region restriction* is data, not a path, and carries none of that risk.

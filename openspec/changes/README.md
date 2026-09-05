@@ -2262,6 +2262,34 @@ which is the usual argument, but because the result's *meaning* depends on it: "
 different claim from "we found nothing in the 140 bases we looked at", and only one of them is what the
 number alone conveys. When adding a knob that scopes work, add it to the record in the same change.**
 
+## Round 84 — the same rule, swept instead of storied
+
+R83 ended with a rule rather than an anecdote: *any parameter that narrows what was examined must appear
+beside the result*. A rule is only worth stating if it can be **run as a query**, so I ran it against the
+off-target engine's own knobs — the place the rule matters most, since the whole value proposition is a
+number that says "this guide is safe".
+
+`search()` takes five settings that narrow what it can possibly find: the mismatch budget, the DNA and RNA
+bulge budgets, and the CFD and MIT reporting cut-offs. `OffTargetReport` recorded **one** of them. That is
+the "N implementations, one differs" tell, and here the odd one out was the *honest* one: whoever added
+`mismatch_threshold` did it for exactly this reason, and the four settings added later did not follow.
+
+The consequence is not a reproducibility footnote. A zero-bulge scan physically cannot report the bulged
+hits a one-bulge scan finds, and the default 0.20 CFD cut-off hides sites a 0.05 cut-off shows — so "2
+sites" and "15 sites" for the same guide are both correct and not comparable, with nothing on either
+artifact to say why. Provenance carried the settings for the *run*; the report a user actually reads and
+forwards did not.
+
+**Shipped:** `dna_bulge_budget`, `rna_bulge_budget`, `cfd_threshold`, `mit_threshold` on `OffTargetReport`,
+populated from the arguments actually used; a spec requirement; and a test mutation-checked against a
+hardcoded cut-off. The reproduce golden moved — diffed field by field to confirm the only delta was the
+four new keys.
+
+**Lesson: a rule earned in one round should be spent in the next as a search, not re-derived from a new
+story. The cheapest form of that search is "this module takes five parameters of one kind — how many reach
+the output?", and the answer being *one, added deliberately* is evidence the rule is right, not evidence
+the gap is closed.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

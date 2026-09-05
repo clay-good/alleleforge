@@ -237,3 +237,30 @@ def test_search_accepts_spacer_object(make_reference: MakeRef) -> None:
     report = search(Spacer(sequence=DNASequence(SPACER)), NGG, reference=ref)
     assert report.n_sites >= 1
     assert report.spacer == SPACER
+
+
+def test_the_report_records_what_narrowed_it(make_reference: MakeRef) -> None:
+    """A site count is not comparable between reports unless both say their cut-offs.
+
+    The same guide yields a different number of sites at a 0.20 CFD threshold than
+    at 0.05, and a bulge-free search misses a class of site entirely.
+    `mismatch_threshold` was already recorded for exactly this reason; the budget
+    and the reporting thresholds beside it were not, so "2 sites" could not be read
+    against another report's "15".
+    """
+    reference = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    report = search(
+        SPACER,
+        NGG,
+        reference=reference,
+        mismatches=2,
+        dna_bulges=0,
+        rna_bulges=0,
+        cfd_threshold=0.05,
+        mit_threshold=0.01,
+    )
+    assert report.mismatch_threshold == 2
+    assert report.dna_bulge_budget == 0
+    assert report.rna_bulge_budget == 0
+    assert report.cfd_threshold == 0.05
+    assert report.mit_threshold == 0.01

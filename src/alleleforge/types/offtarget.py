@@ -103,6 +103,10 @@ class OffTargetReport(BaseModel):
         pam: The PAM pattern searched.
         sites: All nominated sites passing the reporting thresholds.
         mismatch_threshold: Max mismatches allowed in the search.
+        dna_bulge_budget: Max DNA bulges allowed in the search.
+        rna_bulge_budget: Max RNA bulges allowed in the search.
+        cfd_threshold: The CFD score at or above which a site is *reported*.
+        mit_threshold: The MIT score at or above which a site is *reported*.
         reference_build: The reference build searched.
         scorer: Name of the specificity scorer that produced the site scores.
         score_matrix: Identity of the weight source the scorer used, so a consumer
@@ -120,6 +124,15 @@ class OffTargetReport(BaseModel):
     pam: str
     sites: tuple[OffTargetSite, ...] = ()
     mismatch_threshold: int = 4
+    # The budget and the reporting thresholds decide what this report *contains*:
+    # the same guide yields two sites at a 0.20 CFD cut-off and fifteen at 0.05, and
+    # a bulge-free search misses a class of site entirely. `mismatch_threshold` was
+    # already recorded for exactly this reason; its neighbours were not, leaving a
+    # site count that cannot be compared against another report's.
+    dna_bulge_budget: int = 1
+    rna_bulge_budget: int = 1
+    cfd_threshold: float = 0.20
+    mit_threshold: float = 0.10
     reference_build: str = "hg38"
     scorer: str | None = None
     score_matrix: str | None = None

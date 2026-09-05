@@ -149,3 +149,17 @@ the build, the variant SHALL be skipped rather than mis-applied.
 #### Scenario: Ref mismatch
 - **WHEN** a gnomAD variant's ref base does not match the reference
 - **THEN** it is skipped and no site is derived from it
+
+### Requirement: The report states every budget and cut-off that narrowed it
+
+A site count is only interpretable alongside the settings that produced it: the same guide
+yields two sites at a 0.20 CFD cut-off and fifteen at 0.05, and a zero-bulge scan cannot
+find the bulged hits a one-bulge scan reports. The system SHALL record, on the off-target
+report itself, the mismatch budget, the DNA and RNA bulge budgets, and the CFD and MIT
+reporting thresholds actually used — not only in the run's provenance — so a report can be
+read, and compared with another, on its own.
+
+#### Scenario: Non-default budgets and thresholds
+- **WHEN** a search runs with `mismatches=2, dna_bulges=0, rna_bulges=0, cfd_threshold=0.05, mit_threshold=0.01`
+- **THEN** the report carries exactly those five values, so its site count is not mistaken for
+  a count obtained under the defaults
