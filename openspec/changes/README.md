@@ -2350,6 +2350,36 @@ first (schema freshness, round-trip, provenance hashing) all pass while the seco
 field whose purpose is to inform a human, grep the renderers — the field is not done until every surface
 that shows the number it qualifies also shows it.**
 
+## Round 87 — the successful path was the silent one
+
+The R86 sweep — "which model fields does no renderer touch?" — was cheap enough to run over every core
+type, not just the report models. Six came back. The one that mattered: `BlockingMutation.reference_base`
+and `.donor_base`.
+
+A precise nuclease correction ships an HDR donor. If the repaired allele still presents the guide's PAM and
+seed it gets cut again, so the donor carries an extra base substitution to break it. That substitution is
+an edit to the patient's genome that nobody requested, and whether it is silent depends on a reading frame
+AlleleForge does not have. The enumerator knew this and wrote it down — `note="PAM-blocking mutation
+chr2:36 G>A; confirm it is synonymous in your reading frame"` — and every render put that note inside a
+collapsed `<details>` JSON blob.
+
+So the report's prominence was inverted. **When the block could not be found**, the user got a loud warning
+that the correction is re-cuttable. **When it succeeded**, the reagent quietly acquired a second permanent
+mutation and the instruction to verify it was filed where nobody looks. The failure mode was well
+signposted; the success mode was not, and the success mode is the one that ends up in a genome.
+
+**Shipped:** `donor_oligo()` promotes the blocking mutation into `warnings` — the same channel the
+too-long-for-one-oligo and re-cuttable hazards already use, which the HTML and PDF renders print as their
+own line — naming the position, the change, the region, and the check. A donor with nothing extra stays
+silent (asserted, or the warning would mean nothing). Mutation-checked, and confirmed end to end by
+building a real blocked donor and reading it out of both renders.
+
+**Lesson: "confirm X" is an action, and an action does not belong in a `note`. More generally — when a
+mechanism has a success path and a failure path, check which one is louder. It is natural to write the
+warning for the failure and let the success pass without comment, but here the success *is* the
+intervention: it does something to the genome that the failure does not. Ask what the successful path
+actually did before deciding it needs no words.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

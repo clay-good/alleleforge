@@ -8,6 +8,20 @@ acceptance.
 
 ## [Unreleased]
 
+### Changed
+
+- **A "re-cut blocked" HDR donor carries a second, unrequested edit into the genome, and now says so on the
+  order.** The blocking mutation is the mechanism that makes the block work: an extra base substituted in
+  the guide's PAM or seed so the repaired allele is no longer a substrate. It is written into the patient's
+  genome permanently, and whether it is silent depends on a reading frame AlleleForge does not know — the
+  enumerator already says "confirm it is synonymous in your reading frame". That sentence lived only in
+  `HDRDonor.note`, which every render buries inside the collapsed oligo JSON. The result was backwards: the
+  *failing* case (no block available, correction re-cuttable) got a prominent warning, while the
+  *succeeding* case's consequence was invisible. `donor_oligo()` now emits it as a warning — the same
+  channel the too-long-for-one-oligo and re-cuttable hazards use — naming the position, the base change,
+  the region, and the check to perform before ordering. Verified end to end: it appears as its own line in
+  both the HTML page and the PDF leave-behind.
+
 ### Added
 
 - **The off-target cut-offs are now printed where the site count is, on every surface that shows one.**

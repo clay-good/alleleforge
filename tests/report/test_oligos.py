@@ -18,7 +18,15 @@ from alleleforge.report.oligos import (
 )
 from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import Chemistry
-from alleleforge.types.guide import PAM, Guide, HDRDonor, PegRNA, Spacer, ThreePrimeMotif
+from alleleforge.types.guide import (
+    PAM,
+    BlockingMutation,
+    Guide,
+    HDRDonor,
+    PegRNA,
+    Spacer,
+    ThreePrimeMotif,
+)
 from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
 
 SPACER = "ACGTAACGTTACGTAACGTT"
@@ -350,6 +358,37 @@ def test_an_unblocked_recut_is_flagged_on_the_order() -> None:
     oligos = oligos_for(_precise_cas9_candidate("ACGT" * 25, recut_blocked=False))
     assert oligos is not None and oligos.donor is not None
     assert any("still a substrate" in w for w in oligos.warnings)
+
+
+def test_a_blocking_mutation_is_stated_on_the_order_not_buried_in_a_note() -> None:
+    """The *successful* re-cut block is an unrequested permanent edit, and says so.
+
+    A blocked donor is blocked because it carries a second base change beyond the
+    correction, written into the genome for good, whose silence depends on a reading
+    frame AlleleForge does not know. That fact lived only in `HDRDonor.note`, which
+    every render buries inside the collapsed oligo JSON — so the *failing* case
+    (unblocked, re-cuttable) got a prominent warning while the succeeding case's
+    consequence was invisible. "Confirm it is synonymous" is an action, not a note.
+    """
+    donor = HDRDonor(
+        sequence=DNASequence("ACGT" * 25),
+        recut_blocked=True,
+        blocking_mutation=BlockingMutation(
+            position=27, reference_base="G", donor_base="A", region="pam"
+        ),
+        note="PAM-blocking mutation chr1:27 G>A; confirm it is synonymous in your reading frame",
+    )
+    candidate = _precise_cas9_candidate("ACGT" * 25).model_copy(update={"hdr_donor": donor})
+    oligos = oligos_for(candidate)
+    assert oligos is not None and oligos.donor is not None
+    # Prominent, not merely present: the same channel the too-long and re-cuttable
+    # hazards use, which the HTML and PDF renders print as their own line.
+    promoted = [w for w in oligos.warnings if "unrequested change" in w]
+    assert len(promoted) == 1
+    assert "27" in promoted[0] and "G>A" in promoted[0] and "pam" in promoted[0]
+    assert "synonymous" in promoted[0]
+    # A donor with nothing extra in it must stay quiet, or the warning means nothing.
+    assert oligos_for(_precise_cas9_candidate("ACGT" * 25)).warnings == ()  # type: ignore[union-attr]
 
 
 def test_an_ambiguous_donor_is_refused_not_ordered() -> None:

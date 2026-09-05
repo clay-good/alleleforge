@@ -132,7 +132,10 @@ donor as an orderable single-stranded template alongside the sgRNA duplex, and
 SHALL promote the donor's ordering hazards into the same prominent warnings list
 the guide's use. A donor longer than a single synthesized oligo SHALL be flagged as
 needing a different order format, and a donor whose repaired product is still a
-substrate for its guide SHALL be flagged as re-cuttable. A donor containing an
+substrate for its guide SHALL be flagged as re-cuttable. A donor that blocks re-cutting
+by carrying a PAM- or seed-disrupting substitution SHALL state that substitution in the
+same prominent list — it is an edit to the genome the user did not request, and whether
+it is silent depends on a reading frame the system does not know. A donor containing an
 ambiguous base SHALL be refused, not ordered: unlike a spacer, a repair template's
 bases are written into the genome permanently.
 
@@ -143,6 +146,11 @@ bases are written into the genome permanently.
 #### Scenario: Donor beyond single-oligo synthesis
 - **WHEN** the donor is longer than a vendor synthesizes as one oligo
 - **THEN** a warning says to order it as a dsDNA fragment or plasmid instead
+
+#### Scenario: A donor that blocks re-cutting
+- **WHEN** the donor carries a blocking mutation
+- **THEN** the order states its position, its base change, and the check the user must
+  perform before ordering — not only that the re-cut was blocked
 
 #### Scenario: Ambiguous donor
 - **WHEN** a donor contains an ambiguous base

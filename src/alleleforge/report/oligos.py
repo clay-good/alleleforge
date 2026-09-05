@@ -524,6 +524,22 @@ def donor_oligo(donor: HDRDonor) -> DonorOligo:
             "the repaired product is still a substrate for this guide (no PAM-blocking "
             "mutation was available), so the correction can be re-cut after repair"
         )
+    # The *successful* case is the one that needed saying. A blocked donor is blocked
+    # because it carries a second base change the user never asked for, written
+    # permanently into the genome alongside the correction — and whether that change is
+    # silent depends on a reading frame AlleleForge does not know. Until now the
+    # unblocked donor got a prominent warning while the blocked one filed its
+    # consequence in `note`, which every render buries inside collapsed JSON. An action
+    # the user must take before ordering does not belong in a note.
+    blocking = donor.blocking_mutation
+    if blocking is not None:
+        warnings.append(
+            f"this donor carries a second, unrequested change at position "
+            f"{blocking.position} ({blocking.reference_base}>{blocking.donor_base}, in the "
+            f"guide {blocking.region}) to stop the repaired allele being re-cut. It is "
+            f"written into the genome permanently: confirm it is synonymous in your "
+            f"reading frame before ordering"
+        )
     return DonorOligo(
         sequence=sequence,
         recut_blocked=donor.recut_blocked,
