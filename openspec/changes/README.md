@@ -2047,6 +2047,37 @@ about data. When auditing reachability, match on the *capability*, not on whethe
 option exists; and the fastest way to settle it is to run the command and check the output actually
 contains what the capability promises, which here was one empty dict.**
 
+## Round 76 — finishing the safety inputs, and a false warning I shipped one commit earlier
+
+R75 exposed `--gnomad`. The same sweep had listed two more unreachable safety inputs, and both belong to
+claims the README makes: the **haplotype**-aware pass (the second half of "population- *and haplotype*-
+aware" — it catches a site that exists only on a co-inherited combination of alleles) and **patient**
+personalization (a site present in this genome but not the reference).
+
+**Shipped:** `--haplotypes <panel.tsv>` and `--patient-vcf <vcf|list>` on `design`, `batch` and
+`offtarget`. Patient variants are resolved against the reference, so an allele asserting a base the genome
+does not have fails loudly rather than silently personalizing the scan with a wrong-build variant.
+`HaplotypePanel` gained `__iter__`/`__len__` — the engine consumes a flat iterable and does its own
+overlap/frequency filtering, so a caller holding a whole panel with no single interval to query previously
+had to reach into its private buckets. Verified through the CLI: 0 sites reference-only, one
+`patient`-origin site with `--patient-vcf`, one causally-attributed site with `--haplotypes`.
+
+**A false statement I shipped one commit earlier, caught by using the thing.** R75's "reference-only"
+warning keyed on `--gnomad` alone. So the first `--haplotypes` run printed *"no population alleles were
+searched. The off-target scan is REFERENCE-ONLY"* — on the same line as a report listing a population site
+the haplotype pass had just found. The warning existed to stop a user misreading an empty ancestry
+breakdown; keyed too narrowly, it told a confident lie instead. It now fires only when neither
+ancestry-bearing source is present (`--patient-vcf` deliberately does not count — a personal genotype
+carries no population frequencies and cannot fill an ancestry breakdown), and a parametrized test covers
+all three cases.
+
+**Lesson: a warning is a claim, and claims added to make something honest can be *less* accurate than the
+silence they replaced. R75's warning was written against the one input that existed at the time and became
+wrong the moment a second was added — one commit later, by me. Two guards worth taking from this: state
+the condition in terms of *what the user needs* ("is there any ancestry-bearing data?") rather than the
+flag in front of you, and run the feature you just added with the *other* flags it now coexists with. The
+lie was visible in the first line of the first manual run.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

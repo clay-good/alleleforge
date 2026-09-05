@@ -10,6 +10,21 @@ acceptance.
 
 ### Added
 
+- **`--haplotypes` and `--patient-vcf` complete the safety inputs on the CLI.** The same reachability
+  sweep that found `--gnomad` left two more: the *haplotype*-aware pass (the second half of the README's
+  "population- **and haplotype**-aware" claim, which catches a site existing only on a co-inherited
+  combination of alleles) and patient-specific personalization (a site present in *this* genome but not the
+  reference). Both are now loadable — a phased-panel TSV and a VCF or variant list — on `design`, `batch`
+  and `offtarget`. Patient variants are resolved against the reference, so an allele asserting a base the
+  genome does not have fails loudly rather than silently personalizing the scan with a wrong-build variant.
+  `HaplotypePanel` gained `__iter__`/`__len__`, since the engine consumes a flat iterable and a caller with
+  a whole panel and no single interval to query had to reach into its buckets. Verified through the CLI:
+  0 sites reference-only, then one `patient`-origin site with `--patient-vcf`, and one causally-attributed
+  site with `--haplotypes`. **Also corrected an inaccuracy introduced one commit earlier:** the
+  "reference-only" warning keyed on `--gnomad` alone, so a run supplying `--haplotypes` was told its scan
+  was reference-only while the haplotype pass was actively finding sites. It now fires only when neither
+  ancestry-bearing source is present, and a test parametrizes all three cases.
+
 - **The README's CLI examples advertised population-awareness they could not deliver.** `aforge design
   ... --populations afr,eur,eas` was captioned "ranked, safety-annotated menu", and the `offtarget` example
   listed "the carrying MAF" among the tunable engine knobs — while `--maf` filters population alleles that,

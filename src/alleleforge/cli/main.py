@@ -35,7 +35,9 @@ import typer
 from alleleforge._version import __version__
 from alleleforge.config import DEFAULT_REFERENCE, DEFAULT_SEED
 from alleleforge.data.gnomad import GnomadDB
+from alleleforge.data.haplotypes import Haplotype
 from alleleforge.types.sequence import GenomicInterval
+from alleleforge.types.variant import Variant
 
 
 class ExitCode(IntEnum):
@@ -264,21 +266,67 @@ class OutputFormat(StrEnum):
     pdf = "pdf"
 
 
-def _load_gnomad(path: Path | None, populations: str | None) -> GnomadDB | None:
-    """Load the population sites file, warning when ancestries are asked for without it.
+def _load_haplotypes(path: Path | None) -> tuple[Haplotype, ...]:
+    """Load a phased-haplotype panel, or return empty when none was given."""
+    if path is None:
+        return ()
+    from alleleforge.data.haplotypes import HaplotypePanel
 
-    ``--populations`` names the ancestry labels to stratify by; it supplies no
-    alleles. Given labels but no sites file, the scan is reference-only and the
-    ancestry breakdown comes back empty — which reads like "no ancestry-specific
-    risk found" rather than "nothing was searched". Say which it is.
+    try:
+        return tuple(HaplotypePanel.from_tsv(path, source=str(path)))
+    except (OSError, ValueError) as exc:
+        _echo_err(f"error: could not read --haplotypes {path}: {exc}")
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
+
+
+def _load_patient_variants(path: Path | None, reference: Any) -> list[Variant] | None:
+    """Load personal variants from a VCF or a one-variant-per-line list.
+
+    Each is resolved against the reference, so a patient allele asserting a
+    reference base the genome does not have fails here rather than silently
+    personalizing the scan with a wrong-build variant.
     """
     if path is None:
-        if populations:
-            _echo_err(
-                "warning: --populations was given without --gnomad, so no population "
-                "alleles were searched. The off-target scan is REFERENCE-ONLY and the "
-                "ancestry breakdown will be empty — that is 'not measured', not 'clean'."
-            )
+        return None
+    from alleleforge.variant.resolver import resolve as resolve_one
+
+    try:
+        if path.name.endswith((".vcf", ".vcf.gz", ".bcf")):
+            from alleleforge.variant import iter_vcf
+
+            records: list[Any] = list(iter_vcf(path))
+        else:
+            records = _read_variant_list(path)
+        return [resolve_one(rec, reference=reference).variant for rec in records]
+    except (OSError, ValueError, KeyError) as exc:
+        _echo_err(f"error: could not read --patient-vcf {path}: {exc}")
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
+
+
+def _warn_if_ancestries_unbacked(
+    populations: str | None, gnomad: Path | None, haplotypes: Path | None
+) -> None:
+    """Warn when ancestry labels are requested with no ancestry-bearing data.
+
+    ``--populations`` names the labels to stratify *by*; it supplies no alleles.
+    With neither ``--gnomad`` nor ``--haplotypes``, the scan is reference-only and
+    the ancestry breakdown comes back empty — which reads like "no ancestry-specific
+    risk found" rather than "nothing was searched". ``--patient-vcf`` does not count:
+    a personal genotype personalizes the scan but carries no population frequencies,
+    so it cannot fill an ancestry breakdown either.
+    """
+    if populations and gnomad is None and haplotypes is None:
+        _echo_err(
+            "warning: --populations was given without --gnomad or --haplotypes, so no "
+            "population alleles were searched. The off-target scan is REFERENCE-ONLY "
+            "and the ancestry breakdown will be empty — that is 'not measured', not "
+            "'clean'."
+        )
+
+
+def _load_gnomad(path: Path | None) -> GnomadDB | None:
+    """Load the population allele-frequency sites file, if one was given."""
+    if path is None:
         return None
     try:
         return GnomadDB.from_sites_tsv(path)
@@ -303,6 +351,29 @@ def design(
     ] = None,
     populations: Annotated[
         str | None, typer.Option(help="Comma-separated ancestry labels to stratify by.")
+    ] = None,
+    haplotypes: Annotated[
+        Path | None,
+        typer.Option(
+            "--haplotypes",
+            help=(
+                "Phased common-haplotype panel TSV (plain or .gz), "
+                "'#hap_id chrom start end population frequency variants' — enables the "
+                "haplotype-aware pass, which catches a site that only exists on a "
+                "co-inherited combination of alleles."
+            ),
+        ),
+    ] = None,
+    patient_vcf: Annotated[
+        Path | None,
+        typer.Option(
+            "--patient-vcf",
+            help=(
+                "Personal variants (VCF or one-variant-per-line list) to personalize "
+                "the off-target scan — a site present in this genome but not the "
+                "reference is nominated as `patient` origin."
+            ),
+        ),
     ] = None,
     gnomad: Annotated[
         Path | None,
@@ -430,9 +501,12 @@ def design(
             _echo_err(f"error: unknown chemistry: {exc}")
             raise typer.Exit(ExitCode.USAGE) from exc
     pops = [p.strip() for p in pops_str.split(",")] if pops_str else None
-    gnomad_db = _load_gnomad(gnomad, pops_str)
+    _warn_if_ancestries_unbacked(pops_str, gnomad, haplotypes)
+    gnomad_db = _load_gnomad(gnomad)
+    haplotype_panel = _load_haplotypes(haplotypes)
 
     reference = _load_reference(reference_fasta, state.reference_build)
+    patient_variants = _load_patient_variants(patient_vcf, reference)
     # Honor the user's config file (its Settings keys) with the CLI --seed as
     # an override, so a config.toml maf_threshold/interval_level/cache_dir is
     # applied instead of being silently ignored.
@@ -463,6 +537,8 @@ def design(
             weights=weights_obj,
             populations=pops,
             gnomad=gnomad_db,
+            haplotypes=haplotype_panel,
+            patient_vcf=patient_variants,
             run_offtarget=run_offtarget,
             max_candidates_per_chemistry=max_per_chemistry,
             cell_context=cell_context,
@@ -607,6 +683,29 @@ def batch(
     populations: Annotated[
         str | None, typer.Option(help="Comma-separated ancestry labels to stratify by.")
     ] = None,
+    haplotypes: Annotated[
+        Path | None,
+        typer.Option(
+            "--haplotypes",
+            help=(
+                "Phased common-haplotype panel TSV (plain or .gz), "
+                "'#hap_id chrom start end population frequency variants' — enables the "
+                "haplotype-aware pass, which catches a site that only exists on a "
+                "co-inherited combination of alleles."
+            ),
+        ),
+    ] = None,
+    patient_vcf: Annotated[
+        Path | None,
+        typer.Option(
+            "--patient-vcf",
+            help=(
+                "Personal variants (VCF or one-variant-per-line list) to personalize "
+                "the off-target scan — a site present in this genome but not the "
+                "reference is nominated as `patient` origin."
+            ),
+        ),
+    ] = None,
     gnomad: Annotated[
         Path | None,
         typer.Option(
@@ -697,9 +796,12 @@ def batch(
         _echo_err(f"error: input file not found: {inputs}")
         raise typer.Exit(ExitCode.MISSING_DATA)
     pops = [p.strip() for p in pops_str.split(",")] if pops_str else None
-    gnomad_db = _load_gnomad(gnomad, pops_str)
+    _warn_if_ancestries_unbacked(pops_str, gnomad, haplotypes)
+    gnomad_db = _load_gnomad(gnomad)
+    haplotype_panel = _load_haplotypes(haplotypes)
 
     reference = _load_reference(reference_fasta, state.reference_build)
+    patient_variants = _load_patient_variants(patient_vcf, reference)
     assert reference_fasta is not None  # _load_reference exits otherwise
     # Honor the user's config file (its Settings keys) with the CLI --seed as
     # an override, so a config.toml maf_threshold/interval_level/cache_dir is
@@ -737,6 +839,8 @@ def batch(
             weights=weights_obj,
             populations=pops,
             gnomad=gnomad_db,
+            haplotypes=haplotype_panel,
+            patient_vcf=patient_variants,
             run_offtarget=run_offtarget,
             max_candidates_per_chemistry=max_per_chemistry,
             chemistries=chemistries,
@@ -812,6 +916,29 @@ def offtarget(
     populations: Annotated[
         str | None, typer.Option(help="Comma-separated ancestry labels to stratify by.")
     ] = None,
+    haplotypes: Annotated[
+        Path | None,
+        typer.Option(
+            "--haplotypes",
+            help=(
+                "Phased common-haplotype panel TSV (plain or .gz), "
+                "'#hap_id chrom start end population frequency variants' — enables the "
+                "haplotype-aware pass, which catches a site that only exists on a "
+                "co-inherited combination of alleles."
+            ),
+        ),
+    ] = None,
+    patient_vcf: Annotated[
+        Path | None,
+        typer.Option(
+            "--patient-vcf",
+            help=(
+                "Personal variants (VCF or one-variant-per-line list) to personalize "
+                "the off-target scan — a site present in this genome but not the "
+                "reference is nominated as `patient` origin."
+            ),
+        ),
+    ] = None,
     gnomad: Annotated[
         Path | None,
         typer.Option(
@@ -845,7 +972,10 @@ def offtarget(
     state: GlobalState = ctx.obj
     reference = _load_reference(reference_fasta, state.reference_build)
     pops = [p.strip() for p in populations.split(",")] if populations else None
-    gnomad_db = _load_gnomad(gnomad, populations)
+    _warn_if_ancestries_unbacked(populations, gnomad, haplotypes)
+    gnomad_db = _load_gnomad(gnomad)
+    haplotype_panel = _load_haplotypes(haplotypes)
+    patient_variants = _load_patient_variants(patient_vcf, reference)
     try:
         locus = GenomicInterval.parse(on_target) if on_target else None
     except ValueError as exc:
@@ -865,6 +995,8 @@ def offtarget(
             maf=maf,
             populations=pops,
             gnomad=gnomad_db,
+            haplotypes=haplotype_panel,
+            patient_vcf=patient_variants,
         )
     except ValueError as exc:
         _echo_err(f"error: {exc}")

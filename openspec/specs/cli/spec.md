@@ -136,14 +136,25 @@ a data error, never a silent fall back to a reference-only scan the caller belie
 is population-aware.
 
 #### Scenario: Ancestries requested without a population source
-- **WHEN** `--populations` is given and no population source is
+- **WHEN** `--populations` is given and **neither** a population-frequency source
+  nor a haplotype panel is
 - **THEN** the command warns that the scan is reference-only and the breakdown is
-  unmeasured
+  unmeasured — and it does **not** warn when either source was supplied
 
 #### Scenario: Population source supplied
 - **WHEN** a population source is supplied and an allele creates a de-novo PAM
 - **THEN** the site is nominated with `population` origin and an ancestry breakdown
 
 #### Scenario: Unreadable population source
-- **WHEN** the population source cannot be read
+- **WHEN** any population, haplotype, or patient source cannot be read
 - **THEN** the command exits with a data error
+
+#### Scenario: Haplotype panel supplied
+- **WHEN** a phased common-haplotype panel is supplied
+- **THEN** the haplotype-aware pass runs and nominates a site that exists only on a
+  co-inherited combination of alleles
+
+#### Scenario: Personal variants supplied
+- **WHEN** a patient's own variants are supplied
+- **THEN** a site present in that genome but not the reference is nominated with
+  `patient` origin

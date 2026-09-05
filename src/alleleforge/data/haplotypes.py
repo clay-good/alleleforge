@@ -19,7 +19,7 @@ haplotype.
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
@@ -136,6 +136,22 @@ class HaplotypePanel:
             for key in intervals
         ]
         return cls(haplotypes, source=source)
+
+    def __iter__(self) -> Iterator[Haplotype]:
+        """Iterate every haplotype in the panel, in contig-bucket order.
+
+        The off-target engine consumes a flat ``Iterable[Haplotype]`` and does its
+        own overlap, population and frequency filtering, so a caller that has a
+        whole panel and no single interval to query — a CLI loading a file, say —
+        needs a way to hand the panel over as-is rather than reaching into its
+        buckets.
+        """
+        for haplotypes in self._by_chrom.values():
+            yield from haplotypes
+
+    def __len__(self) -> int:
+        """Return the number of haplotypes in the panel."""
+        return sum(len(h) for h in self._by_chrom.values())
 
     def common_haplotypes(
         self,

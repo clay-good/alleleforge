@@ -1101,3 +1101,89 @@ def test_an_unreadable_gnomad_path_is_a_data_error(
         ["offtarget", spacer, "--reference-fasta", str(fasta), "--gnomad", "/nonexistent.tsv"],
     )
     assert result.exit_code == ExitCode.MISSING_DATA
+
+
+def test_patient_vcf_personalizes_the_cli_scan(
+    runner: CliRunner, bias_case: tuple[Path, Path, str], tmp_path: Path
+) -> None:
+    """A site present in this genome but not the reference must be nominated."""
+    fasta, _sites, spacer = bias_case
+    patient = tmp_path / "patient.txt"
+    patient.write_text("chr2:33:T>G\n")  # 1-based, the CLI's own variant spelling
+    result = runner.invoke(
+        app,
+        [
+            "offtarget",
+            spacer,
+            "--reference-fasta",
+            str(fasta),
+            "--patient-vcf",
+            str(patient),
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0
+    body = json.loads(result.output)
+    assert body["n_sites"] == 1
+    assert body["sites"][0]["origin"] == "patient"
+
+
+def test_haplotypes_enable_the_haplotype_aware_pass(
+    runner: CliRunner, bias_case: tuple[Path, Path, str], tmp_path: Path
+) -> None:
+    fasta, _sites, spacer = bias_case
+    panel = tmp_path / "hap.tsv"
+    panel.write_text(
+        "#hap_id\tchrom\tstart\tend\tpopulation\tfrequency\tvariants\n"
+        # the `variants` column is 0-based, unlike the gnomAD TSV's 1-based pos
+        "H1\tchr2\t0\t43\tafr\t0.08\tchr2:32:T>G\n"
+        "H1\tchr2\t0\t43\tnfe\t0.001\tchr2:32:T>G\n"
+    )
+    result = runner.invoke(
+        app,
+        [
+            "offtarget",
+            spacer,
+            "--reference-fasta",
+            str(fasta),
+            "--haplotypes",
+            str(panel),
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0
+    body = json.loads(result.output)
+    assert body["n_sites"] == 1
+    assert body["sites"][0]["causal_allele"]
+
+
+@pytest.mark.parametrize(
+    ("source_flag", "expect_warning"),
+    [(None, True), ("--gnomad", False), ("--haplotypes", False)],
+)
+def test_the_unbacked_ancestry_warning_respects_every_source(
+    runner: CliRunner,
+    bias_case: tuple[Path, Path, str],
+    tmp_path: Path,
+    source_flag: str | None,
+    expect_warning: bool,
+) -> None:
+    """The warning must not fire when ancestry data *was* supplied — by any route.
+
+    Its first version keyed only on `--gnomad`, so a run with `--haplotypes` was
+    told its scan was "REFERENCE-ONLY" while the haplotype pass was finding sites.
+    """
+    fasta, sites, spacer = bias_case
+    panel = tmp_path / "hap.tsv"
+    panel.write_text(
+        "#hap_id\tchrom\tstart\tend\tpopulation\tfrequency\tvariants\n"
+        "H1\tchr2\t0\t43\tafr\t0.08\tchr2:32:T>G\n"
+    )
+    args = ["offtarget", spacer, "--reference-fasta", str(fasta), "--populations", "afr"]
+    if source_flag == "--gnomad":
+        args += ["--gnomad", str(sites)]
+    elif source_flag == "--haplotypes":
+        args += ["--haplotypes", str(panel)]
+    result = runner.invoke(app, args)
+    assert result.exit_code == 0
+    assert ("REFERENCE-ONLY" in result.stderr) is expect_warning
