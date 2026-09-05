@@ -14,6 +14,7 @@ acceptance contract is verified on every CI run with no downloads.
 
 from __future__ import annotations
 
+import random
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,6 +26,8 @@ from alleleforge.data.gnomad import GnomadDB, PopulationFrequency
 from alleleforge.design.designer import design
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.offtarget.engine import search
+from alleleforge.report.builder import build_report
+from alleleforge.report.html import render_html
 from alleleforge.types.candidate import RankedMenu
 from alleleforge.types.edit import Chemistry, EditIntent
 from alleleforge.types.guide import PAM
@@ -270,3 +273,45 @@ def test_crispr_bench_publishes_required_tasks() -> None:
     )
     assert set(board.tasks) == required
     assert "CRISPR-Bench Leaderboard" in board.render_markdown()
+
+
+# --- prime editing's full edit repertoire, from variant to rendered page ---------
+
+
+def test_small_deletion_flows_to_a_report_that_names_the_edit(make_reference: MakeRef) -> None:
+    """A ΔF508-shaped deletion reaches a rendered report that says what is written.
+
+    The unit suites prove each hop of the variable-length RT template path. This
+    proves the hop nobody else does: that the edit's *identity* — not just its
+    geometry — survives routing, design, ranking, the report builder, and the HTML
+    renderer, and is legible on the page a bench scientist reads. Every layer in
+    that chain formerly assumed a single-base edit.
+    """
+    rng = random.Random(20260909)
+    filler = "".join(rng.choice("ACGT") for _ in range(420))
+    pos = 200
+    ref_allele = "ACTT"  # an in-frame 3-bp deletion
+    contig = filler[:pos] + ref_allele + filler[pos + len(ref_allele) :]
+    reference = make_reference(contig)
+
+    menu = design(
+        f"chr2:{pos + 1}:{ref_allele}>{ref_allele[0]}",
+        reference=reference,
+        intent=EditIntent.CORRECT,
+        run_offtarget=False,
+    )
+    # Prime is the only chemistry that can write an indel, and it delivers.
+    assert menu.candidates
+    assert {c.chemistry for c in menu.candidates} == {Chemistry.PRIME}
+
+    top = menu.candidates[0]
+    assert top.pegrna is not None
+    assert top.pegrna.templated_edit_length == len(ref_allele)
+    assert "templated-edit:4nt" in top.flags
+    # The geometry prior must admit it has no edit-size feature.
+    assert any("no edit-size" in note for note in top.efficiency.notes)
+
+    report = build_report(menu, variant=f"chr2:{pos + 1}:{ref_allele}>A", intent="correct")
+    html = render_html(report)
+    assert "writing 4 nt" in html  # the reagent line names the edit, not just its size
+    assert "templated-edit:4nt" in html

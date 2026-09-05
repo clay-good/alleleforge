@@ -1199,6 +1199,31 @@ one sentence that gets printed — and the reagent line is the highest-leverage 
 because it is the one someone orders oligos from. Trace a new capability all the way to the last
 rendered character, not to the last correct field.**
 
+## Round 45 — the outermost guard, and one honest non-finding
+
+R38–R44 fixed seven layers. Each has its own unit test; none of them owns the *seam*. This round adds the
+end-to-end guard and probes the surfaces the new input class reaches but no round had exercised.
+
+- **Acceptance test, variant to rendered page.** A ΔF508-shaped 3 bp deletion runs through `design()` →
+  ranking → `build_report` → `render_html`, asserting prime is the only chemistry that delivers, the top
+  candidate writes 4 nt and flags it, the efficiency prediction admits its edit-size blindness, and both
+  the reagent line and the flag survive into the HTML. Every one of those layers assumed a single-base
+  edit before R38; this is the first test that would notice if any single one of them regressed.
+- **Probed and clean:** the cohort path (`design_many`), pegRNA cloning-oligo generation, and the HTML
+  renderer all carry an indel design without incident.
+- **An honest non-finding.** The first probe locus returned a menu with **zero** candidates, which looked
+  exactly like the bug this round was hunting. It was not: a direct scan of the locus found the nearest
+  `NGG` at position 306 — 3' of the edit, so its nick is unusable — and no `CCN` within 50 nt either side.
+  A genuine PAM desert, and the menu said so precisely ("prime: eligible but no actionable candidate
+  enumerated"), which is the spec's required behavior rather than a silent empty. Recorded as a non-finding
+  rather than chased, and the permanent test uses a locus verified to have reachable PAMs.
+
+**Lesson: an empty result is the most expensive thing to misread in either direction. Assuming it is a bug
+burns a round; assuming it is benign ships one. The cheap discriminator is to reproduce the constraint by
+hand — thirty lines that scan the locus for the PAM the enumerator needs — before touching the enumerator.
+The same scan also produced the locus the permanent test now uses, so the diagnostic was not wasted work:
+verify the fixture, not just the code.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

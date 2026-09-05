@@ -175,7 +175,13 @@ off-target → rank pipeline.
 - **Prime editing — the four-axis flagship.** pegRNA and nicking-guide enumeration
   (PBS/RT-template design), PE efficiency (DeepPrime/PRIDICT2 substrate), and
   byproduct prediction, unifying all four axes for the one chemistry that most
-  needs it.
+  needs it. The RT template is built at **variable length** — 5' homology from the
+  nick to the edit, the desired allele, then 3' homology — so substitutions, MNVs,
+  short insertions, short deletions, and delins are enumerated by one path. A
+  deleted span consumes no template, so the binding constraint is the length of the
+  allele the RTT must *write* (the `RTT_RANGE` ceiling less the minimum 3'
+  homology), not the size of the span it replaces; routing enforces the same two
+  bounds so no edit is advertised that enumeration cannot produce.
 
 ### 2.6 Conformal interval recalibration
 

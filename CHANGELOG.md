@@ -10,6 +10,16 @@ acceptance.
 
 ### Added
 
+- **An acceptance test carries a small deletion from variant to rendered page.** The unit suites prove
+  each hop of the variable-length RT template path; nothing proved the hop none of them own — that the
+  edit's *identity*, not just its geometry, survives routing, design, ranking, the report builder, and the
+  HTML renderer. A ΔF508-shaped 3 bp deletion now runs end to end in `tests/test_acceptance.py`, asserting
+  prime is the only chemistry that delivers, that the top candidate's RT template writes 4 nt and says so
+  in its flags, that the efficiency prediction admits its edit-size blindness, and that both the reagent
+  line and the flag reach the rendered HTML. Every layer in that chain formerly assumed a single-base
+  edit. The preprint's methods section now also states the variable-length RT template and the two bounds
+  that actually bind.
+
 - **A geometry-only efficiency score now says what it cannot see.** The default `PridictScorer` is a
   transparent geometry prior — its features are PBS/RTT length, nick-to-edit distance, PBS GC, and the
   epegRNA motif — with **no edit-size or edit-class term**. That was unremarkable while the enumerator
