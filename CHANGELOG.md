@@ -73,6 +73,30 @@ acceptance.
   the minimum 3' homology — across six edit classes, both intents, and both strands. The canonical
   reproducibility golden is unchanged (an SNV run; the SNV path is byte-identical).
 
+### Changed
+
+- **The off-target scan's innermost alignment is now linear instead of quadratic — a 4.2-4.6x speedup on the
+  whole scan, with byte-identical output.** `_best_with_removed_base` prices every single-base-removal
+  alignment of a bulged window, and it runs **twice for every PAM-positive anchor in the search space** — the
+  hottest function in the safety-critical off-target engine. It rebuilt the reduced string and fully
+  re-compared it once per removal position: `O(n²)` character comparisons plus `n` string allocations per
+  call. A profile of a 150 kb scan put 85% of wall-clock inside it. Removing base `r` leaves the first `r`
+  comparisons untouched and shifts every later one by exactly one position, so the mismatch count splits
+  into a prefix sum and a suffix sum; two linear passes now price every removal and the reduced string is
+  built once, for the winner. Measured on the full scan with the query held fixed and three repeats, on two
+  independent workloads: **3.29s → 0.72s (4.6x)** and **2.21s → 0.52s (4.2x)**, output identical in both.
+  The project's own test suite runs in **59s instead of 299s** as a result. Equivalence is pinned by a new
+  differential test against the naive implementation kept verbatim as the oracle (4,000 randomized inputs
+  over `ACGTN` plus the degenerate and tie-breaking edges); the tie rule — keep the earliest removal
+  position — is preserved exactly, because that position determines the reported alignment.
+
+- **`scripts/native_speedup.py` now also reports FM-index vs linear anchor enumeration.** R6 requires a
+  recorded speedup for the native kernels on their hot paths. The new section measures the two anchor
+  enumeration paths against each other on the same contig. It is reported as a measurement to track, **not**
+  as a claim: across runs the ratio landed on both sides of 1.0 at the same contig size, because the
+  dominant cost is how many in-budget hits a particular query has rather than the contig length. The script
+  says so explicitly so no one quotes a speedup from a single run.
+
 ### Fixed
 
 - **The reagent line and design rationale now name the edit, not only the geometry.** A report's one-line

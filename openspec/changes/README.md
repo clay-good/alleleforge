@@ -1224,6 +1224,38 @@ hand — thirty lines that scan the locus for the PAM the enumerator needs — b
 The same scan also produced the locus the permanent test now uses, so the diagnostic was not wasted work:
 verify the fixture, not just the code.**
 
+## Round 46 — the hottest function in the safety engine was quadratic (1 optimization; 1 retracted claim)
+
+R45's duration report showed one test at 142s, nearly half the suite. Chasing it led somewhere better than
+a slow test.
+
+- **`perf(offtarget)` the innermost alignment was `O(n²)` with `n` string allocations per call.**
+  `_best_with_removed_base` prices every single-base-removal alignment of a bulged window and runs *twice for
+  every PAM-positive anchor in the search space*. It rebuilt the reduced string and fully re-compared it once
+  per removal. A profile put **85% of a 150 kb scan inside it** (31.7M generator iterations, 1.6M string
+  allocations). Removing base `r` leaves the first `r` comparisons untouched and shifts every later one by
+  one, so the count splits into a prefix and a suffix sum — two linear passes, and the reduced string built
+  once for the winner. **Measured with the query held fixed, three repeats, two independent workloads:
+  4.6x and 4.2x on the full scan, output identical.** The whole test suite went from 299s to **59s**.
+  Equivalence is pinned by a differential test whose oracle is the naive implementation kept verbatim,
+  including the tie rule (earliest removal position wins) — that position determines the *reported
+  alignment*, not just the score.
+- **A claim written and then retracted.** Mid-round the FM-index anchor enumeration measured consistently
+  slower than the linear scan (8.4s vs 4.2s at 300 kb), and a structural argument for why — a dense `NGG`
+  occurs every ~8 bp, so a `locate()` per occurrence cannot beat a linear step — was already written into the
+  benchmark script as fact. The very next run, at 1 Mb, came out **2.44x the other way**. The ratio depends
+  on how many in-budget hits the particular query has, not on contig length, and nothing measured supports a
+  general statement. The script now records the comparison as a measurement to track and says explicitly not
+  to quote a speedup from one run. No conclusion shipped.
+
+**Lesson: two opposite failures of measurement discipline in one round, and the second is the one worth
+remembering. Finding the quadratic function was easy — a profiler pointed straight at it. The trap was the
+*second* finding, where a plausible mechanism ("a locate cannot beat a linear step for a dense PAM") arrived
+already dressed as an explanation for the numbers, and the explanation is what made it feel established. It
+survived exactly one more data point. A performance claim needs the query held fixed, repeats, and more than
+one workload before it is written down — and when a mechanism explains a result that then fails to replicate,
+the mechanism was rationalization, however sound it sounds.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

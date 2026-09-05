@@ -172,15 +172,41 @@ def _best_with_removed_base(longer: str, shorter: str, max_mm: int) -> tuple[int
     ``longer`` is one base longer than ``shorter``; each base is removed in turn
     and the equal-length comparison with the fewest mismatches (within budget) is
     returned, along with the reduced ``longer`` string, or ``None`` if always
-    over budget.
+    over budget. Ties keep the earliest removal position.
+
+    Removing base ``r`` leaves the first ``r`` comparisons untouched and shifts
+    every later one by exactly one position, so the mismatch count splits into a
+    prefix sum over ``longer[:r]`` vs ``shorter[:r]`` and a suffix sum over
+    ``longer[r+1:]`` vs ``shorter[r:]``. Two linear passes therefore price every
+    removal, and the reduced string is built once for the winner. The obvious
+    implementation — rebuild and fully re-compare the string for each ``r`` — is
+    quadratic with a string allocation per removal, and this is the innermost
+    function of the off-target scan: it runs twice for every PAM-positive anchor
+    in the search space.
     """
-    best: tuple[int, str] | None = None
-    for r in range(len(longer)):
-        reduced = longer[:r] + longer[r + 1 :]
-        mm = sum(a != b for a, b in zip(reduced, shorter, strict=True))
-        if mm <= max_mm and (best is None or mm < best[0]):
-            best = (mm, reduced)
-    return best
+    n = len(shorter)
+    # prefix[r]: mismatches over the first r positions, which removing r leaves intact.
+    prefix = [0] * (n + 1)
+    running = 0
+    for i in range(n):
+        running += longer[i] != shorter[i]
+        prefix[i + 1] = running
+    # suffix[r]: mismatches between longer[r+1:] and shorter[r:], the shifted tail.
+    suffix = [0] * (n + 1)
+    running = 0
+    for r in range(n - 1, -1, -1):
+        running += longer[r + 1] != shorter[r]
+        suffix[r] = running
+
+    best_mm = -1
+    best_r = -1
+    for r in range(n + 1):
+        mm = prefix[r] + suffix[r]
+        if mm <= max_mm and (best_r < 0 or mm < best_mm):
+            best_mm, best_r = mm, r
+    if best_r < 0:
+        return None
+    return (best_mm, longer[:best_r] + longer[best_r + 1 :])
 
 
 def _evaluate(
