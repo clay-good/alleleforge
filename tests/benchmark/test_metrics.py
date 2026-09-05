@@ -206,3 +206,39 @@ def test_interval_calibration_error() -> None:
     truths = [0.5, 0.5, 0.5, 0.5]  # first two covered, last two not -> coverage 0.5
     assert interval_calibration_error(intervals, truths, nominal=0.8) == pytest.approx(0.3)
     assert interval_calibration_error([], [], nominal=0.8) is None  # undefined, not 0.0
+
+
+def test_an_empty_distribution_evaluation_reports_kl_as_undefined() -> None:
+    """KL is LOWER_IS_BETTER, so 0.0 is its *best* value, not a neutral one.
+
+    Every other metric in this suite can fail pessimistically toward a bounded
+    worst value — a correlation or an AUROC of 0.0, an accuracy of 0.0 — and does
+    so deliberately, so a degenerate evaluation cannot flatter itself. KL is
+    unbounded above and has no such value: averaging zero divergences to 0.0 posts
+    a *perfect* score, and `LOWER_IS_BETTER` would rank that submission first.
+    `ece`, computed from the same empty inputs, already returns None; KL must too.
+    """
+    from alleleforge.benchmark.leaderboard import LOWER_IS_BETTER
+    from alleleforge.benchmark.runner import _distribution_metrics
+
+    assert "kl" in LOWER_IS_BETTER  # the premise: lower wins, so 0.0 is the top
+    empty = _distribution_metrics([], [])
+    assert empty["kl"] is None
+    assert empty["ece"] is None
+    # top1 is higher-is-better, so 0.0 there is the pessimistic end and correct.
+    assert empty["top1"] == 0.0
+
+
+def test_a_non_empty_distribution_evaluation_still_reports_a_number() -> None:
+    """The fix must not turn every evaluation undefined."""
+    from alleleforge.benchmark.runner import _distribution_metrics
+    from alleleforge.types.prediction import Prediction, UncertaintyMethod
+
+    prediction = Prediction[dict[str, float]](
+        value={"a": 0.7, "b": 0.3},
+        interval=(0.0, 1.0),
+        method=UncertaintyMethod.HEURISTIC,
+    )
+    result = _distribution_metrics([prediction], [{"a": 0.7, "b": 0.3}])
+    assert isinstance(result["kl"], float)
+    assert result["kl"] >= 0.0

@@ -30,6 +30,18 @@ acceptance.
 
 ### Fixed
 
+- **An empty benchmark evaluation no longer posts a perfect KL divergence.** `_distribution_metrics`
+  averaged its per-example KLs with `if n else 0.0`. `kl` is in `LOWER_IS_BETTER`, so `0.0` is not a
+  neutral placeholder — it is the **best possible score**, and a submission evaluated over zero examples
+  would have ranked first on the leaderboard. The rest of the metrics suite fails *pessimistically* by
+  design (a correlation, an AUROC, or an accuracy of `0.0`), which is safe precisely because those metrics
+  are bounded below; KL is unbounded above and so has no pessimistic value to fall back on. It is now
+  `None` — undefined — which is what `ece`, computed from the same empty inputs, already returned, and
+  what the runner's `float | None` metric type and its "primary metric is undefined for this run" error
+  path were already built for. Found by sweeping for the *pattern* behind the previous entry (a numeric
+  default standing in for absence on a scored axis) rather than stopping at the one instance; the sweep's
+  other hits were checked and are correct, each defaulting to the pessimistic end.
+
 - **A cohort summary no longer reports `worst_offtarget = 0.0` when the off-target search never ran.**
   `_summarize` took the max over candidates carrying a report with `default=0.0`, so a run with
   `--no-offtarget` produced the same value as a run that searched and found nothing — and `0.0` is the

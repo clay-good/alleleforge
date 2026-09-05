@@ -185,3 +185,20 @@ descending.
 #### Scenario: Descending metric
 - **WHEN** the gap is computed for a higher-is-better metric
 - **THEN** a positive gap still denotes worse held-out performance
+
+### Requirement: A degenerate evaluation cannot flatter itself
+
+A metric computed over a degenerate input SHALL NOT report a value that would rank
+better than a real evaluation. Metrics with a bounded worst value (correlation,
+AUROC, accuracy) SHALL fail toward it. A metric in `LOWER_IS_BETTER` that is
+unbounded above has no such value and SHALL be reported as undefined (`None`)
+rather than as its optimum.
+
+#### Scenario: Empty distribution evaluation
+- **WHEN** a distribution task is evaluated over zero examples
+- **THEN** `kl` is `None` — not `0.0`, which `LOWER_IS_BETTER` would rank first —
+  matching `ece`, which is computed on the same empty inputs
+
+#### Scenario: Non-empty evaluation
+- **WHEN** the same task is evaluated over at least one example
+- **THEN** `kl` is a finite number, so the two cases are distinguishable

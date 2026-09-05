@@ -1525,6 +1525,35 @@ coincidence of the domain, and the coincidence is the bug. Rule of thumb: on any
 right — when two adjacent fields disagree about how to represent "not available", one of them is wrong,
 and it is worth stopping to ask which.**
 
+## Round 57 — sweeping for the pattern, not the instance (1 fix; the rest a clean bill)
+
+R56 fixed one numeric default standing in for absence on a safety axis. R51's lesson says to grep for the
+*condition* rather than the function, so this round swept every `default=0.0` / `else 0.0` in the library.
+
+**Mostly a clean bill, and instructively so.** The metrics suite defaults to `0.0` all over — and it is
+*right* to, deliberately: `spearman`, `pearson`, `roc_auc`, `pr_auc` and `topk_accuracy` are all bounded
+below, so `0.0` is their **pessimistic** end and a degenerate input cannot flatter itself. `spearman`'s own
+docstring shows the authors reasoning about exactly this ("would otherwise emit finite-but-meaningless
+ranks that score as a perfect 1.0"). The ranking layer's `p_intended → 0.0` and the cas9 sort key's
+`worst → 0.0` likewise fall to the cautious side.
+
+**One genuine outlier: `kl`.** `LOWER_IS_BETTER = {"kl", "ece"}` — so for KL, `0.0` is not the pessimistic
+end, it is the **optimum**. `_distribution_metrics` returned `sum(kls) / n if n else 0.0`, meaning a
+distribution task evaluated over **zero examples posts a perfect divergence and ranks first**. The
+convention the whole module follows inverts on this one metric, and the code did not notice. KL is also
+unbounded above, so unlike its neighbours it has no worst value to fail toward — the only honest answer is
+*undefined*. Now `None`, which is what `ece` (computed from the same empty inputs, and the other member of
+`LOWER_IS_BETTER`) already returned, and what the runner's `float | None` type and its "primary metric is
+undefined for this run" path were already built for. Mutation-checked; the paired test also pins that a
+non-empty evaluation still returns a number.
+
+**Lesson: "fail toward the pessimistic value" is a sound convention that silently stops being sound for any
+metric whose direction is inverted — and a codebase that ranks on a mix of higher-is-better and
+lower-is-better metrics will have exactly one or two such members, sitting in a set that names them. The
+sweep worth doing after finding one bad default is not "where else is `0.0`" but "where does `0.0` mean
+*good*". `LOWER_IS_BETTER` was a two-element set naming precisely where to look, and one of its two members
+was already correct — which, as in R56, is the tell.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
