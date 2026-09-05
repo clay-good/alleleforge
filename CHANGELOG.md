@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **The report render cap is now reachable from the CLI and the web API.** `render_html` / `render_pdf`
+  have taken `max_candidates` since the cap was introduced, but neither surface exposed it — so a user who
+  wanted the full 720-candidate page had no way to ask for it, and the parameter was library-only. `aforge
+  design --render-candidates N` and the API's `render_candidates` field now set it, with `0` spelling "draw
+  them all" (the command line has no natural way to write `None`, and a zero-candidate render is not
+  something anyone wants). Both surfaces were done together rather than one now and one later — the same
+  fix reaching one shell and not the other is how the `specificity` labeling ended up inconsistent for five
+  rounds. Tests pin, on both surfaces, that the cap changes the HTML and **never** the lossless export.
+
 - **Every pegRNA 3' motif is now round-tripped through the oligo output; `mpknot` previously reached no
   test and no caller.** `MOTIF_SEQUENCES` ships three options, but the enumerator only ever emits
   `tevopreQ1`, so `ThreePrimeMotif.MPKNOT` was a sequence that goes into a **synthesized** extension oligo

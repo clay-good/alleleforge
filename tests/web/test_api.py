@@ -540,3 +540,31 @@ async def test_offtarget_rejects_a_malformed_locus(client: httpx.AsyncClient, lo
     """A typo must be a client error, not a silently un-excluded search."""
     res = await client.post("/api/offtarget", json={"spacer": ON_TARGET_SPACER, "on_target": locus})
     assert res.status_code == 422
+
+
+async def test_design_render_candidates_caps_the_html(client: httpx.AsyncClient) -> None:
+    """The web surface reaches the same render cap the CLI does."""
+    body = {"variant": "chr2:71:A>C", "intent": "install", "run_offtarget": False}
+    res = await client.post("/api/design?format=html", json={**body, "render_candidates": 3})
+    assert res.status_code == 200
+    assert "the top 3 by rank plus every Pareto-front candidate" in res.text
+
+    uncapped = await client.post("/api/design?format=html", json={**body, "render_candidates": 0})
+    assert uncapped.status_code == 200
+    assert "plus every Pareto-front candidate" not in uncapped.text
+    assert len(uncapped.text) > len(res.text)
+
+
+async def test_design_json_ignores_the_render_cap(client: httpx.AsyncClient) -> None:
+    """A display cap must never reach the machine-readable body."""
+    res = await client.post(
+        "/api/design",
+        json={
+            "variant": "chr2:71:A>C",
+            "intent": "install",
+            "run_offtarget": False,
+            "render_candidates": 3,
+        },
+    )
+    assert res.status_code == 200
+    assert len(res.json()["candidates"]) > 3

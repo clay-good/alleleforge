@@ -90,6 +90,16 @@ class DesignRequest(BaseModel):
         max_length=MAX_POPULATIONS,
         description="Ancestry labels to query and stratify off-target by.",
     )
+    render_candidates: int | None = Field(
+        default=None,
+        ge=0,
+        le=10_000,
+        description=(
+            "How many candidates the html/pdf render draws (default 50; 0 for all). "
+            "Every Pareto-front candidate is drawn whatever the cap, and the page states "
+            "what it withheld. The json export is never capped."
+        ),
+    )
     weights: list[float] | None = Field(
         default=None,
         description="Ranking weights [efficiency, cleanliness, safety, simplicity].",

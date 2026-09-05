@@ -69,6 +69,11 @@ lossless exports SHALL be unaffected by the cap.
 - **WHEN** the same report is rendered to HTML and to PDF under the same cap
 - **THEN** both draw the same candidate set, through one shared selection helper
 
+#### Scenario: The cap is reachable from every surface
+- **WHEN** a caller uses the CLI or the web API
+- **THEN** the cap can be set there, and setting it never changes the lossless
+  JSON/TSV export
+
 ### Requirement: A reagent line names the edit, not only the geometry
 
 The one-line reagent summary SHALL identify what the reagent *does*, not only its

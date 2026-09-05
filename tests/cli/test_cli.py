@@ -897,3 +897,87 @@ def test_offtarget_rejects_a_malformed_locus(runner: CliRunner, tmp_path: Path, 
         app, ["offtarget", spacer, "--reference-fasta", str(fasta), "--on-target", locus]
     )
     assert result.exit_code == ExitCode.USAGE
+
+
+# --- design: the render cap --------------------------------------------------
+
+
+def test_render_candidates_caps_the_html(
+    runner: CliRunner, prime_fasta: Path, tmp_path: Path
+) -> None:
+    """The cap `render_html` has taken since it was added is now reachable from here."""
+    out = tmp_path / "small.html"
+    result = runner.invoke(
+        app,
+        [
+            "design",
+            "chr2:71:A>C",
+            "--reference-fasta",
+            str(prime_fasta),
+            "--intent",
+            "install",
+            "--no-offtarget",
+            "--format",
+            "html",
+            "--render-candidates",
+            "3",
+            "--out",
+            str(out),
+        ],
+    )
+    assert result.exit_code == 0
+    html = out.read_text()
+    assert "candidates:" in html or "Candidates" in html
+    assert "the top 3 by rank plus every Pareto-front candidate" in html
+
+
+def test_render_candidates_zero_draws_everything(
+    runner: CliRunner, prime_fasta: Path, tmp_path: Path
+) -> None:
+    """`0` is the command-line spelling of "no cap" — a 0-candidate render is useless."""
+    common = [
+        "design",
+        "chr2:71:A>C",
+        "--reference-fasta",
+        str(prime_fasta),
+        "--intent",
+        "install",
+        "--no-offtarget",
+        "--format",
+        "html",
+    ]
+    capped = tmp_path / "capped.html"
+    full = tmp_path / "full.html"
+    assert runner.invoke(app, [*common, "--out", str(capped)]).exit_code == 0
+    assert (
+        runner.invoke(app, [*common, "--render-candidates", "0", "--out", str(full)]).exit_code == 0
+    )
+    assert len(full.read_text()) > len(capped.read_text())
+    assert "plus every Pareto-front candidate" not in full.read_text()
+
+
+def test_the_json_export_ignores_the_render_cap(
+    runner: CliRunner, prime_fasta: Path, tmp_path: Path
+) -> None:
+    """A display cap must never reach the lossless export."""
+    out = tmp_path / "all.json"
+    result = runner.invoke(
+        app,
+        [
+            "design",
+            "chr2:71:A>C",
+            "--reference-fasta",
+            str(prime_fasta),
+            "--intent",
+            "install",
+            "--no-offtarget",
+            "--format",
+            "json",
+            "--render-candidates",
+            "3",
+            "--out",
+            str(out),
+        ],
+    )
+    assert result.exit_code == 0
+    assert len(json.loads(out.read_text())["candidates"]) > 3

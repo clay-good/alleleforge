@@ -1961,6 +1961,28 @@ value a public type *admits* was tried, and enum members, boolean flags, and opt
 precisely where an untried value takes a different branch. Enumerating the type's members and grepping is
 a five-line script.**
 
+## Round 73 — finishing a feature at both shells at once
+
+The render cap added in R49/R50 was library-only: `render_html` and `render_pdf` took `max_candidates`, and
+neither the CLI nor the web API exposed it. A user wanting the full page had no way to ask — only the
+JSON/TSV exports, which are a different artifact.
+
+**Shipped:** `aforge design --render-candidates N` and the API's `render_candidates` field, with `0`
+spelling "draw them all" — the command line has no natural way to write `None`, and a zero-candidate render
+is not a thing anyone wants. Tests on both surfaces pin that the cap changes the rendered page and **never**
+the lossless export, which is the property a display cap must not violate.
+
+The deliberate part is doing both shells in one change. R63 fixed the CLI's off-target labeling five rounds
+after fixing the same thing in the library, and only found the web API still wrong by driving it — because
+the CLI and the web API are both thin shells over one library, so a gap in how one *exposes* a capability
+almost always exists in the other. Applying that forward is cheaper than rediscovering it.
+
+**Lesson: "expose it on the surface I am touching" is how two shells drift. When a library capability is
+worth reaching from one shell it is nearly always worth reaching from the other, and the cost of doing both
+together is a few lines — versus a later round spent noticing, plus the window where the two behave
+differently. The generalizable version: after adding a parameter to a library function, grep its call
+sites in the shells before closing the change.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -316,6 +316,17 @@ def design(
             "Default is the weight-free baseline.",
         ),
     ] = False,
+    render_candidates: Annotated[
+        int | None,
+        typer.Option(
+            "--render-candidates",
+            help=(
+                "How many candidates the html/pdf render draws (default 50; 0 for all). "
+                "Every Pareto-front candidate is drawn whatever the cap, and the page "
+                "states what it withheld. The json/tsv exports are never capped."
+            ),
+        ),
+    ] = None,
     fmt: Annotated[OutputFormat, typer.Option("--format", help="Output format.")] = (
         OutputFormat.json
     ),
@@ -332,7 +343,7 @@ def design(
     """Design a ranked, multi-chemistry editing menu for a variant."""
     from alleleforge.config import Settings
     from alleleforge.design.designer import design as run_design
-    from alleleforge.report.builder import build_report
+    from alleleforge.report.builder import DEFAULT_RENDER_CANDIDATES, build_report
     from alleleforge.report.export import report_to_json, report_to_tsv
     from alleleforge.report.html import render_html
     from alleleforge.report.pdf import render_pdf
@@ -420,14 +431,17 @@ def design(
             f"{menu.best.chemistry.value if menu.best else 'none'}"
         )
 
+    # `--render-candidates 0` means "draw them all"; typer has no natural way to
+    # spell `None` on the command line, and 0 candidates is not a render anyone wants.
+    cap = DEFAULT_RENDER_CANDIDATES if render_candidates is None else (render_candidates or None)
     if fmt is OutputFormat.json:
         rendered: bytes = report_to_json(report).encode()
     elif fmt is OutputFormat.tsv:
         rendered = report_to_tsv(report).encode()
     elif fmt is OutputFormat.html:
-        rendered = render_html(report).encode()
+        rendered = render_html(report, max_candidates=cap).encode()
     else:
-        rendered = render_pdf(report)
+        rendered = render_pdf(report, max_candidates=cap)
 
     if out is not None:
         out.write_bytes(rendered)

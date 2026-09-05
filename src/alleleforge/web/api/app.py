@@ -30,7 +30,12 @@ from fastapi.staticfiles import StaticFiles
 
 from alleleforge._version import __version__
 from alleleforge.config import Settings
-from alleleforge.report.builder import RESEARCH_USE_DISCLAIMER, DesignReport, build_report
+from alleleforge.report.builder import (
+    DEFAULT_RENDER_CANDIDATES,
+    RESEARCH_USE_DISCLAIMER,
+    DesignReport,
+    build_report,
+)
 from alleleforge.report.html import render_html
 from alleleforge.report.pdf import render_pdf
 from alleleforge.web.api.jobs import JobCapacityError, JobManager
@@ -233,10 +238,16 @@ def create_app(
     ) -> DesignReport | Response:
         """Design a ranked, multi-chemistry menu (JSON, HTML, or PDF)."""
         report = _design_to_report(request, req)
+        # 0 means "draw them all"; the JSON body is never capped either way.
+        cap = (
+            DEFAULT_RENDER_CANDIDATES
+            if req.render_candidates is None
+            else (req.render_candidates or None)
+        )
         if fmt is DesignFormat.html:
-            return HTMLResponse(render_html(report))
+            return HTMLResponse(render_html(report, max_candidates=cap))
         if fmt is DesignFormat.pdf:
-            return Response(render_pdf(report), media_type="application/pdf")
+            return Response(render_pdf(report, max_candidates=cap), media_type="application/pdf")
         return report
 
     @app.post("/api/jobs/design", response_model=JobSubmitResponse, status_code=202)
