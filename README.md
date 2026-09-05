@@ -655,13 +655,29 @@ flowchart LR
     EN --> OUT["outcome<br/>microhomology / MMEJ +<br/>1-bp insertion spectrum"]
     EN --> OT["off-target<br/>(Phase 5 engine,<br/>ancestry-stratified)"]
     EF & OUT & OT --> C["DesignCandidate[]<br/>ranked: efficiency then safety"]
-    EN -.precise intent.-> HDR["HDR donor template"]
+    EN -.precise intent.-> HDR["HDR donor template<br/>+ PAM-blocking silent mutation"]
+    HDR --> C
 ```
 
 **Defaults & decisions.** Primary PAM `NGG`; `NG` (SpCas9-NG) and `NRN`/`NYN` (SpRY) are emitted only
 when no `NGG` guide is actionable **and** opted in. Cut site 3 bp 5' of the PAM. The actionable window
 is tight around the edit for precise intents (HDR efficiency falls off with cut-to-edit distance) and
 the whole working interval for a knock-out, which marks frameshift outcomes as intended.
+
+> [!NOTE]
+> **A precise nuclease candidate is a *pair*, and is shipped as one.** A double-strand break alone
+> corrects nothing — NHEJ repairs it into indels — so a candidate offered for a correction carries the
+> **HDR donor** that makes the edit, complete with the PAM-blocking silent mutation that stops the
+> repaired allele being re-cut. It is labeled the whole way down: `hdr-donor:recut-blocked` /
+> `:recut-not-blocked` / `:none` and `outcome-is-nhej-spectrum` on the candidate (that last one because
+> the attached distribution is the **byproduct** spectrum, not the correction — such a candidate scores
+> **0 on cleanliness**, which is the honest number rather than an invented HDR rate); the donor named on
+> the reagent line; and the donor emitted as an orderable single-stranded template
+> (`kind="hdr-donor-ssodn"`) beside the sgRNA duplex, with ordering hazards promoted to the top —
+> longer than a vendor synthesizes as one oligo, or a product still cuttable by its own guide. A donor
+> whose homology arm would reach an assembly-gap `N` is **refused**, not built: its bases are written
+> into the genome permanently. An arm that merely runs past a contig end is shortened to the sequence
+> the reference actually provides.
 
 | Axis | Default (CI, weight-free) | Trained alternative (model zoo) |
 |---|---|---|

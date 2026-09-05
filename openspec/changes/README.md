@@ -1477,6 +1477,28 @@ to confirm something obvious. Second: when a new guard turns tests red, read the
 stale. Those three were reporting that "no sequence available" has two causes with opposite correct
 responses, and the first version of the guard knew about only one.**
 
+## Round 55 — joining up the HDR thread, and saying so in the README
+
+R51-54 built the nuclease-plus-HDR route one hop at a time, each with its own unit test. Nothing asserted
+the hops connect, and the README still drew the donor as a dotted side-branch off the design flow.
+
+- **An acceptance test from variant to orderable reagent.** The 41-base restoration — the edit that
+  returned a blank menu three rounds ago — now runs `design()` → ranking → `build_report` →
+  `oligos_for` → `render_html`, asserting routing admits only the nuclease, the top candidate carries a
+  gap-free donor with its `hdr-donor:*` and `outcome-is-nhej-spectrum` flags, the reagent line names the
+  pair, and the donor arrives as an orderable `hdr-donor-ssodn` that reaches the HTML.
+- **README updated to the shipped state**: the donor now feeds the candidate in the flow diagram rather
+  than dangling off it, with a note spelling out that a precise nuclease candidate is a *pair* — labeled
+  at every layer, scoring 0 on cleanliness because the NHEJ spectrum contains no intended allele (the
+  honest number, not an invented HDR rate), refused outright when a homology arm would reach an
+  assembly-gap `N`, and shortened rather than refused when an arm merely runs past a contig end.
+
+**Lesson: the same pattern as R45, and worth naming as a habit rather than a coincidence. A feature built
+across several rounds accumulates unit tests at every hop and no test of the seam, because each round's
+scope ends at its own module boundary. The end-to-end test is cheap, it is the only one that would notice
+a hop being silently dropped, and the right time to write it is when the last hop lands — while the whole
+chain is still in view.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

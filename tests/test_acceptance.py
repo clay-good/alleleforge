@@ -315,3 +315,49 @@ def test_small_deletion_flows_to_a_report_that_names_the_edit(make_reference: Ma
     html = render_html(report)
     assert "writing 4 nt" in html  # the reagent line names the edit, not just its size
     assert "templated-edit:4nt" in html
+
+
+def test_a_large_precise_edit_yields_an_orderable_nuclease_hdr_reagent(
+    make_reference: MakeRef,
+) -> None:
+    """The edit that used to return an empty menu, carried to an orderable reagent.
+
+    Correcting a deletion longer than any RT template can write back is beyond
+    every break-free chemistry. It must not return a blank menu, and it must not
+    return a bare double-strand break dressed as a correction: the answer is a
+    guide *plus* the HDR donor that makes the edit, honestly labeled and orderable.
+    Routing, the donor build, the flags, the reagent line and the cloning output
+    each own one hop of that; nothing else asserts they connect.
+    """
+    rng = random.Random(11)
+    filler = "".join(rng.choice("ACGT") for _ in range(600))
+    pos = 300
+    ref_allele = "A" + "CGTA" * 10  # 41 bases: correcting restores all of them
+    contig = filler[:pos] + ref_allele + filler[pos + len(ref_allele) :]
+    reference = make_reference(contig)
+
+    menu = design(
+        f"chr2:{pos + 1}:{ref_allele}>A",
+        reference=reference,
+        intent=EditIntent.CORRECT,
+        run_offtarget=False,
+    )
+    assert menu.candidates, "the edit that used to produce a blank menu"
+    assert {c.chemistry for c in menu.candidates} == {Chemistry.CAS9_NUCLEASE}
+
+    top = menu.candidates[0]
+    assert top.guide is not None
+    assert top.hdr_donor is not None, "a break alone cannot make this edit"
+    assert "N" not in str(top.hdr_donor.sequence)
+    assert any(f.startswith("hdr-donor:") for f in top.flags)
+    assert "outcome-is-nhej-spectrum" in top.flags
+
+    report = build_report(menu, variant=f"chr2:{pos + 1}:41bp>A", intent="correct")
+    entry = report.candidates[0]
+    assert "HDR donor" in entry.reagent
+    # The donor must be orderable alongside the guide, not merely described.
+    assert entry.oligos is not None
+    donor = getattr(entry.oligos, "donor", None)
+    assert donor is not None and donor.kind == "hdr-donor-ssodn"
+    assert len(donor.sequence) == len(top.hdr_donor.sequence)
+    assert "hdr-donor-ssodn" in render_html(report)

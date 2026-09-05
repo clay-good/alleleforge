@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **An acceptance test carries a large precise edit from variant to orderable reagent**, and the README's
+  SpCas9 section now describes the shipped behavior rather than a dotted side-branch. Correcting a 41-base
+  restoration is beyond every break-free chemistry; it must not return a blank menu, and it must not return
+  a bare double-strand break dressed as a correction. The test asserts the whole chain connects — routing
+  admits only the nuclease, the top candidate carries a gap-free donor and its `hdr-donor:*` /
+  `outcome-is-nhej-spectrum` flags, the reagent line names the pair, and the donor is emitted as an
+  orderable `hdr-donor-ssodn` beside the guide duplex and reaches the rendered HTML. Each hop had a unit
+  test; nothing asserted they joined up.
+
 - **A precise nuclease candidate is now *orderable*: the HDR donor is emitted as a template to synthesize,
   alongside the sgRNA duplex.** `oligos_for` returned only the guide duplex — the half of the reagent that
   cannot make the edit. A new `DonorOligo` (`kind="hdr-donor-ssodn"`) carries the sequence to order and the
