@@ -56,6 +56,12 @@ def task_calibration_table() -> list[dict[str, Any]]:
                 "primary_metric": result.primary_metric,
                 "primary_value": round(result.primary_value, 4),
                 "ece": None if result.metrics["ece"] is None else round(result.metrics["ece"], 4),
+                # A metric is not readable without its sample size and its corpus. The
+                # shipped fixtures are synthetic stand-ins of eight to ten rows, and a
+                # Spearman over ten rows reported bare invites a reader to treat it as
+                # a measurement of the model.
+                "n_test": result.n_test,
+                "synthetic": result.dataset_is_synthetic,
             }
         )
     return rows

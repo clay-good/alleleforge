@@ -8,6 +8,17 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The generated calibration report — the artifact a reader treats as the project's calibration evidence —
+  did not say its numbers were synthetic.** It opened with `| cas9-efficiency | regression | spearman | 0.0
+  | 0.2 |` and gave neither the sample size (ten rows) nor the corpus (a bundled stand-in). The preprint
+  states it in prose; the *generated file* is what gets read, quoted and screenshotted, and it said nothing.
+  The report now leads with a block quote saying every number below comes from the synthetic stand-ins at
+  single-digit sample sizes, demonstrates that the measurement machinery works, and is not a measurement of
+  any model. Each row gains `n` and a per-row `synthetic`/`real` label, so a future real corpus is visibly
+  different rather than silently replacing the same numbers.
+
 ### Added
 
 - **`aforge bench compare` — the operation the reproducibility digest exists for, which had no

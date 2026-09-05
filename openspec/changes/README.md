@@ -3220,6 +3220,38 @@ signature, a checksum), ask the sharper question: what operation would use this,
 exist? A verifier with no verify function is not a weak guarantee, it is no guarantee, and it looks
 identical to a working one from the inside.**
 
+## Round 113 — the same number, one surface later
+
+R111 labelled the synthetic-derived numbers on `bench run`, the signed result, and the leaderboard. The
+obvious next question — R107's — is which *other* surface renders them, and there is one:
+`scripts/calibration_study.py`, which the README names as the thing that "regenerates the per-task-ECE +
+gap + recalibration report".
+
+That report opened:
+
+```
+| Task            | Kind       | Primary  | Value | ECE |
+| cas9-efficiency | regression | spearman | 0.0   | 0.2 |
+```
+
+Ten rows of a synthetic stand-in, presented with neither the sample size nor the corpus. It is the artifact
+someone looking for evidence of the calibration story would open, and the one they would quote.
+
+The preprint *does* say the fixtures are synthetic, in prose, in a section about the benchmark's design.
+That is the trap: the fact was written down, in a document that also contains the numbers, so it feels
+covered. But the generated report is a separate file that travels on its own — into a screenshot, an issue,
+a slide — and a caveat two documents away does not travel with it.
+
+**Shipped:** a block quote at the top of the generated report, before any table, saying every number below
+comes from synthetic stand-ins at single-digit sample sizes, demonstrates the measurement machinery, and is
+not a measurement of any model. Plus per-row `n` and a `synthetic`/`real` column — the row label matters
+because when a real corpus does arrive it must look *different*, not silently occupy the same cells.
+
+**Lesson: a caveat has to live in the artifact that travels, not in the document that explains the
+artifact. "It's documented" is a claim about a corpus of text; the thing a reader ends up holding is one
+file out of it. For anything generated — a report, an export, a figure — ask what it says when it is the
+only thing in the room.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

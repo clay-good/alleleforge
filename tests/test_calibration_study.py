@@ -45,3 +45,30 @@ def test_main_writes_and_prints_report(tmp_path: Path, capsys: object) -> None:
     assert "Conformal interval recalibration" in report
     for task in calibration_study.TASKS:
         assert task in report
+
+
+def test_the_report_says_its_numbers_are_synthetic() -> None:
+    """This report is treated as the project's calibration evidence.
+
+    Every number in it comes from the bundled synthetic stand-ins at sample sizes in
+    the single digits, and the report said neither — so `spearman 0.0, ECE 0.2` read
+    as a measurement of a model rather than a demonstration that the measurement
+    machinery works. The preprint says so in prose; the generated artifact did not,
+    and the artifact is what gets read and quoted.
+    """
+    tasks = calibration_study.task_calibration_table()
+    report = calibration_study.render_markdown(
+        tasks,
+        calibration_study.generalization_table(),
+        calibration_study.conformal_demo(),
+    )
+
+    assert "SYNTHETIC" in report
+    assert "not measurements of any model" in report
+    # Sample size per row, because a Spearman over ten rows is not a result.
+    assert "| n |" in report or "| n | Data |" in report
+    for row in tasks:
+        assert row["n_test"] > 0
+        assert row["synthetic"] is True  # the shipped fixtures really are stand-ins
+    # ...and the per-row label, so a future real corpus is visibly different.
+    assert "| synthetic |" in report
