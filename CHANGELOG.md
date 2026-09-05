@@ -74,6 +74,18 @@ acceptance.
 
 ### Fixed
 
+- **The prime off-target cache was keyed on the spacers but not the loci.** A prime design routinely yields
+  hundreds of pegRNAs over a handful of distinct protospacers — every PBS × RTT-homology combination reuses
+  one — so `design_prime` caches the merged two-nick report, which is what keeps the vertical affordable.
+  The key was `(pegRNA spacer, ngRNA spacer)`. But the cached *value* has each spacer's **own locus**
+  excluded from it, and that exclusion is locus-specific: two pegRNAs sharing a spacer pair at different
+  loci would share an entry, and the second would be handed a report that dropped a genuine paralogous
+  off-target for it — the on-target-as-off-target class inverted. The key now names both placements too, so
+  it covers every input the value depends on. **Honest scope:** no locus was found that actually produces
+  such a collision (the enumerator's RT-reach window makes one hard to arrange), so this closes a key/value
+  mismatch rather than a demonstrated miss; the invariant is pinned by a direct test of the keying function
+  rather than by a genomic scenario.
+
 - **`EditFrame` placed a span starting exactly at a pure deletion four bases too early.** A span boundary
   sitting on the edit is ambiguous, and the two directions want opposite answers: when the carried allele
   is empty — the target genome has a pure deletion — index `edit_plus` is simultaneously "just before the

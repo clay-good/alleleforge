@@ -11,8 +11,9 @@ from alleleforge.design.prime import design_prime
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.candidate import DesignCandidate
 from alleleforge.types.edit import Chemistry, EditIntent
+from alleleforge.types.guide import PegRNA, Spacer
 from alleleforge.types.offtarget import OffTargetReport
-from alleleforge.types.sequence import GenomicInterval, Strand
+from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
 from alleleforge.variant.resolver import ResolvedVariant, resolve
 
 MakeRef = Callable[[dict[str, str]], ReferenceGenome]
@@ -207,3 +208,35 @@ def test_multi_base_edit_is_flagged_with_what_it_writes(make_reference: MakeRef)
     assert snv_cands and del_cands
     assert not any(f.startswith("templated-edit:") for f in snv_cands[0].flags)
     assert "templated-edit:3nt" in del_cands[0].flags
+
+
+def test_the_offtarget_cache_key_names_the_placements_not_just_the_spacers() -> None:
+    """The cached report is locus-specific, so the key must be too.
+
+    Hundreds of pegRNAs share a handful of protospacers — every PBS x RTT-homology
+    combination reuses one — so caching the scan is what keeps the vertical
+    affordable. But the cached report has each spacer's *own locus* excluded from
+    it, and that exclusion is locus-specific: two pegRNAs sharing a spacer pair at
+    different loci must not share an entry, or one is handed a report that dropped
+    a genuine paralogous off-target for it.
+    """
+    from alleleforge.design.prime import _offtarget_cache_key
+
+    def _peg(start: int) -> PegRNA:
+        return PegRNA(
+            spacer=Spacer(sequence=DNASequence("ACGTACGTACGTACGTACGT")),
+            scaffold=DNASequence("GTTTTAGAGCTAGAAATAGCAAG"),
+            rtt=DNASequence("A" * 16),
+            pbs=DNASequence("ACGTACGTACGTA"),
+            rtt_homology_5prime=10,
+            rtt_homology_3prime=5,
+            placement=GenomicInterval(
+                chrom="chr1", start=start, end=start + 20, strand=Strand.PLUS
+            ),
+            nick_site=start + 17,
+        )
+
+    here, elsewhere = _peg(100), _peg(5000)
+    assert here.spacer == elsewhere.spacer  # identical reagent...
+    assert _offtarget_cache_key(here) != _offtarget_cache_key(elsewhere)  # ...different locus
+    assert _offtarget_cache_key(here) == _offtarget_cache_key(_peg(100))  # and stable

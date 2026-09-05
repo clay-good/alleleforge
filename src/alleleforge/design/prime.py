@@ -151,6 +151,36 @@ def prime_model_checkpoints(
     )
 
 
+#: What a cached off-target report depends on: both spacers *and* both placements.
+#: The report is spacer-specific, but the on-target exclusion is *locus*-specific,
+#: so two pegRNAs sharing a spacer pair at different loci must not share an entry.
+_CacheKey = tuple[str, str | None, str | None, str | None]
+
+
+def _offtarget_cache_key(pegrna: PegRNA) -> _CacheKey:
+    """Return the key under which ``pegrna``'s merged off-target report is cached.
+
+    A prime design routinely yields hundreds of pegRNAs over a handful of distinct
+    spacers — every PBS x RTT-homology combination reuses one protospacer — so
+    caching the scan is what keeps the vertical affordable. The key must therefore
+    name every input the cached value depends on, and the placements are two of
+    them: the report has each spacer's own locus excluded from it, and that
+    exclusion is locus-specific. Keying on the spacers alone would let a pegRNA at
+    one locus be handed a report that excluded a *different* locus — dropping a
+    genuine paralogous off-target for it. No locus was found that actually
+    produces a spacer-pair collision across placements (the enumerator's RT-reach
+    window makes it hard to arrange), so this closes the key/value mismatch rather
+    than a demonstrated miss.
+    """
+    ng = pegrna.nicking_guide
+    return (
+        str(pegrna.spacer.sequence),
+        str(ng.spacer.sequence) if ng is not None else None,
+        str(pegrna.placement) if pegrna.placement is not None else None,
+        str(ng.placement) if ng is not None else None,
+    )
+
+
 def design_prime(
     resolved: ResolvedVariant,
     intent: EditIntent = EditIntent.CORRECT,
@@ -202,7 +232,7 @@ def design_prime(
     pegrnas = enumerate_prime(resolved, intent, reference=reference, pam=pam)
     scorer: PrimeEfficiencyScorer = efficiency_scorer or PridictScorer()
     predictor = outcome_predictor or PrimeOutcomePredictor()
-    cache: dict[tuple[str, str | None], OffTargetReport] = {}
+    cache: dict[_CacheKey, OffTargetReport] = {}
 
     def _search(spacer: Spacer, on_target: GenomicInterval | None) -> OffTargetReport:
         return offtarget_search(
@@ -221,8 +251,7 @@ def design_prime(
         if not run_offtarget:
             return None
         ng = pegrna.nicking_guide
-        ng_spacer = str(ng.spacer.sequence) if ng is not None else None
-        key = (str(pegrna.spacer.sequence), ng_spacer)
+        key = _offtarget_cache_key(pegrna)
         if key not in cache:
             # Each spacer's own protospacer is its intended nick, not an off-target,
             # so exclude each from its own report before the two-nick merge.

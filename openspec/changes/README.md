@@ -1812,6 +1812,37 @@ command, and asking it took less time than the fix did. The answer being mostly 
 — it converts an anxiety into a bounded, checked list, and it found the one module where the anxiety was
 justified.**
 
+## Round 67 — profiling the design pipeline, and a cache key that did not cover its value
+
+Profiled `design()` with the off-target search on, now that R46–47 made the scan ~10x faster. A 60 kb
+reference, 451 candidates, **0.64s** — still ~78% off-target scan, but the remaining cost is per-anchor
+alignment evaluation (~80%) rather than anchor enumeration (~15%), so batching the scan across spacers
+would buy at most ~15% and further gains need vectorization or the native kernel. Recorded as measured, not
+pursued.
+
+The profile did show something else: only **20** strand-scans for 451 candidates, because `design_prime`
+caches the merged two-nick report. Reading that cache found the finding.
+
+**`fix(prime)` the cache key named the spacers but not the loci.** The cached value has each spacer's *own
+locus* excluded from it, and that exclusion is locus-specific — so two pegRNAs sharing a spacer pair at
+different loci would share an entry, and the second would be handed a report that dropped a genuine
+paralogous off-target for it. That is the on-target-as-off-target class (R10, R40) inverted: not counting
+a guide against itself, but *failing to count* a real site because another candidate's locus was excluded
+in its place. The key now names both placements.
+
+**Honest scope, stated in the code and the changelog:** I could not construct a locus that actually
+produces the collision — the enumerator's RT-reach window makes a repeated spacer-pair across placements
+hard to arrange — so this closes a key/value mismatch rather than a demonstrated miss. The invariant is
+pinned by a direct test of the keying function (two pegRNAs identical but for placement must not share a
+key), mutation-checked, rather than by a genomic scenario I could not build.
+
+**Lesson: a cache key is a claim that it names everything the value depends on, and that claim is
+checkable independently of whether you can trigger its failure. The temptation with an unreachable-looking
+bug is to leave it and note it; here the fix is one line, provably correct, and the alternative is a
+latent hazard whose trigger is "a repeat region", which is exactly the context this tool's users work in.
+Also worth naming: the finding came from reading code the *profiler* pointed at, not code I set out to
+audit — 20 scans for 451 candidates was an oddity worth understanding, and the cache was the explanation.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
