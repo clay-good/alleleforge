@@ -28,7 +28,29 @@ class Chemistry(StrEnum):
 
 
 class EditIntent(StrEnum):
-    """What the user wants the edit to accomplish."""
+    """What the user wants the edit to accomplish.
+
+    The intent decides which allele the target genome is assumed to *carry* and
+    which one the reagent must *write*, so it changes the sequence guides are
+    enumerated against, not merely how a result is labeled.
+
+    Attributes:
+        CORRECT: The genome carries the alternate (disease) allele; write the
+            reference back.
+        KNOCK_OUT: Disrupt the locus. No allele is written — the double-strand
+            break's NHEJ indels are the product — so no allele is carried either.
+        INSTALL: The genome carries the reference; write the alternate allele
+            (engineering a variant in, e.g. to build a disease model).
+        REVERT: Undo a previously installed edit — the genome carries the
+            alternate allele and the reference is written back. **Mechanically
+            identical to CORRECT** and handled by the same branches throughout;
+            it exists so a run's provenance records *why* the edit was made,
+            which CORRECT (repairing a pathogenic allele) and REVERT (returning
+            an engineered line to wild type) do not share. A test pins the
+            equivalence, because it is currently spelled out in several
+            independent ``intent in (CORRECT, REVERT)`` checks rather than
+            centralized.
+    """
 
     CORRECT = "correct"
     KNOCK_OUT = "knock_out"

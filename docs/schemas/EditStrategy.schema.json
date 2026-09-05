@@ -40,7 +40,7 @@
       "type": "object"
     },
     "EditIntent": {
-      "description": "What the user wants the edit to accomplish.",
+      "description": "What the user wants the edit to accomplish.\n\nThe intent decides which allele the target genome is assumed to *carry* and\nwhich one the reagent must *write*, so it changes the sequence guides are\nenumerated against, not merely how a result is labeled.\n\nAttributes:\n    CORRECT: The genome carries the alternate (disease) allele; write the\n        reference back.\n    KNOCK_OUT: Disrupt the locus. No allele is written \u2014 the double-strand\n        break's NHEJ indels are the product \u2014 so no allele is carried either.\n    INSTALL: The genome carries the reference; write the alternate allele\n        (engineering a variant in, e.g. to build a disease model).\n    REVERT: Undo a previously installed edit \u2014 the genome carries the\n        alternate allele and the reference is written back. **Mechanically\n        identical to CORRECT** and handled by the same branches throughout;\n        it exists so a run's provenance records *why* the edit was made,\n        which CORRECT (repairing a pathogenic allele) and REVERT (returning\n        an engineered line to wild type) do not share. A test pins the\n        equivalence, because it is currently spelled out in several\n        independent ``intent in (CORRECT, REVERT)`` checks rather than\n        centralized.",
       "enum": [
         "correct",
         "knock_out",
