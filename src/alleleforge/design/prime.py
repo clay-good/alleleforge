@@ -20,6 +20,7 @@ from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.enumerate.prime import NGG_PAM, enumerate_prime
 from alleleforge.genome.reference import ReferenceGenome
+from alleleforge.model_zoo.registry import ModelCard
 from alleleforge.offtarget.engine import search as offtarget_search
 from alleleforge.scoring.base import ensure_prediction
 from alleleforge.scoring.prime_efficiency import PridictScorer
@@ -39,6 +40,10 @@ class PrimeEfficiencyScorer(Protocol):
     """Structural type a prime-efficiency scorer must satisfy."""
 
     name: str
+
+    def model_card(self) -> ModelCard:
+        """Return the card whose checkpoint is stamped into provenance."""
+        ...
 
     def score(
         self,
@@ -121,15 +126,27 @@ def _flags(pegrna: PegRNA, efficiency: Prediction[float], run_offtarget: bool) -
     return tuple(flags)
 
 
-def prime_model_checkpoints() -> tuple[ModelCheckpoint, ...]:
-    """Return the provenance checkpoints for the default prime scorers.
+def prime_model_checkpoints(
+    efficiency_scorer: PrimeEfficiencyScorer | None = None,
+    outcome_predictor: PrimeOutcomePredictor | None = None,
+) -> tuple[ModelCheckpoint, ...]:
+    """Return the provenance checkpoints for the prime scorers actually used.
 
-    The default efficiency scorer is a transparent PRIDICT2.0-style geometry
-    heuristic, which carries its own ``pridict2-baseline`` card (not the trained
-    ``pridict2`` card). The default outcome predictor is a card-free heuristic, so
-    it contributes no checkpoint.
+    Both defaults are transparent heuristics and each carries its *own* card —
+    ``pridict2-baseline`` and ``prime-outcome-baseline`` — rather than the trained
+    ``pridict2`` card, so a default run's provenance never records trained-only
+    training data or failure modes for numbers a heuristic produced. When an
+    override is supplied (e.g. the opt-in trained PRIDICT2 engine), the override's
+    card is recorded instead, so provenance names the model that scored the
+    candidates rather than the default it replaced — matching the nuclease and
+    base-editor verticals.
     """
-    return (PridictScorer().model_card().to_checkpoint(),)
+    efficiency = efficiency_scorer if efficiency_scorer is not None else PridictScorer()
+    outcome = outcome_predictor if outcome_predictor is not None else PrimeOutcomePredictor()
+    return (
+        efficiency.model_card().to_checkpoint(),
+        outcome.model_card().to_checkpoint(),
+    )
 
 
 def design_prime(

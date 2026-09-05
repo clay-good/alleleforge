@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from alleleforge.model_zoo.registry import ModelCard, ModelRegistry, default_registry
 from alleleforge.types.edit import AlleleOutcome, EditOutcome
 from alleleforge.types.guide import PegRNA
 from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE, Prediction, UncertaintyMethod
@@ -36,6 +37,22 @@ class PrimeOutcomePredictor:
     """A transparent prime-edit byproduct baseline."""
 
     name = "prime-outcome-baseline"
+
+    def __init__(self, *, registry: ModelRegistry | None = None) -> None:
+        """Configure the (optional) model-card registry."""
+        self._registry = registry or default_registry()
+
+    def model_card(self) -> ModelCard:
+        """Return the heuristic baseline's own card.
+
+        The sibling defaults — ``indelphi-mh-baseline`` for the nuclease,
+        ``be-dict-baseline`` for base editing — each carry a card so a menu's
+        provenance names every model that produced a number in it. This predictor
+        had none, so the flagship chemistry was the one whose outcome model went
+        unrecorded, even though its ``p_intended`` feeds the menu's cleanliness
+        objective directly.
+        """
+        return self._registry.get("prime-outcome-baseline")
 
     def predict(self, pegrna: PegRNA) -> PrimeOutcome:
         """Return the intended-vs-byproduct distribution for ``pegrna``.

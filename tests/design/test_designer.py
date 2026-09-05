@@ -8,8 +8,11 @@ import pytest
 
 from alleleforge.design.designer import design
 from alleleforge.genome.reference import ReferenceGenome
+from alleleforge.model_zoo.registry import ModelCard, default_registry
 from alleleforge.types.candidate import RankedMenu
 from alleleforge.types.edit import Chemistry, EditIntent
+from alleleforge.types.guide import PegRNA
+from alleleforge.types.prediction import Prediction, UncertaintyMethod
 from alleleforge.types.provenance import Provenance
 from alleleforge.types.sequence import GenomicInterval, Strand
 from alleleforge.variant.resolver import ResolvedVariant, resolve
@@ -96,7 +99,6 @@ def test_provenance_records_the_override_scorer_not_the_default(make_reference: 
     # provenance reproduces different numbers.
     from alleleforge.model_zoo.registry import ModelCard
     from alleleforge.scoring.cas9_efficiency import EnsembleEfficiencyScorer
-    from alleleforge.types.prediction import Prediction
 
     class _OverrideScorer:
         name = "rule-set-3-override"
@@ -306,3 +308,72 @@ def test_provenance_snapshots_the_resolved_settings(make_reference: MakeRef) -> 
     assert snap["seed"] == 4242
     assert abs(snap["maf_threshold"] - 0.02) < 1e-9
     assert "cache_dir" not in snap  # volatile per-machine path is excluded
+
+
+def _prime_ref(make_reference: MakeRef) -> ReferenceGenome:
+    """A locus that yields pegRNA candidates for chr2:71:A>C."""
+    seq = list("AT" * 70)
+    seq[63:66] = list("TGG")  # plus pegRNA PAM
+    seq[55:58] = list("CCA")  # minus ngRNA PAM (PE3b)
+    return make_reference({"chr2": "".join(seq)})
+
+
+def test_prime_provenance_records_both_default_models(make_reference: MakeRef) -> None:
+    """The flagship's outcome model must appear in provenance like its siblings.
+
+    `p_intended` from the byproduct predictor feeds the menu's cleanliness
+    objective, so a provenance block naming only the efficiency scorer under-reports
+    which models produced the numbers being ranked. The nuclease and base-editor
+    verticals each record both of theirs.
+    """
+    menu = design(
+        "chr2:71:A>C",
+        reference=_prime_ref(make_reference),
+        intent=EditIntent.INSTALL,
+        run_offtarget=False,
+    )
+    assert menu.provenance is not None
+    names = {m.name for m in menu.provenance.models}
+    assert {"pridict2-baseline", "prime-outcome-baseline"} <= names
+
+
+def test_a_prime_override_is_the_model_recorded(make_reference: MakeRef) -> None:
+    """Provenance must name the model that scored, not the default it replaced.
+
+    Otherwise a re-run from the stamped provenance reproduces different numbers —
+    the exact failure the nuclease and base-editor verticals already guard against.
+    """
+
+    class _Override:
+        name = "stand-in-prime-scorer"
+
+        def model_card(self) -> ModelCard:
+            return default_registry().get("pridict2")  # the trained card
+
+        def score(
+            self,
+            pegrna: PegRNA,
+            *,
+            cell_context: str | None = None,
+            chromatin: object | None = None,
+        ) -> Prediction[float]:
+            return Prediction[float](
+                value=0.42,
+                interval=(0.3, 0.5),
+                interval_level=0.8,
+                method=UncertaintyMethod.HEURISTIC,
+            )
+
+    menu = design(
+        "chr2:71:A>C",
+        reference=_prime_ref(make_reference),
+        intent=EditIntent.INSTALL,
+        run_offtarget=False,
+        prime_efficiency_scorer=_Override(),  # type: ignore[arg-type]
+    )
+    assert menu.provenance is not None
+    names = {m.name for m in menu.provenance.models}
+    assert "pridict2" in names, "the override's card must be recorded"
+    assert "pridict2-baseline" not in names, "the replaced default must not be"
+    assert menu.best is not None and menu.best.efficiency is not None
+    assert menu.best.efficiency.value == pytest.approx(0.42)

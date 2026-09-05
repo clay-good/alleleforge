@@ -1,0 +1,29 @@
+# Model card — bundled with AlleleForge (Phase 9 default prime outcome).
+name: prime-outcome-baseline
+version: "0.1"
+chemistry: prime
+training_data: >-
+  A transparent prime-editing byproduct heuristic keyed on pegRNA *geometry*: RTT
+  length drives scaffold-incorporation and partial-RT-product mass, the presence of
+  a stabilizing 3' motif reduces scaffold read-through, and a seed-disrupting PE3b
+  nicking guide lowers the indel share relative to a plain PE3 nick. It is NOT a
+  trained byproduct model and was not fitted on any prime-editing screen, so the
+  intended-vs-byproduct split is a mechanistic prior, not a trained prediction.
+metrics:
+  screens: 0.0  # not fitted on any prime-editing library; transparent geometry prior
+intended_use: >-
+  A deterministic, dependency-free default for the intended-vs-byproduct
+  distribution and the intended probability that feeds the menu's cleanliness
+  objective. Research use.
+out_of_scope_use: >-
+  Trusting the byproduct split as a measured product distribution (it is a
+  transparent heuristic); clinical decision-making; a substitute for sequencing the
+  edited product.
+license: MIT
+citation: "AlleleForge contributors (heuristic); byproduct channels after Anzalone et al. 2019 (prime editing)"
+known_failure_modes:
+  - "Transparent geometry heuristic, not a trained byproduct model: a re-run from this checkpoint reproduces the heuristic, not measured product distributions."
+  - "Keyed on pegRNA geometry only — no target-sequence context, no cell type, and no edit-size or edit-class term, so two pegRNAs with identical geometry receive the same split whether they write one base or a 29-nt insertion."
+  - "The three modeled byproduct channels (scaffold incorporation, partial RT product, indel) are the dominant ones, not an exhaustive account of what a pegRNA can produce."
+checkpoint_sha256: null
+source_url: null

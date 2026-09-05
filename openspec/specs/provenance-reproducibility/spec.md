@@ -169,3 +169,20 @@ behind, naming the stale files and the command that regenerates them.
 #### Scenario: A model gains a field
 - **WHEN** an exported model changes and the committed schemas are not regenerated
 - **THEN** the schema-freshness test fails and names the stale files
+
+### Requirement: Every model that produced a number is named
+
+A menu's provenance SHALL record a card-backed checkpoint for **every** model that
+produced a number in it, for every eligible chemistry — the efficiency scorer and
+the outcome predictor alike, since the outcome model's intended probability feeds
+the ranking's cleanliness objective. When the caller overrides a scorer, the
+override's own card SHALL be recorded rather than the default it replaced;
+otherwise a re-run from the stamped provenance reproduces different numbers.
+
+#### Scenario: Default prime run
+- **WHEN** the prime vertical runs with its defaults
+- **THEN** provenance names both `pridict2-baseline` and `prime-outcome-baseline`
+
+#### Scenario: Overridden scorer
+- **WHEN** a chemistry's scorer is overridden through `design`
+- **THEN** provenance names the override's card and not the default's

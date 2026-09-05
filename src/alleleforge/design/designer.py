@@ -39,11 +39,16 @@ from alleleforge.design.cas9 import (
     cas9_model_checkpoints,
     design_cas9,
 )
-from alleleforge.design.prime import design_prime, prime_model_checkpoints
+from alleleforge.design.prime import (
+    PrimeEfficiencyScorer,
+    design_prime,
+    prime_model_checkpoints,
+)
 from alleleforge.design.ranking import DEFAULT_WEIGHTS, RankingWeights, rank_candidates
 from alleleforge.design.routing import ChemistryDecision, route
 from alleleforge.enumerate.base_editor import BASE_EDITORS
 from alleleforge.genome.reference import ReferenceGenome
+from alleleforge.scoring.prime_outcome import PrimeOutcomePredictor
 from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import Chemistry, EditIntent
 from alleleforge.types.provenance import DatasetVersion, ModelCheckpoint, Provenance
@@ -113,6 +118,8 @@ def design(
     cas9_efficiency_scorer: Cas9EfficiencyScorer | None = None,
     cas9_outcome_predictor: Cas9OutcomePredictor | None = None,
     base_outcome_predictor: BaseOutcomePredictor | None = None,
+    prime_efficiency_scorer: PrimeEfficiencyScorer | None = None,
+    prime_outcome_predictor: PrimeOutcomePredictor | None = None,
 ) -> RankedMenu:
     """Design a ranked, multi-chemistry editing menu for a variant.
 
@@ -135,6 +142,10 @@ def design(
             opt-in trained Lindel model); default is the microhomology baseline.
         base_outcome_predictor: Override the base-edit window-outcome predictor (e.g.
             the opt-in trained BE-DICT model); default is the weight-free baseline.
+        prime_efficiency_scorer: Override the prime-efficiency scorer (e.g. the
+            opt-in trained PRIDICT2 engine); default is the geometry baseline.
+        prime_outcome_predictor: Override the prime byproduct predictor; default is
+            the geometry baseline.
         run_offtarget: Run the off-target engine for every candidate.
         max_candidates_per_chemistry: Cap candidates kept from each chemistry.
         build: Reference build the input is expressed in.
@@ -205,6 +216,8 @@ def design(
                     resolved,
                     intent,
                     reference=reference,
+                    efficiency_scorer=prime_efficiency_scorer,
+                    outcome_predictor=prime_outcome_predictor,
                     cell_context=cell_context,
                     gnomad=gnomad,
                     haplotypes=haplotypes,
@@ -251,6 +264,8 @@ def design(
             cas9_efficiency_scorer=cas9_efficiency_scorer,
             cas9_outcome_predictor=cas9_outcome_predictor,
             base_outcome_predictor=base_outcome_predictor,
+            prime_efficiency_scorer=prime_efficiency_scorer,
+            prime_outcome_predictor=prime_outcome_predictor,
         ),
         datasets=_collect_datasets(reference, gnomad, clinvar),
         config_snapshot={
@@ -390,6 +405,8 @@ def _collect_model_checkpoints(
     cas9_efficiency_scorer: Cas9EfficiencyScorer | None = None,
     cas9_outcome_predictor: Cas9OutcomePredictor | None = None,
     base_outcome_predictor: BaseOutcomePredictor | None = None,
+    prime_efficiency_scorer: PrimeEfficiencyScorer | None = None,
+    prime_outcome_predictor: PrimeOutcomePredictor | None = None,
 ) -> tuple[ModelCheckpoint, ...]:
     """Return the deduped model checkpoints for every eligible chemistry's scorers.
 
@@ -409,7 +426,10 @@ def _collect_model_checkpoints(
             bool(_BASE_CHEMISTRIES.intersection(eligible)),
             lambda: base_editor_model_checkpoints(base_outcome_predictor),
         ),
-        (Chemistry.PRIME in eligible, prime_model_checkpoints),
+        (
+            Chemistry.PRIME in eligible,
+            lambda: prime_model_checkpoints(prime_efficiency_scorer, prime_outcome_predictor),
+        ),
         (
             Chemistry.CAS9_NUCLEASE in eligible,
             lambda: cas9_model_checkpoints(cas9_efficiency_scorer, cas9_outcome_predictor),

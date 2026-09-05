@@ -10,6 +10,24 @@ acceptance.
 
 ### Added
 
+- **The prime byproduct model now has a card, so the flagship's provenance names both its models — and
+  `design()` can finally be given prime overrides.** Two gaps, found by running `aforge verify` and
+  noticing it reported **1 model** for a prime design:
+  - `PrimeOutcomePredictor` had no model card, and `prime_model_checkpoints()` documented this as "a
+    card-free heuristic, so it contributes no checkpoint". Its siblings do not work that way:
+    `indelphi-mh-baseline` (nuclease) and `be-dict-baseline` (base editing) each carry one. So the
+    *flagship* was the single chemistry whose outcome model went unrecorded — the model whose
+    `p_intended` feeds the menu's cleanliness objective directly. A `prime-outcome-baseline` card now
+    records its version, citation, and three known failure modes (geometry-keyed only; no sequence
+    context, cell type, or edit-size term; three modeled byproduct channels, not an exhaustive account).
+  - `prime_model_checkpoints()` took no arguments while `cas9_model_checkpoints(scorer, predictor)` and
+    `base_editor_model_checkpoints(predictor)` took the overrides — because `design()` exposed no prime
+    overrides at all. The trained PRIDICT2 engine was therefore reachable only by calling `design_prime`
+    directly, not through the unified entry point the CLI and web API are thin shells over. `design()`
+    now accepts `prime_efficiency_scorer` / `prime_outcome_predictor` and records the override's card
+    instead of the default's, matching the other two verticals. The reproducibility golden moved by
+    exactly one added model, verified by diffing the canonical run's body; no number changed.
+
 - **`aforge offtarget` gained `--on-target`, and says when it is missing.** The standalone command passed
   no on-target locus, so the guide's own perfect match was reported like any other site: the worst score
   pegged at `1.0` and specificity capped at `0.5` for even a spotless guide — the failure mode the engine's

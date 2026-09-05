@@ -1579,6 +1579,38 @@ and invisible to code review of either surface alone; it only shows up when you 
 ways and compare, which is what running the tool after reading the library does for free. Where a metric's
 definition depends on an optional input, the output should say which definition it used.**
 
+## Round 59 — the flagship's provenance was one model short (2 gaps, one asymmetry each)
+
+Kept driving CLI surfaces. `aforge verify` on a prime design reported **"1 model(s)"**. A prime design
+invokes two: an efficiency scorer and a byproduct predictor.
+
+- **`feat(scoring)` the prime byproduct model had no card.** `prime_model_checkpoints()` documented this
+  as intentional — "a card-free heuristic, so it contributes no checkpoint" — but the siblings do not work
+  that way: `indelphi-mh-baseline` (nuclease) and `be-dict-baseline` (base editing) each carry one. The
+  *flagship* was the one chemistry whose outcome model went unrecorded, and it is the model whose
+  `p_intended` feeds the ranking's cleanliness objective. A `prime-outcome-baseline` card now records its
+  version, citation, and three real failure modes — including that it is keyed on pegRNA geometry alone,
+  the same blindness R43 surfaced on the efficiency side.
+- **`feat(design)` `design()` could not be given prime overrides at all.** The signature tell: its siblings
+  are `cas9_model_checkpoints(scorer, predictor)` and `base_editor_model_checkpoints(predictor)`, while
+  `prime_model_checkpoints()` took nothing — correct only because there was nothing to take. So the
+  trained PRIDICT2 engine, which the README presents as the opt-in path for the flagship, was reachable
+  only by calling `design_prime` directly, never through the unified entry point that the CLI and web API
+  are thin shells over. `design()` now accepts `prime_efficiency_scorer` / `prime_outcome_predictor`, and
+  records the override's card rather than the default it replaced — otherwise a re-run from the stamped
+  provenance reproduces different numbers.
+
+Golden regenerated for exactly one added model, verified by diffing the canonical run's body; no number
+changed.
+
+**Lesson: three parallel implementations of the same idea, and the odd one out is the finding. Two
+verticals took overrides and recorded two cards each; the third took none and recorded one — and its
+divergence was *documented*, which is what made it look deliberate rather than missing. A comment
+explaining why one branch is different is not evidence that it should be; it is often just the place where
+someone stopped. When N implementations of a pattern exist and one differs, the useful question is not
+"why is this one different" but "would anyone choose this difference today" — here the answer was no, on
+the chemistry the project calls its flagship.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
