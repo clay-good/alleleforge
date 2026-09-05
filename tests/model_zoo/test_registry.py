@@ -202,3 +202,29 @@ def test_card_without_failure_modes_is_rejected() -> None:
     # missing) list is rejected so a model's audit surface is never incomplete.
     with pytest.raises(ValidationError, match="known_failure_mode"):
         ModelCard(**{**_VALID, "known_failure_modes": ()})  # type: ignore[arg-type]
+
+
+def test_to_checkpoint_carries_every_field_the_two_models_share() -> None:
+    """`to_checkpoint` is a hand-written field list, and it had already dropped two.
+
+    `ModelCard` and `ModelCheckpoint` are different classes, so `model_copy` cannot
+    save this one — but the failure mode is the same as every other field-by-field
+    rebuild: a field added to the card reaches provenance only if someone remembers
+    to add a line here. `intended_use` and `out_of_scope_use` were not remembered, so
+    a result recorded how its models fail but not what they were never meant to do.
+
+    Checking by *name intersection* rather than by naming fields means a field added
+    to both models tomorrow is covered without editing this test.
+    """
+    from alleleforge.types.provenance import ModelCheckpoint
+
+    card = _card()
+    checkpoint = card.to_checkpoint()
+
+    shared = set(ModelCard.model_fields) & set(ModelCheckpoint.model_fields)
+    assert {"intended_use", "out_of_scope_use", "known_failure_modes"} <= shared
+
+    for field in sorted(shared):
+        assert getattr(checkpoint, field) == getattr(card, field), (
+            f"{field} is on both models but to_checkpoint() drops it"
+        )

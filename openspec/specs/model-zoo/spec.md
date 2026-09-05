@@ -97,3 +97,24 @@ reachable only via the appropriate optional extra and the `real_weights` test ma
 #### Scenario: Trained path is opt-in
 - **WHEN** a trained-model path is requested without its extra or without consent
 - **THEN** it raises from the gate rather than silently downgrading
+
+### Requirement: A card's honesty fields travel with the result and are rendered
+
+The three fields that make a model card honest — what it is for, what it must not be
+used for, and how it fails — SHALL travel together into a result's provenance. Carrying
+the failure modes without the out-of-scope statement records how a model fails at the
+edges of a valid use while omitting that the use may not have been valid at all.
+
+Carrying them is not sufficient. Every human-facing render SHALL print, per model, its
+out-of-scope statement and its documented failure modes, so a safety audit does not
+require re-opening the cards — which is the stated reason the fields are carried. A model
+that documents no limitation SHALL produce no entry and no section heading: an empty
+"Model limitations" heading reads as an assertion that there are none.
+
+#### Scenario: A card documenting limits
+- **WHEN** a result's provenance names a model whose card states an out-of-scope use
+- **THEN** the rendered report states it alongside the model's known failure modes
+
+#### Scenario: A card documenting none
+- **WHEN** no model in the result documents a limitation
+- **THEN** no limitations section is rendered at all

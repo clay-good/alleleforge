@@ -229,3 +229,50 @@ def test_the_provenance_footer_accounts_for_every_provenance_field() -> None:
     # ...and every declared omission is a real field, so the list cannot rot into an
     # excuse for a field that no longer exists.
     assert set(PROVENANCE_FOOTER_OMITTED) <= set(Provenance.model_fields)
+
+
+def test_model_limitations_reach_a_render(ancestry_menu: RankedMenu) -> None:
+    """A card's limits were carried "for safety audit" and shown to nobody.
+
+    `ModelCheckpoint.known_failure_modes` exists so a result is self-contained
+    "without re-opening the cards" — and no render printed it, so the audit still
+    meant re-opening the cards. Worse, `to_checkpoint()` dropped `out_of_scope_use`
+    on the way in, so the provenance carried how a model fails but not what it was
+    never meant to do. The shipped `cas9-efficiency-ensemble` card says its point
+    estimate is "an unfitted pseudo-random scaffold"; every report was silent on it.
+    """
+    from alleleforge.report.builder import build_report, model_limitation_lines
+    from alleleforge.report.html import render_html
+    from alleleforge.report.pdf import render_pdf
+
+    report = build_report(ancestry_menu)
+    lines = model_limitation_lines(report.provenance)
+
+    assert len(lines) == 1, "only the model that documents limits should produce a line"
+    assert lines[0].startswith("cas9-efficiency-ensemble 0.1 — ")
+    assert "not for: Clinical decision-making" in lines[0]
+    assert "known failure modes: Poorly calibrated below 20% GC" in lines[0]
+    # indelphi documents neither, so it must not appear with an empty limitation.
+    assert "indelphi" not in lines[0]
+
+    html = render_html(report)
+    assert "Model limitations" in html
+    assert "Clinical decision-making" in html
+    pdf = render_pdf(report)
+    assert b"MODEL LIMITATIONS" in pdf
+    assert b"Clinical decision-making" in pdf
+
+
+def test_a_card_with_no_documented_limits_prints_no_section() -> None:
+    """An empty heading is worse than no heading: it reads as "no known limits"."""
+    from alleleforge.report.builder import model_limitation_lines
+    from alleleforge.types.provenance import ModelCheckpoint, Provenance
+
+    bare = Provenance(
+        alleleforge_version="0.0.0",
+        seed=1,
+        timestamp=datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC),
+        models=(ModelCheckpoint(name="m", version="1"),),
+    )
+    assert model_limitation_lines(bare) == []
+    assert model_limitation_lines(None) == []

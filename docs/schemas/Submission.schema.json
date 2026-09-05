@@ -160,7 +160,7 @@
       "type": "object"
     },
     "ModelCheckpoint": {
-      "description": "A content-hashed model checkpoint with its card metadata.\n\nAttributes:\n    name: Model identifier (e.g. ``\"PRIDICT2.0\"``).\n    version: Model version.\n    sha256: Content hash of the checkpoint file.\n    chemistry: The chemistry this model scores, if applicable.\n    license: The model's license identifier.\n    citation: Literature citation for the model.\n    known_failure_modes: The model card's documented failure modes, carried\n        into provenance so a result is self-contained for safety audit \u2014\n        the consumer can check a design against what the models are known to\n        get wrong without re-opening the cards.",
+      "description": "A content-hashed model checkpoint with its card metadata.\n\nAttributes:\n    name: Model identifier (e.g. ``\"PRIDICT2.0\"``).\n    version: Model version.\n    sha256: Content hash of the checkpoint file.\n    chemistry: The chemistry this model scores, if applicable.\n    license: The model's license identifier.\n    citation: Literature citation for the model.\n    intended_use: What the card says the model is for.\n    out_of_scope_use: What the card says it must **not** be used for. Carried\n        for the same reason as the failure modes and arguably before them: a\n        result that lists how a model fails but not what it was never meant to\n        do carries the weaker half of the card's honesty.\n    known_failure_modes: The model card's documented failure modes, carried\n        into provenance so a result is self-contained for safety audit \u2014\n        the consumer can check a design against what the models are known to\n        get wrong without re-opening the cards.",
       "properties": {
         "chemistry": {
           "anyOf": [
@@ -186,6 +186,18 @@
           "default": null,
           "title": "Citation"
         },
+        "intended_use": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Intended Use"
+        },
         "known_failure_modes": {
           "default": [],
           "items": {
@@ -209,6 +221,18 @@
         "name": {
           "title": "Name",
           "type": "string"
+        },
+        "out_of_scope_use": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Out Of Scope Use"
         },
         "sha256": {
           "anyOf": [

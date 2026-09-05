@@ -2543,6 +2543,39 @@ classification — so a pipeline that keeps only what the two input forms have i
 away the entire difference between them. Whenever an input form is richer than the one it is normalized
 into, check what the normalization dropped and whether the user would have expected it to survive.**
 
+## Round 93 — the honest field that never left the card
+
+Last of the R90 sweep. `ModelCard.intended_use` and `.out_of_scope_use`: read by nothing.
+
+Following them found the same break twice in one chain. `to_checkpoint()` is a hand-written field list —
+the R85 shape, except `ModelCard` and `ModelCheckpoint` are different classes so `model_copy` cannot save
+it — and it carried `known_failure_modes` while dropping the other two. Then, at the far end, no render
+printed *any* of the three. `known_failure_modes` had a docstring saying it exists so a consumer can audit
+a design "without re-opening the cards". The audit still required re-opening the cards.
+
+What makes this worth a round rather than a line: the content is not boilerplate. The shipped
+`cas9-efficiency-ensemble` card — the **default** Cas9 efficiency scorer, the number at the top of most
+menus — says out of scope is "trusting the point estimate as a trained activity prediction (the heads are
+an unfitted pseudo-random scaffold)". The project wrote that down, honestly, in the right place, and then
+every report it produced was silent on it. A model card nobody reads is a compliance artifact; a model card
+printed under the result is a warning.
+
+The ordering argument matters too. A result that lists how a model fails but not what it was never meant
+for carries the weaker half of the card. Failure modes describe the edges of a valid use; out-of-scope says
+this was not a valid use at all.
+
+**Shipped:** both fields on `ModelCheckpoint` and in `to_checkpoint()`; a **Model limitations** section in
+HTML and PDF from one shared `model_limitation_lines()`; and a `to_checkpoint()` test that compares against
+the card over the two models' shared field *names*, so tomorrow's field is covered without editing it. A
+model documenting nothing yields no line and no section — an empty heading reads as "no known limits",
+which is the opposite of the truth. Both layers mutation-checked.
+
+**Lesson: a self-contained-for-audit claim is testable, and it is not the same claim as "the field is in
+the JSON". Ask who performs the audit and with what in their hands. Here the field was serialized,
+schema-checked, provenance-hashed and reproducibility-pinned — every mechanical guarantee held — and the
+human doing the safety audit still had to go and find the model card, which is the exact thing the field
+was added to prevent.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

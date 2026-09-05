@@ -310,6 +310,33 @@ def provenance_lines(provenance: Provenance | None) -> list[str]:
     return lines
 
 
+def model_limitation_lines(provenance: Provenance | None) -> list[str]:
+    """Return per-model limitation lines: what a model is not for, and how it fails.
+
+    ``ModelCheckpoint`` carries these so a result is self-contained for safety audit
+    "without re-opening the cards" — and no human-facing render printed any of them,
+    so the audit still required re-opening the cards. A footer naming a model by
+    version says which weights ran; it does not tell a reader that the model was
+    never meant for this chemistry.
+
+    Returns one line per model that documents something, formatted for a caller to
+    escape and wrap for its own medium. Empty when no model documents a limitation,
+    so a render can omit the section rather than print an empty heading.
+    """
+    if provenance is None:
+        return []
+    lines: list[str] = []
+    for model in provenance.models:
+        parts: list[str] = []
+        if model.out_of_scope_use:
+            parts.append(f"not for: {model.out_of_scope_use}")
+        if model.known_failure_modes:
+            parts.append("known failure modes: " + "; ".join(model.known_failure_modes))
+        if parts:
+            lines.append(f"{model.name} {model.version} — " + " | ".join(parts))
+    return lines
+
+
 def build_report(
     menu: RankedMenu,
     *,

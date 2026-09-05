@@ -16,6 +16,7 @@ from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
     CandidateReport,
     DesignReport,
+    model_limitation_lines,
     provenance_lines,
     visible_candidates,
 )
@@ -174,6 +175,11 @@ def _report_lines(report: DesignReport, max_candidates: int | None) -> list[str]
     if provenance:
         lines += _wrap("PROVENANCE")
         lines += _wrap("; ".join(provenance))
+    limits = model_limitation_lines(report.provenance)
+    if limits:
+        lines += _wrap("MODEL LIMITATIONS")
+        for line in limits:
+            lines += _wrap(line, indent="  ")
     return lines
 
 

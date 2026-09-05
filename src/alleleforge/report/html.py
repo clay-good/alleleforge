@@ -20,6 +20,7 @@ from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
     CandidateReport,
     DesignReport,
+    model_limitation_lines,
     provenance_lines,
     visible_candidates,
 )
@@ -249,7 +250,15 @@ def _provenance_html(report: DesignReport) -> str:
     if report.provenance is None:
         return "<footer>No provenance recorded.</footer>"
     lines = [_esc(line) for line in provenance_lines(report.provenance)]
-    return "<footer><strong>Provenance.</strong> " + " · ".join(lines) + "</footer>"
+    footer = "<footer><strong>Provenance.</strong> " + " · ".join(lines) + "</footer>"
+    limits = model_limitation_lines(report.provenance)
+    if limits:
+        items = "".join(f"<li>{_esc(line)}</li>" for line in limits)
+        footer += (
+            "<footer><strong>Model limitations.</strong> What the model cards say these "
+            f"models are not for, and how they fail.<ul>{items}</ul></footer>"
+        )
+    return footer
 
 
 def _rationale_html(report: DesignReport) -> str:

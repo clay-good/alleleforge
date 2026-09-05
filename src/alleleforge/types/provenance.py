@@ -59,6 +59,11 @@ class ModelCheckpoint(BaseModel):
         chemistry: The chemistry this model scores, if applicable.
         license: The model's license identifier.
         citation: Literature citation for the model.
+        intended_use: What the card says the model is for.
+        out_of_scope_use: What the card says it must **not** be used for. Carried
+            for the same reason as the failure modes and arguably before them: a
+            result that lists how a model fails but not what it was never meant to
+            do carries the weaker half of the card's honesty.
         known_failure_modes: The model card's documented failure modes, carried
             into provenance so a result is self-contained for safety audit —
             the consumer can check a design against what the models are known to
@@ -73,6 +78,8 @@ class ModelCheckpoint(BaseModel):
     chemistry: str | None = None
     license: str | None = None
     citation: str | None = None
+    intended_use: str | None = None
+    out_of_scope_use: str | None = None
     known_failure_modes: tuple[str, ...] = ()
 
 

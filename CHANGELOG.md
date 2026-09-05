@@ -10,6 +10,25 @@ acceptance.
 
 ### Added
 
+- **Model-card limitations now appear in the report; they were carried "for safety audit" and shown to
+  nobody.** Two breaks in the same chain. `ModelCard.to_checkpoint()` — a hand-written field list — carried
+  `known_failure_modes` into provenance and dropped `intended_use` and `out_of_scope_use`, so a result
+  recorded *how* its models fail but not *what they were never meant to do*. And no human-facing render
+  printed any of it, including the failure modes, whose docstring says they are carried so a consumer can
+  audit a design "without re-opening the cards" — which still required re-opening the cards.
+
+  The shipped `cas9-efficiency-ensemble` card, the default Cas9 efficiency scorer, states that trusting its
+  point estimate as a trained activity prediction is out of scope because "the heads are an unfitted
+  pseudo-random scaffold". Every report was silent on that. The HTML page and PDF leave-behind now carry a
+  **Model limitations** section listing, per model, what it is not for and how it fails, from one shared
+  `model_limitation_lines()` so the two renders cannot drift. A model documenting nothing produces no line
+  and no section — an empty heading reads as "no known limits", which is the opposite of the truth.
+
+  A regression test compares `to_checkpoint()` against the card over the two models' shared field *names*
+  rather than naming fields, so a field added to both tomorrow is covered without editing the test.
+
+### Added
+
 - **A ClinVar accession's clinical significance now reaches the design menu; it used to be read and
   discarded.** `_from_clinvar` returned `record.variant` and nothing else, so the classification — the
   reason anyone picks an accession over coordinates — never left the resolver. A menu for a variant ClinVar

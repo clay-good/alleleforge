@@ -161,6 +161,11 @@ def ancestry_menu() -> RankedMenu:
                     version="0.1",
                     chemistry="cas9_nuclease",
                     license="MIT",
+                    # A real card's honesty fields, so the render tests exercise a model
+                    # that documents limits and one that does not.
+                    intended_use="Ranking SpCas9 guides by relative activity",
+                    out_of_scope_use="Clinical decision-making; non-SpCas9 chemistries",
+                    known_failure_modes=("Poorly calibrated below 20% GC",),
                 ),
                 ModelCheckpoint(
                     name="indelphi", version="1.0", chemistry="cas9_nuclease", license="MIT"

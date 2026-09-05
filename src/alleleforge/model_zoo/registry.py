@@ -159,6 +159,11 @@ class ModelCard(BaseModel):
             chemistry=self.chemistry,
             license=self.license,
             citation=self.citation,
+            # The card's three honesty fields travel together or the audit trail is
+            # partial: what it is for, what it must not be used for, and how it fails.
+            # Only the last one used to make the trip.
+            intended_use=self.intended_use,
+            out_of_scope_use=self.out_of_scope_use,
             known_failure_modes=self.known_failure_modes,
         )
 
