@@ -10,6 +10,22 @@ acceptance.
 
 ### Fixed
 
+- **`aforge data list` labelled every redistributable dataset "vendored". Almost none of it ships.**
+  `redistributable` is a *licence* fact — AlleleForge is permitted to redistribute this — and the table
+  printed it as a *presence* claim. gnomAD v4.1 is CC0, so it read as `vendored` while no gnomAD data ships
+  with the project at all, and a user reasonably concludes they do not need `--gnomad`. That is precisely
+  the confusion the reference-only warning exists to prevent, printed by the command whose job is to say
+  what data you have.
+
+  The table now shows the permission and the availability separately: `may redistribute` /
+  `fetch-on-consent` for the licence, and `bundled in the package` / `cached` /
+  `NOT AVAILABLE - supply or fetch it` for whether a run can use it today. `DatasetDescriptor` gains
+  `bundled`, true for exactly one entry — the Doench-2016 CFD matrix, whose bytes really do ship inside the
+  package and are loaded from there, never from the cache, so reporting it as merely "not cached" would have
+  been the same error in the other direction.
+
+### Fixed
+
 - **`aforge verify` reported "verified" for a run that re-hashed nothing.** The command makes two different
   claims — *provenance is complete* and *the pinned artifacts still hash to what was recorded* — and only
   the first is checked without `--cache-dir`. `aforge verify result.json` printed

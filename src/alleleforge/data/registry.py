@@ -51,10 +51,16 @@ class DatasetDescriptor(DatasetVersion):
     Attributes:
         filename: The basename the artifact is cached under.
         populations: Population/ancestry labels this dataset stratifies by.
+        bundled: Whether the bytes ship *inside the installed package*, needing no
+            cache and no download. Deliberately distinct from ``redistributable``,
+            which is only a licence permission: every entry here may legally be
+            redistributed and almost none of it actually is, so conflating the two
+            tells a user gnomAD is present when nothing of it ships.
     """
 
     filename: str
     populations: tuple[str, ...] = ()
+    bundled: bool = False
 
     def dataset_version(self) -> DatasetVersion:
         """Return the plain :class:`DatasetVersion` recorded in provenance."""
@@ -295,6 +301,9 @@ DEFAULT_REGISTRY = DatasetRegistry(
             citation="Doench et al., Nat Biotechnol 2016 (CFD; Suppl. Table 19)",
             sha256="9134bbd7609507beef37fcc3a046a56a0ab2ed78d8456ea751528e6993451496",
             redistributable=True,
+            # The one dataset whose bytes really do ship: `offtarget/cfd_matrix.json`,
+            # loaded from the package, never from the cache.
+            bundled=True,
             filename="cfd_matrix.json",
         ),
     }

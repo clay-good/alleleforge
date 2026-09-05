@@ -3121,6 +3121,38 @@ from its help text and its source, and both describe what it does when given `--
 interesting path, so it is the one the prose describes and the one the author has in mind. The default
 invocation is the one every user types first, and nobody had looked at what it prints.**
 
+## Round 110 — permission is not presence
+
+R109's rule: run the command's *default* invocation. So this round ran the rest of them — `resolve`,
+`data list`, `bench list` — and read what they print.
+
+`aforge data list`:
+
+```
+gnomad    v4.1    CC0-1.0    vendored
+```
+
+No gnomAD data ships with AlleleForge. The column was rendering `redistributable`, which is a **licence
+permission** — the project *may* redistribute this — under the word **vendored**, which is a claim about
+what is on your disk. Every CC0 and public-domain source therefore read as bundled.
+
+The consequence is specific and bad. Six rounds ago (R104) I corrected the README for claiming
+population-aware search "by default"; the same misunderstanding was being printed by the command a user runs
+to find out what data they have. Someone checking whether they need a gnomAD file was told they already had
+one.
+
+The fix had a trap in it. Splitting into "may redistribute" and "cached" made every row read
+`not cached` — including `doench-2016-cfd`, whose bytes genuinely **do** ship, inside the package as
+`offtarget/cfd_matrix.json`, loaded from there and never from the cache. Reporting the one real vendored
+dataset as absent is the same error pointing the other way. `DatasetDescriptor` gains `bundled`, true for
+exactly that entry, and the table now answers the question a user is actually asking: *can a run use this
+today?*
+
+**Lesson: when a boolean's name and its rendered label are different words, check that they mean the same
+thing. `redistributable` → "vendored" reads as a reasonable shortening and is a change of claim — from what
+is permitted to what exists. And when correcting an overclaim, check the correction does not create the
+mirror-image understatement: the fix that makes seven rows honest made the eighth row lie.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

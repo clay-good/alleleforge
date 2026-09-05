@@ -1457,20 +1457,46 @@ def data_list(
     """List every registered dataset with its version and license."""
     from alleleforge.data.registry import DEFAULT_REGISTRY
 
+    # `redistributable` is a *licence* fact — whether AlleleForge is permitted to ship
+    # this — and the table printed it as "vendored", which is a *presence* claim. gnomAD
+    # v4.1 is CC0, so it read as "vendored" while no gnomAD data ships with the project
+    # at all. A user reasonably concludes they need no `--gnomad` file, which is the
+    # exact confusion the reference-only warning exists to prevent. Show both facts and
+    # name each for what it is.
     rows = [
         {
             "name": name,
             "version": d.version,
             "license": d.license,
             "redistributable": d.redistributable,
+            "bundled": d.bundled,
+            "cached": DEFAULT_REGISTRY.cache_path(name).is_file(),
+            "available": d.bundled or DEFAULT_REGISTRY.cache_path(name).is_file(),
         }
         for name in DEFAULT_REGISTRY.names
         for d in (DEFAULT_REGISTRY.get(name),)
     ]
+    human_rows = []
+    for r in rows:
+        permission = "may redistribute" if r["redistributable"] else "fetch-on-consent"
+        if r["bundled"]:
+            presence = "bundled in the package"
+        elif r["cached"]:
+            presence = "cached"
+        else:
+            presence = "NOT AVAILABLE - supply or fetch it"
+        human_rows.append(
+            f"{r['name']:16s} {r['version'] or '-':14s} {r['license'] or '-':18s} "
+            f"{permission:16s} {presence}"
+        )
     human = "\n".join(
-        f"{r['name']:12s} {r['version'] or '-':14s} {r['license'] or '-':18s} "
-        f"{'vendored' if r['redistributable'] else 'fetch-on-consent'}"
-        for r in rows
+        [
+            *human_rows,
+            "",
+            "'may redistribute' is a licence permission, not a statement that the data "
+            "is present: almost none of it ships. Only a dataset marked bundled or "
+            "cached is usable by a run right now.",
+        ]
     )
     _emit({"datasets": rows}, as_json=as_json, human=human)
 

@@ -170,3 +170,19 @@ it — see the variant-resolution capability.
 #### Scenario: Neither form of consent
 - **WHEN** `allow_network` is false and no per-call consent is given
 - **THEN** the fetch is refused, and the refusal names both ways to permit it
+
+### Requirement: A dataset listing separates licence permission from availability
+
+`redistributable` states what the project is permitted to ship; it does not state what a
+user has. Any listing SHALL report the two separately, and SHALL say for each dataset
+whether a run can use it right now — bundled inside the installed package, present in the
+cache, or neither. A dataset that ships in-package SHALL NOT be reported as absent merely
+because it is not in the cache.
+
+#### Scenario: A permitted but unshipped dataset
+- **WHEN** a CC0 dataset is listed that the project does not ship
+- **THEN** the listing shows the permission and states that the data is not available
+
+#### Scenario: The in-package dataset
+- **WHEN** a dataset whose bytes ship inside the package is listed
+- **THEN** it is reported as available, not as uncached

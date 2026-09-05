@@ -748,6 +748,36 @@ def test_offtarget_human(runner: CliRunner, nuclease_fasta: Path) -> None:
 # --- data -------------------------------------------------------------------
 
 
+def test_data_list_does_not_call_a_licence_permission_a_shipped_dataset(
+    runner: CliRunner,
+) -> None:
+    """The table printed "vendored" for every redistributable dataset. Almost none ships.
+
+    `redistributable` is a *licence* fact — AlleleForge is permitted to ship this — and
+    it was rendered as "vendored", a *presence* claim. gnomAD v4.1 is CC0, so it read
+    as bundled while no gnomAD data ships at all; a user reasonably concludes they do
+    not need `--gnomad`, which is the exact confusion the reference-only warning exists
+    to prevent.
+    """
+    result = runner.invoke(app, ["data", "list"])
+    assert result.exit_code == 0
+    assert "vendored" not in result.output
+
+    payload = json.loads(runner.invoke(app, ["data", "list", "--json"]).output)
+    rows = {r["name"]: r for r in payload["datasets"]}
+
+    # gnomAD: permitted, and not present.
+    assert rows["gnomad"]["redistributable"] is True
+    assert rows["gnomad"]["bundled"] is False
+    # The CFD matrix is the one that genuinely ships — inside the package, never the
+    # cache — so "not cached" would mislead in the other direction.
+    assert rows["doench-2016-cfd"]["bundled"] is True
+    assert rows["doench-2016-cfd"]["available"] is True
+    assert rows["gnomad"]["available"] is False
+    # Both directions asserted, so a row that hardcoded either answer is caught.
+    assert {r["available"] for r in payload["datasets"]} == {True, False}
+
+
 def test_data_list(runner: CliRunner) -> None:
     result = runner.invoke(app, ["data", "list"])
     assert result.exit_code == 0

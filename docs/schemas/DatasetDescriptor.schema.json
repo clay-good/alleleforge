@@ -1,6 +1,11 @@
 {
-  "description": "A registry entry: a :class:`DatasetVersion` plus how to cache it.\n\nExtends the provenance-facing :class:`DatasetVersion` with the local cache\n``filename`` and an optional ``populations`` annotation for the\nancestry-stratified sources (gnomAD, 1000G, HGDP).\n\nAttributes:\n    filename: The basename the artifact is cached under.\n    populations: Population/ancestry labels this dataset stratifies by.",
+  "description": "A registry entry: a :class:`DatasetVersion` plus how to cache it.\n\nExtends the provenance-facing :class:`DatasetVersion` with the local cache\n``filename`` and an optional ``populations`` annotation for the\nancestry-stratified sources (gnomAD, 1000G, HGDP).\n\nAttributes:\n    filename: The basename the artifact is cached under.\n    populations: Population/ancestry labels this dataset stratifies by.\n    bundled: Whether the bytes ship *inside the installed package*, needing no\n        cache and no download. Deliberately distinct from ``redistributable``,\n        which is only a licence permission: every entry here may legally be\n        redistributed and almost none of it actually is, so conflating the two\n        tells a user gnomAD is present when nothing of it ships.",
   "properties": {
+    "bundled": {
+      "default": false,
+      "title": "Bundled",
+      "type": "boolean"
+    },
     "citation": {
       "anyOf": [
         {
