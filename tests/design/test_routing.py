@@ -92,3 +92,28 @@ def test_eligible_order_is_cleanest_first() -> None:
     # Both ABE and prime apply; the menu order puts the base editor first.
     elig = eligible_chemistries(_rv("A", "G"), EditIntent.INSTALL)
     assert elig.index(Chemistry.BASE_ABE) < elig.index(Chemistry.PRIME)
+
+
+def test_an_empty_menu_says_why_each_chemistry_declined() -> None:
+    """A blank menu with four `no`s tells the reader nothing they can act on."""
+    from alleleforge.design.designer import _menu_rationale
+
+    rv = _rv("A" + "CGTA" * 10, "A")  # a 40-bp deletion to correct: nothing fits
+    decisions = route(rv, EditIntent.CORRECT)
+    assert not any(d.eligible for d in decisions)
+
+    text = _menu_rationale(decisions, [], [], "ranking blurb")
+    assert "No chemistry can make this edit. Why each declined:" in text
+    for decision in decisions:
+        assert decision.rationale in text
+    # And it names the route that does apply, with its honest status.
+    assert "nuclease-plus-HDR" in text
+    assert "does not yet route" in text
+
+
+def test_a_non_empty_menu_does_not_repeat_every_rationale() -> None:
+    from alleleforge.design.designer import _menu_rationale
+
+    decisions = route(_rv("A", "G"), EditIntent.INSTALL)
+    text = _menu_rationale(decisions, [Chemistry.PRIME], [], "ranking blurb")
+    assert "No chemistry can make this edit" not in text

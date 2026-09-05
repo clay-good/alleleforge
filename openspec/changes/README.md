@@ -1344,6 +1344,41 @@ destroyed the two the whole Pareto-front feature exists to surface. When adding 
 what the tail is *for* — if some other feature's promise lives there, the cap must be defined in terms of
 that promise, not in terms of N.**
 
+## Round 51 — driving the actual CLI found the hole (2 fixes; 1 gap declared, not hidden)
+
+Ran the real `aforge design` on the ΔF508-shaped deletion — the whole session's work visible end to end
+(`templated-edit:4nt`, "writing 4 nt", 720 rows of lossless TSV). Then asked the next question: what
+happens to a precise edit *larger* than prime can template?
+
+**Nothing happens.** Correcting a 40 bp deletion routes to no chemistry at all — the edit exceeds prime's
+RT template budget, base editors cannot make an indel, and the nuclease is knock-out only. The user gets an
+empty menu whose entire explanation is `prime=no, cas9_nuclease=no`.
+
+- **`fix(design)` the outcome predictor got the right sequence with the break in the wrong place.**
+  `_cut_outcome` skipped its carried-allele overlay for a length-changing allele — the *same*
+  `len(allele) == len(ref)` restriction R42 removed one function over, sitting in a second place nobody
+  looked. Removing it exposed the real half of the bug: a length change shifts everything 3' of itself,
+  **the cut site included**, so overlaying the sequence while leaving the cut index alone hands the
+  predictor a plausible indel spectrum computed for a different locus. Fixed both halves; pinned by a
+  recording predictor that captures exactly what it was asked to score.
+- **`fix(design)` an empty menu now says why.** It states that no chemistry can make the edit and gives
+  each rule's own reason — those rationales already existed, they were just never surfaced when they
+  mattered most.
+- **The gap is declared, not quietly left.** Nuclease-plus-HDR *is* the right tool for this edit, and the
+  pieces exist: `hdr_donor` handles any-length alleles, and R42 made `enumerate_cas9` correct against an
+  indel-carrying genome. What is missing is the vertical — `design_cas9` never attaches a donor, and
+  `DesignCandidate` has no field for one, so routing cas9 for a precise intent today would advertise a bare
+  double-strand break as a "correction", which is a knockout. Rather than half-build it, the nuclease
+  rationale now names the route and says plainly that the designer does not yet offer it. **That is the
+  next feature.**
+
+**Lesson: the fastest way to find the hole was to stop reading the code and run the product. Two rounds of
+targeted auditing over these same modules found nothing here, because the defect is not in any function —
+it is the absence of a path, and absence has no line number. Driving one realistic input to the end
+surfaced it in a minute. Second: `len(allele) == len(ref)` appeared in two places, and R42 fixed one. A
+sweep for the *pattern* rather than the *symptom* would have caught both; grep for the condition you just
+deleted, not the function you just fixed.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

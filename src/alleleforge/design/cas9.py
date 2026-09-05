@@ -78,12 +78,21 @@ def _cut_outcome(
             GenomicInterval(chrom=guide.placement.chrom, start=start, end=end, strand=Strand.PLUS)
         )
     )
+    cut_local = guide.cut_site - start
     if overlay is not None:
         pos, ref_base, allele = overlay
         rel = pos - start
-        if 0 <= rel and rel + len(ref_base) <= len(context) and len(allele) == len(ref_base):
+        if 0 <= rel and rel + len(ref_base) <= len(context):
             context = context[:rel] + allele + context[rel + len(ref_base) :]
-    return predictor.predict(context, guide.cut_site - start, mark_frameshift=mark_fs)
+            # A length-changing carried allele shifts everything 3' of itself, the
+            # cut site included. Leaving the cut index un-shifted would hand the
+            # outcome predictor the right sequence with the break in the wrong
+            # place — a plausible-looking indel spectrum for a different locus.
+            # The guide is enumerated against this same carried genome, so its cut
+            # is only 3' of the edit when the enumerator placed it there.
+            if rel + len(ref_base) <= cut_local:
+                cut_local += len(allele) - len(ref_base)
+    return predictor.predict(context, cut_local, mark_frameshift=mark_fs)
 
 
 def _flags(

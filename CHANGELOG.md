@@ -147,6 +147,27 @@ acceptance.
 
 ### Fixed
 
+- **The Cas9 outcome predictor is no longer handed the right sequence with the break in the wrong place.**
+  `_cut_outcome` overlays the carried allele onto the local context before predicting the indel spectrum,
+  but it skipped the overlay entirely for a length-changing allele (`len(allele) == len(ref_base)`) — the
+  same restriction removed from `_overlay_allele` one function over — so the spectrum was computed on the
+  *reference*. Removing that restriction exposed the second half of the bug: a length-changing allele
+  shifts everything 3' of itself, **the cut site included**, so overlaying the sequence while leaving the
+  cut index alone produces a plausible-looking indel spectrum for a different locus, with nothing to flag
+  it. The cut index now moves with the allele when the cut lies 3' of the edit. Two regression tests, using
+  a recording predictor that captures exactly what it was asked to score, assert the context is a real
+  window of the carried genome and that the recorded cut names the same base the guide's own cut site does;
+  both fail under the restored guard.
+
+- **An empty menu now says why.** When no chemistry could make an edit, the rationale read
+  `base_abe=no, base_cbe=no, prime=no, cas9_nuclease=no` and stopped — four `no`s and nothing actionable,
+  which is exactly the case a reader most needs explained. Correcting a 40 bp deletion hits it: the edit is
+  beyond prime's RT template budget, base editors cannot make an indel, and the nuclease is knock-out only.
+  The menu now states that no chemistry can make the edit and gives each rule's own reason; the nuclease
+  rationale additionally names the route that *does* apply — nuclease-plus-HDR — and declares honestly that
+  `enumerate_cas9` and `hdr_donor` build that reagent pair today while the designer does not yet route,
+  score, or rank it.
+
 - **The reagent line and design rationale now name the edit, not only the geometry.** A report's one-line
   reagent summary read `pegRNA spacer …; PBS 13 nt / RTT 12 nt; tevopreQ1 motif; PE3` — every field a
   dimension, none of them saying what the reagent *does*. A pegRNA correcting a 3 bp deletion and one

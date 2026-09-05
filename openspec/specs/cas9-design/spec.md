@@ -63,6 +63,13 @@ frame-shifted window of the wrong length.
 - **THEN** the guide at that junction is enumerated, and every emitted guide's
   protospacer+PAM is present in the genome it targets
 
+#### Scenario: Outcome context and cut index across a length change
+- **WHEN** the outcome predictor is asked to score a guide near a length-changing
+  carried allele
+- **THEN** the context it receives is a window of the *carried* genome and the cut
+  index it receives points at the same base of that window the guide's own cut site
+  points at — a downstream cut shifts by the allele's length change
+
 #### Scenario: Context shape across a length change
 - **WHEN** a guide near a length-changing carried allele is scored
 - **THEN** its context is the carried sequence and keeps the requested flank shape (a

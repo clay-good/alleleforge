@@ -29,6 +29,11 @@ with a note.
 - **WHEN** the allele the edit must write exceeds what any in-range RTT can carry
 - **THEN** prime is recorded as not eligible
 
+#### Scenario: No chemistry is eligible
+- **WHEN** no chemistry can make the requested edit
+- **THEN** the menu rationale states that, and gives each chemistry's own reason for
+  declining, rather than a bare list of `no`s
+
 ### Requirement: Verticals degrade gracefully into one menu
 
 Each eligible chemistry vertical SHALL run and the menu SHALL always carry either a

@@ -435,7 +435,14 @@ def _menu_rationale(
     lines = [
         f"Routing: {routed}.",
         f"Eligible and run: {eligible_str}.",
-        *(f"- {note}" for note in notes),
-        ranking_rationale,
     ]
+    if not eligible:
+        # An empty menu is the one case where the yes/no summary tells the reader
+        # nothing they can act on. The per-rule rationales already exist and
+        # explain exactly which biological or budget constraint each chemistry hit;
+        # surface them here rather than leave a blank menu unexplained.
+        lines.append("No chemistry can make this edit. Why each declined:")
+        lines += [f"- {d.chemistry.value}: {d.rationale}" for d in decisions]
+    lines += [f"- {note}" for note in notes]
+    lines.append(ranking_rationale)
     return "\n".join(lines)

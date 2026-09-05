@@ -172,7 +172,11 @@ ROUTING_RULES: tuple[RoutingRule, ...] = (
         rationale=(
             "An SpCas9 double-strand break repaired by error-prone NHEJ yields "
             "frameshifting indels that ablate gene function — the canonical "
-            "knock-out route, eligible only for disruption intent."
+            "knock-out route, eligible only for disruption intent. A precise "
+            "correction larger than prime editing's RT template budget is a "
+            "nuclease-plus-HDR job instead; `enumerate_cas9` and `hdr_donor` build "
+            "that reagent pair today, but the designer does not yet route, score, "
+            "or rank it, so this menu will not offer it."
         ),
         predicate=_nuclease_eligible,
     ),
