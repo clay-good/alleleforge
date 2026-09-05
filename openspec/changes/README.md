@@ -1647,6 +1647,32 @@ at whether X has Y's method. Also: the right response to "there is no flag for t
 out why, not to add one — the asymmetry was load-bearing, and a flag would have shipped a
 `NotImplementedError` to users.**
 
+## Round 61 — refreshing the status file caught a regression I shipped five commits ago
+
+`specs/readiness-assessment.md` is the file a future session reads first for honest state, and it was
+stale — 906 tests, 93 files, 3 notebooks, against an actual 1,288 / 95 / 4. Updating it meant re-verifying
+every number rather than copying them forward. That is what caught the bug.
+
+- **`fix(examples)` a notebook broken by R56, shipped for five commits.**
+  `03_batch_vcf.ipynb` renders its cohort table with `round(s.get("worst_offtarget", 0.0), 3)`. A `.get`
+  default does not fire when the key is **present with value `None`** — which is precisely what R56 made
+  that field. CI's `examples` job (`pytest --nbmake examples/`) would have caught it on the first push;
+  my local gate for R56-R60 had quietly stopped including it after R55. The cell now renders `-`, matching
+  how it already renders a missing best chemistry.
+- **`docs(specs)` the readiness assessment brought current**: verified gate numbers, the capability added
+  this session (variable-length RTT, the nuclease+HDR last resort, the >10x off-target scan), and one row
+  corrected — the table listed three axes as "usable via `aforge design --trained-*`" and prime as
+  "sequence-level engine", a distinction easy to read past. It now says plainly that a `design()` menu's
+  prime efficiency is the heuristic baseline today whatever weights are installed.
+
+**Lesson: the regression was not caused by the change, it was caused by trimming the gate. I ran the
+notebooks in R55, then for five rounds ran lint + types + tests + docs + reproduce and considered that
+"the full gate" — because those five are fast and the failure they missed was in the one command I had
+dropped. A gate is only as good as its least convenient member, and the member most likely to be dropped
+is the slow one that catches a different *class* of failure. Second, and more useful: the thing that
+actually caught it was refusing to copy numbers forward into a status document. Re-deriving a number you
+are about to publish is a cheap, load-bearing habit — the status file was not even where the bug lived.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

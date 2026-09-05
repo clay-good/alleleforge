@@ -63,6 +63,15 @@ acceptance.
 
 ### Fixed
 
+- **A cohort notebook broke on the `worst_offtarget = None` change and was shipped broken for five
+  commits.** `03_batch_vcf.ipynb` renders the summary table with `round(s.get("worst_offtarget", 0.0), 3)`
+  — and a `.get` default does not fire when the key is *present* with value `None`, which is exactly what
+  that field became. CI's `examples` job runs `pytest --nbmake examples/` and would have caught it on the
+  first push; the local gate used for those commits had stopped including it. The cell now renders an
+  unmeasured axis as `-`, matching how it already renders a missing best chemistry, with a comment saying
+  why `0.000` would be the wrong placeholder there. Caught while re-verifying numbers before publishing
+  them in `specs/readiness-assessment.md`.
+
 - **An empty benchmark evaluation no longer posts a perfect KL divergence.** `_distribution_metrics`
   averaged its per-example KLs with `if n else 0.0`. `kl` is in `LOWER_IS_BETTER`, so `0.0` is not a
   neutral placeholder — it is the **best possible score**, and a submission evaluated over zero examples

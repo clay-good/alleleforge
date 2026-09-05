@@ -1,7 +1,9 @@
 # Readiness assessment — AlleleForge for the medical/research community
 
-_Status as of 2026-06-23. Author: engineering audit. This file records the honest
-state of the project so context is not lost across sessions._
+_Status as of 2026-09-05. Author: engineering audit. This file records the honest
+state of the project so context is not lost across sessions. Sections dated
+2026-06-23 are kept for the record; the 2026-09-05 update below supersedes their
+numbers and the prime-efficiency row._
 
 ## TL;DR
 
@@ -35,7 +37,7 @@ are now wired through the model-zoo gate (behind `real_weights`; CI stays weight
 | Axis | Real model | Status |
 |---|---|---|
 | Cas9 efficiency | **Rule Set 3** (`TrainedRuleSet3Scorer`) | bit-parity; **hosted** (auto-download) + usable via `aforge design --trained-efficiency` |
-| Prime efficiency | **PRIDICT2.0** (`PridictEngineAdapter`) | sequence-level engine; golden-verified |
+| Prime efficiency | **PRIDICT2.0** (`PridictEngineAdapter`) | sequence-level engine; golden-verified — but **not reachable from a `design()` menu** (see the 2026-09-05 update) |
 | Base-edit outcome | **BE-DICT** (`BeDictAdapter`) | golden-verified; position-mapping pinned |
 | Cas9 outcome | **Lindel** (`LindelAdapter`) | golden-verified; usable via `aforge design --trained-outcome` |
 
@@ -83,3 +85,54 @@ tool that *looks* like it wraps those models but returns heuristics risks credib
 - ML stack: torch / transformers / scikit-learn / numpy **not** installed in `.venv`
   (core is deliberately light). Installable on demand.
 - No GPU. CPU-only inference is fine for Rule Set 3 (LightGBM) and CPU PRIDICT2.
+
+---
+
+## UPDATE 2026-09-05 — verified state, and one row corrected
+
+**Gate, re-verified on this date:** `ruff` clean; `mypy --strict` clean (95 files);
+**1,288 tests pass, 5 skipped, 97.6% coverage** (gate 85%); `mkdocs build --strict`
+clean; `scripts/reproduce.py` matches golden; **4** example notebooks pass. (The
+2026-06-23 figures — 906 tests, 93 files, 3 notebooks — are superseded.)
+
+### Correction: prime efficiency is *not* usable from the CLI or `design()`
+
+The table above lists three axes as "usable via `aforge design --trained-*`" and the
+prime row as "sequence-level engine; golden-verified". The distinction is easy to
+read past, so, plainly: **a `design()` menu's prime efficiency is the heuristic
+baseline today, whatever weights are installed.** PRIDICT2 designs *and* scores its
+own pegRNAs and exposes no "score this externally-supplied pegRNA" entry point, so
+`PridictEngineAdapter` is a parallel path, not a `PrimeEfficiencyScorer`. The two
+adapters that *do* implement that protocol (`DeepPrimeAdapter`, `GenETAdapter`)
+raise `NotImplementedError` by design. `design()` now accepts a
+`prime_efficiency_scorer` override, but nothing trained ships to pass it. Closing
+this needs the per-pegRNA parity scorer tracked as **(P2)** in
+[`pridict2-integration.md`](pridict2-integration.md), and a regression test
+(`test_no_shipped_trained_prime_scorer_satisfies_the_override_protocol`) now fails
+the moment one lands, so the docs saying "no trained prime scorer" cannot go stale
+silently.
+
+### Capability added since 2026-06-23
+
+- **Prime editing designs the whole small-edit repertoire.** The RT template is
+  built at variable length, so insertions, deletions, MNVs and delins enumerate
+  alongside substitutions — previously the flagship could not design for any indel,
+  CFTR ΔF508 included. Bounds: the replaced reference span ≤ `PRIME_MAX_EDIT` (44),
+  the written allele ≤ `PRIME_MAX_TEMPLATED_EDIT` (29 = the RTT ceiling less the
+  minimum 3' homology), both mirrored in routing.
+- **Nuclease + HDR is routed as the explicit last resort** for a precise edit no
+  break-free chemistry can reach (e.g. restoring a 41-base deletion), which
+  previously returned an empty menu. Such a candidate carries its donor, is flagged
+  `outcome-is-nhej-spectrum`, scores 0 on cleanliness (the honest number — the NHEJ
+  spectrum contains no intended allele, and no HDR rate is invented), and the donor
+  is emitted as an orderable ssODN.
+- **The off-target scan is >10x faster** with byte-identical output, which also took
+  the project's own test suite from ~299s to ~45s.
+
+### The reputational guardrail, restated
+
+Unchanged and still the governing constraint: **"population/haplotype-aware
+off-target with honest uncertainty" is true today; "wraps PRIDICT2.0" is true only
+of the parallel sequence-level engine, not of a ranked menu.** Everything the menu
+reports for prime efficiency is labeled `HEURISTIC` / `calibrated=False`, and the
+scorer now also states on each prediction that it has no edit-size feature.
