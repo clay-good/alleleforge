@@ -136,3 +136,27 @@ off-target with honest uncertainty" is true today; "wraps PRIDICT2.0" is true on
 of the parallel sequence-level engine, not of a ranked menu.** Everything the menu
 reports for prime efficiency is labeled `HEURISTIC` / `calibrated=False`, and the
 scorer now also states on each prediction that it has no edit-size feature.
+
+### UPDATE 2026-09-05 (later the same day) — the CLI can now do what the README claims
+
+A reachability sweep — take `design()`'s parameter list, check each against the CLI and the web API —
+found that the project's **headline differentiator was library-only**. `design()` and `search()` have
+always accepted a population database; **no CLI command could supply one**. `--populations` existed on all
+three commands but names ancestry *labels* to stratify by and carries no alleles, so every command-line
+scan was reference-only and returned an empty ancestry breakdown that reads as "no ancestry-specific risk
+found". The README's own example even listed `--maf` among the tunable knobs while it filtered alleles
+that were never loaded.
+
+Now reachable from `design`, `batch` and `offtarget`: `--gnomad` (population allele frequencies),
+`--haplotypes` (phased panel), `--patient-vcf` (personal variants), plus `--cell-context` (which raises the
+OOD flag and was previously config-file-only on the CLI and absent from the web API entirely). Requesting
+ancestries with no ancestry-bearing source now warns explicitly that the result is *unmeasured*, not clean;
+an unreadable source is a data error rather than a silent reference-only fallback.
+
+**Still library-only**, and worth knowing before promoting the CLI: `offtarget_regions` and
+`encode_tracks`/`chromatin_track`. **Deliberately not exposed on the web API:** the three file inputs —
+a client-supplied filesystem path is a server-side file-read primitive, so that surface needs server-side
+configuration like the reference already has.
+
+The guardrail above is unchanged and now actually holds at the command line: "population/haplotype-aware
+off-target with honest uncertainty" is true today *and reachable by a user*, which it was not before.

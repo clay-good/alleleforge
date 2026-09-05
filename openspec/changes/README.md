@@ -2078,6 +2078,29 @@ the condition in terms of *what the user needs* ("is there any ancestry-bearing 
 flag in front of you, and run the feature you just added with the *other* flags it now coexists with. The
 lie was visible in the first line of the first manual run.**
 
+## Round 77 — writing down what the CLI can now do, and what it still cannot
+
+Closing out the reachability thread with the documentation, which is where the gap was most damaging: a
+reader could not have discovered that `--populations` carried no data, because nothing said so.
+
+- **README**: the command table now carries an `IMPORTANT` callout stating plainly that the three safety
+  inputs are opt-in files and the scan is reference-only without them, that `--populations` only names the
+  ancestries to stratify by, and that an unbacked request warns "not measured, not clean". The `offtarget`
+  example shows all three sources.
+- **`specs/readiness-assessment.md`**: the honest-state file records what the sweep found and what it
+  fixed, so a future session does not have to rediscover that the differentiator was library-only.
+- **Named the remainder rather than leaving it implicit**: `offtarget_regions` and
+  `encode_tracks`/`chromatin_track` are still library-only, and the three file inputs are deliberately
+  *not* on the web API — a client-supplied filesystem path is a server-side file-read primitive, so that
+  surface needs server-side configuration like the reference already has.
+
+**Lesson: the reachability gap was really a documentation gap wearing a code costume. Nothing in the README
+was false about the *library*; every claim held for `design(gnomad=...)`. What was missing was the sentence
+connecting the claim to the interface a reader would actually use — and its absence let a plausible
+neighbouring flag stand in. Writing down what a feature needs *from the user* is the check that catches
+this: "population-aware" is not an adjective a tool has, it is a thing a tool does when given a file, and
+the moment you have to write that sentence you notice whether the file can be given.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

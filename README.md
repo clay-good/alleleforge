@@ -384,7 +384,8 @@ aforge design VCV000012345 --reference-fasta hg38.fa \
 # tunable: the bulge budget, the CFD/MIT reporting thresholds, and the carrying MAF.
 # Pass `--on-target` so the guide's own locus is not counted against its specificity.
 aforge offtarget GACGGAGGCTAAGCGTCGCAA --reference-fasta hg38.fa --pam NGG --json \
-    --gnomad gnomad.sites.tsv.gz --populations afr,eur,eas --on-target 'chr2:28-48(+)' \
+    --gnomad gnomad.sites.tsv.gz --haplotypes panel.tsv.gz --patient-vcf sample.vcf.gz \
+    --populations afr,eur,eas --on-target 'chr2:28-48(+)' \
     --dna-bulges 1 --rna-bulges 1 --cfd-threshold 0.20 --mit-threshold 0.10 --maf 0.001
 
 # Normalize any input form and show its class (debugging aid)
@@ -1016,6 +1017,16 @@ flowchart LR
 | `aforge design <input>` | Variant → ranked, multi-chemistry menu rendered to JSON/TSV/HTML/PDF. |
 | `aforge batch <vcf\|list>` | Cohort design over a VCF (cyvcf2 fast path) or variant list — streaming, resumable, failure-isolated. |
 | `aforge offtarget <spacer>` | Standalone population/haplotype-aware off-target search. |
+
+> [!IMPORTANT]
+> **The three safety inputs are opt-in files, and the scan is reference-only without them.**
+> `--populations` names the ancestries to *stratify by*; it carries no alleles. The data comes from
+> `--gnomad` (population allele frequencies), `--haplotypes` (a phased common-haplotype panel) and
+> `--patient-vcf` (this genome's own variants) — all three available on `design`, `batch` and `offtarget`.
+> Asking for ancestries with none of them supplied prints a warning saying the scan was reference-only and
+> the empty ancestry breakdown means **not measured**, not clean. Two `design()` capabilities remain
+> library-only and are not yet reachable from any shell: `offtarget_regions` (restrict the search to given
+> intervals) and `encode_tracks`/`chromatin_track` (the ePRIDICT open-chromatin efficiency adjustment).
 | `aforge data list` / `show <name>` | Inspect the dataset registry (versions, licenses, provenance). |
 | `aforge bench list` / `run` | List and run CRISPR-Bench tasks against frozen splits. |
 | `aforge bench leaderboard <result.json…>` | Aggregate signed results into the model-card-gated leaderboard (Markdown/HTML). |
