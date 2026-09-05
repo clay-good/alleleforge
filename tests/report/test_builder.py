@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
+
 from alleleforge.report.builder import (
     RESEARCH_USE_DISCLAIMER,
     DesignReport,
@@ -276,3 +278,40 @@ def test_a_card_with_no_documented_limits_prints_no_section() -> None:
     )
     assert model_limitation_lines(bare) == []
     assert model_limitation_lines(None) == []
+
+
+def test_a_truncated_outcome_table_says_it_is_truncated(ancestry_menu: RankedMenu) -> None:
+    """`P(intended) = 0.87` above three rows of 0.069 looks like an error. It is a tail.
+
+    A knock-out's NHEJ spectrum is dozens of alleles; the table shows the top three by
+    default, so the visible rows summed to 0.18 while the headline said 0.87 — with
+    nothing saying the table was truncated. The candidate list has said "Showing 50 of
+    470" since it was capped; the outcome table made the same omission.
+    """
+    from alleleforge.report.builder import build_report
+    from alleleforge.report.html import render_html
+    from alleleforge.report.pdf import render_pdf
+
+    report = build_report(ancestry_menu, top_alleles=1)
+    candidate = report.candidates[0]
+    assert candidate.n_outcome_alleles > len(candidate.outcome_top), (
+        "fixture is not truncated — the assertions below would be vacuous"
+    )
+    assert candidate.outcome_shown_mass == pytest.approx(
+        sum(a.probability for a in candidate.outcome_top)
+    )
+
+    html = render_html(report)
+    assert f"showing 1 of {candidate.n_outcome_alleles} predicted alleles" in html
+    assert b"showing 1 of" in render_pdf(report)
+
+
+def test_a_complete_outcome_table_says_nothing(ancestry_menu: RankedMenu) -> None:
+    """A note on every table is noise; it must track the actual truncation."""
+    from alleleforge.report.builder import build_report
+    from alleleforge.report.html import render_html
+
+    report = build_report(ancestry_menu, top_alleles=50)
+    candidate = report.candidates[0]
+    assert candidate.n_outcome_alleles == len(candidate.outcome_top)
+    assert "predicted alleles (" not in render_html(report)

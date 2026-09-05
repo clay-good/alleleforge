@@ -186,6 +186,12 @@ class CandidateReport(BaseModel):
             base-editor candidates (``None`` otherwise).
         p_intended: Summed probability of the intended allele(s), if scored.
         outcome_top: The highest-probability outcome alleles (descending).
+        n_outcome_alleles: How many alleles the predicted distribution holds in total.
+        outcome_shown_mass: The probability mass ``outcome_top`` accounts for. An NHEJ
+            spectrum is a long tail — a knock-out reporting ``P(intended) = 0.87`` above
+            three rows of 0.069, 0.060 and 0.055 looks self-contradictory until the
+            table says it is showing three of forty-one. The candidate list already
+            says "Showing 50 of 470"; this is the same statement for the outcomes.
         n_offtarget_sites: Number of nominated off-target sites, if searched.
         offtarget_specificity: Aggregate genome-wide specificity in ``(0, 1]``
             (Hsu-2013-style ``1/(1+Σ scores)``), if searched; ``1.0`` = no off-targets.
@@ -219,6 +225,8 @@ class CandidateReport(BaseModel):
     bystander_burden: Prediction[float] | None
     p_intended: float | None
     outcome_top: tuple[AlleleOutcome, ...]
+    n_outcome_alleles: int = 0
+    outcome_shown_mass: float = 0.0
     n_offtarget_sites: int | None
     offtarget_specificity: float | None
     offtarget_by_ancestry: tuple[AncestryOffTarget, ...]
@@ -277,10 +285,14 @@ def _candidate_report(
 ) -> CandidateReport:
     """Flatten one candidate into a :class:`CandidateReport`."""
     outcome_top: tuple[AlleleOutcome, ...] = ()
+    n_outcome_alleles = 0
+    outcome_shown_mass = 0.0
     p_intended: float | None = None
     if candidate.outcome is not None:
         ordered = sorted(candidate.outcome.alleles, key=lambda a: a.probability, reverse=True)
         outcome_top = tuple(ordered[:top_alleles])
+        n_outcome_alleles = len(ordered)
+        outcome_shown_mass = sum(a.probability for a in outcome_top)
         p_intended = candidate.outcome.p_intended
 
     n_sites: int | None = None
@@ -314,6 +326,8 @@ def _candidate_report(
         bystander_burden=candidate.bystander_burden,
         p_intended=p_intended,
         outcome_top=outcome_top,
+        n_outcome_alleles=n_outcome_alleles,
+        outcome_shown_mass=outcome_shown_mass,
         n_offtarget_sites=n_sites,
         offtarget_specificity=specificity,
         offtarget_by_ancestry=ancestry_rows,

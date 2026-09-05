@@ -179,6 +179,12 @@ def _candidate_html(c: CandidateReport) -> str:
         parts.append(
             f"<table><tr><th>allele</th><th>probability</th><th>intended</th></tr>{rows}</table>"
         )
+        if c.n_outcome_alleles > len(c.outcome_top):
+            parts.append(
+                f"<p class='muted'>showing {len(c.outcome_top)} of {c.n_outcome_alleles} "
+                f"predicted alleles ({c.outcome_shown_mass:.2f} of the probability mass); "
+                "the rest are in the lossless export.</p>"
+            )
     spec = (
         f"; specificity {c.offtarget_specificity:.3f}"
         if c.offtarget_specificity is not None

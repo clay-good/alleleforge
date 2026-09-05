@@ -2987,6 +2987,39 @@ chemistry of three had a caveat the others had. And when a guard enumerates how 
 sites, literals, patterns — assume the enumeration is incomplete and give the guard a second, differently
 shaped assertion that fails when the first goes blind.**
 
+## Round 106 — the table that looked like a bug
+
+Continuing R105's method — run the chemistry you have not run — this round designed a **knock-out**, the
+nuclease path, and read its card:
+
+```
+P(intended) = 0.87
+  del5:mh3@17   0.069  ✓
+  del2:mh1@18   0.060  ✓
+  del5:mh2@18   0.055  ✓
+```
+
+A reader checks 0.069 + 0.060 + 0.055 = 0.18 against a headline of 0.87 and concludes something is broken.
+Nothing is: `P(intended)` sums every frameshifting allele across a forty-six-allele NHEJ spectrum, and the
+table shows the top three. But the page gave no way to know that, and the failure mode is worse than a
+missing qualification — it actively looks like an arithmetic error, which costs trust on a report whose
+entire value is being believable.
+
+The project already had the right idiom. The candidate list says *"Showing 50 of 470: the top 50 by rank
+plus every Pareto-front candidate. The remaining 420 are in the lossless JSON/CSV export."* The outcome
+table needed exactly that sentence and did not have it.
+
+**Shipped:** `n_outcome_alleles` and `outcome_shown_mass` on the candidate report, and *"showing 3 of 46
+predicted alleles (0.18 of the probability mass)"* in HTML and PDF. Reporting the **mass**, not just the
+count, is the part that closes the arithmetic: it says where the missing 0.69 went. A complete table adds
+nothing, so the note means something when it appears.
+
+**Lesson: look for numbers that appear together, not just numbers that appear alone. Nine rounds of this
+audit have asked "is this figure qualified?" — this one came from asking "do these two figures, side by
+side, tell a consistent story?" A truncation that is invisible is a missing qualification; a truncation
+next to a total computed over the whole distribution reads as a mistake, and readers who spot mistakes stop
+trusting the rest of the page.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

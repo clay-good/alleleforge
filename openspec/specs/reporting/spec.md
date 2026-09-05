@@ -279,3 +279,18 @@ leads every row so a consumer can branch before parsing.
 - **WHEN** a candidate was searched
 - **THEN** its row carries the site count, the specificity, the scoring basis and the
   search settings together
+
+### Requirement: A truncated outcome table declares its truncation
+
+The predicted outcome distribution is shown top-first and capped, while `P(intended)` is
+computed over the whole distribution. Presented together without a note the two figures
+read as an arithmetic error rather than as a summary. A capped outcome table SHALL state
+how many alleles the distribution holds and how much probability mass the shown rows
+account for, so the difference between the table and the total is explained rather than
+apparent.
+
+A table showing every allele SHALL add no such note.
+
+#### Scenario: An NHEJ spectrum
+- **WHEN** a knock-out candidate's distribution holds more alleles than the table shows
+- **THEN** the render states the count and the shown probability mass

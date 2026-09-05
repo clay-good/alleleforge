@@ -107,6 +107,12 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
     for a in c.outcome_top:
         mark = " (intended)" if a.is_intended else ""
         lines += _wrap(f"outcome {a.allele}  p={a.probability:.3f}{mark}", indent="      ")
+    if c.n_outcome_alleles > len(c.outcome_top):
+        lines += _wrap(
+            f"showing {len(c.outcome_top)} of {c.n_outcome_alleles} predicted alleles "
+            f"({c.outcome_shown_mass:.2f} of the probability mass)",
+            indent="      ",
+        )
     spec = (
         f" (specificity {c.offtarget_specificity:.3f})"
         if c.offtarget_specificity is not None

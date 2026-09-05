@@ -8,6 +8,16 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **A truncated outcome table now says it is truncated.** A knock-out card read `P(intended) = 0.87` above
+  three alleles of 0.069, 0.060 and 0.055 — a headline and a table that look like they contradict each other
+  until you know the NHEJ spectrum has forty-six alleles and the table is showing three. The renders now
+  add *"showing 3 of 46 predicted alleles (0.18 of the probability mass); the rest are in the lossless
+  export"*, and `CandidateReport` carries `n_outcome_alleles` and `outcome_shown_mass`. The candidate list
+  has said "Showing 50 of 470" since it was capped; the outcome table made the same omission and looked far
+  more like an arithmetic error. A complete table says nothing.
+
 ### Fixed
 
 - **The Pol III spacer caveats were applied to prime editing only, so the same bad reagent was flagged on
