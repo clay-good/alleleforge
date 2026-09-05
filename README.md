@@ -1156,6 +1156,7 @@ hg38 reference, a gnomAD database, and trained weights via the model zoo, and th
 | [`01_clinvar_to_design`](examples/01_clinvar_to_design.ipynb) | The canonical journey: a variant → ranked **prime-editing** design across all four axes. |
 | [`02_population_offtarget`](examples/02_population_offtarget.ipynb) | The **reference-bias** case (`rs114518452`): a reference-only scan is blind to a population allele that creates a de-novo PAM; the population-aware engine nominates it and reports it **ancestry-stratified**. |
 | [`03_batch_vcf`](examples/03_batch_vcf.ipynb) | **Cohort-scale** design: resolve a batch of variants, design each, and reduce to one auditable summary with provenance. |
+| [`04_indel_prime_correction`](examples/04_indel_prime_correction.ipynb) | **Correcting a small deletion** (ΔF508-shaped): the variable-length RT template writes the missing bases back, read apart into homology + restored allele + homology. |
 
 Full docs (concept guides, deployment, CLI reference, CRISPR-Bench, a
 [methods-preprint outline](docs/paper/outline.md)) build with `mkdocs build --strict` in CI.

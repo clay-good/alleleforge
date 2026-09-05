@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **A fourth runnable notebook, `04_indel_prime_correction.ipynb`, demonstrates the variable-length RT
+  template on a ΔF508-shaped in-frame 3 bp deletion.** It shows routing admitting prime and only prime
+  (with its rationale), designs the correcting pegRNA, reads the RT template apart into *5' homology +
+  restored allele + 3' homology* — asserting the restored bases are exactly the reference allele — and
+  contrasts `CORRECT` against `INSTALL` on the same variant to show the deleted span costing no template
+  length. It is self-contained (a fixed-seed random locus, so its PAMs are real rather than planted) and
+  executes in CI with the other three.
+
 - **Prime editing now designs the whole small-edit repertoire — insertions, deletions, MNVs, and delins,
   not just single-base substitutions.** `enumerate_prime` templated an equal-length edit only and returned
   `[]` for everything else, and routing (correctly) declined those classes rather than under-deliver the

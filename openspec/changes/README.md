@@ -1093,6 +1093,27 @@ there. And when the defect being guarded against is directional (a coordinate dr
 of the edit), the sample must be stratified along that direction, or the mutation slips through the half
 of the population that was never at risk.**
 
+## Round 41 — a runnable proof of the new capability (`examples/04_indel_prime_correction.ipynb`)
+
+R38 shipped variable-length RTT templating, R39 fixed what it broke downstream, R40 proved it had not
+disarmed the safety axis. All three are internal. This round closes the loop on the user-facing side: the
+README now *claims* the capability and the specs *pin* it, but nothing a reader could run *showed* it.
+
+The new notebook designs the correcting pegRNA for a ΔF508-shaped in-frame 3 bp deletion — the canonical
+case for why prime editing exists — and makes the mechanism legible rather than asserted: routing admits
+prime and only prime with its rationale printed; the RT template is reverse-complemented and read apart
+into *5' homology + restored allele + 3' homology*, with an `assert` that the restored bases are exactly
+the reference allele; and the same variant run in the opposite direction (`INSTALL`, which writes the
+deletion) shows the RTT collapsing from 17 nt to 14 — the deleted span costing nothing. The locus is a
+fixed-seed random contig rather than a planted one, so the PAMs it uses are genuinely there. It executes
+under `--nbmake` in CI alongside the other three.
+
+**Lesson: documentation that a reader can execute is a different artifact from documentation that asserts.
+The three prior rounds produced a correct feature, a correct scorer, and a mutation-checked safety guard —
+none of which a prospective user can see. The cheapest remaining unit of trust after a feature lands is
+the smallest runnable thing that makes its mechanism visible, and the discipline that makes it worth
+trusting is the same one the tests use: put an `assert` in the demo, and let CI run it.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
