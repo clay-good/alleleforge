@@ -2957,6 +2957,36 @@ direction — toward the version that sounds better. The tell is a contradiction
 the honest description usually already exists, further down, written by someone who was looking at the code
 at the time. When the headline and the manual disagree, the manual is right.**
 
+## Round 105 — the chemistry I had not run
+
+Every round since R98 has read output from the *prime* path, because that is what the test variant routes
+to. So this round ran a base-editor correction instead and read its card. Two findings, and the second is
+about my own machinery.
+
+**The spacer caveats were prime-only.** The top-ranked candidate — `recommended`, Pareto-optimal — held a
+spacer of 5% GC and was reported `clean`. `gc-out-of-band` and `no-5prime-g` were computed in
+`design/prime.py::_flags` and nowhere else, so an identical spacer was a caveat inside a pegRNA and
+unremarked inside an ABE sgRNA. Nothing about U6 transcription or oligo synthesis cares which chemistry
+holds the spacer. They are now one shared `spacer_quality.py` that all three verticals call, and the
+reproduce golden moved by exactly two flags — the canonical scenario's own ABE candidate has a 10% GC spacer
+that had gone unflagged since it was written.
+
+**The guard was under-covering itself.** R98's check reads every `flags.append(...)` literal out of the
+source and fails on an unclassified flag. The base-editor vertical attaches `recommended` through
+`model_copy(update={"flags": ...})`, which that scan never saw — so the guard reported complete coverage
+while a flag had never been classified. The mechanism built to stop a hazard being missed was missing one,
+for the same reason the original bug happened: it enumerated *one* way the thing is done.
+
+What saved it was the guard's second half — "every classified flag must actually be emitted" — which fails
+when the scan is narrowed, so the two halves keep each other honest. That was written as an
+anti-rot measure and turned out to be the anti-blindness one.
+
+**Lesson: exercise every branch of the product, not every branch of the code. Coverage was green on the
+base-editor path the whole time; what was missing was never having *looked at* its output, and one
+chemistry of three had a caveat the others had. And when a guard enumerates how something is done — call
+sites, literals, patterns — assume the enumeration is incomplete and give the guard a second, differently
+shaped assertion that fails when the first goes blind.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

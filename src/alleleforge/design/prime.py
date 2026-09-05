@@ -18,6 +18,7 @@ from typing import Protocol
 from alleleforge.data.annotations import EncodeTracks
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
+from alleleforge.design.spacer_quality import spacer_quality_flags
 from alleleforge.enumerate.prime import NGG_PAM, enumerate_prime
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.model_zoo.registry import ModelCard
@@ -106,10 +107,6 @@ def _merge_offtarget(peg: OffTargetReport, ngrna: OffTargetReport | None) -> Off
 #: worse than showing the number and letting the user apply the literature.
 CLOSE_NICK_NT = 30
 
-#: Spacer GC band (Pol III): outside it, U6 transcription and synthesis suffer, so
-#: the spacer is annotated (not dropped) as an inspectable quality caveat.
-_GC_BAND = (0.30, 0.80)
-
 
 def _flags(pegrna: PegRNA, efficiency: Prediction[float], run_offtarget: bool) -> tuple[str, ...]:
     """Return free-form annotations for a prime candidate."""
@@ -135,15 +132,9 @@ def _flags(pegrna: PegRNA, efficiency: Prediction[float], run_offtarget: bool) -
         flags.append("both-nicks-searched")
     if not efficiency.in_distribution:
         flags.append("ood")
-    # Pol III transcription caveats, surfaced as inspectable annotations rather than
-    # silent absence: a spacer not starting with G needs a prepended U6-start G, and
-    # an out-of-band GC content hurts transcription/synthesis.
-    spacer = str(pegrna.spacer.sequence).upper()
-    if spacer and not spacer.startswith("G"):
-        flags.append("no-5prime-g")
-    gc = sum(b in "GC" for b in spacer) / len(spacer) if spacer else 0.0
-    if not _GC_BAND[0] <= gc <= _GC_BAND[1]:
-        flags.append(f"gc-out-of-band:{gc:.2f}")
+    # Pol III transcription caveats. Shared with every other chemistry: they are
+    # properties of the spacer as a transcribed reagent, not of prime editing.
+    flags += spacer_quality_flags(str(pegrna.spacer.sequence))
     return tuple(flags)
 
 

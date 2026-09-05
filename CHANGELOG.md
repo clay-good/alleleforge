@@ -10,6 +10,24 @@ acceptance.
 
 ### Fixed
 
+- **The Pol III spacer caveats were applied to prime editing only, so the same bad reagent was flagged on
+  one chemistry of three.** Found by running a base-editor design and reading the card: the top-ranked
+  candidate, labelled `recommended`, carried a spacer with **5% GC** — outside the band where U6
+  transcription and oligo synthesis behave — and was reported `clean`, with no caveat anywhere. An identical
+  spacer inside a pegRNA would have been flagged `gc-out-of-band`. These are properties of a spacer as a
+  *transcribed reagent*, not of the chemistry holding it, so they now live in one
+  `design/spacer_quality.py` that all three verticals call. The reproduce golden moved by exactly two
+  flags — the canonical scenario's own ABE candidate has a 10% GC spacer that had never been flagged.
+
+- **The flag-classification guard was under-covering itself.** The R98 check reads every
+  `flags.append(...)` literal out of the source and fails on an unclassified flag — but the base-editor
+  vertical attaches `recommended` through `model_copy(update={"flags": ...})`, which the scan never saw. So
+  the guard reported full coverage while a flag had never been classified: the mechanism that exists to stop
+  a hazard being missed, quietly missing one itself. It now also reads `"flags": (...)` constructions, and
+  its second half — every classified flag must actually be emitted — keeps the first honest.
+
+### Fixed
+
 - **The README's headline principle claimed population-aware search "by default". It is not, and the same
   README said so three sections later.** Without `--gnomad`, `--haplotypes` or `--patient-vcf` the scan is
   reference-only — AlleleForge vendors no gnomAD data — and every surface already says so out loud, because

@@ -16,6 +16,7 @@ from typing import Protocol
 
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
+from alleleforge.design.spacer_quality import spacer_quality_flags
 from alleleforge.enumerate.cas9 import (
     NGG_PAM,
     carried_allele,
@@ -131,6 +132,9 @@ def _flags(
         # The outcome distribution below is the NHEJ indel spectrum, which is the
         # *byproduct* of this strategy, not the intended correction.
         flags.append("outcome-is-nhej-spectrum")
+    # Pol III transcription caveats: a property of the spacer as a transcribed reagent,
+    # not of the chemistry, so every vertical applies the same check.
+    flags += spacer_quality_flags(str(guide.spacer.sequence))
     return tuple(flags)
 
 

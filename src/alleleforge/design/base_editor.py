@@ -14,6 +14,7 @@ from typing import Protocol
 
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
+from alleleforge.design.spacer_quality import spacer_quality_flags
 from alleleforge.enumerate.base_editor import BASE_EDITORS, BaseEditor, enumerate_base_edits
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.model_zoo.registry import ModelCard
@@ -44,6 +45,10 @@ def _flags(
     flags.append(f"bystander-burden:{outcome.bystander_burden.value:.2f}")
     if offreport is not None and offreport.population_sites:
         flags.append("population-offtarget")
+    # Pol III transcription caveats: a property of the spacer as a transcribed reagent,
+    # not of the chemistry. They were prime-only, so a base-editor sgRNA with 5% GC came
+    # back top-ranked and `recommended` with no caveat at all.
+    flags += spacer_quality_flags(str(window.spacer.sequence))
     return tuple(flags)
 
 

@@ -96,3 +96,15 @@ burden, and the cleanest SHALL carry a `recommended` flag.
 #### Scenario: No bystanders
 - **WHEN** a candidate has no in-window bystanders
 - **THEN** it is flagged `clean`, and the top candidate additionally gets `recommended`
+
+### Requirement: Spacer quality caveats apply to every chemistry
+
+An out-of-band GC fraction or a missing U6-start G is a property of the spacer as a
+transcribed reagent, not of the chemistry using it. Every vertical SHALL apply the same
+spacer checks from one shared implementation, so an identical spacer cannot be a caveat
+on one chemistry and unremarked on another.
+
+#### Scenario: A poor spacer on a base editor
+- **WHEN** a base-editor candidate's spacer falls outside the GC band
+- **THEN** it carries the same `gc-out-of-band` annotation a pegRNA with that spacer would,
+  and is not reported as clean

@@ -28,14 +28,21 @@ def _emitted_flag_prefixes() -> set[str]:
     """
     prefixes: set[str] = set()
     for path in _SRC.rglob("*.py"):
-        # Every string literal in the call, not just the first: one `append` can carry a
-        # conditional expression emitting several distinct flags (`pe3b`/`pe3`/`no-nick`).
-        for call in re.findall(r"flags\.append\((.*?)\)\n", path.read_text(), re.S):
+        text = path.read_text()
+        calls = re.findall(r"flags\.append\((.*?)\)\n", text, re.S)
+        # `flags.append(...)` is not the only way a flag is attached. The base-editor
+        # vertical adds `recommended` with `model_copy(update={"flags": ...})`, so the
+        # append-only scan reported the classification complete while that flag had
+        # never been classified — the guard silently under-covering the thing it guards.
+        calls += re.findall(r'"flags":\s*\((.*?)\)', text, re.S)
+        for call in calls:
+            # Every string literal in the call, not just the first: one `append` can
+            # carry a conditional emitting several flags (`pe3b`/`pe3`/`no-nick`).
             for literal in re.findall(r"f?\"([^\"]*)\"", call):
                 # Keep the part before the first interpolated value:
                 # `gc-out-of-band:{gc}` is one flag, not one per value.
                 prefixes.add(literal.split("{")[0].rstrip(":").strip() or literal)
-    return {p for p in prefixes if p}
+    return {p for p in prefixes if p and not p.startswith("*")}
 
 
 def test_every_emitted_flag_is_classified() -> None:
