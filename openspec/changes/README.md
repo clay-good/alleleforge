@@ -1057,6 +1057,42 @@ after landing new code is not to audit the new code — its own tests are freshe
 consumer of the invariant the change just relaxed. One hardcoded `- 1`, in a module that was never
 touched, was the whole of R38's downstream blast radius.**
 
+## Round 40 — the safety axis under the new geometry (clean bill + a permanent, mutation-checked guard)
+
+R39 found the one wrong *derived* value R38's change left behind. This round asks the harder question about
+the same change: did the new coordinate mapping quietly disarm a **safety** mechanism? That is this repo's
+single most-repeated defect class — a real safety input gone inert on its consumed axis with a green suite
+(R10 on-target-as-off-target, R11 patient off-targets masked, R24 an unattributed hit flooring every
+stratum).
+
+The mechanism at risk is **on-target exclusion**. The reference always contains a guide's own protospacer,
+so a genome-wide scan nominates it as a perfect 1.0 hit; the *placement* is the only thing that tells the
+engine to drop it, matched exactly on `(chrom, start, end, strand)`. R38 changed how prime placements are
+computed. A placement drifting by the indel's size would still be a valid interval, still serialize, still
+render — and would simply stop matching, pegging every prime guide's worst-case score at 1.0 and capping
+its specificity at 0.5, with nothing red anywhere.
+
+- **Clean bill.** Across SNV / deletion-install / deletion-correct / insertion-correct, on both strands,
+  every pegRNA whose protospacer does not cross the edit has a perfect reference hit at its placement and
+  that hit is excluded — 0 leaks. The spacers that *do* cross a length-changing edit have no perfect
+  reference hit to exclude, which is correct: those bases do not exist in the reference.
+- **Promoted to a permanent guard**, written so it cannot pass vacuously: it first asserts the unguarded
+  scan *does* report the locus (otherwise the case is skipped as edit-spanning), and then requires that
+  **both strands** contribute at least one genuinely-excluded locus. That second clause is the load-bearing
+  one — a length change shifts coordinates only *downstream* of itself, which is exactly where the
+  minus-strand pegRNAs sit.
+- **Mutation-checked.** Deleting the drift correction from `_Frame._reference` (`return offset + index`)
+  fails the new guard on both length-changing cases plus the footprint test. An earlier draft that sampled
+  the first 20 pegRNAs by nick site — all plus-strand, all upstream of the edit — passed the mutant
+  happily; the per-strand requirement is what made it bite.
+
+**Lesson: a guard that can go quiet is not a guard. The first draft of this test asserted "the on-target is
+not reported," which a broken placement satisfies trivially — the locus stops being reported because it
+stops being *found*. Any test whose subject is an exclusion must first prove the thing being excluded was
+there. And when the defect being guarded against is directional (a coordinate drift lives only downstream
+of the edit), the sample must be stratified along that direction, or the mutation slips through the half
+of the population that was never at risk.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -141,6 +141,12 @@ guide), rather than assigned a locus it does not occupy.
   span it replaces
 - **THEN** its placement is wider than the protospacer by exactly the missing bases
 
+#### Scenario: On-target exclusion across a length-changing edit
+- **WHEN** a pegRNA whose protospacer does not cross the edit is scanned for
+  off-targets with its placement supplied
+- **THEN** the guide's own locus is dropped from the report — on both strands, and
+  regardless of whether the edit changed the sequence's length
+
 #### Scenario: Nicking guide with no reference locus
 - **WHEN** a candidate nicking-guide protospacer lies wholly inside carried inserted bases
 - **THEN** it is not emitted, and no emitted nicking guide has a zero-width placement

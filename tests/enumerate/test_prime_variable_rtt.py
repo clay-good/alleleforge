@@ -26,12 +26,14 @@ from alleleforge.enumerate.prime import (
     enumerate_prime,
 )
 from alleleforge.genome.reference import ReferenceGenome
+from alleleforge.offtarget.engine import search as offtarget_search
 from alleleforge.types.edit import EditIntent
 from alleleforge.types.guide import (
     DEFAULT_SPACER_LENGTH,
     MIN_RTT_3PRIME_HOMOLOGY,
     PegRNA,
 )
+from alleleforge.types.offtarget import OffTargetReport
 from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
 from alleleforge.types.variant import Variant
 from alleleforge.variant.resolver import ResolvedVariant, resolve
@@ -271,3 +273,63 @@ def test_no_nicking_guide_is_placed_on_a_locus_it_does_not_occupy(
         if peg.nicking_guide is not None:
             placement = peg.nicking_guide.placement
             assert placement.end > placement.start
+
+
+@pytest.mark.parametrize(
+    ("label", "ref_allele", "alt_allele", "intent"),
+    [
+        ("snv", "A", "G", EditIntent.INSTALL),
+        ("deletion", "ACGTA", "A", EditIntent.INSTALL),
+        ("deletion", "ACGTA", "A", EditIntent.CORRECT),
+        ("insertion", "A", "AGGCT", EditIntent.CORRECT),
+    ],
+    ids=["snv", "deletion-install", "deletion-correct", "insertion-correct"],
+)
+def test_on_target_exclusion_still_fires_across_a_length_changing_edit(
+    make_reference: MakeRef, label: str, ref_allele: str, alt_allele: str, intent: EditIntent
+) -> None:
+    """A placement must still cancel the guide's own locus in the off-target scan.
+
+    The reference always contains a guide's own protospacer, so the genome-wide
+    scan nominates it as a perfect hit; the placement is what tells the engine to
+    drop it. If a length-changing edit shifted a placement off by the indel's
+    size, that cancellation would silently stop matching and every prime guide's
+    worst-case safety score would peg at 1.0 — a real safety input gone inert on
+    its consumed axis, under a green suite. Assert the exclusion does work, not
+    merely that nothing is reported.
+    """
+    contig, _r, _a = _genomes(ref_allele, alt_allele)
+    ref = make_reference({"chr1": contig})
+    rv = resolve(f"chr1:{EDIT_POS + 1}:{ref_allele}>{alt_allele}", reference=ref)
+    pegs = [p for p in enumerate_prime(rv, intent, reference=ref) if p.placement is not None]
+    assert pegs
+
+    def reported_at(report: OffTargetReport, locus: GenomicInterval) -> bool:
+        return any(
+            s.locus.start == locus.start
+            and s.locus.end == locus.end
+            and s.locus.strand == locus.strand
+            for s in report.sites
+        )
+
+    # Sample both strands: a length-changing edit shifts coordinates only
+    # *downstream* of itself, which is exactly where the minus-strand pegRNAs sit.
+    sample = []
+    for strand in (Strand.PLUS, Strand.MINUS):
+        on_strand = [p for p in pegs if p.placement is not None and p.placement.strand is strand]
+        assert on_strand, f"no {strand.value} pegRNA to check"
+        sample += on_strand[:10]
+
+    exercised = {Strand.PLUS: 0, Strand.MINUS: 0}
+    for peg in sample:
+        assert peg.placement is not None
+        unguarded = offtarget_search(peg.spacer, NGG_PAM, reference=ref, on_target=None)
+        if not reported_at(unguarded, peg.placement):
+            continue  # protospacer spans the edit: it has no perfect reference hit
+        exercised[peg.placement.strand] += 1
+        guarded = offtarget_search(peg.spacer, NGG_PAM, reference=ref, on_target=peg.placement)
+        assert not reported_at(guarded, peg.placement)
+    # Both strands must contribute. A placement drifting by the indel's size stops
+    # matching the scan's own hit, which would silently empty this check instead of
+    # failing it — and the minus strand is where that drift lives.
+    assert all(exercised.values()), f"no locus excluded on some strand: {exercised}"
