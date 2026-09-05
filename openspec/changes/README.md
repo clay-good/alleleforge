@@ -1931,6 +1931,36 @@ test, a CI job, content hashing), which is why no single search would have found
 finds it is about the artifact's nature ("is this generated and committed?"), not about the guard's
 shape.**
 
+## Round 72 — running R71's query across every enum in the library
+
+R71 found an untested CLI-exposed intent by asking "which public options does nothing test?". Ran that
+mechanically over every `Enum` in the package: 33 members are never named in a test. Most are false
+positives — the CLI's `OutputFormat.json` is exercised as `--format json`, `Consequence.FRAMESHIFT` through
+severity tables — so the list needed reading, not acting on.
+
+Two looked behavioral. `ScoreMethod.CFD_CAS12A` turned out to be covered (`tests/offtarget/test_scoring.py`
+names the scorer, not the enum member). **`ThreePrimeMotif.MPKNOT` was genuinely untouched** — no test, and
+no caller either, since the enumerator only ever emits `tevopreQ1`. It is nonetheless a sequence that goes
+into a *synthesized* extension oligo for anyone who builds a pegRNA with it, and `reconstruct()` strips the
+declared motif off the 3' end before checking the RTT/PBS boundary, so a mishandled motif either corrupts
+that boundary or ships the wrong bases silently. All three motifs are now parametrized through the oligo
+round trip. Mutation-checked.
+
+**What I did not do.** Both motif sequences are exactly 46 nt and share the 9-nt prefix `GAAACCCGG`, while
+the adjacent comment describes only tevopreQ1 as carrying a linker. That may be perfectly correct. It is
+also exactly the kind of thing I cannot check from memory — a published sequence, destined for a wet-lab
+reagent — so it is flagged for a human to verify against the paper rather than asserted either way.
+
+**A note on the tests catching me:** the first fixture used a truncated scaffold, and `pegrna_oligos`
+rejected it with "a wrong or empty scaffold would ship a non-functional pegRNA". A guard written for users
+caught the test author instead, which is a good sign about the guard.
+
+**Lesson: line coverage cannot see an untried enum member — every line `MPKNOT` touches is covered, by
+`TEVOPREQ1`. The generalization of R71 is that coverage measures whether code *ran*, never whether each
+value a public type *admits* was tried, and enum members, boolean flags, and optional parameters are
+precisely where an untried value takes a different branch. Enumerating the type's members and grepping is
+a five-line script.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

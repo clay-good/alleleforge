@@ -6,6 +6,7 @@ import pytest
 
 from alleleforge.report.oligos import (
     LENTIGUIDE_BSMBI,
+    MOTIF_SEQUENCES,
     PEGRNA_GG_BSAI,
     PX330_BBSI,
     PegRNAOligos,
@@ -17,7 +18,7 @@ from alleleforge.report.oligos import (
 )
 from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import Chemistry
-from alleleforge.types.guide import PAM, Guide, HDRDonor, Spacer
+from alleleforge.types.guide import PAM, Guide, HDRDonor, PegRNA, Spacer, ThreePrimeMotif
 from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
 
 SPACER = "ACGTAACGTTACGTAACGTT"
@@ -354,3 +355,47 @@ def test_an_unblocked_recut_is_flagged_on_the_order() -> None:
 def test_an_ambiguous_donor_is_refused_not_ordered() -> None:
     with pytest.raises(ValueError, match="HDR donor"):
         oligos_for(_precise_cas9_candidate("ACGTN" * 20))
+
+
+@pytest.mark.parametrize("motif", list(ThreePrimeMotif))
+def test_every_3prime_motif_round_trips_through_the_extension_oligo(
+    motif: ThreePrimeMotif,
+) -> None:
+    """Each motif a `PegRNA` can declare must survive into an orderable oligo.
+
+    `MOTIF_SEQUENCES` ships three options, but the enumerator only ever emits
+    tevopreQ1, so `MPKNOT` reached no test and no caller — while still being a
+    sequence that goes into a **synthesized** extension oligo for anyone who builds
+    a pegRNA with it. The module's cardinal invariant is that the oligos reconstruct
+    the declared RTT and PBS; `reconstruct()` strips the declared motif off the 3'
+    end first, so a motif it mishandled would either corrupt that boundary or pass
+    silently with the wrong bases ordered.
+    """
+    from alleleforge.enumerate.prime import SCAFFOLD
+
+    pegrna = PegRNA(
+        spacer=Spacer(sequence=DNASequence(SPACER)),
+        scaffold=DNASequence(SCAFFOLD),
+        rtt=DNASequence("ACGTACGTACGTACGT"),
+        pbs=DNASequence("ACGTACGTACGTA"),
+        three_prime_motif=motif,
+        rtt_homology_5prime=6,
+        rtt_homology_3prime=5,
+    )
+    oligos = pegrna_oligos(pegrna)
+    spacer, rtt, pbs = oligos.reconstruct()
+    assert spacer == SPACER
+    assert rtt == "ACGTACGTACGTACGT"
+    assert pbs == "ACGTACGTACGTA"
+    assert oligos.motif is motif
+    # The declared motif's bases are actually present in the ordered sense oligo.
+    expected = MOTIF_SEQUENCES[motif]
+    assert oligos.ext_top.endswith(expected)
+    if expected:
+        assert set(expected) <= set("ACGT"), "a synthesized oligo must be concrete DNA"
+
+
+def test_the_motif_sequences_are_distinct() -> None:
+    """Two motifs that produced the same oligo would make the choice meaningless."""
+    non_empty = {m: s for m, s in MOTIF_SEQUENCES.items() if s}
+    assert len(set(non_empty.values())) == len(non_empty)

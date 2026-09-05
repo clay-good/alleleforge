@@ -10,6 +10,19 @@ acceptance.
 
 ### Added
 
+- **Every pegRNA 3' motif is now round-tripped through the oligo output; `mpknot` previously reached no
+  test and no caller.** `MOTIF_SEQUENCES` ships three options, but the enumerator only ever emits
+  `tevopreQ1`, so `ThreePrimeMotif.MPKNOT` was a sequence that goes into a **synthesized** extension oligo
+  with nothing exercising it. The oligo module's cardinal invariant is that the oligos reconstruct the
+  declared RTT and PBS, and `reconstruct()` strips the declared motif off the 3' end first — so a motif it
+  mishandled would either corrupt that boundary or silently ship the wrong bases. All three motifs are now
+  parametrized through `pegrna_oligos` → `reconstruct()`, with checks that the declared motif's bases are
+  actually present in the ordered sense oligo, are concrete `ACGT`, and that no two motifs produce the same
+  oligo. Found by asking which enum members no test names — the same query that surfaced `REVERT` above.
+  **Not** verified: that the two motif *sequences* match the publication they cite. Both are 46 nt and share
+  a 9-nt prefix, which may be correct; confirming a published sequence needs the source, so it is flagged
+  for a human rather than guessed at.
+
 - **`REVERT` — a CLI-exposed edit intent — had no test coverage at all, and no documentation of what it
   means.** It reaches five *independent* `intent in (CORRECT, REVERT)` checks: routing, all three
   enumerators, and the HDR donor. Nothing centralizes that, so a sixth branch added later that forgot
