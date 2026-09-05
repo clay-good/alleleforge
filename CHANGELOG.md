@@ -8,6 +8,17 @@ acceptance.
 
 ## [Unreleased]
 
+### Changed
+
+- **The cohort summary no longer reports a bare efficiency.** "Every numeric prediction carries a calibrated
+  interval, never a bare float" is the project's stated principle, and the one surface built for scanning
+  *hundreds* of variants printed `eff=0.61` and nothing else — so a confident prediction and an
+  out-of-distribution guess looked identical at exactly the moment nobody is reading the detail. The
+  human line now reads `eff=0.61 [0.46,0.76]`, marks `OOD` when the prediction is out of distribution, and
+  appends the recommended candidate's hazards (`!close-nick`). The machine-readable row and TSV gain
+  `best_efficiency_low`, `best_efficiency_high`, `best_efficiency_in_distribution` and `best_caveats`; an
+  empty menu still reports `None`, never a reassuring zero.
+
 ### Added
 
 - **The flat TSV/Parquet export now carries what makes its own numbers readable** (export

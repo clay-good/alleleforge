@@ -770,6 +770,10 @@ def _batch_rows(report: Any) -> list[dict[str, Any]]:
                 "status": it.status,
                 "best_chemistry": summary.get("best_chemistry"),
                 "best_efficiency": summary.get("best_efficiency"),
+                "best_efficiency_low": summary.get("best_efficiency_low"),
+                "best_efficiency_high": summary.get("best_efficiency_high"),
+                "best_efficiency_in_distribution": summary.get("best_efficiency_in_distribution"),
+                "best_caveats": summary.get("best_caveats") or [],
                 "best_bystander_burden": summary.get("best_bystander_burden"),
                 "worst_offtarget": summary.get("worst_offtarget"),
                 "best_specificity": summary.get("best_specificity"),
@@ -787,6 +791,10 @@ def _batch_tsv(rows: list[dict[str, Any]]) -> str:
         "status",
         "best_chemistry",
         "best_efficiency",
+        "best_efficiency_low",
+        "best_efficiency_high",
+        "best_efficiency_in_distribution",
+        "best_caveats",
         "best_bystander_burden",
         "worst_offtarget",
         "best_specificity",
@@ -1057,10 +1065,22 @@ def batch(
     for r in rows:
         if r["status"] == "ok":
             eff = r["best_efficiency"]
-            eff_str = f"{eff:.2f}" if isinstance(eff, (int, float)) else "-"
+            low, high = r["best_efficiency_low"], r["best_efficiency_high"]
+            if isinstance(eff, (int, float)):
+                eff_str = f"{eff:.2f}"
+                # The interval is the point of the number. Scanning a cohort is exactly
+                # when a bare estimate gets taken at face value, so it never appears bare.
+                if isinstance(low, (int, float)) and isinstance(high, (int, float)):
+                    eff_str += f" [{low:.2f},{high:.2f}]"
+                if r["best_efficiency_in_distribution"] is False:
+                    eff_str += " OOD"
+            else:
+                eff_str = "-"
+            flagged = r["best_caveats"]
+            caveat_str = f"  !{','.join(flagged)}" if flagged else ""
             lines.append(
                 f"  {r['item_id']}  ok  best={r['best_chemistry'] or '-'}  "
-                f"eff={eff_str}  n={r['n_candidates'] or 0}"
+                f"eff={eff_str}  n={r['n_candidates'] or 0}{caveat_str}"
             )
         else:
             lines.append(f"  {r['item_id']}  error  {r['error']}")

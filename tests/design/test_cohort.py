@@ -13,6 +13,7 @@ from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import Chemistry, EditIntent
 from alleleforge.types.guide import PAM, Guide, Spacer
 from alleleforge.types.offtarget import OffTargetReport, OffTargetSite, ScoreMethod
+from alleleforge.types.prediction import Prediction, UncertaintyMethod
 from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
 
 PAD = "T" * 20
@@ -369,3 +370,41 @@ def test_the_triage_columns_describe_the_same_candidate() -> None:
     # ...and an unsearched recommendation still reports None, never a reassuring 0.0.
     unsearched = RankedMenu(candidates=(_candidate(spacer="ACGTACGTACGTACGTACGT"),))
     assert _summarize(unsearched)["worst_offtarget"] is None
+
+
+def test_the_cohort_summary_never_reports_a_bare_efficiency() -> None:
+    """ "Never a bare float" is the project's stated principle; this surface broke it.
+
+    A cohort summary is scanned across hundreds of variants to decide which deserve a
+    closer look. It reported `best_efficiency` alone — so a confident prediction and an
+    out-of-distribution guess were the same number, at exactly the moment nobody is
+    reading the detail. The interval, the in-distribution flag and the recommended
+    candidate's hazards travel with it now.
+    """
+    from alleleforge.design.cohort import _summarize
+
+    ood = Prediction[float](
+        value=0.42,
+        interval=(0.1, 0.74),
+        method=UncertaintyMethod.ENSEMBLE,
+        in_distribution=False,
+    )
+    candidate = _candidate(spacer="ACGTACGTACGTACGTACGT").model_copy(
+        update={"efficiency": ood, "flags": ("close-nick", "epegRNA:tevopreQ1")}
+    )
+    summary = _summarize(RankedMenu(candidates=(candidate,)))
+
+    assert summary["best_efficiency"] == pytest.approx(0.42)
+    assert summary["best_efficiency_low"] == pytest.approx(0.1)
+    assert summary["best_efficiency_high"] == pytest.approx(0.74)
+    # The flag that makes the number untrustworthy, not just the number.
+    assert summary["best_efficiency_in_distribution"] is False
+    # Hazards, filtered to the ones that ask something of the reader.
+    assert summary["best_caveats"] == ["close-nick"]
+
+    # A menu with nothing to summarize reports None, not a reassuring zero.
+    empty = _summarize(RankedMenu(candidates=()))
+    assert empty["best_efficiency"] is None
+    assert empty["best_efficiency_low"] is None
+    assert empty["best_efficiency_in_distribution"] is None
+    assert empty["best_caveats"] == []

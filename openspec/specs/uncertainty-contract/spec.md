@@ -353,3 +353,22 @@ deciding whether to trust the number.
 #### Scenario: A caveat already spelled out
 - **WHEN** the note restates what an inline parenthetical already says
 - **THEN** it is not repeated
+
+### Requirement: No surface reports a prediction as a bare number
+
+A predicted value SHALL never be presented without its interval and its
+in-distribution status — on every surface, including the summary and triage views built
+to be skimmed. Those are where the guarantee matters most: a reader scanning hundreds of
+rows to decide which deserve a closer look is precisely the reader who will take a bare
+number at face value, and an out-of-distribution guess must not look like a confident
+prediction there.
+
+An absent prediction SHALL be reported as absent, never as a value.
+
+#### Scenario: A cohort triage row
+- **WHEN** a per-variant summary reports the recommended candidate's efficiency
+- **THEN** it carries the interval and the in-distribution flag alongside the estimate
+
+#### Scenario: Nothing to summarize
+- **WHEN** a menu produced no candidate
+- **THEN** the row reports no efficiency at all rather than a zero

@@ -364,6 +364,46 @@ def test_batch_variant_list_human(runner: CliRunner, cohort_fasta: Path, tmp_pat
     assert "base_abe" in result.output
 
 
+def test_batch_human_line_shows_the_interval_not_a_bare_estimate(
+    runner: CliRunner, cohort_fasta: Path, tmp_path: Path
+) -> None:
+    """The triage line is where a bare number gets taken at face value."""
+    import re
+
+    listing = _write_list(tmp_path, OK_1)
+    result = runner.invoke(
+        app,
+        ["batch", str(listing), "--reference-fasta", str(cohort_fasta), "--intent", "install"],
+    )
+    assert result.exit_code == 0
+    # `eff=0.61 [0.46,0.76]` — the estimate is never printed alone.
+    assert re.search(r"eff=\d\.\d\d \[\d\.\d\d,\d\.\d\d\]", result.output), result.output
+
+    payload = json.loads(
+        runner.invoke(
+            app,
+            [
+                "batch",
+                str(listing),
+                "--reference-fasta",
+                str(cohort_fasta),
+                "--intent",
+                "install",
+                "--json",
+            ],
+        ).output
+    )
+    row = payload["items"][0]
+    for field in (
+        "best_efficiency_low",
+        "best_efficiency_high",
+        "best_efficiency_in_distribution",
+        "best_caveats",
+    ):
+        assert field in row, f"{field} missing from the machine-readable cohort row"
+    assert row["best_efficiency_low"] <= row["best_efficiency"] <= row["best_efficiency_high"]
+
+
 def test_batch_json(runner: CliRunner, cohort_fasta: Path, tmp_path: Path) -> None:
     listing = _write_list(tmp_path, OK_1, OK_2)
     result = runner.invoke(

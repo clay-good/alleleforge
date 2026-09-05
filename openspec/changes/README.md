@@ -2897,6 +2897,33 @@ to complain. Human-facing surfaces get fixed first because someone eventually sq
 the TSV, the API response are consumed by code that never squints. Rank the surfaces by *who would notice
 the omission*, and do the silent ones first, not last.**
 
+## Round 103 — the principle the busiest surface did not follow
+
+The R102 lesson was to rank surfaces by *who would notice the omission*. By that ranking the cohort summary
+is the worst place in the system for an unqualified number, and it had one:
+
+```
+chr11:2001:A>T  ok  best=prime  eff=0.61  n=470
+```
+
+A bare point estimate, on the surface whose entire purpose is scanning hundreds of rows to decide which
+variants deserve a closer look. The README's own quickstart says, in a comment: *"Every numeric prediction
+carries a calibrated interval, never a bare float."* Every other render honours it. This one printed `0.61`
+for a prediction whose interval is `[0.46, 0.76]` and for an out-of-distribution guess alike, with nothing
+to tell them apart — and triage is exactly when a reader takes a number at face value, because looking
+closer is the thing they are deciding whether to do.
+
+**Shipped:** `eff=0.61 [0.46,0.76]`, an `OOD` marker, and the recommended candidate's hazards as
+`!close-nick` on the human line; `best_efficiency_low`, `best_efficiency_high`,
+`best_efficiency_in_distribution` and `best_caveats` on the machine-readable row and the summary TSV. An
+empty menu still reports `None` rather than a reassuring zero — the R56 distinction, preserved.
+
+**Lesson: a stated principle is worth grepping as a specification. "Never a bare float" is a testable claim
+about every surface, and it had been kept everywhere someone would read carefully and broken where they
+would not. The places a principle is *most* load-bearing are the summaries, the dashboards and the triage
+views — the ones written to be skimmed — and those are exactly the ones that get built with the short
+version of the number.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

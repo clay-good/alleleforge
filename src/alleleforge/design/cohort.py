@@ -38,6 +38,7 @@ from alleleforge._version import __version__
 from alleleforge.config import get_settings
 from alleleforge.design.designer import _EXPECTED_DESIGN_FAILURES, design
 from alleleforge.genome.reference import ReferenceGenome
+from alleleforge.report.builder import caveats
 from alleleforge.types.candidate import RankedMenu
 from alleleforge.types.edit import EditIntent
 from alleleforge.variant.resolver import ResolvedVariant, ResolveInput
@@ -131,7 +132,21 @@ def _summarize(menu: RankedMenu) -> dict[str, Any]:
         "n_candidates": len(menu.candidates),
         "chemistries": sorted({c.chemistry.value for c in menu.candidates}),
         "best_chemistry": best.chemistry.value if best else None,
+        # Interval and OOD flag beside the point estimate, not the point estimate alone.
+        # "Every numeric prediction carries a calibrated interval, never a bare float" is
+        # the project's stated principle, and this is the surface where it matters most:
+        # a cohort summary is scanned across hundreds of variants to decide which to look
+        # at, and a bare `eff=0.61` makes a confident prediction and an out-of-distribution
+        # guess look identical at exactly the moment nobody is reading the detail.
         "best_efficiency": (best.efficiency.value if best and best.efficiency else None),
+        "best_efficiency_low": (best.efficiency.interval[0] if best and best.efficiency else None),
+        "best_efficiency_high": (best.efficiency.interval[1] if best and best.efficiency else None),
+        "best_efficiency_in_distribution": (
+            best.efficiency.in_distribution if best and best.efficiency else None
+        ),
+        # The recommended candidate's hazards, so a triage scan surfaces the rows that
+        # need a closer look rather than only the ones with a poor number.
+        "best_caveats": ([flag for flag, _ in caveats(best.flags)] if best is not None else []),
         "best_bystander_burden": (
             best.bystander_burden.value if best and best.bystander_burden else None
         ),
