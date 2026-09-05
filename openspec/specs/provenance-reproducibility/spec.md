@@ -205,6 +205,13 @@ identifier for someone's genotypes into a shareable report.
 - **WHEN** a design consumes a haplotype panel
 - **THEN** its provenance names the panel and its content pin
 
+#### Scenario: A restricted off-target scan
+- **WHEN** the off-target search is restricted to a set of intervals
+- **THEN** the config snapshot records how many, how many bases they cover, and a
+  content pin of the canonicalized list — so a restricted result is distinguishable
+  from a genome-wide one, which reports far more sites for the same guide
+- **AND** an unrestricted scan records `null` rather than an empty summary
+
 #### Scenario: A personalized run
 - **WHEN** a design consumes personal variants
 - **THEN** its provenance records that fact and the variant count, with no content

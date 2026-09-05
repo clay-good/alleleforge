@@ -249,6 +249,16 @@ acceptance.
 
 ### Fixed
 
+- **A region-restricted off-target scan was indistinguishable from a genome-wide one.** The provenance
+  config snapshot recorded `intent`, `weights`, `populations`, `run_offtarget`, `cell_context` and the
+  resolved settings — but not the region restriction. A scan narrowed to a 100 bp window reports far fewer
+  sites than one over every contig, and nothing in the result said which had happened: **"0 off-target
+  sites" read identically either way.** That is the reassuring-value class again, on the safety axis. The
+  snapshot now records `null` for a genome-wide scan, and otherwise how many intervals, how many bases they
+  cover, and a content pin of the canonicalized list — compact enough not to carry a whole BED file, and
+  order-independent so two runs agree iff they restricted to the same intervals. `chromatin_track` is
+  recorded too, since it changes every efficiency number in the menu.
+
 - **A population- or haplotype-aware run recorded none of the data that made it so.** `_collect_datasets`
   looked at the reference, gnomAD and ClinVar, and only recorded a source carrying a `dataset_version`
   descriptor — which a file loaded from a path does not have. A haplotype panel and a patient variant set

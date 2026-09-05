@@ -448,3 +448,55 @@ def test_an_undescribed_source_is_simply_absent(make_reference: MakeRef) -> None
     )
     assert menu.provenance is not None
     assert not any(d.name == "gnomad-sites" for d in menu.provenance.datasets)
+
+
+def test_a_restricted_scan_is_distinguishable_from_a_genome_wide_one(
+    make_reference: MakeRef,
+) -> None:
+    """ "0 off-targets" must not read the same for a whole genome and a 100 bp window.
+
+    A restricted scan reports far fewer sites than a genome-wide one, and without a
+    record of the restriction the two results are identical to a reader — the
+    reassuring value again, on the safety axis.
+    """
+    reference = _prime_ref(make_reference)
+    wide = design(
+        "chr2:71:A>C", reference=reference, intent=EditIntent.INSTALL, run_offtarget=False
+    )
+    assert wide.provenance is not None
+    assert wide.provenance.config_snapshot["offtarget_regions"] is None  # whole genome
+
+    narrow = design(
+        "chr2:71:A>C",
+        reference=reference,
+        intent=EditIntent.INSTALL,
+        run_offtarget=False,
+        offtarget_regions=[GenomicInterval(chrom="chr2", start=0, end=140, strand=Strand.PLUS)],
+    )
+    assert narrow.provenance is not None
+    snapshot = narrow.provenance.config_snapshot["offtarget_regions"]
+    assert snapshot == {"n": 1, "bases": 140, "sha256": snapshot["sha256"]}
+    assert snapshot["sha256"]
+
+
+def test_the_region_pin_is_order_independent_but_content_sensitive(
+    make_reference: MakeRef,
+) -> None:
+    """Two runs agree iff they restricted to the same intervals, however ordered."""
+    reference = _prime_ref(make_reference)
+    a = GenomicInterval(chrom="chr2", start=0, end=50, strand=Strand.PLUS)
+    b = GenomicInterval(chrom="chr2", start=60, end=90, strand=Strand.PLUS)
+
+    def _pin(regions: list[GenomicInterval]) -> str:
+        menu = design(
+            "chr2:71:A>C",
+            reference=reference,
+            intent=EditIntent.INSTALL,
+            run_offtarget=False,
+            offtarget_regions=regions,
+        )
+        assert menu.provenance is not None
+        return str(menu.provenance.config_snapshot["offtarget_regions"]["sha256"])
+
+    assert _pin([a, b]) == _pin([b, a])
+    assert _pin([a, b]) != _pin([a])

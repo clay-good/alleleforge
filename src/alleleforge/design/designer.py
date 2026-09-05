@@ -25,6 +25,7 @@ from collections.abc import Callable, Iterable, Sequence
 from datetime import datetime
 
 from alleleforge._version import __version__
+from alleleforge.benchmark._canon import content_hash
 from alleleforge.config import Settings, get_settings
 from alleleforge.data.annotations import EncodeTracks
 from alleleforge.data.gnomad import GnomadDB
@@ -301,7 +302,13 @@ def design(
             "weights": outcome.weights,
             "populations": list(populations) if populations else [],
             "run_offtarget": run_offtarget,
+            # `None` means the whole genome was searched. A *restricted* scan
+            # reports far fewer sites than a genome-wide one, and without this the
+            # two results are indistinguishable — "0 off-targets" would read the
+            # same whether every contig or a 100 bp window was examined.
+            "offtarget_regions": _regions_snapshot(offtarget_regions),
             "cell_context": cell_context,
+            "chromatin_track": chromatin_track,
             # The full resolved settings (minus volatile paths) so the run is
             # re-derivable from what actually governed it, not a subset that drifts.
             "settings": cfg.snapshot(),
@@ -404,6 +411,26 @@ def _run_base_editors(
         ),
         notes,
     )
+
+
+def _regions_snapshot(
+    regions: Sequence[GenomicInterval] | None,
+) -> dict[str, object] | None:
+    """Summarize an off-target region restriction for the provenance snapshot.
+
+    ``None`` — the whole genome was searched. Otherwise a compact record: how many
+    intervals, how many bases they cover, and a content hash of the canonicalized
+    list, so a re-run can prove it used the same restriction without provenance
+    carrying a whole BED file.
+    """
+    if regions is None:
+        return None
+    canonical = sorted(f"{r.chrom}:{r.start}-{r.end}" for r in regions)
+    return {
+        "n": len(canonical),
+        "bases": sum(r.end - r.start for r in regions),
+        "sha256": content_hash(canonical),
+    }
 
 
 def _collect_datasets(

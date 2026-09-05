@@ -2237,6 +2237,31 @@ whatever nobody added to it. Also worth naming: the flattening (`tuple(panel)`) 
 descriptor was a line I wrote two rounds earlier for a good reason. Convenience conversions are where
 metadata goes to die.**
 
+## Round 83 — a scoped scan that looked exactly like a clean one
+
+R82 fixed *which data* a run consumed. The neighbouring question: does the result record *how much of the
+genome it looked at*?
+
+It did not. The provenance config snapshot carried `intent`, `weights`, `populations`, `run_offtarget`,
+`cell_context` and the resolved settings — and nothing about the region restriction I had added two rounds
+earlier. A scan narrowed to a 100 bp window reports far fewer off-targets than one over every contig, and
+**"0 off-target sites" read identically either way**. A user who scoped a run for speed, or inherited a
+scoped config, had no way to tell from the artifact that the search had been narrowed. Same class as the
+cohort's `worst_offtarget = 0.0` (R56) and the CLI's unlabelled `specificity` (R58): a number that is
+correct for what was measured, presented without what was measured.
+
+**Shipped:** `null` for a genome-wide scan; otherwise `{n, bases, sha256}` — how many intervals, how much
+sequence, and a content pin of the canonicalized list. Compact enough not to drag a whole BED file into
+provenance, order-independent (sorted before hashing) so two runs agree iff they restricted to the same
+intervals, and content-sensitive so a different panel does not collide. `chromatin_track` is recorded too,
+since it changes every efficiency number in the menu.
+
+**Lesson: this is the third instance of one shape, so it is worth stating as a rule rather than a story —
+*any parameter that narrows what was examined must appear beside the result*. Not for reproducibility,
+which is the usual argument, but because the result's *meaning* depends on it: "we found nothing" is a
+different claim from "we found nothing in the 140 bases we looked at", and only one of them is what the
+number alone conveys. When adding a knob that scopes work, add it to the record in the same change.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
