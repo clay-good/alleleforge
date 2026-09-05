@@ -16,7 +16,13 @@ from typing import Protocol
 
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
-from alleleforge.enumerate.cas9 import NGG_PAM, carried_allele, enumerate_cas9, guide_context
+from alleleforge.enumerate.cas9 import (
+    NGG_PAM,
+    carried_allele,
+    enumerate_cas9,
+    guide_context,
+    hdr_donor,
+)
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.model_zoo.registry import ModelCard
 from alleleforge.offtarget.engine import search as offtarget_search
@@ -25,7 +31,7 @@ from alleleforge.scoring.cas9_efficiency import EnsembleEfficiencyScorer
 from alleleforge.scoring.cas9_outcome import MicrohomologyOutcomePredictor
 from alleleforge.types.candidate import DesignCandidate
 from alleleforge.types.edit import Chemistry, EditIntent, EditOutcome
-from alleleforge.types.guide import PAM, Guide
+from alleleforge.types.guide import PAM, Guide, HDRDonor
 from alleleforge.types.offtarget import OffTargetReport
 from alleleforge.types.prediction import Prediction
 from alleleforge.types.provenance import ModelCheckpoint
@@ -96,7 +102,12 @@ def _cut_outcome(
 
 
 def _flags(
-    guide: Guide, efficiency: Prediction[float], offreport: OffTargetReport | None
+    guide: Guide,
+    efficiency: Prediction[float],
+    offreport: OffTargetReport | None,
+    donor: HDRDonor | None,
+    *,
+    precise: bool,
 ) -> tuple[str, ...]:
     """Return free-form annotations for a candidate."""
     flags: list[str] = []
@@ -106,7 +117,41 @@ def _flags(
         flags.append("ood")
     if offreport is not None and offreport.population_sites:
         flags.append("population-offtarget")
+    if precise:
+        # A precise nuclease candidate is only a complete reagent with its repair
+        # template. Say which of the three states it is in, rather than let a bare
+        # guide read as a correction it cannot make on its own.
+        if donor is None:
+            flags.append("hdr-donor:none")
+        elif donor.recut_blocked:
+            flags.append("hdr-donor:recut-blocked")
+        else:
+            flags.append("hdr-donor:recut-not-blocked")
+        # NHEJ, not HDR, is the majority repair outcome at a double-strand break.
+        # The outcome distribution below is the NHEJ indel spectrum, which is the
+        # *byproduct* of this strategy, not the intended correction.
+        flags.append("outcome-is-nhej-spectrum")
     return tuple(flags)
+
+
+def _rationale(
+    guide: Guide,
+    efficiency: Prediction[float],
+    donor: HDRDonor | None,
+    *,
+    precise: bool,
+) -> str:
+    """Return the one-line standing note for a nuclease candidate."""
+    note = (
+        f"{guide.pam.pattern} guide on {guide.placement.strand.value} strand, "
+        f"cut {guide.cut_site}; efficiency {efficiency.value:.2f}"
+    )
+    if not precise:
+        return note
+    if donor is None:
+        return f"{note}; no HDR donor available (a break alone cannot make this edit)"
+    recut = "re-cut blocked" if donor.recut_blocked else "re-cut NOT blocked"
+    return f"{note}; HDR donor {len(donor.sequence)} nt ({recut})"
 
 
 def cas9_model_checkpoints(
@@ -183,6 +228,7 @@ def design_cas9(
     scorer: Cas9EfficiencyScorer = efficiency_scorer or EnsembleEfficiencyScorer()
     predictor: Cas9OutcomePredictor = outcome_predictor or MicrohomologyOutcomePredictor()
     mark_fs = intent is EditIntent.KNOCK_OUT
+    precise = carried_allele(resolved, intent) is not None
 
     # A scorer may declare the asymmetric window it reads (e.g. the trained Rule
     # Set 3 model's 30-mer); otherwise the symmetric default applies.
@@ -202,6 +248,11 @@ def design_cas9(
             who=scorer.name,
         )
         outcome = _cut_outcome(guide, reference, predictor, mark_fs, overlay=overlay)
+        # A precise intent needs a repair template: the break alone is repaired by
+        # error-prone NHEJ and corrects nothing. `hdr_donor` also checks the
+        # repaired product against this guide and carries a PAM-blocking silent
+        # mutation when the correction would otherwise remain a Cas9 substrate.
+        donor = hdr_donor(resolved, intent, reference=reference, guide=guide) if precise else None
         offreport: OffTargetReport | None = None
         if run_offtarget:
             offreport = offtarget_search(
@@ -219,14 +270,12 @@ def design_cas9(
             DesignCandidate(
                 chemistry=Chemistry.CAS9_NUCLEASE,
                 guide=guide,
+                hdr_donor=donor,
                 efficiency=efficiency,
                 outcome=outcome,
                 offtarget=offreport,
-                flags=_flags(guide, efficiency, offreport),
-                rationale=(
-                    f"{guide.pam.pattern} guide on {guide.placement.strand.value} strand, "
-                    f"cut {guide.cut_site}; efficiency {efficiency.value:.2f}"
-                ),
+                flags=_flags(guide, efficiency, offreport, donor, precise=precise),
+                rationale=_rationale(guide, efficiency, donor, precise=precise),
             )
         )
     candidates.sort(key=_candidate_sort_key, reverse=False)

@@ -10,6 +10,28 @@ acceptance.
 
 ### Added
 
+- **A precise-intent Cas9 candidate now carries the HDR donor that actually makes the edit.** `design_cas9`
+  produced bare guides for CORRECT / REVERT / INSTALL intents — advertising a double-strand break as a
+  correction it cannot make, since NHEJ repair yields indels, not the intended allele. `DesignCandidate`
+  gains `hdr_donor`; the vertical attaches the donor `hdr_donor()` builds (including its PAM-blocking silent
+  mutation when the repaired product would otherwise stay a Cas9 substrate), flags which of the three
+  states the candidate is in (`hdr-donor:recut-blocked` / `:recut-not-blocked` / `:none`), and flags
+  `outcome-is-nhej-spectrum` so the attached distribution is not read as the correction. The report's
+  reagent line names the pair, not just the guide. A knock-out candidate is unchanged: it wants the break
+  itself, so it carries no donor and none of the flags. **Routing still does not offer the nuclease for a
+  precise intent** — that is the remaining step, and the rule's rationale says so explicitly rather than
+  leaving the gap silent.
+
+- **A guard that the published JSON Schemas match the code — and ten that had already drifted.**
+  `docs/schemas/` is the machine-readable contract AlleleForge publishes, consumed by people who never read
+  the Python. Nothing regenerated it automatically and nothing checked it, and the exporter's own docstring
+  claimed it was "wired into the docs build" when nothing referenced it. Ten committed schemas were stale;
+  most consequentially, `Variant` — the core input type — had been missing its `source_assembly` field for
+  several releases, so a consumer validating against the published schema would have **rejected a document
+  the library emits**. All ten are regenerated, the false claim is corrected, and
+  `test_committed_schemas_match_the_code` now fails (naming the stale files and the regeneration command)
+  whenever they fall behind again.
+
 - **An acceptance test carries a small deletion from variant to rendered page.** The unit suites prove
   each hop of the variable-length RT template path; nothing proved the hop none of them own — that the
   edit's *identity*, not just its geometry, survives routing, design, ranking, the report builder, and the

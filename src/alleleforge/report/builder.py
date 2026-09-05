@@ -48,10 +48,18 @@ def _reagent_summary(candidate: DesignCandidate) -> str:
     """Return a one-line human description of the candidate's reagent."""
     if candidate.guide is not None:
         g = candidate.guide
-        return (
+        line = (
             f"SpCas9 sgRNA {g.spacer.sequence} "
             f"({g.pam.pattern} PAM, {g.placement.strand.value} strand, cut {g.cut_site})"
         )
+        # A precise nuclease candidate is a *pair*: the guide and its repair
+        # template. Naming only the guide would describe half a reagent and read
+        # as a correction the break alone cannot make.
+        donor = candidate.hdr_donor
+        if donor is not None:
+            recut = "re-cut blocked" if donor.recut_blocked else "re-cut NOT blocked"
+            line += f" + HDR donor {len(donor.sequence)} nt ({recut})"
+        return line
     if candidate.base_edit_window is not None:
         w = candidate.base_edit_window
         return f"{w.editor} sgRNA {w.spacer.sequence} (window {w.window[0]}-{w.window[1]})"

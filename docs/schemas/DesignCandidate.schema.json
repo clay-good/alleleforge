@@ -106,6 +106,35 @@
       "title": "BaseEditWindow",
       "type": "object"
     },
+    "BlockingMutation": {
+      "description": "A silent PAM/seed-disrupting change carried by an HDR donor.\n\nA correcting HDR donor whose repaired product still presents the guide's PAM\nand seed would be re-cleaved by the same Cas9. This records the extra change\nthe donor carries to prevent that re-cut.\n\nAttributes:\n    position: 0-based genomic coordinate of the disrupted base.\n    reference_base: The plus-strand base in the reference / repaired product.\n    donor_base: The plus-strand base the donor substitutes instead.\n    region: Where the change lands (``\"pam\"`` or ``\"seed\"``).",
+      "properties": {
+        "donor_base": {
+          "title": "Donor Base",
+          "type": "string"
+        },
+        "position": {
+          "title": "Position",
+          "type": "integer"
+        },
+        "reference_base": {
+          "title": "Reference Base",
+          "type": "string"
+        },
+        "region": {
+          "title": "Region",
+          "type": "string"
+        }
+      },
+      "required": [
+        "position",
+        "reference_base",
+        "donor_base",
+        "region"
+      ],
+      "title": "BlockingMutation",
+      "type": "object"
+    },
     "Chemistry": {
       "description": "The editing chemistries AlleleForge designs for.",
       "enum": [
@@ -222,6 +251,47 @@
         "cut_site"
       ],
       "title": "Guide",
+      "type": "object"
+    },
+    "HDRDonor": {
+      "description": "An HDR donor template with an explicit re-cut disposition.\n\nAttributes:\n    sequence: The donor sequence (5'->3' plus strand), including any blocking\n        mutation applied.\n    blocking_mutation: The PAM/seed-disrupting change the donor carries, or\n        ``None`` when the repair already escapes the guide or none was found.\n    recut_blocked: ``True`` when the repaired product is not a substrate for\n        the guide (either the edit itself escapes it, or a blocking mutation\n        was applied). ``False`` when the donor remains re-cuttable.\n    note: Human-readable disposition (e.g. why no blocking mutation exists).",
+      "properties": {
+        "blocking_mutation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BlockingMutation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "recut_blocked": {
+          "default": false,
+          "title": "Recut Blocked",
+          "type": "boolean"
+        },
+        "sequence": {
+          "$ref": "#/$defs/DNASequence"
+        }
+      },
+      "required": [
+        "sequence"
+      ],
+      "title": "HDRDonor",
       "type": "object"
     },
     "NickingGuide": {
@@ -437,7 +507,7 @@
       "type": "object"
     },
     "PegRNA": {
-      "description": "A prime-editing guide RNA with validated PBS/RTT geometry.\n\nAttributes:\n    spacer: The pegRNA spacer (defines the nick).\n    scaffold: The sgRNA scaffold sequence.\n    rtt: Reverse-transcriptase template (encodes the edit + 3' homology).\n    pbs: Primer-binding site.\n    three_prime_motif: Optional structured 3' motif (default tevopreQ1).\n    rtt_homology_3prime: Homology length (nt) the RTT places 3' of the edit.\n    nicking_guide: Optional PE3/PE3b nicking guide.\n    placement: The pegRNA protospacer's genomic interval, if placed.\n    nick_site: 0-based genomic coordinate of the pegRNA-induced nick, if placed.",
+      "description": "A prime-editing guide RNA with validated PBS/RTT geometry.\n\nAttributes:\n    spacer: The pegRNA spacer (defines the nick).\n    scaffold: The sgRNA scaffold sequence.\n    rtt: Reverse-transcriptase template (encodes the edit + 3' homology).\n    pbs: Primer-binding site.\n    three_prime_motif: Optional structured 3' motif (default tevopreQ1).\n    rtt_homology_5prime: Homology length (nt) the RTT carries between the nick\n        and the edit \u2014 the nick-to-edit distance. Zero means the nick abuts\n        the edit, which is what an unspecified pegRNA is read as.\n    rtt_homology_3prime: Homology length (nt) the RTT places 3' of the edit.\n    nicking_guide: Optional PE3/PE3b nicking guide.\n    placement: The pegRNA protospacer's genomic interval, if placed.\n    nick_site: 0-based genomic coordinate of the pegRNA-induced nick, if placed.",
       "properties": {
         "nick_site": {
           "anyOf": [
@@ -482,6 +552,11 @@
         "rtt_homology_3prime": {
           "default": 5,
           "title": "Rtt Homology 3Prime",
+          "type": "integer"
+        },
+        "rtt_homology_5prime": {
+          "default": 0,
+          "title": "Rtt Homology 5Prime",
           "type": "integer"
         },
         "scaffold": {
@@ -631,7 +706,7 @@
       "type": "string"
     }
   },
-  "description": "One scored design option for a variant.\n\nAttributes:\n    chemistry: The chemistry this candidate uses.\n    guide: The reagent, when it is a Cas9 nuclease guide.\n    base_edit_window: The reagent, when it is a base-editor sgRNA + window.\n    pegrna: The reagent, when it is a prime-editing pegRNA.\n    efficiency: Calibrated on-target efficiency prediction. For base editing\n        this carries ``p_intended_exact`` (the probability of the exact\n        intended allele), the dimension the chemistry is ranked on.\n    bystander_burden: Calibrated expected number of bystander edits, for\n        base-editor candidates (``None`` for nuclease / prime candidates).\n    outcome: Predicted edit-outcome distribution.\n    offtarget: Ancestry-stratified off-target report.\n    flags: Free-form annotations (e.g. ``\"ood\"``, ``\"bystander-risk\"``).\n    rationale: Human-readable note on this candidate's standing.",
+  "description": "One scored design option for a variant.\n\nAttributes:\n    chemistry: The chemistry this candidate uses.\n    guide: The reagent, when it is a Cas9 nuclease guide.\n    base_edit_window: The reagent, when it is a base-editor sgRNA + window.\n    pegrna: The reagent, when it is a prime-editing pegRNA.\n    hdr_donor: The repair template a *precise* nuclease candidate needs. A\n        double-strand break alone cannot correct anything \u2014 it is repaired by\n        error-prone NHEJ \u2014 so a nuclease candidate offered for a correction is\n        only a complete reagent when this donor accompanies its guide.\n    efficiency: Calibrated on-target efficiency prediction. For base editing\n        this carries ``p_intended_exact`` (the probability of the exact\n        intended allele), the dimension the chemistry is ranked on.\n    bystander_burden: Calibrated expected number of bystander edits, for\n        base-editor candidates (``None`` for nuclease / prime candidates).\n    outcome: Predicted edit-outcome distribution.\n    offtarget: Ancestry-stratified off-target report.\n    flags: Free-form annotations (e.g. ``\"ood\"``, ``\"bystander-risk\"``).\n    rationale: Human-readable note on this candidate's standing.",
   "properties": {
     "base_edit_window": {
       "anyOf": [
@@ -681,6 +756,17 @@
       "anyOf": [
         {
           "$ref": "#/$defs/Guide"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "hdr_donor": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/HDRDonor"
         },
         {
           "type": "null"

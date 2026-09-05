@@ -1,8 +1,16 @@
 #!/usr/bin/env python
 """Emit JSON Schema for every public AlleleForge model into ``docs/schemas/``.
 
-Wired into the docs build so the published schemas never drift from the code.
-Run directly: ``python scripts/export_schemas.py [output_dir]``.
+The files under ``docs/schemas/`` are the machine-readable contract AlleleForge
+publishes, and they are consumed by people who never read the Python. Nothing
+regenerates them automatically: run this script after changing any exported model
+(``python scripts/export_schemas.py [output_dir]``).
+
+``tests/test_schemas.py::test_committed_schemas_match_the_code`` fails when the
+committed files fall behind, which is what keeps them honest. That guard exists
+because they *did* drift — for several releases the published ``Variant`` schema
+was missing ``source_assembly``, so a consumer validating against it would have
+rejected a document the library emits.
 """
 
 from __future__ import annotations

@@ -1379,6 +1379,42 @@ surfaced it in a minute. Second: `len(allele) == len(ref)` appeared in two place
 sweep for the *pattern* rather than the *symptom* would have caught both; grep for the condition you just
 deleted, not the function you just fixed.**
 
+## Round 52 — half a reagent, and ten schemas nobody was watching (1 feature step; 1 silent drift)
+
+R51 declared the gap: nuclease-plus-HDR is the right tool for a precise edit beyond prime's RT template
+budget, but `design_cas9` never attached a donor, so routing it would advertise a bare double-strand break
+as a correction. This round builds the foundation — the candidate must be a complete reagent before any
+rule may offer it.
+
+- **`feat(design)` a precise nuclease candidate carries its repair template.** `DesignCandidate` gains
+  `hdr_donor`; the vertical attaches what `hdr_donor()` builds (PAM-blocking silent mutation included),
+  flags its re-cut disposition (`hdr-donor:recut-blocked` / `:recut-not-blocked` / `:none`), and flags
+  `outcome-is-nhej-spectrum` so the attached distribution is not misread as the correction — NHEJ, not HDR,
+  is the majority repair outcome at a break. The reagent line names the pair. Knock-out candidates are
+  untouched: they want the break itself. **Routing deliberately still does not offer it** — that is the
+  next step, and the rule's rationale says so.
+- **A caught precedence bug, mine.** The rationale was first written as
+  `f"..." + (... if donor else ...) if precise else ""`, which Python parses as `(A + B) if C else D` — so
+  every *knock-out* rationale silently became the empty string. An existing test caught it immediately.
+  Rewritten as a named helper; a conditional that convoluted was the wrong shape regardless.
+- **`fix(docs)` ten published JSON Schemas had drifted, and nothing was watching.** Adding a field to
+  `DesignCandidate` moved the reproducibility golden, which prompted regenerating `docs/schemas/` — and
+  **ten** files changed, most of them for reasons predating this session. `Variant`, the core input type,
+  had been missing `source_assembly` for several releases: a consumer validating against the *published*
+  schema would have **rejected a document the library emits**. The exporter's docstring claimed it was
+  "wired into the docs build"; nothing referenced it. Regenerated all ten, corrected the claim, and added
+  `test_committed_schemas_match_the_code`, which names the stale files and the command that fixes them.
+  Mutation-checked by deleting `source_assembly` from the committed file.
+
+**Lesson: the published artifact and the code are two different things, and only one of them has tests. The
+schemas drifted for releases behind a docstring asserting they could not — the same shape as R48's stale
+speedup, and again invisible to every gate, because a stale generated file is still a green build. Any
+generated artifact committed to the repo needs a test that regenerates it and compares; without one, the
+comment claiming it stays fresh is the only thing keeping it fresh, and comments do not run. Second, on
+scope: the honest move when a feature is half-built is to ship the half that is *complete and correct* (a
+candidate that carries its donor) and leave the rule that would expose it switched off, with the reason
+written down — not to flip the switch and let the menu advertise a break as a correction.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

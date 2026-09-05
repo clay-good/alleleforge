@@ -117,6 +117,29 @@ knockout intent.
 - **WHEN** the cut lies outside the outcome context window
 - **THEN** the outcome predictor raises `ValueError`
 
+### Requirement: A precise nuclease candidate carries its repair template
+
+A double-strand break alone corrects nothing — it is repaired by error-prone NHEJ
+into indels — so a nuclease candidate offered for a CORRECT, REVERT, or INSTALL
+intent SHALL carry the HDR donor that makes the edit, or state that none was
+available. It SHALL also flag whether the repaired product is still a Cas9
+substrate, and SHALL flag that its attached outcome distribution is the NHEJ
+byproduct spectrum rather than the intended correction. A knock-out candidate,
+which wants the break itself, SHALL carry no donor and none of these flags.
+
+#### Scenario: Precise intent
+- **WHEN** the nuclease vertical designs for a precise intent
+- **THEN** every candidate carries an `HDRDonor`, an `hdr-donor:*` flag naming its
+  re-cut disposition, and an `outcome-is-nhej-spectrum` flag
+
+#### Scenario: Knock-out intent
+- **WHEN** the nuclease vertical designs for a disruption intent
+- **THEN** no donor is attached and no donor flags are emitted
+
+#### Scenario: The reagent line names the pair
+- **WHEN** a precise nuclease candidate is summarized for a reader
+- **THEN** the line names the donor and its re-cut disposition, not the guide alone
+
 ### Requirement: An HDR donor is not a substrate for re-cutting
 
 When `hdr_donor` proposes an HDR template for a precise correction and is given the guide

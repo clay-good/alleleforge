@@ -12,7 +12,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict
 
 from alleleforge.types.edit import Chemistry, EditOutcome
-from alleleforge.types.guide import BaseEditWindow, Guide, PegRNA
+from alleleforge.types.guide import BaseEditWindow, Guide, HDRDonor, PegRNA
 from alleleforge.types.offtarget import OffTargetReport
 from alleleforge.types.prediction import Prediction
 from alleleforge.types.provenance import Provenance
@@ -26,6 +26,10 @@ class DesignCandidate(BaseModel):
         guide: The reagent, when it is a Cas9 nuclease guide.
         base_edit_window: The reagent, when it is a base-editor sgRNA + window.
         pegrna: The reagent, when it is a prime-editing pegRNA.
+        hdr_donor: The repair template a *precise* nuclease candidate needs. A
+            double-strand break alone cannot correct anything — it is repaired by
+            error-prone NHEJ — so a nuclease candidate offered for a correction is
+            only a complete reagent when this donor accompanies its guide.
         efficiency: Calibrated on-target efficiency prediction. For base editing
             this carries ``p_intended_exact`` (the probability of the exact
             intended allele), the dimension the chemistry is ranked on.
@@ -43,6 +47,7 @@ class DesignCandidate(BaseModel):
     guide: Guide | None = None
     base_edit_window: BaseEditWindow | None = None
     pegrna: PegRNA | None = None
+    hdr_donor: HDRDonor | None = None
     efficiency: Prediction[float] | None = None
     bystander_burden: Prediction[float] | None = None
     outcome: EditOutcome | None = None

@@ -115,7 +115,7 @@
       "type": "string"
     }
   },
-  "description": "A prime-editing guide RNA with validated PBS/RTT geometry.\n\nAttributes:\n    spacer: The pegRNA spacer (defines the nick).\n    scaffold: The sgRNA scaffold sequence.\n    rtt: Reverse-transcriptase template (encodes the edit + 3' homology).\n    pbs: Primer-binding site.\n    three_prime_motif: Optional structured 3' motif (default tevopreQ1).\n    rtt_homology_3prime: Homology length (nt) the RTT places 3' of the edit.\n    nicking_guide: Optional PE3/PE3b nicking guide.\n    placement: The pegRNA protospacer's genomic interval, if placed.\n    nick_site: 0-based genomic coordinate of the pegRNA-induced nick, if placed.",
+  "description": "A prime-editing guide RNA with validated PBS/RTT geometry.\n\nAttributes:\n    spacer: The pegRNA spacer (defines the nick).\n    scaffold: The sgRNA scaffold sequence.\n    rtt: Reverse-transcriptase template (encodes the edit + 3' homology).\n    pbs: Primer-binding site.\n    three_prime_motif: Optional structured 3' motif (default tevopreQ1).\n    rtt_homology_5prime: Homology length (nt) the RTT carries between the nick\n        and the edit \u2014 the nick-to-edit distance. Zero means the nick abuts\n        the edit, which is what an unspecified pegRNA is read as.\n    rtt_homology_3prime: Homology length (nt) the RTT places 3' of the edit.\n    nicking_guide: Optional PE3/PE3b nicking guide.\n    placement: The pegRNA protospacer's genomic interval, if placed.\n    nick_site: 0-based genomic coordinate of the pegRNA-induced nick, if placed.",
   "properties": {
     "nick_site": {
       "anyOf": [
@@ -160,6 +160,11 @@
     "rtt_homology_3prime": {
       "default": 5,
       "title": "Rtt Homology 3Prime",
+      "type": "integer"
+    },
+    "rtt_homology_5prime": {
+      "default": 0,
+      "title": "Rtt Homology 5Prime",
       "type": "integer"
     },
     "scaffold": {

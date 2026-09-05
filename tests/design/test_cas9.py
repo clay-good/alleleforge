@@ -140,3 +140,33 @@ def test_rationale_recorded(make_reference: MakeRef) -> None:
     ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
     top = _design(ref, EditIntent.KNOCK_OUT)[0]
     assert top.rationale is not None and "efficiency" in top.rationale
+
+
+def test_precise_intent_candidates_carry_an_hdr_donor(make_reference: MakeRef) -> None:
+    """A break alone corrects nothing — a precise nuclease candidate needs its template.
+
+    Offering a bare guide for a correction advertises a double-strand break as an
+    edit it cannot make: NHEJ repair yields indels, not the intended allele. Every
+    precise-intent candidate must therefore carry its repair template, say whether
+    the repaired product is still a Cas9 substrate, and say that the outcome
+    distribution attached to it is the NHEJ byproduct spectrum, not the correction.
+    """
+    ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    candidates = _design(ref, EditIntent.CORRECT)
+    assert candidates
+    for candidate in candidates:
+        assert candidate.hdr_donor is not None, "precise candidate offered without a template"
+        assert str(candidate.hdr_donor.sequence)
+        assert any(f.startswith("hdr-donor:") for f in candidate.flags)
+        assert "outcome-is-nhej-spectrum" in candidate.flags
+        assert candidate.rationale is not None and "HDR donor" in candidate.rationale
+
+
+def test_knock_out_candidates_carry_no_donor_and_no_donor_flags(make_reference: MakeRef) -> None:
+    """A disruption intent wants the break itself; a template would be noise."""
+    ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    for candidate in _design(ref, EditIntent.KNOCK_OUT):
+        assert candidate.hdr_donor is None
+        assert not any(f.startswith("hdr-donor:") for f in candidate.flags)
+        assert "outcome-is-nhej-spectrum" not in candidate.flags
+        assert candidate.rationale is not None and "HDR donor" not in candidate.rationale

@@ -44,7 +44,7 @@
       "type": "object"
     },
     "CandidateReport": {
-      "description": "One candidate, flattened for presentation and export.\n\nAttributes:\n    rank: 1-based rank within the menu.\n    chemistry: The candidate's chemistry.\n    on_pareto_front: Whether the candidate is Pareto-optimal.\n    reagent: A one-line human description of the reagent.\n    efficiency: The calibrated efficiency prediction, if scored.\n    bystander_burden: Calibrated expected bystander-edit count, for\n        base-editor candidates (``None`` otherwise).\n    p_intended: Summed probability of the intended allele(s), if scored.\n    outcome_top: The highest-probability outcome alleles (descending).\n    n_offtarget_sites: Number of nominated off-target sites, if searched.\n    offtarget_specificity: Aggregate genome-wide specificity in ``(0, 1]``\n        (Hsu-2013-style ``1/(1+\u03a3 scores)``), if searched; ``1.0`` = no off-targets.\n    offtarget_by_ancestry: Worst-case off-target score per ancestry.\n    oligos: Cloning-ready oligos for the reagent, if requested.\n    oligos_requested: Whether oligos were requested for this report. Lets a\n        render distinguish a **reagent-free** candidate (requested, but nothing\n        to synthesize) from one where oligos were simply not asked for, so a\n        reagent-free candidate can say so rather than omitting the section.\n    flags: Free-form candidate flags.\n    rationale: The candidate's ranking rationale.",
+      "description": "One candidate, flattened for presentation and export.\n\nAttributes:\n    rank: 1-based rank within the menu.\n    chemistry: The candidate's chemistry.\n    on_pareto_front: Whether the candidate is Pareto-optimal.\n    reagent: A one-line human description of the reagent.\n    efficiency: The calibrated efficiency prediction, if scored.\n    bystander_burden: Calibrated expected bystander-edit count, for\n        base-editor candidates (``None`` otherwise).\n    p_intended: Summed probability of the intended allele(s), if scored.\n    outcome_top: The highest-probability outcome alleles (descending).\n    n_offtarget_sites: Number of nominated off-target sites, if searched.\n    offtarget_specificity: Aggregate genome-wide specificity in ``(0, 1]``\n        (Hsu-2013-style ``1/(1+\u03a3 scores)``), if searched; ``1.0`` = no off-targets.\n    offtarget_by_ancestry: Worst-case off-target score per ancestry.\n    offtarget_scorer: Name of the specificity scorer that produced the site\n        scores (e.g. ``\"CFD\"``), so a reader can tell which scorer was used.\n    offtarget_matrix: Identity of the weight source the scorer used (published\n        CFD versus the labeled approximation), so a reader can tell the scoring\n        basis without inspecting the code.\n    oligos: Cloning-ready oligos for the reagent, if requested.\n    oligos_requested: Whether oligos were requested for this report. Lets a\n        render distinguish a **reagent-free** candidate (requested, but nothing\n        to synthesize) from one where oligos were simply not asked for, so a\n        reagent-free candidate can say so rather than omitting the section.\n    flags: Free-form candidate flags.\n    rationale: The candidate's ranking rationale.",
       "properties": {
         "bystander_burden": {
           "anyOf": [
@@ -93,6 +93,30 @@
           },
           "title": "Offtarget By Ancestry",
           "type": "array"
+        },
+        "offtarget_matrix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Offtarget Matrix"
+        },
+        "offtarget_scorer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Offtarget Scorer"
         },
         "offtarget_specificity": {
           "anyOf": [

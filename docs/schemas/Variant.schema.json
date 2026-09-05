@@ -29,7 +29,7 @@
       "type": "object"
     }
   },
-  "description": "A normalized sequence variant in 0-based coordinates.\n\nAttributes:\n    chrom: Contig / chromosome name.\n    pos: 0-based start coordinate of the ``ref`` allele.\n    ref: Reference allele (may be empty for a pure insertion after trimming).\n    alt: Alternate allele (may be empty for a pure deletion after trimming).\n    build: Reference genome build (e.g. ``\"hg38\"``).\n    hgvs_g: Optional genomic HGVS string.\n    hgvs_c: Optional coding HGVS string.\n    hgvs_p: Optional protein HGVS string.\n    clinvar: Optional source ClinVar accession.\n    rsid: Optional source dbSNP rsID.",
+  "description": "A normalized sequence variant in 0-based coordinates.\n\nAttributes:\n    chrom: Contig / chromosome name.\n    pos: 0-based start coordinate of the ``ref`` allele.\n    ref: Reference allele (may be empty for a pure insertion after trimming).\n    alt: Alternate allele (may be empty for a pure deletion after trimming).\n    build: Reference genome build (e.g. ``\"hg38\"``).\n    source_assembly: The native assembly a database record was parsed from\n        (e.g. ``\"GRCh37\"``), or ``None`` when unknown / not database-sourced.\n        Recorded so ``resolve`` can reconcile \u2014 not overwrite \u2014 the source\n        build against the requested one.\n    hgvs_g: Optional genomic HGVS string.\n    hgvs_c: Optional coding HGVS string.\n    hgvs_p: Optional protein HGVS string.\n    clinvar: Optional source ClinVar accession.\n    rsid: Optional source dbSNP rsID.",
   "properties": {
     "alt": {
       "title": "Alt",
@@ -109,6 +109,18 @@
         }
       ],
       "default": null
+    },
+    "source_assembly": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Assembly"
     }
   },
   "required": [

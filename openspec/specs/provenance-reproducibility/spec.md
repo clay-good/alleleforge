@@ -158,3 +158,14 @@ committed golden, exiting non-zero on drift.
 #### Scenario: Determinism drift
 - **WHEN** any scientific field of the acceptance menu changes
 - **THEN** the golden digest mismatches and the audit exits non-zero
+
+### Requirement: Published schemas match the code
+
+The JSON Schema files under `docs/schemas/` are the machine-readable contract the
+project publishes, consumed by people who never read the Python. They SHALL be a
+current export of the models: a test SHALL fail when any committed schema falls
+behind, naming the stale files and the command that regenerates them.
+
+#### Scenario: A model gains a field
+- **WHEN** an exported model changes and the committed schemas are not regenerated
+- **THEN** the schema-freshness test fails and names the stale files

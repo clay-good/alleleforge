@@ -139,3 +139,31 @@ def test_pegrna_reagent_line_says_what_the_rt_template_writes() -> None:
         ),
     )
     assert "writing 4 nt" in _reagent_summary(candidate)
+
+
+def test_a_precise_nuclease_reagent_line_names_its_donor() -> None:
+    """Naming only the guide would describe half a reagent."""
+    from alleleforge.types.guide import PAM, Guide, HDRDonor
+    from alleleforge.types.sequence import GenomicInterval, Strand
+
+    guide = Guide(
+        spacer=Spacer(sequence=DNASequence("ACGTACGTACGTACGTACGT")),
+        pam=PAM(pattern="NGG"),
+        pam_sequence=DNASequence("TGG"),
+        placement=GenomicInterval(chrom="chr1", start=10, end=30, strand=Strand.PLUS),
+        cut_site=27,
+    )
+    donor = HDRDonor(sequence=DNASequence("ACGT" * 25), recut_blocked=True, note="n")
+    candidate = DesignCandidate(
+        chemistry=Chemistry.CAS9_NUCLEASE,
+        guide=guide,
+        hdr_donor=donor,
+        efficiency=Prediction[float](
+            value=0.5, interval=(0.4, 0.6), interval_level=0.8, method=UncertaintyMethod.HEURISTIC
+        ),
+    )
+    summary = _reagent_summary(candidate)
+    assert "HDR donor 100 nt" in summary
+    assert "re-cut blocked" in summary
+    # A knock-out candidate has no donor and must not grow the clause.
+    assert "HDR donor" not in _reagent_summary(candidate.model_copy(update={"hdr_donor": None}))
