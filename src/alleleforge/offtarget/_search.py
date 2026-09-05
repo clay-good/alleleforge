@@ -185,22 +185,35 @@ def _best_with_removed_base(longer: str, shorter: str, max_mm: int) -> tuple[int
     in the search space.
     """
     n = len(shorter)
-    # prefix[r]: mismatches over the first r positions, which removing r leaves intact.
+    # prefix[r]: mismatches over the first r positions, which removing r leaves
+    # intact. It only grows, so once it passes the budget no larger r can qualify
+    # and the pass stops -- on a random window that is after a handful of bases.
     prefix = [0] * (n + 1)
     running = 0
+    r_max = n
     for i in range(n):
         running += longer[i] != shorter[i]
+        if running > max_mm:
+            r_max = i
+            break
         prefix[i + 1] = running
     # suffix[r]: mismatches between longer[r+1:] and shorter[r:], the shifted tail.
+    # It only grows as r decreases, so the same bound applies from the other end.
     suffix = [0] * (n + 1)
     running = 0
+    r_min = 0
     for r in range(n - 1, -1, -1):
         running += longer[r + 1] != shorter[r]
+        if running > max_mm:
+            r_min = r + 1
+            break
         suffix[r] = running
+    if r_min > r_max:
+        return None  # no removal position is within budget from both ends
 
     best_mm = -1
     best_r = -1
-    for r in range(n + 1):
+    for r in range(r_min, r_max + 1):
         mm = prefix[r] + suffix[r]
         if mm <= max_mm and (best_r < 0 or mm < best_mm):
             best_mm, best_r = mm, r
@@ -324,6 +337,7 @@ def _scan_one_strand(
         else None
     )
     hits: list[tuple[int, int, str, int, int, int, str, str]] = []
+    pam_ok: dict[str, bool] = {}
     for pam_at in range(len(spacer) - 1, len(seq) - pam_len + 1):
         if covered is not None:
             # Skip before the PAM check: no exact seed in the widest protospacer
@@ -332,7 +346,15 @@ def _scan_one_strand(
             if covered[pam_at] - covered[lo] == 0:
                 continue
         pam_seq = seq[pam_at : pam_at + pam_len]
-        if "N" in pam_seq or not pam.matches(pam_seq):
+        ok = pam_ok.get(pam_seq)
+        if ok is None:
+            # Windows are drawn from the sanitized ACGTN alphabet, so the distinct
+            # ones are few (5**pam_len) while the anchors are many. Decide each
+            # distinct window once instead of re-walking the IUPAC codes per base
+            # at every position.
+            ok = "N" not in pam_seq and pam.matches(pam_seq)
+            pam_ok[pam_seq] = ok
+        if not ok:
             continue
         result = _evaluate(
             spacer,

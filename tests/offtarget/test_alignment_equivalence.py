@@ -9,6 +9,12 @@ runs twice for every PAM-positive anchor in the search space — so its output m
 be *identical*, not merely similar: the chosen mismatch count feeds the
 specificity score, and the chosen removal position feeds the reported alignment.
 
+The shipped version also bails out of both passes as soon as the running
+mismatch count passes the budget, which prunes most windows after a handful of
+bases. That bail is only sound because each count is monotone in its direction,
+so the randomized inputs below deliberately span budgets from 0 (bail
+immediately) to 10 (never bail) and lengths from 0 to 22.
+
 The oracle here is the naive implementation, kept verbatim.
 """
 

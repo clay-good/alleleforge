@@ -75,6 +75,26 @@ acceptance.
 
 ### Changed
 
+- **The off-target scan prunes two more ways, for a further ~2.5x on top of the previous round.** With the
+  quadratic alignment gone, a re-profile put the remaining time in two places, both fixed exactly:
+  - **The bulge alignment now bails out of each pass as soon as it exceeds the budget.** Both the prefix and
+    the suffix mismatch counts are monotone in their direction, so once either passes `max_mm` no further
+    removal position on that side can qualify. If the two feasible ranges do not overlap the answer is
+    `None` with no further work. On a random 20-mer window at the default budget that decides the window in
+    roughly a dozen comparisons instead of forty.
+  - **The per-window PAM test is memoized within a scan.** `PAM.matches` was called once per anchor per
+    strand — ~400,000 times for a 200 kb contig — re-walking the IUPAC codes base by base, with a
+    `str.upper()` and two dict lookups each. Windows come from the sanitized `ACGTN` alphabet, so the
+    distinct ones are few (`5**pam_len`) while the anchors are many; each distinct window is now decided
+    once.
+
+  Measured back-to-back on one machine, two interleaved passes, query held fixed, two workloads: the
+  original ≈6s, the previous round ≈1.2s, and now ≈0.3-0.5s — **>10x cumulative**, with this round
+  contributing ~2.5x. (Absolute timings on this machine drift by a factor of two between runs, so only the
+  interleaved A/B ordering is quoted.) Output is unchanged: the differential test against the naive oracle
+  now runs 400,000 randomized inputs spanning budgets 0-10 and lengths 0-22, so both the bail-immediately
+  and never-bail regimes are covered, with zero mismatches.
+
 - **The off-target scan's innermost alignment is now linear instead of quadratic — a 4.2-4.6x speedup on the
   whole scan, with byte-identical output.** `_best_with_removed_base` prices every single-base-removal
   alignment of a bulged window, and it runs **twice for every PAM-positive anchor in the search space** — the

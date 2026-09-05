@@ -1256,6 +1256,35 @@ survived exactly one more data point. A performance claim needs the query held f
 one workload before it is written down — and when a mechanism explains a result that then fails to replicate,
 the mechanism was rationalization, however sound it sounds.**
 
+## Round 47 — two more exact prunes, and the noise trap R46 warned about, caught
+
+R46's profile left 1.44s on a 200 kb scan. Re-profiling the *optimized* code showed the remaining time had
+moved: the bulge alignment was still 38%, and `PAM.matches` — invisible before — was now 28%, called ~400,000
+times per 200 kb contig.
+
+- **`perf(offtarget)` bail out of each alignment pass at the budget.** The prefix and suffix mismatch counts
+  are each monotone in their own direction, so once either exceeds `max_mm` no further removal position on
+  that side can qualify; if the two feasible ranges do not overlap, the answer is `None` with no more work.
+  A random 20-mer at the default budget is now decided in ~a dozen comparisons instead of forty.
+- **`perf(offtarget)` memoize the per-window PAM test within a scan.** Windows come from the sanitized
+  `ACGTN` alphabet, so the distinct ones are few (`5**pam_len`) while the anchors are many. Each distinct
+  window is decided once instead of re-walking IUPAC codes with a `str.upper()` per anchor.
+
+**The trap, and it caught me.** The first measurement of the finished round read **3.88s** — worse than the
+0.72s R46 had recorded for the *previous* code on the same benchmark. Taken at face value that is a serious
+regression, and the tempting move is to go hunt it. Instead, A/B: same process conditions, alternating
+implementations, two interleaved passes. Result: original ≈6s, R46 ≈1.2s, R47 ≈0.3-0.5s. The 3.88s was
+machine drift — this box varies by a factor of two between runs — and R46's own recorded 0.72s is equally
+un-comparable across sessions. Nothing was wrong.
+
+**Lesson: R46 ended by warning that a performance number needs the query fixed, repeats, and more than one
+workload. R47 shows the same rule has a second half: a number is only comparable to another number measured
+*in the same conditions*. A prior session's recorded timing is not a baseline — it is a different
+experiment. The cheap discipline is to never compare across runs at all: keep both implementations
+available, alternate them in one session, and quote only the ratio. That habit turns a would-be
+regression-hunt into a thirty-second answer, and it is the only way the cumulative ">10x" here is
+defensible.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
