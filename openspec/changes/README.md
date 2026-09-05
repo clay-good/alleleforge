@@ -2924,6 +2924,39 @@ would not. The places a principle is *most* load-bearing are the summaries, the 
 views — the ones written to be skimmed — and those are exactly the ones that get built with the short
 version of the number.**
 
+## Round 104 — the principles, read as claims
+
+R103 ended on "a stated principle is worth grepping as a specification". The README has eight of them, so
+this round tested all eight.
+
+**Principle 3 was an overclaim.** *"AlleleForge searches population variation by default."* It does not.
+Without `--gnomad`, `--haplotypes` or `--patient-vcf` the scan is reference-only, because the project
+vendors no gnomAD data. Every surface already says this — R75 added the explicit reference-only warning, and
+the README's own CLI section spells it out: *"`--gnomad` is what makes the off-target scan
+population-aware"*. So the document contradicted itself, with the false version in the headline and the
+true version three sections down where fewer people read.
+
+This is the worst place in the project to overclaim. Population-aware off-target search is the
+differentiator, the Casgevy / BCL11A cautionary tale is quoted right there in the same principle, and the
+whole point of quoting it is that a reference-only scan looks clean when it is not. A reader who takes
+"by default" at face value is making exactly the mistake the principle warns about.
+
+**Principle 8 was false at the edges.** *"Every dataset... carries a literature citation."* A user's own
+gnomAD slice or patient VCF has none, and provenance recorded `citation: null` for it. The guarantee that is
+real — and worth stating — is that everything in the *registries* is cited and versioned, and a
+user-supplied input is pinned by content hash instead: recorded, not attributed.
+
+**Shipped:** both principles rewritten to what is true, the same overclaim fixed in `docs/index.md`, and
+`tests/test_stated_principles.py` — the citation-and-version guarantee asserted over both registries, and
+the specific "by default" phrasings guarded. That test also asserts the honest wording is still *present*,
+so it cannot be satisfied by deleting the claim instead of correcting it, which is the obvious way to make a
+prose test pass and the wrong one.
+
+**Lesson: a project's principles are the least-tested and most-quoted text it has, and they drift in one
+direction — toward the version that sounds better. The tell is a contradiction *inside the same document*:
+the honest description usually already exists, further down, written by someone who was looking at the code
+at the time. When the headline and the manual disagree, the manual is right.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

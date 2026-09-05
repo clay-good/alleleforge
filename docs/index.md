@@ -19,7 +19,9 @@ every applicable chemistry, each carrying:
 
 - a **calibrated uncertainty interval** on efficiency (never a bare float);
 - a **predicted edit outcome** distribution (indels / bystanders / byproducts);
-- a **population- and haplotype-aware off-target report**, ancestry-stratified by default.
+- an off-target report that is **population- and haplotype-aware** whenever you supply a frequency
+  source, ancestry-stratified when you do — and labelled reference-only when you do not, because an
+  empty ancestry breakdown means *not measured*, not *clean*.
 
 ## Architecture at a glance
 

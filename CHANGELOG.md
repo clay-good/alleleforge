@@ -8,6 +8,29 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The README's headline principle claimed population-aware search "by default". It is not, and the same
+  README said so three sections later.** Without `--gnomad`, `--haplotypes` or `--patient-vcf` the scan is
+  reference-only — AlleleForge vendors no gnomAD data — and every surface already says so out loud, because
+  an empty ancestry breakdown means *not measured*, not *clean*. The principle now describes the actual
+  guarantee: population and haplotype variation is a first-class search pass, on whenever a frequency source
+  is supplied, and explicitly labelled when it is not. `docs/index.md`'s "ancestry-stratified by default"
+  is corrected the same way. For a project whose stated ethos is honest labelling over hype, the overclaim
+  was on the one axis it exists to be careful about.
+
+- **Principle 8 ("cite everything") was false for user-supplied inputs.** Your own gnomAD slice or patient
+  VCF has no literature to cite, and provenance recorded `citation: null` for it. The principle now says
+  what is actually true: everything in the *registries* carries a citation and a version, and a user-supplied
+  input is pinned by content hash instead — recorded, not attributed.
+
+### Added
+
+- `tests/test_stated_principles.py` — the README's design principles checked as claims. It pins the
+  citation-and-version guarantee over both registries and guards the specific "by default" overclaims,
+  including an assertion that the honest wording is still present, so the test cannot be satisfied by
+  deleting the claim rather than correcting it.
+
 ### Changed
 
 - **The cohort summary no longer reports a bare efficiency.** "Every numeric prediction carries a calibrated

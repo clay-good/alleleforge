@@ -58,13 +58,20 @@ Cas-OFFinder, …) behind a unified, typed, uncertainty-honest interface and add
 
 1. **Variant-first.** The canonical journey starts from *what is broken*, not from a guide.
 2. **Honest uncertainty.** Every numeric prediction ships with a calibrated interval. No scorer returns a bare float.
-3. **Population-aware by default.** Reference-only off-target analysis is a known safety gap (the Casgevy /
-   BCL11A `rs114518452` case is the canonical cautionary tale). AlleleForge searches population variation by default.
+3. **Population-aware, and explicit when it cannot be.** Reference-only off-target analysis is a known
+   safety gap (the Casgevy / BCL11A `rs114518452` case is the canonical cautionary tale), so population and
+   haplotype variation is a first-class search pass rather than an add-on. It is **not** on by default,
+   because AlleleForge vendors no gnomAD data: supply a frequency source (`--gnomad`, `--haplotypes`,
+   `--patient-vcf`) and the scan is population-aware; supply none and it is reference-only — and every
+   surface says so out loud, because an empty ancestry breakdown means *not measured*, not *clean*.
 4. **Wrap, don't rebuild.** Integrate proven tools; add new ML only at genuine coverage gaps.
 5. **Reproducible to the byte.** Pinned environments, versioned datasets, deterministic seeds, content-hashed checkpoints.
 6. **Three audiences, one core.** The library is the source of truth; CLI and web are thin shells over it.
 7. **Typed and tested.** `mypy --strict`, `ruff`, and Hypothesis property tests on all core logic.
-8. **Cite everything.** Every dataset, model, and scoring function carries a literature citation and a version.
+8. **Cite everything.** Every dataset and model in the registries carries a literature citation and a
+   version, and both travel into a result's provenance. A user-supplied input (your own gnomAD slice,
+   haplotype panel or patient VCF) has no literature to cite, so it is pinned by content hash instead —
+   recorded, not attributed.
 
 ---
 
