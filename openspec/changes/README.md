@@ -3186,6 +3186,40 @@ rounds ago and I filed it as plumbing without asking what it was *for*. A field 
 the data is worth chasing even when its module looks like infrastructure — and "which command have I still
 not run?" found in one line what "which field has no reader?" had already surfaced and I had dismissed.**
 
+## Round 112 — the mechanism with no consumer
+
+R111's lesson was that a sweep result is not a conclusion: `BenchmarkDataset.synthetic` sat on the R90
+no-readers list for twenty rounds because I filed it as plumbing. So I went back to that list and asked, of
+each remaining entry, *what was this for?*
+
+`BenchmarkResult.reproducibility_digest`. Computed on every run. Stored on every result. Read by nothing.
+
+Its own docstring states the purpose precisely: a digest over the scientific body only, stable across
+releases and platforms, "so a second lab's re-derivation matches — which the timestamp-sealing signature
+cannot show". Every word of that is a promise about an operation — *compare two results* — that did not
+exist anywhere in the codebase. The digest was a fact nobody could use.
+
+Worse, and less obvious: there was no `verify_reproducibility_digest()` beside `verify_signature()`. Nothing
+ever recomputed the digest from the body it accompanies. A runner bug producing wrong digests would have
+shipped wrong digests in every result, and the signature would have kept passing — it covers the digest as
+one more field, so it certifies that the wrong value was not *edited*, never that it was right.
+
+**Shipped:** `scientific_body()`, `verify_reproducibility_digest()`, `agrees_with()`, and
+`aforge bench compare a.json b.json`. It re-derives both digests before comparing them, and when results
+differ it names the differing fields instead of leaving a user to diff two JSON files. The tests show the
+thing the mechanism was built for: two runs at different wall clocks agree while their signatures differ,
+and a re-signed result with one altered number passes the signature check and fails the digest.
+
+One structural note: the runner builds the scientific body from raw inputs and cannot call
+`scientific_body()`, because at that point no result exists and the digest is one of the fields being
+signed. Two constructions, pinned equivalent by a test that runs a real benchmark and asserts the recomputed
+digest matches — it fails the moment either side gains or loses a field.
+
+**Lesson: for every stored value, ask who *reads* it — but for a value whose name is a promise (a digest, a
+signature, a checksum), ask the sharper question: what operation would use this, and does that operation
+exist? A verifier with no verify function is not a weak guarantee, it is no guarantee, and it looks
+identical to a working one from the inside.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

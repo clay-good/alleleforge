@@ -748,6 +748,59 @@ def test_offtarget_human(runner: CliRunner, nuclease_fasta: Path) -> None:
 # --- data -------------------------------------------------------------------
 
 
+def test_bench_compare_answers_the_question_the_digest_exists_for(
+    runner: CliRunner, tmp_path: Path
+) -> None:
+    """ "Are these two results the same science?" had no implementation.
+
+    The reproducibility digest was computed and stored by every run and read by
+    nothing, so the cross-platform reproducibility claim it encodes could not be
+    exercised by anyone.
+    """
+    left, right, other = (tmp_path / n for n in ("a.json", "b.json", "c.json"))
+    for path, task in (
+        (left, "cas9-efficiency"),
+        (right, "cas9-efficiency"),
+        (other, "pe-efficiency"),
+    ):
+        assert runner.invoke(app, ["bench", "run", task, "--out", str(path)]).exit_code == 0
+
+    same = runner.invoke(app, ["bench", "compare", str(left), str(right)])
+    assert same.exit_code == 0
+    assert "agree" in same.output
+
+    differ = runner.invoke(app, ["bench", "compare", str(left), str(other)])
+    assert differ.exit_code == ExitCode.UNAVAILABLE
+    assert "DIFFER" in differ.output
+    # Naming what differs is the useful half; a bare "no" sends a user diffing JSON.
+    payload = json.loads(
+        runner.invoke(app, ["bench", "compare", str(left), str(other), "--json"]).output
+    )
+    assert payload["agree"] is False
+    assert any(d.startswith("task: ") for d in payload["differences"])
+    assert payload["problems"] == []  # both results are internally sound
+
+
+def test_bench_compare_reports_a_result_that_does_not_match_its_own_digest(
+    runner: CliRunner, tmp_path: Path
+) -> None:
+    """A digest nobody recomputes is a claim nobody checks, so compare recomputes."""
+    from alleleforge.benchmark._canon import content_hash
+
+    path = tmp_path / "a.json"
+    assert (
+        runner.invoke(app, ["bench", "run", "cas9-efficiency", "--out", str(path)]).exit_code == 0
+    )
+    body = json.loads(path.read_text())
+    body["n_test"] += 1
+    body.pop("signature")
+    path.write_text(json.dumps({**body, "signature": content_hash(body)}))
+
+    result = runner.invoke(app, ["bench", "compare", str(path), str(path)])
+    assert result.exit_code == ExitCode.UNAVAILABLE
+    assert "reproducibility digest does not match" in result.output
+
+
 def test_bench_run_says_when_the_number_came_from_synthetic_data(
     runner: CliRunner,
 ) -> None:

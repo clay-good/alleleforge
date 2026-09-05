@@ -8,6 +8,23 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **`aforge bench compare` — the operation the reproducibility digest exists for, which had no
+  implementation.** Every benchmark run computed a platform- and release-stable digest over its scientific
+  body, stored it, and nothing ever read it back. Its docstring promises that two independent runs of the
+  same model on the same frozen `(task, split)` match across releases and platforms; nothing could test that
+  promise, and nothing recomputed the digest either — so a runner that computed it wrongly would have
+  shipped a wrong digest in every result while the signature (which covers the digest as one more field)
+  went on passing.
+
+  `BenchmarkResult` gains `scientific_body()`, `verify_reproducibility_digest()` — the counterpart
+  `verify_signature()` never had — and `agrees_with()`. The new command re-derives each result's digest from
+  its own body, then reports whether the two are the same scientific result and, when they are not, **names
+  the fields that differ** rather than leaving a user to diff JSON. Two runs at different wall clocks now
+  demonstrably agree while their signatures differ, which is precisely the gap the digest was introduced to
+  fill.
+
 ### Fixed
 
 - **Benchmark numbers computed on the bundled synthetic fixtures were published in the shape of real ones**

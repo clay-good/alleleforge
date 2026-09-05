@@ -166,6 +166,61 @@ class BenchmarkResult(BaseModel):
         body.pop("signature", None)
         return content_hash(body) == self.signature
 
+    def scientific_body(self) -> dict[str, Any]:
+        """Return the fields that define this result *scientifically*.
+
+        Excludes the volatile parts — the wall-clock timestamp, the package version,
+        the local config — so two independent runs of the same model on the same
+        frozen ``(task, split)`` produce identical bodies across releases and
+        platforms. This is what :attr:`reproducibility_digest` covers.
+
+        The runner builds the same mapping from its own raw inputs — it cannot call
+        this, because at that point no result exists yet and the digest is one of the
+        fields being signed. The two constructions are pinned equivalent by a test
+        that runs a real benchmark and asserts
+        :meth:`verify_reproducibility_digest` on the result, which fails the moment
+        either side gains or loses a field.
+        """
+        return {
+            "schema_version": self.schema_version,
+            "task": self.task,
+            "split_version": self.split_version,
+            "split_sha256": self.split_sha256,
+            "dataset": self.dataset,
+            "dataset_version": (
+                self.provenance.datasets[0].model_dump(mode="json")
+                if self.provenance.datasets
+                else None
+            ),
+            "dataset_is_synthetic": self.dataset_is_synthetic,
+            "n_test": self.n_test,
+            "metrics": self.metrics,
+            "primary_metric": self.primary_metric,
+            "primary_value": self.primary_value,
+            "model": self.model.model_dump(mode="json"),
+        }
+
+    def verify_reproducibility_digest(self) -> bool:
+        """Return ``True`` if the stored digest matches this result's scientific body.
+
+        The counterpart of :meth:`verify_signature`, and it was missing. The digest
+        was computed, stored, and read by nothing — so a runner that computed it
+        wrongly would have shipped a wrong digest in every result and no check would
+        have noticed, while the signature (which covers the digest as one more field)
+        went on passing.
+        """
+        return reproducibility_digest(self.scientific_body()) == self.reproducibility_digest
+
+    def agrees_with(self, other: BenchmarkResult) -> bool:
+        """Return ``True`` if ``other`` is the *same scientific result* as this one.
+
+        The operation the digest exists for and that nothing implemented: two labs,
+        two platforms, two releases, one frozen ``(task, split)`` and one model — do
+        the numbers agree? Timestamps, package versions and local settings differ and
+        are excluded by construction.
+        """
+        return self.reproducibility_digest == other.reproducibility_digest
+
 
 def _regression_metrics(
     predictions: list[Prediction[Any]], labels: list[float]
@@ -465,6 +520,9 @@ def run_benchmark(
     # excluding the volatile provenance (wall-clock timestamp, package version, local
     # config). Its digest is stable across releases and platforms, so a second lab's
     # re-derivation matches — which the timestamp-sealing signature cannot show.
+    #
+    # Mirrored by `BenchmarkResult.scientific_body()`, which rebuilds it from a stored
+    # result; keep the two in step (a test asserts they agree on a real run).
     scientific_body: dict[str, Any] = {
         "schema_version": RESULT_SCHEMA_VERSION,
         "task": task_obj.name,

@@ -8,7 +8,7 @@ import pytest
 
 from alleleforge.benchmark.baseline import build_baseline
 from alleleforge.benchmark.datasets import load_dataset
-from alleleforge.benchmark.runner import run_benchmark
+from alleleforge.benchmark.runner import BenchmarkResult, run_benchmark
 from alleleforge.benchmark.splits import load_split
 from alleleforge.benchmark.tasks import TASKS, get_task
 
@@ -162,3 +162,68 @@ def test_reference_baseline_runs_on_every_task(task_name: str, fixed_ts: datetim
     assert "ece" in result.metrics  # calibration on every task
     assert result.model.name == "crispr-bench-baseline"
     assert result.verify_signature()
+
+
+def test_the_reproducibility_digest_is_checkable_and_checked(fixed_ts: datetime) -> None:
+    """The digest was computed, stored, and read by nothing.
+
+    Its docstring promises that two runs of the same model on the same frozen
+    `(task, split)` match across releases and platforms — a promise nothing tested,
+    because `verify_signature` had no digest counterpart. A runner that computed the
+    digest wrongly would have shipped a wrong one in every result while the signature
+    (which covers the digest as one more field) kept passing.
+    """
+    task = get_task("cas9-efficiency")
+    split, dataset = load_split("cas9-efficiency")
+    result = run_benchmark(
+        build_baseline(task, split, dataset), task, split=split, dataset=dataset, timestamp=fixed_ts
+    )
+
+    # Recomputing from the stored result reproduces the stored digest. This is also
+    # what pins the runner's field list against `scientific_body()`'s: the two are
+    # built from different inputs and must agree, and this fails if either drifts.
+    assert result.verify_reproducibility_digest()
+    assert result.verify_signature()
+
+    # A second run at a different wall clock is the *same scientific result*: that is
+    # the whole point, and the timestamp-sealing signature cannot say it.
+    later = run_benchmark(
+        build_baseline(task, split, dataset),
+        task,
+        split=split,
+        dataset=dataset,
+        timestamp=fixed_ts.replace(year=fixed_ts.year + 1),
+    )
+    assert result.agrees_with(later)
+    assert result.signature != later.signature  # ...while the signatures differ
+
+    # A different task is not the same result, or the digest would agree with anything.
+    other_task = get_task("pe-efficiency")
+    other_split, other_dataset = load_split("pe-efficiency")
+    other = run_benchmark(
+        build_baseline(other_task, other_split, other_dataset),
+        other_task,
+        split=other_split,
+        dataset=other_dataset,
+        timestamp=fixed_ts,
+    )
+    assert not result.agrees_with(other)
+
+
+def test_a_tampered_scientific_field_breaks_the_digest(fixed_ts: datetime) -> None:
+    """Editing a number must invalidate the digest, not just the signature."""
+    from alleleforge.benchmark._canon import content_hash
+
+    task = get_task("cas9-efficiency")
+    split, dataset = load_split("cas9-efficiency")
+    result = run_benchmark(
+        build_baseline(task, split, dataset), task, split=split, dataset=dataset, timestamp=fixed_ts
+    )
+    body = result.model_dump(mode="json")
+    body["n_test"] = result.n_test + 1
+    body.pop("signature")
+    # Re-signed, so the signature check passes and only the digest can catch it —
+    # exactly the tamper the digest is supposed to be the second line against.
+    tampered = BenchmarkResult.model_validate({**body, "signature": content_hash(body)})
+    assert tampered.verify_signature()
+    assert not tampered.verify_reproducibility_digest()

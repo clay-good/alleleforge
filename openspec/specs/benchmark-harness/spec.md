@@ -244,3 +244,23 @@ which split, and two runs differing only in that are not the same result.
 #### Scenario: A board holding both kinds
 - **WHEN** a leaderboard contains a synthetic-derived row
 - **THEN** that row is visibly marked in every render
+
+### Requirement: The reproducibility digest is verifiable and comparable
+
+A digest nobody recomputes is a claim nobody checks. A result SHALL be able to re-derive
+its own digest from its scientific body, so a wrongly computed digest is detectable — the
+signature cannot detect one, because it covers the digest as one more field and certifies
+only that it was not edited afterwards.
+
+The comparison the digest exists for SHALL be available as an operation: given two
+results, whether they are the same scientific result, with each digest re-derived first
+and the differing fields named when they are not.
+
+#### Scenario: The same run at a different wall clock
+- **WHEN** the same model is run on the same frozen split at two different times
+- **THEN** the results are reported as the same scientific result, although their
+  signatures differ
+
+#### Scenario: A re-signed result with an altered number
+- **WHEN** a scientific field is edited and the result re-signed
+- **THEN** the signature check passes and the digest check fails

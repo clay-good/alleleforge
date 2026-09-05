@@ -1616,6 +1616,76 @@ def bench_run(
             )
 
 
+@bench_app.command("compare")
+def bench_compare(
+    left: Annotated[Path, typer.Argument(help="A benchmark result JSON.")],
+    right: Annotated[Path, typer.Argument(help="Another benchmark result JSON.")],
+    as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Check whether two benchmark results are the *same scientific result*.
+
+    This is the operation the reproducibility digest exists for, and it had no
+    implementation: the digest was computed, stored, and read by nothing. It covers
+    the scientific body only — task, split identity, dataset, metrics, model — so two
+    runs on different platforms, releases or wall clocks agree iff the science agrees.
+
+    Each result's stored digest is also re-derived from its own body first: a digest
+    nobody recomputes is a claim nobody checks.
+    """
+    from alleleforge.benchmark.runner import BenchmarkResult
+
+    results: list[BenchmarkResult] = []
+    for path in (left, right):
+        try:
+            results.append(BenchmarkResult.model_validate_json(path.read_text()))
+        except FileNotFoundError:
+            _echo_err(f"error: result file not found: {path}")
+            raise typer.Exit(ExitCode.MISSING_DATA) from None
+        except ValueError as exc:
+            _echo_err(f"error: {path} is not a valid benchmark result: {exc}")
+            raise typer.Exit(ExitCode.USAGE) from exc
+
+    a, b = results
+    problems: list[str] = []
+    for path, result in zip((left, right), results, strict=True):
+        if not result.verify_signature():
+            problems.append(f"{path}: signature does not match its contents")
+        if not result.verify_reproducibility_digest():
+            problems.append(f"{path}: reproducibility digest does not match its scientific body")
+
+    agree = a.agrees_with(b)
+    differences: list[str] = []
+    if not agree:
+        left_body, right_body = a.scientific_body(), b.scientific_body()
+        differences = [
+            f"{key}: {left_body[key]!r} != {right_body[key]!r}"
+            for key in sorted(left_body)
+            if left_body[key] != right_body[key]
+        ]
+    payload = {
+        "agree": agree and not problems,
+        "left_digest": a.reproducibility_digest,
+        "right_digest": b.reproducibility_digest,
+        "differences": differences,
+        "problems": problems,
+    }
+    human = [
+        f"{left.name}: {a.task} @ {a.split_version}  digest {a.reproducibility_digest[:12]}…",
+        f"{right.name}: {b.task} @ {b.split_version}  digest {b.reproducibility_digest[:12]}…",
+    ]
+    if problems:
+        human.append("PROBLEMS:")
+        human += [f"  - {p}" for p in problems]
+    elif agree:
+        human.append("agree: the same scientific result (timestamps and versions aside)")
+    else:
+        human.append("DIFFER: these are not the same scientific result")
+        human += [f"  - {d}" for d in differences]
+    _emit(payload, as_json=as_json, human="\n".join(human))
+    if problems or not agree:
+        raise typer.Exit(ExitCode.UNAVAILABLE)
+
+
 class LeaderboardFormat(StrEnum):
     """Renderings the leaderboard command can produce."""
 
