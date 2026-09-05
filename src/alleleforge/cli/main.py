@@ -24,6 +24,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import tomllib
 from dataclasses import dataclass
 from enum import IntEnum, StrEnum
@@ -34,6 +35,7 @@ import typer
 
 from alleleforge._version import __version__
 from alleleforge.config import DEFAULT_REFERENCE, DEFAULT_SEED
+from alleleforge.types.sequence import GenomicInterval, Strand
 
 
 class ExitCode(IntEnum):
@@ -705,6 +707,24 @@ def batch(
         typer.echo(f"wrote {summary_tsv}")
 
 
+def _parse_locus(text: str) -> GenomicInterval:
+    """Parse a ``chrom:start-end(strand)`` locus, the form the tool prints.
+
+    Raises:
+        ValueError: If ``text`` is not that form, or the interval is empty.
+    """
+    match = re.fullmatch(
+        r"(?P<chrom>[^:]+):(?P<start>\d+)-(?P<end>\d+)(?:\((?P<strand>[+-])\))?", text.strip()
+    )
+    if match is None:
+        raise ValueError(f"locus {text!r} is not 'chrom:start-end(strand)', e.g. 'chr7:28-48(+)'")
+    start, end = int(match["start"]), int(match["end"])
+    if end <= start:
+        raise ValueError(f"locus {text!r} is empty ({end} <= {start})")
+    strand = Strand.MINUS if match["strand"] == "-" else Strand.PLUS
+    return GenomicInterval(chrom=match["chrom"], start=start, end=end, strand=strand)
+
+
 @app.command()
 def offtarget(
     ctx: typer.Context,
@@ -731,6 +751,17 @@ def offtarget(
     populations: Annotated[
         str | None, typer.Option(help="Comma-separated ancestry labels to stratify by.")
     ] = None,
+    on_target: Annotated[
+        str | None,
+        typer.Option(
+            help=(
+                "The spacer's own locus as 'chrom:start-end(strand)', so it is not "
+                "counted against itself. Without it the guide's own perfect match is "
+                "reported like any other site and the specificity is not comparable to "
+                "a design report's."
+            )
+        ),
+    ] = None,
     as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Run population/haplotype-aware off-target search for a spacer."""
@@ -741,10 +772,16 @@ def offtarget(
     reference = _load_reference(reference_fasta, state.reference_build)
     pops = [p.strip() for p in populations.split(",")] if populations else None
     try:
+        locus = _parse_locus(on_target) if on_target else None
+    except ValueError as exc:
+        _echo_err(f"error: {exc}")
+        raise typer.Exit(ExitCode.USAGE) from exc
+    try:
         report = search(
             spacer,
             PAM(pattern=pam),
             reference=reference,
+            on_target=locus,
             mismatches=mismatches,
             dna_bulges=dna_bulges,
             rna_bulges=rna_bulges,
@@ -782,6 +819,7 @@ def offtarget(
         "score_matrix": report.score_matrix,
         "effective_matrix": report.effective_matrix(),
         "n_sites": report.n_sites,
+        "on_target_excluded": locus is not None,
         "worst_score": round(report.worst_score(), 4),
         "specificity": round(report.specificity_score(), 4),
         "ancestry_stratification": {
@@ -802,10 +840,18 @@ def offtarget(
         )
     else:
         scorer_note = f" [scorer {report.scorer}, matrix {report.score_matrix}]"
+    # Without a locus the guide's own perfect match is reported like any other site,
+    # which pegs the worst score at 1.0 and caps specificity at 0.5 for even a
+    # spotless guide. That is the honest result of the question actually asked — the
+    # tool was not told which perfect match is the intended one — but the number is
+    # then not the same quantity a design report prints, so say which one this is.
+    on_target_note = (
+        "" if locus is not None else "  [on-target locus NOT excluded; pass --on-target]"
+    )
     human_lines = [
         f"spacer {report.spacer} / PAM {report.pam}: {report.n_sites} site(s), "
         f"worst score {report.worst_score():.3f}, "
-        f"specificity {report.specificity_score():.3f}{scorer_note}"
+        f"specificity {report.specificity_score():.3f}{scorer_note}{on_target_note}"
     ]
     for s in sites:
         mit = f"  mit={s['mit_score']}" if s["mit_score"] is not None else ""

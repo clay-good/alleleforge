@@ -101,3 +101,26 @@ config, exiting non-zero on any mismatch.
 - **WHEN** `aforge verify` is run on a result whose recorded artifact no longer matches its
   hash
 - **THEN** it exits non-zero and names the mismatch
+
+### Requirement: A standalone off-target report says whose specificity it is
+
+The `offtarget` command SHALL accept the spacer's own locus and exclude it from the
+report when given. When it is not given, the guide's own perfect match is reported
+like any other site — the honest answer to the question actually asked, since the
+tool cannot know which perfect match is intended — and the command SHALL say so, so
+its specificity is not read as the quantity a design report prints under the same
+name. A malformed locus SHALL be a usage error, never a silently skipped exclusion.
+
+#### Scenario: No locus given
+- **WHEN** `offtarget` runs without the spacer's locus
+- **THEN** the report records that the on-target was not excluded and the human line
+  says so
+
+#### Scenario: Locus given
+- **WHEN** the locus is supplied
+- **THEN** that one site is dropped and the report records the exclusion, so a
+  spotless guide reads as spotless
+
+#### Scenario: Malformed locus
+- **WHEN** the locus is not `chrom:start-end(strand)`, or is empty
+- **THEN** the command exits with a usage error rather than searching without it

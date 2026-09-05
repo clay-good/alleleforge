@@ -837,3 +837,63 @@ def test_verify_detects_tampered_dataset(runner: CliRunner, tmp_path: Path) -> N
     bad = runner.invoke(app, ["verify", str(path), "--cache-dir", str(cache)])
     assert bad.exit_code == ExitCode.UNAVAILABLE
     assert "MISMATCH" in bad.output
+
+
+# --- offtarget: the on-target locus ------------------------------------------
+
+
+def _offtarget_fasta(tmp_path: Path) -> tuple[Path, str, str]:
+    """Return (fasta, spacer, locus) for a spacer with one perfect reference hit."""
+    spacer = "ACGTAACGTTACGTAACGTT"  # no GG, no CC: the only PAM is the planted one
+    contig = "T" * 30 + spacer + "TGG" + "T" * 30
+    fasta = tmp_path / "ot.fa"
+    fasta.write_text(f">chr1\n{contig}\n")
+    return fasta, spacer, "chr1:30-50(+)"
+
+
+def test_offtarget_says_when_the_on_target_is_not_excluded(
+    runner: CliRunner, tmp_path: Path
+) -> None:
+    """A specificity that counts the guide against itself must say so.
+
+    Without a locus the tool cannot know which perfect match is the intended one,
+    so reporting all of them is the honest answer to the question asked — but the
+    number is then not the quantity a design report prints under the same name.
+    """
+    fasta, spacer, _ = _offtarget_fasta(tmp_path)
+    result = runner.invoke(app, ["offtarget", spacer, "--reference-fasta", str(fasta), "--json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["on_target_excluded"] is False
+    assert payload["n_sites"] == 1  # the guide's own locus, counted
+
+    human = runner.invoke(app, ["offtarget", spacer, "--reference-fasta", str(fasta)])
+    assert "on-target locus NOT excluded" in human.output
+
+
+def test_offtarget_excludes_the_locus_when_given(runner: CliRunner, tmp_path: Path) -> None:
+    fasta, spacer, locus = _offtarget_fasta(tmp_path)
+    result = runner.invoke(
+        app,
+        ["offtarget", spacer, "--reference-fasta", str(fasta), "--on-target", locus, "--json"],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["on_target_excluded"] is True
+    assert payload["n_sites"] == 0  # a spotless guide reads as spotless
+    assert payload["specificity"] == 1.0
+
+    human = runner.invoke(
+        app, ["offtarget", spacer, "--reference-fasta", str(fasta), "--on-target", locus]
+    )
+    assert "on-target locus NOT excluded" not in human.output
+
+
+@pytest.mark.parametrize("locus", ["nonsense", "chr1:50-30(+)", "chr1:10", "chr1:5-5(+)"])
+def test_offtarget_rejects_a_malformed_locus(runner: CliRunner, tmp_path: Path, locus: str) -> None:
+    """A mistyped locus must fail loudly, not silently disable the exclusion."""
+    fasta, spacer, _ = _offtarget_fasta(tmp_path)
+    result = runner.invoke(
+        app, ["offtarget", spacer, "--reference-fasta", str(fasta), "--on-target", locus]
+    )
+    assert result.exit_code == ExitCode.USAGE

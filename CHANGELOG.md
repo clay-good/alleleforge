@@ -10,6 +10,17 @@ acceptance.
 
 ### Added
 
+- **`aforge offtarget` gained `--on-target`, and says when it is missing.** The standalone command passed
+  no on-target locus, so the guide's own perfect match was reported like any other site: the worst score
+  pegged at `1.0` and specificity capped at `0.5` for even a spotless guide — the failure mode the engine's
+  own `_is_on_target` docstring warns about, on the one call site that could not opt in. Reporting every
+  perfect match *is* the honest answer when the tool has not been told which one is intended, so the fix is
+  not to guess: `--on-target 'chrom:start-end(strand)'` excludes it when the caller knows, and when they do
+  not, the output now states `[on-target locus NOT excluded]` and the JSON carries
+  `on_target_excluded: false`. Without that, the same word — "specificity" — named two different quantities
+  in the CLI and in a design report. A malformed locus is a usage error, never a silently skipped
+  exclusion. Found by running the command.
+
 - **An acceptance test carries a large precise edit from variant to orderable reagent**, and the README's
   SpCas9 section now describes the shipped behavior rather than a dotted side-branch. Correcting a 41-base
   restoration is beyond every break-free chemistry; it must not return a blank menu, and it must not return

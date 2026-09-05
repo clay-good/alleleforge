@@ -1554,6 +1554,31 @@ sweep worth doing after finding one bad default is not "where else is `0.0`" but
 *good*". `LOWER_IS_BETTER` was a two-element set naming precisely where to look, and one of its two members
 was already correct — which, as in R56, is the tell.**
 
+## Round 58 — the same number under two definitions (1 CLI fix, found by running it)
+
+Continued driving CLI surfaces the session had not exercised. `aforge offtarget` on a spacer that exists in
+the reference reported **specificity 0.333** — because the guide's own perfect match was counted against it.
+
+The off-target engine's `_is_on_target` docstring warns about exactly this: "counting it would peg every
+guide's worst-case score at 1.0 (inert safety axis) and cap specificity at 0.5 for even a perfectly clean
+guide. A caller that knows the on-target placement passes it." The CLI was the one caller that never did,
+and had no way to.
+
+**The fix is not to guess.** Given only a spacer, the tool genuinely cannot know which perfect match is the
+intended locus, so reporting all of them is the correct answer to the question asked. What was wrong is
+that the answer was unlabelled: the CLI and a design report both printed a number called "specificity",
+computed under different definitions, with nothing to tell them apart. **Shipped:** `--on-target
+'chrom:start-end(strand)'` (the exact form the tool already prints) excludes the locus when the caller
+knows it; when they do not, the human line carries `[on-target locus NOT excluded; pass --on-target]` and
+the JSON carries `on_target_excluded: false`. A malformed locus exits as a usage error rather than silently
+searching without the exclusion — a typo must not quietly restore the old behavior.
+
+**Lesson: the bug was not a wrong computation, it was an unlabelled one — two quantities sharing a name
+across two surfaces. That class is invisible to tests (both numbers are correct for their own definition)
+and invisible to code review of either surface alone; it only shows up when you compute the same thing two
+ways and compare, which is what running the tool after reading the library does for free. Where a metric's
+definition depends on an optional input, the output should say which definition it used.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
