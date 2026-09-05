@@ -10,6 +10,19 @@ acceptance.
 
 ### Added
 
+- **`REVERT` — a CLI-exposed edit intent — had no test coverage at all, and no documentation of what it
+  means.** It reaches five *independent* `intent in (CORRECT, REVERT)` checks: routing, all three
+  enumerators, and the HDR donor. Nothing centralizes that, so a sixth branch added later that forgot
+  `REVERT` would silently fall through to the `INSTALL` behavior — writing the **alternate** allele where
+  the user asked for the reference. A wrong reagent from a one-word omission, on a path nothing exercised.
+  `EditIntent` now documents all four intents, including why `REVERT` exists (mechanically identical to
+  `CORRECT`; it records in provenance *why* the edit was made — repairing a pathogenic allele versus
+  returning an engineered line to wild type). A new suite pins the equivalence at every layer — routing,
+  carried allele, each enumerator, the donor, both design verticals, and `design()` — and each assertion is
+  paired with a check that `CORRECT` and `INSTALL` genuinely *differ* at that locus, so the equivalence
+  cannot pass vacuously. Mutation-checked: dropping `REVERT` from the prime enumerator or from routing
+  fails it.
+
 - **The prime byproduct model now has a card, so the flagship's provenance names both its models — and
   `design()` can finally be given prime overrides.** Two gaps, found by running `aforge verify` and
   noticing it reported **1 model** for a prime design:
