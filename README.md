@@ -790,8 +790,14 @@ canonical journey end to end in [`examples/01_clinvar_to_design.ipynb`](examples
 > PRIDICT2 ships as a Git repo (not a PyPI package) and pins TensorFlow 2.13 + PyTorch 2.0.1 (which
 > conflict with AlleleForge's own deps), the adapter invokes PRIDICT2 in **its own** environment — point
 > it there with `ALLELEFORGE_PRIDICT2_REPO` / `ALLELEFORGE_PRIDICT2_PYTHON`. It is gated behind the
-> `real_weights` marker and parity-tested against captured PRIDICT2 output, so CI stays weight-free. See
-> [`specs/pridict2-integration.md`](specs/pridict2-integration.md).
+> `real_weights` marker and parity-tested against captured PRIDICT2 output, so CI stays weight-free.
+>
+> **What that means for a menu:** PRIDICT2 designs *and* scores its own pegRNAs and exposes no
+> "score this externally-supplied pegRNA" entry point, so the engine is a **parallel path**, not a scorer
+> the designer can call. A `design()` menu's prime efficiency is therefore the heuristic baseline today,
+> whatever weights are available — `design()` accepts a `prime_efficiency_scorer` override, but no trained
+> per-pegRNA prime scorer ships to pass it. Closing that needs the per-pegRNA parity scorer tracked as
+> **(P2)** in [`specs/pridict2-integration.md`](specs/pridict2-integration.md).
 
 ---
 
