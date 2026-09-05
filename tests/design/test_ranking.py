@@ -6,7 +6,9 @@ import pytest
 
 from alleleforge.design.ranking import (
     DEFAULT_WEIGHTS,
+    CandidateScore,
     RankingWeights,
+    indistinguishable_leaders,
     pareto_front,
     rank_candidates,
     score_candidate,
@@ -317,3 +319,118 @@ def test_infinite_weight_rejected() -> None:
     # An `inf` weight collapses the finite weights to 0.0 under normalization.
     with pytest.raises(ValueError, match="must be finite"):
         RankingWeights(efficiency=float("inf"))
+
+
+def _score(composite: float, interval: tuple[float, float] | None) -> CandidateScore:
+    """A bare score row; only the composite and the interval matter to the rule."""
+    return CandidateScore(
+        efficiency=composite,
+        cleanliness=composite,
+        safety=1.0,
+        simplicity=1.0,
+        worst_ancestry=None,
+        efficiency_in_distribution=True,
+        efficiency_interval=interval,
+        composite=composite,
+    )
+
+
+def test_a_menu_says_when_its_own_order_is_not_resolved() -> None:
+    """A ranked list reads as a claim that #1 beats #2. Often it is not one.
+
+    On a realistic single-SNV correction the top fifty pegRNAs spanned 0.027 of
+    composite score while the leader's own efficiency interval was 0.30 wide —
+    eleven times the entire spread. The arithmetic was exact and the order, past the
+    first few places, meaningless, with nothing on the page saying so.
+    """
+    weights = {"efficiency": 0.35, "cleanliness": 0.30, "safety": 0.30, "simplicity": 0.05}
+    # Leader interval 0.30 wide -> tolerance 0.35 * 0.30 = 0.105.
+    wide = [_score(0.75 - i * 0.01, (0.45, 0.75)) for i in range(20)]
+    assert indistinguishable_leaders(wide, weights=weights) == 11  # gaps < 0.105
+
+    # A model that actually resolves the field separates them.
+    narrow = [_score(0.75 - i * 0.01, (0.74, 0.76)) for i in range(20)]
+    assert indistinguishable_leaders(narrow, weights=weights) == 1
+
+    # Both directions asserted, or a rule that ignored the interval would pass one.
+    assert indistinguishable_leaders(wide, weights=weights) > indistinguishable_leaders(
+        narrow, weights=weights
+    )
+
+
+def test_the_rule_fails_toward_caution_not_toward_confidence() -> None:
+    """It can only say "not separable" — never that one candidate beats another."""
+    weights = {"efficiency": 0.35}
+    assert indistinguishable_leaders([], weights=weights) == 0
+    # No interval to reason from: not evidence of a sharp ranking, nor against one.
+    assert indistinguishable_leaders([_score(0.5, None)], weights=weights) == 1
+    # A zero-width interval, or no weight on efficiency, resolves to the leader alone
+    # rather than silently declaring the whole menu tied.
+    assert indistinguishable_leaders([_score(0.5, (0.5, 0.5))] * 5, weights=weights) == 1
+    assert indistinguishable_leaders([_score(0.5, (0.1, 0.9))] * 5, weights={}) == 1
+
+
+def _guide(spacer: str = "ACGTACGTACGTACGTACGT") -> Guide:
+    return Guide(
+        spacer=Spacer(sequence=DNASequence(spacer)),
+        pam=PAM(pattern="NGG"),
+        pam_sequence=DNASequence("TGG"),
+        placement=GenomicInterval(chrom="c", start=0, end=20, strand=Strand.PLUS),
+        cut_site=17,
+    )
+
+
+def test_the_menu_rationale_carries_the_caveat_only_when_it_applies() -> None:
+    """A note on every menu is noise; the note must track the actual spread."""
+    sharp = rank_candidates(
+        [
+            DesignCandidate(
+                chemistry=Chemistry.CAS9_NUCLEASE,
+                guide=_guide(),
+                efficiency=Prediction[float](
+                    value=0.9,
+                    interval=(0.9, 0.9),
+                    method=UncertaintyMethod.ENSEMBLE,
+                ),
+            )
+        ]
+    )
+    assert "not resolved by the evidence" not in sharp.rationale
+
+    blurred = rank_candidates(
+        [
+            DesignCandidate(
+                chemistry=Chemistry.CAS9_NUCLEASE,
+                guide=_guide(spacer),
+                efficiency=Prediction[float](
+                    value=v, interval=(0.1, 0.9), method=UncertaintyMethod.ENSEMBLE
+                ),
+            )
+            for v, spacer in (
+                (0.55, "ACGTACGTACGTACGTACGT"),
+                (0.54, "ACGTACGTACGTACGTACGA"),
+                (0.53, "ACGTACGTACGTACGTACGC"),
+            )
+        ]
+    )
+    assert "The top 3 candidates are within the leader's own efficiency uncertainty" in (
+        blurred.rationale
+    )
+
+    # A menu of one is never "a group whose order is unresolved" — there is no order.
+    # Worth asserting separately from the sharp case above, which is quiet for a
+    # different reason (a zero-width interval), so neither can mask the other.
+    lone = rank_candidates(
+        [
+            DesignCandidate(
+                chemistry=Chemistry.CAS9_NUCLEASE,
+                guide=_guide(),
+                efficiency=Prediction[float](
+                    value=0.5, interval=(0.1, 0.9), method=UncertaintyMethod.ENSEMBLE
+                ),
+            )
+        ]
+    )
+    assert len(lone.candidates) == 1
+    assert "The top 1 candidates" not in lone.rationale
+    assert "not resolved by the evidence" not in lone.rationale

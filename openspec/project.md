@@ -86,6 +86,13 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
   overlay, grep for the other ones first. The older implementation has usually already
   paid for the lesson, and its docstring is where the lesson is written down.
 
+- **After restoring a mutated source file, clear `__pycache__`.** A restore whose
+  mtime does not advance past the compiled bytecode leaves Python running the *mutant*
+  while `inspect.getsource` shows the correct file — so the source reads right, the
+  AST parses right, and the behaviour is still wrong. It cost a full CI cycle and a
+  false hunt for a logic bug in R99. `find src -name __pycache__ -type d -exec rm -rf
+  {} +` after every mutation loop.
+
 - **Never `git checkout <file>` to undo a local mutation test.** It reverts the whole
   file to HEAD, taking every deliberate edit in the round with it. Copy the file aside
   (`cp f /tmp/f.bak`) before mutating and restore from the copy — which is what the

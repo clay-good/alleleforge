@@ -2741,6 +2741,51 @@ serialized, tested. It was flat. A rendering that gives a double-strand break th
 motif name is a correct report and a misleading one, and no query over the code can see that. Run the
 product and read it, on a schedule, not only when a query comes up empty.**
 
+## Round 99 — a ranking finer than its own error bars
+
+Kept reading the same rendered page as R98, one level down. The menu offered **470** prime candidates in a
+strict order. Measuring the numbers behind it:
+
+| | |
+|---|---|
+| composite score, #1 | 0.747 |
+| composite score, #50 | 0.720 |
+| spread across the ranked top fifty | **0.027** |
+| the leader's own efficiency interval | **0.30** wide |
+
+The interval on the single largest input is **eleven times** the entire spread of the list. Every candidate
+in the top sixty was within 0.05 of the leader. On the full menu, 248 of 470 are within the leader's own
+uncertainty of it. The sort is exact arithmetic on numbers that do not support it, and a reader who takes
+"#1" to mean "better than #12" is reading a claim the tool never had the evidence to make.
+
+This one stings a little, because "honest uncertainty" is the project's headline principle and every piece
+of machinery for saying this already existed — the interval is computed, carried, calibrated, rendered, and
+already used to discount the efficiency term. What was missing was the arithmetic nobody did: comparing the
+spread of the ordering against the width of its own inputs.
+
+The rule is stated, not fitted. The efficiency term contributes `w_efficiency x efficiency`, so the honest
+uncertainty in that term alone is `w_efficiency x (upper - lower)`; a composite gap below that is inside
+the noise of the biggest input. No hypothesis test, because a real one needs an error model that does not
+exist here, and inventing one would be the same false precision one layer up. The rule can only ever say
+*these are not separable* — never that one candidate beats another — so an error makes the menu more
+cautious.
+
+Nothing is reordered. A deterministic total order is still worth having; it just should not be read as a
+finding. The menu now says so, and says nothing when the spread genuinely resolves.
+
+Two process notes. The reproduce golden's field-by-field diff — the ritual before updating it — showed the
+note firing on the canonical **single-candidate** run as *"The top 1 candidates are within the leader's own
+uncertainty of each other"*, which is nonsense. It turned out the code was already correct and I was reading
+**stale bytecode** left behind by restoring a mutated file, which also cost a CI cycle and a fruitless hunt
+for a logic bug: `inspect.getsource` showed the right source, the AST parsed right, and Python ran the
+mutant. Clearing `__pycache__` after a mutation loop is now written into `project.md`. The single-candidate
+case has its own test regardless, separate from the quiet-when-sharp case, so neither can mask the other.
+
+**Lesson: when a system computes uncertainty, check whether its own *presentation* respects it. The
+intervals were honest everywhere they were displayed and ignored where the tool spoke with the most
+authority — the ordering itself. Look for the places the product asserts a difference, and ask whether the
+difference clears the error bar the product itself published.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

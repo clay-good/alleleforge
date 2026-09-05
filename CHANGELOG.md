@@ -8,6 +8,24 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **A menu now says when its own ranking is not resolved by the evidence.** Measured on a realistic
+  single-SNV correction: the top fifty pegRNAs spanned **0.027** of composite score while the leader's own
+  efficiency interval was **0.30** wide — eleven times the entire spread — and **248 of 470** candidates
+  were within the leader's uncertainty. The order was arithmetically exact and, past the first few places,
+  meaningless, with nothing on the page saying so. A ranked list reads as a claim that #1 beats #12; here it
+  was not one.
+
+  `indistinguishable_leaders()` counts the leading group using a deliberately transparent rule rather than
+  a statistical one, because a real test would need an error model the project does not have: the
+  efficiency term contributes `w_efficiency × efficiency` to the composite, so the honest uncertainty in
+  that single largest term is `w_efficiency × (upper − lower)`, and any composite gap smaller than that is
+  inside the noise of its own biggest input. The rule can only ever report that candidates are
+  *unseparated* — never that one is better — so being wrong makes the menu more cautious, not less.
+  Nothing is reordered; the menu simply says *treat them as one group and choose on the reagent, not the
+  rank*, and stays silent when the spread genuinely resolves.
+
 ### Changed
 
 - **A candidate's hazard flags are now separated from its decorative ones, each with the reason it

@@ -281,6 +281,48 @@ class RankingOutcome:
     rationale: str
 
 
+def indistinguishable_leaders(
+    scores: list[CandidateScore] | tuple[CandidateScore, ...], *, weights: dict[str, float]
+) -> int:
+    """Return how many top candidates the evidence cannot separate from the leader.
+
+    A ranked menu is a strict total order, and readers treat it as one: #1 is taken to
+    be better than #12. On a realistic single-SNV correction the top fifty pegRNAs
+    spanned **0.027** of composite score while the leader's own efficiency interval was
+    **0.30** wide — eleven times the entire spread. The order was arithmetically
+    correct and, past the first few places, meaningless.
+
+    The rule is deliberately transparent rather than statistical, because a real
+    hypothesis test here would need an error model the project does not have. The
+    efficiency term contributes ``w_efficiency x efficiency`` to the composite, and the
+    honest uncertainty in that single term is ``w_efficiency x (upper - lower)`` of the
+    leader's interval. Any composite gap smaller than that is inside the noise of the
+    largest input, so the two candidates are reported as unseparated.
+
+    It can only ever say "these are not distinguishable" — never that one is better —
+    so being wrong makes the menu more cautious, not less.
+
+    Args:
+        scores: Candidate scores in ranked order (best first).
+        weights: The normalized objective weights.
+
+    Returns:
+        The size of the leading group, counting the leader. ``0`` for no candidates,
+        and ``1`` when the leader has no interval to reason from — an absent interval
+        is not evidence of a sharp ranking, but it is not evidence against one either.
+    """
+    if not scores:
+        return 0
+    leader = scores[0]
+    if leader.efficiency_interval is None:
+        return 1
+    low, high = leader.efficiency_interval
+    tolerance = weights.get("efficiency", 0.0) * (high - low)
+    if tolerance <= 0.0:
+        return 1
+    return sum(1 for s in scores if leader.composite - s.composite < tolerance)
+
+
 def rank_candidates(
     candidates: list[DesignCandidate],
     *,
@@ -346,13 +388,24 @@ def rank_candidates(
         if n_ood
         else ""
     )
+    n_tied = indistinguishable_leaders(ordered_scores, weights=w)
+    # A ranked list reads as a claim that #1 beats #2. Say so when it is not one: the
+    # arithmetic is exact, the inputs are not, and the gap between neighbouring places
+    # is routinely an order of magnitude below the leader's own interval width.
+    tie_note = (
+        f" The top {n_tied} candidates are within the leader's own efficiency "
+        "uncertainty of each other, so their relative order is not resolved by the "
+        "evidence — treat them as one group and choose on the reagent, not the rank."
+        if n_tied > 1
+        else ""
+    )
     rationale = (
         "Ranked by a weighted sum of four higher-is-better objectives "
         f"(efficiency {w['efficiency']:.2f}, cleanliness {w['cleanliness']:.2f}, "
         f"safety {w['safety']:.2f}, simplicity {w['simplicity']:.2f}); the safety "
         "term uses the worst-affected ancestry and the efficiency term is "
         f"uncertainty-discounted.{ood_note} The Pareto front lists the "
-        f"{len(front)} candidate(s) not dominated on all four objectives."
+        f"{len(front)} candidate(s) not dominated on all four objectives.{tie_note}"
     )
     return RankingOutcome(
         candidates=tuple(ranked),

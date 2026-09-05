@@ -192,3 +192,32 @@ value is the dangerous default.
 - **WHEN** the search runs
 - **THEN** the summary reports the measured number, so the two cases are
   distinguishable in the manifest
+
+### Requirement: A menu states when its ordering is finer than its own uncertainty
+
+A ranked list is read as a claim that each place beats the next. When the composite gap
+between the leader and the candidates behind it is smaller than the uncertainty already
+published for the leader's largest scoring term, that claim is not supported, and the
+menu SHALL say so — naming the size of the unseparated leading group and directing the
+reader to choose on the reagent rather than the rank.
+
+The test SHALL be a stated inequality over quantities the system already computes, not a
+fitted statistic: a hypothesis test here would require an error model the project does
+not have, and inventing one repeats the false precision it is meant to expose. It SHALL
+be able to report only that candidates are *unseparated*, never that one is better, so an
+error makes the menu more cautious.
+
+The ordering SHALL NOT change. A deterministic total order remains useful; it simply must
+not be presented as a finding it is not.
+
+#### Scenario: A blurred menu
+- **WHEN** several leading candidates lie within the leader's own efficiency uncertainty
+- **THEN** the rationale names the size of that group and the order is left unchanged
+
+#### Scenario: A menu that resolves
+- **WHEN** the leader is separated from the rest by more than that uncertainty
+- **THEN** no such note is added
+
+#### Scenario: A single candidate
+- **WHEN** the menu holds one candidate
+- **THEN** no note is added — there is no ordering to qualify
