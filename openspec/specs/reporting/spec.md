@@ -45,6 +45,26 @@ plots `0.0`.
 - **WHEN** the menu has no candidates
 - **THEN** the render states so rather than emitting an empty body
 
+### Requirement: A capped render states the cap and keeps the Pareto front
+
+An HTML render MAY cap how many ranked candidates it draws, because a single prime
+design routinely yields several hundred. When it does, it SHALL state on the page
+how many candidates exist, how many are shown, and where the rest can be found;
+and it SHALL render **every Pareto-front candidate** whatever its rank. The
+lossless exports SHALL be unaffected by the cap.
+
+#### Scenario: Pareto-front candidate ranked past the cap
+- **WHEN** a candidate on the Pareto front ranks below the display cap
+- **THEN** it is rendered anyway, in rank order with the rest
+
+#### Scenario: Candidates withheld
+- **WHEN** the cap withholds candidates
+- **THEN** the page states the shown and total counts and points at the export
+
+#### Scenario: Nothing withheld
+- **WHEN** the report has no more candidates than the cap
+- **THEN** no truncation note is rendered
+
 ### Requirement: A reagent line names the edit, not only the geometry
 
 The one-line reagent summary SHALL identify what the reagent *does*, not only its

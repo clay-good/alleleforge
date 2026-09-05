@@ -75,6 +75,18 @@ acceptance.
 
 ### Changed
 
+- **The HTML report now renders the top 50 candidates plus the whole Pareto front, instead of every
+  candidate.** A single prime design routinely yields several hundred candidates — every PBS x
+  RTT-homology x PAM combination is a distinct pegRNA — so the "self-contained" page was **2.3 MB** for one
+  variant (720 candidates), slow to open and mostly a tail nobody reads. `render_html` takes
+  `max_candidates` (default 50, `None` for all); the same report now renders in **181 KB**, 12.7x smaller.
+  Two obligations come with capping and both are enforced by tests: the page states how many candidates
+  exist, how many are shown, and that the rest are in the lossless JSON/CSV export (which the cap does not
+  touch); and **every Pareto-front candidate is rendered whatever its rank**, because the front is the
+  report's entire answer to "I weight the objectives differently from your defaults" — a candidate optimal
+  on safety but 200th on the composite score is exactly the one such a reader came for, and a display cap
+  must not be allowed to decide it away.
+
 - **The k-mer seed prefilter's documented speedup was re-measured and is now ~1x; the claim is corrected
   rather than left standing.** `MIN_SELECTIVE_K = 5` carried a calibration note — "k>=5 gives a ~2-4x
   speedup" — and the README repeated it. Both were true when written. They are not true now: the two

@@ -1316,6 +1316,29 @@ catches it is asking, after every optimization, which previously-measured number
 invalidated. Two modules away, in a constant nobody edited, was a README-facing figure that a user could
 plan capacity around.**
 
+## Round 49 — a report you can actually open (1 product fix)
+
+Noticed while probing the indel path end to end in R45: `design()` on one variant produced **720
+candidates** and `render_html` turned them into a **2.3 MB** "self-contained" page. Not a bug — every PBS x
+RTT-homology x PAM combination genuinely is a distinct pegRNA, and the library returning all of them is
+right. But the *report* is the human artifact, and a 2.3 MB page of near-identical entries is not one.
+
+**Shipped:** `render_html(report, max_candidates=50)`, taking the same report from 2.3 MB to **181 KB**.
+Capping is a presentation decision that carries two obligations, and both are tested:
+- **Say so.** The page states how many candidates exist, how many are shown, and that the remainder are in
+  the lossless JSON/CSV export — which the cap does not touch.
+- **Never cap away the Pareto front.** Every front member renders whatever its rank. This is the part worth
+  getting right: the front is the report's entire answer to *"I weight the objectives differently from your
+  defaults."* A candidate that is optimal on safety but 200th on the composite score is precisely what such
+  a reader opened the report for, and a naive `candidates[:50]` would silently delete it. The test
+  constructs a 300-candidate report with front members at ranks 200 and 297 and asserts both survive.
+
+**Lesson: a truncation is a claim about what does not matter, and it is wrong exactly where the product's
+value is concentrated. The naive cap here would have been correct for 718 of 720 candidates and would have
+destroyed the two the whole Pareto-front feature exists to surface. When adding any "show the top N", ask
+what the tail is *for* — if some other feature's promise lives there, the cap must be defined in terms of
+that promise, not in terms of N.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

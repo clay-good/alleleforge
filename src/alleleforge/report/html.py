@@ -232,11 +232,43 @@ def _provenance_html(report: DesignReport) -> str:
     return "<footer><strong>Provenance.</strong> " + " · ".join(lines) + "</footer>"
 
 
-def render_html(report: DesignReport) -> str:
+#: Default cap on how many candidates an HTML report renders. A prime design
+#: routinely yields several hundred — every PBS x RTT-homology x PAM combination is
+#: a distinct pegRNA — which makes a "self-contained" page tens of megabytes and
+#: slow to open, for a tail nobody reads. The cap is stated on the page, never
+#: silently applied, and never decides away a Pareto-front candidate.
+DEFAULT_HTML_CANDIDATES = 50
+
+
+def _visible(report: DesignReport, limit: int | None) -> tuple[list[CandidateReport], int]:
+    """Return the candidates to render and how many were withheld.
+
+    The top ``limit`` by rank are kept, **plus every Pareto-front candidate**
+    regardless of rank. The front is the report's whole answer to "I weight the
+    objectives differently from your defaults", so a display cap must not be
+    allowed to decide it away — a candidate that is optimal on safety but 200th on
+    the composite score is exactly the one such a reader came for.
+    """
+    if limit is None or len(report.candidates) <= limit:
+        return list(report.candidates), 0
+    kept = list(report.candidates[:limit])
+    ranks = {c.rank for c in kept}
+    kept += [c for c in report.candidates[limit:] if c.on_pareto_front and c.rank not in ranks]
+    kept.sort(key=lambda c: c.rank)
+    return kept, len(report.candidates) - len(kept)
+
+
+def render_html(
+    report: DesignReport, *, max_candidates: int | None = DEFAULT_HTML_CANDIDATES
+) -> str:
     """Render a :class:`DesignReport` as a complete, self-contained HTML string.
 
     Args:
         report: The report to render.
+        max_candidates: How many ranked candidates to render, or ``None`` for all.
+            Every Pareto-front candidate is rendered whatever the cap, and any
+            withheld count is stated on the page. The lossless exports carry the
+            full set.
 
     Returns:
         A full HTML document (disclaimer first, provenance last) with inlined
@@ -260,8 +292,15 @@ def render_html(report: DesignReport) -> str:
         _figure_script("ot-chart", _offtarget_figure(report)),
         "<h2>Candidates</h2>",
     ]
-    if report.candidates:
-        body.extend(_candidate_html(c) for c in report.candidates)
+    shown, withheld = _visible(report, max_candidates)
+    if withheld:
+        body.append(
+            f"<p class='muted'>Showing {len(shown)} of {len(report.candidates)} candidates: "
+            f"the top {max_candidates} by rank plus every Pareto-front candidate. "
+            f"The remaining {withheld} are in the lossless JSON/CSV export.</p>"
+        )
+    if shown:
+        body.extend(_candidate_html(c) for c in shown)
     else:
         body.append("<p class='muted'>No candidates were produced for this variant.</p>")
     body.append(
