@@ -261,20 +261,48 @@ def _select_transcript(consequences: list[dict[str, Any]], transcript: str) -> d
     return consequences[0]  # 3. else the first reported block
 
 
+class ConsentError(RuntimeError):
+    """Raised when a network fetch is needed but the caller withheld consent."""
+
+
 class VepRestPredictor:
     """Ensembl VEP REST predictor with per-(variant, assembly, transcript) caching.
 
     The HTTP fetch is injectable so CI replays a recorded response; the default
     fetcher issues a real GET against the VEP region endpoint via the optional
     ``requests`` package.
+
+    That default fetch is **consent-gated**, like every other network path in the
+    project. It is not gated because a download is expensive — it is gated because of
+    what travels *outbound*. The three registries send a URL and receive a file; this
+    sends the user's variant — a chromosome, a position, and both alleles — to a
+    third-party public API, and that variant may have come from a patient VCF. Consent
+    to fetch a reference genome is not consent to disclose a variant, so this asks
+    separately.
+
+    An injected ``fetcher`` is not gated: the caller has supplied the transport and
+    knows where it goes, which is exactly how CI replays a recorded response offline.
     """
 
     def __init__(
-        self, *, server: str = "https://rest.ensembl.org", fetcher: VepFetcher | None = None
+        self,
+        *,
+        server: str = "https://rest.ensembl.org",
+        fetcher: VepFetcher | None = None,
+        consent: bool = False,
     ) -> None:
-        """Configure the VEP REST endpoint and (optionally) an injected fetcher."""
+        """Configure the VEP REST endpoint, an optional fetcher, and network consent.
+
+        Args:
+            server: The VEP REST server base URL.
+            fetcher: An injected transport. When given, ``consent`` is not consulted —
+                the caller owns the request.
+            consent: Must be ``True`` to permit the built-in fetcher to send a variant
+                to ``server``.
+        """
         self._server = server
         self._fetcher = fetcher
+        self._consent = consent
         self._cache: dict[tuple[str, str, str], VariantEffect] = {}
 
     def request_url(self, variant: Variant) -> str:
@@ -299,12 +327,21 @@ class VepRestPredictor:
         """Return (and cache) the VEP consequence of ``variant``.
 
         Raises:
+            ConsentError: If the built-in fetcher would send ``variant`` to the VEP
+                server and ``consent=True`` was not given.
             RuntimeError: If no fetcher was injected and the optional ``requests``
                 dependency is missing.
         """
         key = (str(variant), _assembly_of(variant), transcript)
         if key in self._cache:
             return self._cache[key]
+        if self._fetcher is None and not self._consent:
+            raise ConsentError(
+                f"predicting the effect of {variant} would send it to {self._server}; "
+                "the variant's chromosome, position and both alleles leave this machine. "
+                "Pass consent=True to allow it, or inject a fetcher to control the "
+                "transport yourself"
+            )
         payload = (self._fetcher or self._default_fetch)(self.request_url(variant))
         effect = parse_vep_response(payload, transcript=transcript)
         self._cache[key] = effect

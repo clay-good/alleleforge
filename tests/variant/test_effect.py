@@ -6,8 +6,11 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from alleleforge.types.variant import Variant
 from alleleforge.variant.effect import (
+    ConsentError,
     Consequence,
     Impact,
     StaticEffectPredictor,
@@ -214,3 +217,41 @@ def test_vep_predictor_uses_injected_fetcher_and_caches() -> None:
     assert first.gene == "HBB" and first == second
     assert len(calls) == 1
     assert "GRCh38".lower() in calls[0] and "chr2:60100-60100" in calls[0]
+
+
+def test_vep_lookup_does_not_disclose_a_variant_without_consent() -> None:
+    """Three network paths ask consent; this one sent a patient's variant unasked.
+
+    The registries' consent gate is about a *download*: a URL goes out, a file comes
+    back. This request is the other direction — the chromosome, position and both
+    alleles of the variant leave the machine and reach a third-party public API, and
+    the variant may have come from a patient VCF. Consenting to fetch a reference
+    genome is not consenting to disclose a variant, so it is asked separately.
+    """
+    variant = Variant(chrom="chr7", pos=100, ref="A", alt="G", build="hg38")
+
+    with pytest.raises(ConsentError, match="would send it to"):
+        VepRestPredictor().predict(variant)
+
+    # The refusal names both what leaves and where it goes, or a user cannot judge it.
+    try:
+        VepRestPredictor().predict(variant)
+    except ConsentError as exc:
+        assert "chr7" in str(exc) and "rest.ensembl.org" in str(exc)
+
+    # An injected fetcher is NOT gated: the caller supplied the transport and knows
+    # where it goes. This is how CI replays a recorded response with no network at all,
+    # and gating it would break offline use to protect against nothing.
+    offline = VepRestPredictor(fetcher=lambda _url: _vep_payload())
+    assert offline.predict(variant).transcript == "ENST00000335295"
+
+    # ...and explicit consent reaches the built-in path (asserted by watching the URL
+    # the default fetcher would have been handed, without issuing a request).
+    sent: list[str] = []
+
+    def _spy(url: str) -> list[dict[str, object]]:
+        sent.append(url)
+        return _vep_payload()
+
+    VepRestPredictor(fetcher=_spy, consent=True).predict(variant)
+    assert sent and sent[0].startswith("https://rest.ensembl.org/vep/")

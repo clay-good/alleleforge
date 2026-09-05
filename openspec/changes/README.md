@@ -2438,6 +2438,41 @@ nobody finished. Grep for a field's *readers*, not its mentions. And when the ho
 half-a-feature — show it, do not score it — ship the half you can defend and say in the source why the
 other half is absent, rather than filling the gap with a plausible constant.**
 
+## Round 90 — three doors locked, one open
+
+R89's lesson was to grep for a field's *readers*, not its mentions. Run over every pydantic model in the
+project, that query returned 36 fields nothing reads. Most are legitimately write-only — API response
+models, serialized outputs. Two were not, and they point at the same place: `Settings.allow_network`, whose
+docstring says the registries "must never auto-download" when it is false, is read by nothing at all.
+
+Chasing what that toggle was supposed to govern found four network egress points. Three — the model zoo,
+the dataset registry, the reference genome — refuse to fetch without an explicit `consent=True`. The
+fourth, `VepRestPredictor.predict()`, issued a live GET with no gate whatsoever. The "N implementations,
+one differs" tell, and the one that differs is the one that leaks.
+
+The asymmetry is worth naming, because it is why the missing gate is not merely inconsistent. The three
+registries *download*: a URL goes out, a file comes back, and the gate is really about bandwidth, licensing
+and the checksum guarantee. The VEP call goes the other way — the variant's chromosome, position and both
+alleles leave the machine and land at a third-party public API, and this project accepts patient VCFs as
+input. **Consent to fetch a reference genome is not consent to disclose a variant**, so it has to be asked
+separately rather than inherited.
+
+**Shipped:** `consent=True` on the built-in fetcher, with a refusal that names both what leaves and where
+it goes. An injected fetcher stays ungated — the caller owns the transport, and that is exactly how CI
+replays a recorded response offline; gating it would break offline use to protect against nothing.
+Mutation-checked.
+
+**Deliberately not in this round:** making `Settings.allow_network` load-bearing across all four paths.
+That is a real second change with its own semantics to settle (a process-level floor beneath the per-call
+consent) and its own tests, and folding it in here would have made both halves shallower. It is the next
+round.
+
+**Lesson: when auditing a permission gate, do not stop at "is it enforced?" — ask what each gate is
+protecting, because the same word can cover two different risks. Here `consent` meant "may I download" in
+three places and would have to mean "may I disclose" in the fourth, and only the second one has a patient
+on the other end of it. A consistency sweep that had simply copied the existing gate would have got the
+mechanism right and the reasoning wrong.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

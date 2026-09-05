@@ -186,3 +186,23 @@ insertion region (`start = end + 1`), so no consequence is returned for the wron
 - **WHEN** the live VEP predictor builds the region URL for an insertion (empty `ref`)
 - **THEN** it emits a zero-width region (`start = end + 1`, e.g. `17:101-100/ACGT`), not a 1-base region
   VEP would read as a substitution consuming the reference base at that position
+
+### Requirement: A variant is not disclosed to a third party without consent
+
+Effect annotation via the Ensembl VEP REST API sends the variant itself — chromosome,
+position, and both alleles — off the machine, and AlleleForge accepts patient VCFs as
+input. The built-in fetcher SHALL refuse to issue that request without explicit consent,
+and the refusal SHALL name what leaves and where it goes. Consent given for downloading
+an artifact (a reference genome, a dataset, a checkpoint) SHALL NOT be read as consent to
+disclose a variant: the two are asked separately.
+
+An injected fetcher SHALL NOT be gated — the caller supplied the transport and knows its
+destination, and gating it would break offline replay.
+
+#### Scenario: Ungated lookup
+- **WHEN** `VepRestPredictor.predict()` is called with no injected fetcher and no consent
+- **THEN** it raises rather than issuing the request, naming the variant and the server
+
+#### Scenario: Injected transport
+- **WHEN** a fetcher is injected
+- **THEN** the prediction proceeds with no consent flag and no network access

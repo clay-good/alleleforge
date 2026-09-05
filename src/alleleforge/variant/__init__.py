@@ -9,6 +9,7 @@ raw target sequence into a left-aligned, reference-validated
 from __future__ import annotations
 
 from alleleforge.variant.effect import (
+    ConsentError,
     Consequence,
     EffectPredictor,
     Impact,
@@ -51,6 +52,7 @@ __all__ = [
     "VcfRecord",
     "VcfVariantLike",
     "VepFetcher",
+    "ConsentError",
     "VepRestPredictor",
     "impact_of",
     "iter_vcf",

@@ -8,6 +8,19 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A VEP effect lookup sent the user's variant to a third-party public API with no consent gate.** Three
+  of AlleleForge's four network paths — the model zoo, the dataset registry, the reference genome — refuse
+  to fetch without an explicit `consent=True`. `VepRestPredictor.predict()` did not, and it is the one that
+  matters most: the registries send a URL and receive a file, while this sends the variant *outbound* —
+  chromosome, position, and both alleles — to `rest.ensembl.org`, and that variant may have come from a
+  patient VCF. Consenting to download a reference genome is not consenting to disclose a variant. The
+  built-in fetcher is now gated behind `consent=True`, and the refusal names both what leaves and where it
+  goes so the user can judge it. An **injected** fetcher stays ungated: the caller supplied the transport
+  and knows its destination — that is how CI replays a recorded response with no network at all, and gating
+  it would break offline use to protect against nothing.
+
 ### Added
 
 - **The PE3 nick-to-nick distance is now shown, and a dangerously close nick is flagged.** `nick_offset`
