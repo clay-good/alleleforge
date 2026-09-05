@@ -10,6 +10,20 @@ acceptance.
 
 ### Added
 
+- **The flat TSV/Parquet export now carries what makes its own numbers readable** (export
+  `schema_version` 2 → 3). It had `n_offtarget_sites` and nothing to interpret it with: not the aggregate
+  specificity, not the scorer or weight matrix, not the search settings. Every one of those has been on the
+  HTML page and the PDF leave-behind since it was added — and missing from the format something *automated*
+  reads, which is where an uninterpreted number does the most damage, because a pipeline filtering on
+  `n_offtarget_sites = 0` cannot tell a clean scan from a narrow one and never asks.
+
+  New columns: `offtarget_specificity`, `offtarget_scorer`, `offtarget_matrix`, `offtarget_search`,
+  `caveats` (the hazard subset of `flags`, so a pipeline can filter on "needs attention" without hard-coding
+  a flag-name list that keeps growing), and `rationale` (the per-candidate score breakdown, previously
+  human-renders-only).
+
+### Added
+
 - **An off-target site now records the PAM that anchored it.** Two things were undecidable from a report
   without it. A canonical `NGG` site and a low-stringency `NAG` one carry very different real risk and
   appeared identical on the table. And with bulges allowed the same 20 bp of genome is reachable from two

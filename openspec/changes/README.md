@@ -2871,6 +2871,32 @@ which was itself the finding. When a suspicious pattern cannot be resolved from 
 the first fix is to record what would resolve it, not to act on the guess. It would have been a quiet,
 plausible, safety-critical mistake.**
 
+## Round 102 — the export nobody reads out loud
+
+Still reading output, now the machine-readable kind. The TSV a pipeline consumes had sixteen columns, and
+exactly one about off-target risk: `n_offtarget_sites`.
+
+Everything the last several rounds established about that number — that it is meaningless without the
+cut-offs (R84), that the aggregate and the scoring basis belong beside it (R86), that hazard flags are not
+decoration (R98) — had been applied to the HTML page and the PDF leave-behind and to neither export format.
+A row reading `n_offtarget_sites = 0` said nothing about how hard anyone had looked.
+
+The asymmetry is backwards from where the risk actually is. A human reading the HTML at least sees the
+`0` in a page full of qualifications and can go looking. A pipeline reading the TSV filters on the column
+and moves on; there is nobody to notice the number is unqualified, and nobody to ask. **The export is where
+missing context does the most damage, and it was the surface that got it last.**
+
+**Shipped:** `offtarget_specificity`, `offtarget_scorer`, `offtarget_matrix`, `offtarget_search`, `caveats`
+and `rationale` columns, with the export schema version bumped from 2 to 3 — which is what that field is
+for, and the test asserts the row's `schema_version` cell matches the constant so a consumer can branch
+before parsing. `caveats` is the hazard subset of `flags` so a downstream filter does not have to
+hard-code which flag names are hazards, a list that has grown twice this month.
+
+**Lesson: when a fix is applied to "the renders", ask which renders — and remember the ones with no reader
+to complain. Human-facing surfaces get fixed first because someone eventually squints at them; the JSON,
+the TSV, the API response are consumed by code that never squints. Rank the surfaces by *who would notice
+the omission*, and do the silent ones first, not last.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

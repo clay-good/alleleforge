@@ -262,3 +262,20 @@ risk carried by a reagent the reader would never use.
 - **WHEN** the top candidate has no off-target site and a low-ranked alternative has a
   perfect one
 - **THEN** the row's worst-off-target and specificity both describe the top candidate
+
+### Requirement: The machine-readable export qualifies its own numbers
+
+The flat candidate export is consumed by code, which cannot notice that a number is
+unqualified and cannot go looking. It SHALL therefore carry the same qualifications the
+human renders do: alongside the nominated-site count, the aggregate specificity, the
+scorer and effective weight matrix, and the search settings the count is conditional on;
+and alongside the flag list, the hazard subset, so a filter need not hard-code which flag
+names are hazards.
+
+Adding, removing or reinterpreting a column SHALL bump the export schema version, which
+leads every row so a consumer can branch before parsing.
+
+#### Scenario: A pipeline filtering on off-target risk
+- **WHEN** a candidate was searched
+- **THEN** its row carries the site count, the specificity, the scoring basis and the
+  search settings together

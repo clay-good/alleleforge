@@ -13,12 +13,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from alleleforge.report.builder import DesignReport
+from alleleforge.report.builder import DesignReport, caveats
 from alleleforge.types.candidate import RankedMenu
 
 #: Schema version for the flat TSV/Parquet candidate export. Bump when a column is
 #: added, removed, or reinterpreted so a downstream consumer can detect the drift.
-EXPORT_SCHEMA_VERSION = 2
+EXPORT_SCHEMA_VERSION = 3
 
 #: The flat TSV column order (one row per candidate). ``schema_version`` leads so a
 #: reader can branch on the format before touching any other column.
@@ -35,9 +35,22 @@ TSV_COLUMNS = (
     "bystander_burden",
     "p_intended",
     "n_offtarget_sites",
+    # `n_offtarget_sites` alone is not a safety number. It is conditional on the
+    # cut-offs that produced it and it says nothing about the aggregate, both of which
+    # the HTML and PDF renders have carried since they were added — while this export,
+    # the one a pipeline actually filters on, carried neither. A row that reads
+    # `n_offtarget_sites = 0` is uninterpretable and comparable to nothing.
+    "offtarget_specificity",
+    "offtarget_scorer",
+    "offtarget_matrix",
+    "offtarget_search",
     "worst_ancestry",
     "worst_ancestry_score",
     "flags",
+    # The hazard subset of `flags`, so a pipeline can filter on "needs attention"
+    # without hard-coding which flag names are hazards — a list that grows.
+    "caveats",
+    "rationale",
     "reagent",
 )
 
@@ -70,9 +83,19 @@ def _row(candidate: Any) -> dict[str, Any]:
         "bystander_burden": None if burden is None else round(burden.value, 4),
         "p_intended": None if candidate.p_intended is None else round(candidate.p_intended, 4),
         "n_offtarget_sites": candidate.n_offtarget_sites,
+        "offtarget_specificity": (
+            None
+            if candidate.offtarget_specificity is None
+            else round(candidate.offtarget_specificity, 4)
+        ),
+        "offtarget_scorer": candidate.offtarget_scorer,
+        "offtarget_matrix": candidate.offtarget_matrix,
+        "offtarget_search": candidate.offtarget_search,
         "worst_ancestry": None if worst is None else worst.ancestry,
         "worst_ancestry_score": None if worst is None else round(worst.worst_score, 4),
         "flags": ";".join(candidate.flags),
+        "caveats": ";".join(flag for flag, _ in caveats(candidate.flags)),
+        "rationale": candidate.rationale,
         "reagent": candidate.reagent,
     }
 

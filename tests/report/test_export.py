@@ -97,3 +97,49 @@ def test_tsv_export_carries_schema_version(prime_menu: RankedMenu) -> None:
     # every data row carries the current export schema version in the first column
     for row in lines[1:]:
         assert row.split("\t")[0] == str(EXPORT_SCHEMA_VERSION)
+
+
+def test_the_flat_export_carries_what_makes_its_numbers_readable(
+    ancestry_menu: RankedMenu,
+) -> None:
+    """The export a pipeline filters on had the numbers but not their conditions.
+
+    `n_offtarget_sites` is not a safety figure on its own: it is conditional on the
+    cut-offs that produced it and silent about the aggregate. The HTML and PDF renders
+    have carried the specificity, the scoring basis and the search settings since each
+    was added; the TSV — the format something automated actually reads — carried none
+    of them, so a row saying `n_offtarget_sites = 0` was uninterpretable and comparable
+    to no other row.
+    """
+    from alleleforge.report.builder import build_report
+    from alleleforge.report.export import EXPORT_SCHEMA_VERSION, TSV_COLUMNS, report_to_tsv
+
+    report = build_report(ancestry_menu)
+    header, first, *_ = report_to_tsv(report).splitlines()
+    cells = dict(zip(header.split("\t"), first.split("\t"), strict=True))
+
+    for column in (
+        "offtarget_specificity",
+        "offtarget_scorer",
+        "offtarget_matrix",
+        "offtarget_search",
+        "caveats",
+        "rationale",
+    ):
+        assert column in TSV_COLUMNS
+        assert cells[column] != "", f"{column} is declared but empty for a searched candidate"
+
+    # The values are the candidate's own, not placeholders.
+    best = report.candidates[0]
+    assert cells["offtarget_scorer"] == best.offtarget_scorer
+    assert cells["offtarget_search"] == best.offtarget_search
+    assert float(cells["offtarget_specificity"]) == pytest.approx(
+        best.offtarget_specificity, abs=1e-4
+    )
+    # `caveats` is the hazard subset of `flags`, so a pipeline can filter on "needs
+    # attention" without hard-coding a flag-name list that grows.
+    assert set(cells["caveats"].split(";")) <= set(cells["flags"].split(";"))
+
+    # Adding columns is a schema change; a consumer branches on this before parsing.
+    assert EXPORT_SCHEMA_VERSION >= 3
+    assert cells["schema_version"] == str(EXPORT_SCHEMA_VERSION)
