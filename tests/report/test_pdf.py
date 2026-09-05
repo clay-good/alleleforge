@@ -68,6 +68,12 @@ def test_pdf_includes_ancestry_offtarget(ancestry_menu: RankedMenu) -> None:
     assert b"afr: worst score" in pdf
     assert b"specificity" in pdf  # the aggregate genome-wide specificity score
     assert b"scoring basis: CFD / doench-2016-cfd" in pdf  # the scorer + matrix identity
+    # The printable leave-behind states the search too, so a page handed to a
+    # collaborator carries the settings its site count is conditional on.
+    # Asserted glyph-for-glyph: the description is deliberately ASCII because the
+    # WinAnsi font would print a mathematical "<=" as "?" on the handed-out page.
+    assert b"search: up to 3 mismatches, 0 DNA / 0 RNA bulges" in pdf
+    assert b"sites reported at CFD >= 0.05 or MIT" in pdf  # wraps after this
     assert b"PROVENANCE" in pdf
     assert b"Models: cas9-efficiency-ensemble 0.1" in pdf
 

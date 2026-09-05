@@ -118,6 +118,8 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
     if c.n_offtarget_sites is not None and (c.offtarget_scorer or c.offtarget_matrix):
         basis = " / ".join(p for p in (c.offtarget_scorer, c.offtarget_matrix) if p)
         lines += _wrap(f"scoring basis: {basis}", indent="      ")
+    if c.offtarget_search is not None:
+        lines += _wrap(f"search: {c.offtarget_search}", indent="      ")
     if c.flags:
         lines += _wrap("flags: " + ", ".join(c.flags), indent="    ")
     if c.oligos is not None:

@@ -1224,6 +1224,13 @@ def offtarget(
         "score_matrix": report.score_matrix,
         "effective_matrix": report.effective_matrix(),
         "n_sites": report.n_sites,
+        "search": {
+            "mismatch_threshold": report.mismatch_threshold,
+            "dna_bulge_budget": report.dna_bulge_budget,
+            "rna_bulge_budget": report.rna_bulge_budget,
+            "cfd_threshold": report.cfd_threshold,
+            "mit_threshold": report.mit_threshold,
+        },
         "on_target_excluded": locus is not None,
         "worst_score": round(report.worst_score(), 4),
         "specificity": round(report.specificity_score(), 4),
@@ -1256,7 +1263,10 @@ def offtarget(
     human_lines = [
         f"spacer {report.spacer} / PAM {report.pam}: {report.n_sites} site(s), "
         f"worst score {report.worst_score():.3f}, "
-        f"specificity {report.specificity_score():.3f}{scorer_note}{on_target_note}"
+        f"specificity {report.specificity_score():.3f}{scorer_note}{on_target_note}",
+        # Every number on the line above is conditional on the budgets and cut-offs,
+        # so print them under it rather than leaving "3 site(s)" to be read as absolute.
+        f"  search: {report.search_description()}",
     ]
     for s in sites:
         mit = f"  mit={s['mit_score']}" if s["mit_score"] is not None else ""

@@ -104,6 +104,14 @@ def ancestry_menu() -> RankedMenu:
         pam="NGG",
         scorer="CFD",
         score_matrix="doench-2016-cfd",
+        # Deliberately non-default budgets and cut-offs: a render test that asserts the
+        # default values cannot tell "the renderer prints the search settings" from
+        # "the renderer prints a hardcoded string that happens to read like them".
+        mismatch_threshold=3,
+        dna_bulge_budget=0,
+        rna_bulge_budget=0,
+        cfd_threshold=0.05,
+        mit_threshold=0.01,
         sites=(
             OffTargetSite(
                 locus=GenomicInterval(chrom="chr3", start=10, end=30, strand=Strand.PLUS),

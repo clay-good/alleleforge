@@ -138,6 +138,25 @@ class OffTargetReport(BaseModel):
     score_matrix: str | None = None
     subthreshold_score_sum: float = 0.0
 
+    def search_description(self) -> str:
+        """Return a one-line statement of the budgets and cut-offs used.
+
+        Every number this report carries — the site count, the worst score, the
+        specificity — is conditional on these five settings, and a reader comparing
+        two reports cannot do so without them. Recording them on the model (so they
+        survive serialization) is only half the job; this is the form a render can
+        put next to the numbers.
+        """
+        # Deliberately ASCII: this string reaches the PDF leave-behind, whose WinAnsi
+        # font has no glyph for the mathematical <= or >=, and would print "?3
+        # mismatches" on the page a collaborator is handed.
+        return (
+            f"up to {self.mismatch_threshold} mismatches, "
+            f"{self.dna_bulge_budget} DNA / {self.rna_bulge_budget} RNA bulges; "
+            f"sites reported at CFD >= {self.cfd_threshold:g} "
+            f"or MIT >= {self.mit_threshold:g}"
+        )
+
     @property
     def n_sites(self) -> int:
         """Return the number of nominated sites."""

@@ -2319,6 +2319,37 @@ manual reconstruction, that comment is the bug report: the fix is not to add the
 is to stop keeping a list. After adding a field to a shared model, grep for the model's other constructors
 before doing anything else — that is a two-second check that R84 skipped and R85 paid for.**
 
+## Round 86 — recorded is not the same as shown
+
+R84 recorded the search's budgets and cut-offs on `OffTargetReport`. R85 found that the very next code path
+dropped them. R86 asked the third question in that sequence: **who displays them?**
+
+Nobody. Four surfaces render an off-target result — the HTML page, the PDF leave-behind, the CLI's human
+line, and its JSON payload — and all four printed "2 nominated site(s), specificity 0.82" with no statement
+of the scan that produced it. The fields existed, were correct, serialized fine, and were invisible to
+every human who would ever read one.
+
+That is worth separating from the R83/R84 rule rather than folding into it. "Record the parameter that
+narrowed the result" is satisfied by a field on a model, and a field on a model satisfies a schema check, a
+round-trip test, and a reproducibility argument — while doing nothing at all for the person holding the
+printout. The artifact a collaborator receives is the thing that has to be self-describing.
+
+**Shipped:** `OffTargetReport.search_description()`, a one-line statement of all five settings;
+`CandidateReport.offtarget_search` carrying it beside the existing scorer/matrix labels; render lines in
+HTML, PDF and the CLI; a structured `search` object in the JSON payload. The shared report fixture was
+moved to **non-default** budgets and cut-offs, because a render test asserting the defaults cannot
+distinguish "prints the settings" from "prints a hardcoded string that reads like them" — the three new
+assertions were mutation-checked against a hardcoded description and all three fail.
+
+One incidental find: the PDF's existing font-coverage guard caught that `≤` and `≥` are not in WinAnsi and
+would have printed as `?` on the page. The description is ASCII for that reason. A guard written four
+rounds ago for a different problem paid for itself here.
+
+**Lesson: "the field exists" and "the reader can see it" are different claims, and the tests that prove the
+first (schema freshness, round-trip, provenance hashing) all pass while the second is false. After adding a
+field whose purpose is to inform a human, grep the renderers — the field is not done until every surface
+that shows the number it qualifies also shows it.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

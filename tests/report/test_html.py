@@ -112,6 +112,10 @@ def test_html_renders_ancestry_offtarget_chart_and_table(ancestry_menu: RankedMe
     # reader can tell published-CFD from the labeled approximation without the code.
     assert "scoring basis" in html
     assert "doench-2016-cfd" in html
+    # ...and so is the search that produced the count: "2 nominated site(s)" means one
+    # thing at a 0.05 CFD cut-off with no bulges allowed and another at the defaults.
+    assert "off-target search: up to 3 mismatches, 0 DNA / 0 RNA bulges; " in html
+    assert "sites reported at CFD &gt;= 0.05 or MIT &gt;= 0.01" in html  # HTML-escaped
 
 
 def test_empty_menu_renders(prime_menu: RankedMenu) -> None:

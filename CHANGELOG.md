@@ -8,6 +8,20 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **The off-target cut-offs are now printed where the site count is, on every surface that shows one.**
+  R84 put the mismatch budget, the DNA/RNA bulge budgets, and the CFD/MIT cut-offs on `OffTargetReport`;
+  nothing rendered them, so an HTML page, a PDF leave-behind, the CLI's human line and its JSON payload all
+  still showed "2 nominated site(s), specificity 0.82" as if those numbers were absolute. They are not:
+  the same guide yields two sites at a 0.20 CFD cut-off and fifteen at 0.05, and the report a collaborator
+  is handed is precisely where that has to be visible. `OffTargetReport.search_description()` states the
+  settings in one line, `CandidateReport.offtarget_search` carries it (alongside the existing
+  `offtarget_scorer` / `offtarget_matrix` labels, which exist for the same reason), and the HTML, PDF and
+  CLI renders print it. The JSON payload gains a structured `search` object. The description is
+  deliberately ASCII — the PDF's WinAnsi font has no glyph for a mathematical `<=` and would have printed
+  `?3 mismatches` on the handed-out page.
+
 ### Fixed
 
 - **Every PE3/PE3b candidate reported the *default* off-target cut-offs, whatever the run actually used.**

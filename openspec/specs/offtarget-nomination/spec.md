@@ -163,3 +163,14 @@ read, and compared with another, on its own.
 - **WHEN** a search runs with `mismatches=2, dna_bulges=0, rna_bulges=0, cfd_threshold=0.05, mit_threshold=0.01`
 - **THEN** the report carries exactly those five values, so its site count is not mistaken for
   a count obtained under the defaults
+
+### Requirement: Every rendered off-target result states its search settings
+
+Recording the budgets and cut-offs on the report is not sufficient — the reader of a
+rendered artifact never sees the model. Every surface that displays a nominated-site count
+or a specificity score SHALL also display the settings that count is conditional on.
+
+#### Scenario: A rendered report shows the search
+- **WHEN** an HTML page, a PDF leave-behind, or the CLI's human output shows a site count
+- **THEN** it also shows the mismatch budget, the DNA and RNA bulge budgets, and the CFD and
+  MIT reporting cut-offs, in characters the target medium can actually render

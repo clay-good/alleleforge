@@ -642,6 +642,49 @@ def test_offtarget_tuning_knobs_are_honored(runner: CliRunner, nuclease_fasta: P
     assert json.loads(strict.output)["n_sites"] <= json.loads(base.output)["n_sites"]
 
 
+def test_offtarget_states_the_settings_its_site_count_depends_on(
+    runner: CliRunner, nuclease_fasta: Path
+) -> None:
+    """`n_sites` is meaningless without the budgets and cut-offs that produced it.
+
+    `test_offtarget_tuning_knobs_are_honored` proves the knobs change the answer.
+    This proves the answer says which knobs it was given — otherwise two runs of the
+    same guide report "5 sites" and "1 site" with nothing on either output to explain
+    the difference, and neither number can be compared with a collaborator's.
+    """
+    args = ["offtarget", "ACGTAACGTTACGTAACGTT", "--reference-fasta", str(nuclease_fasta)]
+    strict = [
+        "--mismatches",
+        "3",
+        "--dna-bulges",
+        "0",
+        "--rna-bulges",
+        "0",
+        "--cfd-threshold",
+        "0.05",
+        "--mit-threshold",
+        "0.01",
+    ]
+
+    human = runner.invoke(app, [*args, *strict])
+    assert human.exit_code == 0
+    assert "search: up to 3 mismatches, 0 DNA / 0 RNA bulges" in human.output
+    assert "sites reported at CFD >= 0.05 or MIT >= 0.01" in human.output
+
+    payload = json.loads(runner.invoke(app, [*args, *strict, "--json"]).output)
+    assert payload["search"] == {
+        "mismatch_threshold": 3,
+        "dna_bulge_budget": 0,
+        "rna_bulge_budget": 0,
+        "cfd_threshold": 0.05,
+        "mit_threshold": 0.01,
+    }
+    # ...and the defaults are reported as the defaults, not as whatever was last used.
+    default = json.loads(runner.invoke(app, [*args, "--json"]).output)["search"]
+    assert default != payload["search"]
+    assert default["dna_bulge_budget"] == 1 and default["cfd_threshold"] == 0.20
+
+
 def test_offtarget_human(runner: CliRunner, nuclease_fasta: Path) -> None:
     result = runner.invoke(
         app, ["offtarget", "ACGTAACGTTACGTAACGTT", "--reference-fasta", str(nuclease_fasta)]

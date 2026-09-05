@@ -197,6 +197,8 @@ def _candidate_html(c: CandidateReport) -> str:
     if c.n_offtarget_sites is not None and (c.offtarget_scorer or c.offtarget_matrix):
         basis = " / ".join(p for p in (c.offtarget_scorer, c.offtarget_matrix) if p)
         parts.append(f"<p class='muted'>off-target scoring basis: {_esc(basis)}.</p>")
+    if c.offtarget_search is not None:
+        parts.append(f"<p class='muted'>off-target search: {_esc(c.offtarget_search)}.</p>")
     if c.flags:
         parts.append("<p class='muted'>flags: " + _esc(", ".join(c.flags)) + "</p>")
     if c.oligos is not None:
