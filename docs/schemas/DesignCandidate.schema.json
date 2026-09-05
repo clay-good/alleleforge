@@ -416,6 +416,14 @@
           "default": 0.0,
           "title": "Subthreshold Score Sum",
           "type": "number"
+        },
+        "unbacked_populations": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Unbacked Populations",
+          "type": "array"
         }
       },
       "required": [

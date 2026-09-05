@@ -3394,6 +3394,40 @@ shapes is the better one.**
 whether it did anything is a separate fact, and only the second one is what the reader takes away. When you
 record that an input was supplied, record whether it applied.**
 
+## Round 119 — the ancestry that was asked about and never looked at
+
+R118's rule: when you record that an input was supplied, record whether it applied. Run over the provenance
+config snapshot, one entry stands out — `populations`, the list of ancestries to stratify by, which is the
+project's differentiator expressed as a parameter.
+
+Request `--populations afr,sas,eas` against a frequency file whose records carry `afr` and `nfe` columns.
+`afr` is used. `sas` and `eas` contribute nothing and are dropped without a word, while the snapshot records
+all three as considered.
+
+The failure is precisely the one the whole population-aware apparatus exists to prevent. An ancestry missing
+from the breakdown reads as *no risk found in that population*; here it means *nobody looked*. That is the
+BCL11A cautionary tale in miniature — the harm in a reference-only scan is not that it is wrong, it is that
+it is silent in exactly the populations that are under-represented in the data, which are the same
+populations a user is most likely to name explicitly and least likely to have coverage for.
+
+Three cases now distinguished, where before there were two:
+
+| | |
+|---|---|
+| no source supplied at all | the reference-only warning (existing) |
+| a source supplied that covers no part of the region | `sources_considered` (two rounds ago) |
+| a source supplied that has no column for a requested ancestry | `unbacked_populations` (this round) |
+
+**Shipped:** `GnomadDB.available_populations`, an `unbacked_populations` field checked across every supplied
+source — a haplotype panel backs its own ancestries — and a line in the search description naming them. It
+stays empty when no source was supplied, because that case already has a warning and two warnings for one
+situation is worse than one. All three branches mutation-checked.
+
+**Lesson: the finest-grained version of "was this input used?" is per *value*, not per input. A list-valued
+parameter can be half-applied, and the half that was dropped is invisible precisely because the other half
+worked. When a parameter names things — ancestries, tracks, chemistries, regions — check each name, not the
+list.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

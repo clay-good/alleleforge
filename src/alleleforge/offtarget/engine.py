@@ -389,6 +389,18 @@ def search(
     # Three states, kept distinct: key absent (no source given), 0 (given and covered
     # nothing here), n (given and contributed n). Counted without an `or` default,
     # which would collapse the first two — the whole point is that they differ.
+    # Requested ancestries with no data behind them. Asking for `sas` against a source
+    # whose records carry only `afr` and `nfe` contributes nothing and is dropped
+    # silently, while the provenance snapshot records `sas` among the populations
+    # considered — the report asserts an ancestry was examined when nothing for it
+    # exists. Distinct from the R75 case (ancestries requested with no source at all).
+    backed: set[str] = set()
+    if gnomad is not None:
+        backed |= gnomad.available_populations
+    for hap in haplotype_list:
+        backed |= {pop for pop, freq in hap.frequencies.items() if freq > 0.0}
+    unbacked = tuple(sorted(p for p in (populations or ()) if p not in backed)) if backed else ()
+
     sources_considered: dict[str, int] = {}
     if gnomad is not None:
         sources_considered["gnomad"] = 0
@@ -502,6 +514,7 @@ def search(
         searched_bases=total_bases,
         resolved_bases=resolved_bases,
         sources_considered=sources_considered,
+        unbacked_populations=unbacked,
         reference_build=reference.build or "hg38",
         scorer=primary.name,
         score_matrix=getattr(primary, "matrix", None),

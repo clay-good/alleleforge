@@ -10,6 +10,18 @@ acceptance.
 
 ### Added
 
+- **An ancestry requested for stratification that no supplied source carries data for is now named.**
+  Asking to stratify by `sas` against a frequency file whose records carry only `afr` and `nfe` contributed
+  nothing and was dropped in silence — while the provenance snapshot recorded `sas` among the populations
+  considered, so the artifact asserted an ancestry had been examined when no data for it existed, and its
+  absence from the breakdown read as *no risk in that population* rather than *no data*. On a tool whose
+  differentiator is ancestry-stratified safety, that is the wrong silence. `OffTargetReport` records
+  `unbacked_populations`, checked across every supplied source (a haplotype panel backs its own ancestries),
+  and the search description names them. It stays empty when no source was supplied at all — that case has
+  its own warning, and two warnings for one situation is worse than one.
+
+### Added
+
 - **A chromatin track that covers none of the candidate loci is now reported, and an adjusted candidate is
   flagged.** The per-candidate path was already careful — an uncovered locus produces no chromatin note, so
   the tool never claims evidence the track did not have. What was missing is the menu-level statement: a

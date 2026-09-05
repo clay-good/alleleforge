@@ -252,3 +252,23 @@ dangerous one, because nothing is absent to prompt a second look.
 #### Scenario: A frequency file that covers the region
 - **WHEN** the source contributes variants
 - **THEN** no such statement is made
+
+### Requirement: A requested ancestry with no data behind it is named
+
+Ancestries are requested as a list, and a list can be half-applied: a source with no
+column for one of them drops it silently while provenance records it as considered. An
+ancestry absent from the breakdown then reads as "no risk found there" when it means
+"nobody looked" — the failure the population-aware search exists to prevent, in the
+populations least likely to be covered and most likely to be named explicitly.
+
+The system SHALL record which requested ancestries no supplied source carries data for,
+checked across every source, and SHALL name them beside the result. It SHALL stay silent
+when no source was supplied at all, since that case is warned about separately.
+
+#### Scenario: An ancestry the source has no column for
+- **WHEN** stratification is requested by an ancestry no supplied source carries
+- **THEN** the report names it and says its absence from the breakdown means no data
+
+#### Scenario: Every requested ancestry backed
+- **WHEN** each requested ancestry is carried by some supplied source
+- **THEN** nothing is said

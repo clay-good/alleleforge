@@ -117,6 +117,19 @@ class GnomadDB:
                 populations=pops,
             )
 
+    @property
+    def available_populations(self) -> frozenset[str]:
+        """Return every ancestry label any record in this source carries.
+
+        Needed to tell a *requested* population apart from a *backed* one. Asking for
+        an ancestry the source has no column for silently contributes nothing, while
+        provenance records it among the populations considered — so the report asserts
+        an ancestry was examined when no data for it exists.
+        """
+        return frozenset(
+            pop for recs in self._by_chrom.values() for rec in recs for pop in rec.populations
+        )
+
     def frequencies(
         self,
         interval: GenomicInterval,

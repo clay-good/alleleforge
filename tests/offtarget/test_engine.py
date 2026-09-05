@@ -539,3 +539,53 @@ def test_every_supplied_safety_source_gets_the_same_coverage_check(
     )
     assert covering.sources_considered == {"haplotypes": 1, "patient-vcf": 1}
     assert "contributing nothing" not in covering.search_description()
+
+
+def test_an_ancestry_with_no_data_behind_it_is_named(make_reference: MakeRef) -> None:
+    """Asking to stratify by an ancestry the source has no column for is dropped silently.
+
+    Provenance records it among the populations considered, so the artifact asserts an
+    ancestry was examined when nothing for it exists — and its absence from the
+    breakdown reads as "no risk in that population" rather than "no data". Distinct
+    from requesting ancestries with no source at all, which is warned separately.
+    """
+    reference = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    db = GnomadDB(
+        [
+            _pf(
+                chrom="chr2",
+                pos=len(PAD) + 2,
+                ref=SPACER[2],
+                alt="C",
+                overall_af=0.08,
+                populations={"afr": 0.12, "nfe": 0.001},
+            )
+        ]
+    )
+
+    partial = search(SPACER, NGG, reference=reference, gnomad=db, populations=("afr", "sas"))
+    assert partial.unbacked_populations == ("sas",)
+    assert "no supplied source carries data for sas" in partial.search_description()
+
+    # Every request backed: nothing said, or the caveat is furniture.
+    backed = search(SPACER, NGG, reference=reference, gnomad=db, populations=("afr", "nfe"))
+    assert backed.unbacked_populations == ()
+    assert "no supplied source carries data" not in backed.search_description()
+
+    # A haplotype panel backs its own ancestries, so the check spans every source.
+    panel = Haplotype(
+        hap_id="h1",
+        interval=GenomicInterval(chrom="chr2", start=10, end=40, strand=Strand.PLUS),
+        variants=(Variant(chrom="chr2", pos=len(PAD) + 2, ref=SPACER[2], alt="C"),),
+        frequencies={"sas": 0.3},
+        source="1000g",
+    )
+    both = search(
+        SPACER, NGG, reference=reference, gnomad=db, haplotypes=[panel], populations=("afr", "sas")
+    )
+    assert both.unbacked_populations == ()
+
+    # With no source at all this stays empty: that case has its own warning, and two
+    # warnings for one situation is worse than one.
+    none_given = search(SPACER, NGG, reference=reference, populations=("afr", "sas"))
+    assert none_given.unbacked_populations == ()

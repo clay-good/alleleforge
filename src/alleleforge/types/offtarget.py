@@ -156,6 +156,12 @@ class OffTargetReport(BaseModel):
     #: getting the check while the others did not is how the gap arose in the first
     #: place.
     sources_considered: dict[str, int] = {}
+    #: Ancestries the caller asked to stratify by that no supplied source carries data
+    #: for. They contribute nothing and are dropped silently, while provenance records
+    #: them among the populations considered — so a report can assert an ancestry was
+    #: examined when nothing for it exists. Empty when every request is backed, and
+    #: empty when no source was supplied at all (a different case, warned elsewhere).
+    unbacked_populations: tuple[str, ...] = ()
     reference_build: str = "hg38"
     scorer: str | None = None
     score_matrix: str | None = None
@@ -183,6 +189,13 @@ class OffTargetReport(BaseModel):
                     f"; only {fraction:.0%} of the {self.searched_bases:,} requested bases "
                     "were searchable (the rest are assembly gaps or ambiguity codes)"
                 )
+        if self.unbacked_populations:
+            coverage += (
+                "; no supplied source carries data for "
+                f"{', '.join(self.unbacked_populations)} — those ancestries were "
+                "requested but not examined, and their absence from the breakdown "
+                "means 'no data', not 'no risk'"
+            )
         inert = sorted(name for name, n in self.sources_considered.items() if n == 0)
         if inert:
             coverage += (
