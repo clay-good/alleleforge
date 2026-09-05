@@ -145,6 +145,25 @@ guide), rather than assigned a locus it does not occupy.
 - **WHEN** a candidate nicking-guide protospacer lies wholly inside carried inserted bases
 - **THEN** it is not emitted, and no emitted nicking guide has a zero-width placement
 
+### Requirement: A pegRNA records the geometry its scorers consume
+
+A `PegRNA` SHALL record both RT-template homology arms — the 5' arm between the
+nick and the edit (the nick-to-edit distance) and the 3' arm past it — so the
+templated allele's length is recoverable rather than inferred. Consumers that need
+the nick-to-edit distance SHALL read the recorded arm; deriving it from the RTT
+length assumes a one-base edit and silently absorbs the templated allele into the
+distance. The arms SHALL NOT together exceed the RTT length.
+
+#### Scenario: Multi-base edit scored on its real distance
+- **WHEN** two pegRNAs share an RTT length and 3' homology but template alleles of
+  different lengths
+- **THEN** the one whose nick is nearer its edit scores the higher efficiency
+
+#### Scenario: Homology arms outrunning the template
+- **WHEN** a pegRNA is constructed whose 5' and 3' homology arms together exceed
+  its RTT length
+- **THEN** construction raises a validation error
+
 ### Requirement: PE3b classification survives a length-changing edit
 
 A nicking guide SHALL be classified PE3b only when the edit genuinely disrupts its

@@ -316,6 +316,7 @@ def _enumerate_frame(
                         rtt=DNASequence(rtt),
                         pbs=DNASequence(pbs),
                         three_prime_motif=motif,
+                        rtt_homology_5prime=distance,
                         rtt_homology_3prime=homology,
                         nicking_guide=nicking,
                         placement=placement,

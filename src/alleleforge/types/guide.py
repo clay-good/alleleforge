@@ -209,6 +209,9 @@ class PegRNA(BaseModel):
         rtt: Reverse-transcriptase template (encodes the edit + 3' homology).
         pbs: Primer-binding site.
         three_prime_motif: Optional structured 3' motif (default tevopreQ1).
+        rtt_homology_5prime: Homology length (nt) the RTT carries between the nick
+            and the edit — the nick-to-edit distance. Zero means the nick abuts
+            the edit, which is what an unspecified pegRNA is read as.
         rtt_homology_3prime: Homology length (nt) the RTT places 3' of the edit.
         nicking_guide: Optional PE3/PE3b nicking guide.
         placement: The pegRNA protospacer's genomic interval, if placed.
@@ -222,6 +225,7 @@ class PegRNA(BaseModel):
     rtt: DNASequence
     pbs: DNASequence
     three_prime_motif: ThreePrimeMotif = ThreePrimeMotif.TEVOPREQ1
+    rtt_homology_5prime: int = 0
     rtt_homology_3prime: int = MIN_RTT_3PRIME_HOMOLOGY
     nicking_guide: NickingGuide | None = None
     placement: GenomicInterval | None = None
@@ -245,7 +249,21 @@ class PegRNA(BaseModel):
             raise ValueError(
                 f"RTT 3' homology {self.rtt_homology_3prime} exceeds RTT length {rtt_len}"
             )
+        if self.rtt_homology_5prime < 0:
+            raise ValueError(f"RTT 5' homology {self.rtt_homology_5prime} is negative")
+        # The RTT is 5' homology + the templated allele + 3' homology, so the two
+        # homology arms cannot together outrun it.
+        if self.rtt_homology_5prime + self.rtt_homology_3prime > rtt_len:
+            raise ValueError(
+                f"RTT homology arms {self.rtt_homology_5prime}+{self.rtt_homology_3prime} "
+                f"exceed RTT length {rtt_len}"
+            )
         return self
+
+    @property
+    def templated_edit_length(self) -> int:
+        """Return how many bases the RTT writes at the edit (0 for a deletion)."""
+        return len(self.rtt) - self.rtt_homology_5prime - self.rtt_homology_3prime
 
     @property
     def is_epegrna(self) -> bool:

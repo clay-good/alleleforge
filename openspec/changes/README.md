@@ -1033,6 +1033,30 @@ enforces them hands the next session its backlog for free; the discipline that p
 those annotations (never advertise what you cannot produce) is what made this change a
 contained, verifiable one rather than an archaeology project.**
 
+## Round 39 — the first thing the new code broke was the old assumption downstream of it (1 fix)
+
+The immediate follow-up to R38, and a direct instance of the repo's most-repeated lesson: *when a new
+surface opens, the first thing it exposes is an old class the example-based tests never generated.*
+
+- **`fix(scoring)` nick-to-edit inflated by the templated allele.** `_nick_to_edit`
+  (`prime_efficiency.py`) derived the distance as `len(rtt) - rtt_homology_3prime - 1`. That trailing `- 1`
+  *is* the templated allele's length, and it was correct for exactly as long as the enumerator could only
+  write one base. R38 made it wrong for every insertion, deletion, MNV, and delins the day it landed: a
+  5 bp insertion reads as 4 nt farther from its nick than it is. The mis-read is constant across one
+  variant's candidates, so it is invisible in a within-variant ranking and shows up precisely where it
+  matters — the composite score that puts prime on one footing with the other chemistries in a single
+  menu, and any cross-variant comparison (cohort, benchmark). **Shipped:** `PegRNA` records
+  `rtt_homology_5prime` alongside the 3' arm it already carried (validated so the arms cannot outrun the
+  template, with `templated_edit_length` recoverable from the pair); the enumerator sets it, the scorer
+  reads it. Fails@HEAD -> passes; the canonical golden is unchanged because for an SNV the recorded arm
+  equals the derived one.
+
+**Lesson: shipping a feature is not the end of the feature. A derived quantity is a hidden assumption, and
+the assumption's expiry date is the day the thing it derives from becomes variable. The productive move
+after landing new code is not to audit the new code — its own tests are freshest — but to grep every
+consumer of the invariant the change just relaxed. One hardcoded `- 1`, in a module that was never
+touched, was the whole of R38's downstream blast radius.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

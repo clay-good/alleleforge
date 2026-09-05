@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from alleleforge.scoring.prime_efficiency import DeepPrimeAdapter, GenETAdapter, PridictScorer
 from alleleforge.types.guide import PegRNA, Spacer, ThreePrimeMotif
@@ -151,3 +152,38 @@ def test_adapter_pinned_weights_download_and_verify(tmp_path: object) -> None:
     assert path is not None and Path(path).read_bytes() == weights
     checkpoint = adapter.model_checkpoint()
     assert checkpoint is not None and checkpoint.sha256 == sha and checkpoint.chemistry == "prime"
+
+
+def _geom_peg(*, rtt: str, pbs: str, homology_5: int, homology_3: int) -> PegRNA:
+    """Build a pegRNA with an explicit RT-template geometry."""
+    return PegRNA(
+        spacer=Spacer(sequence=DNASequence("ACGTACGTACGTACGTACGT")),
+        scaffold=_SCAFFOLD,
+        rtt=DNASequence(rtt),
+        pbs=DNASequence(pbs),
+        rtt_homology_5prime=homology_5,
+        rtt_homology_3prime=homology_3,
+    )
+
+
+def test_nick_to_edit_is_not_inflated_by_the_templated_allele() -> None:
+    """A multi-base edit must not read as farther from the nick than it is.
+
+    Deriving the nick-to-edit distance as ``len(rtt) - homology_3 - 1`` assumes a
+    one-base edit. Two pegRNAs with the same RTT length and 3' homology but
+    different templated-allele lengths then score identically even though one
+    nicks 4 nt closer to its edit — the closer one must score higher.
+    """
+    pbs = "ACGTACGTACGTA"
+    snv = _geom_peg(rtt="A" * 16, pbs=pbs, homology_5=10, homology_3=5)  # 1 base written
+    insertion = _geom_peg(rtt="A" * 16, pbs=pbs, homology_5=6, homology_3=5)  # 5 bases written
+    assert snv.templated_edit_length == 1
+    assert insertion.templated_edit_length == 5
+
+    scorer = PridictScorer()
+    assert scorer.score(insertion).value > scorer.score(snv).value
+
+
+def test_homology_arms_may_not_outrun_the_template() -> None:
+    with pytest.raises(ValidationError):
+        _geom_peg(rtt="A" * 12, pbs="ACGTACGTACGTA", homology_5=8, homology_3=5)

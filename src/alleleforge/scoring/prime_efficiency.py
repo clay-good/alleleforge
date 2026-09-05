@@ -50,8 +50,17 @@ def _gc(seq: str) -> float:
 
 
 def _nick_to_edit(pegrna: PegRNA) -> int:
-    """Derive the nick-to-edit distance from the RTT geometry."""
-    return max(0, len(pegrna.rtt) - pegrna.rtt_homology_3prime - 1)
+    """Return the nick-to-edit distance the RTT's 5' homology records.
+
+    Deriving it as ``len(rtt) - rtt_homology_3prime - 1`` assumes the RTT writes
+    exactly one base, which holds only for an SNV. With a variable-length RT
+    template that arithmetic silently absorbs the whole templated allele into the
+    distance — a 5 bp insertion reads as 4 nt farther from the nick than it is,
+    and a deletion as nearer — feeding a wrong feature into the efficiency logit
+    and mis-ranking prime against the other chemistries in the same menu. The
+    pegRNA carries the real distance, so read it.
+    """
+    return max(0, pegrna.rtt_homology_5prime)
 
 
 class PridictScorer:

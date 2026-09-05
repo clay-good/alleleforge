@@ -44,6 +44,21 @@ acceptance.
 
 ### Fixed
 
+- **The prime-efficiency scorer no longer reads a multi-base edit as farther from the nick than it is.**
+  `_nick_to_edit` derived the nick-to-edit distance as `len(rtt) - rtt_homology_3prime - 1`, whose trailing
+  `- 1` is the length of the templated allele — true only for an SNV. With the variable-length RT template
+  now shipping, that arithmetic absorbs the whole written allele into the distance: a 5 bp insertion reads
+  as 4 nt farther from its nick than it is and loses `0.03 x 4` of efficiency logit it never earned, while
+  a deletion reads as nearer. Because the distance term is the same constant for every pegRNA of one
+  variant, the mis-read is invisible *within* a variant's candidates — it surfaces exactly where it does
+  damage, in the composite ranking that puts prime on one footing with ABE/CBE/nuclease in a single menu,
+  and in cross-variant comparisons (cohort runs, the benchmark). `PegRNA` now records
+  `rtt_homology_5prime` — the 5' arm, mirroring the 3' one it already carried — validated so the two arms
+  cannot outrun the template, with `templated_edit_length` derivable from the pair; the enumerator sets it
+  and the scorer reads it. Regression test (two pegRNAs, same RTT length and 3' homology, different
+  templated-allele lengths) fails@HEAD (identical scores) -> passes. The canonical golden digest is
+  unchanged: for an SNV the recorded arm equals the value the old formula derived.
+
 - **The prime enumerator no longer emits a pegRNA whose RT template spans an assembly-gap `N`.** The cas9
   and base-editor enumerators skip any emitted span that covers a reference `N` (an unknown assembly gap),
   and the prime enumerator N-guards the pegRNA spacer and the nicking-guide protospacer — but it omitted the
