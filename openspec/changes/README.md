@@ -1749,6 +1749,37 @@ docstrings updated themselves as the code changed, which is exactly what makes t
 lines above them easy to forget — the page looks maintained. Wherever generated and hand-written content
 share a page, the hand-written half is the one to re-read after a behavior change.**
 
+## Round 65 — 100% coverage on a primitive with no direct test, and the bug hiding under it
+
+`EditFrame` — the coordinate primitive the prime *and* cas9 enumerators both depend on since R42 — reported
+**100% coverage** and had no direct test. It was reached only through two enumerators, on their specific
+loci. That is coverage, not verification, and every coordinate defect this codebase has produced (a
+placement off by an indel's length, a cut index that did not move with its allele) is exactly that shape.
+
+Wrote the direct property tests. The first one failed.
+
+**`fix(enumerate)` a span starting at a pure deletion was placed four bases too early.** A span boundary
+sitting on the edit is ambiguous and the two directions want opposite answers: with an empty carried allele
+— the target genome has a pure deletion — index `edit_plus` is at once "just before the removed reference
+bases" and "just after" them. A span *starting* there begins after them; one *ending* there stops before
+them. `_reference` served both, so a 6-base span reported a 10-base footprint whose first four bases are
+not in the protospacer at all. Split into `_reference_start` / `_reference_end`, which is precisely what
+`_alt_coordinate_lift` in the off-target module already does — "``lo`` for a span start, ``hi`` for a span
+end" — a solved problem in this repo that the newer primitive collapsed back into one map.
+
+Reachable through an **anchorless** deletion (`alt=""`), which `VariantClass.DELETION` and routing both
+admit even though `normalized()` keeps an anchor. **Every existing test still passed** — the enumerators
+are exercised on anchored loci, where the two maps agree. Mutation-checked; the new tests also pin
+monotonicity, the reverse frame mirroring the plus frame, and the identity frame being a plain offset.
+
+**Lesson: 100% coverage on a shared primitive reached only through its callers is a coverage number, not a
+verification. The callers pin the paths *they* take; the primitive's contract is broader than any of them,
+and the gap is precisely the inputs no caller happens to produce today — which is also precisely where the
+next caller will land. Second, and more pointed: this repo had already solved this exact boundary problem,
+in `_alt_coordinate_lift`, with a docstring explaining why two maps are needed. The newer, shared, more
+central implementation collapsed them into one. When extracting a primitive, look for whether an older
+corner of the codebase already fought this fight.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

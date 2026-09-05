@@ -49,14 +49,34 @@ class EditFrame:
         """Return a frame for a window carrying no length-changing edit."""
         return cls(chrom=chrom, offset=offset, edit_plus=0, start_len=0, ref_len=0, span=span)
 
-    def _reference(self, index: int) -> int:
-        """Return the reference coordinate of plus-frame index ``index``."""
+    def _reference_start(self, index: int) -> int:
+        """Return the reference coordinate a span *starting* at ``index`` begins on.
+
+        A span boundary at the edit is ambiguous, and the two directions want
+        opposite answers. When the carried allele is empty — the target genome has
+        a pure deletion — index ``edit_plus`` is simultaneously "just before the
+        removed reference bases" and "just after" them. A span **starting** there
+        begins *after* them, so the downstream branch is tested first; a span
+        **ending** there stops *before* them (see :meth:`_reference_end`). Resolving
+        both with one map made a span starting at that point claim the removed
+        bases as part of its footprint. The off-target module's
+        ``_alt_coordinate_lift`` splits its lift into ``lo``/``hi`` maps for exactly
+        this reason.
+        """
+        if index >= self.edit_plus + self.start_len:
+            return self.offset + index - self.start_len + self.ref_len
+        if index <= self.edit_plus:
+            return self.offset + index
+        # Inside the carried allele: walk the reference span it replaces, then
+        # stay pinned at its 3' boundary once the allele outruns it.
+        return self.offset + self.edit_plus + min(index - self.edit_plus, self.ref_len)
+
+    def _reference_end(self, index: int) -> int:
+        """Return the reference coordinate a span *ending* at ``index`` stops on."""
         if index <= self.edit_plus:
             return self.offset + index
         if index >= self.edit_plus + self.start_len:
             return self.offset + index - self.start_len + self.ref_len
-        # Inside the carried allele: walk the reference span it replaces, then
-        # stay pinned at its 3' boundary once the allele outruns it.
         return self.offset + self.edit_plus + min(index - self.edit_plus, self.ref_len)
 
     def interval(self, lo: int, hi: int, strand: Strand) -> GenomicInterval | None:
@@ -67,12 +87,15 @@ class EditFrame:
         reference locus to report (an unplaced reagent, not an invalid one).
         """
         lo_plus, hi_plus = (self.span - hi, self.span - lo) if self.reverse else (lo, hi)
-        start, end = self._reference(lo_plus), self._reference(hi_plus)
+        start, end = self._reference_start(lo_plus), self._reference_end(hi_plus)
         if end <= start:
             return None
         out_strand = strand.opposite() if self.reverse else strand
         return GenomicInterval(chrom=self.chrom, start=start, end=end, strand=out_strand)
 
     def coord(self, index: int) -> int:
-        """Return the reference coordinate of frame position ``index``."""
-        return self._reference(self.span - 1 - index if self.reverse else index)
+        """Return the reference coordinate of the base at frame position ``index``.
+
+        A position names a base, not a boundary, so it uses the span-start map.
+        """
+        return self._reference_start(self.span - 1 - index if self.reverse else index)

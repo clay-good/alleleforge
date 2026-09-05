@@ -74,6 +74,19 @@ acceptance.
 
 ### Fixed
 
+- **`EditFrame` placed a span starting exactly at a pure deletion four bases too early.** A span boundary
+  sitting on the edit is ambiguous, and the two directions want opposite answers: when the carried allele
+  is empty — the target genome has a pure deletion — index `edit_plus` is simultaneously "just before the
+  removed reference bases" and "just after" them. A span *starting* there begins after them; a span
+  *ending* there stops before them. One map served both, so a 6-base span at that boundary reported a
+  10-base reference footprint whose first four bases are **not in the protospacer at all**. Split into
+  span-start and span-end maps, exactly as the off-target module's `_alt_coordinate_lift` already does for
+  the same reason ("`lo` for a span start, `hi` for a span end"). Reachable through an *anchorless*
+  deletion variant (`alt=""`), which `VariantClass.DELETION` and routing both admit even though
+  `normalized()` keeps an anchor. Every existing test still passes — the enumerators are exercised on
+  anchored loci, where the two maps agree — which is why the bug needed a direct test of the primitive to
+  find.
+
 - **`make ci` now actually mirrors CI, and a test keeps it that way.** The Makefile's header promises
   "CI runs the same commands; this is the local mirror so `make ci` reproduces the gate before a push."
   It was false: `ci` ran `lint type test docs reproduce` and omitted the `examples` job — the one job that
