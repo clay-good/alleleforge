@@ -879,6 +879,39 @@ def test_verify_passes_on_complete_provenance(runner: CliRunner, tmp_path: Path)
     assert "verified" in result.output
 
 
+def test_verify_does_not_call_an_unrun_check_verified(runner: CliRunner, tmp_path: Path) -> None:
+    """ "verified" for a run that hashed nothing is "not measured" printed as "clean".
+
+    `aforge verify result.json` makes two different claims — provenance is complete,
+    and the pinned artifacts still hash to what was recorded — and only the first is
+    checked without `--cache-dir`. It reported `verified: true` with an empty check
+    list, on the one command whose entire purpose is checking.
+    """
+    path = _menu_with_provenance(tmp_path)
+
+    bare = runner.invoke(app, ["verify", str(path)])
+    assert bare.exit_code == 0
+    assert "verified" in bare.output
+    assert "no artifact bytes were re-hashed" in bare.output
+    payload = json.loads(runner.invoke(app, ["verify", str(path), "--json"]).output)
+    assert payload["verified"] is True  # provenance really is complete
+    assert payload["artifact_verification_run"] is False  # ...and nothing was hashed
+    assert payload["artifacts_rehashed"] == 0
+
+    # A cache directory that contains nothing must not read as a successful check
+    # either: the flag was given, and still nothing was established.
+    empty = runner.invoke(app, ["verify", str(path), "--cache-dir", str(tmp_path / "empty")])
+    assert empty.exit_code == 0
+    assert "nothing was re-hashed" in empty.output
+    with_cache = json.loads(
+        runner.invoke(
+            app, ["verify", str(path), "--cache-dir", str(tmp_path / "empty"), "--json"]
+        ).output
+    )
+    assert with_cache["artifact_verification_run"] is True
+    assert with_cache["artifacts_rehashed"] == 0
+
+
 def test_verify_fails_without_provenance(runner: CliRunner, tmp_path: Path) -> None:
     path = _menu_with_provenance(tmp_path, provenance=False)
     result = runner.invoke(app, ["verify", str(path)])

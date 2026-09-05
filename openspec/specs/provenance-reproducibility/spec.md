@@ -233,3 +233,22 @@ recorded as a deliberate omission with its reason.
 - **WHEN** a field is added to `Provenance`
 - **THEN** it is either rendered in the footer or listed as omitted with a reason; it
   cannot be dropped silently
+
+### Requirement: Verification distinguishes completeness from artifact integrity
+
+`verify` makes two separable claims: that a result's provenance is complete, and that the
+artifacts it pins still hash to their recorded values. The second requires a cache to
+read, so it does not always run. The command SHALL NOT present a completeness pass as an
+integrity pass: when no artifact bytes were re-hashed it SHALL say so and say how to make
+it happen, and its machine-readable output SHALL record whether artifact verification ran
+and how many artifacts were actually re-hashed.
+
+#### Scenario: No cache directory
+- **WHEN** `verify` runs without a cache directory
+- **THEN** it reports provenance completeness and states that no artifact was re-hashed
+
+#### Scenario: A cache directory holding nothing checkable
+- **WHEN** a cache directory is given but every artifact is unpinned, uncached, or of
+  unknown layout
+- **THEN** the output says nothing about artifact integrity was established, rather than
+  reporting a clean check

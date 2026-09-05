@@ -1402,12 +1402,20 @@ def verify(
                     f"expected {ds.sha256[:12]}…, got {ds_actual[:12]}…"
                 )
 
+    # Two different claims, and only one of them was ever made. Completeness is checked
+    # always; re-hashing the pinned artifacts happens only with --cache-dir. Reporting
+    # "verified" for a run that hashed nothing is the same failure this project names
+    # everywhere else — "not measured" printed as "clean" — and it is worst here,
+    # because checking is the entire purpose of the command.
+    n_ok = sum(1 for c in checks if c["status"] == "ok")
     payload: dict[str, Any] = {
         "seed": prov.seed,
         "alleleforge_version": prov.alleleforge_version,
         "n_models": len(prov.models),
         "n_datasets": len(prov.datasets),
         "checkpoint_checks": checks,
+        "artifacts_rehashed": n_ok,
+        "artifact_verification_run": cache_dir is not None,
         "problems": problems,
         "verified": not problems,
     }
@@ -1421,6 +1429,18 @@ def verify(
         human += [f"  - {p}" for p in problems]
     else:
         human.append("verified: provenance is complete and consistent")
+    if cache_dir is None:
+        human.append(
+            "  NOTE: no artifact bytes were re-hashed. This checked that provenance is "
+            "complete, not that the pinned checkpoints and datasets are intact — pass "
+            "--cache-dir to do that."
+        )
+    elif n_ok == 0:
+        human.append(
+            f"  NOTE: --cache-dir was given but nothing was re-hashed ({len(checks)} "
+            "artifact(s) unpinned, not cached, or of unknown layout). Nothing about "
+            "artifact integrity was established."
+        )
     _emit(payload, as_json=as_json, human="\n".join(human))
     if problems:
         raise typer.Exit(ExitCode.UNAVAILABLE)

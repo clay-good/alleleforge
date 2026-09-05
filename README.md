@@ -1101,7 +1101,7 @@ flowchart LR
 > file-read primitive, so that surface needs server-side configuration like the reference already has.
 > Everything that is *data* rather than a path — region scoping, cell context, the render cap, the
 > on-target locus — is available over HTTP.
-| `aforge verify <result.json>` | Check a result's provenance is complete — it names every model and dataset used and carries seed, version and config — and, with `--cache-dir`, re-hash each pinned checkpoint and dataset found there against the recorded hash. Exits non-zero on incomplete provenance or a hash mismatch: provenance as a *checkable contract*, not a record. |
+| `aforge verify <result.json>` | Check a result's provenance is complete — it names every model and dataset used and carries seed, version and config — and, with `--cache-dir`, re-hash each pinned checkpoint and dataset found there against the recorded hash. Exits non-zero on incomplete provenance or a hash mismatch: provenance as a *checkable contract*, not a record. **Without `--cache-dir` no bytes are re-hashed, and the command says so**: completeness and artifact integrity are two different claims and only one of them is free. |
 | `aforge data list` / `show <name>` | Inspect the dataset registry (versions, licenses, provenance). |
 | `aforge bench list` / `run` | List and run CRISPR-Bench tasks against frozen splits. |
 | `aforge bench leaderboard <result.json…>` | Aggregate signed results into the model-card-gated leaderboard (Markdown/HTML). |

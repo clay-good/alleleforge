@@ -3084,6 +3084,43 @@ presentation rule this audit has established — the interval travels with the e
 default, a hazard is not decoration — applies to the notebooks with more force than to the product, because
 a user copies the example and then owns the copy.**
 
+## Round 109 — the check that did not check
+
+Two queries this round. The first — sweep the source for `x or <default>`, the falsy-default shape that had
+just produced two bugs in one notebook — came back essentially clean: sixteen hits, all on dicts, lists and
+objects where the empty case and the absent case mean the same thing. Worth recording as a negative result
+rather than forcing a finding out of it.
+
+The second was R105's rule again: run the command you have not run. `aforge verify` — the command I
+*documented* in R96 without ever executing.
+
+```
+$ aforge verify result.json
+provenance: aforge 0.1.0.dev0, seed 20240501, 2 model(s), 0 dataset(s)
+verified: provenance is complete and consistent
+```
+
+with `"checkpoint_checks": []`. Nothing was hashed. Re-hashing requires `--cache-dir`, and without it the
+command checks that provenance is *complete* — that it names its models and datasets and carries a seed —
+and nothing at all about whether those artifacts are intact. The word "verified" covers both claims and only
+one was tested.
+
+This is the project's own recurring failure — "not measured" printed as "clean" — landing on the command
+whose entire purpose is checking, and it is worse here than at any of the surfaces where I have found it
+before. A user runs `verify` *because* they want the integrity claim. Green output is the answer they were
+looking for, which is exactly when nobody reads the field list.
+
+**Shipped:** the human output states that no bytes were re-hashed and how to make it happen, and states it
+again in the sharper case where `--cache-dir` *was* given and every artifact turned out unpinned, uncached
+or of unknown layout — the flag was passed and still nothing was established, which is the version most
+likely to fool someone who thought they had done it right. `artifact_verification_run` and
+`artifacts_rehashed` in the JSON; the README row corrected to say the two claims are separate.
+
+**Lesson: documenting a command is not running it. I wrote the README row for `verify` thirteen rounds ago
+from its help text and its source, and both describe what it does when given `--cache-dir` — which is the
+interesting path, so it is the one the prose describes and the one the author has in mind. The default
+invocation is the one every user types first, and nobody had looked at what it prints.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

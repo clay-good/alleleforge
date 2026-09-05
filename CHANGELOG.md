@@ -10,6 +10,18 @@ acceptance.
 
 ### Fixed
 
+- **`aforge verify` reported "verified" for a run that re-hashed nothing.** The command makes two different
+  claims — *provenance is complete* and *the pinned artifacts still hash to what was recorded* — and only
+  the first is checked without `--cache-dir`. `aforge verify result.json` printed
+  `verified: provenance is complete and consistent` with an empty check list, which reads as an integrity
+  pass. That is "not measured" presented as "clean", the failure this project names at every other surface,
+  on the one command whose entire purpose is checking. The output now says plainly that no bytes were
+  re-hashed and how to make it happen, and says it again in the sharper case where `--cache-dir` *was* given
+  but every artifact turned out unpinned, uncached or of unknown layout — the flag was passed and still
+  nothing was established. The JSON payload gains `artifact_verification_run` and `artifacts_rehashed`.
+
+### Fixed
+
 - **The cohort example notebook printed a bare efficiency and could turn a real `0.0` into `NaN`.** It is
   the file a user is most likely to paste into their own script, and it rendered `best_eff` as a lone
   rounded float — the omission just fixed on the CLI, the report and the browser table — while writing
