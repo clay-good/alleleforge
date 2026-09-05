@@ -228,3 +228,25 @@ regulatory target, and the prediction speaks for one transcript only.
 #### Scenario: Non-canonical transcript
 - **WHEN** the consequence is reported against a non-canonical transcript
 - **THEN** the rationale says so
+
+### Requirement: Hazard flags are rendered apart from descriptive ones
+
+A candidate's flags mix facts that merely describe it with facts that change what a
+reader should do. Rendered as one flat list they carry identical weight, so a nick pair
+close enough to act as a double-strand break reads like the name of a 3' motif. Every
+human-facing render SHALL present the hazard flags separately and ahead of the flat
+list, each with a one-line statement of why it matters, while the complete flag list is
+still shown — separated, not filtered.
+
+Every flag the system emits SHALL be classified as either a hazard or a description.
+An unclassified flag SHALL fail the build rather than default to either, since
+defaulting to "descriptive" silently demotes a hazard.
+
+#### Scenario: A candidate with a close nick
+- **WHEN** a candidate carries `close-nick`
+- **THEN** the render states it on its own line with the reason, and also lists it among
+  the candidate's flags
+
+#### Scenario: A candidate with nothing wrong
+- **WHEN** no flag on a candidate is a hazard
+- **THEN** no caveat line is rendered at all

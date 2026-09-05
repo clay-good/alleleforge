@@ -8,6 +8,26 @@ acceptance.
 
 ## [Unreleased]
 
+### Changed
+
+- **A candidate's hazard flags are now separated from its decorative ones, each with the reason it
+  matters.** Found by running a realistic correction end to end and reading the page: the **top-ranked,
+  Pareto-front** pegRNA carried `close-nick` — its two nicks 8 nt apart, which is a staggered double-strand
+  break, the outcome prime editing is chosen to avoid — printed inside a comma-separated `flags:` line with
+  exactly the weight of `epegRNA:tevopreQ1` and `both-nicks-searched`. The oligo *warnings* have had a
+  prominent channel since the donor work; a candidate's own hazards did not.
+
+  `CAVEAT_FLAGS` maps each hazard to a one-line explanation — an out-of-distribution efficiency prediction,
+  a close nick, out-of-band spacer GC, a re-cuttable HDR donor, an NHEJ-spectrum outcome, bystander bases
+  in the window, a population-only off-target, a relaxed PAM, an ambiguous locus, an internal cloning-enzyme
+  site — and the HTML and PDF renders give each its own line before the flat list. `flags` still carries
+  everything: separated, not filtered.
+
+  A test reads every `flags.append(...)` literal out of the source and fails if any flag is classified as
+  neither a hazard nor a description, so a new flag has to be decided rather than defaulting to harmless —
+  the direction that loses a hazard, which is how `close-nick` came to be rendered as decoration two rounds
+  after it was added.
+
 ### Added
 
 - **A code of conduct, which the README and `CONTRIBUTING.md` had both promised and neither delivered.**

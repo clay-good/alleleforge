@@ -44,6 +44,96 @@ class AncestryOffTarget(BaseModel):
     worst_score: float
 
 
+#: Flags that change what a reader should *do*, each with the reason, keyed by the
+#: prefix the emitting code uses (several carry a value after a colon).
+#:
+#: A candidate's flags are a flat list of free-form annotations, and every render
+#: printed them as one comma-separated line — so a top-ranked pegRNA whose second nick
+#: sits 8 nt away, effectively a staggered double-strand break, announced `close-nick`
+#: with exactly the weight of `epegRNA:tevopreQ1`. The oligo *warnings* already have a
+#: prominent channel for this reason (a donor that can be re-cut, an oligo too long to
+#: synthesize); the candidate's own hazards did not, so they are separated here.
+#:
+#: Separated, not filtered: `CandidateReport.flags` still carries the complete list.
+CAVEAT_FLAGS: dict[str, str] = {
+    "ood": (
+        "the efficiency prediction is out of distribution for this model — it is ranked "
+        "on its lower interval bound, and the point estimate should not be trusted"
+    ),
+    "close-nick": (
+        "the two nicks are close enough to act as a staggered double-strand break, the "
+        "outcome prime editing is chosen to avoid; expect indel byproducts"
+    ),
+    "gc-out-of-band": (
+        "spacer GC is outside the band where U6 transcription and oligo synthesis behave"
+    ),
+    "hdr-donor:recut-not-blocked": (
+        "the repaired allele is still a substrate for this guide, so the correction can "
+        "be cut again after repair"
+    ),
+    "outcome-is-nhej-spectrum": (
+        "the outcome distribution below is the NHEJ indel spectrum — the byproduct of "
+        "this strategy, not the intended correction, which is the minority product"
+    ),
+    "bystander-present": ("editable bystander bases sit in the window alongside the target"),
+    "population-offtarget": (
+        "at least one nominated off-target site exists only on a population allele, not "
+        "in the reference"
+    ),
+    "relaxed-pam": (
+        "a non-canonical PAM was accepted; activity and the off-target profile differ from NGG"
+    ),
+    "recommend-reference": (
+        "this locus is ambiguous in the current build; the named assembly resolves it"
+    ),
+    "internal-": (
+        "the reagent contains an internal site for the cloning enzyme, which will cut "
+        "the insert — this scheme cannot be used as-is"
+    ),
+}
+
+#: Flags that describe the candidate without asking anything of the reader. Listed
+#: explicitly, not inferred, so a new flag has to be classified rather than silently
+#: defaulting to "harmless" — the direction that loses a hazard.
+DESCRIPTIVE_FLAGS: frozenset[str] = frozenset(
+    {
+        "both-nicks-searched",
+        "clean",
+        "hdr-donor:none",
+        "hdr-donor:recut-blocked",
+        "no-5prime-g",  # the cloning scheme prepends the U6-start G automatically
+        "pe3",
+        "pe3b",
+        "no-nick",
+        "epegRNA",
+        "nick-distance",
+        "templated-edit",
+        "bystander-burden",
+    }
+)
+
+
+def caveats(flags: tuple[str, ...]) -> tuple[tuple[str, str], ...]:
+    """Return ``(flag, why it matters)`` for each flag that asks something of the reader.
+
+    Args:
+        flags: A candidate's complete flag list.
+
+    Returns:
+        Pairs in :data:`CAVEAT_FLAGS` order, so two candidates list their caveats the
+        same way and a render is stable.
+    """
+    out: list[tuple[str, str]] = []
+    for prefix, reason in CAVEAT_FLAGS.items():
+        for flag in flags:
+            if flag == prefix or flag.startswith(
+                prefix if prefix.endswith(("-", ":")) else prefix + ":"
+            ):
+                out.append((flag, reason))
+                break
+    return tuple(out)
+
+
 def _reagent_summary(candidate: DesignCandidate) -> str:
     """Return a one-line human description of the candidate's reagent."""
     if candidate.guide is not None:

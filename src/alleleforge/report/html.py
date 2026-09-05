@@ -20,6 +20,7 @@ from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
     CandidateReport,
     DesignReport,
+    caveats,
     model_limitation_lines,
     provenance_lines,
     visible_candidates,
@@ -201,6 +202,12 @@ def _candidate_html(c: CandidateReport) -> str:
         parts.append(f"<p class='muted'>off-target scoring basis: {_esc(basis)}.</p>")
     if c.offtarget_search is not None:
         parts.append(f"<p class='muted'>off-target search: {_esc(c.offtarget_search)}.</p>")
+    # Hazards first and on their own, before the flat flag list: a `close-nick` printed
+    # inside a comma-separated line reads with the same weight as `epegRNA:tevopreQ1`.
+    for flag, reason in caveats(c.flags):
+        parts.append(
+            f"<p class='muted'><strong>caveat &mdash; {_esc(flag)}:</strong> {_esc(reason)}</p>"
+        )
     if c.flags:
         parts.append("<p class='muted'>flags: " + _esc(", ".join(c.flags)) + "</p>")
     if c.oligos is not None:

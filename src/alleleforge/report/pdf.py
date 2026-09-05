@@ -16,6 +16,7 @@ from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
     CandidateReport,
     DesignReport,
+    caveats,
     model_limitation_lines,
     provenance_lines,
     visible_candidates,
@@ -122,6 +123,8 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
         lines += _wrap(f"scoring basis: {basis}", indent="      ")
     if c.offtarget_search is not None:
         lines += _wrap(f"search: {c.offtarget_search}", indent="      ")
+    for flag, reason in caveats(c.flags):
+        lines += _wrap(f"CAVEAT - {flag}: {reason}", indent="    ")
     if c.flags:
         lines += _wrap("flags: " + ", ".join(c.flags), indent="    ")
     if c.oligos is not None:

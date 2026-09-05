@@ -2703,6 +2703,44 @@ re-read, but the *governance and onboarding* files, which nobody re-reads and wh
 A README's technical claims get corrected by users who hit them; `CONTRIBUTING.md` pointing at a file that
 does not exist just quietly greets everyone who shows up.**
 
+## Round 98 — reading my own output as a user
+
+The mechanical prose checks came back clean this round (README imports resolve, module paths import, links
+now check themselves), so I did what my own notes say has the highest yield and stopped auditing: built a
+realistic correction on a 4 kb contig with a gnomAD sites file and two ancestries, ran it through the CLI,
+and read the rendered HTML page as a user would.
+
+The top candidate — rank 1, on the Pareto front, the reagent someone would order — said this:
+
+```
+flags: epegRNA:tevopreQ1, pe3b, nick-distance:+8nt, close-nick, both-nicks-searched
+```
+
+An 8 nt nick pair is a staggered double-strand break. It is the single most consequential fact about that
+candidate, and it was rendered as the fourth item in a comma-separated list, indistinguishable from *the
+motif is tevopreQ1*.
+
+The uncomfortable part: I added `close-nick` in R89, and R87 had already established, for the HDR donor,
+that a hazard belongs in the hazard channel rather than the notes bag. I applied that lesson to the oligos
+and then, two rounds later, dropped a new hazard straight into the flat flag list — which is exactly the
+failure the lesson describes. Reading the output caught in one minute what nine rounds of source-level
+queries did not.
+
+Nine other flags turned out to be in the same position: `ood` (the whole honest-uncertainty mechanism, in a
+comma list), a re-cuttable HDR donor, an NHEJ-spectrum outcome, bystander bases in the base-editing window,
+a population-only off-target, an internal cloning-enzyme site that will cut the insert.
+
+**Shipped:** `CAVEAT_FLAGS`, a hazard → reason map; caveat lines in HTML and PDF ahead of the flat list,
+which still carries everything. And a guard that reads every `flags.append(...)` literal **out of the
+source** and fails on any flag classified as neither hazard nor description — deliberately defaulting to
+"needs a decision", because defaulting to harmless is the direction that loses a hazard.
+
+**Lesson: source-level queries find things that are absent; only reading the output finds things that are
+present but *weightless*. Nothing was missing here — every fact was on the page, computed correctly,
+serialized, tested. It was flat. A rendering that gives a double-strand break the same visual weight as a
+motif name is a correct report and a misleading one, and no query over the code can see that. Run the
+product and read it, on a schedule, not only when a query comes up empty.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
