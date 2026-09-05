@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="720" height="380" viewBox="0 0 720 380" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
 <rect width="720" height="380" fill="#ffffff"/>
 <text x="70" y="28" fill="#1f2933" font-size="17" font-weight="700">Per-task calibration error (ECE) — CRISPR-Bench baseline</text>
-<text x="70" y="47" fill="#62707d" font-size="12">Expected calibration error per task on the frozen weight-free splits. Dashed: the flag threshold.</text>
+<text x="70" y="47" fill="#62707d" font-size="12">Expected calibration error per task on the frozen weight-free splits. Dashed: the flag threshold. Data: bundled SYNTHETIC benchmark fixtures (single-digit n) — this shows the measurement machinery, not a model's performance.</text>
 <line x1="70" y1="284.0" x2="696" y2="284.0" stroke="#dde3e8" stroke-width="1"/>
 <text x="62" y="288.0" fill="#62707d" font-size="11" text-anchor="end">0</text>
 <line x1="70" y1="240.0" x2="696" y2="240.0" stroke="#dde3e8" stroke-width="1"/>

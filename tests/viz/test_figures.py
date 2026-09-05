@@ -87,3 +87,31 @@ def test_committed_figures_match_a_fresh_render(tmp_path: Path) -> None:
         if (committed / path.name).read_bytes() != path.read_bytes()
     )
     assert not stale, f"committed figure(s) out of date: {', '.join(stale)}. Run make figures"
+
+
+def test_every_figure_states_where_its_data_came_from() -> None:
+    """A figure is the artifact most likely to be seen alone.
+
+    A slide, an issue, a paper — the caveat in the report beside it does not travel
+    with the image. All four committed figures plot numbers from synthetic stand-ins
+    or constructed loci, and none said so; the ECE chart even draws a flag threshold
+    across them, framing a fabricated number as a measurement against a real bar.
+    """
+    from alleleforge.viz.figures import FIGURES
+
+    assert FIGURES, "no figures registered — the loop below would be vacuous"
+    for name, build in FIGURES.items():
+        svg = build()
+        assert "SYNTHETIC" in svg or "CONSTRUCTED" in svg, (
+            f"figure {name!r} plots fixture data without saying so"
+        )
+
+
+def test_the_note_tracks_the_data_rather_than_being_decoration() -> None:
+    """A caveat printed unconditionally would be noise and would survive real data."""
+    from alleleforge.viz.figures import _benchmark_data_note
+
+    assert _benchmark_data_note([{"synthetic": True}, {"synthetic": True}])
+    assert not _benchmark_data_note([{"synthetic": True}, {"synthetic": False}])
+    assert not _benchmark_data_note([{"synthetic": False}])
+    assert not _benchmark_data_note([])

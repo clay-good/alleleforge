@@ -68,6 +68,24 @@ def reference_bias_data() -> tuple[int, int, float, dict[str, float]]:
         return reference_only, report.n_sites, round(site.score, 3), dict(site.ancestries)
 
 
+#: Appended to the subtitle of any figure drawn from the bundled benchmark fixtures.
+#:
+#: A figure is the artifact most likely to be seen *alone* — in a slide, an issue, a
+#: paper — so a caveat that lives in the report next to it does not travel with it.
+#: These charts plot metrics computed on synthetic stand-ins at single-digit sample
+#: sizes, and the ECE chart even draws a flag threshold across them, which frames a
+#: fabricated number as a measurement against a real bar.
+SYNTHETIC_DATA_NOTE = (
+    " Data: bundled SYNTHETIC benchmark fixtures (single-digit n) — this shows the "
+    "measurement machinery, not a model's performance."
+)
+
+
+def _benchmark_data_note(rows: list[dict[str, object]]) -> str:
+    """Return the synthetic-data caveat when every row came from a stand-in."""
+    return SYNTHETIC_DATA_NOTE if rows and all(r.get("synthetic") for r in rows) else ""
+
+
 def reference_bias_figure() -> str:
     """Render the reference-bias headline figure."""
     ref_only, pop_aware, cfd, ancestries = reference_bias_data()
@@ -76,7 +94,9 @@ def reference_bias_figure() -> str:
         title="Reference bias, reproduced (rs114518452-style)",
         subtitle=(
             f"Reference-only finds nothing; the population-aware scan nominates a "
-            f"CFD-{cfd:g} site (AFR allele freq {afr * 100:g}%)."
+            f"CFD-{cfd:g} site (AFR allele freq {afr * 100:g}%). Data: a CONSTRUCTED "
+            f"locus in the style of rs114518452, not the real allele — it demonstrates "
+            f"the mechanism, and the frequency shown is the one supplied to it."
         ),
         categories=("Reference-only scan", "Population-aware scan"),
         series=(Series("Off-target sites found", (float(ref_only), float(pop_aware)), PALETTE[0]),),
@@ -96,7 +116,9 @@ def conformal_coverage_figure() -> str:
         title="Split-conformal recalibration restores interval coverage",
         subtitle=(
             "Coverage of a deliberately under-covering interval set, before vs after "
-            "recalibration. Dashed: nominal target."
+            "recalibration. Dashed: nominal target. Data: a seeded SYNTHETIC interval "
+            "set constructed to be miscalibrated — this demonstrates the guarantee, it "
+            "does not measure a model."
         ),
         categories=categories,
         series=(
@@ -119,7 +141,7 @@ def task_ece_figure() -> str:
         title="Per-task calibration error (ECE) — CRISPR-Bench baseline",
         subtitle=(
             "Expected calibration error per task on the frozen weight-free splits. "
-            "Dashed: the flag threshold."
+            "Dashed: the flag threshold." + _benchmark_data_note(rows)
         ),
         categories=categories,
         series=(Series("ECE", values, PALETTE[3]),),
@@ -139,7 +161,7 @@ def generalization_gap_figure() -> str:
         title="Cross-cell-type generalization gap",
         subtitle=(
             f"Metric drop from a training-seen to the held-out cell type ({held_out}). "
-            f"Positive = worse generalization."
+            f"Positive = worse generalization." + _benchmark_data_note(rows)
         ),
         categories=categories,
         series=(Series("Generalization gap", values, PALETTE[4]),),

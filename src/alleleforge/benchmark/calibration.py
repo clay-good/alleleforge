@@ -91,6 +91,7 @@ def generalization_table() -> list[dict[str, Any]]:
                 "held_out": round(gap.held_out, 4),
                 "gap": round(gap.gap, 4),
                 "held_out_context": ",".join(sorted(held_out)) or "(unlabeled)",
+                "synthetic": dataset.synthetic,
             }
         )
     return rows

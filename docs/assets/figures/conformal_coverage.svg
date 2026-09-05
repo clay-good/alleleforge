@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="720" height="380" viewBox="0 0 720 380" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
 <rect width="720" height="380" fill="#ffffff"/>
 <text x="70" y="28" fill="#1f2933" font-size="17" font-weight="700">Split-conformal recalibration restores interval coverage</text>
-<text x="70" y="47" fill="#62707d" font-size="12">Coverage of a deliberately under-covering interval set, before vs after recalibration. Dashed: nominal target.</text>
+<text x="70" y="47" fill="#62707d" font-size="12">Coverage of a deliberately under-covering interval set, before vs after recalibration. Dashed: nominal target. Data: a seeded SYNTHETIC interval set constructed to be miscalibrated — this demonstrates the guarantee, it does not measure a model.</text>
 <line x1="70" y1="310.0" x2="696" y2="310.0" stroke="#dde3e8" stroke-width="1"/>
 <text x="62" y="314.0" fill="#62707d" font-size="11" text-anchor="end">0</text>
 <line x1="70" y1="260.8" x2="696" y2="260.8" stroke="#dde3e8" stroke-width="1"/>

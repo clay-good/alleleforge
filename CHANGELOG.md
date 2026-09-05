@@ -10,6 +10,18 @@ acceptance.
 
 ### Fixed
 
+- **The committed figures plotted fixture data without saying so.** All four — reference bias, conformal
+  coverage, per-task ECE, generalization gap — draw numbers from synthetic stand-ins or a constructed locus,
+  and every subtitle read as though the bars were measurements. The ECE chart even draws a *flag threshold*
+  across them, framing fabricated numbers as a measurement against a real bar. A figure is the artifact most
+  likely to be seen alone — a slide, an issue, a paper — so a caveat sitting in the report beside it does not
+  travel with the image. Each subtitle now names its data: bundled synthetic fixtures at single-digit `n`, a
+  seeded miscalibrated interval set, or a locus constructed in the style of `rs114518452` rather than the
+  real allele. The note is conditional on the rows actually being synthetic, so it disappears when a real
+  corpus arrives instead of becoming permanent furniture.
+
+### Fixed
+
 - **The generated calibration report — the artifact a reader treats as the project's calibration evidence —
   did not say its numbers were synthetic.** It opened with `| cas9-efficiency | regression | spearman | 0.0
   | 0.2 |` and gave neither the sample size (ten rows) nor the corpus (a bundled stand-in). The preprint

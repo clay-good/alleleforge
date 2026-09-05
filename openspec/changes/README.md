@@ -3252,6 +3252,35 @@ artifact. "It's documented" is a claim about a corpus of text; the thing a reade
 file out of it. For anything generated — a report, an export, a figure — ask what it says when it is the
 only thing in the room.**
 
+## Round 114 — the artifact that travels furthest
+
+R113's lesson: a caveat has to live in the artifact that travels. Asked which artifact travels *furthest*,
+the answer is a figure. A report gets read once; an SVG ends up in a slide, an issue thread, a paper.
+
+All four committed figures plot fixture data. None said so.
+
+The per-task ECE chart is the sharp one. Its subtitle read *"Expected calibration error per task on the
+frozen weight-free splits. Dashed: the flag threshold"* — and it draws a real threshold line across bars
+computed from eight to twelve synthetic rows. The threshold is meaningful; the bars are not; the picture
+puts them on the same axis. That is a stronger claim than any of the prose I have corrected in the last
+thirty rounds, because a chart with a reference line reads as a measurement by construction.
+
+The reference-bias figure needed a different caveat, and finding it was the useful part. It is the project's
+headline demonstration — reference-only finds nothing, population-aware finds a CFD-1.0 site at 10.5% AFR
+frequency — and it is built on a **constructed** locus "in the style of" rs114518452, with the frequency
+supplied to it rather than measured. The mechanism it demonstrates is real and the numbers on the bars are
+inputs. The subtitle now says which is which.
+
+**Shipped:** data provenance in every figure's subtitle, conditional on the rows actually being synthetic so
+it vanishes when a real corpus arrives rather than becoming permanent furniture. Both mutation-checked, and
+the committed SVGs regenerated — a pre-existing freshness test caught that I had changed the renderer
+without re-rendering, which is exactly its job.
+
+**Lesson: rank a project's artifacts by how far they travel from their explanation, and caveat them in that
+order. Prose keeps its context; a table loses some; a *chart* loses all of it and gains authority on the way
+out. And when a figure draws a reference line, check that everything it crosses is on the same footing as
+the line.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

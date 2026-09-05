@@ -64,3 +64,20 @@ meaningful rather than flaky, and is required for the same reason.
 - **WHEN** the pipeline that produces a figure changes and the committed SVGs are
   not regenerated
 - **THEN** the freshness test fails and names the stale files
+
+### Requirement: A figure states where its data came from
+
+A figure travels further from its explanation than any other artifact — into a slide, an
+issue, a paper — so a caveat in the surrounding document does not accompany it. Every
+committed figure SHALL state in the figure itself whether its numbers come from bundled
+synthetic fixtures, a seeded demonstration set, or a constructed locus, and SHALL do so
+conditionally on the data actually being such, so the note disappears when real data
+arrives rather than becoming permanent furniture.
+
+A figure drawing a reference line SHALL be checked that what the line crosses is on the
+same footing as the line: a real threshold across synthetic bars reads as a measurement.
+
+#### Scenario: A chart of fixture metrics
+- **WHEN** a figure plots metrics computed on the bundled synthetic datasets
+- **THEN** its subtitle says so, and says the figure shows the measurement machinery
+  rather than a model's performance
