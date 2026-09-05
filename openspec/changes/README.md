@@ -1780,6 +1780,38 @@ in `_alt_coordinate_lift`, with a docstring explaining why two maps are needed. 
 central implementation collapsed them into one. When extracting a primitive, look for whether an older
 corner of the codebase already fought this fight.**
 
+## Round 66 — sweeping R65's lesson: which other primitives are tested only through callers?
+
+R65 found a real bug under 100% coverage on a shared primitive with no direct test. That is a repeatable
+query, so this round ran it: every private module in the library, checked for whether any test imports it
+directly rather than reaching it through a caller.
+
+**Six of seven were already tested directly** (`_kmer`, `_haplotype`, `_io`, `_search`, `_native`, and
+`_frame` as of R65). The outlier: **`benchmark/_canon.py`**, imported by exactly one test, for one
+function, at 92%.
+
+It is not a minor module. It is the single definition of "how an object becomes bytes" that the generator
+minting a frozen split and the loader verifying it must agree on — and every clause of its contract is a
+claim about *bytes*, not values, so a silent break does not raise. It makes a frozen split fail to verify,
+or lets two different results claim to be the same re-derivation. Now directly tested, at 100%:
+key-order independence (the stated invariant), list order still mattering (a split's membership is
+ordered), stability **across `PYTHONHASHSEED` in a subprocess** — because dict iteration order is
+per-process, and a canonical form that depended on it would verify on the machine that minted the split
+and fail everywhere else, intermittently — non-ASCII round-tripping under `ensure_ascii=False`, and the
+`reproducibility_digest` rounding reaching floats nested in lists and mappings while still separating a
+genuinely different number from a last-ULP one. A final test pins that the two digests are *not*
+interchangeable, since conflating them would let a tamper seal pass on a rounded body.
+
+Mutation-checked: dropping `sort_keys` fails the order test; rounding only top-level floats fails the
+nesting test. No defect found this time — a clean bill on the primitive, and the gap it closes is that
+nothing previously would have *reported* one.
+
+**Lesson: a finding is worth more as a query than as a fix. R65's bug was one instance; "which shared
+primitives are reached only through their callers" is a question the whole codebase can be asked in one
+command, and asking it took less time than the fix did. The answer being mostly reassuring is not a waste
+— it converts an anxiety into a bounded, checked list, and it found the one module where the anxiety was
+justified.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
