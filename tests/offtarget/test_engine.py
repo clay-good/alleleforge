@@ -407,3 +407,37 @@ def test_a_site_records_the_pam_that_anchored_it(make_reference: MakeRef) -> Non
     assert len({s.pam_sequence for s in overlapping}) == 2, (
         "overlapping registers share a PAM — then they would be one site reported twice"
     )
+
+
+def test_a_scan_says_how_much_of_the_region_was_searchable(make_reference: MakeRef) -> None:
+    """ "0 sites" over a region that is mostly assembly gap is not a clean bill.
+
+    A window holding an `N` run or an IUPAC code cannot be scanned, and the report
+    looked identical either way — so a search restricted to a region overlapping a
+    centromere or a scaffold gap examined almost nothing and said what a search over
+    fully-resolved sequence says.
+    """
+    gappy = make_reference({"chr2": PAD + SPACER + "TGG" + "N" * 4000})
+    report = search(SPACER, NGG, reference=gappy)
+
+    assert report.searched_bases == len(PAD) + len(SPACER) + 3 + 4000
+    assert report.resolved_bases == report.searched_bases - 4000
+    assert "were searchable" in report.search_description()
+    assert "1% of the" in report.search_description()
+
+    # A fully-resolved reference says nothing about coverage: a caveat on every report
+    # is furniture, and a scattered ambiguity code is not news.
+    clean = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    clean_report = search(SPACER, NGG, reference=clean)
+    assert clean_report.resolved_bases == clean_report.searched_bases
+    assert "searchable" not in clean_report.search_description()
+
+
+def test_an_ambiguity_code_counts_against_the_searchable_fraction(
+    make_reference: MakeRef,
+) -> None:
+    """Not only `N`: a real FASTA carries R/Y/S/W codes, and those are unscannable too."""
+    coded = make_reference({"chr2": PAD + SPACER + "TGG" + "R" * 200 + PAD})
+    report = search(SPACER, NGG, reference=coded)
+    assert report.resolved_bases == report.searched_bases - 200
+    assert "were searchable" in report.search_description()

@@ -3281,6 +3281,42 @@ order. Prose keeps its context; a table loses some; a *chart* loses all of it an
 out. And when a figure draws a reference line, check that everything it crosses is on the same footing as
 the line.**
 
+## Round 115 — how much of the genome was actually looked at
+
+A different query this round: feed the product the inputs a real genome actually contains, rather than the
+tidy ones the fixtures use. Soft-masked (lowercase) sequence as UCSC ships it, a contig edge, CRLF line
+endings, IUPAC ambiguity codes, assembly gaps.
+
+Four of five were handled correctly and are worth recording as a negative result — soft-masking in
+particular, since a repeat-masked hg38 would otherwise have silently failed to match in exactly the regions
+where off-targets live.
+
+The fifth was not a crash but a silence. A scan over a contig that is 99.1% `N`:
+
+```
+1 site(s), worst score 1.000, specificity 0.500
+```
+
+Identical in shape to a scan over fully-resolved sequence. Windows containing a gap or an ambiguity code
+cannot be scanned at all, so the search examined roughly forty bases out of four thousand and said nothing
+about it. Restrict a real search to a region overlapping a centromere, a scaffold gap or a segmental
+duplication and "0 off-target sites" is a statement about almost nothing.
+
+This is the R83 rule reaching its natural limit: I have spent many rounds recording the *settings* that
+narrowed a search, and never asked whether the **sequence itself** did. A parameter is not the only thing
+that can shrink what was examined.
+
+**Shipped:** `searched_bases` and `resolved_bases` on the report, and *"only 1% of the 4,038 requested bases
+were searchable (the rest are assembly gaps or ambiguity codes)"* in the search description whenever the
+fraction is below 99%. Under that, nothing — a scattered ambiguity code is not news, and a caveat on every
+report is furniture. Counted with four `str.count` passes so it costs nothing beside a scan already walking
+those bytes. All three branches mutation-checked.
+
+**Lesson: when auditing what narrowed a result, include the *data*, not only the parameters. Everything I
+have recorded so far — budgets, cut-offs, regions, populations — is something a caller chose. The reference
+genome is an input nobody chose and it silently determines how much of the search was possible. Ask what the
+inputs, not the arguments, made unmeasurable.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

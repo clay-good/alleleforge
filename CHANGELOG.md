@@ -8,6 +8,18 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **An off-target report now says how much of the requested region could actually be searched.** A window
+  holding an assembly gap or an IUPAC ambiguity code cannot be scanned, and the report looked identical
+  either way: a scan over a contig that is **99% `N`** returned the same shape of answer as one over
+  fully-resolved sequence. On a real genome that is the difference between "no off-targets" and "no
+  off-targets in the 1% of your region that is sequenced" — and a region overlapping a centromere or a
+  scaffold gap is not exotic. `OffTargetReport` records `searched_bases` and `resolved_bases`, and the search
+  description appends *"only 1% of the 4,038 requested bases were searchable"* when the fraction is below
+  99%. A fully-resolved reference says nothing, so the caveat is information rather than furniture. The count
+  uses four `str.count` passes, so it costs nothing next to the scan that walks the same bytes.
+
 ### Fixed
 
 - **The committed figures plotted fixture data without saying so.** All four — reference bias, conformal

@@ -139,6 +139,12 @@ class OffTargetReport(BaseModel):
     rna_bulge_budget: int = 1
     cfd_threshold: float = 0.20
     mit_threshold: float = 0.10
+    #: Bases in the searched region(s), and how many of those were unambiguous A/C/G/T.
+    #: A window holding an assembly gap or an IUPAC code cannot be scanned, so a search
+    #: over a region that is mostly gap examines almost nothing while reporting the same
+    #: "0 sites" as one over fully-resolved sequence.
+    searched_bases: int = 0
+    resolved_bases: int = 0
     reference_build: str = "hg38"
     scorer: str | None = None
     score_matrix: str | None = None
@@ -156,11 +162,21 @@ class OffTargetReport(BaseModel):
         # Deliberately ASCII: this string reaches the PDF leave-behind, whose WinAnsi
         # font has no glyph for the mathematical <= or >=, and would print "?3
         # mismatches" on the page a collaborator is handed.
+        coverage = ""
+        if self.searched_bases > 0:
+            fraction = self.resolved_bases / self.searched_bases
+            # Only when it materially narrows the search: a genome with a few scattered
+            # ambiguity codes is not news, a region that is half gap is.
+            if fraction < 0.99:
+                coverage = (
+                    f"; only {fraction:.0%} of the {self.searched_bases:,} requested bases "
+                    "were searchable (the rest are assembly gaps or ambiguity codes)"
+                )
         return (
             f"up to {self.mismatch_threshold} mismatches, "
             f"{self.dna_bulge_budget} DNA / {self.rna_bulge_budget} RNA bulges; "
             f"sites reported at CFD >= {self.cfd_threshold:g} "
-            f"or MIT >= {self.mit_threshold:g}"
+            f"or MIT >= {self.mit_threshold:g}{coverage}"
         )
 
     @property

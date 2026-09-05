@@ -645,6 +645,11 @@
           "title": "Reference Build",
           "type": "string"
         },
+        "resolved_bases": {
+          "default": 0,
+          "title": "Resolved Bases",
+          "type": "integer"
+        },
         "rna_bulge_budget": {
           "default": 1,
           "title": "Rna Bulge Budget",
@@ -673,6 +678,11 @@
           ],
           "default": null,
           "title": "Scorer"
+        },
+        "searched_bases": {
+          "default": 0,
+          "title": "Searched Bases",
+          "type": "integer"
         },
         "sites": {
           "default": [],

@@ -213,3 +213,20 @@ the PAM lets the reader decide.
 #### Scenario: Two overlapping registers
 - **WHEN** bulges allow the same span to be reached from two adjacent PAMs
 - **THEN** both sites are reported, each naming its own PAM
+
+### Requirement: A scan reports how much of the region was searchable
+
+A window containing an assembly gap or an IUPAC ambiguity code cannot be scanned, so the
+reference itself — not only the caller's parameters — narrows what a search examined. A
+report SHALL record the bases in the requested region(s) and how many were unambiguous
+A/C/G/T, and SHALL state the searchable fraction alongside its settings when it is
+materially below the whole. A fully-resolved region SHALL produce no such statement.
+
+#### Scenario: A region that is mostly assembly gap
+- **WHEN** a search covers a region dominated by `N`
+- **THEN** the report states the fraction that was searchable, so a low site count is not
+  read as a clean scan
+
+#### Scenario: Fully-resolved sequence
+- **WHEN** every base in the region is unambiguous
+- **THEN** no searchable-fraction caveat is added

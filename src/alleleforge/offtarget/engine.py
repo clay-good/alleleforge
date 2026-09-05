@@ -342,8 +342,20 @@ def search(
     # Stage 1 — reference candidate search. The FM-index seed-and-extend is the
     # genome-scale path: auto-engaged per region past FM_INDEX_AUTO_THRESHOLD
     # bases unless the caller forces it on or off.
+    # How much of the requested sequence could actually be searched. A window holding
+    # an assembly gap or an IUPAC ambiguity code is not scannable, and a scan over a
+    # region that is mostly gap reports the same "0 sites" as one over fully-resolved
+    # sequence — "we found nothing" and "we found nothing in the 1% of your region that
+    # is sequenced" are different claims, and only one of them is safe to act on.
+    # Counted with `str.count` (four C-level passes) rather than per base, so this adds
+    # nothing meaningful to a scan that is already walking the same bytes.
+    total_bases = 0
+    resolved_bases = 0
     for region in search_regions:
         seq = str(reference.fetch(region.model_copy(update={"strand": Strand.PLUS})))
+        total_bases += len(seq)
+        upper = seq.upper()
+        resolved_bases += sum(upper.count(base) for base in "ACGT")
         if genome_index is not None and _is_whole_contig(region, reference, genome_index):
             # Persistent memory-mapped path: reuse the prebuilt contig index
             # (built once, survives runs) rather than rebuilding it per call.
@@ -446,6 +458,8 @@ def search(
         rna_bulge_budget=rna_bulges,
         cfd_threshold=cfd_threshold,
         mit_threshold=mit_threshold,
+        searched_bases=total_bases,
+        resolved_bases=resolved_bases,
         reference_build=reference.build or "hg38",
         scorer=primary.name,
         score_matrix=getattr(primary, "matrix", None),
