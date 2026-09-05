@@ -20,6 +20,7 @@ from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
     CandidateReport,
     DesignReport,
+    provenance_lines,
     visible_candidates,
 )
 from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE
@@ -245,18 +246,9 @@ def _figure_script(div_id: str, figure: dict[str, Any] | None) -> str:
 
 def _provenance_html(report: DesignReport) -> str:
     """Render the provenance footer."""
-    p = report.provenance
-    if p is None:
+    if report.provenance is None:
         return "<footer>No provenance recorded.</footer>"
-    lines = [
-        f"AlleleForge {_esc(p.alleleforge_version)}",
-        f"reference build {_esc(p.reference_build)}",
-        f"seed {_esc(p.seed)}",
-        f"generated {_esc(p.timestamp.isoformat())}",
-    ]
-    if p.models:
-        models = ", ".join(f"{_esc(m.name)} {_esc(m.version)}" for m in p.models)
-        lines.append(f"models: {models}")
+    lines = [_esc(line) for line in provenance_lines(report.provenance)]
     return "<footer><strong>Provenance.</strong> " + " · ".join(lines) + "</footer>"
 
 

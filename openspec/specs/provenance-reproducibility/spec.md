@@ -216,3 +216,20 @@ identifier for someone's genotypes into a shareable report.
 - **WHEN** a design consumes personal variants
 - **THEN** its provenance records that fact and the variant count, with no content
   hash of the source
+
+### Requirement: The rendered provenance footer accounts for every provenance field
+
+Embedding the block is not enough — a reader audits the *render*, not the model. Every
+human-facing render SHALL print the provenance facts from one shared source, so the HTML
+and PDF cannot disagree, and every field of `Provenance` SHALL be either printed or
+recorded as a deliberate omission with its reason.
+
+#### Scenario: Datasets are named alongside models
+- **WHEN** a report is rendered from a run that used a dataset (e.g. a gnomAD release)
+- **THEN** the footer names the dataset and its version, not only the models — a result
+  that names the code but not the data does not support a claim about the data
+
+#### Scenario: A new provenance field
+- **WHEN** a field is added to `Provenance`
+- **THEN** it is either rendered in the footer or listed as omitted with a reason; it
+  cannot be dropped silently

@@ -75,7 +75,7 @@ def test_pdf_includes_ancestry_offtarget(ancestry_menu: RankedMenu) -> None:
     assert b"search: up to 3 mismatches, 0 DNA / 0 RNA bulges" in pdf
     assert b"sites reported at CFD >= 0.05 or MIT" in pdf  # wraps after this
     assert b"PROVENANCE" in pdf
-    assert b"Models: cas9-efficiency-ensemble 0.1" in pdf
+    assert b"models: cas9-efficiency-ensemble 0.1" in pdf
 
 
 def test_pdf_leave_behind_carries_oligos_and_prep_note(prime_menu: RankedMenu) -> None:

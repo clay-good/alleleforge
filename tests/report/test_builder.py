@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from alleleforge.report.builder import (
     RESEARCH_USE_DISCLAIMER,
     DesignReport,
@@ -181,3 +183,49 @@ def test_the_report_carries_the_menu_rationale(prime_menu: RankedMenu) -> None:
     report = build_report(prime_menu)
     assert report.rationale == prime_menu.rationale
     assert report.rationale
+
+
+def test_the_provenance_footer_accounts_for_every_provenance_field() -> None:
+    """Adding a field to `Provenance` must force a render-or-omit decision.
+
+    The footer had grown `models` and stopped, so a report named the code that ran
+    but not the data it ran on — and "population-aware" is a claim about the data,
+    not the code. Enumerating fields by hand is how that happens; this test makes the
+    hand-enumeration checkable, so the next field cannot be forgotten silently.
+    """
+    from alleleforge.report.builder import PROVENANCE_FOOTER_OMITTED, provenance_lines
+    from alleleforge.types.provenance import (
+        DatasetVersion,
+        ModelCheckpoint,
+        Provenance,
+        ToolVersion,
+    )
+
+    full = Provenance(
+        alleleforge_version="9.9.9",
+        reference_build="hg38",
+        seed=7,
+        tools=(ToolVersion(name="bowtie2", version="2.5.4"),),
+        datasets=(DatasetVersion(name="gnomad", version="v4.1"),),
+        models=(ModelCheckpoint(name="deepcas9", version="1.2"),),
+        config_snapshot={"intent": "correct"},
+        timestamp=datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC),
+    )
+    rendered = " · ".join(provenance_lines(full))
+
+    for field in Provenance.model_fields:
+        if field in PROVENANCE_FOOTER_OMITTED:
+            continue
+        value = getattr(full, field)
+        # A tuple of records renders by name; a scalar renders as itself.
+        if isinstance(value, tuple):
+            needle = str(value[0].name)  # a tuple of records renders by name
+        elif isinstance(value, datetime):
+            needle = value.isoformat()
+        else:
+            needle = str(value)
+        assert needle in rendered, f"{field} is neither rendered nor listed as omitted"
+
+    # ...and every declared omission is a real field, so the list cannot rot into an
+    # excuse for a field that no longer exists.
+    assert set(PROVENANCE_FOOTER_OMITTED) <= set(Provenance.model_fields)

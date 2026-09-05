@@ -2380,6 +2380,33 @@ warning for the failure and let the success pass without comment, but here the s
 intervention: it does something to the genome that the failure does not. Ask what the successful path
 actually did before deciding it needs no words.**
 
+## Round 88 — the footer that proved the wrong thing
+
+The R86 field sweep had one more entry worth acting on: `Provenance.tools`, which no renderer touched. It
+turned out to be worse than the sweep said. `datasets` *was* referenced somewhere in the render/CLI corpus
+— by the `verify` command — so the sweep scored it as covered. It was not in the report footer either.
+
+That footer is the trust anchor. It exists so a result is self-contained for audit, and it printed the
+AlleleForge version, the reference build, the seed, the timestamp, and the models. A reader could tell
+exactly which code ran and nothing whatsoever about the data it ran on — while the headline claim of the
+whole tool, *population-aware* off-target search, is a claim about data: which gnomAD release stratified
+those ancestries, whether a patient VCF was applied at all. Two rounds ago (R82, R83) I made the pipeline
+record its data inputs precisely. The last step dropped them.
+
+The footer was also two implementations, in `html.py` and `pdf.py`, which had already drifted on wording
+and would each have had to grow the same field twice.
+
+**Shipped:** one `provenance_lines()` both renders call, now including `datasets` and `tools`; and a test
+that iterates `Provenance.model_fields` asserting each is either rendered or named in
+`PROVENANCE_FOOTER_OMITTED` with its reason. The omission list is itself checked against the real fields so
+it cannot rot. Mutation-checked by removing the datasets line.
+
+**Lesson: a grep-based "is this field used anywhere?" sweep answers a weaker question than the one that
+matters, and will mark a field covered because some unrelated command mentions it. The sharper query names
+the surface — "does *the footer* print it?" — and it is worth re-asking per surface rather than trusting
+one corpus-wide grep. Also: a curated summary is fine, but every omission from it should be a recorded
+decision, because otherwise there is no difference between 'left out' and 'forgotten'.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -263,6 +263,52 @@ def visible_candidates(
     return kept, len(report.candidates) - len(kept)
 
 
+#: Provenance fields the footer deliberately does not print, with the reason. The
+#: footer is a curated summary, not a dump — but every omission must be a decision.
+#: :func:`provenance_lines` and its coverage test read this, so adding a field to
+#: :class:`~alleleforge.types.provenance.Provenance` forces a choice between rendering
+#: it and naming it here.
+PROVENANCE_FOOTER_OMITTED: dict[str, str] = {
+    # Already rendered in full above the footer: the intent, weights and the settings
+    # that scoped the run each appear beside the results they qualify.
+    "config_snapshot": "rendered inline beside the results, not repeated in the footer",
+}
+
+
+def provenance_lines(provenance: Provenance | None) -> list[str]:
+    """Return the provenance footer as plain-text lines, one fact per line.
+
+    Shared by every render so the HTML page and the printable PDF cannot disagree
+    about what a result's provenance says — they had already drifted on the wording
+    for the reference build, and each would have had to grow the same field twice.
+
+    Args:
+        provenance: The menu's provenance block, or ``None``.
+
+    Returns:
+        Escaping-free lines the caller formats for its own medium.
+    """
+    if provenance is None:
+        return []
+    lines = [
+        f"AlleleForge {provenance.alleleforge_version}",
+        f"reference build {provenance.reference_build}",
+        f"seed {provenance.seed}",
+        f"generated {provenance.timestamp.isoformat()}",
+    ]
+    if provenance.models:
+        lines.append("models: " + ", ".join(f"{m.name} {m.version}" for m in provenance.models))
+    # The datasets are what the safety claims rest on — which gnomAD release stratified
+    # the ancestries, which reference the coordinates are in, whether a patient VCF was
+    # applied. A footer that names the models and not the data says which code ran but
+    # not what it ran on, and "population-aware" is a claim about the data.
+    if provenance.datasets:
+        lines.append("datasets: " + ", ".join(f"{d.name} {d.version}" for d in provenance.datasets))
+    if provenance.tools:
+        lines.append("tools: " + ", ".join(f"{t.name} {t.version}" for t in provenance.tools))
+    return lines
+
+
 def build_report(
     menu: RankedMenu,
     *,

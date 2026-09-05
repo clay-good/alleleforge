@@ -16,6 +16,7 @@ from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
     CandidateReport,
     DesignReport,
+    provenance_lines,
     visible_candidates,
 )
 from alleleforge.report.oligos import PegRNAOligos, SgRnaOligos
@@ -169,16 +170,10 @@ def _report_lines(report: DesignReport, max_candidates: int | None) -> list[str]
     else:
         lines += _wrap("No candidates were produced for this variant.")
     lines.append("-" * _WRAP)
-    p = report.provenance
-    if p is not None:
+    provenance = provenance_lines(report.provenance)
+    if provenance:
         lines += _wrap("PROVENANCE")
-        lines += _wrap(
-            f"AlleleForge {p.alleleforge_version}; reference {p.reference_build}; "
-            f"seed {p.seed}; generated {p.timestamp.isoformat()}"
-        )
-        if p.models:
-            models = ", ".join(f"{m.name} {m.version}" for m in p.models)
-            lines += _wrap(f"Models: {models}")
+        lines += _wrap("; ".join(provenance))
     return lines
 
 

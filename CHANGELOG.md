@@ -8,6 +8,18 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The provenance footer named the models but not the datasets, so a report said which code ran and not
+  what it ran on.** "Population-aware off-target search" is a claim about *data* — which gnomAD release
+  stratified the ancestries, whether a patient VCF was applied — and the footer that is supposed to make a
+  result self-contained printed the version, build, seed, timestamp and models, then stopped. `tools` was
+  missing too. Both renders now print them. The two footers were also duplicated implementations that had
+  already drifted (the HTML said "reference build hg38", the PDF said "reference hg38") and would each have
+  had to grow the same field twice; they now share `provenance_lines()`. A new test iterates
+  `Provenance.model_fields` and asserts each one is either rendered or listed in
+  `PROVENANCE_FOOTER_OMITTED` with a reason, so the next field added cannot be dropped silently.
+
 ### Changed
 
 - **A "re-cut blocked" HDR donor carries a second, unrequested edit into the genome, and now says so on the
