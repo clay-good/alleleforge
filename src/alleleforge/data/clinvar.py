@@ -15,27 +15,24 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable, Iterator
-from enum import StrEnum
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
 
 from alleleforge.data._io import is_sequence_allele, open_text
 from alleleforge.types.sequence import GenomicInterval, canonical_contig
-from alleleforge.types.variant import ClinVarAccession, DbSnpId, Variant
+from alleleforge.types.variant import (
+    ClinicalAssertion,
+    ClinicalSignificance,
+    ClinVarAccession,
+    DbSnpId,
+    Variant,
+)
 
-
-class ClinicalSignificance(StrEnum):
-    """The normalized ACMG-style clinical significance classes."""
-
-    PATHOGENIC = "pathogenic"
-    LIKELY_PATHOGENIC = "likely_pathogenic"
-    UNCERTAIN = "uncertain_significance"
-    LIKELY_BENIGN = "likely_benign"
-    BENIGN = "benign"
-    CONFLICTING = "conflicting"
-    OTHER = "other"
-    NOT_PROVIDED = "not_provided"
+# Re-exported: the enum's home is `types.variant` so the resolver can carry an
+# assertion without importing the data layer (it deliberately talks to ClinVar
+# through a Protocol). Kept importable from here, where every caller expects it.
+__all__ = [*globals().get("__all__", []), "ClinicalAssertion", "ClinicalSignificance"]
 
 
 #: Map raw ClinVar ``CLNSIG`` tokens to a normalized significance class.

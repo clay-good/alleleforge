@@ -42,7 +42,7 @@ the exact release it used.
 
 | Dataset | Version | License | Citation | Used for |
 |---|---|---|---|---|
-| **ClinVar** | 2024-05 | Public domain (NCBI) | Landrum et al., *Nucleic Acids Res* 2018 | Variant front-end: accession → normalized variant + clinical significance |
+| **ClinVar** | 2024-05 | Public domain (NCBI) | Landrum et al., *Nucleic Acids Res* 2018 | Variant front-end: accession → normalized variant + clinical significance (class *and* review status, carried onto the resolved variant and stated in the menu) |
 | **gnomAD** | v4.1 | CC0-1.0 | Chen et al., *Nature* 2024 | Per-population allele frequencies for off-target augmentation |
 | **1000 Genomes** | phase 3, high-coverage | Public (IGSR) | Byrska-Bishop et al., *Cell* 2022 | Phased common haplotypes for haplotype-aware search |
 | **HGDP** | gnomAD v3.1 | CC0-1.0 | Bergström et al., *Science* 2020 | Ancestry breadth beyond 1000G super-populations |

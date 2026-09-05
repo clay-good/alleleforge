@@ -15,6 +15,7 @@ from alleleforge.types.guide import PegRNA
 from alleleforge.types.prediction import Prediction, UncertaintyMethod
 from alleleforge.types.provenance import Provenance
 from alleleforge.types.sequence import GenomicInterval, Strand
+from alleleforge.types.variant import ClinicalSignificance, ClinVarAccession, Variant
 from alleleforge.variant.resolver import ResolvedVariant, resolve
 
 MakeRef = Callable[[dict[str, str]], ReferenceGenome]
@@ -500,3 +501,91 @@ def test_the_region_pin_is_order_independent_but_content_sensitive(
 
     assert _pin([a, b]) == _pin([b, a])
     assert _pin([a, b]) != _pin([a])
+
+
+def _clinvar_stub(
+    significance: ClinicalSignificance,
+    *,
+    review_status: str = "criteria provided, single submitter",
+) -> object:
+    """A ClinVar database returning one record with the given classification."""
+    from alleleforge.data.clinvar import ClinVarRecord
+
+    record = ClinVarRecord(
+        accession=ClinVarAccession(value="VCV000000123"),
+        variant=Variant(chrom="chr2", pos=24, ref="T", alt="A", build="hg38"),
+        significance=significance,
+        review_status=review_status,
+        raw_significance=significance.value.title(),
+    )
+
+    class _DB:
+        def get(self, accession: object) -> ClinVarRecord:
+            return record
+
+    return _DB()
+
+
+@pytest.mark.parametrize(
+    ("significance", "intent", "expected"),
+    [
+        (ClinicalSignificance.BENIGN, EditIntent.CORRECT, "confirm the target is the allele"),
+        (
+            ClinicalSignificance.LIKELY_BENIGN,
+            EditIntent.CORRECT,
+            "confirm the target is the allele",
+        ),
+        (ClinicalSignificance.UNCERTAIN, EditIntent.CORRECT, "clinical benefit is not asserted"),
+        (ClinicalSignificance.PATHOGENIC, EditIntent.INSTALL, "a disease model, not a correction"),
+    ],
+)
+def test_the_clinvar_classification_reaches_the_menu(
+    make_reference: MakeRef,
+    significance: ClinicalSignificance,
+    intent: EditIntent,
+    expected: str,
+) -> None:
+    """Resolving an accession kept the coordinates and threw away the reason.
+
+    A ClinVar accession is chosen for its classification. `_from_clinvar` returned
+    only `record.variant`, so a menu for a variant ClinVar calls Benign read exactly
+    like a menu for a pathogenic one — the tool designed a "correction" for an allele
+    the database says is harmless and said nothing.
+    """
+    ref = make_reference({"chr2": "T" * 15 + "ACGTAACGTTACGTAACGTT" + "TGG" + "T" * 15})
+    menu = design(
+        "VCV000000123",
+        intent=intent,
+        reference=ref,
+        clinvar=_clinvar_stub(significance),
+        run_offtarget=False,
+    )
+    assert menu.rationale is not None
+    # The assertion itself, verbatim enough to be actionable...
+    assert f"ClinVar: {significance.value.replace('_', ' ')}" in menu.rationale
+    assert "criteria provided" in menu.rationale  # the review status, not just the class
+    # ...and the tension between it and what the user asked for.
+    assert expected in menu.rationale
+
+
+def test_a_congruent_intent_gets_the_classification_but_no_warning(
+    make_reference: MakeRef,
+) -> None:
+    """Correcting a pathogenic variant is the ordinary case and must stay quiet.
+
+    Without this the parametrized test above passes on an implementation that
+    appends a caution to every design, which would be noise rather than information.
+    """
+    ref = make_reference({"chr2": "T" * 15 + "ACGTAACGTTACGTAACGTT" + "TGG" + "T" * 15})
+    menu = design(
+        "VCV000000123",
+        intent=EditIntent.CORRECT,
+        reference=ref,
+        clinvar=_clinvar_stub(ClinicalSignificance.PATHOGENIC),
+        run_offtarget=False,
+    )
+    assert menu.rationale is not None
+    assert "ClinVar: pathogenic" in menu.rationale
+    assert "confirm the target" not in menu.rationale
+    assert "disease model" not in menu.rationale
+    assert "not asserted" not in menu.rationale

@@ -206,3 +206,22 @@ destination, and gating it would break offline replay.
 #### Scenario: Injected transport
 - **WHEN** a fetcher is injected
 - **THEN** the prediction proceeds with no consent flag and no network access
+
+### Requirement: A clinical classification survives resolution
+
+A ClinVar accession is chosen for what the database asserts about the variant, not for
+its coordinates. Resolving one SHALL carry that assertion — the normalized significance
+class, the raw review status, and the verbatim source token — onto the resolved variant,
+so downstream layers can state what is being edited. The review status SHALL be carried
+alongside the class: the same class at different evidence levels is a different claim.
+
+Resolution SHALL remain possible from a database that supplies coordinates only; such a
+record simply asserts nothing.
+
+#### Scenario: Accession with a classification
+- **WHEN** an accession resolves through a database whose record carries a significance
+- **THEN** the resolved variant carries that significance and its review status
+
+#### Scenario: Coordinate-only record
+- **WHEN** the database supplies only the variant
+- **THEN** resolution succeeds and no assertion is recorded

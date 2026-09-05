@@ -186,3 +186,25 @@ which is the least useful artifact this layer can produce.
 #### Scenario: An empty menu
 - **WHEN** no candidate is produced
 - **THEN** the render still states which chemistries routed and what became of them
+
+### Requirement: The menu states what the database says about the target
+
+When the target variant carries a clinical assertion, the menu-level rationale SHALL lead
+with it, and SHALL add a note when the requested intent and the classification pull in
+different directions — correcting a benign variant or a variant of uncertain
+significance, or installing a pathogenic allele.
+
+These SHALL annotate only. A design SHALL NOT be refused on the basis of a
+classification: correcting a benign variant can be legitimate (a research control, a
+pending reclassification), and the system's job is to ensure it is not done by accident.
+A design whose intent and classification agree SHALL produce no such note, so the note
+carries information rather than appearing on every report.
+
+#### Scenario: Intent disagrees with the classification
+- **WHEN** a correction targets a variant classified benign
+- **THEN** the rationale states the classification and notes the tension, and the menu is
+  still produced
+
+#### Scenario: Intent agrees with the classification
+- **WHEN** a correction targets a pathogenic variant
+- **THEN** the rationale states the classification and adds no caution

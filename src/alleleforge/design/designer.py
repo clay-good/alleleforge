@@ -55,7 +55,7 @@ from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import Chemistry, EditIntent
 from alleleforge.types.provenance import DatasetVersion, ModelCheckpoint, Provenance
 from alleleforge.types.sequence import GenomicInterval
-from alleleforge.types.variant import Variant
+from alleleforge.types.variant import ClinicalSignificance, Variant
 from alleleforge.variant.effect import EffectPredictor
 from alleleforge.variant.hgvs_adapter import HgvsAdapter
 from alleleforge.variant.resolver import (
@@ -193,7 +193,9 @@ def design(
     requested = set(chemistries) if chemistries is not None else None
     decisions = route(resolved, intent)
     eligible: list[Chemistry] = []
-    notes: list[str] = []
+    # Lead with what the database says about the target, before anything about
+    # chemistry: a menu is only meaningful once the reader knows what is being edited.
+    notes: list[str] = _clinical_notes(resolved, intent)
     for decision in decisions:
         if not decision.eligible:
             continue
@@ -503,6 +505,51 @@ def _collect_model_checkpoints(
         for ckpt in checkpoints():
             seen.setdefault((ckpt.name, ckpt.version), ckpt)
     return tuple(seen.values())
+
+
+#: Significance classes for which a *correcting* edit has no clinical rationale, and an
+#: *installing* edit is a deliberate disease model rather than a therapy. Stated as data
+#: so the reasoning is inspectable, and used only to annotate — never to refuse. A user
+#: correcting a benign variant may have a perfectly good reason (a research control, a
+#: reclassification the database has not caught up with); they should simply not do it by
+#: accident because nothing told them the database disagrees.
+_BENIGN_CLASSES = frozenset({ClinicalSignificance.BENIGN, ClinicalSignificance.LIKELY_BENIGN})
+
+
+def _clinical_notes(resolved: ResolvedVariant, intent: EditIntent) -> list[str]:
+    """Return notes stating what ClinVar asserts, and any tension with the intent.
+
+    The classification is the reason an accession was chosen, and it reached no
+    output at all: a menu for a variant ClinVar calls Benign read exactly like a menu
+    for a pathogenic one. State the assertion, and say plainly when the requested
+    intent and the classification pull in different directions.
+    """
+    assertion = resolved.clinical_assertion
+    if assertion is None:
+        return []
+    notes = [assertion.describe()]
+    if intent in (EditIntent.CORRECT, EditIntent.REVERT):
+        if assertion.significance in _BENIGN_CLASSES:
+            notes.append(
+                f"intent {intent.value} restores the reference at a variant ClinVar "
+                f"classifies as {assertion.significance.value.replace('_', ' ')} — "
+                "confirm the target is the allele you mean to change"
+            )
+        elif assertion.significance is ClinicalSignificance.UNCERTAIN:
+            notes.append(
+                f"intent {intent.value} targets a variant of uncertain significance; "
+                "the correction is well defined but its clinical benefit is not asserted"
+            )
+    elif intent is EditIntent.INSTALL and assertion.significance in (
+        ClinicalSignificance.PATHOGENIC,
+        ClinicalSignificance.LIKELY_PATHOGENIC,
+    ):
+        notes.append(
+            f"intent install writes an allele ClinVar classifies as "
+            f"{assertion.significance.value.replace('_', ' ')} — a disease model, "
+            "not a correction"
+        )
+    return notes
 
 
 def _menu_rationale(

@@ -62,6 +62,50 @@ class VariantClass(StrEnum):
     COMPLEX = "complex"
 
 
+class ClinicalSignificance(StrEnum):
+    """The normalized ACMG-style clinical significance classes."""
+
+    PATHOGENIC = "pathogenic"
+    LIKELY_PATHOGENIC = "likely_pathogenic"
+    UNCERTAIN = "uncertain_significance"
+    LIKELY_BENIGN = "likely_benign"
+    BENIGN = "benign"
+    CONFLICTING = "conflicting"
+    OTHER = "other"
+    NOT_PROVIDED = "not_provided"
+
+
+class ClinicalAssertion(BaseModel):
+    """What a clinical database asserts about a variant, carried with the variant.
+
+    A ClinVar record is looked up for its coordinates, but the coordinates are not
+    why a user chose that accession — the classification is. Resolving an accession
+    and keeping only ``variant`` throws away the reason, and the design that follows
+    then cannot say whether it is correcting a pathogenic allele or a benign one.
+
+    Attributes:
+        significance: The normalized ACMG-style class.
+        review_status: ClinVar's raw review-status string, the source of the star
+            rating. Carried because the class alone is not the claim: "Pathogenic,
+            no assertion criteria provided" and "Pathogenic, reviewed by expert
+            panel" are the same class and very different evidence.
+        raw: The verbatim source token, for audit.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    significance: ClinicalSignificance
+    review_status: str | None = None
+    raw: str | None = None
+
+    def describe(self) -> str:
+        """Return a one-line human statement of the assertion."""
+        text = f"ClinVar: {self.significance.value.replace('_', ' ')}"
+        if self.review_status:
+            text += f" ({self.review_status})"
+        return text
+
+
 class ClinVarAccession(BaseModel):
     """A validated ClinVar accession (``VCV``/``RCV``/``SCV`` form)."""
 

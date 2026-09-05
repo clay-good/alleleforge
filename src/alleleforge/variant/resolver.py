@@ -30,7 +30,13 @@ from alleleforge.genome.coordinates import (
 )
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.sequence import CoordinateSystem, DNASequence, GenomicInterval, Strand
-from alleleforge.types.variant import ClinVarAccession, DbSnpId, Variant, assembly_matches
+from alleleforge.types.variant import (
+    ClinicalAssertion,
+    ClinVarAccession,
+    DbSnpId,
+    Variant,
+    assembly_matches,
+)
 from alleleforge.variant.effect import EffectPredictor, VariantEffect
 from alleleforge.variant.hgvs_adapter import HgvsAdapter
 
@@ -51,8 +57,19 @@ _CLINVAR_RE = re.compile(r"^(VCV|RCV|SCV)\d{9}", re.IGNORECASE)
 _HGVS_RE = re.compile(r"(?:^|:)[gcpmnr]\.", re.IGNORECASE)
 
 
+#: What a dispatcher returns: the variant, the input form it came from, and whatever a
+#: clinical database asserted about it (``None`` for every non-database form).
+_Resolution = tuple[Variant, str, "ClinicalAssertion | None"]
+
+
 class _ClinVarRecordLike(Protocol):
-    """The minimal shape the resolver needs from a ClinVar record."""
+    """The minimal shape the resolver needs from a ClinVar record.
+
+    Only ``variant`` is required. A real :class:`~alleleforge.data.clinvar.ClinVarRecord`
+    also carries the classification, which :func:`_clinical_assertion` reads when
+    present — the resolver stays usable with a bare coordinate stub (as tests supply)
+    while a full record contributes what the user actually chose the accession for.
+    """
 
     variant: Variant
 
@@ -145,6 +162,11 @@ class ResolvedVariant(BaseModel):
         variant: The normalized, left-aligned, reference-validated variant.
         working_interval: The +/- ``window`` analysis interval around it.
         source: The input form it was resolved from (audit aid).
+        clinical_assertion: What a clinical database asserts about this variant, when
+            resolution came from one. A ClinVar accession is chosen for its
+            classification, not its coordinates; carrying only the coordinates left
+            every downstream layer unable to say whether it was correcting a
+            pathogenic allele or a benign one.
         transcript: The transcript consequence is reported against.
         effect: The molecular consequence, if an effect predictor was supplied.
         reference_recommendation: A T2T recommendation when the locus is
@@ -156,6 +178,7 @@ class ResolvedVariant(BaseModel):
     variant: Variant
     working_interval: GenomicInterval
     source: str
+    clinical_assertion: ClinicalAssertion | None = None
     transcript: str = "MANE_SELECT"
     effect: VariantEffect | None = None
     reference_recommendation: ReferenceRecommendation | None = None
@@ -184,15 +207,16 @@ def _from_string(
     dbsnp: DbSnpLookup | None,
     hgvs: HgvsAdapter | None,
     reference: ReferenceGenome | None,
-) -> tuple[Variant, str]:
-    """Dispatch a string input to its variant + a source label."""
+) -> _Resolution:
+    """Dispatch a string input to its variant + source label + any assertion."""
     text = text.strip()
     if _RSID_RE.match(text):
-        return _from_dbsnp(DbSnpId(value=text), dbsnp), "rsid"
+        return _from_dbsnp(DbSnpId(value=text), dbsnp), "rsid", None
     if _CLINVAR_RE.match(text):
-        return _from_clinvar(ClinVarAccession(value=text), clinvar), "clinvar"
+        variant, assertion = _from_clinvar(ClinVarAccession(value=text), clinvar)
+        return variant, "clinvar", assertion
     if _HGVS_RE.search(text):
-        return _from_hgvs(text, hgvs, reference), "hgvs"
+        return _from_hgvs(text, hgvs, reference), "hgvs", None
     m = _COORD_RE.match(text)
     if m is None:
         raise ValueError(f"unrecognized variant input: {text!r}")
@@ -207,14 +231,41 @@ def _from_string(
             alt=m.group("alt").upper(),
         ),
         "coordinates",
+        None,
     )
 
 
-def _from_clinvar(accession: ClinVarAccession, clinvar: ClinVarLookup | None) -> Variant:
-    """Look up a ClinVar accession (requires a ClinVar DB)."""
+def _clinical_assertion(record: _ClinVarRecordLike) -> ClinicalAssertion | None:
+    """Return the record's classification, if it carries one.
+
+    Read defensively rather than through the Protocol: the resolver's contract with a
+    ClinVar database is deliberately minimal (a coordinate stub is a valid lookup), and
+    requiring the classification would break every such stub to gain nothing — a record
+    without one simply asserts nothing.
+    """
+    significance = getattr(record, "significance", None)
+    if significance is None:
+        return None
+    return ClinicalAssertion(
+        significance=significance,
+        review_status=getattr(record, "review_status", None),
+        raw=getattr(record, "raw_significance", None),
+    )
+
+
+def _from_clinvar(
+    accession: ClinVarAccession, clinvar: ClinVarLookup | None
+) -> tuple[Variant, ClinicalAssertion | None]:
+    """Look up a ClinVar accession (requires a ClinVar DB).
+
+    Returns the variant **and** what ClinVar asserts about it. Returning only the
+    variant discarded the classification the user chose the accession for, so a design
+    could not say whether it was correcting a pathogenic allele or a benign one.
+    """
     if clinvar is None:
         raise ValueError("resolving a ClinVar accession requires a clinvar= database")
-    return clinvar.get(accession).variant
+    record = clinvar.get(accession)
+    return record.variant, _clinical_assertion(record)
 
 
 def _from_dbsnp(rsid: DbSnpId, dbsnp: DbSnpLookup | None) -> Variant:
@@ -259,8 +310,8 @@ def _to_variant(
     dbsnp: DbSnpLookup | None,
     hgvs: HgvsAdapter | None,
     reference: ReferenceGenome | None,
-) -> tuple[Variant, str]:
-    """Convert any accepted input form to a (variant, source) pair.
+) -> _Resolution:
+    """Convert any accepted input form to a (variant, source, assertion) triple.
 
     Coordinate-family inputs (a raw :class:`Variant`, a :class:`VcfRecord`, or a
     ``chrom:pos:ref>alt`` string) are returned **un-normalized** so :func:`resolve`
@@ -271,15 +322,16 @@ def _to_variant(
     embedded sequence, HGVS against the stated ref), so they are already safe.
     """
     if isinstance(inp, Variant):
-        return inp, "variant"
+        return inp, "variant", None
     if isinstance(inp, ClinVarAccession):
-        return _from_clinvar(inp, clinvar), "clinvar"
+        variant, assertion = _from_clinvar(inp, clinvar)
+        return variant, "clinvar", assertion
     if isinstance(inp, DbSnpId):
-        return _from_dbsnp(inp, dbsnp), "rsid"
+        return _from_dbsnp(inp, dbsnp), "rsid", None
     if isinstance(inp, VcfRecord):
-        return inp.to_variant(), "vcf"
+        return inp.to_variant(), "vcf", None
     if isinstance(inp, RawTarget):
-        return inp.to_variant(), "raw_sequence"
+        return inp.to_variant(), "raw_sequence", None
     return _from_string(inp, clinvar=clinvar, dbsnp=dbsnp, hgvs=hgvs, reference=reference)
 
 
@@ -418,7 +470,9 @@ def resolve(
         ValueError: On an unrecognized input, a missing required database, or a
             reference mismatch.
     """
-    variant, source = _to_variant(inp, clinvar=clinvar, dbsnp=dbsnp, hgvs=hgvs, reference=reference)
+    variant, source, assertion = _to_variant(
+        inp, clinvar=clinvar, dbsnp=dbsnp, hgvs=hgvs, reference=reference
+    )
     # Reconcile — never silently overwrite — a database record's native assembly.
     # A source record that states its assembly must agree with the requested build
     # (no liftover happens here); otherwise the mislabel would poison provenance,
@@ -451,6 +505,7 @@ def resolve(
         variant=variant,
         working_interval=working,
         source=source,
+        clinical_assertion=assertion,
         transcript=transcript,
         effect=effect.predict(variant, transcript=transcript) if effect is not None else None,
         reference_recommendation=recommendation if recommendation.recommended else None,

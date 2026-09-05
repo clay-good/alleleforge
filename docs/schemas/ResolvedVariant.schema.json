@@ -43,6 +43,58 @@
       "title": "ClinVarAccession",
       "type": "object"
     },
+    "ClinicalAssertion": {
+      "description": "What a clinical database asserts about a variant, carried with the variant.\n\nA ClinVar record is looked up for its coordinates, but the coordinates are not\nwhy a user chose that accession \u2014 the classification is. Resolving an accession\nand keeping only ``variant`` throws away the reason, and the design that follows\nthen cannot say whether it is correcting a pathogenic allele or a benign one.\n\nAttributes:\n    significance: The normalized ACMG-style class.\n    review_status: ClinVar's raw review-status string, the source of the star\n        rating. Carried because the class alone is not the claim: \"Pathogenic,\n        no assertion criteria provided\" and \"Pathogenic, reviewed by expert\n        panel\" are the same class and very different evidence.\n    raw: The verbatim source token, for audit.",
+      "properties": {
+        "raw": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Raw"
+        },
+        "review_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Review Status"
+        },
+        "significance": {
+          "$ref": "#/$defs/ClinicalSignificance"
+        }
+      },
+      "required": [
+        "significance"
+      ],
+      "title": "ClinicalAssertion",
+      "type": "object"
+    },
+    "ClinicalSignificance": {
+      "description": "The normalized ACMG-style clinical significance classes.",
+      "enum": [
+        "pathogenic",
+        "likely_pathogenic",
+        "uncertain_significance",
+        "likely_benign",
+        "benign",
+        "conflicting",
+        "other",
+        "not_provided"
+      ],
+      "title": "ClinicalSignificance",
+      "type": "string"
+    },
     "Consequence": {
       "description": "A Sequence-Ontology-style molecular consequence term.",
       "enum": [
@@ -367,8 +419,19 @@
       "type": "object"
     }
   },
-  "description": "The canonical result of resolving any input form.\n\nAttributes:\n    variant: The normalized, left-aligned, reference-validated variant.\n    working_interval: The +/- ``window`` analysis interval around it.\n    source: The input form it was resolved from (audit aid).\n    transcript: The transcript consequence is reported against.\n    effect: The molecular consequence, if an effect predictor was supplied.\n    reference_recommendation: A T2T recommendation when the locus is\n        hg38-ambiguous, else ``None``.",
+  "description": "The canonical result of resolving any input form.\n\nAttributes:\n    variant: The normalized, left-aligned, reference-validated variant.\n    working_interval: The +/- ``window`` analysis interval around it.\n    source: The input form it was resolved from (audit aid).\n    clinical_assertion: What a clinical database asserts about this variant, when\n        resolution came from one. A ClinVar accession is chosen for its\n        classification, not its coordinates; carrying only the coordinates left\n        every downstream layer unable to say whether it was correcting a\n        pathogenic allele or a benign one.\n    transcript: The transcript consequence is reported against.\n    effect: The molecular consequence, if an effect predictor was supplied.\n    reference_recommendation: A T2T recommendation when the locus is\n        hg38-ambiguous, else ``None``.",
   "properties": {
+    "clinical_assertion": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ClinicalAssertion"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "effect": {
       "anyOf": [
         {

@@ -8,6 +8,29 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **A ClinVar accession's clinical significance now reaches the design menu; it used to be read and
+  discarded.** `_from_clinvar` returned `record.variant` and nothing else, so the classification — the
+  reason anyone picks an accession over coordinates — never left the resolver. A menu for a variant ClinVar
+  calls **Benign** read exactly like a menu for a pathogenic one: the tool designed a "correction" for an
+  allele the database says is harmless, and said nothing. (`docs/data.md` had ClinVar's role listed as
+  "accession → normalized variant + clinical significance"; only the first half was true.)
+
+  `ResolvedVariant` now carries a `ClinicalAssertion` — the normalized class, the raw review status, and
+  the verbatim source token. The review status is carried alongside the class deliberately: "Pathogenic, no
+  assertion criteria provided" and "Pathogenic, reviewed by expert panel" are the same class and very
+  different evidence. The menu rationale — which every render already prints — leads with the assertion,
+  and adds a note when the requested intent and the classification pull in different directions: correcting
+  a benign variant, correcting a VUS, or installing a pathogenic allele (a disease model, not a therapy).
+  These annotate; nothing is refused. A congruent design stays quiet, so the note carries information
+  rather than appearing on everything.
+
+  `ClinicalSignificance` moves to `alleleforge.types.variant` (still importable from `data.clinvar`) so the
+  resolver can carry an assertion without depending on the data layer, which it deliberately reaches only
+  through a Protocol. A ClinVar stub that supplies only coordinates still resolves — it simply asserts
+  nothing.
+
 ### Fixed
 
 - **`Settings.allow_network` did nothing.** Its docstring said the registries "must never auto-download"

@@ -2507,6 +2507,42 @@ does not silently break a documented API — then write the choice down where th
 Picking the interpretation that sounds stricter is not the safer option if it changes behavior nobody asked
 to change.**
 
+## Round 92 — the reason the variant was chosen
+
+Back to the R90 sweep of fields nothing reads. `ClinVarRecord.significance`, `.review_status` and
+`.raw_significance` were all on it: parsed carefully out of `CLNSIG` and `CLNREVSTAT`, normalized through a
+hand-built ACMG map, and then dropped. `resolver._from_clinvar` was one line —
+`return clinvar.get(accession).variant`.
+
+Nobody resolves `VCV000012345` because they want its coordinates. They want it because of what ClinVar says
+about it. The tool read that, threw it away, and produced a menu in which a *Benign* variant and a
+*Pathogenic* one are indistinguishable — happily designing a "correction" for an allele the database says
+is harmless. `docs/data.md` even listed ClinVar's role as "accession → normalized variant + clinical
+significance"; half of that was fiction.
+
+Two design points were worth getting right rather than fast:
+
+**Carry the review status, not just the class.** "Pathogenic, no assertion criteria provided" and
+"Pathogenic, reviewed by expert panel" are the same class and completely different evidence. Reporting the
+class alone would have been a second, subtler version of the same error — a correct number without the
+thing that makes it interpretable, which is the R83 rule again.
+
+**Annotate, never refuse.** Correcting a benign variant may be exactly right: a research control, or a
+reclassification ClinVar has not caught up with. The system has no business blocking it. It has every
+business making sure the user is not doing it by accident. So the menu states the assertion, adds a note
+when intent and classification disagree, and stops there — and a congruent design stays silent, which is
+what makes the note mean anything.
+
+`ClinicalSignificance` moved to `types/variant.py` so the resolver could carry an assertion without
+importing the data layer it deliberately reaches only through a Protocol; a coordinate-only stub still
+resolves and simply asserts nothing.
+
+**Lesson: ask what the *input* was for. Most of these rounds have asked what an output means; this one came
+from asking why a user would type a ClinVar accession instead of `chr11:5227002:A>T`. The answer is the
+classification — so a pipeline that keeps only what the two input forms have in common has quietly thrown
+away the entire difference between them. Whenever an input form is richer than the one it is normalized
+into, check what the normalization dropped and whether the user would have expected it to survive.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
