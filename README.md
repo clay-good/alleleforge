@@ -372,13 +372,19 @@ print(clinvar.version, clinvar.license)       # 2024-05  public-domain (NCBI)
 The same journey from the `aforge` CLI (`pip install "alleleforge[cli]"`):
 
 ```bash
-# Variant → ranked, safety-annotated menu, rendered as an interactive HTML report
+# Variant → ranked, safety-annotated menu, rendered as an interactive HTML report.
+# `--gnomad` is what makes the off-target scan population-aware; `--populations` only
+# names the ancestries to stratify by, so without a sites file the scan is
+# reference-only and the ancestry breakdown comes back empty (the command says so).
 aforge design VCV000012345 --reference-fasta hg38.fa \
-    --intent correct --populations afr,eur,eas --format html --out report.html
+    --intent correct --gnomad gnomad.sites.tsv.gz --populations afr,eur,eas \
+    --cell-context HEK293T --format html --out report.html
 
 # Standalone population/haplotype-aware off-target for a spacer. Every engine knob is
 # tunable: the bulge budget, the CFD/MIT reporting thresholds, and the carrying MAF.
+# Pass `--on-target` so the guide's own locus is not counted against its specificity.
 aforge offtarget GACGGAGGCTAAGCGTCGCAA --reference-fasta hg38.fa --pam NGG --json \
+    --gnomad gnomad.sites.tsv.gz --populations afr,eur,eas --on-target 'chr2:28-48(+)' \
     --dna-bulges 1 --rna-bulges 1 --cfd-threshold 0.20 --mit-threshold 0.10 --maf 0.001
 
 # Normalize any input form and show its class (debugging aid)
@@ -898,8 +904,10 @@ the `batch` subcommand auto-detects a VCF (cyvcf2 fast path) vs a one-variant-pe
 ```bash
 # Whole-VCF cohort → resumable run, durable per-sample menus, a per-item TSV summary
 aforge batch cohort.vcf.gz --reference-fasta hg38.fa --intent correct \
+    --gnomad gnomad.sites.tsv.gz --populations afr,eur,eas \
     --manifest run.jsonl --output-dir menus/ --summary-tsv summary.tsv --max-workers 8
 # Summary columns: best_chemistry · best_efficiency · best_bystander_burden · worst_offtarget · best_specificity · n_candidates
+# `worst_offtarget` is empty when the search was skipped or an item produced no candidates — that is "not measured", not "clean".
 ```
 
 …and over HTTP from the [web API](#web-ui--api-phase-13-shipping-now): `POST /api/batch` takes a JSON

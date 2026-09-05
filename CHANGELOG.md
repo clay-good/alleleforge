@@ -10,6 +10,13 @@ acceptance.
 
 ### Added
 
+- **The README's CLI examples advertised population-awareness they could not deliver.** `aforge design
+  ... --populations afr,eur,eas` was captioned "ranked, safety-annotated menu", and the `offtarget` example
+  listed "the carrying MAF" among the tunable engine knobs — while `--maf` filters population alleles that,
+  with no way to load any, were never there. Both examples now pass `--gnomad`, and the `design` one also
+  shows `--cell-context`; the batch example notes that an empty `worst_offtarget` column means "not
+  measured", not "clean".
+
 - **`--gnomad` on `design`, `batch`, and `offtarget`: the population-aware off-target search is reachable
   from the CLI for the first time.** This is the capability the project is built around — the README calls
   reference-only off-target "a known safety gap" and cites the Casgevy / BCL11A `rs114518452` case — and
