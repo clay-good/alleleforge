@@ -47,7 +47,7 @@ plots `0.0`.
 
 ### Requirement: A capped render states the cap and keeps the Pareto front
 
-An HTML render MAY cap how many ranked candidates it draws, because a single prime
+A human-facing render (HTML or PDF) MAY cap how many ranked candidates it draws, because a single prime
 design routinely yields several hundred. When it does, it SHALL state on the page
 how many candidates exist, how many are shown, and where the rest can be found;
 and it SHALL render **every Pareto-front candidate** whatever its rank. The
@@ -64,6 +64,10 @@ lossless exports SHALL be unaffected by the cap.
 #### Scenario: Nothing withheld
 - **WHEN** the report has no more candidates than the cap
 - **THEN** no truncation note is rendered
+
+#### Scenario: The two renders agree
+- **WHEN** the same report is rendered to HTML and to PDF under the same cap
+- **THEN** both draw the same candidate set, through one shared selection helper
 
 ### Requirement: A reagent line names the edit, not only the geometry
 

@@ -212,6 +212,34 @@ def _candidate_report(
     )
 
 
+#: Default cap on how many candidates a *human-facing* render draws. A prime
+#: design routinely yields several hundred — every PBS x RTT-homology x PAM
+#: combination is a distinct pegRNA — which makes a "self-contained" page or PDF
+#: run to megabytes for a tail nobody reads. The lossless exports ignore this.
+DEFAULT_RENDER_CANDIDATES = 50
+
+
+def visible_candidates(
+    report: DesignReport, limit: int | None
+) -> tuple[list[CandidateReport], int]:
+    """Return the candidates a capped render should draw, and how many it withheld.
+
+    The top ``limit`` by rank are kept, **plus every Pareto-front candidate**
+    regardless of rank. The front is the report's whole answer to "I weight the
+    objectives differently from your defaults", so a display cap must not be
+    allowed to decide it away — a candidate that is optimal on safety but 200th on
+    the composite score is exactly the one such a reader came for. Shared by the
+    HTML and PDF renders so the two cannot drift apart on that guarantee.
+    """
+    if limit is None or len(report.candidates) <= limit:
+        return list(report.candidates), 0
+    kept = list(report.candidates[:limit])
+    ranks = {c.rank for c in kept}
+    kept += [c for c in report.candidates[limit:] if c.on_pareto_front and c.rank not in ranks]
+    kept.sort(key=lambda c: c.rank)
+    return kept, len(report.candidates) - len(kept)
+
+
 def build_report(
     menu: RankedMenu,
     *,

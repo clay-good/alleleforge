@@ -75,11 +75,13 @@ acceptance.
 
 ### Changed
 
-- **The HTML report now renders the top 50 candidates plus the whole Pareto front, instead of every
-  candidate.** A single prime design routinely yields several hundred candidates — every PBS x
+- **Both human-facing renders — HTML and PDF — now draw the top 50 candidates plus the whole Pareto
+  front, instead of every candidate.** A single prime design routinely yields several hundred candidates — every PBS x
   RTT-homology x PAM combination is a distinct pegRNA — so the "self-contained" page was **2.3 MB** for one
-  variant (720 candidates), slow to open and mostly a tail nobody reads. `render_html` takes
-  `max_candidates` (default 50, `None` for all); the same report now renders in **181 KB**, 12.7x smaller.
+  variant (720 candidates), slow to open and mostly a tail nobody reads. `render_html` and `render_pdf`
+  both take `max_candidates` (default 50, `None` for all) and share one selection helper
+  (`report.builder.visible_candidates`) so they cannot drift apart on the guarantee below. The same report
+  now renders in **181 KB** of HTML (12.7x smaller) and **74 KB** of PDF (down from 1.1 MB, 14.6x).
   Two obligations come with capping and both are enforced by tests: the page states how many candidates
   exist, how many are shown, and that the rest are in the lossless JSON/CSV export (which the cap does not
   touch); and **every Pareto-front candidate is rendered whatever its rank**, because the front is the

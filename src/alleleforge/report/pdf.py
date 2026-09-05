@@ -12,7 +12,12 @@ from __future__ import annotations
 
 import textwrap
 
-from alleleforge.report.builder import CandidateReport, DesignReport
+from alleleforge.report.builder import (
+    DEFAULT_RENDER_CANDIDATES,
+    CandidateReport,
+    DesignReport,
+    visible_candidates,
+)
 from alleleforge.report.oligos import PegRNAOligos, SgRnaOligos
 
 #: US Letter media box (points).
@@ -114,7 +119,7 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
     return lines
 
 
-def _report_lines(report: DesignReport) -> list[str]:
+def _report_lines(report: DesignReport, max_candidates: int | None) -> list[str]:
     """Flatten the whole report into the text lines to paginate."""
     lines: list[str] = []
     lines += _wrap(report.title)
@@ -130,8 +135,16 @@ def _report_lines(report: DesignReport) -> list[str]:
     lines.append("")
     lines += _wrap(f"Candidates ({len(report.candidates)})")
     lines.append("-" * _WRAP)
-    if report.candidates:
-        for c in report.candidates:
+    shown, withheld = visible_candidates(report, max_candidates)
+    if withheld:
+        lines += _wrap(
+            f"Showing {len(shown)} of {len(report.candidates)}: the top {max_candidates} by "
+            f"rank plus every Pareto-front candidate. The remaining {withheld} are in the "
+            f"lossless JSON/CSV export."
+        )
+        lines.append("")
+    if shown:
+        for c in shown:
             lines += _candidate_lines(c)
     else:
         lines += _wrap("No candidates were produced for this variant.")
@@ -172,16 +185,22 @@ def _content_stream(page_lines: list[str]) -> bytes:
     return "\n".join(parts).encode("cp1252")  # matches the declared WinAnsiEncoding font
 
 
-def render_pdf(report: DesignReport) -> bytes:
+def render_pdf(
+    report: DesignReport, *, max_candidates: int | None = DEFAULT_RENDER_CANDIDATES
+) -> bytes:
     """Render a :class:`DesignReport` to a valid, print-ready PDF document.
 
     Args:
         report: The report to render.
+        max_candidates: How many ranked candidates to draw, or ``None`` for all.
+            Every Pareto-front candidate is drawn whatever the cap, and any
+            withheld count is stated in the document — the same contract the HTML
+            render honors, through the same shared helper.
 
     Returns:
         The PDF file contents as bytes (begins ``%PDF-1.4``, ends ``%%EOF``).
     """
-    lines = _report_lines(report)
+    lines = _report_lines(report, max_candidates)
     pages = [lines[i : i + _LINES_PER_PAGE] for i in range(0, len(lines), _LINES_PER_PAGE)] or [[]]
 
     # Object numbering: 1 catalog, 2 pages, 3 font, then page/content objects.

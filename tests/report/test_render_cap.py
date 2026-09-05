@@ -1,4 +1,4 @@
-"""The HTML render's candidate cap, and the guarantee it must not break.
+"""The candidate cap shared by the HTML and PDF renders, and its guarantee.
 
 A prime design routinely yields several hundred candidates — every PBS x
 RTT-homology x PAM combination is a distinct pegRNA — so an uncapped
@@ -12,8 +12,14 @@ for.
 
 from __future__ import annotations
 
-from alleleforge.report.builder import CandidateReport, DesignReport
-from alleleforge.report.html import DEFAULT_HTML_CANDIDATES, _visible, render_html
+from alleleforge.report.builder import (
+    DEFAULT_RENDER_CANDIDATES,
+    CandidateReport,
+    DesignReport,
+    visible_candidates,
+)
+from alleleforge.report.html import render_html
+from alleleforge.report.pdf import render_pdf
 from alleleforge.types.edit import Chemistry
 
 
@@ -50,10 +56,10 @@ def _report(n: int, pareto_ranks: set[int]) -> DesignReport:
 
 def test_a_far_ranked_pareto_candidate_survives_the_cap() -> None:
     report = _report(300, pareto_ranks={1, 200, 297})
-    shown, withheld = _visible(report, DEFAULT_HTML_CANDIDATES)
+    shown, withheld = visible_candidates(report, DEFAULT_RENDER_CANDIDATES)
     ranks = {c.rank for c in shown}
     assert {200, 297} <= ranks, "the cap dropped a Pareto-front candidate"
-    assert len(shown) == DEFAULT_HTML_CANDIDATES + 2
+    assert len(shown) == DEFAULT_RENDER_CANDIDATES + 2
     assert withheld == 300 - len(shown)
     assert [c.rank for c in shown] == sorted(ranks), "rank order must survive"
 
@@ -72,7 +78,18 @@ def test_no_cap_note_when_nothing_is_withheld() -> None:
 
 def test_explicit_none_renders_everything() -> None:
     report = _report(120, pareto_ranks={1})
-    shown, withheld = _visible(report, None)
+    shown, withheld = visible_candidates(report, None)
     assert len(shown) == 120
     assert withheld == 0
     assert "candidate 120" in render_html(report, max_candidates=None)
+
+
+def test_the_pdf_render_honors_the_same_contract() -> None:
+    """The two human-facing renders must not drift apart on the Pareto guarantee."""
+    report = _report(300, pareto_ranks={1, 200})
+    capped = render_pdf(report)
+    full = render_pdf(report, max_candidates=None)
+    assert len(capped) < len(full)
+    assert b"Showing 51 of 300" in capped
+    assert b"candidate 200" in capped  # the far-ranked Pareto member is drawn
+    assert b"candidate 120" not in capped  # an ordinary far-ranked one is not

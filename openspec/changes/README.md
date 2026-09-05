@@ -1333,6 +1333,11 @@ Capping is a presentation decision that carries two obligations, and both are te
   a reader opened the report for, and a naive `candidates[:50]` would silently delete it. The test
   constructs a 300-candidate report with front members at ranks 200 and 297 and asserts both survive.
 
+**Follow-through (same round):** the PDF render had the identical problem — 1.1 MB for the same report — so
+the selection was factored into one shared helper (`report.builder.visible_candidates`) that both renders
+call, rather than implemented twice. A guarantee stated in two places is a guarantee that will eventually
+hold in only one. PDF: 1.1 MB → **74 KB**.
+
 **Lesson: a truncation is a claim about what does not matter, and it is wrong exactly where the product's
 value is concentrated. The naive cap here would have been correct for 718 of 720 candidates and would have
 destroyed the two the whole Pareto-front feature exists to surface. When adding any "show the top N", ask

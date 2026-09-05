@@ -16,7 +16,12 @@ import html
 import json
 from typing import Any
 
-from alleleforge.report.builder import CandidateReport, DesignReport
+from alleleforge.report.builder import (
+    DEFAULT_RENDER_CANDIDATES,
+    CandidateReport,
+    DesignReport,
+    visible_candidates,
+)
 
 #: Pinned Plotly CDN bundle (the plotting library only — no data leaves).
 PLOTLY_CDN = "https://cdn.plot.ly/plotly-2.35.2.min.js"
@@ -232,34 +237,8 @@ def _provenance_html(report: DesignReport) -> str:
     return "<footer><strong>Provenance.</strong> " + " · ".join(lines) + "</footer>"
 
 
-#: Default cap on how many candidates an HTML report renders. A prime design
-#: routinely yields several hundred — every PBS x RTT-homology x PAM combination is
-#: a distinct pegRNA — which makes a "self-contained" page tens of megabytes and
-#: slow to open, for a tail nobody reads. The cap is stated on the page, never
-#: silently applied, and never decides away a Pareto-front candidate.
-DEFAULT_HTML_CANDIDATES = 50
-
-
-def _visible(report: DesignReport, limit: int | None) -> tuple[list[CandidateReport], int]:
-    """Return the candidates to render and how many were withheld.
-
-    The top ``limit`` by rank are kept, **plus every Pareto-front candidate**
-    regardless of rank. The front is the report's whole answer to "I weight the
-    objectives differently from your defaults", so a display cap must not be
-    allowed to decide it away — a candidate that is optimal on safety but 200th on
-    the composite score is exactly the one such a reader came for.
-    """
-    if limit is None or len(report.candidates) <= limit:
-        return list(report.candidates), 0
-    kept = list(report.candidates[:limit])
-    ranks = {c.rank for c in kept}
-    kept += [c for c in report.candidates[limit:] if c.on_pareto_front and c.rank not in ranks]
-    kept.sort(key=lambda c: c.rank)
-    return kept, len(report.candidates) - len(kept)
-
-
 def render_html(
-    report: DesignReport, *, max_candidates: int | None = DEFAULT_HTML_CANDIDATES
+    report: DesignReport, *, max_candidates: int | None = DEFAULT_RENDER_CANDIDATES
 ) -> str:
     """Render a :class:`DesignReport` as a complete, self-contained HTML string.
 
@@ -292,7 +271,7 @@ def render_html(
         _figure_script("ot-chart", _offtarget_figure(report)),
         "<h2>Candidates</h2>",
     ]
-    shown, withheld = _visible(report, max_candidates)
+    shown, withheld = visible_candidates(report, max_candidates)
     if withheld:
         body.append(
             f"<p class='muted'>Showing {len(shown)} of {len(report.candidates)} candidates: "
