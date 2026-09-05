@@ -276,6 +276,17 @@ def design(
     outcome = rank_candidates(
         candidates, weights=weights, max_per_chemistry=max_candidates_per_chemistry
     )
+    # A chromatin track can be supplied, recorded in provenance, and cover none of the
+    # candidate loci — leaving every efficiency unadjusted while the run reads as
+    # chromatin-aware. Say so, for the same reason an inert population source is worth
+    # saying: the artifact otherwise claims an input it did not use.
+    if chromatin_track is not None and candidates:
+        adjusted = sum(1 for c in candidates if "chromatin-adjusted" in c.flags)
+        if adjusted == 0:
+            notes.append(
+                f"chromatin track {chromatin_track!r} was supplied but covers none of "
+                "the candidate loci — every efficiency here is the unadjusted estimate"
+            )
     rationale = _menu_rationale(decisions, eligible, notes, outcome.rationale)
     provenance = Provenance.capture(
         alleleforge_version=__version__,

@@ -326,3 +326,46 @@ def test_the_pe3_nick_distance_is_shown_not_just_computed(make_reference: MakeRe
     flags = _flags(distant, pe3[0].efficiency, run_offtarget=False)
     assert "nick-distance:+62nt" in flags
     assert "close-nick" not in flags
+
+
+def test_a_chromatin_track_that_covers_nothing_is_reported(make_reference: MakeRef) -> None:
+    """A track can be supplied, recorded in provenance, and adjust nothing.
+
+    The per-candidate path is already careful — an uncovered locus produces no
+    chromatin note, never claiming evidence the track did not have. What was missing
+    is the menu-level statement: with a track covering none of the loci, every
+    efficiency is the unadjusted estimate while the run reads as chromatin-aware and
+    provenance names the track. Same shape as a population source that covers nothing.
+    """
+    from alleleforge.design.designer import design
+
+    ref = make_reference({"chr2": _context()})
+    base = str(ref.fetch(GenomicInterval(chrom="chr2", start=70, end=71, strand=Strand.PLUS)))
+
+    elsewhere = EncodeTracks({("atac", "chr9"): [_Segment(start=1000, end=2000, value=5.0)]})
+    menu = design(
+        f"chr2:71:{base}>C",
+        intent=EditIntent.INSTALL,
+        reference=ref,
+        encode_tracks=elsewhere,
+        chromatin_track="atac",
+        run_offtarget=False,
+    )
+    assert menu.candidates, "fixture produced no candidates"
+    assert menu.rationale is not None
+    assert "covers none of the candidate loci" in menu.rationale
+    assert not any("chromatin-adjusted" in c.flags for c in menu.candidates)
+
+    # A track that does cover the loci adjusts them and says nothing extra.
+    covering = _atac(5.0)
+    adjusted = design(
+        f"chr2:71:{base}>C",
+        intent=EditIntent.INSTALL,
+        reference=ref,
+        encode_tracks=covering,
+        chromatin_track="atac",
+        run_offtarget=False,
+    )
+    assert any("chromatin-adjusted" in c.flags for c in adjusted.candidates)
+    assert adjusted.rationale is not None
+    assert "covers none of the candidate loci" not in adjusted.rationale

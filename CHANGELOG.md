@@ -10,6 +10,16 @@ acceptance.
 
 ### Added
 
+- **A chromatin track that covers none of the candidate loci is now reported, and an adjusted candidate is
+  flagged.** The per-candidate path was already careful — an uncovered locus produces no chromatin note, so
+  the tool never claims evidence the track did not have. What was missing is the menu-level statement: a
+  track supplied and named in provenance can cover nothing, leaving every efficiency the unadjusted estimate
+  while the run reads as chromatin-aware. The menu now says so, and candidates the track actually moved
+  carry a `chromatin-adjusted` flag — previously that fact existed only in prose inside the candidate
+  rationale.
+
+### Added
+
 - **A safety source that is supplied but covers nothing in the searched region now says so.** The warning
   for a *missing* frequency source has existed for a while; a source that is **present and inert** produced
   nothing at all — and its report is byte-identical to a reference-only scan, empty ancestry breakdown

@@ -286,3 +286,20 @@ weight would make the composite appear better informed than it is.
 #### Scenario: A nick close enough to act as a double-strand break
 - **WHEN** the second nick is closer to the pegRNA nick than the close-nick floor
 - **THEN** the candidate is annotated `close-nick`, without its rank being altered
+
+### Requirement: A chromatin track that adjusts nothing is reported as such
+
+Recording a chromatin track in provenance asserts that the run was chromatin-aware.
+Whether the track covered any candidate locus is a separate fact, and it is the one that
+determines whether the efficiencies differ from the unadjusted estimates. A candidate the
+track actually moved SHALL be flagged, and a menu whose supplied track moved none SHALL
+say so.
+
+#### Scenario: A track covering another locus
+- **WHEN** a chromatin track is supplied that covers none of the candidate loci
+- **THEN** the menu states that every efficiency is the unadjusted estimate, and no
+  candidate is flagged as chromatin-adjusted
+
+#### Scenario: A covering track
+- **WHEN** the track covers the candidates
+- **THEN** they are flagged and no such statement is made

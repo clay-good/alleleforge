@@ -109,6 +109,7 @@ DESCRIPTIVE_FLAGS: frozenset[str] = frozenset(
         "nick-distance",
         "templated-edit",
         "bystander-burden",
+        "chromatin-adjusted",
         "recommended",  # the cleanest base-editor candidate; a label, not a hazard
     }
 )

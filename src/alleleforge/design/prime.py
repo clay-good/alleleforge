@@ -108,9 +108,23 @@ def _merge_offtarget(peg: OffTargetReport, ngrna: OffTargetReport | None) -> Off
 CLOSE_NICK_NT = 30
 
 
-def _flags(pegrna: PegRNA, efficiency: Prediction[float], run_offtarget: bool) -> tuple[str, ...]:
-    """Return free-form annotations for a prime candidate."""
+def _flags(
+    pegrna: PegRNA,
+    efficiency: Prediction[float],
+    run_offtarget: bool,
+    *,
+    chromatin_adjusted: bool = False,
+) -> tuple[str, ...]:
+    """Return free-form annotations for a prime candidate.
+
+    Every flag is attached here with ``flags.append``. That uniformity is load-bearing:
+    the classification guard reads the append literals out of the source to check no
+    flag is unclassified, and a flag attached some other way is invisible to it —
+    twice now a novel construction slipped past exactly that check.
+    """
     flags: list[str] = []
+    if chromatin_adjusted:
+        flags.append("chromatin-adjusted")
     if pegrna.is_epegrna:
         flags.append(f"epegRNA:{pegrna.three_prime_motif.value}")
     ng = pegrna.nicking_guide
@@ -278,6 +292,11 @@ def design_prime(
     # producing an unadjusted efficiency labeled chromatin-aware.
     chromatin_enabled = encode_tracks is not None and chromatin_track is not None
 
+    # How many candidates the track actually moved. A track can be supplied, recorded
+    # in provenance, and cover none of the loci — in which case every efficiency is the
+    # unadjusted one while the run looks chromatin-aware. Same shape as a population
+    # source that covers nothing: present, recorded, and inert.
+    adjusted_by_chromatin = 0
     scored: list[tuple[DesignCandidate, float]] = []
     for pegrna in pegrnas:
         chromatin: tuple[EncodeTracks, GenomicInterval, str] | None = None
@@ -291,6 +310,7 @@ def design_prime(
             # evidence where the track had none.
             if signal > 0.0:
                 chromatin_note = f"; chromatin-adjusted (accessibility {signal:.2f})"
+                adjusted_by_chromatin += 1
         efficiency = ensure_prediction(
             scorer.score(pegrna, cell_context=cell_context, chromatin=chromatin),
             who=scorer.name,
@@ -302,7 +322,9 @@ def design_prime(
             efficiency=efficiency,
             outcome=outcome.outcome,
             offtarget=offtarget_for(pegrna),
-            flags=_flags(pegrna, efficiency, run_offtarget),
+            flags=_flags(
+                pegrna, efficiency, run_offtarget, chromatin_adjusted=bool(chromatin_note)
+            ),
             rationale=(
                 f"pegRNA on {pegrna.placement.strand.value if pegrna.placement else '?'} strand, "
                 f"PBS {len(pegrna.pbs)} / RTT {len(pegrna.rtt)} "

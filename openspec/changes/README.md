@@ -3357,6 +3357,43 @@ whose entire purpose is keeping `None` and `0` distinct.
 **Lesson: "the input is present" is not "the input applies". A supplied-and-inert dependency is worse than a
 missing one, because absence prompts a question and presence closes it. Check coverage, not configuration.**
 
+## Round 118 — the third sibling
+
+R117 ended on a habit worth keeping: after fixing something, ask *which siblings did I just skip?* Two
+rounds ago that question turned a gnomAD-only coverage check into one covering haplotype panels and patient
+VCFs. Asked again, one supplied input still had no coverage check: the **chromatin track**.
+
+The per-candidate code turned out to be the good example. It computes the accessibility signal, and:
+
+```python
+# An uncovered locus (signal 0) is a no-op in the scorer, so only note an
+# adjustment that actually moved the estimate — never claim chromatin
+# evidence where the track had none.
+```
+
+Exactly right, written long before this audit. So the gap is one level up. R83 added `chromatin_track` to
+the provenance config snapshot — correctly, since it changes every efficiency in the menu — which means a
+run with a track covering nothing now *records* a chromatin-aware configuration while producing entirely
+unadjusted numbers. The per-candidate honesty was in place and the artifact still overclaimed.
+
+**Shipped:** a menu note when a supplied track adjusts no candidate, and a `chromatin-adjusted` flag on the
+ones it did move — that fact previously existed only as prose inside a candidate's rationale, so nothing
+could count it, including the check I needed to write.
+
+One more thing the round produced. My first version attached the new flag with tuple concatenation at the
+construction site, and the R98 classification guard failed — not on the "is it classified?" half, but on the
+"is a classified flag actually emitted?" half, because the guard reads `flags.append` literals out of the
+source and a third attachment shape was invisible to it. That is the second time a novel construction has
+slipped past that scan (R105 was the first, via `model_copy`). The fix this time was not another regex: the
+flag now goes through `_flags()` like every other one, and the docstring says why that uniformity is
+load-bearing. **Widening a guard to accept more shapes is the worse repair; making the code have fewer
+shapes is the better one.**
+
+**Lesson: a careful local decision can still produce a misleading global artifact, and adding provenance can
+*create* the gap rather than close it. Recording an input in the config snapshot asserts it was used;
+whether it did anything is a separate fact, and only the second one is what the reader takes away. When you
+record that an input was supplied, record whether it applied.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
