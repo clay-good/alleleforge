@@ -86,6 +86,13 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
   overlay, grep for the other ones first. The older implementation has usually already
   paid for the lesson, and its docstring is where the lesson is written down.
 
+- **Never chain `git commit --amend` behind `||` in a compound shell command.** A
+  `git commit --amend ... || git add -A && git commit ...` fallback ran the *amend*,
+  silently rewriting an already-pushed commit with the fallback's placeholder message
+  (R117). Recovering needed `git reset --soft <pushed sha>` and a fresh commit; a
+  force-push over shared history was the alternative and is not acceptable. Write the
+  commit as one plain `git commit -F -`.
+
 - **After restoring a mutated source file, clear `__pycache__`.** A restore whose
   mtime does not advance past the compiled bytecode leaves Python running the *mutant*
   while `inspect.getsource` shows the correct file — so the source reads right, the
