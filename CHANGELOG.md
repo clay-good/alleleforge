@@ -52,6 +52,31 @@ acceptance.
 
 ### Fixed
 
+- **Cas9 correction-intent guides are now enumerated against a length-changing carried allele instead of
+  silently falling back to the reference.** The `cas9-design` spec has always required that a precise
+  intent enumerate against *the sequence the target genome actually contains* — "a PAM the alternate
+  allele destroys SHALL NOT be emitted; a PAM the alternate allele creates SHALL be found." The
+  implementation honored that only for length-preserving alleles: `_overlay_allele` returned the window
+  untouched whenever `len(allele) != len(ref)`, so a correcting design against a genome carrying a deletion
+  or insertion was enumerated on the **reference**. It could propose a guide whose PAM the patient's own
+  deletion has removed — a reagent that cannot cut — and miss the PAM the deletion creates at the junction.
+  Nothing was flagged; the guide looked ordinary all the way to the oligo order. (Not reachable through
+  `design()`, which routes cas9 to knock-out only, but `enumerate_cas9` / `design_cas9` / `hdr_donor` are a
+  documented public surface, and cas9+HDR is the standard route for correcting an indel too large for
+  prime editing.) The overlay now applies at any length, and the `EditFrame` introduced for prime editing —
+  promoted to a shared `enumerate/_frame.py` — maps every emitted placement and cut site back onto the
+  reference footprint its bases derive from, dropping a guide that has no reference locus rather than
+  placing it on one it does not occupy.
+
+- **`guide_context` now locates the guide in the carried sequence by content rather than by arithmetic on
+  its placement.** A length-changing overlay shifts every base 3' of the edit, so slicing fixed offsets
+  around a reference placement returned a frame-shifted context — of the wrong length — to whichever
+  efficiency model was reading it, including the trained Rule Set 3 30-mer. The window is now anchored on
+  the guide's own protospacer+PAM, which is exact regardless of drift, and a guide absent from the sequence
+  being scored raises instead of scoring something else. Three regression tests (a PAM the deletion
+  removes, a PAM it creates at the junction, and placement + context shape across the length change) all
+  fail@HEAD -> pass.
+
 - **The prime-efficiency scorer no longer reads a multi-base edit as farther from the nick than it is.**
   `_nick_to_edit` derived the nick-to-edit distance as `len(rtt) - rtt_homology_3prime - 1`, whose trailing
   `- 1` is the length of the templated allele — true only for an SNV. With the variable-length RT template

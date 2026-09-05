@@ -25,8 +25,9 @@ practical limits follow from :data:`~alleleforge.types.guide.RTT_RANGE`:
 
 Enumeration runs over the **start genome** — the reference window with the allele
 the target genome actually carries substituted in — whose coordinates drift from
-the reference downstream of a length-changing edit. :class:`_Frame` owns that
-mapping so every emitted placement is a truthful *reference* interval.
+the reference downstream of a length-changing edit.
+:class:`~alleleforge.enumerate._frame.EditFrame` owns that mapping so every emitted
+placement is a truthful *reference* interval.
 
 The design layer (:mod:`alleleforge.design.prime`) scores efficiency / outcome
 and runs the off-target engine on both nicks.
@@ -35,8 +36,8 @@ and runs the off-target engine on both nicks.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 
+from alleleforge.enumerate._frame import EditFrame
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.edit import EditIntent
 from alleleforge.types.guide import (
@@ -92,67 +93,6 @@ def _required_alleles(resolved: ResolvedVariant, intent: EditIntent) -> tuple[st
     return var.ref, var.alt  # install the alternate allele
 
 
-@dataclass(frozen=True)
-class _Frame:
-    """Maps enumeration-frame coordinates back onto reference loci.
-
-    Enumeration runs over the *start* genome (the reference window carrying the
-    start allele), whose coordinates shift by ``start_len - ref_len`` downstream
-    of the edit. This frame maps a start-genome span to the **reference
-    footprint** its bases derive from: a span that does not cross the edit maps
-    exactly (the common case — a 20 nt protospacer nicking 5' of a small edit),
-    and one that does maps to the reference interval it was read from, which is
-    wider for a deletion and narrower for an insertion. That is the honest
-    answer; the alternative (pretending the span keeps its own length) would
-    report a locus the bases do not come from.
-
-    Attributes:
-        chrom: Contig of the fetched window.
-        offset: Genomic start of the fetched reference window.
-        edit_plus: Plus-frame index where the edit span begins.
-        start_len: Length of the carried (start) allele.
-        ref_len: Length of the reference span that allele replaces.
-        span: Length of the start-genome string this frame indexes.
-        reverse: ``True`` when the frame is the reverse complement of the plus frame.
-    """
-
-    chrom: str
-    offset: int
-    edit_plus: int
-    start_len: int
-    ref_len: int
-    span: int
-    reverse: bool
-
-    def _reference(self, index: int) -> int:
-        """Return the reference coordinate of plus-frame index ``index``."""
-        if index <= self.edit_plus:
-            return self.offset + index
-        if index >= self.edit_plus + self.start_len:
-            return self.offset + index - self.start_len + self.ref_len
-        # Inside the carried allele: walk the reference span it replaces, then
-        # stay pinned at its 3' boundary once the allele outruns it.
-        return self.offset + self.edit_plus + min(index - self.edit_plus, self.ref_len)
-
-    def interval(self, lo: int, hi: int, strand: Strand) -> GenomicInterval | None:
-        """Return the reference footprint of frame span ``[lo, hi)``.
-
-        Returns ``None`` when the footprint is zero-width — the span lies wholly
-        inside inserted bases the reference does not contain, so it has no
-        reference locus to report (an unplaced reagent, not an invalid one).
-        """
-        lo_plus, hi_plus = (self.span - hi, self.span - lo) if self.reverse else (lo, hi)
-        start, end = self._reference(lo_plus), self._reference(hi_plus)
-        if end <= start:
-            return None
-        out_strand = strand.opposite() if self.reverse else strand
-        return GenomicInterval(chrom=self.chrom, start=start, end=end, strand=out_strand)
-
-    def coord(self, index: int) -> int:
-        """Return the reference coordinate of frame position ``index``."""
-        return self._reference(self.span - 1 - index if self.reverse else index)
-
-
 def _select_nicking_guide(
     start: str,
     edited: str,
@@ -162,7 +102,7 @@ def _select_nicking_guide(
     pam: PAM,
     spacer_length: int,
     cut_offset: int,
-    frame: _Frame,
+    frame: EditFrame,
     pegrna_nick_genomic: int,
     pe3_offset: tuple[int, int],
 ) -> NickingGuide | None:
@@ -248,7 +188,7 @@ def _enumerate_frame(
     motif: ThreePrimeMotif,
     pe3: bool,
     pe3_offset: tuple[int, int],
-    frame: _Frame,
+    frame: EditFrame,
     frame_strand: Strand,
 ) -> list[PegRNA]:
     """Enumerate frame-plus pegRNAs (the strand whose protospacer is ``start``).
@@ -395,7 +335,7 @@ def enumerate_prime(
     edited_plus = prefix + desired_allele + suffix
     offset = region.start
 
-    plus_frame = _Frame(
+    plus_frame = EditFrame(
         chrom=var.chrom,
         offset=offset,
         edit_plus=rel,
@@ -404,7 +344,7 @@ def enumerate_prime(
         span=len(start_plus),
         reverse=False,
     )
-    minus_frame = _Frame(
+    minus_frame = EditFrame(
         chrom=var.chrom,
         offset=offset,
         edit_plus=rel,
@@ -418,7 +358,7 @@ def enumerate_prime(
     # the edit identically in both the start and edited strings of that frame.
     minus_edit_local = len(suffix)
 
-    def run(start: str, edited: str, edit_local: int, frame: _Frame) -> list[PegRNA]:
+    def run(start: str, edited: str, edit_local: int, frame: EditFrame) -> list[PegRNA]:
         return _enumerate_frame(
             start,
             edited,

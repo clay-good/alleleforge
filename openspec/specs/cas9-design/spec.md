@@ -37,6 +37,12 @@ before enumerating protospacers and PAMs, so guides are enumerated against the s
 the target genome actually contains, consistent with the base-editor and prime enumerators.
 A PAM the alternate allele destroys SHALL NOT be emitted; a PAM the alternate allele
 creates SHALL be found; and on-/off-target scoring SHALL run on the carried 20-mer.
+This SHALL hold for a **length-changing** allele too: the substitution is applied
+whatever the allele's length, every emitted placement and cut site is mapped back to the
+reference footprint its bases derive from, a guide with no reference footprint is dropped
+rather than placed on a locus it does not occupy, and the scored context is located in
+the carried sequence **by content** so a coordinate shift cannot silently hand a scorer a
+frame-shifted window of the wrong length.
 
 #### Scenario: Alt allele destroys the reference PAM
 - **WHEN** a CORRECT intent's alternate allele removes a PAM present in the reference
@@ -45,6 +51,23 @@ creates SHALL be found; and on-/off-target scoring SHALL run on the carried 20-m
 #### Scenario: Alt allele creates a PAM
 - **WHEN** the alternate allele creates a PAM absent from the reference
 - **THEN** the corresponding guide is enumerated and scored on the carried sequence
+
+#### Scenario: Deletion removes the reference PAM
+- **WHEN** the carried allele is a deletion that removes a PAM present in the reference
+- **THEN** no guide is emitted at that PAM — the same intent's `INSTALL` direction, where
+  the genome still carries the reference, still emits it
+
+#### Scenario: Deletion creates a junction PAM
+- **WHEN** a carried deletion brings two bases together into a PAM the reference does not
+  contain
+- **THEN** the guide at that junction is enumerated, and every emitted guide's
+  protospacer+PAM is present in the genome it targets
+
+#### Scenario: Context shape across a length change
+- **WHEN** a guide near a length-changing carried allele is scored
+- **THEN** its context is the carried sequence and keeps the requested flank shape (a
+  4+20+3+3 request returns 30 nt), and a placement 5' of the edit still fetches back to
+  its protospacer verbatim
 
 ### Requirement: Relaxed PAMs are opt-in and labeled
 

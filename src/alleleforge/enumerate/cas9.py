@@ -26,6 +26,7 @@ strand with the genomic placement and strand recorded.
 
 from __future__ import annotations
 
+from alleleforge.enumerate._frame import EditFrame
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.edit import EditIntent
 from alleleforge.types.guide import (
@@ -79,12 +80,14 @@ def carried_allele(resolved: ResolvedVariant, intent: EditIntent) -> str | None:
 def _overlay_allele(sequence: str, *, offset: int, pos: int, ref: str, allele: str) -> str:
     """Return ``sequence`` with ``allele`` substituted for ``ref`` at genomic ``pos``.
 
-    A no-op unless the substitution is length-preserving and fully inside the
-    window; coordinate-shifting indels keep the reference frame (the enumerator
-    stays reference-based for them, as the prime/base enumerators bail entirely).
+    Handles a length-changing allele: the returned string is the sequence the
+    target genome carries, which for an indel is shorter or longer than the
+    reference window it came from. A caller that needs to map the result back to
+    reference coordinates pairs this with an
+    :class:`~alleleforge.enumerate._frame.EditFrame`. A no-op when the reference
+    span is not wholly inside the window (nothing can be substituted for a span
+    that is not there).
     """
-    if len(allele) != len(ref):
-        return sequence
     rel = pos - offset
     if rel < 0 or rel + len(ref) > len(sequence):
         return sequence
@@ -112,15 +115,19 @@ def _actionable_window(
 def _enumerate_window(
     sequence: str,
     *,
-    chrom: str,
-    offset: int,
+    frame: EditFrame,
     pam: PAM,
     spacer_length: int,
     cut_offset: int,
 ) -> list[Guide]:
     """Enumerate PAM-anchored guides on both strands of ``sequence``.
 
-    ``sequence`` is plus-strand; ``offset`` maps it back to genome coordinates.
+    ``sequence`` is the plus strand of the genome the target actually carries;
+    ``frame`` maps it back to reference coordinates, which is not a plain offset
+    once the carried allele changes the window's length. A guide whose
+    protospacer has no reference footprint (it lies wholly inside carried bases
+    the reference does not contain) is dropped rather than placed on a locus it
+    does not occupy.
     """
     pam_len = len(pam.pattern)
     guides: list[Guide] = []
@@ -129,20 +136,15 @@ def _enumerate_window(
         # Plus strand: PAM reads 5'->3' directly; protospacer is 5' of it.
         if k >= spacer_length and pam.matches(window) and "N" not in window:
             proto = sequence[k - spacer_length : k]
-            if "N" not in proto:
-                pam_start = offset + k
+            placement = frame.interval(k - spacer_length, k, Strand.PLUS)
+            if "N" not in proto and placement is not None:
                 guides.append(
                     Guide(
                         spacer=Spacer(sequence=DNASequence(proto)),
                         pam=pam,
                         pam_sequence=DNASequence(window),
-                        placement=GenomicInterval(
-                            chrom=chrom,
-                            start=offset + k - spacer_length,
-                            end=pam_start,
-                            strand=Strand.PLUS,
-                        ),
-                        cut_site=pam_start - cut_offset,
+                        placement=placement,
+                        cut_site=frame.coord(k - cut_offset),
                     )
                 )
         # Minus strand: the PAM reads NGG on the minus strand, i.e. revcomp here.
@@ -150,21 +152,16 @@ def _enumerate_window(
         proto_end = k + pam_len + spacer_length
         if proto_end <= len(sequence) and pam.matches(rc_window) and "N" not in rc_window:
             proto_plus = sequence[k + pam_len : proto_end]
-            if "N" not in proto_plus:
+            placement = frame.interval(k + pam_len, proto_end, Strand.MINUS)
+            if "N" not in proto_plus and placement is not None:
                 spacer = str(DNASequence(proto_plus).reverse_complement())
-                proto_start = offset + k + pam_len
                 guides.append(
                     Guide(
                         spacer=Spacer(sequence=DNASequence(spacer)),
                         pam=pam,
                         pam_sequence=DNASequence(rc_window),
-                        placement=GenomicInterval(
-                            chrom=chrom,
-                            start=proto_start,
-                            end=proto_start + spacer_length,
-                            strand=Strand.MINUS,
-                        ),
-                        cut_site=proto_start + cut_offset,
+                        placement=placement,
+                        cut_site=frame.coord(k + pam_len + cut_offset),
                     )
                 )
     return guides
@@ -186,6 +183,8 @@ def _enumerate_pam(
     window first, so protospacers and PAMs are enumerated against the sequence
     the target genome actually contains — a PAM the alternate allele destroys is
     not emitted, and one it creates is found (mirroring the base/prime paths).
+    A length-changing allele is applied like any other; the frame maps every
+    emitted placement and cut site back onto the reference it drifted from.
     """
     margin = spacer_length + len(pam.pattern) + cut_offset
     region = GenomicInterval(
@@ -197,15 +196,24 @@ def _enumerate_pam(
     fetched = reference.fetch_result(region)
     sequence = str(fetched.sequence)
     carried = carried_allele(resolved, intent)
-    if carried is not None:
-        var = resolved.variant
+    var = resolved.variant
+    rel = var.pos - region.start
+    frame = EditFrame.identity(chrom=region.chrom, offset=region.start, span=len(sequence))
+    if carried is not None and 0 <= rel and rel + len(var.ref) <= len(sequence):
         sequence = _overlay_allele(
             sequence, offset=region.start, pos=var.pos, ref=var.ref, allele=carried
         )
+        frame = EditFrame(
+            chrom=region.chrom,
+            offset=region.start,
+            edit_plus=rel,
+            start_len=len(carried),
+            ref_len=len(var.ref),
+            span=len(sequence),
+        )
     guides = _enumerate_window(
         sequence,
-        chrom=region.chrom,
-        offset=region.start,
+        frame=frame,
         pam=pam,
         spacer_length=spacer_length,
         cut_offset=cut_offset,
@@ -300,6 +308,16 @@ def guide_context(
     ``overlay`` is a plus-strand ``(pos, ref, allele)`` substitution applied before
     the strand is resolved, so on-target scoring reads the carried allele rather
     than the reference at a variant inside the window.
+
+    The window is anchored on the guide's own protospacer+PAM **by content**, not
+    by arithmetic on its placement. A length-changing overlay shifts everything
+    3' of the edit, so slicing fixed offsets around a reference placement would
+    hand the scorer a frame-shifted context — silently, and of the wrong length.
+    Locating the reagent in the carried sequence is exact regardless of drift.
+
+    Raises:
+        ValueError: If the guide's protospacer+PAM is not present in the carried
+            window — the guide does not belong to the genome being scored.
     """
     f5 = flank if flank_5 is None else flank_5
     f3 = flank if flank_3 is None else flank_3
@@ -307,9 +325,19 @@ def guide_context(
     placement = guide.placement
     if placement.strand is Strand.PLUS:
         lo, hi = placement.start - f5, placement.end + pam_len + f3
+        anchor = str(guide.spacer.sequence) + str(guide.pam_sequence)
+        low_pad, high_pad = f5, f3
     else:
         lo, hi = placement.start - pam_len - f3, placement.end + f5
-    lo = max(0, lo)
+        # On the plus strand a minus guide reads PAM-then-protospacer, and its own
+        # 5' flank lies at the *high* coordinates.
+        anchor = str(
+            DNASequence(str(guide.spacer.sequence) + str(guide.pam_sequence)).reverse_complement()
+        )
+        low_pad, high_pad = f3, f5
+    # Pad the fetch so the requested flanks survive a length-changing overlay.
+    pad = 0 if overlay is None else abs(len(overlay[1]) - len(overlay[2]))
+    lo, hi = max(0, lo - pad), hi + pad
     plus = str(
         reference.fetch(
             GenomicInterval(chrom=placement.chrom, start=lo, end=hi, strand=Strand.PLUS)
@@ -318,6 +346,10 @@ def guide_context(
     if overlay is not None:
         pos, ref_base, allele = overlay
         plus = _overlay_allele(plus, offset=lo, pos=pos, ref=ref_base, allele=allele)
+    at = plus.find(anchor)
+    if at < 0:
+        raise ValueError(f"guide {guide.spacer.sequence} is absent from the sequence being scored")
+    plus = plus[max(0, at - low_pad) : at + len(anchor) + high_pad]
     if placement.strand is Strand.MINUS:
         return str(DNASequence(plus).reverse_complement())
     return plus

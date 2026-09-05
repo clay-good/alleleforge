@@ -1114,6 +1114,37 @@ none of which a prospective user can see. The cheapest remaining unit of trust a
 the smallest runnable thing that makes its mechanism visible, and the discipline that makes it worth
 trusting is the same one the tests use: put an `assert` in the demo, and let CI run it.**
 
+## Round 42 — the same assumption, one enumerator over (2 fixes; a spec the code was quietly violating)
+
+R38–R41 taught the prime enumerator to handle a length-changing allele. This round asks the obvious
+follow-on: *who else assumed the allele's length never changes?* The cas9 enumerator did — and unlike
+prime, it had a written requirement saying it must not.
+
+- **`fix(cas9)` correction-intent guides enumerated on the reference, not the patient.** `cas9-design`
+  has always SHALLed that a precise intent enumerate against the carried sequence: "a PAM the alternate
+  allele destroys SHALL NOT be emitted; a PAM the alternate allele creates SHALL be found."
+  `_overlay_allele` honored it only for equal-length alleles — `if len(allele) != len(ref): return
+  sequence` — so a correcting design against a genome carrying an indel was enumerated on the reference.
+  It could propose a guide whose PAM the patient's own deletion has removed (a reagent that cannot cut)
+  and miss the junction PAM the deletion creates. **Shipped:** the overlay applies at any length, and
+  `EditFrame` (promoted out of `enumerate/prime.py` into a shared `enumerate/_frame.py`) maps every
+  placement and cut site back to its reference footprint, dropping a guide with no reference locus.
+- **`fix(cas9)` `guide_context` frame-shifted by a length-changing overlay.** It fetched a reference
+  window by arithmetic on the placement, then applied the overlay — so an indel inside the flank returned
+  a shifted context *of the wrong length* to the efficiency model, Rule Set 3's 30-mer included.
+  **Shipped:** anchor the window on the guide's own protospacer+PAM by content (exact under any drift),
+  and raise when the guide is absent from the sequence being scored rather than scoring something else.
+
+Both fixes are pinned by three tests built on AT-only contigs — the only PAMs in play are the ones each
+test plants — and all three fail under the restored `len(allele) != len(ref)` guard.
+
+**Lesson: the most valuable thing an audit can find is not a missing requirement but a written one the
+code stopped honoring at a boundary nobody re-checked. The `!= len(ref)` early-return was not an
+oversight; it was a *documented* choice ("the prime/base enumerators bail entirely"), correct on the day
+it was written and quietly false from the moment R38 landed — the comment justifying it was still there,
+still cited, still wrong. When a capability is widened in one module, its own docstrings are not the
+blast radius: every *other* module's justification for opting out is.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
