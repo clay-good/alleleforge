@@ -1026,8 +1026,12 @@ flowchart LR
 > Asking for ancestries with none of them supplied prints a warning saying the scan was reference-only and
 > the empty ancestry breakdown means **not measured**, not clean. Scope a scan with `--region
 > chrom:start-end` (repeatable) or `--regions-bed panel.bed` — over a real reference that is usually what
-> makes a run practical. One `design()` capability remains library-only:
-> `encode_tracks`/`chromatin_track` (the ePRIDICT open-chromatin efficiency adjustment).
+> makes a run practical. The open-chromatin efficiency adjustment takes `--encode-tracks track.bedgraph
+> --chromatin-track <name>` (both required together), and `--cell-context <line>` is what raises the
+> out-of-distribution flag on every efficiency prediction. **Every `design()` capability is reachable from
+> the CLI.** On the web API the four *file* inputs are deliberately absent: a client-supplied filesystem
+> path would be a server-side file-read primitive, so that surface needs server-side configuration like the
+> reference already has.
 | `aforge data list` / `show <name>` | Inspect the dataset registry (versions, licenses, provenance). |
 | `aforge bench list` / `run` | List and run CRISPR-Bench tasks against frozen splits. |
 | `aforge bench leaderboard <result.json…>` | Aggregate signed results into the model-card-gated leaderboard (Markdown/HTML). |
