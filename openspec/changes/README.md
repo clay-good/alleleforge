@@ -1723,6 +1723,32 @@ version passed its unit tests and would have been wrong for every real client, a
 surfaced it was performing the round trip a client performs instead of asserting on a value I had typed
 myself.**
 
+## Round 64 — the last two surfaces, and the prose beside the generated docs (clean bills + a doc refresh)
+
+Finished exercising the surfaces this session had not driven, then swept the API reference for the prose
+that auto-generation does not cover.
+
+- **Web `/api/batch` — clean.** R56 made a cohort summary's `worst_offtarget` `None` when nothing was
+  measured, which could have been a 500 if the response model typed it as `float`. It is
+  `dict[str, object] | None`, and the endpoint returns `null` honestly. Verified by driving it.
+- **The browser frontend — clean, and already defensive.** Its cohort table reads
+  `typeof s.worst_offtarget === "number" ? …toFixed(3) : "—"`, so it rendered the new `null` correctly with
+  no change. The design view embeds the *server-rendered* HTML report in an iframe, so this session's
+  reagent line, render cap, donor and flags all reach it for free. Worth noting against R61: the frontend
+  was written defensively for a non-numeric value and the notebook was not — the notebook is the artifact
+  that broke.
+- **`docs(api)` the hand-written tables had gone stale.** The pages use mkdocstrings, so classes and
+  functions (`DonorOligo`, `donor_oligo`, `visible_candidates`, `GenomicInterval.parse`) documented
+  themselves. The prose beside them did not: the routing table still described prime as "≤ RTT length" and
+  the nuclease as knock-out-only, and the cloning table listed three chemistries with no mention that a
+  precise nuclease candidate ships with an HDR donor. Both corrected, plus a paragraph on the render cap
+  and why the Pareto front is exempt from it.
+
+**Lesson: auto-generated documentation makes the surrounding prose *more* likely to rot, not less. The
+docstrings updated themselves as the code changed, which is exactly what makes the hand-written table two
+lines above them easy to forget — the page looks maintained. Wherever generated and hand-written content
+share a page, the hand-written half is the one to re-read after a behavior change.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

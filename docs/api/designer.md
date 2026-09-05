@@ -35,8 +35,8 @@ full per-chemistry verdict (kept *and* dropped, with reasons).
 |---|---|---|
 | Base editing (ABE) | A transition SNV whose required change is `A:T->G:C` | Installs one transition in-window, no double-strand break — the cleanest fix |
 | Base editing (CBE) | A transition SNV whose required change is `G:C->A:T` | Same, for the complementary transition |
-| Prime editing | Any precise small edit (≤ RTT length), non-disruptive intent | Writes arbitrary substitutions / short indels from an RTT template, no break |
-| SpCas9 nuclease | Disruption (knock-out) intent | A double-strand break repaired by NHEJ yields frameshifting indels |
+| Prime editing | Any precise small edit — SNV, MNV, insertion, deletion, delins — on a non-disruptive intent, with the replaced reference span ≤ `PRIME_MAX_EDIT` (44) and the **written** allele ≤ `PRIME_MAX_TEMPLATED_EDIT` (29) | Writes the edit from a variable-length RT template with no break. A deleted span costs no template, so the binding bound is on what the RTT must write, not on what it replaces |
+| SpCas9 nuclease | Disruption (knock-out) intent; **or** a precise edit no break-free chemistry can reach | A break repaired by NHEJ yields frameshifting indels — the knock-out route. For a precise edit it needs an HDR donor and is inefficient, S/G2-restricted, and dominated by NHEJ byproducts, so it is offered only as the **last resort** (e.g. restoring a deletion longer than any RT template can write) |
 
 ::: alleleforge.design.routing
 
