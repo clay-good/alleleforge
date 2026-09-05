@@ -11,6 +11,7 @@ never internally.
 
 from __future__ import annotations
 
+import re
 from enum import StrEnum
 from typing import Any
 
@@ -159,6 +160,10 @@ def canonical_contig(chrom: str) -> str:
     return "MT" if base.upper() in {"M", "MT"} else base.upper()
 
 
+#: The ``chrom:start-end(strand)`` locus form :meth:`GenomicInterval.__str__` emits.
+_LOCUS_RE = re.compile(r"(?P<chrom>[^:\s]+):(?P<start>\d+)-(?P<end>\d+)(?:\((?P<strand>[+-])\))?")
+
+
 class GenomicInterval(BaseModel):
     """A strand-aware genomic interval, 0-based half-open by default.
 
@@ -194,6 +199,29 @@ class GenomicInterval(BaseModel):
     def __str__(self) -> str:
         """Return a compact ``chrom:start-end(strand)`` representation."""
         return f"{self.chrom}:{self.start}-{self.end}({self.strand.value})"
+
+    @classmethod
+    def parse(cls, text: str) -> GenomicInterval:
+        """Return the interval a ``chrom:start-end(strand)`` string names.
+
+        The exact inverse of :meth:`__str__`, so a locus the tool printed can be
+        handed straight back to it. The strand is optional and defaults to plus.
+        Shared by every surface that accepts a locus from a user, so the CLI and
+        the web API cannot drift into accepting different spellings.
+
+        Raises:
+            ValueError: If ``text`` is not that form, or names an empty interval.
+        """
+        match = _LOCUS_RE.fullmatch(text.strip())
+        if match is None:
+            raise ValueError(
+                f"locus {text!r} is not 'chrom:start-end(strand)', e.g. 'chr7:28-48(+)'"
+            )
+        start, end = int(match["start"]), int(match["end"])
+        if end <= start:
+            raise ValueError(f"locus {text!r} is empty ({end} <= {start})")
+        strand = Strand.MINUS if match["strand"] == "-" else Strand.PLUS
+        return cls(chrom=match["chrom"], start=start, end=end, strand=strand)
 
     @property
     def length(self) -> int:

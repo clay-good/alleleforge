@@ -24,7 +24,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import re
 import tomllib
 from dataclasses import dataclass
 from enum import IntEnum, StrEnum
@@ -35,7 +34,7 @@ import typer
 
 from alleleforge._version import __version__
 from alleleforge.config import DEFAULT_REFERENCE, DEFAULT_SEED
-from alleleforge.types.sequence import GenomicInterval, Strand
+from alleleforge.types.sequence import GenomicInterval
 
 
 class ExitCode(IntEnum):
@@ -707,24 +706,6 @@ def batch(
         typer.echo(f"wrote {summary_tsv}")
 
 
-def _parse_locus(text: str) -> GenomicInterval:
-    """Parse a ``chrom:start-end(strand)`` locus, the form the tool prints.
-
-    Raises:
-        ValueError: If ``text`` is not that form, or the interval is empty.
-    """
-    match = re.fullmatch(
-        r"(?P<chrom>[^:]+):(?P<start>\d+)-(?P<end>\d+)(?:\((?P<strand>[+-])\))?", text.strip()
-    )
-    if match is None:
-        raise ValueError(f"locus {text!r} is not 'chrom:start-end(strand)', e.g. 'chr7:28-48(+)'")
-    start, end = int(match["start"]), int(match["end"])
-    if end <= start:
-        raise ValueError(f"locus {text!r} is empty ({end} <= {start})")
-    strand = Strand.MINUS if match["strand"] == "-" else Strand.PLUS
-    return GenomicInterval(chrom=match["chrom"], start=start, end=end, strand=strand)
-
-
 @app.command()
 def offtarget(
     ctx: typer.Context,
@@ -772,7 +753,7 @@ def offtarget(
     reference = _load_reference(reference_fasta, state.reference_build)
     pops = [p.strip() for p in populations.split(",")] if populations else None
     try:
-        locus = _parse_locus(on_target) if on_target else None
+        locus = GenomicInterval.parse(on_target) if on_target else None
     except ValueError as exc:
         _echo_err(f"error: {exc}")
         raise typer.Exit(ExitCode.USAGE) from exc

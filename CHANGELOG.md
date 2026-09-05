@@ -32,6 +32,17 @@ acceptance.
     `PegRNA` does not carry. That remains an R1 gap. The reproducibility golden moved by exactly one added
     model, verified by diffing the canonical run's body; no number changed.
 
+- **`POST /api/offtarget` gained the same on-target handling as the CLI.** The previous entry fixed the CLI
+  and left the web API reporting the identical unlabelled `specificity` — the envelope's own docstring
+  promises "the same summary the `aforge offtarget` CLI surfaces", which had quietly stopped being true.
+  The request now takes `on_target` **as a `GenomicInterval`**, the same shape a reported site's `locus`
+  has, so a client can copy one straight back; the response carries `on_target_excluded`; a malformed
+  locus is a 422. (The string form was tried first and was wrong: the API emits loci as objects and never
+  as `chrom:start-end(strand)`, so a field accepting only the string would have taken a spelling the API
+  itself never produces — caught by driving the round trip.) The locus parser the CLI uses is now
+  `GenomicInterval.parse`, the exact inverse of `__str__`, so the two surfaces cannot drift into accepting
+  different spellings.
+
 - **`aforge offtarget` gained `--on-target`, and says when it is missing.** The standalone command passed
   no on-target locus, so the guide's own perfect match was reported like any other site: the worst score
   pegged at `1.0` and specificity capped at `0.5` for even a spotless guide — the failure mode the engine's

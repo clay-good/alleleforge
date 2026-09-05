@@ -137,3 +137,34 @@ def test_overlaps() -> None:
     assert a.overlaps(b)
     assert not a.overlaps(c)  # half-open: [0,10) and [10,20) do not overlap
     assert not a.overlaps(d)
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["chr7:28-48(+)", "chr7:28-48(-)", "chr1:0-10(+)", "GL000220.1:5-25(+)"],
+)
+def test_parse_is_the_inverse_of_str(text: str) -> None:
+    """A locus the tool printed must be accepted verbatim when handed back."""
+    assert str(GenomicInterval.parse(text)) == text
+
+
+def test_parse_defaults_to_the_plus_strand() -> None:
+    assert GenomicInterval.parse("chr1:0-10").strand is Strand.PLUS
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "nonsense",
+        "chr1:10",  # no end
+        "chr1:50-30(+)",  # end before start
+        "chr1:5-5(+)",  # empty
+        "chr1:a-b(+)",  # non-numeric
+        "",
+    ],
+)
+def test_parse_rejects_a_malformed_locus(text: str) -> None:
+    """Fail loudly: a caller uses this to *exclude* a locus, and a silent skip there
+    quietly restores the number the exclusion existed to correct."""
+    with pytest.raises(ValueError):
+        GenomicInterval.parse(text)

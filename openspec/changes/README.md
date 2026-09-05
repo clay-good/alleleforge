@@ -1697,6 +1697,32 @@ impossible: put the missing step in the documented entry point, then test that t
 matches the thing it claims to mirror. Note also that the guard reads the workflow rather than a
 hand-written list of jobs, because a hand-written list is one more copy to drift.**
 
+## Round 63 — the fix I applied to one surface and not the other
+
+Drove the web API for the first time this session. All three variant classes route correctly through it,
+including the new nuclease+HDR fallback. `POST /api/offtarget` returned **specificity 0.333** — the exact
+defect R58 fixed in the CLI five rounds ago, on the surface I did not touch. Its response docstring even
+promises "the same summary the `aforge offtarget` CLI surfaces", a claim R58 had silently falsified.
+
+**Shipped:** `on_target` on the request, `on_target_excluded` on the response, 422 on a malformed locus —
+and `GenomicInterval.parse`, the exact inverse of `__str__`, now shared by both surfaces so they cannot
+drift into accepting different spellings of a locus.
+
+**A design error caught by running the round trip.** The first version took the locus as the CLI's
+`chrom:start-end(strand)` string. Then I tried the actual client flow — read a site out of a response,
+hand its locus back — and got a 422: the API serializes `locus` as an *object* and never emits that string
+at all. A field accepting only the string form would have required every client to reformat a value the
+API had just given them, in a spelling the API itself never produces. It now takes the `GenomicInterval`,
+and the test performs that exact round trip rather than constructing a locus by hand.
+
+**Lesson: R59's "the odd one out is the finding" has a companion — after fixing a defect, ask which other
+surface has the same shape. The CLI and the web API are both thin shells over one library, which is
+precisely why a defect in how a shell *labels* a library result will exist in both, and why fixing one
+feels complete. Second: an API's input format should be whatever its own output format is. The string
+version passed its unit tests and would have been wrong for every real client, and the only thing that
+surfaced it was performing the round trip a client performs instead of asserting on a value I had typed
+myself.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

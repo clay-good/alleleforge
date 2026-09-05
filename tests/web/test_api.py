@@ -488,3 +488,55 @@ def test_serve_reads_token_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setenv("ALLELEFORGE_API_TOKEN", "envtok")
     assert resolve_serve_token("0.0.0.0", None) == "envtok"
+
+
+#: The plus-strand protospacer the shared test contig actually contains, 5' of its
+#: planted ``TGG`` PAM — so the search has a real perfect hit to exclude.
+ON_TARGET_SPACER = "TATATATATATACCAATATA"
+
+
+# --- offtarget: the on-target locus, matching the CLI --------------------------
+
+
+async def test_offtarget_reports_whether_the_on_target_was_excluded(
+    client: httpx.AsyncClient,
+) -> None:
+    """The web envelope must carry the same qualifier the CLI prints.
+
+    Its own docstring promises "the same summary the ``aforge offtarget`` CLI
+    surfaces". Without ``on_target_excluded``, ``specificity`` is not the quantity a
+    design report prints under that name, and a client cannot tell which it got.
+    """
+    res = await client.post("/api/offtarget", json={"spacer": ON_TARGET_SPACER})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["on_target_excluded"] is False
+    assert body["n_sites"] >= 1  # the guide's own locus is among the reported sites
+
+
+async def test_offtarget_excludes_a_supplied_locus(client: httpx.AsyncClient) -> None:
+    plain = (await client.post("/api/offtarget", json={"spacer": ON_TARGET_SPACER})).json()
+    # A reported site's locus handed straight back — the round trip a client
+    # actually makes, and why this field takes the object rather than a string.
+    locus = plain["report"]["sites"][0]["locus"]
+    res = await client.post("/api/offtarget", json={"spacer": ON_TARGET_SPACER, "on_target": locus})
+    assert res.status_code == 200
+    excluded = res.json()
+    assert excluded["on_target_excluded"] is True
+    assert excluded["n_sites"] == plain["n_sites"] - 1
+    assert excluded["specificity"] >= plain["specificity"]
+
+
+@pytest.mark.parametrize(
+    "locus",
+    [
+        "chr2:43-63(+)",  # the CLI's string form is not what this field takes
+        {"chrom": "chr2", "start": 63, "end": 43, "strand": "+"},  # end before start
+        {"chrom": "chr2", "start": 43},  # missing end
+        {"start": 43, "end": 63, "strand": "+"},  # missing contig
+    ],
+)
+async def test_offtarget_rejects_a_malformed_locus(client: httpx.AsyncClient, locus: str) -> None:
+    """A typo must be a client error, not a silently un-excluded search."""
+    res = await client.post("/api/offtarget", json={"spacer": ON_TARGET_SPACER, "on_target": locus})
+    assert res.status_code == 422

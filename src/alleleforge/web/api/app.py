@@ -305,11 +305,15 @@ def create_app(
         from alleleforge.types.guide import PAM
 
         reference = _require_reference(request)
+        # `on_target` is validated as a GenomicInterval by the request model, so a
+        # malformed locus is already a 422 — never a silently skipped exclusion.
+        locus = req.on_target
         try:
             report = search(
                 req.spacer,
                 PAM(pattern=req.pam),
                 reference=reference,
+                on_target=locus,
                 mismatches=req.mismatches,
                 dna_bulges=req.dna_bulges,
                 rna_bulges=req.rna_bulges,
@@ -320,7 +324,7 @@ def create_app(
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-        return OffTargetResponse.from_report(report)
+        return OffTargetResponse.from_report(report, on_target_excluded=locus is not None)
 
     @app.get("/api/data", response_model=DataListResponse)
     async def data_list() -> DataListResponse:

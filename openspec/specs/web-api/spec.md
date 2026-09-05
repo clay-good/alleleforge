@@ -115,3 +115,25 @@ experience is unchanged.
 #### Scenario: Localhost unchanged
 - **WHEN** the server is bound to localhost
 - **THEN** requests are served without a token
+
+### Requirement: The off-target envelope says whose specificity it is
+
+`POST /api/offtarget` SHALL accept the spacer's own locus — in the same shape a
+reported site's `locus` has, so a client can hand one straight back — and exclude it
+when given. The response SHALL carry `on_target_excluded`, because without it
+`specificity` is not the quantity a design report prints under the same name. A
+malformed locus SHALL be a 422, never a silently un-excluded search.
+
+#### Scenario: No locus supplied
+- **WHEN** the request omits `on_target`
+- **THEN** the response reports `on_target_excluded: false` and the guide's own
+  perfect match is among the sites
+
+#### Scenario: A reported locus handed back
+- **WHEN** a site's `locus` from a previous response is sent as `on_target`
+- **THEN** that site is dropped, `on_target_excluded` is `true`, and the specificity
+  is no lower than before
+
+#### Scenario: Malformed locus
+- **WHEN** `on_target` is not a valid interval
+- **THEN** the request is rejected with 422

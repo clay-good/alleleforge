@@ -14,6 +14,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field
 
 from alleleforge.types.offtarget import OffTargetReport
+from alleleforge.types.sequence import GenomicInterval
 
 #: Maximum number of variants a single batch request may carry. Bounds the work a
 #: caller can queue in one request, so a shared (non-loopback) deployment cannot be
@@ -185,6 +186,15 @@ class OffTargetRequest(BaseModel):
     populations: list[PopulationStr] | None = Field(
         default=None, max_length=MAX_POPULATIONS, description="Ancestry labels to stratify by."
     )
+    on_target: GenomicInterval | None = Field(
+        default=None,
+        description=(
+            "The spacer's own locus, so it is not counted against itself. This is the "
+            "same shape a reported site's `locus` has, so a client can copy one "
+            "straight back. Omit it and the guide's own perfect match is reported like "
+            "any other site, which caps the specificity — see `on_target_excluded`."
+        ),
+    )
 
 
 class OffTargetResponse(BaseModel):
@@ -194,7 +204,9 @@ class OffTargetResponse(BaseModel):
     worst-case score, and the genome-wide specificity score — are *methods* on
     :class:`OffTargetReport`, so they are absent from its serialized fields. This
     envelope projects them alongside the full report, giving an API client the
-    same summary the ``aforge offtarget`` CLI surfaces.
+    same summary the ``aforge offtarget`` CLI surfaces — including
+    ``on_target_excluded``, without which ``specificity`` is not the same quantity
+    a design report prints under that name.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -204,6 +216,13 @@ class OffTargetResponse(BaseModel):
     worst_score: float = Field(description="Highest single-site off-target score (0 if none).")
     specificity: float = Field(
         description="Aggregate genome-wide specificity 1/(1+Σ scores) in (0, 1]."
+    )
+    on_target_excluded: bool = Field(
+        description=(
+            "Whether the spacer's own locus was excluded. When false, the guide's own "
+            "perfect match is counted among the sites and the specificity is capped "
+            "accordingly; supply `on_target` to drop it."
+        )
     )
     ancestry_stratification: dict[str, float] = Field(
         description="Worst-case off-target score per annotated ancestry."
@@ -220,13 +239,16 @@ class OffTargetResponse(BaseModel):
     )
 
     @classmethod
-    def from_report(cls, report: OffTargetReport) -> OffTargetResponse:
+    def from_report(
+        cls, report: OffTargetReport, *, on_target_excluded: bool = False
+    ) -> OffTargetResponse:
         """Build the envelope from a report, computing its aggregate summary."""
         return cls(
             report=report,
             n_sites=report.n_sites,
             worst_score=report.worst_score(),
             specificity=report.specificity_score(),
+            on_target_excluded=on_target_excluded,
             ancestry_stratification=report.ancestry_stratification(),
             effective_matrix=report.effective_matrix(),
         )
