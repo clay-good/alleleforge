@@ -1,14 +1,18 @@
-"""The README must name every command the CLI actually ships.
+"""The prose must not make claims the repository cannot back.
 
-`aforge verify` shipped complete — provenance completeness plus artifact re-hashing,
-the mechanism that turns provenance from a record into a checkable contract — and
-appeared in neither the README nor `docs/`. An undiscoverable feature is, for every
-practical purpose, an unshipped one, and no test could tell: the command worked, its
-own tests passed, and the gap lived entirely in the prose.
+Documentation drift is invisible to a test suite by construction — the code keeps
+working while the sentences about it rot — so the mechanically checkable claims get
+their own pass here: every CLI command is named somewhere, every local link resolves
+to a file that exists, and every module path the prose cites is importable.
 
-This pins the mechanical half of the claim. It cannot tell whether the documentation
-is *good*, only whether each command is mentioned at all — which is exactly the check
-that was missing.
+Two real defects motivated it. `aforge verify` — provenance completeness plus artifact
+re-hashing, the mechanism that turns provenance from a record into a checkable contract
+— appeared in neither the README nor `docs/`; an undiscoverable feature is, for every
+practical purpose, an unshipped one. And the README promised a code of conduct behind a
+link that 404s.
+
+These pin only the mechanical half. They cannot tell whether documentation is *good*,
+only whether it points at things that exist — which is exactly what was missing.
 """
 
 from __future__ import annotations
@@ -50,3 +54,59 @@ def test_the_check_would_notice_a_missing_command(removed: str) -> None:
         prose += path.read_text().replace(f"aforge {removed}", "")
     assert f"aforge {removed}" not in prose
     assert removed in _command_names()
+
+
+# Paths the prose may legitimately reference before they exist in the repository:
+# each needs a reason, so this cannot become a place to hide a broken promise.
+_ALLOWED_MISSING_LINKS: dict[str, str] = {}
+
+
+def _prose_files() -> list[Path]:
+    return [_ROOT / "README.md", *sorted((_ROOT / "docs").rglob("*.md"))]
+
+
+def test_every_local_link_in_the_prose_resolves() -> None:
+    """A README link that 404s is a claim the repository cannot back.
+
+    Found the code-of-conduct promise: `CONTRIBUTING.md` and the README both told a
+    contributor to read a Contributor Covenant that was not in the repository.
+    """
+    import re
+
+    broken: list[str] = []
+    for path in _prose_files():
+        text = path.read_text()
+        targets = set(re.findall(r"\]\((?!https?:|mailto:|#)([^)#]+)", text))
+        targets |= set(
+            re.findall(
+                r"`((?:src|tests|scripts|docs|examples|openspec|rust)/[A-Za-z0-9_./-]+)`", text
+            )
+        )
+        for target in (t.strip() for t in targets):
+            if not target or target in _ALLOWED_MISSING_LINKS:
+                continue
+            # A docs/ link may be relative to its own page (mkdocs) or to the repo root.
+            if (_ROOT / target).exists() or (path.parent / target).exists():
+                continue
+            broken.append(f"{path.relative_to(_ROOT)} -> {target}")
+    assert not broken, f"prose links to files that do not exist: {broken}"
+
+
+def test_every_module_path_the_prose_cites_is_importable() -> None:
+    """`alleleforge.foo.bar` in the prose must still be somewhere in the package."""
+    import importlib
+    import re
+
+    prose = "\n".join(p.read_text() for p in _prose_files())
+    broken: list[str] = []
+    for dotted in sorted(set(re.findall(r"`(alleleforge(?:\.[a-z_]+)+)`", prose))):
+        try:
+            importlib.import_module(dotted)
+        except ImportError:
+            head, _, tail = dotted.rpartition(".")
+            try:
+                if not hasattr(importlib.import_module(head), tail):
+                    broken.append(dotted)
+            except ImportError:
+                broken.append(dotted)
+    assert not broken, f"prose cites modules that do not exist: {broken}"

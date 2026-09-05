@@ -2673,6 +2673,36 @@ the pass that finds the most is the mechanical one — every command, every flag
 prose, checked against the code. Prose claims about *architecture* deserve the most suspicion: "X feeds Y"
 is exactly the sentence nobody re-reads after Y stops reading X, and no test will ever notice.**
 
+## Round 97 — the rest of the mechanically checkable prose
+
+R96's every-command check was one instance of a general idea, so this round ran the rest of it: do the
+prose's **links** point at files that exist, and are the **module paths** it cites importable?
+
+Symbols: clean, all thirteen. Links: one break, and a telling one. `README.md` and `CONTRIBUTING.md` both
+sent contributors to a Contributor Covenant that was not in the repository. Not a stale path — a promise
+that had never been kept, on a public open-science project, in the two files a first-time contributor reads.
+
+The repair needed some care about what is mine to decide. Adopting a code of conduct is a governance act,
+and the repository had already committed to one twice; making that commitment real is repairing a stated
+intent rather than inventing policy, so the file went in. But two choices inside it are the maintainer's,
+and both are now flagged rather than settled quietly:
+
+- **Adoption by reference, not verbatim.** Reproducing a specific versioned document from memory risks
+  getting it subtly wrong, and a copy in-repo can silently drift from the version it claims to be. By
+  reference it cannot. Some maintainers still want the text inline, for GitHub's community-standards check.
+- **GitHub-only reporting.** The Covenant expects a direct contact and the repository publishes no
+  maintainer email. Publishing a personal address on someone's behalf is not a call to make silently, so the
+  file names the channels that exist today — a private security advisory, or an issue.
+
+Both checks are now tests, with an explicit allow-list (each entry needing a reason) for paths the prose may
+legitimately cite before they exist, so the mechanism cannot become somewhere to park the next broken
+promise.
+
+**Lesson: the highest-value target for a mechanical prose check is not the API documentation, which people
+re-read, but the *governance and onboarding* files, which nobody re-reads and which a newcomer reads first.
+A README's technical claims get corrected by users who hit them; `CONTRIBUTING.md` pointing at a file that
+does not exist just quietly greets everyone who shows up.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

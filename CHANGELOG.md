@@ -8,6 +8,25 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **A code of conduct, which the README and `CONTRIBUTING.md` had both promised and neither delivered.**
+  Two public documents told contributors to read a Contributor Covenant behind a link that 404s — a
+  governance claim with nothing behind it. `CODE_OF_CONDUCT.md` now adopts the Contributor Covenant 2.1 **by
+  reference** to its canonical URL rather than reproducing it, so the file cannot drift from the version it
+  names, and states the reporting channels that actually exist today (a private GitHub security advisory for
+  anything sensitive, issues otherwise). Two calls in it are properly the maintainer's — adoption by
+  reference versus verbatim text, and whether to publish a direct contact address — and have been flagged
+  for review rather than decided quietly.
+
+- **The prose is now checked mechanically for claims the repository cannot back.** Alongside the
+  every-CLI-command check, `tests/test_readme_documents_the_cli.py` asserts that every local link in
+  `README.md` and `docs/` resolves to a file that exists, and that every `alleleforge.x.y` module path the
+  prose cites is importable. Documentation drift is invisible to a test suite by construction — the code
+  keeps working while the sentences about it rot — so the checkable half is now checked. Paths the prose may
+  legitimately cite before they exist go in an explicit allow-list with a reason, so it cannot quietly become
+  a place to park a broken promise.
+
 ### Fixed
 
 - **The README said VEP's molecular consequence drives "chemistry routing". It never did.** Routing is a
