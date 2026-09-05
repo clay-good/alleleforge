@@ -138,6 +138,7 @@ def _to_site(
         frequency=prov.frequency,
         ancestries=prov.ancestries,
         score_matrix=matrix,
+        pam_sequence=hit.pam_sequence,
     )
 
 

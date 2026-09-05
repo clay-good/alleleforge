@@ -376,3 +376,34 @@ def test_only_hits_inside_the_placement_window_count_as_the_guide_itself() -> No
     assert not _is_on_target(_hit(101, 121, rna=0), locus)  # no bulge: a different site
     assert _is_on_target(_hit(100, 120, rna=0), locus)  # exact match, bulge or not
     assert not _is_on_target(_hit(101, 120), None)
+
+
+def test_a_site_records_the_pam_that_anchored_it(make_reference: MakeRef) -> None:
+    """Without the PAM an off-target row cannot be interpreted or told apart.
+
+    Two things were undecidable from a report. A canonical `NGG` site and a
+    low-stringency `NAG` one carry very different real risk and looked identical. And
+    with bulges allowed the same 20 bp of genome is reachable from two *adjacent*
+    PAMs, so a table showed what appeared to be one locus printed twice — it is in
+    fact two distinct cut registers, which only the PAM reveals.
+    """
+    window = "GAGCCGGATAAGTCTGCCGTTACTGCCCTGTTGGAATGACATGCACGTTATTCTTTTTACGCAGCGTTTTGCTTGATCGG"
+    reference = make_reference({"chr11": window})
+    report = search(
+        "ACGTGCATGTCATTCCAACA",
+        NGG,
+        reference=reference,
+        mismatches=3,
+        dna_bulges=1,
+        rna_bulges=1,
+    )
+    assert all(site.pam_sequence for site in report.sites)
+    assert all(NGG.matches(site.pam_sequence or "") for site in report.sites)
+
+    # The two overlapping registers are distinguished by their PAMs, not merged: they
+    # are one base apart with different PAMs, so each is a real, separate cut site.
+    overlapping = [s for s in report.sites if s.score >= 1.0]
+    assert len(overlapping) == 2
+    assert len({s.pam_sequence for s in overlapping}) == 2, (
+        "overlapping registers share a PAM — then they would be one site reported twice"
+    )

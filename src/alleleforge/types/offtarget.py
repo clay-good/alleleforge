@@ -78,6 +78,12 @@ class OffTargetSite(BaseModel):
     frequency: float | None = None
     ancestries: dict[str, float] = {}
     score_matrix: str | None = None
+    #: The concrete PAM read at this site. A report can mix a canonical ``NGG`` with a
+    #: low-stringency ``NAG`` — very different real risk — and a reader had no way to
+    #: tell them apart. It is also what distinguishes two *overlapping* sites: with
+    #: bulges allowed the same 20 bp of genome is reachable from two adjacent PAMs, and
+    #: without the PAM those two rows look like one locus printed twice.
+    pam_sequence: str | None = None
 
     @model_validator(mode="after")
     def _check(self) -> OffTargetSite:

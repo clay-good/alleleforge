@@ -2833,6 +2833,44 @@ this hit the guide?" — and the moment the aligner gained bulges, those stopped
 function whose own docstring explains why getting it wrong is dangerous. When a feature widens what an
 identifier can look like, revisit every equality test on that identifier.**
 
+## Round 101 — the row that could not be read
+
+Reading output again. After R100 the standalone `offtarget` command still showed something odd on the same
+guide:
+
+```
+chr11:2019-2038(-)  mm=0  score=1.0
+chr11:2018-2038(-)  mm=0  score=1.0
+```
+
+Two sites, overlapping by 19 of 20 bases, both perfect. The obvious reading is double-counting — one
+physical locus reported twice, inflating the site count and depressing the specificity aggregate from 0.5
+to 0.333 — and the obvious fix is to merge them.
+
+That reading was wrong, and the round is mostly about how I found out. `OffTargetSite` records the locus,
+the mismatch and bulge counts, the score, the matrix, the origin, the causal allele, the populations, the
+frequencies — and not **which PAM anchored it**. So there was no way to tell, from the report, whether
+those two rows were one site printed twice or two real cut registers.
+
+They are two real registers: `AGG` and `GGG`, one base apart. Merging them would have silently deleted a
+genuine off-target from the count of a safety-critical report, on the strength of a plausible-looking
+duplicate.
+
+**Shipped:** `pam_sequence` on the site, printed on each CLI row and in the JSON payload. It also closes a
+second gap that had nothing to do with duplicates: the engine has a low-stringency `NAG` path, so a report
+can mix canonical and relaxed-PAM sites — very different real risk — and the table showed no difference
+between them.
+
+**Not shipped, deliberately:** no merging, no adjusted aggregate. Deciding that two overlapping registers
+count as one site is a convention, and I do not have one to cite. Record the fact the reader was missing
+and let them decide.
+
+**Lesson: the instinct that finds bugs — "these two rows look like one thing counted twice" — is the same
+instinct that breaks working code. The difference is whether the data can settle it, and here it could not,
+which was itself the finding. When a suspicious pattern cannot be resolved from what the system records,
+the first fix is to record what would resolve it, not to act on the guess. It would have been a quiet,
+plausible, safety-critical mistake.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

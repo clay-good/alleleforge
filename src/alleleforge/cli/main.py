@@ -1202,6 +1202,7 @@ def offtarget(
     sites = [
         {
             "locus": str(s.locus),
+            "pam": s.pam_sequence,
             "mismatches": s.mismatches,
             "dna_bulges": s.dna_bulges,
             "rna_bulges": s.rna_bulges,
@@ -1270,8 +1271,12 @@ def offtarget(
     ]
     for s in sites:
         mit = f"  mit={s['mit_score']}" if s["mit_score"] is not None else ""
+        # The PAM belongs on the row: an NGG and a low-stringency NAG site carry very
+        # different real risk, and two overlapping rows are only distinguishable — one
+        # locus reached from two adjacent PAMs, not one locus printed twice — by it.
+        pam = f"  pam={s['pam']}" if s["pam"] else ""
         human_lines.append(
-            f"  {s['locus']}  mm={s['mismatches']}  score={s['score']}{mit}  "
+            f"  {s['locus']}{pam}  mm={s['mismatches']}  score={s['score']}{mit}  "
             f"{s['origin']}{' ' + str(s['causal_allele']) if s['causal_allele'] else ''}"
         )
     _emit(payload, as_json=as_json, human="\n".join(human_lines))

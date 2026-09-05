@@ -196,3 +196,20 @@ budget and no more.
 #### Scenario: A bulged off-target elsewhere
 - **WHEN** a bulged hit lies outside the placement grown by its bulge budget
 - **THEN** it is reported
+
+### Requirement: A nominated site names the PAM that anchored it
+
+The engine admits a low-stringency PAM alongside the canonical one, and with bulges
+allowed the same span of genome is reachable from two adjacent PAMs. A site's locus,
+mismatch count and score therefore do not determine what it is: a canonical and a relaxed
+site look identical, and two overlapping registers are indistinguishable from one site
+reported twice. Every nominated site SHALL record the concrete PAM read at it, and every
+render of a site table SHALL show it.
+
+Overlapping registers SHALL NOT be merged and no aggregate SHALL be adjusted for them.
+Treating two registers as one site is a convention the project does not have; recording
+the PAM lets the reader decide.
+
+#### Scenario: Two overlapping registers
+- **WHEN** bulges allow the same span to be reached from two adjacent PAMs
+- **THEN** both sites are reported, each naming its own PAM

@@ -104,6 +104,18 @@
           "$ref": "#/$defs/SiteOrigin",
           "default": "reference"
         },
+        "pam_sequence": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pam Sequence"
+        },
         "populations": {
           "default": [],
           "items": {

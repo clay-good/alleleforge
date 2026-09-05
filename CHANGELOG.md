@@ -8,6 +8,21 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **An off-target site now records the PAM that anchored it.** Two things were undecidable from a report
+  without it. A canonical `NGG` site and a low-stringency `NAG` one carry very different real risk and
+  appeared identical on the table. And with bulges allowed the same 20 bp of genome is reachable from two
+  *adjacent* PAMs, so a report showed what looked like one locus printed twice —
+  `chr11:2019-2038(-)` and `chr11:2018-2038(-)`, both scoring 1.0. Recording the PAM settles it: `AGG` and
+  `GGG`, one base apart, two genuinely distinct cut registers rather than a duplicate. `OffTargetSite`
+  gains `pam_sequence`, the CLI prints `pam=AGG` on each row and in the JSON payload, and the web API
+  carries it automatically with the report.
+
+  Worth noting what did *not* change: nothing is merged and no aggregate is adjusted. Deciding that two
+  overlapping registers should count as one site would be inventing a convention; recording the PAM lets
+  the reader decide, which is the information they were missing.
+
 ### Fixed
 
 - **A guide was reported as its own perfect off-target whenever bulges were allowed.** The on-target

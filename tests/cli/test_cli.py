@@ -685,6 +685,18 @@ def test_offtarget_states_the_settings_its_site_count_depends_on(
     assert default["dna_bulge_budget"] == 1 and default["cfd_threshold"] == 0.20
 
 
+def test_offtarget_rows_name_the_pam(runner: CliRunner, nuclease_fasta: Path) -> None:
+    """An NGG row and a low-stringency NAG row looked identical on the table."""
+    args = ["offtarget", "ACGTAACGTTACGTAACGTT", "--reference-fasta", str(nuclease_fasta)]
+    payload = json.loads(runner.invoke(app, [*args, "--json"]).output)
+    assert payload["sites"], "fixture produced no sites to check"
+    assert all(site["pam"] for site in payload["sites"])
+
+    human = runner.invoke(app, args)
+    assert human.exit_code == 0
+    assert f"pam={payload['sites'][0]['pam']}" in human.output
+
+
 def test_offtarget_human(runner: CliRunner, nuclease_fasta: Path) -> None:
     result = runner.invoke(
         app, ["offtarget", "ACGTAACGTTACGTAACGTT", "--reference-fasta", str(nuclease_fasta)]
