@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from alleleforge.report.builder import build_report
-from alleleforge.report.html import PLOTLY_CDN, render_html
+from alleleforge.report.builder import CandidateReport, build_report
+from alleleforge.report.html import PLOTLY_CDN, _candidate_html, render_html
 from alleleforge.types.candidate import RankedMenu
+from alleleforge.types.edit import Chemistry
 
 
 def test_html_is_a_complete_document(prime_menu: RankedMenu) -> None:
@@ -161,3 +162,44 @@ def test_the_menu_rationale_is_rendered(prime_menu: RankedMenu) -> None:
     html = render_html(report)
     assert "How this menu was assembled" in html
     assert "Routing:" in html
+
+
+def test_a_prediction_note_without_a_flag_behind_it_is_rendered() -> None:
+    """Free-text caveats must reach the page, not only the JSON.
+
+    A `Prediction`'s `calibrated` and `in_distribution` flags are already spelled
+    out inline, but its free-text notes had no renderer at all — including the one
+    stating that the default prime scorer has no edit-size term, which is exactly
+    the caveat a reader of a multi-base edit needs.
+    """
+    from alleleforge.report.html import _uncovered_notes
+    from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE, Prediction, UncertaintyMethod
+
+    prediction = Prediction[float](
+        value=0.5,
+        interval=(0.4, 0.6),
+        interval_level=0.8,
+        method=UncertaintyMethod.HEURISTIC,
+        notes=(NOMINAL_INTERVAL_NOTE, "this scorer ignores the edit size"),
+    )
+    candidate = CandidateReport(
+        rank=1,
+        chemistry=Chemistry.PRIME,
+        on_pareto_front=True,
+        reagent="pegRNA",
+        efficiency=prediction,
+        bystander_burden=None,
+        p_intended=None,
+        outcome_top=(),
+        n_offtarget_sites=None,
+        offtarget_specificity=None,
+        offtarget_by_ancestry=(),
+        oligos=None,
+        flags=(),
+        rationale=None,
+    )
+    # The nominal-interval caveat is already rendered inline; repeating it is noise.
+    assert _uncovered_notes(candidate) == ["this scorer ignores the edit size"]
+    html = _candidate_html(candidate)
+    assert "this scorer ignores the edit size" in html
+    assert html.count("coverage not measured") == 1

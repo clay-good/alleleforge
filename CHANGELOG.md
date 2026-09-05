@@ -239,6 +239,18 @@ acceptance.
 
 ### Fixed
 
+- **A prediction's free-text caveats never reached the rendered page.** `Prediction.notes` sits beside the
+  `calibrated` and `in_distribution` flags, and the renderers spell *those* out inline ("nominal — coverage
+  not measured", "out-of-distribution") — but nothing rendered `notes` at all. So the note added earlier in
+  this release stating that **the default prime scorer has no edit-size term** existed only in the JSON,
+  and the HTML and PDF for a multi-base prime edit said nothing about it: precisely the caveat a reader of
+  such a design needs, on precisely the page they read. Both renders now show any note the inline wording
+  does not already convey, deduplicated, and skip the nominal-interval note because the parenthetical
+  already says it. Found by sweeping the previous entry's lesson — follow every recorded diagnostic to a
+  rendered artifact — across the codebase's other `note`/`warning` sinks; the rest were already delivered
+  (cloning-oligo warnings render prominently, cohort errors have a TSV column, HDR donor disposition
+  reaches the reagent line).
+
 - **A report could be empty with no explanation anywhere in it.** `RankedMenu.rationale` records exactly
   which chemistries routed and why, which ran, and any that were skipped or failed — the designer degrades
   gracefully rather than crashing when one vertical fails, and puts the reason there. `DesignReport` had no

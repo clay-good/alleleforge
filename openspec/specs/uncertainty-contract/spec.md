@@ -337,3 +337,19 @@ what the flag is for.
 #### Scenario: No context given
 - **WHEN** no cell context is supplied
 - **THEN** no OOD claim is made either way
+
+### Requirement: A prediction's caveats reach the reader
+
+A `Prediction` carries free-text notes alongside its `calibrated` and
+`in_distribution` flags. Where a render spells a flag out inline it need not repeat
+the corresponding note, but every **other** note SHALL appear in the rendered
+report: a caveat that exists only in the serialized JSON has not reached the person
+deciding whether to trust the number.
+
+#### Scenario: A caveat with no flag behind it
+- **WHEN** a prediction carries a note the render does not otherwise convey
+- **THEN** that note appears in the HTML and the PDF
+
+#### Scenario: A caveat already spelled out
+- **WHEN** the note restates what an inline parenthetical already says
+- **THEN** it is not repeated

@@ -2152,6 +2152,33 @@ codebase "records a note and continues": follow the note all the way to a render
 recording is the easy half and the delivery is where it gets dropped. Also, plainly: mistyping your own new
 option is a cheap test worth running every time.**
 
+## Round 80 — following every recorded diagnostic to a rendered artifact
+
+R79 ended with a rule worth running as a sweep: *wherever a codebase records a note and continues, follow
+the note all the way to a rendered artifact, because the recording is the easy half.* Enumerated every
+`note`/`warning` sink in the library and traced each one.
+
+**Already delivered, correctly:** cloning-oligo warnings (rendered prominently, above the JSON block),
+cohort item errors (a TSV column), HDR donor re-cut disposition (in the reagent line *and* promoted into
+the oligo warnings), routing/skip notes (fixed last round).
+
+**One gap: `Prediction.notes`.** The renderers spell out `calibrated` and `in_distribution` inline —
+"nominal — coverage not measured", "out-of-distribution" — but **nothing rendered `notes` at all**. The
+flags had renderers; the free text did not. So the note added earlier in this session stating that the
+default prime scorer *has no edit-size term* lived only in the JSON, and the HTML and PDF for a multi-base
+prime edit were silent about it. That note exists for exactly one reader — someone looking at a 4-nt
+insertion's efficiency number — and it was absent from exactly their page.
+
+**Shipped:** both renders show any note the inline wording does not already convey, deduplicated across
+efficiency and bystander predictions, skipping the nominal-interval note because the parenthetical already
+says it. Verified end to end: the caveat appears for a multi-base edit and is absent for an SNV.
+
+**Lesson: a data model with both structured flags and free text will grow renderers for the flags, because
+flags are what you format. Free text has no obvious place in a layout, so it gets carried faithfully
+through every serialization boundary and then quietly omitted at the last one. If a field is worth adding
+to a model for honesty's sake, the same change should add it to the render — otherwise it becomes a
+disclosure that only satisfies a machine.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
