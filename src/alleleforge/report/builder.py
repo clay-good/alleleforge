@@ -65,11 +65,12 @@ def _reagent_summary(candidate: DesignCandidate) -> str:
         return f"{w.editor} sgRNA {w.spacer.sequence} (window {w.window[0]}-{w.window[1]})"
     if candidate.pegrna is not None:
         p = candidate.pegrna
-        nick = (
-            "PE3b"
-            if (p.nicking_guide and p.nicking_guide.seed_disrupting)
-            else ("PE3" if p.nicking_guide else "PE2")
-        )
+        ng = p.nicking_guide
+        nick = "PE3b" if (ng and ng.seed_disrupting) else ("PE3" if ng else "PE2")
+        # ...and how far away that second nick is. It is the parameter PE3 design turns
+        # on, and without it two PE3 candidates read identically on this line.
+        if ng is not None:
+            nick += f" ({ng.nick_offset:+d} nt nick)"
         # State what the RT template *writes*, not only how long it is: a pegRNA
         # correcting a 3-bp deletion and one installing a substitution differ in
         # nothing else on this line, and they are very different reagents.

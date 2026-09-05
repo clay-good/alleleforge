@@ -8,6 +8,22 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **The PE3 nick-to-nick distance is now shown, and a dangerously close nick is flagged.** `nick_offset`
+  was computed by the enumerator, stored on `NickingGuide`, and read by nothing — not the reagent line, not
+  the flags, not the ranking. It is *the* PE3 design parameter: two PE3 candidates differ in essentially
+  nothing else, and two nicks placed close together on opposite strands are a staggered double-strand
+  break, the outcome prime editing is chosen to avoid. Candidates now carry a signed
+  `nick-distance:+62nt` flag, the reagent line reads `PE3 (+62 nt nick)`, and a nick closer than
+  `CLOSE_NICK_NT` (30 nt) adds `close-nick`. The test fixture's only PE3 nick turned out to sit **4 nt**
+  from the pegRNA nick — previously unremarked anywhere in the output.
+
+  The distance deliberately does **not** enter ranking. Scoring it would need a byproduct model calibrated
+  against real PE3 data, which AlleleForge does not have; the constant is labelled in the source as a
+  conservative floor rather than a fitted threshold, and it has been flagged for verification against the
+  primary literature.
+
 ### Fixed
 
 - **The provenance footer named the models but not the datasets, so a report said which code ran and not

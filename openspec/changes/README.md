@@ -2407,6 +2407,37 @@ the surface — "does *the footer* print it?" — and it is worth re-asking per 
 one corpus-wide grep. Also: a curated summary is fine, but every omission from it should be a recorded
 decision, because otherwise there is no difference between 'left out' and 'forgotten'.**
 
+## Round 89 — a number computed for nobody
+
+Last of the R86 field sweep, and the one with teeth: `NickingGuide.nick_offset`. The enumerator computes
+it, the model stores it, and nothing reads it. Not the reagent line, not the flags, not the ranking.
+
+This is not a display gap of the R86 kind, where a qualifier was missing from a number that was at least
+shown. PE3 *is* the nick offset. A PE3 candidate is a pegRNA plus a second nick, and the second nick's only
+free parameter is where it goes. Every PE3 candidate in a menu therefore read identically — same spacer,
+same PBS, same RTT, "PE3" — while differing in the one thing a user would choose between them by. And two
+nicks placed close together on opposite strands are a staggered double-strand break, which is the outcome
+prime editing is picked over nuclease editing to avoid. Running the fixture confirmed the concern is not
+hypothetical: its only PE3 nicking guide sits **4 nt** from the pegRNA nick, and nothing in the output said
+so.
+
+**Shipped:** a signed `nick-distance:+62nt` flag, `PE3 (+62 nt nick)` on the reagent line, and a
+`close-nick` annotation below a `CLOSE_NICK_NT` floor. The test drives both sides of that boundary — the
+fixture only produces close nicks, so a distant one is constructed explicitly, or "close-nick" would only
+ever have been asserted true and a flag that is always on carries no information.
+
+**Not shipped, on purpose:** nick distance does not enter ranking. There is a real relationship between
+nick distance and indel byproducts, and no calibrated model of it here — inventing a weight would have made
+the composite score look better informed than it is. The number is shown; the user applies the literature.
+The constant is labelled in the source as a conservative floor rather than a fitted threshold, and flagged
+for verification against the primary literature.
+
+**Lesson: "computed but unread" is a stronger signal than "unrendered". An unrendered field usually means a
+display gap; a field that no consumer reads at all means the work of computing it was done for a purpose
+nobody finished. Grep for a field's *readers*, not its mentions. And when the honest fix is
+half-a-feature — show it, do not score it — ship the half you can defend and say in the source why the
+other half is absent, rather than filling the gap with a plausible constant.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

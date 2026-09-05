@@ -7,7 +7,7 @@ from collections.abc import Callable
 import pytest
 
 from alleleforge.data.annotations import EncodeTracks, _Segment
-from alleleforge.design.prime import design_prime
+from alleleforge.design.prime import CLOSE_NICK_NT, design_prime
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.candidate import DesignCandidate
 from alleleforge.types.edit import Chemistry, EditIntent
@@ -283,3 +283,46 @@ def test_merging_the_two_nick_reports_keeps_every_setting_that_narrowed_the_sear
             continue
         assert getattr(merged, field) == getattr(peg, field), f"{field} lost in the merge"
     assert merged.subthreshold_score_sum == pytest.approx(0.75)
+
+
+def test_the_pe3_nick_distance_is_shown_not_just_computed(make_reference: MakeRef) -> None:
+    """PE3 turns on the nick-to-nick distance, and it reached no output at all.
+
+    `NickingGuide.nick_offset` was computed by the enumerator, stored on the model,
+    and read by nothing: not the reagent line, not the flags, not the ranking. Two
+    PE3 candidates — one with a second nick 60 nt away, one with it 12 nt away, which
+    is effectively a staggered double-strand break — were indistinguishable in the
+    menu on the only parameter that separates them.
+    """
+    from alleleforge.design.prime import _flags
+    from alleleforge.report.builder import _reagent_summary
+
+    candidates = _design(make_reference, run_offtarget=False)
+    pe3 = [c for c in candidates if c.pegrna is not None and c.pegrna.nicking_guide is not None]
+    assert pe3, "fixture produced no PE3 candidate to check"
+
+    for c in pe3:
+        assert c.pegrna is not None and c.pegrna.nicking_guide is not None
+        offset = c.pegrna.nicking_guide.nick_offset
+        # Signed and explicit: the sign says which side of the pegRNA nick it is on.
+        assert f"nick-distance:{offset:+d}nt" in c.flags
+        assert f"({offset:+d} nt nick)" in _reagent_summary(c)
+        # The close-nick annotation tracks the number rather than being decorative.
+        assert ("close-nick" in c.flags) is (abs(offset) < CLOSE_NICK_NT)
+
+    # This fixture's only PE3 nick sits 4 nt from the pegRNA nick — two opposite-strand
+    # nicks that close are a staggered double-strand break, which is exactly the
+    # outcome the chemistry is chosen to avoid, and it was previously unremarked.
+    assert {c.pegrna.nicking_guide.nick_offset for c in pe3} == {4}  # type: ignore[union-attr]
+    assert all("close-nick" in c.flags for c in pe3)
+
+    # ...so drive the other side of the boundary explicitly, or "close-nick" is only
+    # ever asserted true and a flag that is always on carries no information.
+    peg = pe3[0].pegrna
+    assert peg is not None and peg.nicking_guide is not None
+    distant = peg.model_copy(
+        update={"nicking_guide": peg.nicking_guide.model_copy(update={"nick_offset": 62})}
+    )
+    flags = _flags(distant, pe3[0].efficiency, run_offtarget=False)
+    assert "nick-distance:+62nt" in flags
+    assert "close-nick" not in flags

@@ -266,3 +266,23 @@ The adjustment SHALL be opt-in and SHALL NOT weaken any honesty guarantee:
 - **WHEN** the requested track name is not present in the supplied `EncodeTracks`
 - **THEN** the design raises rather than silently returning an unadjusted efficiency labeled as
   chromatin-aware
+
+### Requirement: A PE3 candidate states where its second nick is
+
+The nick-to-nick distance is the PE3 design parameter: two PE3 candidates otherwise
+differ in nothing, and two opposite-strand nicks placed close together amount to a
+staggered double-strand break — the outcome prime editing is chosen to avoid. Every PE3
+candidate SHALL carry its signed nick offset in its flags and on its reagent line, and a
+nick closer than the close-nick floor SHALL be annotated.
+
+The distance SHALL NOT enter the composite ranking score. Scoring it requires a byproduct
+model calibrated against real PE3 data, which the project does not have; a fabricated
+weight would make the composite appear better informed than it is.
+
+#### Scenario: Two PE3 candidates
+- **WHEN** a menu contains PE3 candidates with different nicking guides
+- **THEN** each states its own signed nick offset, so they are distinguishable
+
+#### Scenario: A nick close enough to act as a double-strand break
+- **WHEN** the second nick is closer to the pegRNA nick than the close-nick floor
+- **THEN** the candidate is annotated `close-nick`, without its rank being altered

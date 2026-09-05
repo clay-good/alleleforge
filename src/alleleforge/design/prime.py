@@ -94,6 +94,18 @@ def _merge_offtarget(peg: OffTargetReport, ngrna: OffTargetReport | None) -> Off
     )
 
 
+#: Below this nick-to-nick distance (nt) a PE3 candidate is annotated as
+#: close-nicked. Two nicks on opposite strands close together are, in effect, a
+#: staggered double-strand break — the outcome prime editing exists to avoid — and the
+#: indel byproduct rate climbs as they approach. The PE3 nicking guides characterized
+#: when the method was introduced sit at roughly 40-90 nt from the pegRNA nick; this
+#: constant is a deliberately conservative floor well inside that, not a fitted
+#: threshold, and it drives an inspectable annotation only. It does **not** enter
+#: ranking: turning nick distance into a score would need a byproduct model calibrated
+#: against real PE3 data, which AlleleForge does not have, and inventing a weight is
+#: worse than showing the number and letting the user apply the literature.
+CLOSE_NICK_NT = 30
+
 #: Spacer GC band (Pol III): outside it, U6 transcription and synthesis suffer, so
 #: the spacer is annotated (not dropped) as an inspectable quality caveat.
 _GC_BAND = (0.30, 0.80)
@@ -106,6 +118,13 @@ def _flags(pegrna: PegRNA, efficiency: Prediction[float], run_offtarget: bool) -
         flags.append(f"epegRNA:{pegrna.three_prime_motif.value}")
     ng = pegrna.nicking_guide
     flags.append("pe3b" if (ng and ng.seed_disrupting) else "pe3" if ng else "no-nick")
+    # The nick-to-nick distance is the PE3 design parameter, and it was computed,
+    # stored, and then shown to nobody: two PE3 candidates were indistinguishable in
+    # the menu on the one number the literature says to choose between them by.
+    if ng is not None:
+        flags.append(f"nick-distance:{ng.nick_offset:+d}nt")
+        if abs(ng.nick_offset) < CLOSE_NICK_NT:
+            flags.append("close-nick")
     # What the RT template actually writes. A menu that shows only geometry hides
     # whether a candidate installs a single base or a 29-nt insertion — the same
     # numbers, very different reagents at the bench.
