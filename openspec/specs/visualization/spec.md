@@ -50,3 +50,17 @@ closes on the text-node surface).
   or a bare CSS name (e.g. one containing a quote or `<script>`)
 - **THEN** construction raises `ValueError`, so a color can never break out of the SVG
   attribute it is interpolated into
+
+### Requirement: Committed figures are a current render
+
+The SVGs committed under `docs/assets/figures/` are embedded in the README and the
+preprint, so a stale one shows numbers the pipeline no longer produces to a reader
+with no way to tell. They SHALL be a current render: a test SHALL fail when any
+committed figure differs from a fresh one, naming the stale files and the command
+that regenerates them. The renderer's determinism is what makes that check
+meaningful rather than flaky, and is required for the same reason.
+
+#### Scenario: A figure's inputs change
+- **WHEN** the pipeline that produces a figure changes and the committed SVGs are
+  not regenerated
+- **THEN** the freshness test fails and names the stale files

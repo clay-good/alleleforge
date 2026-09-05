@@ -1901,6 +1901,36 @@ of someone else's release notes to confirm nothing was dropped. Separately: any 
 pure reordering should be *verified* as one mechanically. Reordering is exactly the kind of change where
 eyeballing a diff gives false confidence, because every line looks familiar.**
 
+## Round 70 — every committed generated artifact, checked for a guard (1 gap, 2 clean)
+
+R52 found that ten published JSON Schemas had silently drifted because nothing regenerated or compared
+them. That is a question the repo can be asked in full: *which committed files are generated output of
+code that keeps changing, and which of those have a test?*
+
+| Artifact | Generator | Guard |
+|---|---|---|
+| `docs/schemas/*.json` | `scripts/export_schemas.py` | added in R52 |
+| `scripts/reproduce_golden.json` | `scripts/reproduce.py` | CI's `reproduce` job |
+| `benchmark/datasets/fixtures/`, `benchmark/splits/` | `scripts/make_benchmark_fixtures.py` | **content hashes** — a split carries its dataset's `content_hash` and `verify()` raises `SplitIntegrityError` on load, with tests pinning it |
+| `docs/assets/figures/*.svg` | `scripts/figures.py` | **none** |
+
+The figures are embedded in the README and the preprint. The existing tests covered determinism and that
+rendering writes files — never that what is *committed* matches what the code renders now. They happened
+to be current; nothing would have said so if they were not, and a stale figure shows numbers the pipeline
+no longer produces to a reader with no way to tell. Guard added, mutation-checked, and pointed at
+`make figures`.
+
+Worth noting how the benchmark fixtures pass: not by a comparison test but by **content hashing** — the
+split proves on load that neither its membership nor its dataset drifted. That is a stronger guarantee than
+a regeneration check, and it is why R66's direct tests of `_canon` matter: the integrity of these fixtures
+rests entirely on that one primitive being byte-stable.
+
+**Lesson: the useful unit here is not "add a test for the figures" but the table — enumerate the class,
+then check each member. Three of four were already covered, by three *different* mechanisms (a comparison
+test, a CI job, content hashing), which is why no single search would have found the gap. The question that
+finds it is about the artifact's nature ("is this generated and committed?"), not about the guard's
+shape.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
