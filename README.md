@@ -1029,9 +1029,11 @@ flowchart LR
 > makes a run practical. The open-chromatin efficiency adjustment takes `--encode-tracks track.bedgraph
 > --chromatin-track <name>` (both required together), and `--cell-context <line>` is what raises the
 > out-of-distribution flag on every efficiency prediction. **Every `design()` capability is reachable from
-> the CLI.** On the web API the four *file* inputs are deliberately absent: a client-supplied filesystem
-> path would be a server-side file-read primitive, so that surface needs server-side configuration like the
-> reference already has.
+> the CLI.** On the web API the four **file-backed** inputs (`--gnomad`, `--haplotypes`, `--patient-vcf`,
+> `--encode-tracks`) are deliberately absent: a client-supplied filesystem path would be a server-side
+> file-read primitive, so that surface needs server-side configuration like the reference already has.
+> Everything that is *data* rather than a path — region scoping, cell context, the render cap, the
+> on-target locus — is available over HTTP.
 | `aforge data list` / `show <name>` | Inspect the dataset registry (versions, licenses, provenance). |
 | `aforge bench list` / `run` | List and run CRISPR-Bench tasks against frozen splits. |
 | `aforge bench leaderboard <result.json…>` | Aggregate signed results into the model-card-gated leaderboard (Markdown/HTML). |
