@@ -10,6 +10,21 @@ acceptance.
 
 ### Fixed
 
+- **The cohort example notebook printed a bare efficiency and could turn a real `0.0` into `NaN`.** It is
+  the file a user is most likely to paste into their own script, and it rendered `best_eff` as a lone
+  rounded float — the omission just fixed on the CLI, the report and the browser table — while writing
+  `s.get("best_efficiency") or float("nan")`, where `or` also fires on a genuine efficiency of exactly zero.
+  That is the same falsy-default shape that already shipped one bug in this very notebook. The table now
+  shows `0.59 [0.16,1.00]`, marks `OOD`, carries a **caveats** column, and checks for `None` explicitly.
+
+### Added
+
+- `tests/test_examples_teach_the_contract.py` — the notebooks checked as documentation people copy: an
+  example that renders `best_efficiency` must also render its interval, and none may default a summary
+  value with `or`, which fires on the meaningful zeros (`0.0` efficiency, `0` candidates).
+
+### Fixed
+
 - **The browser's cohort table interpolated a raw user-supplied line into `innerHTML`.** A cohort row is
   built from the pasted variant list: `item_id` is a raw input line and `error` is an exception message
   quoting it back, and both went in unescaped — so a list line like `<img src=x onerror=…>` executed in the

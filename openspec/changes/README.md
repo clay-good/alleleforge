@@ -3052,6 +3052,38 @@ reached by a different route. Ask which *other* renderers exist for the same dat
 are not Python — before closing a presentation fix. And read the untouched lines around the ones you are
 changing: the injection had been there the whole time and no query would have found it.**
 
+## Round 108 — the renderer that teaches
+
+R107 ended on "ask which other renderers exist for the same data". One more does: the example notebooks.
+They are not tests and not quite docs — they are the thing a user copies into their own script, which makes
+them the highest-leverage renderer in the repository and the one nobody audits.
+
+`03_batch_vcf.ipynb` built a cohort table, and it had both halves of the problem:
+
+```python
+"best_eff": round(s.get("best_efficiency") or float("nan"), 2),
+```
+
+A bare point estimate — the exact omission fixed on the CLI two rounds ago and in the browser one round
+ago — and, in the same expression, `or` as a default. `or` fires on any falsy value, so a genuine
+efficiency of **exactly 0.0** renders as `NaN`. This notebook has already shipped one bug of that shape (a
+`.get` default that never fired because the key existed with value `None`, R61), which makes it two
+falsy-default bugs in one file.
+
+**Shipped:** the table now renders `0.59 [0.16,1.00]`, marks `OOD`, carries a caveats column, and checks
+`None` explicitly. Running it immediately showed something the old table could not: the example's own
+candidates carry `gc-out-of-band:0.10`, the caveat R105 extended to every chemistry.
+
+Plus a guard: an example that renders `best_efficiency` must render its interval, and no notebook may
+default a summary field with `or`. Both mutation-checked — and the first attempt at the mutation silently
+did nothing, because a notebook is JSON and the source line is escaped inside it. Mutating through
+`json.loads` rather than text substitution is the only way to test a notebook guard honestly.
+
+**Lesson: documentation that executes is still documentation, and an example is a *recommendation*. Every
+presentation rule this audit has established — the interval travels with the estimate, a zero is not a
+default, a hazard is not decoration — applies to the notebooks with more force than to the product, because
+a user copies the example and then owns the copy.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
