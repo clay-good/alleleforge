@@ -103,16 +103,27 @@ class CohortRunReport:
 def _summarize(menu: RankedMenu) -> dict[str, Any]:
     """Return the compact, memory-cheap summary kept for one designed variant.
 
-    ``worst_offtarget`` is ``None`` when no candidate carries an off-target report
-    — the search was skipped — and a number only when one was actually run. The
+    ``worst_offtarget`` and ``best_specificity`` both describe the **recommended**
+    candidate, so a row is internally consistent: a reader comparing them is comparing
+    two facts about one reagent.
+
+    ``worst_offtarget`` is ``None`` when the recommended candidate carries no
+    off-target report — the search was skipped — and a number only when one was
+    actually run. The
     distinction is the whole point: a cohort manifest is triaged by scanning a
     column, and ``0.0`` there is the *reassuring* value. Defaulting an unmeasured
     axis to it makes "we did not look" indistinguishable from "we looked and it is
     clean", on the one axis where that confusion is dangerous.
     """
     best = menu.best
-    scored = [c.offtarget for c in menu.candidates if c.offtarget is not None]
-    worst_ot = max((report.worst_score() for report in scored), default=None)
+    # Scoped to the *recommended* candidate, not the whole menu. These two numbers sit
+    # side by side in a triage table, and taking the max over every candidate while
+    # `best_specificity` describes only the top one made them describe different
+    # reagents: a variant whose recommended pegRNA is spotless still reported
+    # `worst_offtarget = 1.0` because some alternative ranked #301 of 470 was not. A
+    # column read to decide "which variants need a closer look" has to be about the
+    # reagent the reader would actually use.
+    worst_ot = best.offtarget.worst_score() if best and best.offtarget is not None else None
     best_specificity = (
         best.offtarget.specificity_score() if best and best.offtarget is not None else None
     )

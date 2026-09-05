@@ -250,3 +250,15 @@ defaulting to "descriptive" silently demotes a hazard.
 #### Scenario: A candidate with nothing wrong
 - **WHEN** no flag on a candidate is a hazard
 - **THEN** no caveat line is rendered at all
+
+### Requirement: A cohort row's summary numbers describe one candidate
+
+The per-variant summary is read by scanning columns across hundreds of rows, so its
+fields SHALL all describe the **recommended** candidate. Mixing a menu-wide aggregate
+with a top-candidate figure in one row makes them contradict each other and reports a
+risk carried by a reagent the reader would never use.
+
+#### Scenario: A clean recommendation beside a poor alternative
+- **WHEN** the top candidate has no off-target site and a low-ranked alternative has a
+  perfect one
+- **THEN** the row's worst-off-target and specificity both describe the top candidate

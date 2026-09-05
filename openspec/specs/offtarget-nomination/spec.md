@@ -174,3 +174,25 @@ or a specificity score SHALL also display the settings that count is conditional
 - **WHEN** an HTML page, a PDF leave-behind, or the CLI's human output shows a site count
 - **THEN** it also shows the mismatch budget, the DNA and RNA bulge budgets, and the CFD and
   MIT reporting cut-offs, in characters the target medium can actually render
+
+### Requirement: The guide is never its own off-target, however aligned
+
+The reference always contains the guide's own protospacer, so a scan nominates it as a
+perfect match. When the caller supplies the on-target placement, that site SHALL be
+excluded however the aligner reaches it — including a **bulged** alignment to the same
+locus, which lands at an interval differing from the placement by the bulge and scores
+1.0 with zero mismatches. Counting it pegs the worst-case score at 1.0 and halves the
+specificity of a spotless guide, which is the failure the exclusion exists to prevent.
+
+A hit at any **other** locus SHALL be kept, including one abutting the on-target and one
+that is itself bulged: the exclusion covers the placement grown by the hit's own bulge
+budget and no more.
+
+#### Scenario: The guide aligned to itself through a bulge
+- **WHEN** the search allows bulges and nominates the guide's own locus at an interval
+  one base short of the placement
+- **THEN** it is excluded, and the report carries no perfect-scoring site
+
+#### Scenario: A bulged off-target elsewhere
+- **WHEN** a bulged hit lies outside the placement grown by its bulge budget
+- **THEN** it is reported

@@ -9,7 +9,11 @@ import pytest
 
 from alleleforge.design.cohort import CohortItemResult, design_many
 from alleleforge.genome.reference import ReferenceGenome
-from alleleforge.types.edit import EditIntent
+from alleleforge.types.candidate import DesignCandidate, RankedMenu
+from alleleforge.types.edit import Chemistry, EditIntent
+from alleleforge.types.guide import PAM, Guide, Spacer
+from alleleforge.types.offtarget import OffTargetReport, OffTargetSite, ScoreMethod
+from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
 
 PAD = "T" * 20
 ABE_PROTO = "TTTAAACGTTTTTTTTTTTT"  # in-window A at chr2:26 (1-based), NGG PAM downstream
@@ -302,3 +306,66 @@ def test_a_skipped_offtarget_search_reports_none_not_zero(reference: ReferenceGe
     assert isinstance(measured["worst_offtarget"], float), (
         "a run that did search must report a number, so the two are distinguishable"
     )
+
+
+def _report(score: float) -> OffTargetReport:
+    """An off-target report whose worst site scores ``score`` (empty at 0.0)."""
+    sites = (
+        ()
+        if score == 0.0
+        else (
+            OffTargetSite(
+                locus=GenomicInterval(chrom="chr9", start=10, end=30, strand=Strand.PLUS),
+                mismatches=2,
+                score=score,
+                score_method=ScoreMethod.CFD,
+            ),
+        )
+    )
+    return OffTargetReport(spacer="A" * 20, pam="NGG", sites=sites)
+
+
+def _candidate(*, spacer: str, offtarget: OffTargetReport | None = None) -> DesignCandidate:
+    return DesignCandidate(
+        chemistry=Chemistry.CAS9_NUCLEASE,
+        guide=Guide(
+            spacer=Spacer(sequence=DNASequence(spacer)),
+            pam=PAM(pattern="NGG"),
+            pam_sequence=DNASequence("TGG"),
+            placement=GenomicInterval(chrom="chr2", start=0, end=20, strand=Strand.PLUS),
+            cut_site=17,
+        ),
+        offtarget=offtarget,
+    )
+
+
+def test_the_triage_columns_describe_the_same_candidate() -> None:
+    """`worst_offtarget` and `best_specificity` sat side by side describing different reagents.
+
+    `worst_offtarget` was the maximum over *every* candidate in the menu while
+    `best_specificity` came from the top one, so a variant whose recommended pegRNA
+    was spotless still reported `worst_offtarget = 1.0` because an alternative ranked
+    #301 of 470 was not — a self-contradictory row (`1.0` worst yet `1.0` specificity)
+    on the column a reader scans to decide which variants need a closer look.
+    """
+    from alleleforge.design.cohort import _summarize
+
+    clean = _report(0.0)
+    dirty = _report(0.9)
+    menu = RankedMenu(
+        candidates=(
+            _candidate(spacer="ACGTACGTACGTACGTACGT", offtarget=clean),
+            _candidate(spacer="ACGTACGTACGTACGTACGA", offtarget=dirty),
+        )
+    )
+    summary = _summarize(menu)
+
+    assert summary["worst_offtarget"] == pytest.approx(clean.worst_score())
+    assert summary["best_specificity"] == pytest.approx(clean.specificity_score())
+    # The dirty alternative must not leak into the recommended candidate's row —
+    # asserted against its actual value, so a max() over the menu is caught.
+    assert summary["worst_offtarget"] != pytest.approx(dirty.worst_score())
+
+    # ...and an unsearched recommendation still reports None, never a reassuring 0.0.
+    unsearched = RankedMenu(candidates=(_candidate(spacer="ACGTACGTACGTACGTACGT"),))
+    assert _summarize(unsearched)["worst_offtarget"] is None

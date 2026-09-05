@@ -2786,6 +2786,53 @@ intervals were honest everywhere they were displayed and ignored where the tool 
 authority — the ordering itself. Look for the places the product asserts a difference, and ask whether the
 difference clears the error bar the product itself published.**
 
+## Round 100 — the guide off-targeting itself
+
+Still reading output rather than code. This time the cohort surface, which nothing in this session had
+looked at. One row said:
+
+```
+"worst_offtarget": 1.0,
+"best_specificity": 1.0,
+```
+
+Both numbers correct, side by side, and contradictory. Two bugs behind them, one of them the worst thing
+found in this whole stretch.
+
+**The real one.** `worst_offtarget = 1.0` meant some candidate had a *perfect* off-target site. Chasing it:
+170 of 470 candidates, and the site was the guide's own locus, reported at `chr11:2019-2038(-)` against a
+placement of `chr11:2018-2038(-)`. A 20-nt spacer aligning to its own protospacer through one RNA bulge —
+zero mismatches, score 1.0, one base short. `_is_on_target` matched the placement exactly, so it sailed
+through.
+
+The consequence is the exact failure that function's docstring describes and exists to prevent: worst-case
+score pegged at 1.0, specificity halved to 0.5, the safety axis inert — for a third of every prime menu. The
+exactness was a deliberate choice, and a correct one, for the reason the docstring gives (a paralog abutting
+the on-target must survive). It just had no answer for the same locus arriving at a *different interval*,
+which only bulges make possible.
+
+The fix is containment in the placement grown by the hit's own bulge budget. It subsumes the exact case
+rather than special-casing it — an un-bulged hit has zero slack, and a full-length window contained in the
+placement *is* the placement — so the separate zero-bulge branch was deleted as a branch nothing could
+distinguish, which the mutation run had already shown by surviving its removal.
+
+**The presentational one.** `worst_offtarget` was a max over the whole menu while `best_specificity` came
+from the top candidate. Two facts about different reagents, adjacent, in the column a reader scans to triage
+hundreds of variants. Both are now the recommended candidate's.
+
+Two notes on the tests. The first pair I wrote were **vacuous** — both mutants passed — because a synthetic
+fixture does not reliably admit a bulged self-alignment. The genomic window in the test is now lifted
+verbatim from the reproduction, with an assertion that the fixture still produces a bulged self-match, so
+the test fails loudly if it ever stops testing anything. And the containment predicate's other direction —
+not swallowing a *distant* bulged off-target — cannot be reached end to end, so it is exercised directly on
+synthetic hits. All three surviving branches now fail under mutation.
+
+**Lesson: an exact-match guard against a known-bad case is only as good as the enumeration of ways that case
+can present itself. `_is_on_target` asked "is this hit at the guide's coordinates?" when the question is "is
+this hit the guide?" — and the moment the aligner gained bulges, those stopped being the same question, in a
+function whose own docstring explains why getting it wrong is dangerous. When a feature widens what an
+identifier can look like, revisit every equality test on that identifier.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

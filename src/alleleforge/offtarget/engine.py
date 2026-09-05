@@ -151,17 +151,36 @@ def _is_on_target(hit: Hit, on_target: GenomicInterval | None) -> bool:
     and cap :meth:`OffTargetReport.specificity_score` at 0.5 for even a perfectly
     clean guide. A caller that knows the on-target placement passes it so this one
     locus is dropped — a *paralogous* perfect match at any **other** locus is a real
-    off-target and is kept. The match is exact (not overlap, so a paralog abutting
-    the on-target survives) and naming-aware on the contig.
+    off-target and is kept. Matching is naming-aware on the contig.
+
+    An exact-interval test is not enough, and the gap was not hypothetical. With
+    bulges allowed, the guide also aligns to **its own locus** one base short: a
+    20-nt spacer matching a 19-nt window through a single bulge, zero mismatches,
+    score 1.0, at an interval that differs from the placement by exactly the bulge.
+    On a realistic prime menu that self-match survived on 170 of 470 candidates,
+    halving each one's specificity and pegging the cohort's worst-off-target column
+    at 1.0 — the precise failure this function exists to prevent, arriving through
+    the one alignment class it did not consider.
+
+    So a **bulged** hit also counts as on-target when it lies inside the placement
+    grown by the bulge budget on each side. The containment test keeps the original
+    guarantee intact: a paralog *abutting* the on-target is outside that window and
+    survives, and an un-bulged hit is only ever excluded on an exact interval match,
+    since with no bulge a different start is genuinely a different protospacer.
     """
     if on_target is None:
         return False
-    return (
-        canonical_contig(hit.chrom) == canonical_contig(on_target.chrom)
-        and hit.start == on_target.start
-        and hit.end == on_target.end
-        and hit.strand == on_target.strand
-    )
+    if canonical_contig(hit.chrom) != canonical_contig(on_target.chrom):
+        return False
+    if hit.strand != on_target.strand:
+        return False
+    # Containment in the placement grown by this hit's own bulge budget. An un-bulged
+    # hit has slack 0, so this reduces to the exact-interval test it replaces: with no
+    # bulge the alignment is the spacer's full length, and a window of that length
+    # contained in the placement *is* the placement. No separate zero-bulge branch is
+    # needed, and adding one would only be a branch nothing can distinguish.
+    slack = hit.dna_bulges + hit.rna_bulges
+    return on_target.start - slack <= hit.start and hit.end <= on_target.end + slack
 
 
 def _in_regions(hit: Hit, regions: Sequence[GenomicInterval]) -> bool:

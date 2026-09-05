@@ -8,6 +8,31 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A guide was reported as its own perfect off-target whenever bulges were allowed.** The on-target
+  exclusion matched the guide's placement *exactly*, which is correct for an un-bulged hit — with no bulge a
+  different start is a different protospacer. With bulges allowed the guide also aligns to **its own locus**
+  through a single bulge: same bases, zero mismatches, score 1.0, at an interval one base shorter than the
+  placement. That survived the exact test, halving the candidate's specificity to 0.5 and pegging its
+  worst-case score at 1.0 for a spotless guide. On a realistic prime menu it affected **170 of 470
+  candidates** — the precise failure the exclusion exists to prevent, reaching it through the one alignment
+  class the check did not consider.
+
+  The test is now containment in the placement grown by the hit's own bulge budget, which subsumes the exact
+  case (an un-bulged hit has zero slack, and a full-length window contained in the placement *is* the
+  placement) and keeps the original guarantee: a paralog abutting the on-target lies outside the window and
+  is still reported. Found by running a cohort and reading the output; the regression test's genomic window
+  is lifted from the actual reproduction, because a synthetic sequence does not reliably admit a bulged
+  self-alignment and a test built on one passes against the bug.
+
+- **A cohort row's two safety columns described different reagents.** `worst_offtarget` was the maximum over
+  *every* candidate in the menu while `best_specificity` came from the recommended one, so a variant whose
+  top pegRNA was spotless still reported `worst_offtarget = 1.0` because an alternative ranked #301 of 470
+  was not — a row reading `worst 1.0, specificity 1.0`, which is self-contradictory on the column a reader
+  scans to decide which variants need a closer look. Both are now scoped to the recommended candidate. An
+  unsearched recommendation still reports `None`, never a reassuring `0.0`.
+
 ### Added
 
 - **A menu now says when its own ranking is not resolved by the evidence.** Measured on a realistic

@@ -264,3 +264,115 @@ def test_the_report_records_what_narrowed_it(make_reference: MakeRef) -> None:
     assert report.rna_bulge_budget == 0
     assert report.cfd_threshold == 0.05
     assert report.mit_threshold == 0.01
+
+
+def test_the_guide_does_not_off_target_itself_through_a_bulge(make_reference: MakeRef) -> None:
+    """The on-target self-match also arrives bulged, at an interval one base short.
+
+    The exclusion matched the placement exactly, which is right for an un-bulged hit
+    — with no bulge a different start is a different protospacer. With bulges allowed
+    the guide aligns to *its own locus* through one RNA bulge: same bases, zero
+    mismatches, score 1.0, at an interval one base shorter than the placement. That
+    survived the exact test, halving specificity to 0.5 and pegging the worst-case
+    score at 1.0 for a spotless guide — on a realistic prime menu, 170 of 470
+    candidates carried it.
+
+    The window below is lifted from that reproduction rather than invented, because a
+    synthetic sequence does not reliably admit a bulged self-alignment and the test
+    then passes against the bug.
+    """
+    window = "GAGCCGGATAAGTCTGCCGTTACTGCCCTGTTGGAATGACATGCACGTTATTCTTTTTACGCAGCGTTTTGCTTGATCGG"
+    spacer = "ACGTGCATGTCATTCCAACA"
+    reference = make_reference({"chr11": window})
+    # Placement of the spacer's own protospacer within the window (minus strand).
+    locus = GenomicInterval(chrom="chr11", start=28, end=48, strand=Strand.MINUS)
+
+    unexcluded = search(spacer, NGG, reference=reference, mismatches=2, dna_bulges=1, rna_bulges=1)
+    bulged_self = [s for s in unexcluded.sites if s.score >= 1.0 and (s.dna_bulges or s.rna_bulges)]
+    assert bulged_self, "fixture no longer produces a bulged self-match — the test is vacuous"
+
+    report = search(
+        spacer,
+        NGG,
+        reference=reference,
+        mismatches=2,
+        dna_bulges=1,
+        rna_bulges=1,
+        on_target=locus,
+    )
+    assert all(site.score < 1.0 for site in report.sites), (
+        f"self-match survived: {[(str(s.locus), s.score) for s in report.sites if s.score >= 1.0]}"
+    )
+    assert report.specificity_score() > unexcluded.specificity_score()
+
+
+def test_the_widened_exclusion_does_not_swallow_a_bulged_neighbour(
+    make_reference: MakeRef,
+) -> None:
+    """Only hits *inside* the placement window are the guide itself.
+
+    The fix widens the exclusion for bulged hits, and a widening that excluded every
+    bulged hit would "pass" the test above while being far worse than the bug. A
+    bulged hit at another locus must still be reported.
+    """
+    window = "GAGCCGGATAAGTCTGCCGTTACTGCCCTGTTGGAATGACATGCACGTTATTCTTTTTACGCAGCGTTTTGCTTGATCGG"
+    spacer = "ACGTGCATGTCATTCCAACA"
+    # A second copy of the same locus far downstream: its bulged alignment is a real
+    # off-target, outside the on-target window, and must survive the exclusion.
+    reference = make_reference({"chr11": window + "T" * 40 + window})
+    locus = GenomicInterval(chrom="chr11", start=28, end=48, strand=Strand.MINUS)
+    report = search(
+        spacer,
+        NGG,
+        reference=reference,
+        mismatches=2,
+        dna_bulges=1,
+        rna_bulges=1,
+        on_target=locus,
+    )
+    far = [s for s in report.sites if s.locus.start > 100]
+    assert far, f"the distant copy was swallowed; kept {[str(s.locus) for s in report.sites]}"
+    assert any(s.score >= 1.0 for s in far), "the distant perfect match lost its score"
+
+
+def test_only_hits_inside_the_placement_window_count_as_the_guide_itself() -> None:
+    """The containment predicate, tested directly — the end-to-end tests cannot reach it.
+
+    A bulged self-match is excluded by *containment* in the placement grown by the
+    bulge budget, and the failure mode of that widening is excluding a real bulged
+    off-target elsewhere. Only a bulged hit can exercise it, and constructing a
+    genomic fixture whose distant off-target appears *solely* as a bulged alignment is
+    unreliable — so the predicate is exercised here on synthetic hits instead.
+    """
+    from alleleforge.offtarget._search import Hit
+    from alleleforge.offtarget.engine import _is_on_target
+
+    locus = GenomicInterval(chrom="chr1", start=100, end=120, strand=Strand.PLUS)
+
+    def _hit(start: int, end: int, *, rna: int = 1, strand: Strand = Strand.PLUS) -> Hit:
+        return Hit(
+            chrom="chr1",
+            start=start,
+            end=end,
+            strand=strand,
+            pam_sequence="TGG",
+            aligned_spacer="A" * 19,
+            aligned_target="A" * 19,
+            mismatches=0,
+            dna_bulges=0,
+            rna_bulges=rna,
+        )
+
+    assert _is_on_target(_hit(101, 120), locus)  # the real case: one base short
+    assert _is_on_target(_hit(100, 119), locus)  # ...and short at the other end
+    assert _is_on_target(_hit(99, 121), locus)  # one base of slack on each side
+
+    # Outside the window: a genuine bulged off-target that must be reported.
+    assert not _is_on_target(_hit(98, 120), locus)
+    assert not _is_on_target(_hit(100, 122), locus)
+    assert not _is_on_target(_hit(500, 520), locus)
+    # ...and the original guarantees are untouched.
+    assert not _is_on_target(_hit(101, 120, strand=Strand.MINUS), locus)
+    assert not _is_on_target(_hit(101, 121, rna=0), locus)  # no bulge: a different site
+    assert _is_on_target(_hit(100, 120, rna=0), locus)  # exact match, bulge or not
+    assert not _is_on_target(_hit(101, 120), None)
