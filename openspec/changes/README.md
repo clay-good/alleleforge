@@ -1874,6 +1874,33 @@ a weak mechanism, but it is the right weight here: the alternative (extracting o
 primitive across `offtarget` and `enumerate`) would couple two subsystems that have good reasons to stay
 separate, and would itself be a fourth new central implementation.**
 
+## Round 69 — tidying after myself in the changelog (and stopping at the line where it stops being mine)
+
+The `[Unreleased]` section had grown to ~2,500 lines across sixteen `###` change-type headings, which
+Keep a Changelog — the format the file's own header claims to follow — allows one of per type per release.
+
+Checked whether I caused it before fixing it. At the session's base commit the file already had five
+`### Added` and several `### Fixed`, so the duplication is largely pre-existing. What I *did* cause is
+narrower and worse: inserting a `### Changed` block into the middle of the pre-existing `### Fixed`
+section, splitting it in two.
+
+**Shipped:** the top of `[Unreleased]` is now `Added → Changed → Fixed` in Keep-a-Changelog order, with the
+pre-existing Fixed content contiguous again. Done as a script, not by hand, with the verification a pure
+reordering deserves: a `Counter` of every non-blank line before and after, asserting the only difference is
+the one duplicate heading removed. It caught its own scope — the first run reported exactly one "lost"
+line, `### Fixed`, which is the merge working.
+
+**Stopped there.** The other thirteen duplicate headings are from before this session, in ~1,000 lines I
+did not write, and restructuring them is a separate change with its own review. Flagged as a follow-up
+task rather than folded in silently.
+
+**Lesson: "clean up your own mess" needs a boundary, and `git show <base>:file` is how you find it. The
+instinct on seeing a malformed 2,500-line section is to fix all of it — but the diff would then mix a
+correction I owe with a refactor nobody asked for, and reviewing it would mean re-reading a thousand lines
+of someone else's release notes to confirm nothing was dropped. Separately: any edit that claims to be a
+pure reordering should be *verified* as one mechanically. Reordering is exactly the kind of change where
+eyeballing a diff gives false confidence, because every line looks familiar.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

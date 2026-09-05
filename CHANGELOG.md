@@ -72,6 +72,78 @@ acceptance.
   fragment or plasmid instead — a 300 nt "oligo" should not reach a shopping cart unremarked), and a
   repaired product that is still a substrate for its own guide.
 
+### Changed
+
+- **Both human-facing renders — HTML and PDF — now draw the top 50 candidates plus the whole Pareto
+  front, instead of every candidate.** A single prime design routinely yields several hundred candidates — every PBS x
+  RTT-homology x PAM combination is a distinct pegRNA — so the "self-contained" page was **2.3 MB** for one
+  variant (720 candidates), slow to open and mostly a tail nobody reads. `render_html` and `render_pdf`
+  both take `max_candidates` (default 50, `None` for all) and share one selection helper
+  (`report.builder.visible_candidates`) so they cannot drift apart on the guarantee below. The same report
+  now renders in **181 KB** of HTML (12.7x smaller) and **74 KB** of PDF (down from 1.1 MB, 14.6x).
+  Two obligations come with capping and both are enforced by tests: the page states how many candidates
+  exist, how many are shown, and that the rest are in the lossless JSON/CSV export (which the cap does not
+  touch); and **every Pareto-front candidate is rendered whatever its rank**, because the front is the
+  report's entire answer to "I weight the objectives differently from your defaults" — a candidate optimal
+  on safety but 200th on the composite score is exactly the one such a reader came for, and a display cap
+  must not be allowed to decide it away.
+
+- **The k-mer seed prefilter's documented speedup was re-measured and is now ~1x; the claim is corrected
+  rather than left standing.** `MIN_SELECTIVE_K = 5` carried a calibration note — "k>=5 gives a ~2-4x
+  speedup" — and the README repeated it. Both were true when written. They are not true now: the two
+  preceding entries made the per-anchor work the prefilter prunes roughly 50x cheaper, so the prefilter's
+  own `O(n)` cost (building seed positions plus the covered-index prefix sum) cancels what it saves.
+  Re-measured across six mismatch/bulge configurations with five repeats each: **0.94-1.12x — neutral
+  within noise — with hit sets identical in every configuration.** The kernel's own lookup is still
+  ~5-7x native-over-Python, which is a different number and remains accurate. The prefilter is kept, and
+  the threshold unchanged: it is exact and costs nothing measurable, and making it pay again would mean
+  attacking the prefix-sum construction, not the constant. An optimization elsewhere silently invalidated
+  a benchmark citation two modules away, and a stale speedup claim in a README is a claim a user can plan
+  around.
+
+- **The off-target scan prunes two more ways, for a further ~2.5x on top of the previous round.** With the
+  quadratic alignment gone, a re-profile put the remaining time in two places, both fixed exactly:
+  - **The bulge alignment now bails out of each pass as soon as it exceeds the budget.** Both the prefix and
+    the suffix mismatch counts are monotone in their direction, so once either passes `max_mm` no further
+    removal position on that side can qualify. If the two feasible ranges do not overlap the answer is
+    `None` with no further work. On a random 20-mer window at the default budget that decides the window in
+    roughly a dozen comparisons instead of forty.
+  - **The per-window PAM test is memoized within a scan.** `PAM.matches` was called once per anchor per
+    strand — ~400,000 times for a 200 kb contig — re-walking the IUPAC codes base by base, with a
+    `str.upper()` and two dict lookups each. Windows come from the sanitized `ACGTN` alphabet, so the
+    distinct ones are few (`5**pam_len`) while the anchors are many; each distinct window is now decided
+    once.
+
+  Measured back-to-back on one machine, two interleaved passes, query held fixed, two workloads: the
+  original ≈6s, the previous round ≈1.2s, and now ≈0.3-0.5s — **>10x cumulative**, with this round
+  contributing ~2.5x. (Absolute timings on this machine drift by a factor of two between runs, so only the
+  interleaved A/B ordering is quoted.) Output is unchanged: the differential test against the naive oracle
+  runs 25,000 randomized inputs per run, spanning budgets 0-10 and lengths 0-24 so both the
+  bail-immediately and never-bail regimes are covered, with zero mismatches; a one-off 400,000-input sweep
+  during development was also clean.
+
+- **The off-target scan's innermost alignment is now linear instead of quadratic — a 4.2-4.6x speedup on the
+  whole scan, with byte-identical output.** `_best_with_removed_base` prices every single-base-removal
+  alignment of a bulged window, and it runs **twice for every PAM-positive anchor in the search space** — the
+  hottest function in the safety-critical off-target engine. It rebuilt the reduced string and fully
+  re-compared it once per removal position: `O(n²)` character comparisons plus `n` string allocations per
+  call. A profile of a 150 kb scan put 85% of wall-clock inside it. Removing base `r` leaves the first `r`
+  comparisons untouched and shifts every later one by exactly one position, so the mismatch count splits
+  into a prefix sum and a suffix sum; two linear passes now price every removal and the reduced string is
+  built once, for the winner. Measured on the full scan with the query held fixed and three repeats, on two
+  independent workloads: **3.29s → 0.72s (4.6x)** and **2.21s → 0.52s (4.2x)**, output identical in both.
+  The project's own test suite runs in **59s instead of 299s** as a result. Equivalence is pinned by a new
+  differential test against the naive implementation kept verbatim as the oracle (4,000 randomized inputs
+  over `ACGTN` plus the degenerate and tie-breaking edges); the tie rule — keep the earliest removal
+  position — is preserved exactly, because that position determines the reported alignment.
+
+- **`scripts/native_speedup.py` now also reports FM-index vs linear anchor enumeration.** R6 requires a
+  recorded speedup for the native kernels on their hot paths. The new section measures the two anchor
+  enumeration paths against each other on the same contig. It is reported as a measurement to track, **not**
+  as a claim: across runs the ratio landed on both sides of 1.0 at the same contig size, because the
+  dominant cost is how many in-budget hits a particular query has rather than the contig length. The script
+  says so explicitly so no one quotes a speedup from a single run.
+
 ### Fixed
 
 - **The prime off-target cache was keyed on the spacers but not the loci.** A prime design routinely yields
@@ -248,80 +320,6 @@ acceptance.
   protospacer reads off the start genome behind a real NGG PAM, and that the template spans the edit with
   the minimum 3' homology — across six edit classes, both intents, and both strands. The canonical
   reproducibility golden is unchanged (an SNV run; the SNV path is byte-identical).
-
-### Changed
-
-- **Both human-facing renders — HTML and PDF — now draw the top 50 candidates plus the whole Pareto
-  front, instead of every candidate.** A single prime design routinely yields several hundred candidates — every PBS x
-  RTT-homology x PAM combination is a distinct pegRNA — so the "self-contained" page was **2.3 MB** for one
-  variant (720 candidates), slow to open and mostly a tail nobody reads. `render_html` and `render_pdf`
-  both take `max_candidates` (default 50, `None` for all) and share one selection helper
-  (`report.builder.visible_candidates`) so they cannot drift apart on the guarantee below. The same report
-  now renders in **181 KB** of HTML (12.7x smaller) and **74 KB** of PDF (down from 1.1 MB, 14.6x).
-  Two obligations come with capping and both are enforced by tests: the page states how many candidates
-  exist, how many are shown, and that the rest are in the lossless JSON/CSV export (which the cap does not
-  touch); and **every Pareto-front candidate is rendered whatever its rank**, because the front is the
-  report's entire answer to "I weight the objectives differently from your defaults" — a candidate optimal
-  on safety but 200th on the composite score is exactly the one such a reader came for, and a display cap
-  must not be allowed to decide it away.
-
-- **The k-mer seed prefilter's documented speedup was re-measured and is now ~1x; the claim is corrected
-  rather than left standing.** `MIN_SELECTIVE_K = 5` carried a calibration note — "k>=5 gives a ~2-4x
-  speedup" — and the README repeated it. Both were true when written. They are not true now: the two
-  preceding entries made the per-anchor work the prefilter prunes roughly 50x cheaper, so the prefilter's
-  own `O(n)` cost (building seed positions plus the covered-index prefix sum) cancels what it saves.
-  Re-measured across six mismatch/bulge configurations with five repeats each: **0.94-1.12x — neutral
-  within noise — with hit sets identical in every configuration.** The kernel's own lookup is still
-  ~5-7x native-over-Python, which is a different number and remains accurate. The prefilter is kept, and
-  the threshold unchanged: it is exact and costs nothing measurable, and making it pay again would mean
-  attacking the prefix-sum construction, not the constant. An optimization elsewhere silently invalidated
-  a benchmark citation two modules away, and a stale speedup claim in a README is a claim a user can plan
-  around.
-
-- **The off-target scan prunes two more ways, for a further ~2.5x on top of the previous round.** With the
-  quadratic alignment gone, a re-profile put the remaining time in two places, both fixed exactly:
-  - **The bulge alignment now bails out of each pass as soon as it exceeds the budget.** Both the prefix and
-    the suffix mismatch counts are monotone in their direction, so once either passes `max_mm` no further
-    removal position on that side can qualify. If the two feasible ranges do not overlap the answer is
-    `None` with no further work. On a random 20-mer window at the default budget that decides the window in
-    roughly a dozen comparisons instead of forty.
-  - **The per-window PAM test is memoized within a scan.** `PAM.matches` was called once per anchor per
-    strand — ~400,000 times for a 200 kb contig — re-walking the IUPAC codes base by base, with a
-    `str.upper()` and two dict lookups each. Windows come from the sanitized `ACGTN` alphabet, so the
-    distinct ones are few (`5**pam_len`) while the anchors are many; each distinct window is now decided
-    once.
-
-  Measured back-to-back on one machine, two interleaved passes, query held fixed, two workloads: the
-  original ≈6s, the previous round ≈1.2s, and now ≈0.3-0.5s — **>10x cumulative**, with this round
-  contributing ~2.5x. (Absolute timings on this machine drift by a factor of two between runs, so only the
-  interleaved A/B ordering is quoted.) Output is unchanged: the differential test against the naive oracle
-  runs 25,000 randomized inputs per run, spanning budgets 0-10 and lengths 0-24 so both the
-  bail-immediately and never-bail regimes are covered, with zero mismatches; a one-off 400,000-input sweep
-  during development was also clean.
-
-- **The off-target scan's innermost alignment is now linear instead of quadratic — a 4.2-4.6x speedup on the
-  whole scan, with byte-identical output.** `_best_with_removed_base` prices every single-base-removal
-  alignment of a bulged window, and it runs **twice for every PAM-positive anchor in the search space** — the
-  hottest function in the safety-critical off-target engine. It rebuilt the reduced string and fully
-  re-compared it once per removal position: `O(n²)` character comparisons plus `n` string allocations per
-  call. A profile of a 150 kb scan put 85% of wall-clock inside it. Removing base `r` leaves the first `r`
-  comparisons untouched and shifts every later one by exactly one position, so the mismatch count splits
-  into a prefix sum and a suffix sum; two linear passes now price every removal and the reduced string is
-  built once, for the winner. Measured on the full scan with the query held fixed and three repeats, on two
-  independent workloads: **3.29s → 0.72s (4.6x)** and **2.21s → 0.52s (4.2x)**, output identical in both.
-  The project's own test suite runs in **59s instead of 299s** as a result. Equivalence is pinned by a new
-  differential test against the naive implementation kept verbatim as the oracle (4,000 randomized inputs
-  over `ACGTN` plus the degenerate and tie-breaking edges); the tie rule — keep the earliest removal
-  position — is preserved exactly, because that position determines the reported alignment.
-
-- **`scripts/native_speedup.py` now also reports FM-index vs linear anchor enumeration.** R6 requires a
-  recorded speedup for the native kernels on their hot paths. The new section measures the two anchor
-  enumeration paths against each other on the same contig. It is reported as a measurement to track, **not**
-  as a claim: across runs the ratio landed on both sides of 1.0 at the same contig size, because the
-  dominant cost is how many in-budget hits a particular query has rather than the contig length. The script
-  says so explicitly so no one quotes a speedup from a single run.
-
-### Fixed
 
 - **The Cas9 outcome predictor is no longer handed the right sequence with the break in the wrong place.**
   `_cut_outcome` overlays the carried allele onto the local context before predicting the indel spectrum,
