@@ -208,3 +208,23 @@ carries information rather than appearing on every report.
 #### Scenario: Intent agrees with the classification
 - **WHEN** a correction targets a pathogenic variant
 - **THEN** the rationale states the classification and adds no caution
+
+### Requirement: The menu states the target's predicted consequence
+
+When an effect predictor annotates the target variant, the menu-level rationale SHALL
+state the predicted consequence, its impact tier, the gene and protein change where
+known, and the transcript it is reported against — explicitly noting when that transcript
+is not the canonical one, since the same variant is missense on one transcript and
+intronic on another.
+
+A correcting intent against a variant of modifier impact SHALL be noted, and SHALL NOT be
+refused: a variant with no predicted protein consequence may still be a splice or
+regulatory target, and the prediction speaks for one transcript only.
+
+#### Scenario: Annotated target
+- **WHEN** a design runs with an effect predictor supplied
+- **THEN** the rationale states the consequence, impact, gene, protein change and transcript
+
+#### Scenario: Non-canonical transcript
+- **WHEN** the consequence is reported against a non-canonical transcript
+- **THEN** the rationale says so

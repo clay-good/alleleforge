@@ -2576,6 +2576,36 @@ schema-checked, provenance-hashed and reproducibility-pinned — every mechanica
 human doing the safety audit still had to go and find the model card, which is the exact thing the field
 was added to prevent.**
 
+## Round 94 — paid for, then thrown away
+
+`VariantEffect` had *every* field on the R90 no-readers list, and so did `ResolvedVariant.effect` itself.
+Wiring up an effect predictor made the resolver call it, build the full annotation — gene, consequence,
+impact tier, HGVS c. and p., transcript, canonical flag — attach it to the resolved variant, and stop.
+Nothing downstream ever looked.
+
+The mirror of R92, but with a sharper edge, because R90 had just raised the price. That lookup is a network
+round trip to a third-party API, and I had spent the previous round making the user explicitly consent to
+sending their variant there. Consent to disclose, granted, for data that is then dropped on the floor.
+Whatever the right trade is between a VEP annotation and a disclosure, *disclose and discard* is not on the
+list.
+
+Two details worth the care:
+
+**Qualify the transcript.** The same variant is missense on one transcript and intronic on another. A bare
+"missense variant" is half a statement, so the line names the transcript and says explicitly when it is not
+the canonical one — R83's rule, applied to a consequence instead of a count.
+
+**Modifier impact is a note, not a verdict.** A correction targeting a variant with no predicted protein
+consequence is worth a second look before the bench work starts, and nothing more: a silent variant can
+still be a splice or regulatory target, and the predictor speaks for exactly one transcript. Annotate,
+never refuse — same disposition as R92's ClinVar notes, and a design with real predicted impact stays
+quiet so the note keeps its meaning.
+
+**Lesson: when a feature has a *cost* — a network call, a disclosure, a paid API, a slow pass — trace its
+output to a consumer before anything else. An expensive dead end is worse than a cheap one, and the cost
+makes it findable: ask what the user was buying. This one became visible only because the round before had
+put a price tag on it.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

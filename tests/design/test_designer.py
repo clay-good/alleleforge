@@ -16,6 +16,7 @@ from alleleforge.types.prediction import Prediction, UncertaintyMethod
 from alleleforge.types.provenance import Provenance
 from alleleforge.types.sequence import GenomicInterval, Strand
 from alleleforge.types.variant import ClinicalSignificance, ClinVarAccession, Variant
+from alleleforge.variant.effect import Consequence, VariantEffect, impact_of
 from alleleforge.variant.resolver import ResolvedVariant, resolve
 
 MakeRef = Callable[[dict[str, str]], ReferenceGenome]
@@ -589,3 +590,76 @@ def test_a_congruent_intent_gets_the_classification_but_no_warning(
     assert "confirm the target" not in menu.rationale
     assert "disease model" not in menu.rationale
     assert "not asserted" not in menu.rationale
+
+
+def _effect_stub(consequence: Consequence, **kw: object) -> object:
+    """An effect predictor returning one fixed consequence."""
+    effect = VariantEffect(consequence=consequence, impact=impact_of(consequence), **kw)  # type: ignore[arg-type]
+
+    class _P:
+        def predict(self, variant: object, *, transcript: str = "MANE_SELECT") -> VariantEffect:
+            return effect
+
+    return _P()
+
+
+def test_the_predicted_effect_reaches_the_menu(make_reference: MakeRef) -> None:
+    """A VEP lookup was computed, stored on the resolved variant, and read by nothing.
+
+    The user pays a network round trip for it — and, since it goes to a third-party
+    API, an explicit decision to disclose their variant — and got no answer anywhere
+    in the output. The gene, the consequence, the impact tier and the protein change
+    all sat on `ResolvedVariant.effect` unread.
+    """
+    ref = make_reference({"chr2": "T" * 15 + "ACGTAACGTTACGTAACGTT" + "TGG" + "T" * 15})
+    menu = design(
+        "chr2:25:T>A",
+        intent=EditIntent.CORRECT,
+        reference=ref,
+        effect=_effect_stub(
+            Consequence.MISSENSE,
+            gene="HBB",
+            transcript="ENST00000335295",
+            hgvs_p="p.Glu7Val",
+        ),
+        run_offtarget=False,
+    )
+    assert menu.rationale is not None
+    assert "Predicted effect: missense variant (moderate impact) in HBB" in menu.rationale
+    assert "p.Glu7Val" in menu.rationale
+    assert "ENST00000335295" in menu.rationale
+    # A moderate-impact correction is the ordinary case and gets no caution, or the
+    # caution asserted below would appear on every design and mean nothing.
+    assert "confirm this is the change you mean to make" not in menu.rationale
+
+
+def test_a_correction_with_no_predicted_protein_impact_is_flagged(
+    make_reference: MakeRef,
+) -> None:
+    """Correcting a modifier-impact variant is worth a second look, not a refusal."""
+    ref = make_reference({"chr2": "T" * 15 + "ACGTAACGTTACGTAACGTT" + "TGG" + "T" * 15})
+    menu = design(
+        "chr2:25:T>A",
+        intent=EditIntent.CORRECT,
+        reference=ref,
+        effect=_effect_stub(Consequence.INTRON, gene="HBB"),
+        run_offtarget=False,
+    )
+    assert menu.rationale is not None
+    assert "modifier impact" in menu.rationale
+    assert "confirm this is the change you mean to make" in menu.rationale
+    assert menu.candidates or "no actionable candidate" in menu.rationale  # not refused
+
+
+def test_a_non_canonical_transcript_says_so(make_reference: MakeRef) -> None:
+    """The same variant is missense on one transcript and intronic on another."""
+    ref = make_reference({"chr2": "T" * 15 + "ACGTAACGTTACGTAACGTT" + "TGG" + "T" * 15})
+    menu = design(
+        "chr2:25:T>A",
+        intent=EditIntent.CORRECT,
+        reference=ref,
+        effect=_effect_stub(Consequence.MISSENSE, transcript="ENST00000000001", is_canonical=False),
+        run_offtarget=False,
+    )
+    assert menu.rationale is not None
+    assert "(not the canonical transcript)" in menu.rationale

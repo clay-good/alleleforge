@@ -56,7 +56,7 @@ from alleleforge.types.edit import Chemistry, EditIntent
 from alleleforge.types.provenance import DatasetVersion, ModelCheckpoint, Provenance
 from alleleforge.types.sequence import GenomicInterval
 from alleleforge.types.variant import ClinicalSignificance, Variant
-from alleleforge.variant.effect import EffectPredictor
+from alleleforge.variant.effect import EffectPredictor, Impact
 from alleleforge.variant.hgvs_adapter import HgvsAdapter
 from alleleforge.variant.resolver import (
     ClinVarLookup,
@@ -517,17 +517,34 @@ _BENIGN_CLASSES = frozenset({ClinicalSignificance.BENIGN, ClinicalSignificance.L
 
 
 def _clinical_notes(resolved: ResolvedVariant, intent: EditIntent) -> list[str]:
-    """Return notes stating what ClinVar asserts, and any tension with the intent.
+    """Return notes stating what is known about the target, and any tension with intent.
 
-    The classification is the reason an accession was chosen, and it reached no
-    output at all: a menu for a variant ClinVar calls Benign read exactly like a menu
-    for a pathogenic one. State the assertion, and say plainly when the requested
-    intent and the classification pull in different directions.
+    Two facts a design is meaningless without, both of which the pipeline computed and
+    then discarded: what a clinical database asserts about the variant (the reason an
+    accession was chosen over coordinates) and its predicted molecular consequence
+    (paid for with a network round trip and a decision to disclose the variant). A menu
+    for a variant ClinVar calls Benign read exactly like a menu for a pathogenic one.
+
+    State both, and say plainly when the requested intent and what is known pull in
+    different directions. Every note here annotates; none refuses.
     """
+    notes: list[str] = []
+    effect = resolved.effect
+    if effect is not None:
+        notes.append(effect.describe())
+        # A correction that changes no protein is worth a second look before the bench
+        # work starts. Same disposition as the ClinVar notes below: annotate, never
+        # refuse — a silent variant can still be a splice or regulatory target, and the
+        # predictor only speaks for one transcript.
+        if intent in (EditIntent.CORRECT, EditIntent.REVERT) and effect.impact is Impact.MODIFIER:
+            notes.append(
+                f"intent {intent.value} targets a variant predicted to have modifier "
+                "impact on this transcript — confirm this is the change you mean to make"
+            )
     assertion = resolved.clinical_assertion
     if assertion is None:
-        return []
-    notes = [assertion.describe()]
+        return notes
+    notes.append(assertion.describe())
     if intent in (EditIntent.CORRECT, EditIntent.REVERT):
         if assertion.significance in _BENIGN_CLASSES:
             notes.append(

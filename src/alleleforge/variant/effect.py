@@ -125,6 +125,29 @@ class VariantEffect(BaseModel):
     hgvs_p: str | None = None
     is_canonical: bool = True
 
+    def describe(self) -> str:
+        """Return a one-line human statement of the consequence.
+
+        The effect costs a network round trip and — since it goes to a third-party
+        API — an explicit decision to disclose the variant. It was computed and then
+        read by nothing, so a user who wired up a predictor paid both and got no
+        answer anywhere in the output.
+        """
+        text = f"Predicted effect: {self.consequence.value.replace('_', ' ')}"
+        text += f" ({self.impact.name.lower()} impact)"
+        if self.gene:
+            text += f" in {self.gene}"
+        if self.hgvs_p:
+            text += f", {self.hgvs_p}"
+        if self.transcript:
+            # Name the transcript, and say when it is not the canonical one: the same
+            # variant is missense on one transcript and intronic on another, so an
+            # unqualified consequence is only half a statement.
+            text += f" on {self.transcript}"
+            if not self.is_canonical:
+                text += " (not the canonical transcript)"
+        return text
+
 
 @runtime_checkable
 class EffectPredictor(Protocol):

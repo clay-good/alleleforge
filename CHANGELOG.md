@@ -10,6 +10,21 @@ acceptance.
 
 ### Added
 
+- **The predicted molecular consequence now appears in the menu; it was computed and read by nothing.**
+  Supplying an effect predictor made AlleleForge annotate the variant, store a full `VariantEffect` on
+  `ResolvedVariant.effect` — gene, Sequence-Ontology consequence, VEP impact tier, HGVS c./p., transcript,
+  canonical flag — and then use none of it. The user paid a network round trip for that, and since the
+  lookup goes to a third-party API, an explicit decision to disclose their variant, and got no answer
+  anywhere in the output. The menu rationale now leads with `Predicted effect: missense variant (moderate
+  impact) in HBB, p.Glu7Val on ENST00000335295`, and says so when the transcript is not the canonical one —
+  the same variant is missense on one transcript and intronic on another, so an unqualified consequence is
+  half a statement. A correction targeting a variant with only **modifier** impact gets a note to confirm
+  the intent; a correction with real predicted impact stays quiet, so the note carries information.
+  Annotates only — a silent variant can still be a splice or regulatory target, and the predictor speaks
+  for one transcript.
+
+### Added
+
 - **Model-card limitations now appear in the report; they were carried "for safety audit" and shown to
   nobody.** Two breaks in the same chain. `ModelCard.to_checkpoint()` — a hand-written field list — carried
   `known_failure_modes` into provenance and dropped `intended_use` and `out_of_scope_use`, so a result
