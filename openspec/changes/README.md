@@ -3153,6 +3153,39 @@ thing. `redistributable` → "vendored" reads as a reasonable shortening and is 
 is permitted to what exists. And when correcting an overclaim, check the correction does not create the
 mirror-image understatement: the fix that makes seven rows honest made the eighth row lie.**
 
+## Round 111 — the number that measured nothing
+
+The last command I had never run:
+
+```
+$ aforge bench run cas9-efficiency
+cas9-efficiency @ v1: spearman=0.0000, ece=0.2000 (n=10, model=crispr-bench-baseline)
+```
+
+Three things are wrong with that line and only one of them is obvious. `n=10` is a sample size on which a
+Spearman correlation means very little. `spearman=0.0000` gives no way to tell a deliberately weak baseline
+from a broken pipeline. And the third, which the first two are symptoms of: **the dataset is synthetic**.
+
+`rs3-validation` is a stand-in shipped so the harness runs in CI without the real corpora, and it says so —
+`BenchmarkDataset.synthetic`, one of the fields on the R90 no-readers list, which I had passed over as
+plumbing. Nothing read it. So a metric over ten fabricated rows was printed in exactly the format a
+GUIDE-seq result would be, on the component the project describes as "a calibration-first benchmark". Of
+every unlabelled number this audit has found, this is the one whose label matters most.
+
+**Shipped:** `dataset_is_synthetic` on `BenchmarkResult`, a note under the `bench run` line saying the
+number measures the contract and not the model, and a **(synthetic)** mark on the leaderboard in both
+renders, so a board cannot rank a stand-in against a real result silently.
+
+The placement is the deliberate part. The flag goes in the **scientific body** — the part the
+reproducibility digest covers — not the provenance. Which corpus a metric came from is as scientific as
+which split: two runs that differ only in whether the data was real are not the same result and must not
+share a digest. That also forced a result-schema bump, which is what the field is for.
+
+**Lesson: sweep results are not conclusions. The R90 field sweep listed `BenchmarkDataset.synthetic` twenty
+rounds ago and I filed it as plumbing without asking what it was *for*. A field named after a property of
+the data is worth chasing even when its module looks like infrastructure — and "which command have I still
+not run?" found in one line what "which field has no reader?" had already surfaced and I had dismissed.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

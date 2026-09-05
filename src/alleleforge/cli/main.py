@@ -1605,6 +1605,15 @@ def bench_run(
             f"{result.primary_value:.4f}, ece={ece_str} "
             f"(n={result.n_test}, model={result.model.name})"
         )
+        # The bundled fixtures are synthetic stand-ins and have always said so in a
+        # field nothing read, so a Spearman over ten synthetic rows printed in exactly
+        # the shape of one over GUIDE-seq. Say which one this is, next to the number.
+        if result.dataset_is_synthetic:
+            typer.echo(
+                f"  NOTE: dataset {result.dataset!r} is the bundled SYNTHETIC stand-in "
+                "shipped so the harness runs in CI. This number measures the contract, "
+                "not the model — it is not a benchmark result."
+            )
 
 
 class LeaderboardFormat(StrEnum):

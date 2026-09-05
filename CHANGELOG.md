@@ -10,6 +10,21 @@ acceptance.
 
 ### Fixed
 
+- **Benchmark numbers computed on the bundled synthetic fixtures were published in the shape of real ones**
+  (result `schema_version` 2 → 3). `aforge bench run cas9-efficiency` printed
+  `spearman=0.0000, ece=0.2000 (n=10, model=crispr-bench-baseline)` — ten rows of a synthetic stand-in
+  shipped so the harness runs in CI, presented exactly as a GUIDE-seq result would be. The datasets have
+  always carried `synthetic: true`; nothing read it. On a project that calls this "a calibration-first
+  benchmark", that is the most consequential unlabelled number in it.
+
+  `BenchmarkResult` now records `dataset_is_synthetic` and, deliberately, records it **in the scientific
+  body** that the reproducibility digest covers — which corpus a metric came from is as scientific a fact as
+  which split, so a synthetic run cannot re-derive to a real one's digest. `bench run` prints a note saying
+  the number measures the contract and not the model, and the leaderboard marks such rows **(synthetic)** in
+  both renders, so a board can never rank a stand-in against a real result without saying so.
+
+### Fixed
+
 - **`aforge data list` labelled every redistributable dataset "vendored". Almost none of it ships.**
   `redistributable` is a *licence* fact — AlleleForge is permitted to redistribute this — and the table
   printed it as a *presence* claim. gnomAD v4.1 is CC0, so it read as `vendored` while no gnomAD data ships

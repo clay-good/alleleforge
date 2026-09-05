@@ -303,3 +303,48 @@ def test_an_unmeasurable_ood_share_is_not_reported_as_zero(fixed_ts: datetime) -
     assert empty.ood_fraction is None
     assert _fmt_ood(empty) == "n/a"
     assert _fmt_ood(empty.model_copy(update={"n_test": 10})) == "0% (0/10)"
+
+
+def test_a_synthetic_result_is_labelled_everywhere_it_appears(fixed_ts: datetime) -> None:
+    """A Spearman over ten synthetic rows was published in the shape of a real one.
+
+    The bundled fixtures are stand-ins shipped so the harness runs in CI, and they
+    have always said so — `BenchmarkDataset.synthetic` — in a field nothing read. So
+    `aforge bench run` printed `spearman=0.0000, ece=0.2000 (n=10)` with no way to
+    tell whether that measured a model or a contract, and a board could rank a
+    synthetic row against a real one without saying which was which.
+    """
+    result = _baseline_result("cas9-efficiency", fixed_ts)
+    # The shipped fixture really is synthetic; if that ever changes, this test is
+    # measuring nothing and should fail rather than pass quietly.
+    assert result.dataset_is_synthetic is True
+
+    board = Leaderboard()
+    board.add(
+        Submission(
+            submitter="alleleforge", model=_model(), results=(result,), submitted_at=fixed_ts
+        )
+    )
+    entry = board.rankings("cas9-efficiency")[0]
+    assert entry.dataset_is_synthetic is True
+    assert "(synthetic)" in board.render_markdown()
+    assert "(synthetic)" in board.render_html()
+
+
+def test_the_synthetic_flag_is_part_of_the_scientific_claim(fixed_ts: datetime) -> None:
+    """Two runs differing only in whether the data was real are not the same result.
+
+    The reproducibility digest covers the scientific body, and "which corpus" is as
+    scientific as "which split" — so the flag lives there, not in the volatile
+    provenance, and a synthetic run cannot re-derive to a real one's digest.
+    """
+    from alleleforge.benchmark._canon import reproducibility_digest
+
+    result = _baseline_result("cas9-efficiency", fixed_ts)
+    body = result.model_dump(mode="json")
+    for key in ("provenance", "reproducibility_digest", "signature", "n_out_of_distribution"):
+        body.pop(key, None)
+    body["dataset_version"] = result.provenance.datasets[0].model_dump(mode="json")
+
+    as_real = {**body, "dataset_is_synthetic": False}
+    assert reproducibility_digest(body) != reproducibility_digest(as_real)

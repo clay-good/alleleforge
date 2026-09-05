@@ -748,6 +748,21 @@ def test_offtarget_human(runner: CliRunner, nuclease_fasta: Path) -> None:
 # --- data -------------------------------------------------------------------
 
 
+def test_bench_run_says_when_the_number_came_from_synthetic_data(
+    runner: CliRunner,
+) -> None:
+    """`spearman=0.0000 (n=10)` on a stand-in must not read like a benchmark result."""
+    result = runner.invoke(app, ["bench", "run", "cas9-efficiency"])
+    assert result.exit_code == 0
+    assert "spearman=" in result.output
+    assert "SYNTHETIC" in result.output
+    assert "not a benchmark result" in result.output
+
+    payload = json.loads(runner.invoke(app, ["bench", "run", "cas9-efficiency", "--json"]).output)
+    assert payload["dataset_is_synthetic"] is True
+    assert payload["schema_version"] >= 3  # the field changes the signed record
+
+
 def test_data_list_does_not_call_a_licence_permission_a_shipped_dataset(
     runner: CliRunner,
 ) -> None:

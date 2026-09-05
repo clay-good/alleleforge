@@ -1,6 +1,11 @@
 {
   "description": "One row on the board: a model's result on a single task.",
   "properties": {
+    "dataset_is_synthetic": {
+      "default": false,
+      "title": "Dataset Is Synthetic",
+      "type": "boolean"
+    },
     "ece": {
       "anyOf": [
         {

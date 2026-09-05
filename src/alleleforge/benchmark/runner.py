@@ -82,7 +82,7 @@ class ModelInfo(BaseModel):
 #: of silently misreading a changed record. Part of the signed body. v2 adds
 #: ``split_sha256`` and ``reproducibility_digest`` and lets a metric be ``null``
 #: (undefined calibration).
-RESULT_SCHEMA_VERSION = 2
+RESULT_SCHEMA_VERSION = 3
 
 
 class BenchmarkResult(BaseModel):
@@ -105,6 +105,10 @@ class BenchmarkResult(BaseModel):
         primary_metric: The task's ranking metric.
         primary_value: The value of the primary metric (never a calibration metric,
             so always defined).
+        dataset_is_synthetic: Whether the rows this number was computed on are the
+            bundled synthetic stand-in rather than the real corpus. The datasets have
+            always carried the flag and nothing read it, so a Spearman from ten
+            synthetic rows was published in the same shape as one from GUIDE-seq.
         n_out_of_distribution: How many predictions the model self-flagged OOD.
         model: The evaluated model's card facts.
         provenance: The full reproducibility block.
@@ -127,6 +131,7 @@ class BenchmarkResult(BaseModel):
     metrics: dict[str, float | None]
     primary_metric: str
     primary_value: float
+    dataset_is_synthetic: bool = False
     n_out_of_distribution: int
     model: ModelInfo
     provenance: Provenance
@@ -467,6 +472,10 @@ def run_benchmark(
         "split_sha256": split.split_sha256,
         "dataset": dataset.name,
         "dataset_version": dataset.dataset_version().model_dump(mode="json"),
+        # Part of the *scientific* body, not the provenance: a metric computed on a
+        # synthetic stand-in is a different scientific claim from the same metric on
+        # the real corpus, so two such runs must not share a reproducibility digest.
+        "dataset_is_synthetic": dataset.synthetic,
         "n_test": len(examples),
         "metrics": metrics,
         "primary_metric": task_obj.primary_metric,

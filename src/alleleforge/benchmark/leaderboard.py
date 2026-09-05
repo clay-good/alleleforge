@@ -57,6 +57,15 @@ def _fmt_ece(ece: float | None) -> str:
     return "n/a" if ece is None else f"{ece:.4f}"
 
 
+def _synthetic_mark(entry: LeaderboardEntry) -> str:
+    """Return a visible mark when a row's number came from the synthetic stand-in.
+
+    A board mixing synthetic and real rows without saying which is which ranks them
+    against each other, which is the one thing a leaderboard must not do silently.
+    """
+    return " **(synthetic)**" if entry.dataset_is_synthetic else ""
+
+
 def _fmt_ood(entry: LeaderboardEntry) -> str:
     """Format the out-of-distribution cell as a share of the scored test fold.
 
@@ -153,6 +162,9 @@ class LeaderboardEntry(BaseModel):
     #: The uncertainty contract makes models declare this; the board hid it.
     n_test: int = 0
     n_out_of_distribution: int = 0
+    #: Whether this row's number came from the bundled synthetic stand-in. A board that
+    #: mixes synthetic and real rows without saying which is which ranks them together.
+    dataset_is_synthetic: bool = False
 
     @property
     def ood_fraction(self) -> float | None:
@@ -190,6 +202,7 @@ class Leaderboard:
                     metrics=r.metrics,
                     n_test=r.n_test,
                     n_out_of_distribution=r.n_out_of_distribution,
+                    dataset_is_synthetic=r.dataset_is_synthetic,
                 )
             )
 
@@ -239,7 +252,7 @@ class Leaderboard:
                 lines.append(
                     f"| {i} | {_md_cell(e.model_name)} | {_md_cell(e.submitter)} | "
                     f"{e.primary_value:.4f} | {_fmt_ece(e.ece)} | {_fmt_ood(e)} | "
-                    f"{_md_cell(e.split_version)} |"
+                    f"{_md_cell(e.split_version)}{_synthetic_mark(e)} |"
                 )
             lines.append("")
         return "\n".join(lines)
@@ -270,7 +283,9 @@ class Leaderboard:
                     f"<td>{_html_cell(e.submitter)}</td>"
                     f"<td>{e.primary_value:.4f}</td><td>{_fmt_ece(e.ece)}</td>"
                     f"<td>{_fmt_ood(e)}</td>"
-                    f"<td>{_html_cell(e.split_version)}</td></tr>"
+                    f"<td>{_html_cell(e.split_version)}"
+                    + ("<strong> (synthetic)</strong>" if e.dataset_is_synthetic else "")
+                    + "</td></tr>"
                 )
             parts.append("</tbody></table>")
         parts.append("</body></html>")

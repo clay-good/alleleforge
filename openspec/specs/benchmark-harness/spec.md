@@ -224,3 +224,23 @@ than the omission.
 #### Scenario: Nothing scored
 - **WHEN** the test-fold size is zero
 - **THEN** the cell reads `n/a`
+
+### Requirement: A number from a synthetic stand-in is labelled as one
+
+The bundled fixtures are synthetic stand-ins shipped so the harness runs without the real
+corpora. A metric computed on them measures the contract, not the model, and SHALL be
+labelled wherever it appears: in the run output, on the signed result, and on the
+leaderboard, so a stand-in is never ranked against a real result silently.
+
+The flag SHALL live in the result's **scientific body** covered by the reproducibility
+digest, not in its provenance: which corpus a metric came from is as scientific a fact as
+which split, and two runs differing only in that are not the same result.
+
+#### Scenario: Running against a bundled fixture
+- **WHEN** a benchmark task runs on a dataset marked synthetic
+- **THEN** the output says the number measures the contract rather than the model, and
+  the signed result records it
+
+#### Scenario: A board holding both kinds
+- **WHEN** a leaderboard contains a synthetic-derived row
+- **THEN** that row is visibly marked in every render
