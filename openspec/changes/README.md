@@ -1673,6 +1673,30 @@ is the slow one that catches a different *class* of failure. Second, and more us
 actually caught it was refusing to copy numbers forward into a status document. Re-deriving a number you
 are about to publish is a cheap, load-bearing habit — the status file was not even where the bug lived.**
 
+## Round 62 — fixing the gate, not just the thing the gate missed
+
+R61 found a notebook that had been broken for five commits and diagnosed the cause honestly: I had trimmed
+`pytest --nbmake examples/` out of the gate I was running. Fixing the notebook does nothing about that.
+
+The project had the same bug, in writing. The Makefile's header promises "CI runs the same commands; this
+is the local mirror so `make ci` reproduces the gate before a push" — and `ci` ran
+`lint type test docs reproduce`, omitting `examples`. The one job that would have caught the regression
+was missing from the mirror that claims to be complete, which is very likely why it was missing from mine.
+
+**Shipped:** a `make examples` target, `examples` added to `make ci`, and
+`tests/test_gate_mirrors_ci.py`, which reads `.github/workflows/ci.yml` and fails when any blocking job is
+absent from the `ci` target. Two jobs are excused by name with their reasons (`security` is advisory in CI
+via `|| true`; `rust` needs the compiled crate and `make native` covers it), and a second test fails if an
+excuse names a job CI no longer has — a stale exemption is exactly how the next drift would hide.
+Mutation-checked in both directions: removing `examples` fails, and adding an unmirrored CI job fails.
+
+**Lesson: when a process failure causes a defect, the defect is the cheap half of the fix. I could have
+stopped at "repair the notebook, remember to run nbmake" — a resolution with no mechanism behind it, and
+one that would decay exactly as fast as the last one did. The durable version is to make the shortcut
+impossible: put the missing step in the documented entry point, then test that the entry point still
+matches the thing it claims to mirror. Note also that the guard reads the workflow rather than a
+hand-written list of jobs, because a hand-written list is one more copy to drift.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -63,6 +63,16 @@ acceptance.
 
 ### Fixed
 
+- **`make ci` now actually mirrors CI, and a test keeps it that way.** The Makefile's header promises
+  "CI runs the same commands; this is the local mirror so `make ci` reproduces the gate before a push."
+  It was false: `ci` ran `lint type test docs reproduce` and omitted the `examples` job — the one job that
+  would have caught the notebook regression in the entry below. `make examples` is now a target, `make ci`
+  includes it, and `tests/test_gate_mirrors_ci.py` reads `.github/workflows/ci.yml` and fails if any
+  blocking job is missing from the `ci` target. `security` (advisory, `|| true`) and `rust` (needs the
+  compiled crate; `make native` covers it) are excused by name, and a second test fails if an excuse names
+  a job CI no longer has, so a stale exemption cannot hide the next drift. Mutation-checked both ways:
+  removing `examples` from the target fails, and adding a new CI job fails until it is mirrored or excused.
+
 - **A cohort notebook broke on the `worst_offtarget = None` change and was shipped broken for five
   commits.** `03_batch_vcf.ipynb` renders the summary table with `round(s.get("worst_offtarget", 0.0), 3)`
   — and a `.get` default does not fire when the key is *present* with value `None`, which is exactly what
