@@ -34,6 +34,7 @@ import typer
 
 from alleleforge._version import __version__
 from alleleforge.config import DEFAULT_REFERENCE, DEFAULT_SEED
+from alleleforge.data.gnomad import GnomadDB
 from alleleforge.types.sequence import GenomicInterval
 
 
@@ -263,6 +264,29 @@ class OutputFormat(StrEnum):
     pdf = "pdf"
 
 
+def _load_gnomad(path: Path | None, populations: str | None) -> GnomadDB | None:
+    """Load the population sites file, warning when ancestries are asked for without it.
+
+    ``--populations`` names the ancestry labels to stratify by; it supplies no
+    alleles. Given labels but no sites file, the scan is reference-only and the
+    ancestry breakdown comes back empty — which reads like "no ancestry-specific
+    risk found" rather than "nothing was searched". Say which it is.
+    """
+    if path is None:
+        if populations:
+            _echo_err(
+                "warning: --populations was given without --gnomad, so no population "
+                "alleles were searched. The off-target scan is REFERENCE-ONLY and the "
+                "ancestry breakdown will be empty — that is 'not measured', not 'clean'."
+            )
+        return None
+    try:
+        return GnomadDB.from_sites_tsv(path)
+    except (OSError, ValueError) as exc:
+        _echo_err(f"error: could not read --gnomad {path}: {exc}")
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
+
+
 @app.command()
 def design(
     ctx: typer.Context,
@@ -279,6 +303,19 @@ def design(
     ] = None,
     populations: Annotated[
         str | None, typer.Option(help="Comma-separated ancestry labels to stratify by.")
+    ] = None,
+    gnomad: Annotated[
+        Path | None,
+        typer.Option(
+            "--gnomad",
+            help=(
+                "Population allele-frequency sites TSV (plain or .gz), "
+                "'#chrom pos ref alt af <pop>...' with 1-based pos as in a VCF — the "
+                "input that makes the off-target search population-aware. Without it "
+                "the scan is reference-only, which is the known safety gap this tool "
+                "exists to close, and --populations has nothing to stratify."
+            ),
+        ),
     ] = None,
     weights: Annotated[
         str | None, typer.Option(help="Ranking weights 'eff,clean,safe,simple'.")
@@ -393,6 +430,7 @@ def design(
             _echo_err(f"error: unknown chemistry: {exc}")
             raise typer.Exit(ExitCode.USAGE) from exc
     pops = [p.strip() for p in pops_str.split(",")] if pops_str else None
+    gnomad_db = _load_gnomad(gnomad, pops_str)
 
     reference = _load_reference(reference_fasta, state.reference_build)
     # Honor the user's config file (its Settings keys) with the CLI --seed as
@@ -424,6 +462,7 @@ def design(
             chemistries=chemistries,
             weights=weights_obj,
             populations=pops,
+            gnomad=gnomad_db,
             run_offtarget=run_offtarget,
             max_candidates_per_chemistry=max_per_chemistry,
             cell_context=cell_context,
@@ -568,6 +607,19 @@ def batch(
     populations: Annotated[
         str | None, typer.Option(help="Comma-separated ancestry labels to stratify by.")
     ] = None,
+    gnomad: Annotated[
+        Path | None,
+        typer.Option(
+            "--gnomad",
+            help=(
+                "Population allele-frequency sites TSV (plain or .gz), "
+                "'#chrom pos ref alt af <pop>...' with 1-based pos as in a VCF — the "
+                "input that makes the off-target search population-aware. Without it "
+                "the scan is reference-only, which is the known safety gap this tool "
+                "exists to close, and --populations has nothing to stratify."
+            ),
+        ),
+    ] = None,
     weights: Annotated[
         str | None, typer.Option(help="Ranking weights 'eff,clean,safe,simple'.")
     ] = None,
@@ -645,6 +697,7 @@ def batch(
         _echo_err(f"error: input file not found: {inputs}")
         raise typer.Exit(ExitCode.MISSING_DATA)
     pops = [p.strip() for p in pops_str.split(",")] if pops_str else None
+    gnomad_db = _load_gnomad(gnomad, pops_str)
 
     reference = _load_reference(reference_fasta, state.reference_build)
     assert reference_fasta is not None  # _load_reference exits otherwise
@@ -683,6 +736,7 @@ def batch(
             build=state.reference_build,
             weights=weights_obj,
             populations=pops,
+            gnomad=gnomad_db,
             run_offtarget=run_offtarget,
             max_candidates_per_chemistry=max_per_chemistry,
             chemistries=chemistries,
@@ -758,6 +812,19 @@ def offtarget(
     populations: Annotated[
         str | None, typer.Option(help="Comma-separated ancestry labels to stratify by.")
     ] = None,
+    gnomad: Annotated[
+        Path | None,
+        typer.Option(
+            "--gnomad",
+            help=(
+                "Population allele-frequency sites TSV (plain or .gz), "
+                "'#chrom pos ref alt af <pop>...' with 1-based pos as in a VCF — the "
+                "input that makes the off-target search population-aware. Without it "
+                "the scan is reference-only, which is the known safety gap this tool "
+                "exists to close, and --populations has nothing to stratify."
+            ),
+        ),
+    ] = None,
     on_target: Annotated[
         str | None,
         typer.Option(
@@ -778,6 +845,7 @@ def offtarget(
     state: GlobalState = ctx.obj
     reference = _load_reference(reference_fasta, state.reference_build)
     pops = [p.strip() for p in populations.split(",")] if populations else None
+    gnomad_db = _load_gnomad(gnomad, populations)
     try:
         locus = GenomicInterval.parse(on_target) if on_target else None
     except ValueError as exc:
@@ -796,6 +864,7 @@ def offtarget(
             mit_threshold=mit_threshold,
             maf=maf,
             populations=pops,
+            gnomad=gnomad_db,
         )
     except ValueError as exc:
         _echo_err(f"error: {exc}")

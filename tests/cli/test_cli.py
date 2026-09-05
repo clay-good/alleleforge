@@ -1010,3 +1010,94 @@ def test_cell_context_flag_drives_the_ood_flag(
     top = json.loads(result.output)["candidates"][0]
     assert top["efficiency"]["in_distribution"] is not expect_ood
     assert ("ood" in top["flags"]) is expect_ood
+
+
+# --- the population-aware off-target search, from the CLI ---------------------
+
+
+@pytest.fixture
+def bias_case(tmp_path: Path) -> tuple[Path, Path, str]:
+    """The rs114518452-style reference-bias case, as CLI inputs.
+
+    A spacer with no NRG PAM after it in the reference — so a reference-only scan
+    is blind — and an AFR-enriched population allele that creates a de-novo `NGG`.
+    """
+    spacer = "GACCATGCAACCTTGAACGT"
+    pad = "T" * 10
+    fasta = tmp_path / "bias.fa"
+    fasta.write_text(f">chr2\n{pad}{spacer}CGT{pad}\n")
+    sites = tmp_path / "bias.tsv"
+    sites.write_text(
+        "#chrom\tpos\tref\talt\taf\tafr\tamr\teas\tnfe\tsas\n"
+        # 1-based, as in a VCF: 0-based 32 is the base the allele changes.
+        "chr2\t33\tT\tG\t0.03\t0.105\t0.012\t0.0\t0.001\t0.0\n"
+    )
+    return fasta, sites, spacer
+
+
+def test_offtarget_is_reference_blind_without_population_data(
+    runner: CliRunner, bias_case: tuple[Path, Path, str]
+) -> None:
+    fasta, _sites, spacer = bias_case
+    result = runner.invoke(app, ["offtarget", spacer, "--reference-fasta", str(fasta), "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.output)["n_sites"] == 0  # the blind spot
+
+
+def test_gnomad_makes_the_cli_search_population_aware(
+    runner: CliRunner, bias_case: tuple[Path, Path, str]
+) -> None:
+    """The project's headline claim, reproduced through its primary interface.
+
+    Until `--gnomad` existed there was no way to supply population alleles from the
+    CLI at all, so every command-line off-target scan was reference-only — the
+    exact safety gap the tool is built to close.
+    """
+    fasta, sites, spacer = bias_case
+    result = runner.invoke(
+        app,
+        [
+            "offtarget",
+            spacer,
+            "--reference-fasta",
+            str(fasta),
+            "--gnomad",
+            str(sites),
+            "--populations",
+            "afr,nfe",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0
+    body = json.loads(result.output)
+    assert body["n_sites"] == 1
+    site = body["sites"][0]
+    assert site["origin"] == "population"
+    assert site["ancestries"]["afr"] > site["ancestries"]["nfe"]  # ancestry-stratified
+
+
+def test_populations_without_gnomad_warns_that_nothing_was_searched(
+    runner: CliRunner, bias_case: tuple[Path, Path, str]
+) -> None:
+    """An empty ancestry breakdown reads like "clean"; say it is "not measured"."""
+    fasta, _sites, spacer = bias_case
+    result = runner.invoke(
+        app,
+        ["offtarget", spacer, "--reference-fasta", str(fasta), "--populations", "afr"],
+    )
+    assert result.exit_code == 0
+    assert "REFERENCE-ONLY" in result.stderr
+    assert "not measured" in result.stderr
+
+
+def test_an_unreadable_gnomad_path_is_a_data_error(
+    runner: CliRunner, bias_case: tuple[Path, Path, str]
+) -> None:
+    """Fail loudly: silently continuing would give a reference-only scan the user
+    believes is population-aware."""
+    fasta, _sites, spacer = bias_case
+    result = runner.invoke(
+        app,
+        ["offtarget", spacer, "--reference-fasta", str(fasta), "--gnomad", "/nonexistent.tsv"],
+    )
+    assert result.exit_code == ExitCode.MISSING_DATA

@@ -10,6 +10,20 @@ acceptance.
 
 ### Added
 
+- **`--gnomad` on `design`, `batch`, and `offtarget`: the population-aware off-target search is reachable
+  from the CLI for the first time.** This is the capability the project is built around — the README calls
+  reference-only off-target "a known safety gap" and cites the Casgevy / BCL11A `rs114518452` case — and
+  `design()` and `search()` have always taken a `gnomad=` database. **No CLI command could supply one.**
+  `--populations` names ancestry *labels* to stratify by; it carries no alleles. So every command-line scan
+  was reference-only, and a user passing `--populations afr,eur` got an empty ancestry breakdown back with
+  nothing saying why — silence that reads as "no ancestry-specific risk found" rather than "nothing was
+  searched". The three commands now take `--gnomad <sites.tsv[.gz]>` (`#chrom pos ref alt af <pop>...`,
+  1-based `pos` as in a VCF), warn explicitly when ancestries are requested without one, and exit with a
+  data error on an unreadable path rather than falling back to a reference-only scan the caller believes is
+  population-aware. Verified by reproducing the reference-bias case end to end through the CLI: 0 sites
+  reference-only, then one `population`-origin site at score 1.0 whose risk is concentrated in African
+  ancestry (`afr` 0.105 vs `nfe` 0.001).
+
 - **`cell_context` — the input that raises the OOD flag — is now settable from the CLI and the web API.**
   It was reachable only through a CLI *config file*, and not at all from the web API, whose `DesignRequest`
   had no such field. So every design the web API returned reported `in_distribution: true` whatever cell

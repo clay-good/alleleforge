@@ -124,3 +124,26 @@ name. A malformed locus SHALL be a usage error, never a silently skipped exclusi
 #### Scenario: Malformed locus
 - **WHEN** the locus is not `chrom:start-end(strand)`, or is empty
 - **THEN** the command exits with a usage error rather than searching without it
+
+### Requirement: The population-aware search is reachable from the CLI
+
+Population-aware off-target nomination is the capability this tool exists for, so
+the population allele source SHALL be supplyable from every command that searches —
+`design`, `batch`, and `offtarget`. When ancestry labels are requested **without**
+one, the command SHALL say that the scan was reference-only and that the empty
+ancestry breakdown means "not measured", not "clean". An unreadable source SHALL be
+a data error, never a silent fall back to a reference-only scan the caller believes
+is population-aware.
+
+#### Scenario: Ancestries requested without a population source
+- **WHEN** `--populations` is given and no population source is
+- **THEN** the command warns that the scan is reference-only and the breakdown is
+  unmeasured
+
+#### Scenario: Population source supplied
+- **WHEN** a population source is supplied and an allele creates a de-novo PAM
+- **THEN** the site is nominated with `population` origin and an ancestry breakdown
+
+#### Scenario: Unreadable population source
+- **WHEN** the population source cannot be read
+- **THEN** the command exits with a data error

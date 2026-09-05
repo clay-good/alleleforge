@@ -2010,6 +2010,43 @@ that finds this class is not about code quality at all: take the library's entry
 parameters, and check each one against the surfaces. The gaps that turn up are, by construction, features
 someone thought worth building and nobody finished exposing.**
 
+## Round 75 — the differentiator was library-only
+
+Continued R74's query — which `design()` parameters can the shells not reach? — through the rest of the
+list. `gnomad`, `haplotypes`, `patient_vcf`, `offtarget_regions`, `encode_tracks` and `chromatin_track`:
+none reachable from the CLI. The first one matters most.
+
+**Population-aware off-target nomination is the capability this project is built around.** The README calls
+reference-only off-target "a known safety gap", cites the Casgevy / BCL11A `rs114518452` case as the
+cautionary tale, and `specs/readiness-assessment.md` names it "the genuinely differentiated, trustworthy
+part — promote this without caveats". `design()` and `search()` have always accepted a `gnomad=` database.
+**No CLI command could supply one.**
+
+What made it hard to see: `--populations` *exists* on `design`, `batch` and `offtarget`. It names the
+ancestry labels to stratify by and carries no alleles. So `aforge offtarget SPACER --populations afr,eur`
+runs, exits 0, and returns `ancestry_stratification: {}` — an empty breakdown that reads as "no
+ancestry-specific risk found" when it means "no population data was loaded". The presence of a
+plausibly-related flag is what made the absent one invisible.
+
+**Shipped:** `--gnomad <sites.tsv[.gz]>` on all three commands (`#chrom pos ref alt af <pop>...`, 1-based
+`pos` as in a VCF — stated in the help, since the parser converts and the repo's conventions require being
+explicit about that); an explicit warning when ancestries are requested without a source, saying the scan
+is reference-only and the breakdown is *not measured* rather than clean; and a data error on an unreadable
+path, because silently continuing hands back a reference-only scan the caller believes is population-aware.
+
+Verified by reproducing the reference-bias case **through the CLI**: 0 sites reference-only, then one
+`population`-origin site at score 1.0 with the risk concentrated in African ancestry (`afr` 0.105 vs `nfe`
+0.001). Deliberately *not* extended to the web API in this round: a client-supplied filesystem path is a
+server-side file-read primitive, so that surface needs server-side configuration like the reference, which
+is a separate change.
+
+**Lesson: the gap was not in a dark corner — it was in the feature the README leads with, on the primary
+interface, and it survived because a neighbouring flag looked like it. `--populations` answered the
+question "can I do ancestry-aware analysis from the CLI?" with a yes that was true about labels and false
+about data. When auditing reachability, match on the *capability*, not on whether some related-sounding
+option exists; and the fastest way to settle it is to run the command and check the output actually
+contains what the capability promises, which here was one empty dict.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
