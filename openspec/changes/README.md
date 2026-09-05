@@ -1290,6 +1290,32 @@ available, alternate them in one session, and quote only the ratio. That habit t
 regression-hunt into a thirty-second answer, and it is the only way the cumulative ">10x" here is
 defensible.**
 
+## Round 48 — the optimization invalidated a benchmark two modules away (1 corrected claim)
+
+A question R47 raised and did not answer: `MIN_SELECTIVE_K = 5` is a threshold *calibrated against the cost
+structure R46 and R47 just rewrote. Is it still right?*
+
+It is still a reasonable threshold; the number attached to it is not. The constant's docstring said "k>=5
+gives a ~2-4x speedup," and the README's R2 note repeated "measured **~2–4x** there." Re-measured across six
+mismatch/bulge configurations with five repeats each: **0.94–1.12x — neutral within noise, hit sets
+identical in every configuration.** Nothing about the prefilter changed. What changed is that the work it
+prunes got ~50x cheaper, so its own `O(n)` cost — seed positions plus the covered-index prefix sum — now
+cancels the saving. The kernel's *own* lookup is still ~5-7x native-over-Python; that is a different
+measurement and it survives.
+
+**Shipped:** both claims corrected, in the constant's docstring and in the README's R2 note, each stating
+what was measured, when it changed, and why. The prefilter and the threshold stay: seeding at `k>=5` is
+exact and costs nothing measurable, and the route to making it pay again is the prefix-sum construction, not
+the constant. Removing an R2 deliverable on the strength of one synthetic 200 kb benchmark would be the
+wrong trade, and saying so is part of the finding.
+
+**Lesson: a performance number is not a fact about a function, it is a fact about a *system at a moment*,
+and it decays silently when anything else in the system improves. Nothing failed here — no test, no gate, no
+review would have caught it, because a stale speedup claim is still a green build. The only thing that
+catches it is asking, after every optimization, which previously-measured numbers the change just
+invalidated. Two modules away, in a constant nobody edited, was a README-facing figure that a user could
+plan capacity around.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

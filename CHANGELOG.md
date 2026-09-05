@@ -75,6 +75,19 @@ acceptance.
 
 ### Changed
 
+- **The k-mer seed prefilter's documented speedup was re-measured and is now ~1x; the claim is corrected
+  rather than left standing.** `MIN_SELECTIVE_K = 5` carried a calibration note — "k>=5 gives a ~2-4x
+  speedup" — and the README repeated it. Both were true when written. They are not true now: the two
+  preceding entries made the per-anchor work the prefilter prunes roughly 50x cheaper, so the prefilter's
+  own `O(n)` cost (building seed positions plus the covered-index prefix sum) cancels what it saves.
+  Re-measured across six mismatch/bulge configurations with five repeats each: **0.94-1.12x — neutral
+  within noise — with hit sets identical in every configuration.** The kernel's own lookup is still
+  ~5-7x native-over-Python, which is a different number and remains accurate. The prefilter is kept, and
+  the threshold unchanged: it is exact and costs nothing measurable, and making it pay again would mean
+  attacking the prefix-sum construction, not the constant. An optimization elsewhere silently invalidated
+  a benchmark citation two modules away, and a stale speedup claim in a README is a claim a user can plan
+  around.
+
 - **The off-target scan prunes two more ways, for a further ~2.5x on top of the previous round.** With the
   quadratic alignment gone, a re-profile put the remaining time in two places, both fixed exactly:
   - **The bulge alignment now bails out of each pass as soon as it exceeds the budget.** Both the prefix and

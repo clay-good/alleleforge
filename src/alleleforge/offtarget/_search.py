@@ -284,11 +284,20 @@ def _evaluate(
     return min(candidates, key=_rank)
 
 
-#: Minimum seed length for the prefilter to be worth it. Below this the seed is
-#: too short to be selective (a 4-symbol alphabet saturates short k-mers, so
-#: almost every window contains one) and seeding only adds overhead; the scan
-#: then falls back to the full brute force. Calibrated from the R2 micro-benchmark
-#: (``scripts/native_speedup.py``): k>=5 gives a ~2-4x speedup, k<=4 does not.
+#: Minimum seed length for the prefilter to be worth engaging. Below this the seed
+#: is too short to be selective (a 4-symbol alphabet saturates short k-mers, so
+#: almost every window contains one) and seeding is pure overhead; the scan then
+#: falls back to the full brute force.
+#:
+#: The threshold was calibrated when ``k>=5`` bought a ~2-4x scan-level speedup.
+#: That figure is stale: the per-anchor work the prefilter prunes has since become
+#: roughly 50x cheaper (the linear-time bulge alignment, its budget early-exit, and
+#: the memoized PAM test), so the prefilter's own ``O(n)`` cost -- seed positions
+#: plus the covered-index prefix sum -- now cancels what it saves. Re-measured over
+#: six mismatch/bulge configurations with repeats: **0.94-1.12x**, neutral within
+#: noise, hit sets identical throughout. The threshold is kept because seeding at
+#: ``k>=5`` is exact and costs nothing measurable, not because it is fast; making it
+#: pay again would mean attacking the prefix-sum construction, not this constant.
 MIN_SELECTIVE_K = 5
 
 

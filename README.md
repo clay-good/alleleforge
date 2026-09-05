@@ -275,7 +275,7 @@ correct pure-Python fallback and a byte-identical parity test, and each wired in
 | Kernel | What it does | Hot path | Parity test | Speedup |
 |---|---|---|---|:---:|
 | `bwt` | FM-index `build`/`count`/`locate`/`pam_sites` | reference scan (PAM seed-and-extend) | [`test_native.py`](tests/genome/test_native.py) | genome-scale |
-| `kmer` | exact length-`k` seed positions | seed prefilter (high-stringency scans) | [`test_kmer.py`](tests/offtarget/test_kmer.py) | ~2–4x / ~5–6x lookup |
+| `kmer` | exact length-`k` seed positions | seed prefilter (high-stringency scans) | [`test_kmer.py`](tests/offtarget/test_kmer.py) | ~5–7x lookup; scan-level ~1x today |
 | `haplotype` | apply a haplotype's variant set to a window | haplotype walk (stage 3 materialization) | [`test_haplotype_kernel.py`](tests/offtarget/test_haplotype_kernel.py) | ~4x |
 
 `FMIndex.build(prefer_native=True)` transparently uses the Rust index when the crate is present; the
@@ -482,9 +482,18 @@ attribute a site's burden to a population that merely shows a trace, sub-thresho
 > in-budget alignment shares an exact length-`k` seed with the spacer, so anchors whose window contains
 > no seed can be skipped without ever dropping a hit (an exhaustive randomized test pins seeded ≡
 > brute-force). It **auto-engages only when the seed is selective** (`k ≥ 5`, i.e. high-stringency / low
-> edit-budget scans) — measured **~2–4x** there ([`scripts/native_speedup.py`](scripts/native_speedup.py)) —
-> and is a transparent no-op at the default ≤4-mismatch+bulge budget, where the FM-index remains the
-> genome-scale path. See [`SPEC_V2.md`](SPEC_V2.md) R2.
+> edit-budget scans) and is a transparent no-op at the default ≤4-mismatch+bulge budget, where the FM-index
+> remains the genome-scale path.
+>
+> **Its scan-level payoff is currently ~1x, and that is worth stating plainly.** The prefilter once measured
+> ~2–4x on a high-stringency scan; since then the per-anchor work it prunes got roughly 50x cheaper (see the
+> off-target scan entries in [`CHANGELOG.md`](CHANGELOG.md)), so its own `O(n)` cost — building seed
+> positions and the covered-index prefix sum — now cancels the saving. Re-measured across six
+> mismatch/bulge configurations with repeats: **0.94–1.12x**, i.e. neutral within noise, with hit sets
+> identical in every case. The kernel's own lookup is still **~5–7x** native-over-Python; what changed is
+> what there was left to prune. The prefilter stays because it is exact and free, not because it is
+> currently fast. See [`SPEC_V2.md`](SPEC_V2.md) R2 and
+> [`scripts/native_speedup.py`](scripts/native_speedup.py).
 
 > [!NOTE]
 > **FM-index seed-and-extend on the reference scan (R2, landed).** Stage 1 now anchors PAMs through a
