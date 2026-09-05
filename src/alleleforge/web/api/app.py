@@ -38,6 +38,7 @@ from alleleforge.report.builder import (
 )
 from alleleforge.report.html import render_html
 from alleleforge.report.pdf import render_pdf
+from alleleforge.types.sequence import GenomicInterval
 from alleleforge.web.api.jobs import JobCapacityError, JobManager
 from alleleforge.web.api.models import (
     BatchItemResult,
@@ -52,6 +53,7 @@ from alleleforge.web.api.models import (
     JobSubmitResponse,
     OffTargetRequest,
     OffTargetResponse,
+    Region,
     ResolveRequest,
     ResolveResponse,
 )
@@ -129,6 +131,20 @@ def _design_options(
     return intent, chemistries, weights
 
 
+def _regions(regions: list[Region] | None) -> list[GenomicInterval] | None:
+    """Convert request regions to intervals, or ``None`` for "search everything".
+
+    An empty list must stay ``None``: restricting a scan to no intervals would find
+    nothing and report every guide spotless.
+    """
+    if not regions:
+        return None
+    try:
+        return [region.to_interval() for region in regions]
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
     """Resolve + design + build a report for a design request (or ``4xx``)."""
     from alleleforge.design.designer import design as run_design
@@ -145,6 +161,7 @@ def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
         chemistries=chemistries,
         weights=weights,
         populations=req.populations,
+        offtarget_regions=_regions(req.offtarget_regions),
         cell_context=req.cell_context,
         run_offtarget=req.run_offtarget,
         max_candidates_per_chemistry=req.max_per_chemistry,
@@ -326,6 +343,7 @@ def create_app(
                 PAM(pattern=req.pam),
                 reference=reference,
                 on_target=locus,
+                regions=_regions(req.offtarget_regions),
                 mismatches=req.mismatches,
                 dna_bulges=req.dna_bulges,
                 rna_bulges=req.rna_bulges,

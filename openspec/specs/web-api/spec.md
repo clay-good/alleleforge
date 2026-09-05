@@ -137,3 +137,21 @@ malformed locus SHALL be a 422, never a silently un-excluded search.
 #### Scenario: Malformed locus
 - **WHEN** `on_target` is not a valid interval
 - **THEN** the request is rejected with 422
+
+### Requirement: A scan can be scoped over HTTP
+
+`POST /api/design` and `POST /api/offtarget` SHALL accept a list of intervals
+restricting the off-target search. A restriction is *data*, not a filesystem path,
+so it carries none of the server-side file-read risk that keeps the file-backed
+safety inputs off this surface. A region SHALL NOT require a strand — a restriction
+covers both — while still accepting a `locus` copied from a previous response. An
+empty interval SHALL be rejected, since a zero-width restriction would scope the
+scan to nothing and report every guide spotless.
+
+#### Scenario: Region excluding the site
+- **WHEN** the search is restricted to an interval that does not contain a known site
+- **THEN** the site is not reported
+
+#### Scenario: Empty interval
+- **WHEN** a region's end is not after its start
+- **THEN** the request is rejected with 422

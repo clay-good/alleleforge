@@ -597,3 +597,52 @@ async def test_design_cell_context_drives_the_ood_flag(
     top = res.json()["candidates"][0]
     assert top["efficiency"]["in_distribution"] is expect_in_distribution
     assert ("ood" in top["flags"]) is not expect_in_distribution
+
+
+async def test_offtarget_regions_scope_the_web_search(client: httpx.AsyncClient) -> None:
+    """Region scoping is safe to expose over HTTP — it is data, not a file path.
+
+    The file-backed safety inputs stay CLI-only because a client-supplied path is a
+    server-side file-read primitive. Intervals are neither: they are the same shape
+    a reported site's `locus` already has, so a client can build one from a previous
+    response.
+    """
+    body = {"spacer": ON_TARGET_SPACER}
+    everywhere = (await client.post("/api/offtarget", json=body)).json()
+    assert everywhere["n_sites"] >= 1
+
+    away = await client.post(
+        "/api/offtarget",
+        json={**body, "offtarget_regions": [{"chrom": "chr2", "start": 200, "end": 300}]},
+    )
+    assert away.status_code == 200
+    assert away.json()["n_sites"] == 0
+
+    # A window containing the site — wide enough for the scan to place a
+    # protospacer and its PAM, which the site's own 20 bp span is not.
+    over = await client.post(
+        "/api/offtarget",
+        json={**body, "offtarget_regions": [{"chrom": "chr2", "start": 0, "end": 140}]},
+    )
+    assert over.status_code == 200
+    assert over.json()["n_sites"] == everywhere["n_sites"]
+
+    # An empty interval is refused rather than silently scoping the scan to nothing.
+    empty = await client.post(
+        "/api/offtarget",
+        json={**body, "offtarget_regions": [{"chrom": "chr2", "start": 50, "end": 50}]},
+    )
+    assert empty.status_code == 422
+
+
+async def test_design_offtarget_regions_are_accepted(client: httpx.AsyncClient) -> None:
+    res = await client.post(
+        "/api/design",
+        json={
+            "variant": "chr2:71:A>C",
+            "intent": "install",
+            "offtarget_regions": [{"chrom": "chr2", "start": 0, "end": 140}],
+        },
+    )
+    assert res.status_code == 200
+    assert res.json()["candidates"]

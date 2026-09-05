@@ -2179,6 +2179,33 @@ through every serialization boundary and then quietly omitted at the last one. I
 to a model for honesty's sake, the same change should add it to the render — otherwise it becomes a
 disclosure that only satisfies a machine.**
 
+## Round 81 — re-examining my own exclusion, and finding it too broad
+
+R75 declined to put the safety inputs on the web API, for a real reason: a client-supplied filesystem path
+is a server-side file-read primitive. R78 then added region scoping to the CLI and I filed it under the
+same exclusion. Re-reading it: **a region restriction is not a file.** It is a list of intervals — data,
+the same shape a reported site's `locus` already has — and carries none of that risk. The exclusion was
+right for four inputs and wrong for the fifth, because I applied it to the batch rather than to each
+member.
+
+**Shipped:** `offtarget_regions` on `POST /api/design` and `POST /api/offtarget`, via a small `Region`
+model that deliberately does **not** require a strand (a restriction covers both by construction) while
+still accepting a `locus` pasted from a previous response, whose extra keys are ignored. Two failure modes
+handled: an empty interval is a 422 rather than a scan silently scoped to nothing, and an empty *list*
+means "search everything" rather than "search nowhere".
+
+**A test that was wrong, not the code.** Restricting the scan to a site's own 20 bp span returned zero
+sites, which looked like a bug. It is correct: the scan needs room to place a protospacer *and* its PAM,
+which a 20 bp window does not give. The test now uses a containing window and says why — a note worth
+leaving, because the intuition "restrict to the hit's locus and you should still find the hit" is wrong
+here and someone will have it again.
+
+**Lesson: a security exclusion should be justified per capability, not per batch. "The file inputs are
+unsafe over HTTP" was a correct sentence that quietly absorbed a non-file input standing next to them, and
+the cost was a capability withheld from a whole surface for a reason that did not apply to it. Blanket
+exclusions are cheap to write and hard to notice being wrong, because nothing fails — the capability is
+simply missing, and the reason sounds sound.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -10,6 +10,16 @@ acceptance.
 
 ### Added
 
+- **Region scoping is now available over HTTP too — I had mis-classified it as a file input.** The
+  file-backed safety sources stay CLI-only for a real reason (a client-supplied path is a server-side
+  file-read primitive), but a *region restriction* is data, not a path, and carries none of that risk.
+  `POST /api/design` and `POST /api/offtarget` now take `offtarget_regions`. They accept a small `Region`
+  shape that does **not** require a strand — a restriction covers both by construction — while still
+  accepting a `locus` copied verbatim out of a previous response, whose extra `strand` and
+  `coordinate_system` keys are ignored. An empty interval is a 422 rather than a silent scoping of the scan
+  to nothing, which would report every guide spotless; an empty *list* means "search everything", not
+  "search nowhere".
+
 - **`design()` could not scope an off-target search at all, and now can — reachable as `--region` /
   `--regions-bed`.** Every *vertical* (`design_cas9`, `design_prime`, the base-editor path) accepts
   `offtarget_regions`, and `search()` takes `regions`. The unified `design()` entry point — the one the CLI

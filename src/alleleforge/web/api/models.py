@@ -14,7 +14,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field
 
 from alleleforge.types.offtarget import OffTargetReport
-from alleleforge.types.sequence import GenomicInterval
+from alleleforge.types.sequence import GenomicInterval, Strand
 
 #: Maximum number of variants a single batch request may carry. Bounds the work a
 #: caller can queue in one request, so a shared (non-loopback) deployment cannot be
@@ -34,6 +34,10 @@ MAX_SPACER_LEN = 512
 MAX_PAM_LEN = 64
 #: Longest accepted cell-line / cell-type label.
 MAX_CELL_CONTEXT_LEN = 128
+#: Longest accepted contig name.
+MAX_CHROM_LEN = 128
+#: Most intervals a single request may restrict a scan to.
+MAX_REGIONS = 1000
 MAX_POPULATIONS = 64
 MAX_CHEMISTRIES = 16
 
@@ -91,6 +95,15 @@ class DesignRequest(BaseModel):
         default=None,
         max_length=MAX_POPULATIONS,
         description="Ancestry labels to query and stratify off-target by.",
+    )
+    offtarget_regions: list[Region] | None = Field(
+        default=None,
+        max_length=MAX_REGIONS,
+        description=(
+            "Restrict the off-target search to these intervals (default: every contig). "
+            "Scoping to a gene panel is usually what makes a scan over a real reference "
+            "practical. Sent as objects, the same shape a reported site's `locus` has."
+        ),
     )
     cell_context: str | None = Field(
         default=None,
@@ -183,6 +196,34 @@ class BatchResponse(BaseModel):
     disclaimer: str
 
 
+class Region(BaseModel):
+    """A search-restriction interval: a locus without a strand.
+
+    A restriction covers both strands by construction, so requiring one would be
+    noise — but a client's most natural source for an interval is a `locus` copied
+    out of a previous response, which *does* carry `strand` and
+    `coordinate_system`. This accepts either: the extra keys are ignored and the
+    strand is not read.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    chrom: str = Field(max_length=MAX_CHROM_LEN)
+    start: int = Field(ge=0)
+    end: int = Field(ge=0)
+
+    def to_interval(self) -> GenomicInterval:
+        """Return the plus-strand :class:`GenomicInterval` this region names.
+
+        Raises:
+            ValueError: If the interval is empty — a zero-width restriction would
+                silently scope the scan to nothing and report every guide spotless.
+        """
+        if self.end <= self.start:
+            raise ValueError(f"region {self.chrom}:{self.start}-{self.end} is empty")
+        return GenomicInterval(chrom=self.chrom, start=self.start, end=self.end, strand=Strand.PLUS)
+
+
 class OffTargetRequest(BaseModel):
     """A request for a standalone population-aware off-target search."""
 
@@ -207,6 +248,15 @@ class OffTargetRequest(BaseModel):
     )
     populations: list[PopulationStr] | None = Field(
         default=None, max_length=MAX_POPULATIONS, description="Ancestry labels to stratify by."
+    )
+    offtarget_regions: list[Region] | None = Field(
+        default=None,
+        max_length=MAX_REGIONS,
+        description=(
+            "Restrict the off-target search to these intervals (default: every contig). "
+            "Scoping to a gene panel is usually what makes a scan over a real reference "
+            "practical. Sent as objects, the same shape a reported site's `locus` has."
+        ),
     )
     on_target: GenomicInterval | None = Field(
         default=None,
