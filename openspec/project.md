@@ -67,6 +67,24 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
 - **Determinism.** Given the same inputs, seed, and versions, outputs are byte-stable.
 - **Coordinates.** Be explicit about 0- vs 1-based and half-open conventions in every
   requirement that touches genomic position.
+- **Before writing a local version of something the codebase already does, read the
+  existing one.** This has now bitten three times, always the same way: a new, more
+  central implementation re-broke a problem an older corner had already solved *and
+  documented*.
+  - `EditFrame` mapped a span's start and end boundaries with one function;
+    `offtarget/_search.py`'s `_alt_coordinate_lift` had long since split its lift into
+    `lo`/`hi` maps, with a docstring saying why. The single map mis-placed any span
+    starting at a pure deletion.
+  - `design_prime`'s in-run off-target cache keyed on the spacers alone;
+    `offtarget/cache.py`'s `search_signature` already keyed on the on-target locus too,
+    with a docstring warning that omitting it means one guide is "served the other's
+    report, silently either counting the self-match or hiding a perfect-score site".
+  - `_overlay_allele` was taught to handle a length-changing allele while
+    `_cut_outcome`, one function over, kept the restriction it had just lost.
+
+  The practical rule: when you add a coordinate map, a cache key, or an allele
+  overlay, grep for the other ones first. The older implementation has usually already
+  paid for the lesson, and its docstring is where the lesson is written down.
 
 ## Existing planning docs (background, not OpenSpec)
 

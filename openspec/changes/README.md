@@ -1843,6 +1843,37 @@ latent hazard whose trigger is "a repeat region", which is exactly the context t
 Also worth naming: the finding came from reading code the *profiler* pointed at, not code I set out to
 audit — 20 scans for 451 candidates was an oddity worth understanding, and the cache was the explanation.**
 
+## Round 68 — the cache-key sweep (clean bill), and codifying a pattern that has now bitten three times
+
+Ran R67's finding as a query across every cache in the library. **All clean:**
+- `offtarget/cache.py`'s `search_signature` already includes the on-target locus — and its docstring
+  already warns about the exact hazard R67 fixed: two searches "collide on one key and one is served the
+  other's report, silently either counting the self-match or hiding a perfect-score site".
+- The VEP adapter keys on `(variant, assembly, transcript)`, which is every input `predict` takes.
+- `CachedEmbedder.persistent` scopes its disk store to `f"{name}-{version}"`, so two models' embeddings
+  cannot collide on a shared sequence hash.
+- R47's per-scan `pam_ok` memo is keyed on the window string within one scan, where the PAM is fixed.
+
+**The finding is the pattern, not the sweep.** That is the *third* time this session a newer, more central
+implementation re-broke something an older corner had already solved and documented:
+
+| New code | Older code that already had it right |
+|---|---|
+| `EditFrame`'s single coordinate map (R65) | `_alt_coordinate_lift`'s `lo`/`hi` split, with a docstring explaining why |
+| `design_prime`'s spacer-only cache key (R67) | `search_signature`'s on-target-inclusive key, with a docstring naming the hazard |
+| `_cut_outcome`'s length-preserving guard (R51) | `_overlay_allele`, one function over, which had just lost it (R42) |
+
+Codified in `openspec/project.md` under the conventions a spec must respect, with all three instances and
+the practical rule: **when you add a coordinate map, a cache key, or an allele overlay, grep for the other
+ones first.**
+
+**Lesson: the reason this keeps happening is that the older implementation is usually in a module you are
+not editing, and its lesson lives in a docstring rather than a type or a test — so nothing surfaces it at
+the moment you need it. Three instances is enough to stop treating each as bad luck. A convention note is
+a weak mechanism, but it is the right weight here: the alternative (extracting one shared coordinate/cache
+primitive across `offtarget` and `enumerate`) would couple two subsystems that have good reasons to stay
+separate, and would itself be a fourth new central implementation.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
