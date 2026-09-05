@@ -3340,14 +3340,19 @@ missing-source warning stays silent, and the empty ancestry breakdown — which 
 explain — is left to speak for itself. This is the more dangerous of the two cases: nothing is missing, so
 nothing prompts a second look. A per-chromosome download, a region subset, a filtered slice all reach it.
 
-**Shipped:** `population_variants_considered`, keeping three states apart — `None` (no source), `0`
-(supplied, covered nothing here), `n` — and a description that explains the empty breakdown when it is `0`.
+**Shipped:** `sources_considered`, a mapping from each **supplied** source to how many of its entries fell
+in the searched region — key absent means "not supplied", `0` means "supplied and covered nothing here" —
+and a description that explains the empty breakdown. It covers gnomAD, haplotype panels and patient VCFs
+together, because a panel for another locus is exactly as inert as a frequency file for another locus, and
+my first pass had checked only gnomAD: the very shape this round is about. A mapping rather than a field per
+source, since the set of sources grows and one of them silently missing the check is how the gap arose.
 
-A note on the fix itself. My first version counted with `population_variants = (population_variants or 0) +
-len(variants)`, and the mutation run caught it: removing the initializer changed nothing, because the `or`
-default recreated it. That is the exact falsy-default pattern I had swept the codebase for seven rounds
-earlier, written by me, in the code whose entire purpose is keeping `None` and `0` distinct. Restructured so
-the three states are set explicitly and the mutation now fails.
+Two notes on the fix itself. It began as a single `population_variants` counter and only reached the other
+two sources when I asked, out of habit by now, "which siblings did I just skip?" — the answer was two of
+three. And my first version counted with `population_variants = (population_variants or 0) + len(variants)`,
+which the mutation run caught: removing the initializer changed nothing, because the `or` recreated it. That
+is the falsy-default pattern I had swept the codebase for seven rounds earlier, written by me, in the code
+whose entire purpose is keeping `None` and `0` distinct.
 
 **Lesson: "the input is present" is not "the input applies". A supplied-and-inert dependency is worse than a
 missing one, because absence prompts a question and presence closes it. Check coverage, not configuration.**

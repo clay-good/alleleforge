@@ -145,10 +145,17 @@ class OffTargetReport(BaseModel):
     #: "0 sites" as one over fully-resolved sequence.
     searched_bases: int = 0
     resolved_bases: int = 0
-    #: Population variants the supplied frequency source contributed in the searched
-    #: region(s). ``None`` when no source was supplied at all — which is a different
-    #: statement from ``0``, "a source was supplied and covered nothing here".
-    population_variants_considered: int | None = None
+    #: For each safety source the caller **supplied**, how many of its entries fell in
+    #: the searched region(s). An absent key means the source was not supplied at all;
+    #: a key mapping to ``0`` means it was supplied and covered nothing here. Those are
+    #: different statements and produce identical reports otherwise — an empty ancestry
+    #: breakdown reads as "clean" either way.
+    #:
+    #: A mapping rather than a field per source, because the sources are a growing set
+    #: (gnomAD, haplotype panels, patient VCFs, and whatever comes next) and one of them
+    #: getting the check while the others did not is how the gap arose in the first
+    #: place.
+    sources_considered: dict[str, int] = {}
     reference_build: str = "hg38"
     scorer: str | None = None
     score_matrix: str | None = None
@@ -176,11 +183,12 @@ class OffTargetReport(BaseModel):
                     f"; only {fraction:.0%} of the {self.searched_bases:,} requested bases "
                     "were searchable (the rest are assembly gaps or ambiguity codes)"
                 )
-        if self.population_variants_considered == 0:
+        inert = sorted(name for name, n in self.sources_considered.items() if n == 0)
+        if inert:
             coverage += (
-                "; a population frequency source was supplied but contributed no "
-                "variants in this region, so the scan is effectively reference-only "
-                "here and the ancestry breakdown is empty for that reason"
+                f"; supplied but contributing nothing in this region: {', '.join(inert)} "
+                "— the scan is that much closer to reference-only here, and an empty "
+                "ancestry breakdown means 'not measured', not 'clean'"
             )
         return (
             f"up to {self.mismatch_threshold} mismatches, "

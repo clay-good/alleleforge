@@ -386,15 +386,15 @@ def search(
     # reads as "clean". The warning for a *missing* source has existed for a while; a
     # source that is present and inert produced no warning at all, and is the more
     # dangerous case because the user believes they did it right.
-    # Three states, kept distinct: None (no source given), 0 (given and covered
+    # Three states, kept distinct: key absent (no source given), 0 (given and covered
     # nothing here), n (given and contributed n). Counted without an `or` default,
     # which would collapse the first two — the whole point is that they differ.
-    population_variants: int | None = None
+    sources_considered: dict[str, int] = {}
     if gnomad is not None:
-        population_variants = 0
+        sources_considered["gnomad"] = 0
         for region in search_regions:
             variants = gnomad.frequencies(region, populations=populations, maf=maf)
-            population_variants += len(variants)
+            sources_considered["gnomad"] += len(variants)
             tagged.extend(
                 enumerate_population_sites(
                     sp,
@@ -409,6 +409,33 @@ def search(
             )
 
     # Stage 3 — haplotype-aware evaluation.
+    #
+    # Haplotype panels and patient VCFs are consumed whole and region-filtered after
+    # the fact, so "did this source cover the search?" is asked here against the same
+    # regions. Same three states as gnomAD above: a panel supplied for another locus
+    # yields 0 and must not read like a panel that had nothing to say.
+    if haplotype_list:
+        sources_considered["haplotypes"] = sum(
+            1
+            for hap in haplotype_list
+            if any(
+                any(
+                    canonical_contig(v.chrom) == canonical_contig(r.chrom)
+                    and r.start <= v.pos < r.end
+                    for r in search_regions
+                )
+                for v in hap.variants
+            )
+        )
+    if patient_vcf is not None:
+        sources_considered["patient-vcf"] = sum(
+            1
+            for v in patient_vcf
+            if any(
+                canonical_contig(v.chrom) == canonical_contig(r.chrom) and r.start <= v.pos < r.end
+                for r in search_regions
+            )
+        )
     tagged.extend(
         enumerate_haplotype_sites(
             sp,
@@ -474,7 +501,7 @@ def search(
         mit_threshold=mit_threshold,
         searched_bases=total_bases,
         resolved_bases=resolved_bases,
-        population_variants_considered=population_variants,
+        sources_considered=sources_considered,
         reference_build=reference.build or "hg38",
         scorer=primary.name,
         score_matrix=getattr(primary, "matrix", None),

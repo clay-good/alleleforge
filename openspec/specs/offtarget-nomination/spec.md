@@ -233,8 +233,9 @@ materially below the whole. A fully-resolved region SHALL produce no such statem
 
 ### Requirement: A supplied population source that contributes nothing is reported
 
-A frequency source can be present and cover none of the searched region — a
-per-chromosome download, a region subset, a filtered slice — and the resulting report is
+Any safety source — a frequency file, a haplotype panel, a patient VCF — can be present
+and cover none of the searched region: a per-chromosome download, a region subset, a
+panel for another locus — and the resulting report is
 indistinguishable from a reference-only scan, including the empty ancestry breakdown. The
 system SHALL keep three states distinct: no source supplied, a source supplied that
 contributed no variants here, and a source that contributed some; and SHALL explain the
@@ -243,8 +244,8 @@ empty breakdown in the second case.
 The missing-source case is already warned about. The supplied-and-inert case is the more
 dangerous one, because nothing is absent to prompt a second look.
 
-#### Scenario: A frequency file covering another locus
-- **WHEN** a population source is supplied whose variants all fall outside the searched region
+#### Scenario: A source covering another locus
+- **WHEN** any safety source is supplied whose entries all fall outside the searched region
 - **THEN** the report says the source contributed nothing here and that the scan is
   effectively reference-only
 

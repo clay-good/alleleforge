@@ -10,14 +10,18 @@ acceptance.
 
 ### Added
 
-- **A population source that covers nothing in the searched region now says so.** The warning for a
-  *missing* frequency source has existed for a while; a source that is **present and inert** produced
-  nothing at all — and its report is byte-identical to a reference-only scan, with an empty ancestry
-  breakdown that reads as clean, while the user believes they supplied the data. A per-chromosome gnomAD
-  download, a region subset or a filtered slice all land here. `OffTargetReport` now records
-  `population_variants_considered`, keeping three states distinct: `None` (no source given), `0` (given and
-  covered nothing here), `n` (given and contributed `n`). The search description explains the empty
-  breakdown when it is `0`.
+- **A safety source that is supplied but covers nothing in the searched region now says so.** The warning
+  for a *missing* frequency source has existed for a while; a source that is **present and inert** produced
+  nothing at all — and its report is byte-identical to a reference-only scan, empty ancestry breakdown
+  included, while the user believes they supplied the data. A per-chromosome gnomAD download, a region
+  subset, a haplotype panel for another locus, a patient VCF from a different sample: all land here, and
+  this is the more dangerous case, because nothing is absent to prompt a second look.
+
+  `OffTargetReport` carries `sources_considered`, a mapping from each **supplied** source to how many of its
+  entries fell in the searched region. An absent key means "not supplied", `0` means "supplied and covered
+  nothing here", and those are different statements. A mapping rather than a field per source deliberately:
+  the sources are a growing set, and checking one while its siblings go unchecked is exactly how this gap
+  arose.
 
   Two things checked and found sound, worth recording: **contig naming** (an Ensembl-style `11` gnomAD file
   against a UCSC `chr11` reference gives identical results — `canonical_contig` does its job), and

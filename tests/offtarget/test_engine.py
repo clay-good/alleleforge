@@ -459,8 +459,10 @@ def test_a_population_source_that_covers_nothing_here_says_so(make_reference: Ma
         [_pf(chrom="chr9", pos=1000, ref="A", alt="G", overall_af=0.08, populations={"afr": 0.1})]
     )
     inert = search(SPACER, NGG, reference=reference, gnomad=elsewhere, populations=("afr",))
-    assert inert.population_variants_considered == 0
-    assert "contributed no variants in this region" in inert.search_description()
+    assert inert.sources_considered == {"gnomad": 0}
+    assert "supplied but contributing nothing in this region: gnomad" in (
+        inert.search_description()
+    )
 
     # A source that does cover the region says nothing: the caveat tracks the data.
     here = GnomadDB(
@@ -476,11 +478,64 @@ def test_a_population_source_that_covers_nothing_here_says_so(make_reference: Ma
         ]
     )
     covered = search(SPACER, NGG, reference=reference, gnomad=here, populations=("afr",))
-    assert covered.population_variants_considered == 1
-    assert "contributed no variants" not in covered.search_description()
+    assert covered.sources_considered == {"gnomad": 1}
+    assert "contributing nothing" not in covered.search_description()
 
     # No source at all is a third state, not the same as "supplied and empty": the
     # existing reference-only warning covers it, and this caveat must not fire.
     none_given = search(SPACER, NGG, reference=reference)
-    assert none_given.population_variants_considered is None
-    assert "contributed no variants" not in none_given.search_description()
+    assert none_given.sources_considered == {}  # absent, not zero
+    assert "contributing nothing" not in none_given.search_description()
+
+
+def test_every_supplied_safety_source_gets_the_same_coverage_check(
+    make_reference: MakeRef,
+) -> None:
+    """gnomAD was checked and the other two were not — the shape this audit keeps finding.
+
+    A haplotype panel or a patient VCF for another locus is exactly as inert as a
+    gnomAD file for another locus, and produces exactly the same empty ancestry
+    breakdown. Checking one source and not its siblings is how the gap arose.
+    """
+    reference = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    elsewhere = Variant(chrom="chr9", pos=5000, ref="A", alt="G", build="hg38")
+    here = Variant(chrom="chr2", pos=len(PAD) + 2, ref=SPACER[2], alt="G", build="hg38")
+
+    inert = search(
+        SPACER,
+        NGG,
+        reference=reference,
+        haplotypes=[
+            Haplotype(
+                hap_id="h1",
+                interval=GenomicInterval(chrom="chr9", start=4990, end=5010, strand=Strand.PLUS),
+                variants=(elsewhere,),
+                frequencies={"afr": 0.2},
+                source="1000g",
+            )
+        ],
+        patient_vcf=[elsewhere],
+        populations=("afr",),
+    )
+    assert inert.sources_considered == {"haplotypes": 0, "patient-vcf": 0}
+    described = inert.search_description()
+    assert "haplotypes" in described and "patient-vcf" in described
+
+    covering = search(
+        SPACER,
+        NGG,
+        reference=reference,
+        haplotypes=[
+            Haplotype(
+                hap_id="h1",
+                interval=GenomicInterval(chrom="chr2", start=10, end=40, strand=Strand.PLUS),
+                variants=(here,),
+                frequencies={"afr": 0.2},
+                source="1000g",
+            )
+        ],
+        patient_vcf=[here],
+        populations=("afr",),
+    )
+    assert covering.sources_considered == {"haplotypes": 1, "patient-vcf": 1}
+    assert "contributing nothing" not in covering.search_description()
