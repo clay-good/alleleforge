@@ -1024,9 +1024,10 @@ flowchart LR
 > `--gnomad` (population allele frequencies), `--haplotypes` (a phased common-haplotype panel) and
 > `--patient-vcf` (this genome's own variants) — all three available on `design`, `batch` and `offtarget`.
 > Asking for ancestries with none of them supplied prints a warning saying the scan was reference-only and
-> the empty ancestry breakdown means **not measured**, not clean. Two `design()` capabilities remain
-> library-only and are not yet reachable from any shell: `offtarget_regions` (restrict the search to given
-> intervals) and `encode_tracks`/`chromatin_track` (the ePRIDICT open-chromatin efficiency adjustment).
+> the empty ancestry breakdown means **not measured**, not clean. Scope a scan with `--region
+> chrom:start-end` (repeatable) or `--regions-bed panel.bed` — over a real reference that is usually what
+> makes a run practical. One `design()` capability remains library-only:
+> `encode_tracks`/`chromatin_track` (the ePRIDICT open-chromatin efficiency adjustment).
 | `aforge data list` / `show <name>` | Inspect the dataset registry (versions, licenses, provenance). |
 | `aforge bench list` / `run` | List and run CRISPR-Bench tasks against frozen splits. |
 | `aforge bench leaderboard <result.json…>` | Aggregate signed results into the model-card-gated leaderboard (Markdown/HTML). |

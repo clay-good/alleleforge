@@ -52,6 +52,7 @@ from alleleforge.scoring.prime_outcome import PrimeOutcomePredictor
 from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import Chemistry, EditIntent
 from alleleforge.types.provenance import DatasetVersion, ModelCheckpoint, Provenance
+from alleleforge.types.sequence import GenomicInterval
 from alleleforge.types.variant import Variant
 from alleleforge.variant.effect import EffectPredictor
 from alleleforge.variant.hgvs_adapter import HgvsAdapter
@@ -105,6 +106,7 @@ def design(
     patient_vcf: Iterable[Variant] | None = None,
     gnomad: GnomadDB | None = None,
     haplotypes: Iterable[Haplotype] = (),
+    offtarget_regions: Sequence[GenomicInterval] | None = None,
     cell_context: str | None = None,
     run_offtarget: bool = True,
     max_candidates_per_chemistry: int | None = None,
@@ -134,6 +136,9 @@ def design(
         patient_vcf: Personal variants for off-target personalization.
         gnomad: gnomAD DB for population-aware off-target.
         haplotypes: Common haplotypes for haplotype-aware off-target.
+        offtarget_regions: Restrict the off-target search to these intervals
+            (default: every contig). Scoping a whole-genome scan to a gene panel
+            is usually what makes a run over a real reference practical.
         cell_context: Target cell context (prime efficiency OOD honesty).
         cas9_efficiency_scorer: Override the SpCas9 on-target efficiency scorer
             (e.g. the opt-in trained Rule Set 3 model); default is the weight-free
@@ -207,6 +212,7 @@ def design(
             gnomad=gnomad,
             haplotypes=haplotypes,
             patient_vcf=patient_vcf,
+            offtarget_regions=offtarget_regions,
             populations=populations,
             run_offtarget=run_offtarget,
             max_candidates=None,  # cap deferred to the composite ranker
@@ -353,6 +359,7 @@ def _run_base_editors(
     haplotypes: Iterable[Haplotype],
     patient_vcf: Iterable[Variant] | None,
     populations: Sequence[str] | None,
+    offtarget_regions: Sequence[GenomicInterval] | None,
     run_offtarget: bool,
     max_candidates: int | None,
     notes: list[str],
@@ -373,6 +380,7 @@ def _run_base_editors(
             gnomad=gnomad,
             haplotypes=haplotypes,
             patient_vcf=patient_vcf,
+            offtarget_regions=offtarget_regions,
             populations=populations,
             run_offtarget=run_offtarget,
             max_candidates=max_candidates,

@@ -1187,3 +1187,41 @@ def test_the_unbacked_ancestry_warning_respects_every_source(
     result = runner.invoke(app, args)
     assert result.exit_code == 0
     assert ("REFERENCE-ONLY" in result.stderr) is expect_warning
+
+
+def test_region_restriction_scopes_the_search(
+    runner: CliRunner, bias_case: tuple[Path, Path, str], tmp_path: Path
+) -> None:
+    """Scoping is what makes a real-genome scan practical; it must actually scope.
+
+    `design()` did not accept a region restriction at all until this was wired, so
+    the unified entry point — the one the CLI and web API are shells over — could
+    not narrow a whole-genome search.
+    """
+    fasta, sites, spacer = bias_case
+    base = ["offtarget", spacer, "--reference-fasta", str(fasta), "--gnomad", str(sites), "--json"]
+    everywhere = json.loads(runner.invoke(app, base).output)
+    assert everywhere["n_sites"] == 1
+
+    # A window that excludes the site's locus (chr2:10-30) finds nothing...
+    away = json.loads(runner.invoke(app, [*base, "--region", "chr2:100-200"]).output)
+    assert away["n_sites"] == 0
+    # ...and one that contains it still does.
+    over = json.loads(runner.invoke(app, [*base, "--region", "chr2:0-43"]).output)
+    assert over["n_sites"] == 1
+
+    bed = tmp_path / "panel.bed"
+    bed.write_text("# a gene panel\nchr2\t0\t43\n")
+    from_bed = json.loads(runner.invoke(app, [*base, "--regions-bed", str(bed)]).output)
+    assert from_bed["n_sites"] == 1
+
+
+def test_a_malformed_region_is_a_usage_error(
+    runner: CliRunner, bias_case: tuple[Path, Path, str]
+) -> None:
+    """A typo must not silently widen the search back to the whole genome."""
+    fasta, _sites, spacer = bias_case
+    result = runner.invoke(
+        app, ["offtarget", spacer, "--reference-fasta", str(fasta), "--region", "nonsense"]
+    )
+    assert result.exit_code == ExitCode.USAGE

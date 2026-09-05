@@ -2101,6 +2101,29 @@ neighbouring flag stand in. Writing down what a feature needs *from the user* is
 this: "population-aware" is not an adjective a tool has, it is a thing a tool does when given a file, and
 the moment you have to write that sentence you notice whether the file can be given.**
 
+## Round 78 — the gap was one layer deeper than the shells
+
+Went to expose the last practical off-target knob, `offtarget_regions`, on the CLI — and found the
+reachability gap was not in the shells at all. **`design()` does not accept a region restriction.** Every
+vertical does (`design_cas9`, `design_prime`, the base-editor path all take `offtarget_regions`; `search()`
+takes `regions`), and the unified entry point — the one the CLI and web API are thin shells over — took
+none of them and passed nothing through. A whole-genome scan could not be narrowed from anywhere except by
+calling a vertical directly, and over a real reference that scoping is the difference between a practical
+run and an impractical one.
+
+**Shipped:** `design()` gains `offtarget_regions` and threads it to all three verticals; the CLI exposes
+repeatable `--region chrom:start-end` and `--regions-bed panel.bed` on `design`, `batch` and `offtarget`.
+Two failure modes handled deliberately: a malformed region is a **usage error**, not a silent widening back
+to the whole genome; and an empty restriction stays `None` ("search everything") rather than becoming an
+empty list, which would restrict the search to *nothing* and report every guide spotless — the reassuring
+value again, from an accidental `[]`.
+
+**Lesson: "can a user reach this?" has more than two answers. The previous rounds assumed the library was
+complete and the shells were behind it; here the aggregating layer was the one missing the parameter, and
+the shells were faithful to it. When a capability is present in N specific implementations and absent from
+the thing that composes them, every caller of the composer silently loses it — and it looks like a shell
+problem right up until you read the composer's signature. Check the aggregator, not just the endpoints.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

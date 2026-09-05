@@ -36,7 +36,7 @@ from alleleforge._version import __version__
 from alleleforge.config import DEFAULT_REFERENCE, DEFAULT_SEED
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
-from alleleforge.types.sequence import GenomicInterval
+from alleleforge.types.sequence import GenomicInterval, Strand
 from alleleforge.types.variant import Variant
 
 
@@ -266,6 +266,37 @@ class OutputFormat(StrEnum):
     pdf = "pdf"
 
 
+def _load_regions(regions: list[str] | None, bed: Path | None) -> list[GenomicInterval] | None:
+    """Merge ``--region`` loci and a ``--regions-bed`` file into one restriction list.
+
+    ``None`` means "search everything", which is what the engine defaults to — so an
+    empty result here must stay ``None`` rather than becoming an empty list, which
+    would restrict the search to nothing and report a spotless guide.
+    """
+    out: list[GenomicInterval] = []
+    for text in regions or ():
+        try:
+            out.append(GenomicInterval.parse(text))
+        except ValueError as exc:
+            _echo_err(f"error: {exc}")
+            raise typer.Exit(ExitCode.USAGE) from exc
+    if bed is not None:
+        try:
+            for line in bed.read_text().splitlines():
+                if not line.strip() or line.startswith(("#", "track", "browser")):
+                    continue
+                cols = line.split()
+                out.append(
+                    GenomicInterval(
+                        chrom=cols[0], start=int(cols[1]), end=int(cols[2]), strand=Strand.PLUS
+                    )
+                )
+        except (OSError, IndexError, ValueError) as exc:
+            _echo_err(f"error: could not read --regions-bed {bed}: {exc}")
+            raise typer.Exit(ExitCode.MISSING_DATA) from exc
+    return out or None
+
+
 def _load_haplotypes(path: Path | None) -> tuple[Haplotype, ...]:
     """Load a phased-haplotype panel, or return empty when none was given."""
     if path is None:
@@ -351,6 +382,22 @@ def design(
     ] = None,
     populations: Annotated[
         str | None, typer.Option(help="Comma-separated ancestry labels to stratify by.")
+    ] = None,
+    regions: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--region",
+            help=(
+                "Restrict the off-target search to this locus, 'chrom:start-end' "
+                "(repeatable). A BED file works too: --regions-bed. Whole-genome "
+                "search over a real reference is slow in pure Python, so scoping to a "
+                "gene panel is usually what makes a run practical."
+            ),
+        ),
+    ] = None,
+    regions_bed: Annotated[
+        Path | None,
+        typer.Option("--regions-bed", help="BED file of regions to restrict the search to."),
     ] = None,
     haplotypes: Annotated[
         Path | None,
@@ -504,6 +551,7 @@ def design(
     _warn_if_ancestries_unbacked(pops_str, gnomad, haplotypes)
     gnomad_db = _load_gnomad(gnomad)
     haplotype_panel = _load_haplotypes(haplotypes)
+    region_list = _load_regions(regions, regions_bed)
 
     reference = _load_reference(reference_fasta, state.reference_build)
     patient_variants = _load_patient_variants(patient_vcf, reference)
@@ -538,6 +586,7 @@ def design(
             populations=pops,
             gnomad=gnomad_db,
             haplotypes=haplotype_panel,
+            offtarget_regions=region_list,
             patient_vcf=patient_variants,
             run_offtarget=run_offtarget,
             max_candidates_per_chemistry=max_per_chemistry,
@@ -683,6 +732,22 @@ def batch(
     populations: Annotated[
         str | None, typer.Option(help="Comma-separated ancestry labels to stratify by.")
     ] = None,
+    regions: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--region",
+            help=(
+                "Restrict the off-target search to this locus, 'chrom:start-end' "
+                "(repeatable). A BED file works too: --regions-bed. Whole-genome "
+                "search over a real reference is slow in pure Python, so scoping to a "
+                "gene panel is usually what makes a run practical."
+            ),
+        ),
+    ] = None,
+    regions_bed: Annotated[
+        Path | None,
+        typer.Option("--regions-bed", help="BED file of regions to restrict the search to."),
+    ] = None,
     haplotypes: Annotated[
         Path | None,
         typer.Option(
@@ -799,6 +864,7 @@ def batch(
     _warn_if_ancestries_unbacked(pops_str, gnomad, haplotypes)
     gnomad_db = _load_gnomad(gnomad)
     haplotype_panel = _load_haplotypes(haplotypes)
+    region_list = _load_regions(regions, regions_bed)
 
     reference = _load_reference(reference_fasta, state.reference_build)
     patient_variants = _load_patient_variants(patient_vcf, reference)
@@ -840,6 +906,7 @@ def batch(
             populations=pops,
             gnomad=gnomad_db,
             haplotypes=haplotype_panel,
+            offtarget_regions=region_list,
             patient_vcf=patient_variants,
             run_offtarget=run_offtarget,
             max_candidates_per_chemistry=max_per_chemistry,
@@ -916,6 +983,22 @@ def offtarget(
     populations: Annotated[
         str | None, typer.Option(help="Comma-separated ancestry labels to stratify by.")
     ] = None,
+    regions: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--region",
+            help=(
+                "Restrict the off-target search to this locus, 'chrom:start-end' "
+                "(repeatable). A BED file works too: --regions-bed. Whole-genome "
+                "search over a real reference is slow in pure Python, so scoping to a "
+                "gene panel is usually what makes a run practical."
+            ),
+        ),
+    ] = None,
+    regions_bed: Annotated[
+        Path | None,
+        typer.Option("--regions-bed", help="BED file of regions to restrict the search to."),
+    ] = None,
     haplotypes: Annotated[
         Path | None,
         typer.Option(
@@ -975,6 +1058,7 @@ def offtarget(
     _warn_if_ancestries_unbacked(populations, gnomad, haplotypes)
     gnomad_db = _load_gnomad(gnomad)
     haplotype_panel = _load_haplotypes(haplotypes)
+    region_list = _load_regions(regions, regions_bed)
     patient_variants = _load_patient_variants(patient_vcf, reference)
     try:
         locus = GenomicInterval.parse(on_target) if on_target else None
@@ -996,6 +1080,7 @@ def offtarget(
             populations=pops,
             gnomad=gnomad_db,
             haplotypes=haplotype_panel,
+            regions=region_list,
             patient_vcf=patient_variants,
         )
     except ValueError as exc:

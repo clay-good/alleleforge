@@ -10,6 +10,18 @@ acceptance.
 
 ### Added
 
+- **`design()` could not scope an off-target search at all, and now can — reachable as `--region` /
+  `--regions-bed`.** Every *vertical* (`design_cas9`, `design_prime`, the base-editor path) accepts
+  `offtarget_regions`, and `search()` takes `regions`. The unified `design()` entry point — the one the CLI
+  and web API are thin shells over — accepted neither and passed nothing through, so a whole-genome scan
+  could not be narrowed from anywhere except by calling a vertical directly. Over a real reference that
+  scoping is the difference between a practical run and an impractical one. `design()` now takes
+  `offtarget_regions` and threads it to all three verticals; the CLI exposes repeatable
+  `--region chrom:start-end` and `--regions-bed panel.bed` on `design`, `batch` and `offtarget`. A
+  malformed region is a usage error rather than a silent widening back to the whole genome, and an empty
+  restriction stays `None` ("search everything") rather than becoming an empty list, which would restrict
+  the search to nothing and report every guide spotless.
+
 - **`--haplotypes` and `--patient-vcf` complete the safety inputs on the CLI.** The same reachability
   sweep that found `--gnomad` left two more: the *haplotype*-aware pass (the second half of the README's
   "population- **and haplotype**-aware" claim, which catches a site existing only on a co-inherited
