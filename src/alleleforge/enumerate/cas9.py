@@ -469,6 +469,11 @@ def hdr_donor(
     silent mutation is introduced in a homology arm (and recorded) so the corrected
     allele is not a Cas9 substrate; if none is available, the donor is returned
     with ``recut_blocked = False`` and a note saying so, never silently re-cuttable.
+
+    Returns ``None`` when a homology arm reaches a reference ``N`` (an assembly
+    gap), mirroring the enumerators' per-span ``N`` guards: a repair template is
+    the one reagent whose ambiguous base would be written into the genome
+    permanently.
     """
     if intent not in _PRECISE_INTENTS:
         return None
@@ -476,7 +481,12 @@ def hdr_donor(
     desired = var.ref if intent in (EditIntent.CORRECT, EditIntent.REVERT) else var.alt
     left_start = max(0, var.pos - arm_length)
     right_start = var.pos + len(var.ref)
-    right_end = right_start + arm_length
+    # Clamp the right arm to the contig. A fetch past the end is N-padded, and
+    # padding is not homology: it would make the donor unsynthesizable and trip the
+    # assembly-gap guard below for a reason that has nothing to do with a gap. A
+    # short arm near a contig end is the honest reagent; the arm lengths are
+    # recoverable from the donor's own length.
+    right_end = min(reference.contig_length(var.chrom), right_start + arm_length)
     left = str(
         reference.fetch(
             GenomicInterval(chrom=var.chrom, start=left_start, end=var.pos, strand=Strand.PLUS)
@@ -488,6 +498,15 @@ def hdr_donor(
         )
     )
     donor_seq = f"{left}{desired}{right}"
+    if "N" in donor_seq:
+        # A homology arm reaching an assembly gap makes an unsynthesizable oligo
+        # that, if forced, would template an ambiguous base into the genome at the
+        # gap. The enumerators skip any emitted span covering an `N` for exactly
+        # this reason; a repair template is the one reagent whose bases are written
+        # in permanently, and its arms reach 50 bp either side — far enough to
+        # touch a gap the guide itself never sees. Fail closed: no donor rather
+        # than a bad one.
+        return None
 
     if guide is None:
         return HDRDonor(

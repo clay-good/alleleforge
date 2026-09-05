@@ -124,3 +124,26 @@ synthesized reagent.
 #### Scenario: No reagent
 - **WHEN** a candidate requires no synthesized oligo
 - **THEN** `oligos_for` returns nothing rather than a spurious empty duplex
+
+### Requirement: A precise nuclease candidate is ordered as a pair
+
+The cloning output for a nuclease candidate carrying an HDR donor SHALL include the
+donor as an orderable single-stranded template alongside the sgRNA duplex, and
+SHALL promote the donor's ordering hazards into the same prominent warnings list
+the guide's use. A donor longer than a single synthesized oligo SHALL be flagged as
+needing a different order format, and a donor whose repaired product is still a
+substrate for its guide SHALL be flagged as re-cuttable. A donor containing an
+ambiguous base SHALL be refused, not ordered: unlike a spacer, a repair template's
+bases are written into the genome permanently.
+
+#### Scenario: Precise nuclease candidate
+- **WHEN** cloning oligos are built for a candidate carrying an HDR donor
+- **THEN** the result carries the guide duplex and the donor template
+
+#### Scenario: Donor beyond single-oligo synthesis
+- **WHEN** the donor is longer than a vendor synthesizes as one oligo
+- **THEN** a warning says to order it as a dsDNA fragment or plasmid instead
+
+#### Scenario: Ambiguous donor
+- **WHEN** a donor contains an ambiguous base
+- **THEN** building its order raises rather than emitting an unsynthesizable oligo

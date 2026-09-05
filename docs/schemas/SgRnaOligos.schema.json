@@ -1,5 +1,49 @@
 {
   "$defs": {
+    "DonorOligo": {
+      "description": "A single-stranded HDR repair template to order as-is.\n\nUnlike an sgRNA insert this is not cloned \u2014 there is no vector, no Type IIS\noverhang and no annealed duplex \u2014 so it carries the sequence to synthesize and\nthe disposition of the repaired product, nothing else.\n\nAttributes:\n    kind: Always ``\"hdr-donor-ssodn\"``.\n    sequence: The donor to order, 5'->3'.\n    recut_blocked: Whether the repaired product resists re-cutting by the guide\n        this donor accompanies.\n    note: The donor's own explanation of that disposition.\n    warnings: Prominent ordering hazards (e.g. longer than one oligo).",
+      "properties": {
+        "kind": {
+          "default": "hdr-donor-ssodn",
+          "title": "Kind",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "recut_blocked": {
+          "title": "Recut Blocked",
+          "type": "boolean"
+        },
+        "sequence": {
+          "title": "Sequence",
+          "type": "string"
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "sequence",
+        "recut_blocked"
+      ],
+      "title": "DonorOligo",
+      "type": "object"
+    },
     "VectorScheme": {
       "description": "A named cloning scheme: enzyme, sticky-end overhangs, and the U6 ``G``.\n\nAttributes:\n    name: Human-readable scheme name (echoed into the oligo set).\n    enzyme: The Type IIS enzyme whose overhangs this scheme matches.\n    top_overhang: 5' overhang prepended to the sense oligo.\n    bottom_overhang: 5' overhang prepended to the antisense oligo.\n    prepend_g: Add a 5' ``G`` to the spacer for U6 transcription start (only\n        when the spacer does not already begin with ``G``).\n    ext_top_overhang: For a pegRNA scheme, the 5' overhang on the sense\n        3'-extension oligo (``None`` for an sgRNA-only scheme).\n    ext_bottom_overhang: For a pegRNA scheme, the 5' overhang on the antisense\n        3'-extension oligo (``None`` for an sgRNA-only scheme).\n    phosphorylation: The annealing/ligation prerequisite for this scheme\n        (e.g. whether the annealed oligos need 5' phosphorylation with T4 PNK),\n        stated in every render so a ligation is not set up that cannot close.\n    citation: Protocol citation.",
       "properties": {
@@ -83,11 +127,22 @@
       "type": "object"
     }
   },
-  "description": "An annealed sgRNA oligo duplex for one spacer.\n\nAttributes:\n    kind: ``\"sgrna\"`` (Cas9), ``\"base-editor-sgrna\"``, or ``\"ngrna\"``.\n    spacer: The intended 5'->3' spacer (the reconstruction target).\n    top: The sense oligo to order (5'->3').\n    bottom: The antisense oligo to order (5'->3').\n    g_added: Whether a 5' U6-start ``G`` was actually prepended (only when the\n        scheme asks for it *and* the spacer did not already begin with ``G``).\n    warnings: Prominent cloning-hazard flags (e.g. an internal Type IIS\n        recognition site), empty when the insert is clean.\n    scheme: The cloning scheme used.",
+  "description": "An annealed sgRNA oligo duplex for one spacer.\n\nAttributes:\n    kind: ``\"sgrna\"`` (Cas9), ``\"base-editor-sgrna\"``, or ``\"ngrna\"``.\n    spacer: The intended 5'->3' spacer (the reconstruction target).\n    top: The sense oligo to order (5'->3').\n    bottom: The antisense oligo to order (5'->3').\n    g_added: Whether a 5' U6-start ``G`` was actually prepended (only when the\n        scheme asks for it *and* the spacer did not already begin with ``G``).\n    warnings: Prominent cloning-hazard flags (e.g. an internal Type IIS\n        recognition site), empty when the insert is clean. A precise nuclease\n        candidate's donor hazards are merged here too, prefixed, so one place\n        carries everything that could go wrong at the ordering stage.\n    scheme: The cloning scheme used.\n    donor: The HDR repair template ordered alongside this guide, for a precise\n        nuclease candidate. ``None`` for a knock-out guide, a base-editor\n        sgRNA, or an ngRNA \u2014 none of which repair anything.",
   "properties": {
     "bottom": {
       "title": "Bottom",
       "type": "string"
+    },
+    "donor": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DonorOligo"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "g_added": {
       "default": false,

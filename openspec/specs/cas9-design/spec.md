@@ -127,6 +127,12 @@ substrate, and SHALL flag that its attached outcome distribution is the NHEJ
 byproduct spectrum rather than the intended correction. A knock-out candidate,
 which wants the break itself, SHALL carry no donor and none of these flags.
 
+#### Scenario: Donor over an assembly gap
+- **WHEN** a homology arm would reach a reference `N` (an assembly gap)
+- **THEN** no donor is built, mirroring the enumerators' per-span `N` guards — while
+  an arm that merely runs past a contig end is shortened to the sequence the
+  reference actually provides, not padded and then refused
+
 #### Scenario: Precise intent
 - **WHEN** the nuclease vertical designs for a precise intent
 - **THEN** every candidate carries an `HDRDonor`, an `hdr-donor:*` flag naming its

@@ -23,7 +23,7 @@ from pydantic import BaseModel, ConfigDict
 
 from alleleforge.enumerate.prime import SCAFFOLD
 from alleleforge.types.candidate import DesignCandidate
-from alleleforge.types.guide import PegRNA, ThreePrimeMotif
+from alleleforge.types.guide import HDRDonor, PegRNA, ThreePrimeMotif
 
 _COMPLEMENT = str.maketrans("ACGTN", "TGCAN")
 
@@ -182,6 +182,42 @@ PEGRNA_GG_BSAI = VectorScheme(
 )
 
 
+#: Longest single-stranded donor most vendors synthesize as one oligo (an IDT
+#: Ultramer tops out here). Past it the donor has to be ordered as a gBlock / dsDNA
+#: fragment or a plasmid instead, which is a different order and a different cost —
+#: worth saying on the report rather than letting a 300-nt "oligo" reach a cart.
+MAX_SSODN_NT = 200
+
+
+class DonorOligo(BaseModel):
+    """A single-stranded HDR repair template to order as-is.
+
+    Unlike an sgRNA insert this is not cloned — there is no vector, no Type IIS
+    overhang and no annealed duplex — so it carries the sequence to synthesize and
+    the disposition of the repaired product, nothing else.
+
+    Attributes:
+        kind: Always ``"hdr-donor-ssodn"``.
+        sequence: The donor to order, 5'->3'.
+        recut_blocked: Whether the repaired product resists re-cutting by the guide
+            this donor accompanies.
+        note: The donor's own explanation of that disposition.
+        warnings: Prominent ordering hazards (e.g. longer than one oligo).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: str = "hdr-donor-ssodn"
+    sequence: str
+    recut_blocked: bool
+    note: str | None = None
+    warnings: tuple[str, ...] = ()
+
+    def __len__(self) -> int:
+        """Return the donor length in bases."""
+        return len(self.sequence)
+
+
 class SgRnaOligos(BaseModel):
     """An annealed sgRNA oligo duplex for one spacer.
 
@@ -193,8 +229,13 @@ class SgRnaOligos(BaseModel):
         g_added: Whether a 5' U6-start ``G`` was actually prepended (only when the
             scheme asks for it *and* the spacer did not already begin with ``G``).
         warnings: Prominent cloning-hazard flags (e.g. an internal Type IIS
-            recognition site), empty when the insert is clean.
+            recognition site), empty when the insert is clean. A precise nuclease
+            candidate's donor hazards are merged here too, prefixed, so one place
+            carries everything that could go wrong at the ordering stage.
         scheme: The cloning scheme used.
+        donor: The HDR repair template ordered alongside this guide, for a precise
+            nuclease candidate. ``None`` for a knock-out guide, a base-editor
+            sgRNA, or an ngRNA — none of which repair anything.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -206,6 +247,7 @@ class SgRnaOligos(BaseModel):
     scheme: VectorScheme
     g_added: bool = False
     warnings: tuple[str, ...] = ()
+    donor: DonorOligo | None = None
 
     def reconstruct(self) -> str:
         """Recover the spacer from the oligos (round-trip check).
@@ -447,6 +489,49 @@ def pegrna_oligos(pegrna: PegRNA, *, scheme: VectorScheme = PEGRNA_GG_BSAI) -> P
     return oligos
 
 
+def donor_oligo(donor: HDRDonor) -> DonorOligo:
+    """Build the orderable single-stranded repair template for ``donor``.
+
+    Args:
+        donor: The HDR donor a precise nuclease candidate carries.
+
+    Returns:
+        A :class:`DonorOligo` carrying the sequence to synthesize, the repaired
+        product's re-cut disposition, and any ordering hazard.
+
+    Raises:
+        ValueError: If the donor is not concrete A/C/G/T. ``_require_dna`` admits
+            ``N`` because a spacer may legitimately carry a degenerate position, but
+            a repair template may not: its bases are written into the genome
+            permanently. :func:`~alleleforge.enumerate.cas9.hdr_donor` already
+            declines to build one; this is the guard at the ordering boundary, where
+            the cost of being wrong is a synthesized reagent.
+    """
+    sequence = _require_dna(str(donor.sequence), context="HDR donor")
+    if "N" in sequence:
+        raise ValueError(
+            "HDR donor contains an ambiguous base (N); a repair template must be "
+            "concrete A/C/G/T because its bases are written into the genome"
+        )
+    warnings: list[str] = []
+    if len(sequence) > MAX_SSODN_NT:
+        warnings.append(
+            f"HDR donor is {len(sequence)} nt, beyond the ~{MAX_SSODN_NT} nt most vendors "
+            "synthesize as a single oligo: order it as a dsDNA fragment or plasmid instead"
+        )
+    if not donor.recut_blocked:
+        warnings.append(
+            "the repaired product is still a substrate for this guide (no PAM-blocking "
+            "mutation was available), so the correction can be re-cut after repair"
+        )
+    return DonorOligo(
+        sequence=sequence,
+        recut_blocked=donor.recut_blocked,
+        note=donor.note,
+        warnings=tuple(warnings),
+    )
+
+
 def oligos_for(
     candidate: DesignCandidate, *, scheme: VectorScheme | None = None
 ) -> SgRnaOligos | PegRNAOligos | None:
@@ -462,8 +547,18 @@ def oligos_for(
     if candidate.pegrna is not None:
         return pegrna_oligos(candidate.pegrna, scheme=scheme or PEGRNA_GG_BSAI)
     if candidate.guide is not None:
-        return sgrna_oligos(
+        oligos = sgrna_oligos(
             str(candidate.guide.spacer.sequence), scheme=scheme or LENTIGUIDE_BSMBI, kind="sgrna"
+        )
+        if candidate.hdr_donor is None:
+            return oligos
+        # A precise nuclease candidate is ordered as a pair. Returning only the
+        # guide would hand the bench half a reagent — the half that cannot make
+        # the edit — so the donor rides with it, and its hazards are promoted into
+        # the same prominent warnings list.
+        donor = donor_oligo(candidate.hdr_donor)
+        return oligos.model_copy(
+            update={"donor": donor, "warnings": oligos.warnings + donor.warnings}
         )
     if candidate.base_edit_window is not None:
         return sgrna_oligos(

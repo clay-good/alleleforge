@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from alleleforge.enumerate.cas9 import enumerate_cas9, guide_context
+from alleleforge.enumerate.cas9 import enumerate_cas9, guide_context, hdr_donor
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.edit import EditIntent
 from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
@@ -115,3 +115,35 @@ def test_placement_and_context_survive_the_length_change(make_reference: MakeRef
         ctx = guide_context(guide, ref, flank_5=4, flank_3=3, overlay=overlay)
         assert len(ctx) == 30
         assert str(guide.spacer.sequence) in ctx
+
+
+def test_a_donor_reaching_an_assembly_gap_is_refused(make_reference: MakeRef) -> None:
+    """A repair template's bases are written into the genome permanently.
+
+    The enumerators skip any emitted span covering a reference `N`; a donor is the
+    one reagent where an ambiguous base would be installed for good, and its
+    homology arms reach 50 bp either side — far enough to touch a gap the guide
+    never sees. Fail closed with no donor rather than build an unsynthesizable one.
+    """
+    seq = _filler()
+    seq[EDIT_POS + 1 : EDIT_POS + 4] = list("TGG")
+    seq[EDIT_POS + 30] = "N"  # inside the 50-bp right homology arm
+    contig = "".join(seq)
+    ref = make_reference({"chr1": contig})
+    ref_allele = contig[EDIT_POS : EDIT_POS + 4]
+    rv = resolve(f"chr1:{EDIT_POS + 1}:{ref_allele}>{ref_allele[0]}", reference=ref)
+
+    guides = enumerate_cas9(rv, EditIntent.INSTALL, reference=ref)
+    assert guides, "the guide itself is unaffected by a gap 30 bp away"
+    for guide in guides:
+        assert hdr_donor(rv, EditIntent.INSTALL, reference=ref, guide=guide) is None
+
+    # Without the gap the same locus does yield a donor, so the guard is what
+    # refuses it — not the locus being undesignable.
+    clean = make_reference({"chr1": contig.replace("N", "A")})
+    rv_clean = resolve(f"chr1:{EDIT_POS + 1}:{ref_allele}>{ref_allele[0]}", reference=clean)
+    clean_guides = enumerate_cas9(rv_clean, EditIntent.INSTALL, reference=clean)
+    assert any(
+        hdr_donor(rv_clean, EditIntent.INSTALL, reference=clean, guide=g) is not None
+        for g in clean_guides
+    )

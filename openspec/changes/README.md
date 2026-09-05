@@ -1447,6 +1447,36 @@ be reviewed on one question (is this candidate complete and honestly labelled?) 
 of the two — the naive answer, route it for every precise intent, is defensible in a sentence and wrong in
 practice. A feature flag's off position is a legitimate place to stop for a round.**
 
+## Round 54 — the reagent you cannot order (1 feature; 1 real defect found by a failing test I wrote)
+
+R52-53 made a precise nuclease candidate complete and routed it. It still could not be *ordered*:
+`oligos_for` emitted only the sgRNA duplex — the half that cannot make the edit.
+
+- **`feat(report)` the donor is emitted as an orderable template.** A new `DonorOligo`
+  (`kind="hdr-donor-ssodn"`) rides on `SgRnaOligos.donor`, with its hazards promoted into the prominent
+  warnings list rather than buried in the JSON block: a donor beyond the ~200 nt most vendors synthesize as
+  one oligo (order it as a dsDNA fragment instead — a 300 nt "oligo" should not reach a cart unremarked),
+  and a repaired product still cuttable by its own guide.
+- **`fix(cas9)` a repair template built over an assembly gap.** Found by writing a test I expected to pass.
+  `hdr_donor` splices 50 bp homology arms unguarded, so an arm reaching a reference `N` — a gap the guide
+  itself never sees — produced an unsynthesizable oligo that, if forced, would template an ambiguous base
+  into the genome **permanently**. This is exactly R34's prime-RTT `N`-gap class, in the one reagent where
+  the ambiguous base is written in for good. `hdr_donor` now returns `None` there, and `donor_oligo`
+  refuses an ambiguous donor at the ordering boundary too.
+- **The fix's first version was wrong, and three existing tests said so.** Guarding on "any `N` in the
+  donor" also refused every donor near a **contig end**, where the fetch is `N`-padded. Padding is not a
+  gap: the reference simply stops. Clamping the right arm to `contig_length` separates the two — a short
+  arm near a contig end is the honest reagent, and only a genuine *interior* gap fails closed. The three
+  red tests were the signal that the first guard conflated two different absences of sequence.
+
+**Lesson: I wrote the ambiguous-donor test as a formality — a boundary case I assumed was already handled,
+to round out a feature. It failed, and the defect behind it is the most consequential kind this codebase
+has: a wet-lab reagent that looks valid, passes every existing check, and installs an uncontrolled base
+into a genome. The test that finds a bug is often not the one aimed at a suspicion; it is the one written
+to confirm something obvious. Second: when a new guard turns tests red, read them before deciding they are
+stale. Those three were reporting that "no sequence available" has two causes with opposite correct
+responses, and the first version of the guard knew about only one.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

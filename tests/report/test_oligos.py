@@ -15,8 +15,10 @@ from alleleforge.report.oligos import (
     revcomp,
     sgrna_oligos,
 )
-from alleleforge.types.candidate import RankedMenu
+from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import Chemistry
+from alleleforge.types.guide import PAM, Guide, HDRDonor, Spacer
+from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
 
 SPACER = "ACGTAACGTTACGTAACGTT"
 
@@ -297,3 +299,58 @@ def test_pegrna_missplit_extension_detected() -> None:
     )
     with pytest.raises(ValueError, match="RTT\\+PBS boundary"):
         oligos.reconstruct()
+
+
+def _precise_cas9_candidate(donor_seq: str, *, recut_blocked: bool = True) -> DesignCandidate:
+    guide = Guide(
+        spacer=Spacer(sequence=DNASequence("ACGTACGTACGTACGTACGT")),
+        pam=PAM(pattern="NGG"),
+        pam_sequence=DNASequence("TGG"),
+        placement=GenomicInterval(chrom="chr1", start=10, end=30, strand=Strand.PLUS),
+        cut_site=27,
+    )
+    return DesignCandidate(
+        chemistry=Chemistry.CAS9_NUCLEASE,
+        guide=guide,
+        hdr_donor=HDRDonor(sequence=DNASequence(donor_seq), recut_blocked=recut_blocked, note="n"),
+    )
+
+
+def test_a_precise_cas9_candidate_is_ordered_as_a_pair() -> None:
+    """Returning only the guide would hand the bench the half that cannot edit."""
+    oligos = oligos_for(_precise_cas9_candidate("ACGT" * 25))
+    assert isinstance(oligos, SgRnaOligos)
+    assert oligos.donor is not None
+    assert oligos.donor.kind == "hdr-donor-ssodn"
+    assert len(oligos.donor) == 100
+    assert oligos.donor.recut_blocked is True
+    assert oligos.donor.warnings == ()
+    assert oligos.warnings == ()
+
+
+def test_a_knock_out_guide_gets_no_donor() -> None:
+    candidate = _precise_cas9_candidate("ACGT" * 25).model_copy(update={"hdr_donor": None})
+    oligos = oligos_for(candidate)
+    assert isinstance(oligos, SgRnaOligos)
+    assert oligos.donor is None
+
+
+def test_a_donor_too_long_for_one_oligo_is_flagged_prominently() -> None:
+    """A 300-nt "oligo" must not reach a shopping cart unremarked."""
+    oligos = oligos_for(_precise_cas9_candidate("ACGT" * 75))  # 300 nt
+    assert oligos is not None and oligos.donor is not None
+    assert any("beyond the ~200 nt" in w for w in oligos.donor.warnings)
+    # Donor hazards are promoted onto the candidate's own warnings, which the
+    # renders surface prominently rather than burying in the JSON block.
+    assert any("beyond the ~200 nt" in w for w in oligos.warnings)
+
+
+def test_an_unblocked_recut_is_flagged_on_the_order() -> None:
+    oligos = oligos_for(_precise_cas9_candidate("ACGT" * 25, recut_blocked=False))
+    assert oligos is not None and oligos.donor is not None
+    assert any("still a substrate" in w for w in oligos.warnings)
+
+
+def test_an_ambiguous_donor_is_refused_not_ordered() -> None:
+    with pytest.raises(ValueError, match="HDR donor"):
+        oligos_for(_precise_cas9_candidate("ACGTN" * 20))

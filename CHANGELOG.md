@@ -10,6 +10,28 @@ acceptance.
 
 ### Added
 
+- **A precise nuclease candidate is now *orderable*: the HDR donor is emitted as a template to synthesize,
+  alongside the sgRNA duplex.** `oligos_for` returned only the guide duplex — the half of the reagent that
+  cannot make the edit. A new `DonorOligo` (`kind="hdr-donor-ssodn"`) carries the sequence to order and the
+  repaired product's re-cut disposition; it rides on `SgRnaOligos.donor`, and its hazards are promoted into
+  the same prominent warnings list the guide's use rather than buried in the JSON block. Two hazards are
+  flagged: a donor longer than the ~200 nt most vendors synthesize as one oligo (order it as a dsDNA
+  fragment or plasmid instead — a 300 nt "oligo" should not reach a shopping cart unremarked), and a
+  repaired product that is still a substrate for its own guide.
+
+### Fixed
+
+- **`hdr_donor` no longer builds a repair template over an assembly gap.** Its homology arms reach 50 bp
+  either side — far enough to touch a reference `N` the guide itself never sees — and it spliced them in
+  unguarded, producing an unsynthesizable oligo that, if forced, would template an ambiguous base into the
+  genome **permanently**. This is the R34 prime-RTT `N`-gap class in the one reagent where the ambiguous
+  base is written in for good. It now returns `None` there, and `donor_oligo` refuses an ambiguous donor at
+  the ordering boundary as defense in depth. Distinguishing the two ways an arm can lack sequence mattered:
+  an arm running past a **contig end** is now clamped to the sequence the reference actually provides
+  (a short arm is the honest reagent), where before it was `N`-padded — so only a genuine interior gap
+  fails closed. Regression test: a gap 30 bp from the edit leaves the guide designable but refuses every
+  donor, while the same locus without the gap still yields one.
+
 - **A precise edit no break-free chemistry can reach now routes to nuclease + HDR instead of returning an
   empty menu.** Correcting a 40 bp deletion used to route to *nothing*: beyond prime's RT template budget,
   not an SNV transition, not a knock-out. The user got a blank menu. Now that a precise nuclease candidate
