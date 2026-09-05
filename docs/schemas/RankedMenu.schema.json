@@ -640,6 +640,18 @@
           "title": "Pam",
           "type": "string"
         },
+        "population_variants_considered": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Population Variants Considered"
+        },
         "reference_build": {
           "default": "hg38",
           "title": "Reference Build",

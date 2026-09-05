@@ -3317,6 +3317,41 @@ have recorded so far — budgets, cut-offs, regions, populations — is somethin
 genome is an input nobody chose and it silently determines how much of the search was possible. Ask what the
 inputs, not the arguments, made unmeasurable.**
 
+## Round 116 — the file that was supplied and did nothing
+
+R115's lesson: ask what the *inputs* made unmeasurable, not only the arguments. The reference genome was one
+input; the population frequency file is the other, and it is the one the project's differentiator rests on.
+
+Two ways it can quietly contribute nothing. The first I expected to be a bug and it was not: gnomAD ships
+contigs as `1`, `2`, …; UCSC references use `chr1`, `chr2`. Mixing them is the single most likely real-world
+mistake, and AlleleForge handles it — `canonical_contig` normalizes both sides and the results are
+identical. Worth recording as a negative result, along with soft-masked sequence from R115: two plausible
+silent failures that are genuinely closed.
+
+The second is open. A gnomAD file covering only chromosome 1, used for a search on chromosome 11, produces:
+
+```
+1 site(s), worst score 1.000, specificity 0.500
+ancestry_stratification: {}
+```
+
+Exactly what a reference-only scan produces. The user passed `--gnomad` and `--populations afr,nfe`, so the
+missing-source warning stays silent, and the empty ancestry breakdown — which that warning exists to
+explain — is left to speak for itself. This is the more dangerous of the two cases: nothing is missing, so
+nothing prompts a second look. A per-chromosome download, a region subset, a filtered slice all reach it.
+
+**Shipped:** `population_variants_considered`, keeping three states apart — `None` (no source), `0`
+(supplied, covered nothing here), `n` — and a description that explains the empty breakdown when it is `0`.
+
+A note on the fix itself. My first version counted with `population_variants = (population_variants or 0) +
+len(variants)`, and the mutation run caught it: removing the initializer changed nothing, because the `or`
+default recreated it. That is the exact falsy-default pattern I had swept the codebase for seven rounds
+earlier, written by me, in the code whose entire purpose is keeping `None` and `0` distinct. Restructured so
+the three states are set explicitly and the mutation now fails.
+
+**Lesson: "the input is present" is not "the input applies". A supplied-and-inert dependency is worse than a
+missing one, because absence prompts a question and presence closes it. Check coverage, not configuration.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

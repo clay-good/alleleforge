@@ -378,9 +378,23 @@ def search(
             tagged.append((hit, ref_prov))
 
     # Stage 2 — population augmentation (gnomAD de-novo PAM / seed changes).
+    #
+    # Count what the supplied source actually contributed *here*. A frequency file is
+    # easy to supply and easy to have cover the wrong thing — one chromosome's download,
+    # a region subset, a filtered slice — and when it contributes nothing the report is
+    # byte-identical to a reference-only scan, with an empty ancestry breakdown that
+    # reads as "clean". The warning for a *missing* source has existed for a while; a
+    # source that is present and inert produced no warning at all, and is the more
+    # dangerous case because the user believes they did it right.
+    # Three states, kept distinct: None (no source given), 0 (given and covered
+    # nothing here), n (given and contributed n). Counted without an `or` default,
+    # which would collapse the first two — the whole point is that they differ.
+    population_variants: int | None = None
     if gnomad is not None:
+        population_variants = 0
         for region in search_regions:
             variants = gnomad.frequencies(region, populations=populations, maf=maf)
+            population_variants += len(variants)
             tagged.extend(
                 enumerate_population_sites(
                     sp,
@@ -460,6 +474,7 @@ def search(
         mit_threshold=mit_threshold,
         searched_bases=total_bases,
         resolved_bases=resolved_bases,
+        population_variants_considered=population_variants,
         reference_build=reference.build or "hg38",
         scorer=primary.name,
         score_matrix=getattr(primary, "matrix", None),

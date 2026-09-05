@@ -441,3 +441,46 @@ def test_an_ambiguity_code_counts_against_the_searchable_fraction(
     report = search(SPACER, NGG, reference=coded)
     assert report.resolved_bases == report.searched_bases - 200
     assert "were searchable" in report.search_description()
+
+
+def test_a_population_source_that_covers_nothing_here_says_so(make_reference: MakeRef) -> None:
+    """A supplied-but-inert frequency file is the more dangerous of the two cases.
+
+    The warning for a *missing* population source has existed for a while. A source
+    that is present and contributes nothing in the searched region produced no warning
+    at all — and the resulting empty ancestry breakdown is byte-identical to a
+    genuinely clean one, while the user believes they did it right. A per-chromosome
+    download, a region subset or a filtered slice all land here.
+    """
+    reference = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+
+    # A perfectly valid frequency source — for a locus this search never touches.
+    elsewhere = GnomadDB(
+        [_pf(chrom="chr9", pos=1000, ref="A", alt="G", overall_af=0.08, populations={"afr": 0.1})]
+    )
+    inert = search(SPACER, NGG, reference=reference, gnomad=elsewhere, populations=("afr",))
+    assert inert.population_variants_considered == 0
+    assert "contributed no variants in this region" in inert.search_description()
+
+    # A source that does cover the region says nothing: the caveat tracks the data.
+    here = GnomadDB(
+        [
+            _pf(
+                chrom="chr2",
+                pos=len(PAD) + len(SPACER) + 1,
+                ref="G",
+                alt="A",
+                overall_af=0.08,
+                populations={"afr": 0.1},
+            )
+        ]
+    )
+    covered = search(SPACER, NGG, reference=reference, gnomad=here, populations=("afr",))
+    assert covered.population_variants_considered == 1
+    assert "contributed no variants" not in covered.search_description()
+
+    # No source at all is a third state, not the same as "supplied and empty": the
+    # existing reference-only warning covers it, and this caveat must not fire.
+    none_given = search(SPACER, NGG, reference=reference)
+    assert none_given.population_variants_considered is None
+    assert "contributed no variants" not in none_given.search_description()

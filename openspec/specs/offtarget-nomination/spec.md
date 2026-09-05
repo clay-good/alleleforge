@@ -230,3 +230,24 @@ materially below the whole. A fully-resolved region SHALL produce no such statem
 #### Scenario: Fully-resolved sequence
 - **WHEN** every base in the region is unambiguous
 - **THEN** no searchable-fraction caveat is added
+
+### Requirement: A supplied population source that contributes nothing is reported
+
+A frequency source can be present and cover none of the searched region — a
+per-chromosome download, a region subset, a filtered slice — and the resulting report is
+indistinguishable from a reference-only scan, including the empty ancestry breakdown. The
+system SHALL keep three states distinct: no source supplied, a source supplied that
+contributed no variants here, and a source that contributed some; and SHALL explain the
+empty breakdown in the second case.
+
+The missing-source case is already warned about. The supplied-and-inert case is the more
+dangerous one, because nothing is absent to prompt a second look.
+
+#### Scenario: A frequency file covering another locus
+- **WHEN** a population source is supplied whose variants all fall outside the searched region
+- **THEN** the report says the source contributed nothing here and that the scan is
+  effectively reference-only
+
+#### Scenario: A frequency file that covers the region
+- **WHEN** the source contributes variants
+- **THEN** no such statement is made

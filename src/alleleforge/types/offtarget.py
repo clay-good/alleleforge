@@ -145,6 +145,10 @@ class OffTargetReport(BaseModel):
     #: "0 sites" as one over fully-resolved sequence.
     searched_bases: int = 0
     resolved_bases: int = 0
+    #: Population variants the supplied frequency source contributed in the searched
+    #: region(s). ``None`` when no source was supplied at all — which is a different
+    #: statement from ``0``, "a source was supplied and covered nothing here".
+    population_variants_considered: int | None = None
     reference_build: str = "hg38"
     scorer: str | None = None
     score_matrix: str | None = None
@@ -172,6 +176,12 @@ class OffTargetReport(BaseModel):
                     f"; only {fraction:.0%} of the {self.searched_bases:,} requested bases "
                     "were searchable (the rest are assembly gaps or ambiguity codes)"
                 )
+        if self.population_variants_considered == 0:
+            coverage += (
+                "; a population frequency source was supplied but contributed no "
+                "variants in this region, so the scan is effectively reference-only "
+                "here and the ancestry breakdown is empty for that reason"
+            )
         return (
             f"up to {self.mismatch_threshold} mismatches, "
             f"{self.dna_bulge_budget} DNA / {self.rna_bulge_budget} RNA bulges; "

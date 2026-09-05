@@ -10,6 +10,22 @@ acceptance.
 
 ### Added
 
+- **A population source that covers nothing in the searched region now says so.** The warning for a
+  *missing* frequency source has existed for a while; a source that is **present and inert** produced
+  nothing at all — and its report is byte-identical to a reference-only scan, with an empty ancestry
+  breakdown that reads as clean, while the user believes they supplied the data. A per-chromosome gnomAD
+  download, a region subset or a filtered slice all land here. `OffTargetReport` now records
+  `population_variants_considered`, keeping three states distinct: `None` (no source given), `0` (given and
+  covered nothing here), `n` (given and contributed `n`). The search description explains the empty
+  breakdown when it is `0`.
+
+  Two things checked and found sound, worth recording: **contig naming** (an Ensembl-style `11` gnomAD file
+  against a UCSC `chr11` reference gives identical results — `canonical_contig` does its job), and
+  **soft-masked reference sequence**, which a repeat-masked hg38 would otherwise have silently failed to
+  match in exactly the regions where off-targets live.
+
+### Added
+
 - **An off-target report now says how much of the requested region could actually be searched.** A window
   holding an assembly gap or an IUPAC ambiguity code cannot be scanned, and the report looked identical
   either way: a scan over a contig that is **99% `N`** returned the same shape of answer as one over
