@@ -65,6 +65,13 @@ acceptance.
 
 ### Fixed
 
+- **The reagent line and design rationale now name the edit, not only the geometry.** A report's one-line
+  reagent summary read `pegRNA spacer …; PBS 13 nt / RTT 12 nt; tevopreQ1 motif; PE3` — every field a
+  dimension, none of them saying what the reagent *does*. A pegRNA correcting a 3 bp deletion and one
+  installing a substitution were indistinguishable on the page a bench scientist actually reads. Both the
+  reagent summary (`RTT 12 nt writing 4 nt`) and the design rationale (`RTT 12 (4 nt written, +5
+  homology)`) now state the templated length. The canonical reproducibility golden is unchanged.
+
 - **Cas9 correction-intent guides are now enumerated against a length-changing carried allele instead of
   silently falling back to the reference.** The `cas9-design` spec has always required that a precise
   intent enumerate against *the sequence the target genome actually contains* — "a PAM the alternate

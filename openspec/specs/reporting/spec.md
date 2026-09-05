@@ -45,6 +45,17 @@ plots `0.0`.
 - **WHEN** the menu has no candidates
 - **THEN** the render states so rather than emitting an empty body
 
+### Requirement: A reagent line names the edit, not only the geometry
+
+The one-line reagent summary SHALL identify what the reagent *does*, not only its
+dimensions. For a pegRNA it SHALL state how many bases the RT template writes
+alongside the PBS/RTT lengths, so a design correcting a small deletion is not
+indistinguishable on the page from one installing a substitution.
+
+#### Scenario: pegRNA restoring a deleted allele
+- **WHEN** a pegRNA whose RT template writes more than one base is summarized
+- **THEN** the reagent line states the number of bases written
+
 ### Requirement: HTML is self-contained and injection-safe
 
 The HTML render SHALL inline all figure specs, load no sequence-bearing external

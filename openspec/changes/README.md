@@ -1178,6 +1178,27 @@ what it did not look at. And the fix for an un-modeled axis is documentation plu
 invented coefficient — a fabricated number inside a calibrated-looking interval is the one failure mode
 this project cannot afford.**
 
+## Round 44 — the page a bench scientist actually reads (1 fix)
+
+R43 made the *prediction* honest about the edit size. This round asks the same question one layer out:
+does the artifact a human reads say what the reagent does?
+
+It did not. The report's one-line reagent summary was `pegRNA spacer …; PBS 13 nt / RTT 12 nt;
+tevopreQ1 motif; PE3` — five fields, every one a dimension. A pegRNA correcting a ΔF508-style 3 bp
+deletion and one installing a point substitution differ in none of them, and the line is the string that
+leads the HTML card and every export. **Shipped:** the reagent summary states the templated length
+(`RTT 12 nt writing 4 nt`) and the design rationale does the same (`4 nt written, +5 homology`). The
+`templated-edit:<n>nt` flag from R43 already reaches the HTML through the generic flag rendering, so the
+gap was exactly this line. The reproducibility golden is unchanged — verified by diffing the canonical
+run's canonicalized body before and after, which is byte-identical (its top candidate is an ABE and its
+prime rule enumerates nothing at that locus).
+
+**Lesson: three rounds of internal correctness do not reach the reader. A value that is right in the
+type, right in the prediction's notes, and right in the candidate's flags can still be absent from the
+one sentence that gets printed — and the reagent line is the highest-leverage string in the product,
+because it is the one someone orders oligos from. Trace a new capability all the way to the last
+rendered character, not to the last correct field.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -62,8 +62,12 @@ def _reagent_summary(candidate: DesignCandidate) -> str:
             if (p.nicking_guide and p.nicking_guide.seed_disrupting)
             else ("PE3" if p.nicking_guide else "PE2")
         )
+        # State what the RT template *writes*, not only how long it is: a pegRNA
+        # correcting a 3-bp deletion and one installing a substitution differ in
+        # nothing else on this line, and they are very different reagents.
         return (
-            f"pegRNA spacer {p.spacer.sequence}; PBS {len(p.pbs)} nt / RTT {len(p.rtt)} nt; "
+            f"pegRNA spacer {p.spacer.sequence}; PBS {len(p.pbs)} nt / "
+            f"RTT {len(p.rtt)} nt writing {p.templated_edit_length} nt; "
             f"{p.three_prime_motif.value} motif; {nick}"
         )
     return "no reagent"

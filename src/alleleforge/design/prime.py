@@ -246,7 +246,8 @@ def design_prime(
             rationale=(
                 f"pegRNA on {pegrna.placement.strand.value if pegrna.placement else '?'} strand, "
                 f"PBS {len(pegrna.pbs)} / RTT {len(pegrna.rtt)} "
-                f"(+{pegrna.rtt_homology_3prime} homology); "
+                f"({pegrna.templated_edit_length} nt written, "
+                f"+{pegrna.rtt_homology_3prime} homology); "
                 f"efficiency {efficiency.value:.2f}, intended P={outcome.p_intended.value:.2f}"
                 f"{chromatin_note}"
             ),

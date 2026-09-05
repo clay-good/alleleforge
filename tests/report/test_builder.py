@@ -5,9 +5,14 @@ from __future__ import annotations
 from alleleforge.report.builder import (
     RESEARCH_USE_DISCLAIMER,
     DesignReport,
+    _reagent_summary,
     build_report,
 )
-from alleleforge.types.candidate import RankedMenu
+from alleleforge.types.candidate import DesignCandidate, RankedMenu
+from alleleforge.types.edit import Chemistry
+from alleleforge.types.guide import PegRNA, Spacer
+from alleleforge.types.prediction import Prediction, UncertaintyMethod
+from alleleforge.types.sequence import DNASequence
 
 
 def test_build_report_basic(prime_menu: RankedMenu) -> None:
@@ -106,3 +111,31 @@ def test_candidate_carries_offtarget_scoring_basis(ancestry_menu: RankedMenu) ->
     top = build_report(ancestry_menu).candidates[0]
     assert top.offtarget_scorer == "CFD"
     assert top.offtarget_matrix == "doench-2016-cfd"
+
+
+def test_pegrna_reagent_line_says_what_the_rt_template_writes() -> None:
+    """A ΔF508-style correction and an SNV must not read identically.
+
+    The reagent line is the one string a bench reader scans. Two pegRNAs can share
+    a spacer length, a PBS, an RTT length, a motif and a nick type while installing
+    completely different edits — one substituting a base, one restoring four.
+    """
+    peg = PegRNA(
+        spacer=Spacer(sequence=DNASequence("ACGTACGTACGTACGTACGT")),
+        scaffold=DNASequence("GTTTTAGAGCTAGAAATAGCAAG"),
+        rtt=DNASequence("A" * 16),
+        pbs=DNASequence("ACGTACGTACGTA"),
+        rtt_homology_5prime=7,
+        rtt_homology_3prime=5,
+    )
+    candidate = DesignCandidate(
+        chemistry=Chemistry.PRIME,
+        pegrna=peg,
+        efficiency=Prediction[float](
+            value=0.5,
+            interval=(0.4, 0.6),
+            interval_level=0.8,
+            method=UncertaintyMethod.HEURISTIC,
+        ),
+    )
+    assert "writing 4 nt" in _reagent_summary(candidate)
