@@ -145,6 +145,7 @@ def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
         chemistries=chemistries,
         weights=weights,
         populations=req.populations,
+        cell_context=req.cell_context,
         run_offtarget=req.run_offtarget,
         max_candidates_per_chemistry=req.max_per_chemistry,
         settings=settings,

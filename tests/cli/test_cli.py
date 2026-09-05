@@ -981,3 +981,32 @@ def test_the_json_export_ignores_the_render_cap(
     )
     assert result.exit_code == 0
     assert len(json.loads(out.read_text())["candidates"]) > 3
+
+
+@pytest.mark.parametrize(
+    ("args", "expect_ood"),
+    [([], False), (["--cell-context", "K562"], False), (["--cell-context", "HepG2"], True)],
+)
+def test_cell_context_flag_drives_the_ood_flag(
+    runner: CliRunner, prime_fasta: Path, args: list[str], expect_ood: bool
+) -> None:
+    """`cell_context` was reachable only from a config file; a flag is the obvious way."""
+    result = runner.invoke(
+        app,
+        [
+            "design",
+            "chr2:71:A>C",
+            "--reference-fasta",
+            str(prime_fasta),
+            "--intent",
+            "install",
+            "--no-offtarget",
+            "--format",
+            "json",
+            *args,
+        ],
+    )
+    assert result.exit_code == 0
+    top = json.loads(result.output)["candidates"][0]
+    assert top["efficiency"]["in_distribution"] is not expect_ood
+    assert ("ood" in top["flags"]) is expect_ood

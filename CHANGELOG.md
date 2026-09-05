@@ -10,6 +10,16 @@ acceptance.
 
 ### Added
 
+- **`cell_context` — the input that raises the OOD flag — is now settable from the CLI and the web API.**
+  It was reachable only through a CLI *config file*, and not at all from the web API, whose `DesignRequest`
+  had no such field. So every design the web API returned reported `in_distribution: true` whatever cell
+  line the user was actually targeting — the exact opposite of what the flag exists for, on the surface most
+  likely to be used casually. `aforge design --cell-context HepG2` (overriding the config key, matching the
+  other options' precedence) and the API's `cell_context` field now set it. Verified end to end: with no
+  context or with `HEK293T`/`K562` the prediction stays in-distribution; with `HepG2` it flips to
+  `in_distribution: false` and the candidate carries `ood`. Found by asking which `design()` capabilities
+  the shells cannot reach — the query the previous entry's lesson suggested.
+
 - **The report render cap is now reachable from the CLI and the web API.** `render_html` / `render_pdf`
   have taken `max_candidates` since the cap was introduced, but neither surface exposed it — so a user who
   wanted the full 720-candidate page had no way to ask for it, and the parameter was library-only. `aforge

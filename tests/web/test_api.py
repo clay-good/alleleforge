@@ -568,3 +568,32 @@ async def test_design_json_ignores_the_render_cap(client: httpx.AsyncClient) -> 
     )
     assert res.status_code == 200
     assert len(res.json()["candidates"]) > 3
+
+
+@pytest.mark.parametrize(
+    ("cell_context", "expect_in_distribution"),
+    [(None, True), ("HEK293T", True), ("K562", True), ("HepG2", False)],
+)
+async def test_design_cell_context_drives_the_ood_flag(
+    client: httpx.AsyncClient, cell_context: str | None, expect_in_distribution: bool
+) -> None:
+    """The honesty flag must be reachable from the surface most likely used casually.
+
+    The efficiency scorers are trained on HEK293T/K562, and a context outside that
+    is meant to flag every prediction out-of-distribution rather than report it as
+    if it were in-domain. Before `cell_context` was exposed here, the web API could
+    not set it at all — so every design it returned claimed `in_distribution: true`
+    whatever cell line the user was actually targeting.
+    """
+    body: dict[str, object] = {
+        "variant": "chr2:71:A>C",
+        "intent": "install",
+        "run_offtarget": False,
+    }
+    if cell_context is not None:
+        body["cell_context"] = cell_context
+    res = await client.post("/api/design", json=body)
+    assert res.status_code == 200
+    top = res.json()["candidates"][0]
+    assert top["efficiency"]["in_distribution"] is expect_in_distribution
+    assert ("ood" in top["flags"]) is not expect_in_distribution

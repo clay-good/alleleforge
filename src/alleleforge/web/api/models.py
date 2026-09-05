@@ -32,6 +32,8 @@ MAX_VARIANT_LEN = 8192  # HGVS delins can inline an inserted sequence; still gen
 MAX_BUILD_LEN = 128
 MAX_SPACER_LEN = 512
 MAX_PAM_LEN = 64
+#: Longest accepted cell-line / cell-type label.
+MAX_CELL_CONTEXT_LEN = 128
 MAX_POPULATIONS = 64
 MAX_CHEMISTRIES = 16
 
@@ -89,6 +91,16 @@ class DesignRequest(BaseModel):
         default=None,
         max_length=MAX_POPULATIONS,
         description="Ancestry labels to query and stratify off-target by.",
+    )
+    cell_context: str | None = Field(
+        default=None,
+        max_length=MAX_CELL_CONTEXT_LEN,
+        description=(
+            "The target cell line or type (e.g. HEK293T, K562, HepG2). A context "
+            "outside a scorer's training distribution flags every efficiency "
+            "prediction out-of-distribution instead of reporting it as if it were "
+            "in-domain. Omitted, no OOD claim is made either way."
+        ),
     )
     render_candidates: int | None = Field(
         default=None,

@@ -1983,6 +1983,33 @@ together is a few lines — versus a later round spent noticing, plus the window
 differently. The generalizable version: after adding a parameter to a library function, grep its call
 sites in the shells before closing the change.**
 
+## Round 74 — the honesty flag you could not raise
+
+R73 ended with "after adding a parameter to a library function, grep its call sites in the shells". Ran the
+inverse: which `design()` parameters can the shells not reach at all?
+
+`cell_context` was the answer, and it is not a minor one. It is the input that raises the **OOD flag** —
+the mechanism the README leads with ("any other cell context flags the efficiency prediction
+out-of-distribution and raises an `ood` flag rather than hiding it"). It was reachable only through a CLI
+*config file*, and **not at all** from the web API, whose `DesignRequest` had no such field.
+
+So every design the web API returned reported `in_distribution: true` regardless of the cell line the user
+was actually working in — not because the flag was broken, but because the surface most likely to be used
+casually had no way to tell it the truth. A safety-by-honesty mechanism that cannot be *triggered* is
+inert in the same way a mis-computed one is, and this one failed silently in the reassuring direction.
+
+**Shipped:** `aforge design --cell-context HepG2` (overriding the config key, matching how the other
+options resolve) and the API's `cell_context` field. Verified end to end: no context or `HEK293T`/`K562`
+stays in-distribution; `HepG2` flips to `in_distribution: false` with the `ood` flag. Parametrized tests on
+both surfaces, and a spec requirement that the flag be reachable from every surface that designs.
+
+**Lesson: "is the feature implemented?" and "can a user reach it?" are different questions, and the
+codebase only answers the first. The OOD machinery was correct, tested, and documented — and unreachable
+from one of the two shells, which is indistinguishable from absent for anyone using that shell. The query
+that finds this class is not about code quality at all: take the library's entry point, list its
+parameters, and check each one against the surfaces. The gaps that turn up are, by construction, features
+someone thought worth building and nobody finished exposing.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

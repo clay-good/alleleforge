@@ -316,6 +316,18 @@ def design(
             "Default is the weight-free baseline.",
         ),
     ] = False,
+    cell_context: Annotated[
+        str | None,
+        typer.Option(
+            "--cell-context",
+            help=(
+                "The target cell line or type (e.g. HEK293T, K562, HepG2). A context "
+                "outside a scorer's training distribution flags every efficiency "
+                "prediction out-of-distribution instead of reporting it as if it were "
+                "in-domain. Omitted, no OOD claim is made either way."
+            ),
+        ),
+    ] = None,
     render_candidates: Annotated[
         int | None,
         typer.Option(
@@ -362,7 +374,7 @@ def design(
     max_per_chemistry = (
         max_per_chemistry if max_per_chemistry is not None else cfg.get("max_per_chemistry")
     )
-    cell_context = cfg.get("cell_context")
+    cell_context = cell_context or cfg.get("cell_context")
     trained_efficiency = trained_efficiency or bool(cfg.get("trained_efficiency", False))
     trained_outcome = trained_outcome or bool(cfg.get("trained_outcome", False))
     trained_base_outcome = trained_base_outcome or bool(cfg.get("trained_base_outcome", False))

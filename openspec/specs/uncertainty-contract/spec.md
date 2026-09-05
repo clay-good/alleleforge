@@ -319,3 +319,21 @@ its least-calibrated, least-in-distribution member).
 #### Scenario: Mixed interval levels
 - **WHEN** the inputs do not share one `interval_level`
 - **THEN** `combine` raises `ValueError`
+
+### Requirement: The OOD flag is reachable from every surface
+
+The out-of-distribution flag exists to stop a prediction being trusted outside the
+regime it was fitted on, so the input that raises it — the target cell context —
+SHALL be settable from every surface that designs: the library, the CLI, and the web
+API. A surface that cannot set it reports `in_distribution` true for every design it
+returns, whatever context the user is actually working in, which is the opposite of
+what the flag is for.
+
+#### Scenario: A context outside the training distribution
+- **WHEN** a design is requested with a cell context a scorer was not fitted on
+- **THEN** its efficiency prediction is `in_distribution = False` and the candidate
+  carries the `ood` flag, on the CLI and the web API alike
+
+#### Scenario: No context given
+- **WHEN** no cell context is supplied
+- **THEN** no OOD claim is made either way
