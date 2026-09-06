@@ -10,6 +10,19 @@ acceptance.
 
 ### Fixed
 
+- **Two more file inputs failed with a raw traceback.** A haplotype panel whose header lacks a column
+  raised a bare `KeyError`; it now names the missing column *and* the expected header, since a hand-built or
+  differently-exported panel is the ordinary cause. Reading a real VCF without the optional `genome` extra
+  raised an uncaught `RuntimeError` — the message was already actionable, only its presentation was a stack
+  trace — and now exits `UNAVAILABLE` rather than `MISSING_DATA`, because the file is fine and the feature is
+  not installed, a distinction the exit codes already make and scripts can act on.
+
+  Found by the same sweep as the region-panel fix: feed every file input a file that is wrong in the way a
+  real user's file is wrong. `--gnomad` came back clean and did the right thing — a wrong-contig frequency
+  file runs and reports "supplied but contributing nothing in this region".
+
+### Fixed
+
 - **A region panel naming a contig the reference does not have dumped a raw traceback.** A BED built against
   another assembly or naming convention is the ordinary way this happens, and the CLI caught `ValueError`
   but not the `KeyError` that a missing contig raises deep in the fetch. It is now a clean usage error

@@ -177,3 +177,24 @@ the report's searchable-fraction line already states how little of it held seque
 #### Scenario: A region past a contig end
 - **WHEN** a region begins beyond the end of its contig
 - **THEN** the search runs and reports that none of those bases were searchable
+
+### Requirement: A malformed or unsupported input fails with a decision, not a traceback
+
+Every file input SHALL fail with a message a user can act on, and with the exit code that
+matches *why* it failed — these are different answers and the CLI already distinguishes
+them:
+
+- an input the reference cannot serve (an unknown contig): a usage error naming what is
+  valid;
+- a malformed file (a missing column): a usage error naming the missing element **and**
+  the expected schema, since the next question is what it should have been;
+- a feature that is not installed (an optional dependency): unavailable, not missing
+  data — the file is fine.
+
+#### Scenario: A panel with the wrong header
+- **WHEN** a haplotype panel lacks a required column
+- **THEN** the error names the column and the expected header, and no traceback is shown
+
+#### Scenario: An optional dependency absent
+- **WHEN** reading a VCF requires an extra that is not installed
+- **THEN** the command exits unavailable and states how to install it

@@ -369,6 +369,16 @@ def _load_haplotypes(path: Path | None) -> Iterable[Haplotype]:
         return _attach_source(
             HaplotypePanel.from_tsv(path, source=str(path)), path, "haplotype-panel"
         )
+    except KeyError as exc:
+        # A wrong-schema TSV raises KeyError from the column lookup, which used to
+        # surface as a bare traceback. Name the missing column and the expected header:
+        # a hand-built or differently-exported panel is the ordinary cause.
+        _echo_err(
+            f"error: --haplotypes {path} is missing the column {exc.args[0]!r}. "
+            "Expected a tab-separated header of: "
+            "hap_id  chrom  start  end  population  frequency  variants"
+        )
+        raise typer.Exit(ExitCode.USAGE) from exc
     except (OSError, ValueError) as exc:
         _echo_err(f"error: could not read --haplotypes {path}: {exc}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
@@ -404,6 +414,12 @@ def _load_patient_variants(path: Path | None, reference: Any) -> list[Variant] |
             name="patient-variants", version=f"n={len(variants)}"
         )
         return variants
+    except RuntimeError as exc:
+        # A missing optional dependency (cyvcf2, for a real VCF path) already carries
+        # an actionable message; it just arrived as a traceback. UNAVAILABLE, not
+        # MISSING_DATA: the file is fine, the feature is not installed.
+        _echo_err(f"error: {exc}")
+        raise typer.Exit(ExitCode.UNAVAILABLE) from exc
     except (OSError, ValueError, KeyError) as exc:
         _echo_err(f"error: could not read --patient-vcf {path}: {exc}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc

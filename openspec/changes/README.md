@@ -3456,6 +3456,32 @@ region simply asked for more than the contig has.
 tests that exercise the case you are about to forbid. A test doing something odd on purpose is documentation
 of an intent you are about to break. Refuse only what no reporting can make comprehensible.**
 
+## Round 121 — the same sweep, across the siblings
+
+R117 turned "which siblings did I just skip?" into a habit, and R120 fixed one file input. So this round
+fed a *wrong-in-a-realistic-way* file to each of the four: a frequency file, a haplotype panel, a patient
+VCF, a chromatin track, all naming a contig the reference does not have.
+
+`--gnomad` came back clean, and pleasingly so: the run completes and reports "supplied but contributing
+nothing in this region", which is the mechanism from four rounds ago handling a case I had not written it
+for. That is what a general fix looks like from the outside.
+
+The other two failed with tracebacks, for different reasons and needing different answers:
+
+**A haplotype panel with the wrong header** raised a bare `KeyError: 'frequency'`. The fix names the missing
+column *and* prints the expected header, because the user's next question after "which column?" is "what
+should it be?" and a panel exported from somewhere else is the ordinary cause.
+
+**A real VCF without the optional `genome` extra** raised an uncaught `RuntimeError` whose message was
+already excellent — it names the extra and the pip command. Only the presentation was wrong. That one also
+wanted a different exit code: `UNAVAILABLE`, not `MISSING_DATA`, because the file is fine and the *feature*
+is absent. The CLI already distinguishes those and a script can branch on it; the traceback path could not.
+
+**Lesson: a traceback is a missing decision, and the decision is usually not just "catch it" but *which*
+answer it is. Three failures in one sweep wanted three different treatments — refuse with the valid
+alternatives, refuse with the expected schema, and report a missing capability — and collapsing them into
+one generic handler would have thrown away the useful part.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

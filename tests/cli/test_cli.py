@@ -725,6 +725,69 @@ def test_offtarget_states_the_settings_its_site_count_depends_on(
     assert default["dna_bulge_budget"] == 1 and default["cfd_threshold"] == 0.20
 
 
+def test_a_wrong_schema_haplotype_panel_fails_clearly(
+    runner: CliRunner, nuclease_fasta: Path, tmp_path: Path
+) -> None:
+    """A hand-built or differently-exported panel raised a bare `KeyError` traceback.
+
+    Same class as the region panel: an ordinary user mistake in a file made
+    elsewhere, surfacing as a stack trace instead of a sentence naming the problem.
+    """
+    panel = tmp_path / "hap.tsv"
+    panel.write_text(
+        "#hap_id\tchrom\tstart\tend\tvariants\tafr\nH1\tchr2\t0\t50\tchr2:10:A>G\t0.2\n"
+    )
+    result = runner.invoke(
+        app,
+        [
+            "offtarget",
+            "ACGTAACGTTACGTAACGTT",
+            "--reference-fasta",
+            str(nuclease_fasta),
+            "--haplotypes",
+            str(panel),
+        ],
+    )
+    assert result.exit_code == ExitCode.USAGE
+    assert "missing the column" in result.output
+    # Naming the expected header is the actionable half.
+    assert "hap_id" in result.output and "frequency" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_a_missing_optional_dependency_is_reported_not_raised(
+    runner: CliRunner, nuclease_fasta: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reading a real VCF needs an optional extra; the message was good, the exit was not.
+
+    It arrived as an uncaught `RuntimeError` traceback. UNAVAILABLE rather than
+    MISSING_DATA, because the file is fine and the feature is not installed — a
+    scriptable distinction the exit codes already make.
+    """
+    import alleleforge.variant as variant_pkg
+
+    def _absent(*_args: object, **_kw: object) -> object:
+        raise RuntimeError("iter_vcf needs cyvcf2 to read a VCF path; install the 'genome' extra")
+
+    monkeypatch.setattr(variant_pkg, "iter_vcf", _absent)
+    vcf = tmp_path / "p.vcf"
+    vcf.write_text("##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n")
+    result = runner.invoke(
+        app,
+        [
+            "offtarget",
+            "ACGTAACGTTACGTAACGTT",
+            "--reference-fasta",
+            str(nuclease_fasta),
+            "--patient-vcf",
+            str(vcf),
+        ],
+    )
+    assert result.exit_code == ExitCode.UNAVAILABLE
+    assert "install the 'genome' extra" in result.output
+    assert "Traceback" not in result.output
+
+
 def test_a_region_panel_the_reference_cannot_serve_fails_clearly(
     runner: CliRunner, nuclease_fasta: Path, tmp_path: Path
 ) -> None:
