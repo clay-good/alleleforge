@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **The browser UI says what the deployment can actually search.** Its status line reported one bit —
+  `reference loaded` or not — while the Populations box invited ancestry labels whose usefulness depends
+  entirely on operator configuration a browser user cannot see or supply. It now reports the loaded
+  population source, haplotype panel and track names, and names a configured source that could not be read
+  separately from one that was never configured. The comment in `app.js` asserting that no file-backed
+  source can reach this deployment "over HTTP ... always" was the last place still claiming the old state.
+
 - **The web API docs no longer call a working endpoint unimplemented.** The endpoint table said
   "`GET /api/bench` | CRISPR-Bench (`501` until Phase 14)"; Phase 14 shipped and the endpoint returns all
   five tasks with their kind, chemistry, dataset and metric battery. A reader following the docs would not

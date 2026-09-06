@@ -8934,6 +8934,34 @@ Anything a doc says the product cannot do is worth executing — the cheapest wa
 feature unreachable is to keep saying it is not there.**
 
 
+## Round 271 — the last shell, and the comment that outlived its truth
+
+The population-aware search reached the library, the CLI, and (R262-R264) the HTTP API. One
+surface left: the served browser UI, which has a Populations box.
+
+Whether anything can be done with what a user types there depends on configuration they
+cannot see and cannot supply, and the status line reported exactly one bit — `reference
+loaded` or `no reference configured`. Until three rounds ago that was defensible, and
+`app.js` said why, in a comment beside the code that renders the safety basis:
+
+    `offtarget_sources` is `{}` when none did — which over HTTP is always, since no
+    file-backed source can be supplied to this deployment
+
+Accurate when written, false now, and the last place in the repo still asserting it. The
+rendering underneath was already correct — it shows the source names when there are any —
+so this was prose rot in code rather than a behavioural bug, which is exactly why nothing
+caught it.
+
+`/api/health` had gained `gnomad_loaded`, `haplotypes_loaded`, `chromatin_tracks` and
+`source_errors` and the UI read none of them. It reports all four now, including the
+distinction R266 added: a deployment that configured nothing versus one whose configured
+source could not be read.
+
+**Lesson: a comment explaining why a limitation exists is a claim about the system, and it
+rots exactly like a doc — with less chance of being read. When a limitation is lifted, grep
+the code comments for it, not just the docs.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

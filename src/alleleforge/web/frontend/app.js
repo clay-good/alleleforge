@@ -89,7 +89,22 @@ async function checkHealth() {
     const res = await fetch("/api/health");
     const h = await res.json();
     const ref = h.reference_loaded ? "reference loaded" : "no reference configured";
-    document.getElementById("health").textContent = `AlleleForge ${h.version} · ${ref}`;
+    // Which optional data sources this deployment has. A browser user cannot supply
+    // them — they are operator-configured — so the status line is the only place they
+    // can learn whether the ancestry labels they typed can be honoured at all. A
+    // configured source that failed to load is named separately: a broken mount and a
+    // deliberate absence are different facts.
+    const sources = [];
+    if (h.gnomad_loaded) sources.push("population sites");
+    if (h.haplotypes_loaded) sources.push("haplotype panel");
+    if (h.chromatin_tracks && h.chromatin_tracks.length) {
+      sources.push(`tracks: ${h.chromatin_tracks.join("/")}`);
+    }
+    const errors = Object.keys(h.source_errors || {});
+    const basis = sources.length ? sources.join(" · ") : "reference-only";
+    const broken = errors.length ? ` · configured but unreadable: ${errors.join(", ")}` : "";
+    document.getElementById("health").textContent =
+      `AlleleForge ${h.version} · ${ref} · ${basis}${broken}`;
   } catch {
     document.getElementById("health").textContent = "API unreachable";
   }
@@ -161,9 +176,11 @@ function renderBatch(data) {
       // A worst-case score alone is the most reassuring number the system can make
       // and the least interpretable: it is conditional on the aggregate specificity
       // the scan is summarized by, and on whether any population source backed it.
-      // `offtarget_sources` is `{}` when none did — which over HTTP is always, since
-      // no file-backed source can be supplied to this deployment — and an empty
-      // ancestry picture means "not measured", not "clean".
+      // `offtarget_sources` is `{}` when none did. That is no longer always the case
+      // over HTTP: the operator can configure a population source and a haplotype panel
+      // (the status line above says which), so this reads "reference-only" for a
+      // deployment that has none rather than for the web shell as such. Either way an
+      // empty ancestry picture means "not measured", not "clean".
       const worst = typeof s.worst_offtarget === "number" ? s.worst_offtarget.toFixed(3) : "—";
       const spec =
         typeof s.best_specificity === "number" ? s.best_specificity.toFixed(3) : "—";
