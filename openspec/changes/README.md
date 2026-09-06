@@ -8643,6 +8643,35 @@ an optional input changes what the tool *checks*, its absence is a fact about th
 not a fact about the invocation.**
 
 
+## Round 261 — the error message for the mistake the tool sets you up to make
+
+Ran `aforge verify` on the artifacts from the previous rounds. It verified a result JSON
+and a sidecar, and was honest about its limits ("no artifact bytes were re-hashed ... pass
+--cache-dir to do that"). Then I gave it the file `design` had just told me it wrote:
+
+    $ aforge design ... --format html --out report.html
+    wrote report.html and report.html.provenance.json
+    $ aforge verify report.html
+    error: not a design report, a ranked menu, or a provenance sidecar. DesignReport: 1
+    validation error for DesignReport Invalid JSON: expected value at line 1 column 1
+    [type=json_invalid, ...] For further information visit
+    https://errors.pydantic.dev/2.13/v/json_invalid / RankedMenu: 1 validation error ...
+
+The answer was already in the function. `verify`'s docstring: for tsv, html and pdf "the
+sidecar is the only machine-readable provenance a run leaves behind, so refusing it would
+put this contract out of reach of three of the four formats." That sentence is why the
+sidecar is accepted at all — and the refusal, for the exact case it describes, printed a
+parse trace instead of the path.
+
+Now it names the sidecar, and the test runs the named command to confirm it works rather
+than asserting the string. The validator output is kept for a malformed file with no
+sidecar beside it: that caller needs the parse errors; this one needed a next command.
+
+**Lesson: when a tool prints "wrote A and B", the next command a user types is against A.
+Check the error path for the mistake your own success message invites — and if the code
+already documents the answer in a docstring, the refusal is where it belongs.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

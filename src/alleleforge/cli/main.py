@@ -2040,6 +2040,21 @@ def verify(
         try:
             prov = Provenance.model_validate_json(text, context=context)
         except ValueError as exc:
+            # The likeliest way to arrive here is the most natural one: `design
+            # --format html` prints "wrote report.html and report.html.provenance.json",
+            # and the user hands `verify` the artifact rather than the sidecar. This
+            # function's own docstring already knows that for tsv/html/pdf the sidecar
+            # is the only machine-readable provenance a run leaves — the refusal did
+            # not, and answered with three stacked pydantic validation errors,
+            # `errors.pydantic.dev` links included.
+            sidecar = result.with_name(f"{result.name}.provenance.json")
+            if sidecar.is_file():
+                _echo_err(
+                    f"error: {result.name} carries no machine-readable provenance — for "
+                    "tsv, html and pdf output the provenance is written to a sidecar. "
+                    f"Verify that instead:\n  aforge verify {sidecar}"
+                )
+                raise typer.Exit(ExitCode.USAGE) from exc
             _echo_err(
                 "error: not a design report, a ranked menu, or a provenance sidecar. "
                 + " / ".join(errors)

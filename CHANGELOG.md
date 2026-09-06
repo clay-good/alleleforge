@@ -2036,6 +2036,13 @@ acceptance.
 
 ### Fixed
 
+- **`verify` names the sidecar when handed the artifact beside it.** `design --format html` prints "wrote
+  report.html and report.html.provenance.json", so the obvious next command is `aforge verify report.html`
+  — which answered with three stacked pydantic validation errors and `errors.pydantic.dev` links. The
+  tool already knew the answer: `verify`'s own docstring says the sidecar is the only machine-readable
+  provenance an html/pdf/tsv run leaves behind. The refusal now names that path, and the detailed validator
+  output is kept for a malformed file with no sidecar beside it, where there is no next command to name.
+
 - **`resolve` says whether a genome checked its answer.** Without a reference it performs neither
   left-alignment nor REF-allele validation, so `chr2:1006:T>A` where the genome has a `G` came back as a
   clean normalized SNV with exit 0 — while the same input with `--reference-fasta` is refused by name

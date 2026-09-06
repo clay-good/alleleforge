@@ -142,6 +142,23 @@ the default run stays weight-free.
 - **WHEN** `design` runs without any trained-model flag
 - **THEN** only weight-free heuristic scorers are used
 
+### Requirement: A refusal names the command that would have worked
+
+Where a refusal has one likely remedy, it SHALL name it. `verify` accepts a result JSON
+or a provenance sidecar; handed the html/pdf/tsv artifact written beside that sidecar —
+the file `design` names in its own success message — it SHALL name the sidecar path
+rather than emitting the validator's output, which describes the parse and not the way
+out of it.
+
+#### Scenario: Verifying a rendered report
+- **WHEN** `aforge verify` is given an artifact whose sibling `<name>.provenance.json`
+  exists
+- **THEN** the refusal names that sidecar as the file to verify
+
+#### Scenario: A malformed file with no sidecar
+- **WHEN** no sidecar sits beside the file
+- **THEN** the detailed validation errors are shown, since there is no next command to name
+
 ### Requirement: A verify subcommand checks provenance
 
 The CLI SHALL expose `aforge verify <result>` that re-hashes the pinned checkpoints and
