@@ -6703,6 +6703,35 @@ flags, JSON keys — needs a test that walks from the docs back to the definitio
 nothing else will.**
 
 
+## Round 212 — the endpoint that was on one table and not the other
+
+`docs/api/web.md` heads a table "Endpoints" and lists nine. The app serves ten.
+`POST /api/batch` — cohort design over a variant list, per-item summaries and
+provenance, a failed item isolated rather than failing the run — was missing from the
+page a reader reaches from the documentation navigation. The README's copy of the same
+table has it, which is how the gap survived: each document is right about what it says
+and wrong only by comparison, and nobody diffs two tables in two files.
+
+An undocumented endpoint is not a broken one. The route works, its tests pass, and every
+gate in `make ci` was green over it. That is the whole reason this class needs a check
+rather than a proofread: there is no failure to notice.
+
+`test_the_docs_list_every_endpoint` is R211's check run in the opposite direction.
+R211 asked whether every documented name is real; this asks whether every real name is
+documented. Both are needed and they catch different things — a name that goes nowhere,
+and a capability nobody can find. It normalizes `{...}` away, so the docs' `/api/jobs/{id}`
+matches the route's `/api/jobs/{job_id}`: the parameter's name is an implementation
+detail, and a check that fails on it would be turned off within a round.
+
+Confirmed by mutation rather than by its own green: deleting the row that had just been
+added fails exactly the one surface, and only that surface.
+
+**Lesson: when the same table exists in two documents, one of them is already out of
+date. The fix is not to reconcile them but to derive the check from the code both are
+describing — then a third copy costs one line in a parametrize instead of a fourth
+opportunity to drift.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

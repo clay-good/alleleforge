@@ -38,6 +38,7 @@ auto-generated at `/openapi.json`.
 | `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf`. |
 | `POST /api/jobs/design` | Submit an async design job (`202`, returns a job id). |
 | `GET /api/jobs/{id}` | Poll an async job's state, progress, and result. |
+| `POST /api/batch` | Cohort design over a variant list; per-item summaries and provenance, a failed item isolated rather than failing the run. |
 | `POST /api/offtarget` | Standalone population-aware off-target search. |
 | `GET /api/data` / `GET /api/data/{name}` | Inspect the dataset registry. |
 | `GET /api/bench` | CRISPR-Bench (`501` until Phase 14). |

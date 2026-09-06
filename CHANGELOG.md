@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **The API reference lists every endpoint, and a check keeps it that way.** `docs/api/web.md` heads a
+  table "Endpoints" and omitted `POST /api/batch` — cohort design over a variant list, a whole capability —
+  while the README's copy of the same table had it. Nothing was broken, which is why nothing caught it: the
+  route works and its tests pass, and the omission is visible only by diffing two documents. A new check
+  asserts every `/api` route the app serves appears on both surfaces, normalizing `{...}` so a renamed path
+  parameter is not a failure. It is the mirror of the environment-variable check: that one asks whether every
+  documented name is real, this one whether every real name is documented.
+
 - **The documented environment variables are checked against the ones the software reads.**
   `docs/deployment.md` named the reference build `ALLELEFORGE_REFERENCE_BUILD`; the `Settings` field is
   `reference`, so the real variable is `ALLELEFORGE_REFERENCE` and exporting the documented name silently left
