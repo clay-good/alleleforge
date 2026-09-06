@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 
+import pytest
+
 from alleleforge.data.gnomad import GnomadDB, PopulationFrequency
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.offtarget.engine import low_stringency_pam, search
-from alleleforge.types.guide import PAM
+from alleleforge.types.guide import PAM, Spacer
 from alleleforge.types.offtarget import SiteOrigin
-from alleleforge.types.sequence import GenomicInterval, Strand
+from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
 from alleleforge.types.variant import Variant
 
 from .conftest import PAD, SPACER
@@ -741,3 +743,35 @@ def test_a_one_shot_patient_iterable_is_not_consumed_twice(make_reference: MakeR
     second = search(SPACER, NGG, reference=reference, patient_vcf=reusable)
     assert first.sources_considered == second.sources_considered == {"patient-vcf": 1}
     assert len(reusable) == 1
+
+
+def test_search_refuses_a_scorer_that_cannot_serve_the_budget(make_reference: MakeRef) -> None:
+    """The guard belonged in `search()`, not in the CLI.
+
+    The MIT score is defined only for an ungapped 20-nt alignment, so a bulge budget
+    makes it raise partway through the scan with a message about the *alignment*
+    length — which reads as a complaint about the caller's spacer, and the caller's
+    spacer is fine. The refusal was added to the CLI first, so the library, the cohort
+    path and any future web caller still hit the deep failure. Every caller passes
+    through `search`.
+    """
+    from alleleforge.offtarget.scoring import MitScorer
+
+    reference = make_reference({"chr1": "T" * 20 + "TTTAAACGTTTTTTTTTTTT" + "TGG" + "T" * 20})
+    spacer = Spacer(sequence=DNASequence("TTTAAACGTTTTTTTTTTTT"))
+
+    with pytest.raises(ValueError, match="undefined for bulged alignments"):
+        search(spacer, PAM(pattern="NGG"), reference=reference, scorer=MitScorer(), dna_bulges=1)
+    with pytest.raises(ValueError, match="undefined for bulged alignments"):
+        search(spacer, PAM(pattern="NGG"), reference=reference, scorer=MitScorer(), rna_bulges=1)
+
+    # ...and the combination it *can* serve is not refused.
+    report = search(
+        spacer,
+        PAM(pattern="NGG"),
+        reference=reference,
+        scorer=MitScorer(),
+        dna_bulges=0,
+        rna_bulges=0,
+    )
+    assert report.scorer == "MIT"

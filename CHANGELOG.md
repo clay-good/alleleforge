@@ -1576,6 +1576,13 @@ acceptance.
 
 ### Fixed
 
+- **The MIT/bulge refusal was in the CLI, so the library still crashed mid-scan.** Two rounds ago the
+  combination was refused at the shell — but `search()` is what the library, the cohort path and any future
+  web caller go through, and they still hit `ValueError: … this one is 19 nt` from deep inside the scan,
+  which reads as a complaint about the caller's spacer while the caller's spacer is fine. The guard moved into
+  `search()`, where every caller passes; the CLI's duplicate is gone rather than left as a second
+  implementation of the same rule.
+
 - **A conformal interval claimed coverage its calibration set could not support.** Split conformal takes the
   `ceil((n+1)·level)`-th smallest normalized residual; when that rank exceeds `n` the implementation correctly
   falls back to the largest residual, but the guarantee that fallback carries is `n/(n+1)`, not the level

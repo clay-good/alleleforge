@@ -1840,7 +1840,9 @@ def test_mit_with_bulges_is_refused_before_the_scan(runner: CliRunner, tmp_path:
     )
     assert result.exit_code == ExitCode.USAGE
     assert "undefined for bulged alignments" in result.output
-    assert "--dna-bulges 0" in result.output
+    # The refusal lives in `search()` now, not in the CLI: the library, the cohort and
+    # any future web caller hit the same guard rather than the deep failure.
+    assert "dna_bulges=0" in result.output
 
 
 def test_a_partially_failed_cohort_exits_non_zero(runner: CliRunner, tmp_path: Path) -> None:

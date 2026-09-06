@@ -5352,6 +5352,33 @@ write the clean ones down as tests rather than as prose. R176's defect and R177'
 non-defects are the same question asked three times ("what does this claim when the data
 is too thin?"), and the value of the two negatives is that they now stay negative.**
 
+## Round 178 — fixing the shell instead of the core
+
+Rotating again, to the population/haplotype modules — the differentiator, and code I had audited *around*
+without opening. `_strengthens` turns out to be carefully reasoned: an alt hit is nominated when it is created
+or beats the reference on *either* score or edit count, explicitly as the safety-maximizing union, with the
+reasoning written down. Good code.
+
+But it calls `scorer.score(...)` on bulged hits, and R167 established that the MIT scorer cannot score a
+gapped alignment. R167 refused that combination — **in the CLI**. So:
+
+    search(spacer, pam, reference=ref, scorer=MitScorer(), dna_bulges=1)
+    → ValueError: the MIT score is defined only for an ungapped 20-nt alignment;
+      this one is 19 nt
+
+The library, the cohort path and any future web caller all still walked into it, and the message is about the
+*alignment* — a reader holding a valid 20-nt spacer has no way to connect it to the bulge budget they set.
+I had spent several rounds finding capabilities stranded in the library and reachable from no shell; this is
+the mirror image, and I created it two rounds ago by putting a rule where I happened to be typing.
+
+Moved into `search()`, and the CLI's copy deleted rather than left as a second implementation of the same
+rule — `project.md`'s standing complaint about local versions of things that already exist.
+
+**Lesson: a validation belongs at the narrowest point every caller passes through, and "where I noticed the
+problem" is almost never that point. I found this one from the shell, so I fixed it in the shell; the
+question that would have caught it is the same one shell-parity asks in the other direction — not "can every
+caller reach this capability?" but "does every caller reach this guard?"**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

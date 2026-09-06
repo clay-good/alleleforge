@@ -230,6 +230,13 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
   guard is weak, confirm the thing you edited is load-bearing for the behaviour you
   meant to break.
 
+- **Put a validation at the narrowest point every caller passes, not where you noticed
+  the problem.** R167 refused an unserviceable scorer/budget combination in the CLI
+  because that is where it surfaced; the library, the cohort and the web API kept
+  crashing deep in the scan for two more rounds (R178). The shell-parity question runs
+  in both directions: "can every caller reach this capability?" and "does every caller
+  reach this guard?"
+
 ## Existing planning docs (background, not OpenSpec)
 
 `SPEC.md` (v1 build phases), `SPEC_V2.md` (R0–R6 roadmap), and `specs/*.md` (model-

@@ -351,6 +351,18 @@ def search(
         i + 1 for i, base in enumerate(sp.upper()) if base not in "ACGT"
     )
     primary = scorer if scorer is not None else CfdScorer()
+    # Refuse a scorer/budget combination the scorer cannot serve, before scanning
+    # anything. The MIT score is defined only for an ungapped 20-nt alignment, so a
+    # bulge budget makes it raise partway through the scan with a message about the
+    # *alignment* length — which reads as a complaint about the caller's spacer, and
+    # the caller's spacer is fine. This lived in the CLI, so the library, the cohort
+    # and any future web caller still hit the deep failure; it belongs here, where
+    # every caller passes.
+    if primary.method is ScoreMethod.MIT and (dna_bulges or rna_bulges):
+        raise ValueError(
+            "the MIT score is undefined for bulged alignments; set dna_bulges=0 and "
+            "rna_bulges=0, or use the CFD scorer, which scores bulged hits"
+        )
     scan_pam = low_stringency_pam(pam)
     search_regions = list(regions) if regions is not None else _contig_regions(reference)
     haplotype_list = list(haplotypes)
