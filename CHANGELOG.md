@@ -2036,6 +2036,13 @@ acceptance.
 
 ### Fixed
 
+- **`resolve` states the coordinate convention its loci are in.** It prints a normalized variant position
+  and a working interval, and said nothing about 0-based half-open versus the 1-based inclusive form a
+  genome browser shows — the off-by-one this project keeps a named constant for. The report footer, the
+  cohort TSV header and both off-target surfaces all carry it; the command whose entire job is telling a
+  caller what their input means did not. Added to the human render, the JSON payload and
+  `POST /api/resolve`.
+
 - **Each artifact's disclaimer describes that artifact.** Found by starting the API as `docs/deployment.md`
   documents it and reading the responses: `GET /api/health` — a liveness probe — returned "The candidates
   below are ranked ... Every off-target nomination is computational and must be experimentally validated",

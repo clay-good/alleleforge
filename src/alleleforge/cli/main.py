@@ -219,6 +219,7 @@ def resolve(
     as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Normalize any input form to a canonical variant (debugging aid)."""
+    from alleleforge.report.builder import COORDINATE_NOTE, COORDINATE_SYSTEM
     from alleleforge.variant.resolver import resolve as resolve_variant
 
     state: GlobalState = ctx.obj
@@ -247,6 +248,12 @@ def resolve(
         "build": v.build,
         "source": resolved.source,
         "working_interval": str(resolved.working_interval),
+        # Every locus on this payload — the working interval, and the position inside
+        # `variant` — is 0-based half-open, and a genome browser reads the same digits as
+        # 1-based inclusive. The report, the cohort TSV and the off-target surfaces all
+        # say so; `resolve`, whose entire job is telling a caller what their input means,
+        # printed loci and stated no convention.
+        "coordinate_system": COORDINATE_SYSTEM,
         "reference_recommendation": (
             resolved.reference_recommendation.recommended_build
             if resolved.reference_recommendation is not None
@@ -276,7 +283,8 @@ def resolve(
     )
     human = (
         f"{v}  [{v.variant_class.value}, build {v.build}, from {resolved.source}]\n"
-        f"working interval: {resolved.working_interval}{note}{recommendation}"
+        f"working interval: {resolved.working_interval}\n"
+        f"{COORDINATE_NOTE}{note}{recommendation}"
     )
     _emit(payload, as_json=as_json, human=human)
 

@@ -94,6 +94,10 @@ class ResolveResponse(BaseModel):
     build: str
     source: str
     working_interval: str
+    #: The convention every locus in this response is in — the working interval, and the
+    #: position inside `variant`. A genome browser reads the same digits as 1-based
+    #: inclusive. Every other locus-bearing surface states it; this one did not.
+    coordinate_system: str = COORDINATE_SYSTEM
     reference_recommendation: str | None = None
     #: Why a different build is recommended — the ambiguous regions the locus overlaps.
     #: The build name on its own does not say that alignment here is ambiguous, which is

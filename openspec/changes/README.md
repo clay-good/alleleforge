@@ -8576,6 +8576,35 @@ remaining callers the same day. A cure that gets applied to the case that prompt
 no other is indistinguishable from no cure at all for every case that did not.**
 
 
+## Round 259 — the same query, one constant over
+
+R258's lesson was: when a fix introduces a narrower constant for one caller, check the old
+constant's other callers. Ran the same question against `COORDINATE_NOTE` — which surfaces
+emit a locus, and which of them state the convention?
+
+    report footer      yes        cohort TSV header   yes
+    aforge offtarget   yes        POST /api/offtarget yes
+    aforge resolve     NO         POST /api/resolve   NO
+
+`resolve` prints a normalized variant position and a working interval:
+
+    chr1:144499999:A>G  [snv, build hg38, from coordinates]
+    working interval: chr1:144499899-144500100(+)
+
+Both are 0-based half-open. A genome browser shows the same digits as 1-based inclusive, so
+a caller pasting that interval lands one base off — and `resolve` is the documented
+debugging aid, the command someone runs *precisely because* they are unsure what their
+input means. The one surface whose purpose is disambiguating the input was the one that
+left the ambiguity in.
+
+Added to all three forms, and the test asserts it across every locus-bearing surface rather
+than the one that prompted it — which is the R258 lesson applied to its own fix.
+
+**Lesson: when a project keeps a named constant for a class of confusion, the list of
+places that use it is a checklist, and the gap is likelier at the surface people reach for
+when they are already confused.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

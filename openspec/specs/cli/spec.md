@@ -22,6 +22,18 @@ The CLI SHALL expose `resolve`, `design`, `batch`, `offtarget`, `verify`, `lift`
 - **WHEN** a variant fails to resolve
 - **THEN** stderr shows the error and it exits with the usage code (2)
 
+### Requirement: Every locus states its coordinate convention
+
+Every surface that emits a locus SHALL state the convention it is in. The tool emits
+0-based half-open intervals and a genome browser shows the same digits as 1-based
+inclusive, so a locus without its convention is an off-by-one waiting to happen — and
+`resolve`, the documented debugging aid, is where a caller goes to learn what their input
+means.
+
+#### Scenario: Resolving a variant
+- **WHEN** `aforge resolve` prints a normalized variant and its working interval
+- **THEN** both forms of the output state the coordinate convention
+
 ### Requirement: A remedy for a build mismatch
 
 `resolve` SHALL refuse a record whose native assembly disagrees with the requested build,
