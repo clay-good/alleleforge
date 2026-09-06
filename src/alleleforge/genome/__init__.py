@@ -8,6 +8,8 @@ infrastructure: it knows about sequence and coordinates, not CRISPR chemistry.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from alleleforge.errors import ChecksumError, ConsentError
 from alleleforge.genome.coordinates import (
     DEFAULT_RECOMMENDED_BUILD,
@@ -26,12 +28,39 @@ from alleleforge.genome.index import (
     native_fm_available,
     native_sais_available,
 )
-from alleleforge.genome.reference import (
-    BUILTIN_BUILDS,
-    BuildDescriptor,
-    FetchResult,
-    ReferenceGenome,
-)
+
+if TYPE_CHECKING:  # pragma: no cover - import-time only for type checkers
+    from alleleforge.genome.reference import (
+        BUILTIN_BUILDS,
+        BuildDescriptor,
+        FetchResult,
+        ReferenceGenome,
+    )
+
+#: Re-exports resolved on first attribute access instead of at import.
+#:
+#: `reference` imports `pyfaidx`, which belongs to the optional `genome` extra, and a
+#: package `__init__` runs for *any* submodule import — so `from
+#: alleleforge.genome.coordinates import ...`, which `variant.resolver` does, dragged
+#: pyfaidx in. That chained `benchmark -> scoring -> enumerate -> genome -> pyfaidx`
+#: and made `aforge bench run` fail on a `pip install alleleforge[cli]` with a raw
+#: `ModuleNotFoundError` — a command that touches no reference genome, requiring the
+#: genome stack to import.
+#:
+#: Only the `reference` names are deferred; `coordinates` and `index` are pure and stay
+#: eager. `from alleleforge.genome import ReferenceGenome` still works and still needs
+#: pyfaidx — it just needs it when the name is used, not when the package is imported.
+_LAZY_FROM_REFERENCE = ("BUILTIN_BUILDS", "BuildDescriptor", "FetchResult", "ReferenceGenome")
+
+
+def __getattr__(name: str) -> object:
+    """Resolve a deferred `reference` re-export on first access (PEP 562)."""
+    if name in _LAZY_FROM_REFERENCE:
+        from importlib import import_module
+
+        return getattr(import_module("alleleforge.genome.reference"), name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "BUILTIN_BUILDS",

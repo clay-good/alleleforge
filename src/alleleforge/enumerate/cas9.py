@@ -26,8 +26,9 @@ strand with the genomic placement and strand recorded.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from alleleforge.enumerate._frame import EditFrame
-from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.edit import EditIntent
 from alleleforge.types.guide import (
     DEFAULT_SPACER_LENGTH,
@@ -39,6 +40,14 @@ from alleleforge.types.guide import (
 )
 from alleleforge.types.sequence import CoordinateSystem, DNASequence, GenomicInterval, Strand
 from alleleforge.variant.resolver import ResolvedVariant
+
+if TYPE_CHECKING:
+    # Only ever an annotation here, and `from __future__ import annotations`
+    # keeps those unevaluated. Importing it at runtime chained
+    # `benchmark -> scoring -> enumerate -> genome -> pyfaidx`, so `aforge bench run`
+    # needed the genome stack it never touches and died with a raw
+    # `ModuleNotFoundError` on a `pip install alleleforge[cli]`.
+    from alleleforge.genome.reference import ReferenceGenome
 
 #: Default blunt-cut offset: 3 bp 5' of the PAM (SpCas9).
 DEFAULT_CUT_OFFSET = 3

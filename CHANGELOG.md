@@ -10,6 +10,16 @@ acceptance.
 
 ### Added
 
+- **`aforge bench` explains a missing optional dependency instead of tracebacking.** On a
+  `pip install "alleleforge[cli]"` — a documented install — `design`, `batch` and `offtarget` all report
+  *"needs the optional dependency pyfaidx … pip install 'alleleforge[genome]'"* and exit 4; all four `bench`
+  subcommands died with a raw `ModuleNotFoundError` and exit 1, because `_missing_dependency` — the handler
+  written for exactly this — was wired into three of the four places that needed it. Verified against a wheel
+  installed into a clean interpreter, not only in-process. Two links of the underlying import chain were also
+  removed: the `enumerate` modules annotate with `ReferenceGenome` and now import it under `TYPE_CHECKING`,
+  and `alleleforge.genome` defers its `reference` re-exports (PEP 562) so importing any genome submodule no
+  longer pulls in pyfaidx.
+
 - **A symbol a documented snippet imports must exist.** The docs already check every CLI command the prose
   invokes, every flag it names, every local link and every module path it cites; the `from alleleforge… import
   X` lines inside the Python fences were the one unchecked claim, and only their modules were verified. A

@@ -2193,7 +2193,16 @@ def bench_list(
     as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """List the CRISPR-Bench tasks, their datasets, and primary metrics."""
-    from alleleforge.benchmark.tasks import TASKS
+    # The benchmark stack transitively imports the genome layer, so a
+    # `pip install 'alleleforge[cli]'` — a documented install, and one a
+    # benchmark run needs no reference genome for — failed here with a raw
+    # `ModuleNotFoundError` traceback. `design`, `batch` and `offtarget` all
+    # route this through `_missing_dependency`; `bench` was the fourth place
+    # that needed it and the one that did not have it.
+    try:
+        from alleleforge.benchmark.tasks import TASKS
+    except ImportError as exc:
+        _missing_dependency(exc)
 
     tasks = [TASKS[name] for name in sorted(TASKS)]
     rows: list[dict[str, Any]] = [
@@ -2230,10 +2239,19 @@ def bench_run(
     Emits a signed, provenance-stamped result. Real models plug in through the
     Python API (``run_benchmark``) and the leaderboard submission format.
     """
-    from alleleforge.benchmark.baseline import build_baseline
-    from alleleforge.benchmark.runner import run_benchmark
-    from alleleforge.benchmark.splits import SplitIntegrityError, load_split
-    from alleleforge.benchmark.tasks import get_task
+    # The benchmark stack transitively imports the genome layer, so a
+    # `pip install 'alleleforge[cli]'` — a documented install, and one a
+    # benchmark run needs no reference genome for — failed here with a raw
+    # `ModuleNotFoundError` traceback. `design`, `batch` and `offtarget` all
+    # route this through `_missing_dependency`; `bench` was the fourth place
+    # that needed it and the one that did not have it.
+    try:
+        from alleleforge.benchmark.baseline import build_baseline
+        from alleleforge.benchmark.runner import run_benchmark
+        from alleleforge.benchmark.splits import SplitIntegrityError, load_split
+        from alleleforge.benchmark.tasks import get_task
+    except ImportError as exc:
+        _missing_dependency(exc)
 
     state: GlobalState = ctx.obj
     try:
@@ -2296,7 +2314,16 @@ def bench_compare(
     Each result's stored digest is also re-derived from its own body first: a digest
     nobody recomputes is a claim nobody checks.
     """
-    from alleleforge.benchmark.runner import BenchmarkResult
+    # The benchmark stack transitively imports the genome layer, so a
+    # `pip install 'alleleforge[cli]'` — a documented install, and one a
+    # benchmark run needs no reference genome for — failed here with a raw
+    # `ModuleNotFoundError` traceback. `design`, `batch` and `offtarget` all
+    # route this through `_missing_dependency`; `bench` was the fourth place
+    # that needed it and the one that did not have it.
+    try:
+        from alleleforge.benchmark.runner import BenchmarkResult
+    except ImportError as exc:
+        _missing_dependency(exc)
 
     results: list[BenchmarkResult] = []
     for path in (left, right):
@@ -2379,8 +2406,17 @@ def bench_leaderboard(
     """
     from datetime import UTC, datetime
 
-    from alleleforge.benchmark.leaderboard import Leaderboard, Submission, SubmissionError
-    from alleleforge.benchmark.runner import BenchmarkResult
+    # The benchmark stack transitively imports the genome layer, so a
+    # `pip install 'alleleforge[cli]'` — a documented install, and one a
+    # benchmark run needs no reference genome for — failed here with a raw
+    # `ModuleNotFoundError` traceback. `design`, `batch` and `offtarget` all
+    # route this through `_missing_dependency`; `bench` was the fourth place
+    # that needed it and the one that did not have it.
+    try:
+        from alleleforge.benchmark.leaderboard import Leaderboard, Submission, SubmissionError
+        from alleleforge.benchmark.runner import BenchmarkResult
+    except ImportError as exc:
+        _missing_dependency(exc)
 
     by_model: dict[str, list[BenchmarkResult]] = {}
     for path in results:

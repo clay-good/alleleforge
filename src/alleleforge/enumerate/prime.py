@@ -36,10 +36,10 @@ and runs the off-target engine on both nicks.
 from __future__ import annotations
 
 from collections.abc import Mapping, MutableMapping, Sequence
+from typing import TYPE_CHECKING
 
 from alleleforge.enumerate._frame import EditFrame
 from alleleforge.enumerate._reasons import note, summarize
-from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.edit import EditIntent
 from alleleforge.types.guide import (
     DEFAULT_SPACER_LENGTH,
@@ -54,6 +54,14 @@ from alleleforge.types.guide import (
 )
 from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
 from alleleforge.variant.resolver import ResolvedVariant
+
+if TYPE_CHECKING:
+    # Only ever an annotation here, and `from __future__ import annotations`
+    # keeps those unevaluated. Importing it at runtime chained
+    # `benchmark -> scoring -> enumerate -> genome -> pyfaidx`, so `aforge bench run`
+    # needed the genome stack it never touches and died with a raw
+    # `ModuleNotFoundError` on a `pip install alleleforge[cli]`.
+    from alleleforge.genome.reference import ReferenceGenome
 
 #: The canonical SpCas9 sgRNA scaffold used for pegRNAs.
 SCAFFOLD = "GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGCACCGAGTCGGTGC"

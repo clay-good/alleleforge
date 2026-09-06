@@ -19,16 +19,24 @@ C->T / G->A on the plus strand (editing the appropriate strand).
 from __future__ import annotations
 
 from collections.abc import Mapping, MutableMapping
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict
 
 from alleleforge.enumerate._reasons import note, summarize
-from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.edit import Chemistry, EditIntent
 from alleleforge.types.guide import DEFAULT_SPACER_LENGTH, PAM, BaseEditWindow, Spacer
 from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
 from alleleforge.types.variant import VariantClass
 from alleleforge.variant.resolver import ResolvedVariant
+
+if TYPE_CHECKING:
+    # Only ever an annotation here, and `from __future__ import annotations`
+    # keeps those unevaluated. Importing it at runtime chained
+    # `benchmark -> scoring -> enumerate -> genome -> pyfaidx`, so `aforge bench run`
+    # needed the genome stack it never touches and died with a raw
+    # `ModuleNotFoundError` on a `pip install alleleforge[cli]`.
+    from alleleforge.genome.reference import ReferenceGenome
 
 _COMPLEMENT = {"A": "T", "T": "A", "C": "G", "G": "C"}
 

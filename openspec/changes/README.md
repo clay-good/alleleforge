@@ -7708,6 +7708,50 @@ actually writes. When a mutation leaves a test green, the first hypothesis shoul
 the mutation was wrong — not that the test is.**
 
 
+## Round 235 — installing the wheel and being a new user
+
+R233's method taken to the last first-contact surface: build the wheel, install it into
+a clean interpreter with a documented extra, and run the first commands a reader would.
+
+    pip install "alleleforge-0.1.0.dev0-py3-none-any.whl[cli]"
+
+    aforge data list        works
+    aforge design ...       error: needs the optional dependency pyfaidx …  (exit 4)
+    aforge offtarget ...    error: needs the optional dependency pyfaidx …  (exit 4)
+    aforge bench run ...    ModuleNotFoundError: No module named 'pyfaidx'  (exit 1)
+
+`_missing_dependency` exists precisely for this, and its docstring says why: "the first
+command a new user runs used to end in a `ModuleNotFoundError: No module named
+'pyfaidx'` traceback". It was wired into `design`, `batch` and `offtarget`. `bench` was
+the fourth place that needed it and the one that did not have it — R217's shape again,
+and this time in the handler written to prevent exactly this.
+
+All four `bench` subcommands now give the same message and exit code, verified against
+the real fresh-venv install that produced the traceback rather than only in-process.
+
+Two links of the underlying chain came out too, because the traceback named them:
+`benchmark → scoring → enumerate → genome → pyfaidx`. The three `enumerate` modules use
+`ReferenceGenome` **only in annotations**, so it moved under `TYPE_CHECKING`; and
+`genome/__init__` eagerly re-exported `reference`, which meant importing *any*
+`alleleforge.genome.*` submodule pulled pyfaidx — so those four names are now resolved
+lazily (PEP 562). The chain still reaches `viz.figures`, which needs a reference at
+runtime, so a genome-free benchmark stack is a refactor rather than a correction and is
+recorded as such rather than asserted.
+
+The test cost me two attempts and both were instructive. Simulating the missing
+dependency by evicting `alleleforge.*` from `sys.modules` worked in isolation and broke
+an unrelated config test in the full run — re-importing a package produces duplicate
+class objects and resets module-level singletons. The non-invasive version raises inside
+`builtins.__import__`, which `from X import Y` calls on *every* execution, cached or
+not. The first version had also passed for the `compare` case alone and failed in the
+group, because the case above it had warmed the cache.
+
+**Lesson: `pip install` the wheel into a clean interpreter and be a new user. Every
+check in this repo runs in an environment with every extra installed, so the one thing
+none of them can see is what a documented partial install actually does — and that is
+the environment of every person who has not read the repository.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
