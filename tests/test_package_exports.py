@@ -60,10 +60,14 @@ def test_every_name_the_docs_cite_is_importable_from_its_package() -> None:
     prose = "\n".join(p.read_text() for p in (_ROOT / "docs").rglob("*.md"))
     prose += (_ROOT / "README.md").read_text()
 
+    cited = set(re.findall(r"alleleforge\.([a-z_]+)\.([a-z_]+)\.([A-Za-z_][A-Za-z0-9_]*)", prose))
+    # A floor before the assertion: "nothing is unresolvable" is satisfied perfectly by
+    # finding nothing to resolve, and a doc reformat or a moved corpus does exactly that.
+    assert len(cited) > 10, (
+        f"only {len(cited)} cross-references were found; the scan is not working"
+    )
     unresolvable: list[str] = []
-    for package, _module, name in set(
-        re.findall(r"alleleforge\.([a-z_]+)\.([a-z_]+)\.([A-Za-z_][A-Za-z0-9_]*)", prose)
-    ):
+    for package, _module, name in cited:
         full = f"alleleforge.{package}"
         if full in _NOT_A_LIBRARY_SURFACE:
             continue

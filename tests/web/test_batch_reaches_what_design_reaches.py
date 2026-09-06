@@ -37,6 +37,11 @@ _DESIGN_ONLY: dict[str, str] = {
 
 
 def test_the_cohort_request_offers_everything_the_single_design_one_does() -> None:
+    # A floor first: "the cohort is missing nothing" is trivially true if the field
+    # introspection returns nothing, which is the failure mode this whole file exists
+    # to catch one level down.
+    assert len(DesignRequest.model_fields) > 8, DesignRequest.model_fields
+    assert len(BatchRequest.model_fields) > 5, BatchRequest.model_fields
     missing = sorted(
         set(DesignRequest.model_fields) - set(BatchRequest.model_fields) - set(_DESIGN_ONLY)
     )

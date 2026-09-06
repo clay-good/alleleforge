@@ -62,7 +62,15 @@ _ALLOWED_MISSING_LINKS: dict[str, str] = {}
 
 
 def _prose_files() -> list[Path]:
-    return [_ROOT / "README.md", *sorted((_ROOT / "docs").rglob("*.md"))]
+    files = [_ROOT / "README.md", *sorted((_ROOT / "docs").rglob("*.md"))]
+    # The corpus is the thing every check in this file scans, and a check that scans
+    # nothing reports nothing broken. Neutralizing this helper left five of the six
+    # tests here green, so the floor belongs at the source rather than in each caller.
+    assert len(files) > 5, f"the prose corpus did not resolve: {files}"
+    assert all(f.is_file() for f in files), (
+        f"missing prose files: {[f for f in files if not f.is_file()]}"
+    )
+    return files
 
 
 def test_every_local_link_in_the_prose_resolves() -> None:
@@ -74,6 +82,7 @@ def test_every_local_link_in_the_prose_resolves() -> None:
     import re
 
     broken: list[str] = []
+    checked = 0
     for path in _prose_files():
         text = path.read_text()
         targets = set(re.findall(r"\]\((?!https?:|mailto:|#)([^)#]+)", text))
@@ -86,9 +95,11 @@ def test_every_local_link_in_the_prose_resolves() -> None:
             if not target or target in _ALLOWED_MISSING_LINKS:
                 continue
             # A docs/ link may be relative to its own page (mkdocs) or to the repo root.
+            checked += 1
             if (_ROOT / target).exists() or (path.parent / target).exists():
                 continue
             broken.append(f"{path.relative_to(_ROOT)} -> {target}")
+    assert checked > 20, f"only {checked} local links were examined; the link scan is not working"
     assert not broken, f"prose links to files that do not exist: {broken}"
 
 
@@ -98,8 +109,10 @@ def test_every_module_path_the_prose_cites_is_importable() -> None:
     import re
 
     prose = "\n".join(p.read_text() for p in _prose_files())
+    cited = sorted(set(re.findall(r"`(alleleforge(?:\.[a-z_]+)+)`", prose)))
+    assert len(cited) > 10, f"only {len(cited)} module paths were found; the scan is not working"
     broken: list[str] = []
-    for dotted in sorted(set(re.findall(r"`(alleleforge(?:\.[a-z_]+)+)`", prose))):
+    for dotted in cited:
         try:
             importlib.import_module(dotted)
         except ImportError:

@@ -5937,6 +5937,50 @@ assertion, and the floor needs its own mutation. Three of this session's checks 
 is the default failure mode of writing a test *about* a document rather than about code.**
 
 
+## Round 194 — the checks that pass by finding nothing
+
+R193 ended with three of its own checks having been empty by construction. That is not a
+mistake to be more careful about next time; it is a shape, and shapes can be searched for.
+
+The shape: a test whose assertions are *all* "this derived collection is empty" —
+`assert not broken`, `missing == []` — over a value produced by scanning something, with
+no positive assertion anywhere. An extraction that finds nothing satisfies every one of
+those perfectly.
+
+A first pass flagged 127 tests, which is a detector saying "a list comprehension appears
+here" and nothing more. Narrowed to the actual shape it gives 18, and the ones that
+matter are the checks that scan a *surface* — prose, a signature, a set of model fields
+— and report that nothing is missing from it.
+
+Measured rather than argued. Neutralizing `_prose_files()` so the corpus is empty:
+
+    5 of 6 tests in test_readme_documents_the_cli.py still passed
+
+including "every local link in the prose resolves" and "every module path the prose cites
+is importable". Both had been checking zero links and zero modules, and would have gone on
+doing so silently after any rename of `docs/`, any reformat that broke a regex, any move of
+the README.
+
+Floors added to five checks — the two prose scans, the docs cross-reference scan, both
+shell-parity parameter sets, and the cohort/design parity check written two rounds ago,
+which had the same defect the moment it was written. Each floor is mutation-checked by
+neutralizing its extraction, which is the only way to know a floor is load-bearing rather
+than decorative.
+
+The convention is recorded in `project.md`, because this is a habit rather than a fix: the
+next check of this kind will be written next round, and the rule is what carries.
+
+One note on the fix's own dogfooding: writing the convention cited R194 before this entry
+existed, and `test_every_round_cited_in_the_conventions_exists` failed immediately. A guard
+written five dozen rounds ago catching the round about guards is the argument for all of
+them.
+
+**Lesson: when a defect turns out to be a shape rather than an incident, stop fixing
+instances and go looking for the shape. The search cost twenty minutes and found four more
+of the same defect in checks that had been green for months — and the ones it found were
+older and more load-bearing than the ones that prompted it.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

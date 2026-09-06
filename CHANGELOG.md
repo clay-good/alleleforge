@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **Five checks that could pass while examining nothing now have a floor.** A test whose only assertion is
+  that a scanned collection is empty — `assert not broken` — is satisfied perfectly by finding nothing to
+  check, and that is invisible in a green run. Measured, not argued: neutralizing the prose corpus in
+  `test_readme_documents_the_cli.py` left **five of its six tests green**, including "every local link
+  resolves" and "every module path the prose cites is importable" — both had been checking zero of each.
+  Floors added to the two prose scans, the docs cross-reference scan, both shell-parity parameter sets, and
+  the cohort/design parity check, each mutation-checked by neutralizing its own extraction. The rule is
+  recorded in `openspec/project.md`, since the next check of this kind is written next round.
+
 - **The README's CLI claims are now checked.** 1,400 lines of specific, checkable assertions and nothing
   checked any of them. Three guards: every command the README *invokes* exists (read from shell fences and
   inline code, so prose and mermaid node labels are not mistaken for commands), every `--flag` it documents

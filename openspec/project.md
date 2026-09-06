@@ -244,6 +244,20 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
   that did nothing, and a green test after an edit the assertion could not see. Both
   were needed within one round of each other.
 
+- **A test that asserts "nothing is broken" over a scanned collection needs a floor
+  first.** `assert not broken` is satisfied perfectly by finding nothing to check, and
+  that is invisible in a green run. Any test that extracts — a regex over prose, a glob
+  over files, `model_fields`, `inspect.signature` — must assert it found a plausible
+  number of things *before* asserting anything about them, and the floor needs its own
+  mutation (neutralize the extraction; the test must fail). Measured: neutralizing the
+  prose corpus in `test_readme_documents_the_cli.py` left five of its six tests green
+  (R194). Three checks written in R193 alone had this defect, including one that was
+  empty by construction — it filtered candidates against the valid set before reporting
+  them, so it could only ever report valid ones — and it passed against a README
+  invoking a command that does not exist. To find these: a test whose assertions are
+  *all* of the form `assert not xs` / `xs == []`, over a value derived by scanning, and
+  with no positive assertion anywhere, is the exact shape.
+
 ## Existing planning docs (background, not OpenSpec)
 
 `SPEC.md` (v1 build phases), `SPEC_V2.md` (R0–R6 roadmap), and `specs/*.md` (model-

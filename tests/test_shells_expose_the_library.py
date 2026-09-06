@@ -63,11 +63,15 @@ _NOT_IN_WEB: dict[str, str] = {
 
 
 def _design_parameters() -> set[str]:
-    return {
+    params = {
         name
         for name, param in inspect.signature(design).parameters.items()
         if param.kind is not param.VAR_KEYWORD
     }
+    # Every check here asks "does a shell expose all of these", which an empty set
+    # satisfies trivially. The floor makes an introspection failure loud instead.
+    assert len(params) > 15, f"design() introspection returned {params}"
+    return params
 
 
 def _cli_forwards() -> set[str]:
@@ -184,11 +188,13 @@ def _search_parameters() -> set[str]:
 
     from alleleforge.offtarget.engine import search
 
-    return {
+    params = {
         name
         for name, param in inspect.signature(search).parameters.items()
         if param.kind is not param.VAR_KEYWORD
     }
+    assert len(params) > 10, f"search() introspection returned {params}"
+    return params
 
 
 def _cli_search_forwards() -> set[str]:
