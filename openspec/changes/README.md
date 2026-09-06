@@ -5981,6 +5981,48 @@ of the same defect in checks that had been green for months — and the ones it 
 older and more load-bearing than the ones that prompted it.**
 
 
+## Round 195 — the re-run that reported success by doing nothing
+
+Two queries. The first was R187's shape (a range check that admits NaN) taken to the web boundary, and it came
+back clean: pydantic's `ge`/`le` rejects NaN and infinity where Click's does not, and the one unbounded field
+— `DesignRequest.weights`, which has only a length constraint — is caught a layer down by `RankingWeights` and
+surfaced as a specific 422 (`weight efficiency must be finite`, `weight safety must be non-negative`, `ranking
+weights cannot all be zero`). No 500, no traceback. Recorded as a negative result.
+
+The second was durable state under failure, and the cohort manifest had two.
+
+**A resume skipped what failed.** `_read_done_ids` collected every item id the manifest mentioned, and the
+manifest records failures too. So:
+
+    run 1: total=2  succeeded=1  failed=1     (exit non-zero)
+    run 2: total=0  succeeded=0  failed=0     (exit 0)
+
+Scaled up: a cohort of 10,000 finishing with 200 errors skips all 10,000 next time and reports a clean, empty
+run. "Re-run until it passes" works, by doing nothing, and the only way to retry the 200 is to delete the
+manifest and lose the 9,800. Resume exists to avoid recomputing *results*; an error is not one, and these fail
+at variant resolution before any search, so retrying is nearly free.
+
+**A truncated last line crashed it.** An append interrupted mid-write leaves exactly that, and `json.loads`
+raised `JSONDecodeError` — from the one code path whose entire purpose is recovering from an interrupted run.
+There is a sibling test tolerating *blank* lines, so malformed lines had been thought about and the wrong case
+handled. Only the final line is forgiven now; a bad line in the middle still raises, naming it, because that
+means a corrupt or hand-edited manifest where skipping would silently recompute or silently drop.
+
+The existing test pinned the old behavior outright (`second.total == 0 and second.skipped == 3`, commented
+"everything already recorded" — descriptive, not a justification), and a third assertion further down had to
+move with it: with the failure retried, a run adding one new item now does two items, not one.
+
+A footnote that belongs to R194. Three mutation runs in this round reported "no tests ran" and I nearly read
+that as "the mutation survived". The harness put two test paths in a shell variable and used it unquoted —
+which word-splits in bash and **does not in zsh**, so pytest was handed one nonexistent path. A mutation
+harness that silently checks nothing is the same defect as a test that silently checks nothing, one level up,
+and the only reason it was caught is that R194 had just made the shape familiar enough to distrust.
+
+**Lesson: "resume" and "retry" are different promises, and a manifest that records both outcomes invites
+conflating them. Any skip-list built from a log of *events* needs to filter on the outcome, not the presence
+of a record — and the direction of the mistake was, again, the one that looks like success.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

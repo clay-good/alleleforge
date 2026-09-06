@@ -111,15 +111,23 @@ def test_manifest_written_and_resume_skips(reference: ReferenceGenome, tmp_path:
         intent=EditIntent.INSTALL,
         manifest_path=manifest,
     )
-    assert second.total == 0 and second.skipped == 3  # everything already recorded
-    # A genuinely new item is still processed on resume.
+    # The two that succeeded are skipped; the one that failed runs again. This used to
+    # read `total == 0 and skipped == 3` -- recording an id was enough to skip it -- so a
+    # cohort that finished with failures reported a clean, empty re-run. See
+    # test_resume_retries_failures.py for what that cost.
+    assert second.skipped == 2
+    assert second.total == 1 and second.failed == 1
+    # A genuinely new item is still processed on resume -- alongside the failure, which
+    # is retried every run until it succeeds or the caller stops asking for it.
     third = design_many(
         [OK_1, OK_2, BAD_REF, NEW_ITEM],
         reference=reference,
         intent=EditIntent.INSTALL,
         manifest_path=manifest,
     )
-    assert third.total == 1 and third.skipped == 3
+    assert third.skipped == 2  # the two that have succeeded, and only those
+    assert third.total == 2  # the new item, and the failure again
+    assert third.succeeded == 1 and third.failed == 1
 
 
 def test_streaming_mode_keeps_items_empty(reference: ReferenceGenome) -> None:

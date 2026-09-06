@@ -282,3 +282,20 @@ cannot re-run the item by hand to find out.
 - **WHEN** a cohort run has at least one failed item
 - **THEN** every other item is still designed and recorded, and the command exits
   non-zero naming how many failed
+
+### Requirement: A resume retries what failed and survives an interrupted write
+
+Resuming a cohort SHALL skip only the items that succeeded. An item recorded as failed
+did no work worth preserving, and skipping it makes a re-run of a partially failed cohort
+report nothing to do and exit successfully — the reassuring direction, from a run that
+examined none of the items the user re-ran it for.
+
+Reading the manifest SHALL tolerate a truncated final line, which is what an interrupted
+append leaves and precisely the state resume exists to recover from; the item it half
+described simply runs again. A malformed line elsewhere SHALL be an error naming the
+line, since silently skipping it would silently recompute or silently drop an item.
+
+#### Scenario: Re-running a cohort that had failures
+- **WHEN** a cohort with one success and one failure is run again with the same manifest
+- **THEN** the successful item is skipped, the failed one is retried, and the run does
+  not report itself as empty and clean

@@ -192,16 +192,45 @@ def _summarize(menu: RankedMenu) -> dict[str, Any]:
 
 
 def _read_done_ids(manifest_path: Path) -> set[str]:
-    """Return the item ids already recorded in ``manifest_path`` (for resume)."""
+    """Return the item ids a resume may skip: the ones that **succeeded**.
+
+    Two things a manifest written by an interrupted run actually contains, neither of
+    which the first version of this handled:
+
+    * **Failed items.** Recording an id was enough to skip it, so a cohort of 10,000
+      that finished with 200 errors skipped all 10,000 on the next run -- reporting
+      ``total=0, failed=0`` and exiting 0, where the first run had exited non-zero.
+      Re-running until it passes worked, by doing nothing. A failed item did no work
+      worth preserving; resume exists to avoid recomputing results, and an error is not
+      one. Retrying is also cheap, since these fail at resolution before any search.
+    * **A truncated last line.** An append interrupted mid-write leaves exactly that,
+      and it raised ``JSONDecodeError`` from the one code path whose whole purpose is
+      recovering from an interrupted run. Only the final line is forgiven -- that is the
+      crash signature. A malformed line anywhere else means a corrupted or hand-edited
+      manifest, and silently skipping it would silently recompute or silently drop.
+    """
     done: set[str] = set()
     if not manifest_path.exists():
         return done
-    for line in manifest_path.read_text().splitlines():
-        line = line.strip()
+    lines = manifest_path.read_text().splitlines()
+    for number, raw in enumerate(lines, start=1):
+        line = raw.strip()
         if not line:
             continue
-        record = json.loads(line)
-        if "item_id" in record:
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError as exc:
+            if number == len(lines):
+                # The interrupted append. The item it half-described is simply not
+                # recorded, so it runs again -- which is what resume is for.
+                break
+            raise ValueError(
+                f"{manifest_path}: line {number} is not valid JSON ({exc.msg}). Only a "
+                "truncated *final* line is treated as an interrupted append; a bad line "
+                "in the middle means the manifest is corrupt, and skipping it would "
+                "silently recompute or silently drop an item."
+            ) from exc
+        if "item_id" in record and record.get("status") == "ok":
             done.add(record["item_id"])
     return done
 

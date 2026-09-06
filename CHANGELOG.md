@@ -1628,6 +1628,22 @@ acceptance.
 
 ### Fixed
 
+- **A cohort re-run skipped the items that had failed, and reported a clean, empty run.** Resume skipped any
+  item the manifest mentioned — including the ones recorded with `status: "error"`. A cohort of 10,000 that
+  finished with 200 failures skipped all 10,000 on the next run, reporting `total=0, failed=0` and **exiting
+  0** where the first run had exited non-zero. "Re-run until it passes" worked, by doing nothing, and the only
+  way to retry the 200 was to delete the manifest and lose the 9,800. A failed item did no work worth
+  preserving — resume exists to avoid recomputing *results* — and retrying is cheap, since these fail at
+  resolution before any search. Resume now skips only what succeeded.
+
+- **A manifest whose last line was truncated crashed the resume.** An append interrupted mid-write leaves
+  exactly that, and `json.loads` raised `JSONDecodeError` from the one code path whose whole purpose is
+  recovering from an interrupted run. (A sibling test tolerates *blank* lines, so malformed lines had been
+  considered and the wrong case handled.) A truncated **final** line is now treated as the interrupted append
+  it is, and its item runs again. A malformed line anywhere else is still an error, naming the line number:
+  that means a corrupt or hand-edited manifest, where silently skipping would silently recompute or silently
+  drop an item.
+
 - **The README repeated the cell-context overclaim that had just been corrected everywhere else.** It said
   `--cell-context` "raises the out-of-distribution flag on **every** efficiency prediction" — true of the prime
   vertical and of nothing else. The same sentence had been fixed in the CLI help and in both web request
