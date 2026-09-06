@@ -8335,6 +8335,54 @@ from the model down and was right; one command showed that the row underneath ha
 disease. Reading finds what a value *is*; running shows what a reader *gets*.**
 
 
+## Round 252 — reading the page I had just generated
+
+R251's lesson applied immediately: I ran `aforge design` on a real variant and read the
+HTML as a user. The menu was fine. The paragraph above it was not:
+
+    Why the other chemistries declined:
+    - base_cbe: Cytosine base editing installs a C->T / G->A transition ...
+    - cas9_nuclease: An SpCas9 double-strand break repaired by error-prone NHEJ ...
+    - base_abe: eligible but no actionable candidate enumerated — no PAM match ...
+    - prime: 90 candidate(s)
+
+The run outcomes and caveats were appended as bare `- ` bullets in the declined list's own
+format, immediately under its heading, so they read as members of it. A reader meets
+"prime: 90 candidate(s)" as a reason prime *declined*, on a page where prime produced all
+90 candidates on it.
+
+The subtler half: `base_abe` declined for a *runtime* reason — it is the right chemistry
+for this edit, there is simply no PAM in range — and sat in a list with two chemistries
+that were never eligible at all. "Wrong chemistry for this edit" and "right chemistry, no
+site here" send a reader somewhere different; one says try another route, the other says
+try another position.
+
+The golden reproducibility manifest then made the case better than my own run did. Its
+stored rationale had been carrying this for as long as it has existed:
+
+    Why the other chemistries declined:
+    - base_cbe: ...
+    - cas9_nuclease: ...
+    - ClinVar: pathogenic
+    - intent install writes an allele ClinVar classifies as pathogenic — a disease model
+    - base_abe: 1 candidate(s)
+
+A ClinVar classification, listed as a chemistry that declined. The fixture pinned by the
+project's strictest guard held the defect verbatim, byte-exactly reproduced on every run,
+because the guard pins that the text does not *change*, not that it is *true*. Golden
+re-pinned.
+
+The notes have their own heading now, and the guard checks the property rather than the
+string: no chemistry named in `Eligible and run:` may appear under the declined heading.
+Deleting the heading turns both tests red.
+
+**Lesson: a heading is a claim about every line beneath it, and a list that shares a
+bullet format with the block above it has effectively joined that block. When two kinds
+of line are appended to one buffer, ask what the last heading asserts about the second
+kind. And a golden fixture proves stability, not correctness — read the golden as
+content at least once, because whatever is wrong in it is being reproduced perfectly.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

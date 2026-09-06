@@ -2036,6 +2036,13 @@ acceptance.
 
 ### Fixed
 
+- **The menu rationale's headings are true of the lines under them.** Run outcomes and caveats were appended
+  as bare `- ` bullets directly beneath "Why the other chemistries declined:", in that list's own format, so
+  a reader met `- prime: 90 candidate(s)` as a reason prime declined — on a page where prime produced all 90
+  candidates. Worse, the chemistry that declined for a *runtime* reason (no PAM in range) sat among those
+  never eligible at all, though the two send a reader somewhere different. The notes now have their own
+  heading.
+
 - **A population off-target now says how common it is, to a person as well as a machine.** Running the real
   `aforge offtarget --gnomad` on the rs114518452-style reference-bias case printed
   `score=1.0 ... population chr2:32:T>G` — the same string whether the causal allele is in one genome in ten

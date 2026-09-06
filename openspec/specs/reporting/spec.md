@@ -187,6 +187,16 @@ which is the least useful artifact this layer can produce.
 - **WHEN** no candidate is produced
 - **THEN** the render still states which chemistries routed and what became of them
 
+Each heading in that rationale SHALL be true of every line beneath it. The declined list
+and the run outcomes are different claims — "not the right chemistry for this edit" and
+"the right chemistry, no site here" send a reader somewhere different — and share a
+bullet format.
+
+#### Scenario: A chemistry that ran
+- **WHEN** a chemistry produced candidates
+- **THEN** its outcome appears under the run-notes heading, never under the heading for
+  chemistries that declined
+
 ### Requirement: The menu states what the database says about the target
 
 When the target variant carries a clinical assertion, the menu-level rationale SHALL lead

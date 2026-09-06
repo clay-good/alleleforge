@@ -812,6 +812,14 @@ def _menu_rationale(
         else:
             lines.append("Why the other chemistries declined:")
             lines += [f"- {d.chemistry.value}: {_first_sentence(d.rationale)}" for d in declined]
-    lines += [f"- {note}" for note in notes]
+    if notes:
+        # Their own heading. These are run outcomes and caveats — what each eligible
+        # chemistry produced, what the database says about the target, whether a
+        # supplied track covered anything — and they were appended as bare `- ` bullets
+        # directly under "Why the other chemistries declined:", in that list's format.
+        # A reader met `- prime: 90 candidate(s)` as a reason prime declined, on a page
+        # where prime produced every candidate.
+        lines.append("Run notes:")
+        lines += [f"- {note}" for note in notes]
     lines.append(ranking_rationale)
     return "\n".join(lines)
