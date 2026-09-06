@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from alleleforge.report.builder import CandidateReport, build_report
-from alleleforge.report.html import PLOTLY_CDN, _candidate_html, render_html
+from alleleforge.report.html import _candidate_html, render_html
 from alleleforge.types.candidate import RankedMenu
 from alleleforge.types.edit import Chemistry
 
@@ -30,10 +30,18 @@ def test_html_footer_lists_invoked_models(ancestry_menu: RankedMenu) -> None:
     assert "indelphi 1.0" in html
 
 
-def test_html_embeds_interactive_plotly(prime_menu: RankedMenu) -> None:
+def test_html_embeds_its_charts_inline(prime_menu: RankedMenu) -> None:
+    """This test used to assert the opposite: that the page loaded Plotly from a CDN.
+
+    Two tests asserted contradictory things — this one that the report pulls a
+    third-party script, and the frontend guard that nothing off-origin is loaded —
+    and both passed, because the guard scanned the static asset directory and the
+    report is generated. The chart is now inlined SVG from `alleleforge.viz.svg`.
+    """
     html = render_html(build_report(prime_menu))
-    assert PLOTLY_CDN in html
-    assert "Plotly.newPlot" in html
+    assert "<svg" in html
+    assert "Calibrated efficiency" in html
+    assert "cdn.plot.ly" not in html
 
 
 def test_offtarget_chart_excludes_unsearched_candidates(ancestry_menu: RankedMenu) -> None:
@@ -50,11 +58,12 @@ def test_offtarget_chart_excludes_unsearched_candidates(ancestry_menu: RankedMen
         update={"n_offtarget_sites": None, "offtarget_by_ancestry": ()}
     )
     mixed = report.model_copy(update={"candidates": (*report.candidates, unsearched)})
-    fig = _offtarget_figure(mixed)
-    assert fig is not None
-    # One trace per *searched* candidate — the unsearched one contributes none.
-    n_searched = sum(1 for c in mixed.candidates if c.n_offtarget_sites is not None)
-    assert len(fig["data"]) == n_searched
+    before = _offtarget_figure(report)
+    after = _offtarget_figure(mixed)
+    assert before, "the fixture must produce a chart for this check to mean anything"
+    # The property, independent of how the chart is drawn: an unsearched candidate
+    # contributes nothing at all, so adding one leaves the figure byte-identical.
+    assert after == before
 
 
 def test_html_offtarget_table_is_ancestry_stratified(abe_menu: RankedMenu) -> None:
@@ -67,44 +76,41 @@ def test_html_offtarget_table_is_ancestry_stratified(abe_menu: RankedMenu) -> No
             assert ancestry in html
 
 
-def test_html_has_no_unescaped_script_breakout(prime_menu: RankedMenu) -> None:
+def test_the_report_contains_no_script_element_at_all(prime_menu: RankedMenu) -> None:
+    """The strongest form of the escaping property: there is nothing to break out of.
+
+    This replaced two tests that checked the inlined figure JSON could not escape its
+    `<script>` element — careful work against a real class of bug (a user-supplied
+    ancestry label putting the tokenizer into script-data-double-escaped state). The
+    charts are inlined SVG now, so the script element is gone, and with it the whole
+    injection surface those tests were defending.
+    """
     html = render_html(build_report(prime_menu))
-    # the inlined figure JSON must never contain a raw </ that closes the script
-    assert "</script>" in html  # the legitimate closers exist
-    # but the figure payload escapes its slashes
-    assert "<\\/" in html or "Plotly.newPlot" in html
+    assert "<script" not in html
 
 
-def test_figure_script_cannot_break_out_of_script_element() -> None:
-    # A figure's x-values are user-supplied ancestry/population labels. Escaping
-    # only `</` left `<!--` intact, which puts the HTML tokenizer into
-    # script-data-double-escaped state and swallows the rest of the report. The
-    # inlined JSON must contain no raw `<` at all, yet still parse back to the
-    # exact data on the client.
-    import json as _json
+def test_a_hostile_ancestry_label_cannot_break_out_of_the_chart() -> None:
+    """A chart's category labels are user-supplied population strings.
 
-    from alleleforge.report.html import _figure_script
+    The old defence escaped JSON for a `<script>` context. The new one is that
+    `alleleforge.viz.svg` escapes every label it draws, so the same hostile input has
+    to be inert in the SVG — which is where it now lands.
+    """
+    from alleleforge.viz.svg import Series, bar_chart
 
-    figure = {
-        "data": [
-            {
-                "type": "bar",
-                "x": ["<!--<script>alert(1)//", "</script><script>alert(2)</script>"],
-                "y": [0.5, 0.4],
-            }
-        ],
-        "layout": {},
-    }
-    out = _figure_script("ot-chart", figure)
-    body = out.split("<script>", 1)[1].rsplit("</script>", 1)[0]
-    assert "<" not in body  # no raw angle bracket survives inside the <script>
-    spec = body.split("var f=", 1)[1].rsplit(";Plotly", 1)[0]
-    assert _json.loads(spec)["data"][0]["x"][0] == "<!--<script>alert(1)//"  # data intact
+    hostile = "</text><script>alert(1)</script>"
+    svg = bar_chart(
+        title="t",
+        categories=(hostile, "afr"),
+        series=(Series(name="s", values=(0.5, 0.4), color="#0a7d77"),),
+    )
+    assert "<script>" not in svg
+    assert "&lt;" in svg  # the hostile label survives only as escaped text
 
 
 def test_html_renders_ancestry_offtarget_chart_and_table(ancestry_menu: RankedMenu) -> None:
     html = render_html(build_report(ancestry_menu, variant="chr11:108:A>T"))
-    assert "Worst-case off-target score by ancestry" in html  # the grouped Plotly chart
+    assert "Worst-case off-target score by ancestry" in html  # the grouped SVG chart
     assert "off-target score by ancestry" in html  # the per-candidate table caption
     assert "specificity" in html  # the aggregate genome-wide specificity score
     assert "afr" in html and "eur" in html
@@ -207,3 +213,29 @@ def test_a_prediction_note_without_a_flag_behind_it_is_rendered() -> None:
     html = _candidate_html(candidate)
     assert "this scorer ignores the edit size" in html
     assert html.count("coverage not measured") == 1
+
+
+def test_a_rendered_report_fetches_nothing_off_origin(prime_menu: RankedMenu) -> None:
+    """The report is part of the page the user sees, and it reached a CDN.
+
+    The README, the deployment guide and the served page all promise "no outbound
+    network call" and "the served frontend loads no third-party scripts". The report
+    carried `<script src="https://cdn.plot.ly/plotly-2.35.2.min.js">`, which
+    `report/html.py`'s own docstring defended as "a static script, never sequence
+    data" — but the request itself is the disclosure, whatever it carries, and a lab
+    opening the local UI to analyse a patient variant issued it at that moment. It also
+    ran third-party script inside an unsandboxed same-origin iframe.
+
+    R151's guard scanned the static asset directory, which this file is not in. Charts
+    are inlined SVG from `alleleforge.viz.svg` now, so the page needs no script at all.
+    """
+    from tests.web.test_frontend_is_self_contained import _LOADERS, _is_off_origin
+
+    page = render_html(build_report(prime_menu))
+    offenders = [
+        target for pattern in _LOADERS for target in pattern.findall(page) if _is_off_origin(target)
+    ]
+    assert not offenders, f"the rendered report loads third-party resources: {offenders}"
+    assert "<script" not in page, "the report should need no script element at all"
+    # ...and it still draws its charts.
+    assert "<svg" in page

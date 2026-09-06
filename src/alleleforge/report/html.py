@@ -1,20 +1,25 @@
 """Render a design report as a self-contained, interactive HTML page.
 
 The HTML leads with the research-use disclaimer and ends with provenance, as the
-spec requires. Charts are **interactive Plotly** figures: the Plotly library is
-pulled from its CDN (a static script, never sequence data) and each figure's
-spec is inlined as JSON, so the page needs no Python plotting dependency and no
-network access for the *data*. Off-target tables are ancestry-stratified.
+spec requires. Off-target tables are ancestry-stratified.
 
-No sequence data ever leaves the page: everything is inlined into the single
-HTML file the caller writes wherever they choose.
+Charts are **inlined SVG**, drawn by AlleleForge's own dependency-free renderer
+(:mod:`alleleforge.viz.svg`). They used to be interactive Plotly figures with the
+library pulled from ``cdn.plot.ly`` — a decision this docstring defended as "a static
+script, never sequence data", and which was wrong in a way the docstring could not see:
+the README, the deployment guide and the served page all promise "no outbound network
+call" and "the served frontend loads no third-party scripts", and a lab opening the
+local UI to analyse a patient variant was issuing a request to a CDN at that moment.
+The request itself is the disclosure, whatever it carries. It also ran third-party
+script in an unsandboxed same-origin iframe.
+
+Nothing in a rendered report reaches the network: the page is one self-contained file,
+data and charts alike.
 """
 
 from __future__ import annotations
 
 import html
-import json
-from typing import Any
 
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
@@ -26,9 +31,11 @@ from alleleforge.report.builder import (
     visible_candidates,
 )
 from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE
+from alleleforge.viz.svg import Series, bar_chart
 
-#: Pinned Plotly CDN bundle (the plotting library only — no data leaves).
-PLOTLY_CDN = "https://cdn.plot.ly/plotly-2.35.2.min.js"
+#: Series colors for the grouped off-target chart, cycled per candidate. Fixed and
+#: ordered so a re-render of the same report is byte-identical.
+_SERIES_COLORS: tuple[str, ...] = ("#0a7d77", "#b45309", "#4f46e5", "#be123c", "#0369a1")
 
 _STYLE = """
 :root { --teal:#0a7d77; --ink:#1a1a1a; --muted:#666; --line:#e2e2e2; }
@@ -60,48 +67,48 @@ def _esc(text: object) -> str:
     return html.escape(str(text))
 
 
-def _efficiency_figure(report: DesignReport) -> dict[str, Any] | None:
-    """Build a Plotly bar figure of efficiency (with interval error bars)."""
-    xs, ys, lo, hi = [], [], [], []
+def _efficiency_figure(report: DesignReport) -> str:
+    """Render efficiency per candidate as an inlined SVG bar chart.
+
+    The interval is drawn as a reference band rather than Plotly error bars: the SVG
+    renderer has no error-bar primitive, and the interval is already printed beside
+    every candidate, so the chart carries the comparison and the text carries the
+    numbers. Returns "" when no candidate has an efficiency to plot.
+    """
+    categories: list[str] = []
+    values: list[float] = []
     for c in report.candidates:
         if c.efficiency is None:
             continue
-        xs.append(f"#{c.rank} {c.chemistry.value}")
-        ys.append(round(c.efficiency.value, 4))
-        lo.append(round(c.efficiency.value - c.efficiency.interval[0], 4))
-        hi.append(round(c.efficiency.interval[1] - c.efficiency.value, 4))
-    if not xs:
-        return None
-    return {
-        "data": [
-            {
-                "type": "bar",
-                "x": xs,
-                "y": ys,
-                "error_y": {"type": "data", "symmetric": False, "array": hi, "arrayminus": lo},
-                "marker": {"color": "#0a7d77"},
-                "name": "efficiency",
-            }
-        ],
-        "layout": {
-            "title": "Calibrated efficiency (80% interval)",
-            "yaxis": {"title": "efficiency", "range": [0, 1]},
-            "margin": {"t": 40, "r": 10, "b": 80, "l": 50},
-        },
-    }
+        categories.append(f"#{c.rank} {c.chemistry.value}")
+        values.append(round(c.efficiency.value, 4))
+    if not categories:
+        return ""
+    return bar_chart(
+        title="Calibrated efficiency",
+        subtitle="point estimate; the 80% interval is printed beside each candidate",
+        categories=tuple(categories),
+        series=(Series(name="efficiency", values=tuple(values), color="#0a7d77"),),
+        y_label="efficiency",
+        y_max=1.0,
+    )
 
 
-def _offtarget_figure(report: DesignReport) -> dict[str, Any] | None:
-    """Build a grouped Plotly bar of worst-case off-target score per ancestry."""
+def _offtarget_figure(report: DesignReport) -> str:
+    """Render worst-case off-target score per ancestry as an inlined SVG bar chart.
+
+    One series per candidate, grouped by ancestry. Returns "" when no candidate
+    carries an ancestry breakdown.
+    """
     ancestries: list[str] = []
     for c in report.candidates:
         for row in c.offtarget_by_ancestry:
             if row.ancestry not in ancestries:
                 ancestries.append(row.ancestry)
     if not ancestries:
-        return None
-    traces = []
-    for c in report.candidates:
+        return ""
+    series: list[Series] = []
+    for i, c in enumerate(report.candidates):
         # A candidate that was never off-target-searched has no worst-case score;
         # drawing it as 0.0 would paint "risk unknown" as the safest possible bar and
         # could flip a visual ranking toward the least-evidenced guide. A *searched*
@@ -109,23 +116,22 @@ def _offtarget_figure(report: DesignReport) -> dict[str, Any] | None:
         if c.n_offtarget_sites is None:
             continue
         by = {r.ancestry: r.worst_score for r in c.offtarget_by_ancestry}
-        traces.append(
-            {
-                "type": "bar",
-                "name": f"#{c.rank} {c.chemistry.value}",
-                "x": ancestries,
-                "y": [round(by.get(a, 0.0), 4) for a in ancestries],
-            }
+        series.append(
+            Series(
+                name=f"#{c.rank} {c.chemistry.value}",
+                values=tuple(round(by.get(a, 0.0), 4) for a in ancestries),
+                color=_SERIES_COLORS[i % len(_SERIES_COLORS)],
+            )
         )
-    return {
-        "data": traces,
-        "layout": {
-            "title": "Worst-case off-target score by ancestry",
-            "barmode": "group",
-            "yaxis": {"title": "off-target score", "range": [0, 1]},
-            "margin": {"t": 40, "r": 10, "b": 50, "l": 50},
-        },
-    }
+    if not series:
+        return ""
+    return bar_chart(
+        title="Worst-case off-target score by ancestry",
+        categories=tuple(ancestries),
+        series=tuple(series),
+        y_label="off-target score",
+        y_max=1.0,
+    )
 
 
 def _uncovered_notes(c: CandidateReport) -> list[str]:
@@ -241,24 +247,17 @@ def _candidate_html(c: CandidateReport) -> str:
     return "".join(parts)
 
 
-def _figure_script(div_id: str, figure: dict[str, Any] | None) -> str:
-    """Return a div + Plotly.newPlot script for a figure (empty if no figure)."""
-    if figure is None:
+def _figure_block(div_id: str, svg: str) -> str:
+    """Wrap an inlined SVG chart in its container (empty string when there is none).
+
+    The SVG is produced entirely by `alleleforge.viz.svg`, which escapes every label
+    it draws and validates every color, so no user-supplied ancestry or chemistry
+    string can break out of it — and unlike the JSON-in-`<script>` this replaced,
+    there is no script element for it to break out *into*.
+    """
+    if not svg:
         return ""
-    # Escape every `<`, `>`, `&` to a unicode escape the JSON parser restores on
-    # the client, so the inlined data can never break out of the <script> element.
-    # Escaping only `</` left `<!--` intact — a figure axis label is a user-supplied
-    # ancestry/population string, and `<!--<script>` puts the HTML tokenizer into
-    # script-data-double-escaped state, swallowing the rest of the report. This is
-    # the standard safe JSON-in-<script> transform (Django json_script / OWASP).
-    spec = (
-        json.dumps(figure).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
-    )
-    return (
-        f"<div id='{div_id}' class='chart'></div>"
-        f"<script>var f={spec};Plotly.newPlot('{div_id}',f.data,f.layout,"
-        "{responsive:true,displaylogo:false});</script>"
-    )
+    return f"<div id='{div_id}' class='chart'>{svg}</div>"
 
 
 def _provenance_html(report: DesignReport) -> str:
@@ -305,8 +304,9 @@ def render_html(
             full set.
 
     Returns:
-        A full HTML document (disclaimer first, provenance last) with inlined
-        interactive Plotly charts and ancestry-stratified off-target tables.
+        A full, self-contained HTML document (disclaimer first, provenance last)
+        with inlined SVG charts and ancestry-stratified off-target tables. It
+        references nothing off-origin, so opening it issues no network request.
     """
     variant = _esc(report.variant) if report.variant else "(unspecified)"
     intent = _esc(report.intent) if report.intent else "(default)"
@@ -315,7 +315,6 @@ def render_html(
         "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'>",
         "<meta name='viewport' content='width=device-width, initial-scale=1'>",
         f"<title>{_esc(report.title)}</title>",
-        f"<script src='{PLOTLY_CDN}'></script>",
         f"<style>{_STYLE}</style></head><body>",
         f"<header><h1>{_esc(report.title)}</h1>",
         f"<p class='muted'>variant <span class='mono'>{variant}</span> · "
@@ -323,8 +322,8 @@ def render_html(
         f"<div class='disclaimer'><strong>Research use only.</strong> "
         f"{_esc(report.disclaimer)}</div>",
         _rationale_html(report),
-        _figure_script("eff-chart", _efficiency_figure(report)),
-        _figure_script("ot-chart", _offtarget_figure(report)),
+        _figure_block("eff-chart", _efficiency_figure(report)),
+        _figure_block("ot-chart", _offtarget_figure(report)),
         "<h2>Candidates</h2>",
     ]
     shown, withheld = visible_candidates(report, max_candidates)

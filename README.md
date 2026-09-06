@@ -1006,7 +1006,7 @@ flowchart LR
     B --> R["DesignReport<br/>disclaimer · candidates · provenance"]
     R --> OL["oligos_for()<br/>annealed duplexes, round-trip-checked"]
     R --> J["JSON / TSV / Parquet<br/>(machine-readable)"]
-    R --> H["render_html()<br/>interactive Plotly, ancestry tables"]
+    R --> H["render_html()<br/>inlined SVG charts, ancestry tables"]
     R --> P["render_pdf()<br/>print-ready, pure-Python"]
 ```
 
@@ -1021,9 +1021,12 @@ design whose oligos do not reconstruct is a cloning error caught before synthesi
 | Base-editor sgRNA | one duplex (standard sgRNA) | lentiGuide BsmBI |
 | pegRNA | spacer duplex + 3' extension (RTT + PBS + epegRNA motif) + ngRNA duplex | pegRNA GG BsaI |
 
-**Honest rendering.** HTML charts are interactive Plotly figures pulled from a CDN
-with each figure's spec inlined as JSON — so no Python plotting dependency is
-needed and **no sequence data leaves the page**. Off-target tables are
+**Honest rendering.** HTML charts are **inlined SVG**, drawn by AlleleForge's own
+dependency-free renderer — so no Python plotting dependency is needed and **the page
+makes no network request at all**. They were interactive Plotly figures pulled from a
+CDN, which left every report issuing a third-party request when it was opened; "no
+sequence data leaves the page" was true and beside the point, since the request itself
+is the disclosure. Off-target tables are
 ancestry-stratified, surfacing the worst-affected population per candidate. The PDF
 is a small self-contained writer (no weasyprint / reportlab) for a clean leave-behind.
 

@@ -4824,6 +4824,43 @@ its first five minutes on the specific instance the lesson predicts. R160 wrote 
 two shells; the third had eight missing options waiting. A lesson that is not immediately cashed out is a
 prediction nobody acted on.**
 
+## Round 162 — the request is the disclosure
+
+Started the web app and used it, which I had not done this session. The UI works; R157's prime diagnosis
+reaches the browser; the report renders. Then I read the DOM rather than the page, and found this:
+
+    scriptSrcs: ["https://cdn.plot.ly/plotly-2.35.2.min.js", "(inline 450 chars)"]
+    sandbox:    null
+    plotlyInFrame: "object"
+
+Every rendered report pulls Plotly from a CDN. The README, the deployment guide and the served page itself
+all promise *"no outbound network call"* and *"the served frontend loads no third-party scripts"* — and the
+frontend embeds the report in an **unsandboxed, same-origin** iframe, so that third-party script runs with
+the application's privileges. `plotlyInFrame: "object"` is the proof the request actually went out.
+
+This was not an accident, which is the interesting part. `report/html.py`'s docstring defends it: *"the
+Plotly library is pulled from its CDN (a static script, never sequence data)"*. And a test **pinned** it —
+`assert PLOTLY_CDN in html`. So the repository contained two tests asserting opposite things about the same
+page, both passing, because R151's guard scanned `web/frontend/` and the report is generated somewhere else.
+I wrote that guard two rounds ago and scanned a *directory* when the claim is about a *surface*.
+
+The reasoning in that docstring is the flaw worth naming: "never sequence data" answers a question nobody
+asked. A request to a CDN from a clinician's browser at the moment they analyse a patient variant discloses
+that it happened, to whom, and when, before it discloses anything else. The payload is not the point.
+
+The fix used what was already here: `alleleforge.viz.svg`, a dependency-free SVG renderer written for the
+docs figures, with escaping and color validation already in it. Both charts are now inlined SVG; a rendered
+report contains **no script element at all**, which is a stronger property than the escaping tests it
+replaced were defending — those tests protected a `<script>` payload against a hostile ancestry label, and
+there is now no script element to break out of. Verified live in the browser: zero scripts, zero off-origin
+requests, chart present.
+
+**Lesson: a guard scoped to a directory tests the directory. R151's check passed while the exact thing it
+forbade was being emitted by a file one package over, because I defined its scope by where files live rather
+than by what reaches the user. When writing a guard for a claim about "the page", enumerate everything the
+page is assembled from — and when a docstring argues *for* the thing a headline promise forbids, that is
+not a nuance, it is two documents disagreeing where only one is read.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

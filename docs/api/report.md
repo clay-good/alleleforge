@@ -6,9 +6,9 @@ interactive HTML page, and a static print-ready PDF. Every render **leads with
 the research-use disclaimer and ends with full provenance**.
 
 !!! note "Dependency-free by design"
-    The whole phase ships in pure Python. HTML charts are **interactive Plotly**
-    pulled from a CDN with each figure's spec inlined as JSON — no Python
-    plotting dependency, and no sequence data ever leaves the page. The PDF is a
+    The whole phase ships in pure Python. HTML charts are **inlined SVG** from
+    AlleleForge's own dependency-free renderer — no Python plotting dependency,
+    and a rendered report makes no network request at all. The PDF is a
     small, self-contained writer (no weasyprint / reportlab). Only Parquet
     export has an optional dependency (`polars`), imported lazily.
 

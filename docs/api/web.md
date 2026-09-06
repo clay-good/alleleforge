@@ -66,7 +66,7 @@ The frontend (`src/alleleforge/web/frontend/`) is intentionally a **served,
 build-free single-page app** (vanilla HTML/CSS/JS, no Node toolchain) so it ships
 inside the Python wheel and is exercised end to end by the API tests. It
 implements the journey — variant entry (all input forms) → ranked candidate menu
-with interactive Plotly efficiency intervals and outcome distributions → an
+with inlined-SVG efficiency intervals and outcome distributions → an
 ancestry-stratified off-target view → oligo/report export — by posting to
 `/api/design?format=html` and embedding the returned report. A production
 Next.js + JBrowse 2 frontend can replace it behind the same API without backend

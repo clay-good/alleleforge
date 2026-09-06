@@ -11,6 +11,12 @@ bundle is a same-origin relative path), and it is one `<script src="https://…"
 being false with no test to notice — the shape R150 named: a promise about what is
 *absent* needs a test about absence.
 
+The first version of this scanned the static asset directory, and the *page the user
+actually sees* is not in it: the frontend embeds a server-rendered design report, and
+that report pulled Plotly from `cdn.plot.ly`. So the guard passed while a lab opening
+the local UI to analyse a patient variant issued a request to a CDN at that moment.
+The report is now scanned too — the surface, not the directory.
+
 A link the *user* clicks is not a load, so `<a href="https://…">` is allowed; what is
 forbidden is anything the browser fetches on its own.
 """

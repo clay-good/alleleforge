@@ -3544,9 +3544,19 @@ acceptance.
   automatically) and a packaging test that guards the marker — plus the bundled
   model cards, benchmark splits, and web frontend — against silent removal.
 
-[Unreleased]: https://github.com/clay-good/alleleforge/commits/main
-
 ### Security
+
+- **Every rendered report fetched a script from `cdn.plot.ly`.** The README, the deployment guide and the
+  served page all promise *"no outbound network call"* and *"the served frontend loads no third-party
+  scripts"*. `render_html` emitted `<script src="https://cdn.plot.ly/plotly-2.35.2.min.js">`, so a lab
+  opening the local UI to analyse a patient variant issued a request to a CDN at that moment — and the web
+  frontend embeds the report in an **unsandboxed same-origin iframe**, so that third-party script ran with
+  the app's privileges. The module's own docstring defended the choice as "a static script, never sequence
+  data"; the request itself is the disclosure, whatever it carries. Charts are now inlined SVG from
+  `alleleforge.viz.svg`, the repository's own dependency-free renderer, and a rendered report contains no
+  `<script>` element at all. Found by running the web app and reading the DOM; R151's guard had scanned the
+  static asset directory, which the generated report is not in, and a separate test had *pinned* the CDN —
+  two tests asserting opposite things, both passing.
 
 - **`ALLELEFORGE_API_TOKEN` was inert on the documented deployment path.** The variable was read only inside
   `resolve_serve_token`, which only `serve()` calls — and both the deployment guide and the Dockerfile run
@@ -3564,3 +3574,4 @@ acceptance.
   dependency bump — verified with `cargo check`, `cargo clippy`, and a full
   `maturin develop` round-trip of `aforge_native.version()`.
 
+[Unreleased]: https://github.com/clay-good/alleleforge/commits/main

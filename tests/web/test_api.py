@@ -130,7 +130,7 @@ async def test_design_html(client: httpx.AsyncClient) -> None:
     assert res.status_code == 200
     assert "text/html" in res.headers["content-type"]
     assert res.text.startswith("<!DOCTYPE html>")
-    assert "Plotly" in res.text
+    assert "<svg" in res.text  # charts are inlined SVG, not a CDN script
 
 
 async def test_design_pdf(client: httpx.AsyncClient) -> None:
