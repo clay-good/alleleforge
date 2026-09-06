@@ -39,7 +39,7 @@ from alleleforge.config import DEFAULT_REFERENCE, DEFAULT_SEED
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.types.provenance import DatasetVersion
-from alleleforge.types.sequence import GenomicInterval, Strand
+from alleleforge.types.sequence import GenomicInterval, Strand, canonical_contig
 from alleleforge.types.variant import Variant
 
 
@@ -288,6 +288,38 @@ def _load_encode_tracks(path: Path | None, track: str | None) -> tuple[Any | Non
     except (OSError, ValueError) as exc:
         _echo_err(f"error: could not read --encode-tracks {path}: {exc}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
+
+
+def _validate_regions(regions: list[GenomicInterval] | None, reference: Any) -> None:
+    """Fail loudly on a region the reference cannot serve, naming the offender.
+
+    A panel built against another assembly or naming convention is the ordinary way
+    this happens, and it used to surface as an unhandled ``KeyError`` traceback from
+    deep in the fetch. Failing is the right answer rather than skipping: a silently
+    dropped region means the search covered less than was asked for, and a smaller
+    search reports fewer off-targets — the direction that reads as safer and is not.
+
+    Only an *unknown contig* is refused. A region running past a contig end is valid
+    scoping, and the report's searchable-fraction line already states exactly how
+    little of it held sequence.
+    """
+    if not regions:
+        return
+    known = set(reference.contigs)
+    for region in regions:
+        if canonical_contig(region.chrom) not in {canonical_contig(c) for c in known}:
+            _echo_err(
+                f"error: region {region} names contig {region.chrom!r}, which this "
+                f"reference does not have (it has: {', '.join(sorted(known)[:8])}"
+                f"{'…' if len(known) > 8 else ''}). Check the panel's assembly and "
+                "contig naming — a dropped region searches less than you asked for."
+            )
+            raise typer.Exit(ExitCode.USAGE)
+        # Deliberately *not* an error for a region past the contig end. That is a
+        # legitimate way to scope a search to nothing on a contig, and the report
+        # already says so precisely — the searchable-fraction line reads "0% of the N
+        # requested bases were searchable", which is more informative than a refusal.
+        # An unknown contig is different: no coordinate makes it valid.
 
 
 def _load_regions(regions: list[str] | None, bed: Path | None) -> list[GenomicInterval] | None:
@@ -646,6 +678,7 @@ def design(
     tracks, track_name = _load_encode_tracks(encode_tracks, chromatin_track)
 
     reference = _load_reference(reference_fasta, state.reference_build)
+    _validate_regions(region_list, reference)
     patient_variants = _load_patient_variants(patient_vcf, reference)
     # Honor the user's config file (its Settings keys) with the CLI --seed as
     # an override, so a config.toml maf_threshold/interval_level/cache_dir is
@@ -985,6 +1018,7 @@ def batch(
     tracks, track_name = _load_encode_tracks(encode_tracks, chromatin_track)
 
     reference = _load_reference(reference_fasta, state.reference_build)
+    _validate_regions(region_list, reference)
     patient_variants = _load_patient_variants(patient_vcf, reference)
     assert reference_fasta is not None  # _load_reference exits otherwise
     # Honor the user's config file (its Settings keys) with the CLI --seed as
@@ -1191,6 +1225,7 @@ def offtarget(
     gnomad_db = _load_gnomad(gnomad)
     haplotype_panel = _load_haplotypes(haplotypes)
     region_list = _load_regions(regions, regions_bed)
+    _validate_regions(region_list, reference)
     patient_variants = _load_patient_variants(patient_vcf, reference)
     try:
         locus = GenomicInterval.parse(on_target) if on_target else None

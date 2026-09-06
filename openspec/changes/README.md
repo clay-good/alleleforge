@@ -3428,6 +3428,34 @@ parameter can be half-applied, and the half that was dropped is invisible precis
 worked. When a parameter names things — ancestries, tracks, chemistries, regions — check each name, not the
 list.**
 
+## Round 120 — the panel for the wrong genome
+
+R119's rule: when a parameter names things, check each name. Ancestries were one list; **regions** are the
+other, and a region panel is the most likely of all to be wrong, because it is usually a file somebody else
+made.
+
+A BED naming `chr99` against a reference that has no such contig produced a Python traceback. The CLI
+catches `ValueError` around the search; a missing contig raises `KeyError` from inside the fetch, and
+nothing caught that. Not a subtle failure — but the ordinary cause is a panel built against a different
+assembly or naming convention, which is a thing a user does routinely and needs a sentence about, not a
+stack trace.
+
+The interesting part was deciding what *else* to refuse, and getting it wrong first. My first version also
+refused a region starting past a contig end. That broke an existing test which used exactly such a region on
+purpose — to scope a search to nothing and check the scoping worked. The test was right and I was wrong:
+a region past the end is valid scoping, and R115's searchable-fraction line already reports it far better
+than a refusal does, reading "0% of the 100 requested bases were searchable". So the refusal is narrowed to
+the one case no coordinate can rescue — an unknown contig — and the rest is left to the reporting that
+already existed.
+
+That same check then found a wording bug in R115's own message: bases past a contig end were being described
+as "assembly gaps or ambiguity codes". They are neither; nothing is missing from the assembly there, the
+region simply asked for more than the contig has.
+
+**Lesson: before adding a refusal, check whether the system already *reports* the condition — and check the
+tests that exercise the case you are about to forbid. A test doing something odd on purpose is documentation
+of an intent you are about to break. Refuse only what no reporting can make comprehensible.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -433,6 +433,24 @@ def test_a_scan_says_how_much_of_the_region_was_searchable(make_reference: MakeR
     assert "searchable" not in clean_report.search_description()
 
 
+def test_a_region_running_past_a_contig_end_is_not_called_an_assembly_gap(
+    make_reference: MakeRef,
+) -> None:
+    """A fetch pads past the contig end, and that padding is not a gap.
+
+    Found while validating region panels: a region overlapping the end of a short
+    contig came back "only 88% searchable (the rest are assembly gaps or ambiguity
+    codes)". The fraction was right and the explanation was not — nothing is missing
+    from the assembly there, the region simply asked for more than the contig has.
+    """
+    contig = PAD + SPACER + "TGG" + PAD
+    reference = make_reference({"chr2": contig})
+    over = GenomicInterval(chrom="chr2", start=0, end=len(contig) + 20, strand=Strand.PLUS)
+    report = search(SPACER, NGG, reference=reference, regions=[over])
+    assert report.resolved_bases < report.searched_bases
+    assert "past a contig end" in report.search_description()
+
+
 def test_an_ambiguity_code_counts_against_the_searchable_fraction(
     make_reference: MakeRef,
 ) -> None:

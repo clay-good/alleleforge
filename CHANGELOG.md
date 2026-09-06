@@ -8,6 +8,20 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A region panel naming a contig the reference does not have dumped a raw traceback.** A BED built against
+  another assembly or naming convention is the ordinary way this happens, and the CLI caught `ValueError`
+  but not the `KeyError` that a missing contig raises deep in the fetch. It is now a clean usage error
+  naming the offending region, the contig, and what the reference actually holds. Refusing is right rather
+  than skipping the region: a silently dropped region searches less than was asked for, and a smaller search
+  reports fewer off-targets — the direction that reads as safer and is not.
+
+  A region running *past* a contig end is deliberately **not** refused. That is legitimate scoping, and the
+  searchable-fraction line already reports it precisely ("0% of the 100 requested bases were searchable"),
+  which is more informative than a refusal. Its wording is corrected too: bases past a contig end were being
+  described as assembly gaps, which they are not.
+
 ### Added
 
 - **An ancestry requested for stratification that no supplied source carries data for is now named.**

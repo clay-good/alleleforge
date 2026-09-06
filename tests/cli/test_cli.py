@@ -725,6 +725,53 @@ def test_offtarget_states_the_settings_its_site_count_depends_on(
     assert default["dna_bulge_budget"] == 1 and default["cfd_threshold"] == 0.20
 
 
+def test_a_region_panel_the_reference_cannot_serve_fails_clearly(
+    runner: CliRunner, nuclease_fasta: Path, tmp_path: Path
+) -> None:
+    """A BED naming a contig the reference lacks used to dump a raw traceback.
+
+    A panel built against another assembly or naming convention is the ordinary way
+    this happens. Failing is right rather than skipping the region: a dropped region
+    searches less than was asked for, and a smaller search reports fewer off-targets
+    — the direction that reads as safer and is not.
+    """
+    bad = tmp_path / "panel.bed"
+    bad.write_text("chr99\t0\t1000\n")
+    result = runner.invoke(
+        app,
+        [
+            "offtarget",
+            "ACGTAACGTTACGTAACGTT",
+            "--reference-fasta",
+            str(nuclease_fasta),
+            "--regions-bed",
+            str(bad),
+        ],
+    )
+    assert result.exit_code == ExitCode.USAGE
+    assert "does not have" in result.output
+    assert "chr99" in result.output
+    assert "Traceback" not in result.output
+
+    # A region past a contig end is *not* refused: that is legitimate scoping, and the
+    # report says precisely how little of it held sequence rather than declining to run.
+    past_end = tmp_path / "oob.bed"
+    past_end.write_text("chr2\t900000\t900100\n")
+    result = runner.invoke(
+        app,
+        [
+            "offtarget",
+            "ACGTAACGTTACGTAACGTT",
+            "--reference-fasta",
+            str(nuclease_fasta),
+            "--regions-bed",
+            str(past_end),
+        ],
+    )
+    assert result.exit_code == 0
+    assert "0% of the" in result.output and "were searchable" in result.output
+
+
 def test_offtarget_rows_name_the_pam(runner: CliRunner, nuclease_fasta: Path) -> None:
     """An NGG row and a low-stringency NAG row looked identical on the table."""
     args = ["offtarget", "ACGTAACGTTACGTAACGTT", "--reference-fasta", str(nuclease_fasta)]

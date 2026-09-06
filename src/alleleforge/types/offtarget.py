@@ -187,7 +187,8 @@ class OffTargetReport(BaseModel):
             if fraction < 0.99:
                 coverage = (
                     f"; only {fraction:.0%} of the {self.searched_bases:,} requested bases "
-                    "were searchable (the rest are assembly gaps or ambiguity codes)"
+                    "were searchable (the rest are assembly gaps, ambiguity codes, or "
+                    "past a contig end)"
                 )
         if self.unbacked_populations:
             coverage += (

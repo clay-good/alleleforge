@@ -158,3 +158,22 @@ is population-aware.
 - **WHEN** a patient's own variants are supplied
 - **THEN** a site present in that genome but not the reference is nominated with
   `patient` origin
+
+### Requirement: A region panel is validated against the reference
+
+A region panel is usually a file made elsewhere, so naming a contig the reference does
+not have is an ordinary mistake. It SHALL produce a usage error naming the region, the
+contig and what the reference holds — never an unhandled traceback — because silently
+dropping the region would search less than was asked for, and a smaller search reports
+fewer off-targets.
+
+A region running past a contig end SHALL NOT be refused: it is legitimate scoping, and
+the report's searchable-fraction line already states how little of it held sequence.
+
+#### Scenario: A panel from another assembly
+- **WHEN** a BED names a contig absent from the reference
+- **THEN** the command exits with a usage error naming it, and no traceback is shown
+
+#### Scenario: A region past a contig end
+- **WHEN** a region begins beyond the end of its contig
+- **THEN** the search runs and reports that none of those bases were searchable
