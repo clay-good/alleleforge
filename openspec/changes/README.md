@@ -8844,6 +8844,38 @@ conjunction says "dangerous, and not for everyone".
 the features that work today because nobody has touched them yet.**
 
 
+## Round 268 — the paragraph explaining why something is missing
+
+The goal says to keep the README reflecting the current state, so I read what it claims
+about the web surface after four rounds of changing it:
+
+    Every `design()` capability is reachable from the CLI. On the web API the four
+    file-backed inputs (--gnomad, --haplotypes, --patient-vcf, --encode-tracks) are
+    deliberately absent: a client-supplied filesystem path would be a server-side
+    file-read primitive, so that surface needs server-side configuration like the
+    reference already has.
+
+The reasoning is exactly the one I arrived at independently in R262 — which is a good sign
+about the design and a bad sign about the paragraph, because three of those four now *are*
+reachable through precisely the server-side configuration it says the surface needs. A
+sentence explaining why something is missing is the last text anyone revisits when it stops
+being missing.
+
+Rewritten to the shipped state, with the distinction that matters kept: `--patient-vcf`
+stays out for a *different* reason. A personal genotype is the caller's data, not the
+operator's, so server-side configuration is the wrong shape for it and an upload path is a
+separate decision. Absent-for-a-reason and absent-because-nobody-did-it read identically in
+a README, and only one of them should survive a reader asking why.
+
+The guard checks both halves: every variable the README says configures a source is
+actually read by the app, and the input it says stays out is absent from all three request
+models — plus the premise, that no request model takes a filesystem path at all.
+
+**Lesson: prose that justifies an absence ages worse than prose that describes a presence.
+When you add a capability, grep the docs for the explanation of why it used to be
+missing.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **The README describes the web surface that ships.** It explained that the four file-backed inputs were
+  "deliberately absent" from the web API because a client-supplied path would be a server-side file-read
+  primitive, and that the surface "needs server-side configuration like the reference already has". The
+  reasoning was right and the conclusion had moved on: three of the four are now configured exactly that
+  way. `--patient-vcf` stays out for a different reason — a personal genotype is the caller's data, not the
+  operator's — and a test now checks each half of the claim rather than trusting the paragraph.
+
 - **Two live code paths that no test ran are now covered.** The PEP 562 lazy re-export in `alleleforge.genome`
   — the whole point of which is that `from alleleforge.genome import ReferenceGenome` keeps working without
   importing `pyfaidx` at package import — was exercised nowhere, so a typo in the deferred-name tuple would

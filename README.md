@@ -1122,9 +1122,15 @@ flowchart LR
 > nuclease and base editing do not take a cell context; when one is supplied and they run, the rationale
 > names them and says their in-distribution flag describes the guide context alone, so an unqualified "in
 > distribution" beside a nuclease candidate is not mistaken for a claim about the cell line. **Every `design()` capability is reachable from
-> the CLI.** On the web API the four **file-backed** inputs (`--gnomad`, `--haplotypes`, `--patient-vcf`,
-> `--encode-tracks`) are deliberately absent: a client-supplied filesystem path would be a server-side
-> file-read primitive, so that surface needs server-side configuration like the reference already has.
+> the CLI.** On the web API a client-supplied filesystem path would be a server-side file-read primitive, so
+> the **file-backed** inputs are configured by the operator, exactly as the reference already is:
+> `ALLELEFORGE_GNOMAD_TSV`, `ALLELEFORGE_HAPLOTYPES` and `ALLELEFORGE_ENCODE_TRACKS` (or the matching
+> `create_app(...)` arguments) make the population-aware search, the haplotype-aware pass and the chromatin
+> adjustment available over HTTP. `GET /api/health` reports which of them this deployment loaded, and names
+> the reason when a configured one could not be read — a client cannot supply them, so it has to be able to
+> see them. `--patient-vcf` remains absent for a different reason: a personal genotype is the *caller's*
+> data, not the operator's, so server-side configuration is the wrong shape for it and an upload path is a
+> separate decision.
 > Everything that is *data* rather than a path — region scoping, cell context, the render cap, the
 > on-target locus, the specificity scorer — is available over HTTP, and every request model **forbids
 > unknown fields**: a parameter this server does not support is a `422` naming it, never a `200`
@@ -1182,7 +1188,7 @@ flowchart LR
 
 | Method & path | Purpose |
 |---|---|
-| `GET /api/health` | Liveness, reference status, disclaimer |
+| `GET /api/health` | Liveness, disclaimer, and which data sources this deployment loaded (reference, population sites, haplotype panel, accessibility track names) — plus why a configured one failed to load |
 | `POST /api/resolve` | Normalize any input form to a canonical variant |
 | `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf` |
 | `POST /api/jobs/design` → `GET /api/jobs/{id}` | Async job submit + status/progress/result |
