@@ -124,3 +124,31 @@ async def test_max_job_seconds_must_be_positive() -> None:
 
     with pytest.raises(ValueError, match="max_job_seconds must be positive"):
         JobManager(max_job_seconds=0)
+
+
+def test_the_job_status_response_says_progress_is_not_a_fraction() -> None:
+    """`progress` reached clients as an undescribed number in a bare dict.
+
+    It takes exactly three values — 0.0 queued, 0.1 running, 1.0 finished — so a client
+    rendering it as a percentage shows 10% for the entire duration of a cohort run and
+    then jumps to 100%. That is a worse lie than showing nothing, and the endpoint's
+    untyped `dict` return meant the OpenAPI schema said nothing at all about it.
+    """
+    from alleleforge.web.api.models import JobStatusResponse
+
+    description = JobStatusResponse.model_fields["progress"].description
+    assert description, "progress reaches clients with no description"
+    assert "NOT a completion fraction" in description
+    assert "0.1 running" in description
+
+
+def test_the_job_endpoint_is_typed() -> None:
+    """An untyped endpoint documents nothing; the schema is the contract."""
+    from fastapi.testclient import TestClient
+
+    from alleleforge.web.api.app import create_app
+
+    schema = TestClient(create_app()).get("/openapi.json").json()
+    job = schema["paths"]["/api/jobs/{job_id}"]["get"]["responses"]["200"]
+    ref = job["content"]["application/json"]["schema"]["$ref"]
+    assert ref.endswith("JobStatusResponse"), ref

@@ -353,6 +353,34 @@ class OffTargetResponse(BaseModel):
         )
 
 
+class JobStatusResponse(BaseModel):
+    """An async job's state, coarse progress, and result when it is finished.
+
+    The status endpoint returned a bare `dict`, so `progress` reached a client with no
+    description at all — and it is **not** a continuous fraction. It takes exactly three
+    values: `0.0` queued, `0.1` running, `1.0` finished. A client rendering it as a
+    percentage shows 10% for the entire duration of a cohort run and then jumps to
+    100%, which is a worse lie than showing nothing. Typed and documented so the shape
+    is visible in the OpenAPI schema rather than inferred from two observations.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    job_id: str
+    state: str = Field(description="queued | running | done | error.")
+    progress: float = Field(
+        description=(
+            "Coarse, three-valued: 0.0 queued, 0.1 running, 1.0 finished. NOT a "
+            "completion fraction — a running job reports 0.1 whether it is 1% or 99% "
+            "through. Render it as a state, not as a percentage."
+        )
+    )
+    error: str | None = Field(default=None, description="The failure message, if the job failed.")
+    result: dict[str, object] | None = Field(
+        default=None, description="The design report, present only once the job is done."
+    )
+
+
 class HealthResponse(BaseModel):
     """Liveness and capability report."""
 

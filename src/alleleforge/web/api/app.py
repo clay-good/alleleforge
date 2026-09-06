@@ -50,6 +50,7 @@ from alleleforge.web.api.models import (
     DatasetRow,
     DesignRequest,
     HealthResponse,
+    JobStatusResponse,
     JobSubmitResponse,
     OffTargetRequest,
     OffTargetResponse,
@@ -332,21 +333,21 @@ def create_app(
             raise HTTPException(status_code=429, detail=str(exc)) from exc
         return JobSubmitResponse(job_id=record.id, state=record.state)
 
-    @app.get("/api/jobs/{job_id}")
-    async def job_status(job_id: str, request: Request) -> dict[str, Any]:
+    @app.get("/api/jobs/{job_id}", response_model=JobStatusResponse)
+    async def job_status(job_id: str, request: Request) -> JobStatusResponse:
         """Return an async job's state, progress, and result (when done)."""
         jobs: JobManager = request.app.state.jobs
         record = jobs.get(job_id)
         if record is None:
             raise HTTPException(status_code=404, detail=f"unknown job {job_id!r}")
         result = record.result
-        return {
-            "job_id": record.id,
-            "state": record.state.value,
-            "progress": record.progress,
-            "error": record.error,
-            "result": result.model_dump(mode="json") if isinstance(result, DesignReport) else None,
-        }
+        return JobStatusResponse(
+            job_id=record.id,
+            state=record.state.value,
+            progress=record.progress,
+            error=record.error,
+            result=result.model_dump(mode="json") if isinstance(result, DesignReport) else None,
+        )
 
     @app.post("/api/batch", response_model=BatchResponse)
     def batch_endpoint(req: BatchRequest, request: Request) -> BatchResponse:

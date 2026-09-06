@@ -222,6 +222,14 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
   path, and the fix was a test that enumerates the pattern rather than a more careful
   grep. Write the enumerating check in the same commit as the conversion.
 
+- **Verify the mutation, not just the test's reaction to it.** "I broke it and the test
+  still passed" has two readings, and the wrong one has now come up twice: R151's
+  outbound-socket patch ran before the monkeypatch was installed, and R175's deletion of
+  a FastAPI `response_model=` changed nothing because the schema comes from the return
+  annotation. Both looked like a weak test and were a no-op edit. Before concluding a
+  guard is weak, confirm the thing you edited is load-bearing for the behaviour you
+  meant to break.
+
 ## Existing planning docs (background, not OpenSpec)
 
 `SPEC.md` (v1 build phases), `SPEC_V2.md` (R0–R6 roadmap), and `specs/*.md` (model-

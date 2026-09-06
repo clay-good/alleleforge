@@ -1571,6 +1571,12 @@ acceptance.
 
 ### Fixed
 
+- **A job's `progress` looked like a completion fraction and is not one.** It takes exactly three values —
+  `0.0` queued, `0.1` running, `1.0` finished — and the status endpoint returned a bare `dict`, so it reached
+  clients with no description at all and no OpenAPI schema. A client rendering it as a percentage shows 10%
+  for the entire duration of a cohort run and then jumps to 100%, which is a worse lie than showing nothing.
+  The endpoint is now typed, and the field says outright that it is a state, not a fraction.
+
 - **Three model cards reported an unmeasured accuracy as `0.0`.** `spearman_validation: 0.0` sat on the
   Rule Set 3, PRIDICT2-baseline and Cas9-ensemble cards, with the reason in a YAML comment no consumer reads
   — *"populated when CRISPR-Bench scores it"*, *"not fitted/scored"*. `card.metrics` handed back

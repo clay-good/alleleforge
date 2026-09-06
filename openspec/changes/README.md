@@ -5259,6 +5259,35 @@ rejects any metric whose name is a performance measure and whose value is exactl
 project look worse reads as modesty rather than as a bug. Check the pessimistic placeholders too; they are
 just as false, and nobody is motivated to find them.**
 
+## Round 175 — the sweep that mostly came back clean
+
+R174's lesson — a placeholder survives in proportion to how *unflattering* it is — as a sweep over every
+field defaulting to an extreme of its scale. Two clean bills and one real find, which is the honest shape of a
+well-worked seam.
+
+**`subthreshold_score_sum = 0.0`** is the dangerous direction: zero means "no hidden risk below the reporting
+cut-off", the reassuring extreme on a safety axis. It is written at exactly one place, always, and every
+merge path uses `model_copy` rather than rebuilding field by field — the R-era fix for `_merge_offtarget`
+still holding. Clean.
+
+**`outcome_shown_mass = 0.0`** likewise: it is set alongside the alleles it summarises, and R155 made its
+arithmetic follow the rows actually shown.
+
+**`progress: float = 0.0`** is the find, and it is not about the default. The field takes three values —
+`0.0` queued, `0.1` running, `1.0` done — and the status endpoint returned a bare `dict[str, Any]`, so it
+arrived at a client with no description and no OpenAPI schema. A client that renders it as a percentage shows
+**10% for the whole of a cohort run** and then jumps to 100%. The number is not wrong; its *shape* is
+misrepresented, which is the same defect as a placeholder wearing the clothes of a measurement.
+
+A process note worth keeping. My first mutation of the fix — deleting `response_model=JobStatusResponse` —
+left the test passing, and I nearly recorded that as a weak test. FastAPI infers the schema from the
+**return annotation**, so removing the keyword mutated nothing. Changing the annotation failed the test
+immediately. A mutation that does not mutate looks exactly like a test that does not test.
+
+**Lesson: verify the mutation, not just the test's reaction to it. "I broke it and the test passed" has two
+readings and I have now hit the wrong one twice (R151's socket patch, this). Before concluding a guard is
+weak, confirm the thing you edited is actually load-bearing for the behaviour you meant to break.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
