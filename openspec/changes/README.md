@@ -9022,6 +9022,31 @@ that enum: the schema then carries the vocabulary and the prose has nothing left
 wrong.**
 
 
+## Round 274 — the sweep that came back clean, and the copy nobody checked
+
+First, R273's query run across the package: every `str` field whose description spells out
+a closed vocabulary. One hit, and it is legitimate — `variant`, whose "ClinVar / rsID /
+HGVS / VCF / coords" lists input *shapes* rather than a closed set, and whose sibling
+`intent` is already a constrained type. So R273 was the only instance, and the fix did not
+leave siblings behind. Worth a paragraph precisely because the answer was "nothing here":
+R263's lesson is to finish the pair, and the way to know a pair is finished is to look.
+
+Then the same question one shell over. The exit-code vocabulary exists four times:
+`ExitCode`, the CLI spec, the `docs/api/cli.md` table, and a README sentence. The spec copy
+*is* pinned to the enum, by a test written when that copy drifted. The two documents a user
+actually reads were not — and exit codes are the one part of a CLI that scripts branch on,
+so a fifth code would have left two documents telling pipeline authors the wrong thing
+while the suite stayed green.
+
+Adding `INTERRUPTED = 5` to the enum turns both new tests red, and the third one checks the
+two documents against each other: they are read by different people and drift
+independently.
+
+**Lesson: when you find a guard that pins one copy of a duplicated fact, that guard is
+evidence someone already learned this lesson — go and count the copies. The existence of
+one check is the strongest available signal that the others are missing.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

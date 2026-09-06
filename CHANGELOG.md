@@ -2056,6 +2056,12 @@ acceptance.
 
 ### Fixed
 
+- **The documented exit codes are pinned to the enum.** They are written out four times — `ExitCode`, the
+  CLI spec, the `docs/api/cli.md` table and a README sentence — and only the spec copy was checked against
+  the code. Exit codes are the part of a CLI that scripts branch on, so a fifth code or a renumbering would
+  have left two documents telling pipeline authors the wrong thing with a green suite. All three copies are
+  checked now, including against each other.
+
 - **The job status contract names the states it emits.** `JobStatusResponse.state` was typed `str` and
   described as "queued | running | done | error" — and nothing emits `queued`; a job starts `pending`. A
   client polling until the state leaves the documented first value waits forever, and a bare string field
