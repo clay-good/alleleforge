@@ -49,6 +49,7 @@ from alleleforge.design.prime import (
 from alleleforge.design.ranking import DEFAULT_WEIGHTS, RankingWeights, rank_candidates
 from alleleforge.design.routing import ChemistryDecision, route
 from alleleforge.enumerate.base_editor import BASE_EDITORS
+from alleleforge.enumerate.prime import rejection_summary
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.scoring.prime_outcome import PrimeOutcomePredictor
 from alleleforge.types.candidate import DesignCandidate, RankedMenu
@@ -249,6 +250,13 @@ def design(
         )
     )
     if Chemistry.PRIME in eligible:
+        # Prime is the flagship chemistry and the one most often eligible-but-empty:
+        # a nick has to land within RTT reach of the edit, and no PAM in range may do
+        # so. "eligible but no actionable candidate enumerated" tells a scientist that
+        # and nothing else, when the reasons have different remedies — try the other
+        # strand, a different PAM, another chemistry. Collect them; the tally costs a
+        # dict increment per rejected protospacer and is only rendered when empty.
+        prime_tally: dict[str, int] = {}
         candidates.extend(
             _run_chemistry(
                 "prime",
@@ -267,8 +275,10 @@ def design(
                     populations=populations,
                     run_offtarget=run_offtarget,
                     max_candidates=None,  # cap deferred to the composite ranker
+                    tally=prime_tally,
                 ),
                 notes,
+                empty_reason=lambda: rejection_summary(prime_tally),
             )
         )
     if Chemistry.CAS9_NUCLEASE in eligible:
@@ -370,7 +380,13 @@ _EXPECTED_DESIGN_FAILURES: tuple[type[Exception], ...] = (
 )
 
 
-def _run_chemistry(label: str, runner: _Runner, notes: list[str]) -> list[DesignCandidate]:
+def _run_chemistry(
+    label: str,
+    runner: _Runner,
+    notes: list[str],
+    *,
+    empty_reason: Callable[[], str] | None = None,
+) -> list[DesignCandidate]:
     """Run one chemistry's vertical, degrading gracefully on an expected failure.
 
     An *expected* failure (see :data:`_EXPECTED_DESIGN_FAILURES`) is recorded as a
@@ -383,6 +399,7 @@ def _run_chemistry(label: str, runner: _Runner, notes: list[str]) -> list[Design
         label: The chemistry label for notes.
         runner: A zero-argument callable returning the chemistry's candidates.
         notes: Mutable note list the outcome (or failure reason) is appended to.
+        empty_reason: Called only when the runner returned nothing, to explain why.
 
     Returns:
         The chemistry's candidates, or an empty list if it failed or found none.
@@ -398,7 +415,11 @@ def _run_chemistry(label: str, runner: _Runner, notes: list[str]) -> list[Design
         )
         return []
     if not result:
-        notes.append(f"{label}: eligible but no actionable candidate enumerated")
+        # Say *why* when the vertical can explain itself. "Nothing found" and "nothing
+        # found because every nick in range is too far from the edit for a synthesizable
+        # RTT" send a reader to different next steps, and only one of them is a dead end.
+        why = f" — {empty_reason()}" if empty_reason is not None else ""
+        notes.append(f"{label}: eligible but no actionable candidate enumerated{why}")
     else:
         notes.append(f"{label}: {len(result)} candidate(s)")
     return result

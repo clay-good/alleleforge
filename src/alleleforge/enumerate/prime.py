@@ -35,7 +35,7 @@ and runs the off-target engine on both nicks.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, MutableMapping, Sequence
 
 from alleleforge.enumerate._frame import EditFrame
 from alleleforge.genome.reference import ReferenceGenome
@@ -174,6 +174,43 @@ def _select_nicking_guide(
     return pe3b or pe3
 
 
+#: Why a candidate protospacer was rejected, in the words a user needs. When prime
+#: enumeration returns nothing the report used to say only "eligible but no actionable
+#: candidate enumerated", which tells a scientist that their flagship chemistry found
+#: nothing and not whether to try the other strand, a different PAM, or another
+#: chemistry entirely. These distinguish the cases that have different remedies.
+REJECTION_REASONS: dict[str, str] = {
+    "no-pam": "no PAM match at this offset",
+    "ambiguous": "the protospacer or PAM spans an assembly gap (N)",
+    "pol3-terminator": "the spacer contains TTTT, which terminates Pol III transcription",
+    "edit-5-prime-of-nick": (
+        "the edit lies 5' of the nick, which an RTT extending 3' cannot reach"
+    ),
+    "pbs-out-of-range": "no PBS length in range fits before the nick",
+    "rtt-out-of-range": (
+        "the nick-to-edit distance plus the edit and its 3' homology needs an RTT "
+        "outside the synthesizable range"
+    ),
+    "rtt-past-window": "the RTT would run past the fetched reference window",
+    "rtt-spans-gap": "the RT template spans an assembly gap (N)",
+}
+
+
+def _note(tally: MutableMapping[str, int] | None, reason: str) -> None:
+    """Record one rejection, when a caller asked for the tally."""
+    if tally is not None:
+        tally[reason] = tally.get(reason, 0) + 1
+
+
+def rejection_summary(tally: Mapping[str, int]) -> str:
+    """Render a rejection tally as one sentence, most common reason first."""
+    counted = [(n, k) for k, n in tally.items() if n and k in REJECTION_REASONS]
+    if not counted:
+        return "no protospacer was examined"
+    counted.sort(key=lambda kv: (-kv[0], kv[1]))
+    return "; ".join(f"{REJECTION_REASONS[k]} ({n})" for n, k in counted)
+
+
 def _enumerate_frame(
     start: str,
     edited: str,
@@ -190,6 +227,7 @@ def _enumerate_frame(
     pe3_offset: tuple[int, int],
     frame: EditFrame,
     frame_strand: Strand,
+    tally: MutableMapping[str, int] | None = None,
 ) -> list[PegRNA]:
     """Enumerate frame-plus pegRNAs (the strand whose protospacer is ``start``).
 
@@ -202,15 +240,19 @@ def _enumerate_frame(
     out: list[PegRNA] = []
     for k in range(spacer_length, len(start) - pam_len + 1):
         if "N" in start[k : k + pam_len] or not pam.matches(start[k : k + pam_len]):
+            _note(tally, "no-pam")
             continue
         proto = start[k - spacer_length : k]
         if "N" in proto:
+            _note(tally, "ambiguous")
             continue
         if "TTTT" in proto:
-            continue  # Pol III terminator in the spacer: pegRNA cannot be transcribed
+            _note(tally, "pol3-terminator")
+            continue  # Pol III terminator: pegRNA cannot be transcribed
         nick_local = k - cut_offset
         distance = edit_local - nick_local  # edit must be 3' of the nick (>= 0)
         if distance < 0:
+            _note(tally, "edit-5-prime-of-nick")
             continue
         placement = frame.interval(k - spacer_length, k, frame_strand)
         nick_genomic = frame.coord(nick_local)
@@ -232,16 +274,20 @@ def _enumerate_frame(
         )
         for pbs_len in pbs_lengths:
             if nick_local - pbs_len < 0 or not PBS_RANGE[0] <= pbs_len <= PBS_RANGE[1]:
+                _note(tally, "pbs-out-of-range")
                 continue
             pbs = _rc(start[nick_local - pbs_len : nick_local])
             for homology in rtt_homologies:
                 rtt_len = distance + edit_len + homology
                 if not RTT_RANGE[0] <= rtt_len <= RTT_RANGE[1]:
+                    _note(tally, "rtt-out-of-range")
                     continue
                 if nick_local + rtt_len > len(edited):
+                    _note(tally, "rtt-past-window")
                     continue
                 rtt_window = edited[nick_local : nick_local + rtt_len]
                 if "N" in rtt_window:
+                    _note(tally, "rtt-spans-gap")
                     # The RT template spans an assembly-gap N (the reference is unknown
                     # there). Skip it, mirroring the spacer/PAM N-guards above and the
                     # per-span guards in the cas9/base-editor enumerators: a pegRNA whose
@@ -279,6 +325,7 @@ def enumerate_prime(
     motif: ThreePrimeMotif = ThreePrimeMotif.TEVOPREQ1,
     pe3: bool = True,
     pe3_offset: tuple[int, int] = DEFAULT_PE3_OFFSET,
+    tally: MutableMapping[str, int] | None = None,
 ) -> list[PegRNA]:
     """Enumerate pegRNAs that install a variant's edit (both strands).
 
@@ -297,6 +344,10 @@ def enumerate_prime(
         motif: The epegRNA 3' motif (default tevopreQ1).
         pe3: Select a PE3/PE3b nicking guide (default on).
         pe3_offset: Optimal PE3 nick-to-nick offset range.
+        tally: Optional mapping the reason for each rejected protospacer is counted
+            into, so a caller that enumerated nothing can say *why* rather than only
+            that it found nothing. One dict increment per rejection, and nothing at
+            all when omitted.
 
     Returns:
         Validated :class:`PegRNA`s (with placement, nick site, and an attached
@@ -373,6 +424,7 @@ def enumerate_prime(
             pe3=pe3,
             pe3_offset=pe3_offset,
             frame=frame,
+            tally=tally,
             frame_strand=Strand.PLUS,
         )
 

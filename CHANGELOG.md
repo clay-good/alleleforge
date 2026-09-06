@@ -1514,6 +1514,16 @@ acceptance.
 
 ### Fixed
 
+- **An empty prime vertical now says why.** Prime is the flagship chemistry and the one most often
+  eligible-but-empty — a nick has to land within RTT reach of the edit, and no PAM in range may manage it —
+  and the report said only *"prime: eligible but no actionable candidate enumerated"*. The reasons have
+  different remedies (the other strand, a different PAM, another chemistry, or a genuine dead end) and naming
+  none of them leaves a scientist with a result they cannot act on and cannot tell from a bug. The enumerator
+  now tallies why each protospacer was rejected, and the rationale reads: *"…no actionable candidate
+  enumerated — the nick-to-edit distance plus the edit and its 3' homology needs an RTT outside the
+  synthesizable range (360); no PAM match at this offset (243); the edit lies 5' of the nick, which an RTT
+  extending 3' cannot reach (8)"*. The tally is opt-in and costs nothing when omitted.
+
 - **The outcome table could omit the one allele the user asked for.** `outcome_top` was the top N by
   probability, and a base editor with bystanders routinely ranks the intended edit outside the top few. A
   real run on a three-A window showed `A6G` (0.288), `A5G;A6G` (0.192) and `wildtype` (0.192) — with the

@@ -4664,6 +4664,38 @@ procedure and got away with it. A conventions file is only load-bearing if somet
 that are checked (`Provenance`'s field coverage) have never been the source of a defect, and the ones that
 are advice have been the source of several.**
 
+## Round 157 — "no actionable candidate" is not an answer
+
+R155's run left a loose end I did not pull: the menu said *"prime: eligible but no actionable candidate
+enumerated"* for a trivial A>G, and I moved on. Pulling it.
+
+The behaviour is correct. Prime found nothing because every protospacer in range places its nick too far from
+the edit for a synthesizable RTT — I first assumed "edit 5' of the nick", and the tally says that accounts for
+8 rejections against 360 for RTT range. My assumption was wrong, which is the point: if I cannot infer the
+reason from the report while holding the code open, a bench scientist has no chance.
+
+And the reasons are not interchangeable. *No PAM in range* means try another PAM or another chemistry. *Edit
+5' of every nick* means try the other strand. *RTT out of range* is closer to a genuine dead end. *TTTT in the
+spacer* is a Pol III terminator and says nothing about the locus at all. One sentence — "no actionable
+candidate" — collapses four different next steps into a shrug, on the chemistry the project leads with.
+
+The enumerator now counts why each protospacer was rejected, into an optional mapping. Opt-in matters here:
+`project.md`'s rule is that anything added inside a hot scan costs per call, and this one is a dict increment
+per *rejected* candidate, taken only when a caller asks. The designer asks, and renders it only when the
+vertical came back empty — so the normal path pays nothing and the empty path explains itself.
+
+Two things worth recording about the process. The designer-level note initially had no test: my first
+mutation (blanking the reason) passed the whole `tests/design` suite, because the only test I had written was
+at the enumerator. A tally that reaches no reader is the exact defect this round is about, reproduced one
+layer up — the second time in five rounds that I have built an honesty mechanism and nearly failed to
+connect it. And the reproducibility gate fired on the changed rationale and **named the changed value**,
+which is R140's work paying for itself: the diff showed the added sentence rather than two hashes, and one
+look confirmed the change was intended before updating the golden.
+
+**Lesson: an honest "nothing found" still owes the reader the reason, and the code almost always knows it —
+it is sitting in the `continue` statements, thrown away one branch at a time. A search that rejects
+candidates in a loop can always say what it rejected them for; the only real cost is deciding to carry it.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

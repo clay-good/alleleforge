@@ -767,3 +767,30 @@ def test_a_one_shot_safety_input_reaches_every_chemistry(make_reference: MakeRef
     assert _seen(iter(panel), iter(patient)) == from_lists
     # ...and every chemistry actually saw both sources, rather than all seeing neither.
     assert all(seen == {(1, 1)} for seen in from_lists.values()), from_lists
+
+
+def test_an_empty_prime_vertical_explains_itself_in_the_menu(
+    make_reference: MakeRef,
+) -> None:
+    """The rationale said "eligible but no actionable candidate enumerated" and stopped.
+
+    Prime is the flagship chemistry and the one most often eligible-but-empty, and the
+    reasons have different remedies — the other strand, a different PAM, another
+    chemistry, or a genuine dead end. Naming none of them leaves a scientist with a
+    result they cannot act on and cannot distinguish from a bug.
+    """
+    ref = _abe_ref(make_reference)
+    menu = design("chr2:26:A>G", reference=ref, intent=EditIntent.INSTALL)
+
+    assert menu.rationale is not None
+    prime_note = next(
+        (line for line in menu.rationale.splitlines() if line.strip().startswith("- prime:")),
+        None,
+    )
+    assert prime_note is not None, f"no prime note in the rationale: {menu.rationale}"
+    if "no actionable candidate" in prime_note:
+        assert " — " in prime_note, f"empty prime vertical gave no reason: {prime_note}"
+        # The reason is one of the documented ones, with its count.
+        from alleleforge.enumerate.prime import REJECTION_REASONS
+
+        assert any(text in prime_note for text in REJECTION_REASONS.values())

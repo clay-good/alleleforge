@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 
 import pytest
@@ -14,6 +15,7 @@ from alleleforge.types.edit import Chemistry, EditIntent
 from alleleforge.types.guide import PegRNA, Spacer
 from alleleforge.types.offtarget import OffTargetReport
 from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
+from alleleforge.types.variant import Variant
 from alleleforge.variant.resolver import ResolvedVariant, resolve
 
 MakeRef = Callable[[dict[str, str]], ReferenceGenome]
@@ -369,3 +371,57 @@ def test_a_chromatin_track_that_covers_nothing_is_reported(make_reference: MakeR
     assert any("chromatin-adjusted" in c.flags for c in adjusted.candidates)
     assert adjusted.rationale is not None
     assert "covers none of the candidate loci" not in adjusted.rationale
+
+
+def test_an_empty_prime_enumeration_says_why(make_reference: MakeRef) -> None:
+    """ "Eligible but no actionable candidate enumerated" is a dead end, not an answer.
+
+    Prime is the flagship chemistry and the one most often eligible-but-empty: a nick
+    has to land within RTT reach of the edit, and no PAM in range may manage it. The
+    reasons have different remedies — try the other strand, a different PAM, another
+    chemistry — and the report gave none of them. A real run on a locus whose only
+    protospacers sit far from the edit rejected 360 candidates for RTT range, 243 for
+    no PAM, 8 for the edit lying 5' of the nick, and said only that it found nothing.
+    """
+    from alleleforge.enumerate.prime import (
+        REJECTION_REASONS,
+        enumerate_prime,
+        rejection_summary,
+    )
+
+    # A contig whose sole NGG sits far enough from the edit that no RTT in range reaches.
+    contig = "A" * 60 + "TTTAAACGTACGTACGTACG" + "TGG" + "C" * 400
+    reference = make_reference({"chr1": contig})
+    resolved = resolve(
+        Variant(chrom="chr1", pos=20, ref=contig[20], alt="G", build="hg38"),
+        reference=reference,
+    )
+
+    tally: dict[str, int] = {}
+    pegrnas = enumerate_prime(resolved, EditIntent.INSTALL, reference=reference, tally=tally)
+    assert not pegrnas, "this locus must enumerate nothing for the check to mean anything"
+    assert tally, "nothing was recorded, so the summary would be empty"
+
+    summary = rejection_summary(tally)
+    assert summary != "no protospacer was examined"
+    # Every reason rendered is one of the documented ones, in plain language.
+    assert any(text in summary for text in REJECTION_REASONS.values())
+    # Most common reason first, with its count.
+    assert re.search(r"\(\d+\)", summary)
+
+
+def test_the_tally_is_optional_and_costs_nothing_when_omitted(make_reference: MakeRef) -> None:
+    """The enumerator's hot loop must not pay for a diagnosis nobody asked for."""
+    from alleleforge.enumerate.prime import enumerate_prime, rejection_summary
+
+    contig = "A" * 60 + "TTTAAACGTACGTACGTACG" + "TGG" + "C" * 400
+    reference = make_reference({"chr1": contig})
+    resolved = resolve(
+        Variant(chrom="chr1", pos=20, ref=contig[20], alt="G", build="hg38"),
+        reference=reference,
+    )
+    with_tally: dict[str, int] = {}
+    assert enumerate_prime(resolved, EditIntent.INSTALL, reference=reference) == enumerate_prime(
+        resolved, EditIntent.INSTALL, reference=reference, tally=with_tally
+    )
+    assert rejection_summary({}) == "no protospacer was examined"

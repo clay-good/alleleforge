@@ -303,3 +303,14 @@ say so.
 #### Scenario: A covering track
 - **WHEN** the track covers the candidates
 - **THEN** they are flagged and no such statement is made
+
+### Requirement: An empty enumeration states its reason
+
+When prime enumeration produces no candidate, the menu rationale SHALL state why,
+counted by reason. "No actionable candidate" alone does not distinguish a locus with
+no PAM in range from one where the edit sits 5' of every nick, from one where no RTT
+in the synthesizable range reaches — and those have different next steps.
+
+#### Scenario: Every nick is too far from the edit
+- **WHEN** no protospacer in range places the edit within RTT reach
+- **THEN** the rationale names that reason and how many protospacers it rejected

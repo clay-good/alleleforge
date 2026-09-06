@@ -12,7 +12,7 @@ the four axes no single open-source tool combines today.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, MutableMapping, Sequence
 from typing import Protocol
 
 from alleleforge.data.annotations import EncodeTracks
@@ -230,6 +230,7 @@ def design_prime(
     offtarget_regions: Sequence[GenomicInterval] | None = None,
     run_offtarget: bool = True,
     max_candidates: int | None = None,
+    tally: MutableMapping[str, int] | None = None,
 ) -> list[DesignCandidate]:
     """Design prime-editing candidates for a resolved variant.
 
@@ -255,12 +256,14 @@ def design_prime(
         offtarget_regions: Restrict the off-target search (default: every contig).
         run_offtarget: Run the off-target engine on both nicks (default on).
         max_candidates: Cap the number of returned candidates.
+        tally: Optional mapping that records why each protospacer was rejected, so a
+            caller can explain an empty result rather than only report it.
 
     Returns:
         Candidates ranked by descending efficiency; each carries a merged,
         ancestry-stratified off-target report over both nicks.
     """
-    pegrnas = enumerate_prime(resolved, intent, reference=reference, pam=pam)
+    pegrnas = enumerate_prime(resolved, intent, reference=reference, pam=pam, tally=tally)
     scorer: PrimeEfficiencyScorer = efficiency_scorer or PridictScorer()
     predictor = outcome_predictor or PrimeOutcomePredictor()
     cache: dict[_CacheKey, OffTargetReport] = {}
