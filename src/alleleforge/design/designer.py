@@ -299,6 +299,7 @@ def design(
                     gnomad=gnomad,
                     haplotypes=haplotypes,
                     patient_vcf=patient_vcf,
+                    offtarget_regions=offtarget_regions,
                     populations=populations,
                     run_offtarget=run_offtarget,
                     max_candidates=None,  # cap deferred to the composite ranker
@@ -321,6 +322,7 @@ def design(
                     gnomad=gnomad,
                     haplotypes=haplotypes,
                     patient_vcf=patient_vcf,
+                    offtarget_regions=offtarget_regions,
                     populations=populations,
                     run_offtarget=run_offtarget,
                     max_candidates=None,  # cap deferred to the composite ranker

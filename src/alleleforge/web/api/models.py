@@ -179,6 +179,40 @@ class BatchRequest(BaseModel):
         default=None, ge=1, description="Cap candidates kept per chemistry."
     )
     run_offtarget: bool = Field(default=True, description="Run the off-target engine.")
+    # These four reached `design()` from `DesignRequest` and from `aforge batch`, and
+    # from here they did not -- so the most expensive path was the one that could not be
+    # scoped, and a cohort item with no NGG guide came back empty with no way to offer
+    # the fallback that exists for exactly that case.
+    offtarget_regions: list[Region] | None = Field(
+        default=None,
+        max_length=MAX_REGIONS,
+        description=(
+            "Restrict the off-target search to these intervals (default: every contig). "
+            "Scoping to a gene panel is usually what makes a scan over a real reference "
+            "practical, and a cohort run is the most expensive path there is."
+        ),
+    )
+    cell_context: str | None = Field(
+        default=None,
+        max_length=MAX_CELL_CONTEXT_LEN,
+        description=(
+            "The target cell line or type (e.g. HEK293T, K562, HepG2). A context "
+            "outside a scorer's training distribution flags every efficiency "
+            "prediction out-of-distribution instead of reporting it as if it were "
+            "in-domain. Omitted, no OOD claim is made either way."
+        ),
+    )
+    allow_ng: bool = Field(
+        default=False,
+        description=(
+            "Offer SpCas9-NG (NG PAM) guides when no NGG guide is actionable. Off by "
+            "default: an NG guide is a different reagent with different specificity."
+        ),
+    )
+    allow_spry: bool = Field(
+        default=False,
+        description="Offer SpRY (NRN/NYN PAM) guides when neither NGG nor NG yields one.",
+    )
 
 
 class BatchItemResult(BaseModel):

@@ -352,3 +352,16 @@ scan with no ancestry source SHALL state no cut-off, having applied none.
 #### Scenario: A common variant below the chosen threshold
 - **WHEN** the same source is searched at two different minimum allele frequencies
 - **THEN** the two descriptions differ, each naming the threshold it used
+
+### Requirement: A region restriction applies to every chemistry
+
+Where a design run restricts the off-target search to a set of intervals, every
+chemistry's search SHALL honor it, and the extent actually searched SHALL match what
+the provenance snapshot records. A restriction honored by some verticals and not others
+is worse than none: the run is slower than asked for on the axis that makes a real
+reference practical, and the artifact claims a scope that was never applied.
+
+#### Scenario: A panel-scoped design run
+- **WHEN** a design run is scoped to a 50-base region on a 140-base reference
+- **THEN** every candidate's report shows 50 bases searched, whichever chemistry
+  produced it, and the provenance snapshot agrees

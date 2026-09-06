@@ -366,6 +366,10 @@ def create_app(
             populations=req.populations,
             run_offtarget=req.run_offtarget,
             max_candidates_per_chemistry=req.max_per_chemistry,
+            offtarget_regions=_regions(req.offtarget_regions),
+            cell_context=req.cell_context,
+            allow_ng=req.allow_ng,
+            allow_spry=req.allow_spry,
             settings=settings,
         )
         return BatchResponse(

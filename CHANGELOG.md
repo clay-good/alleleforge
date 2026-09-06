@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **The cohort endpoint now accepts everything the single-design one does.** Checking `design()`'s parameter
+  list against each shell is the query that has found the most in this project. Run against the web API it
+  turned up a gap inside the API: `DesignRequest` carried four options `BatchRequest` did not, all four of
+  which `aforge batch` has had all along. `offtarget_regions` — so the most expensive path was the one that
+  could not be scoped; `allow_ng` / `allow_spry` — a cohort is where a variant with no actionable NGG guide is
+  certain to turn up, and the fallback built for that case was unreachable, so the item came back empty with
+  nothing the caller could do; and `cell_context`, so no out-of-distribution flag was obtainable on the batch
+  path. A structural test now fails when an option is added to one request model and not the other.
+
 - **Every setting recorded in provenance is now pinned to a route that reaches a reader.** The report footer
   is a curated summary, and `PROVENANCE_FOOTER_OMITTED` is the mechanism that forces "every omission must be a
   decision". It had one entry — `config_snapshot`, excused as "rendered inline beside the results". The
@@ -1601,6 +1610,23 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+
+- **A design run scoped to a gene panel scanned the whole genome anyway, for two of three chemistries.**
+  `design()` takes `offtarget_regions`, documents it, records it in the provenance snapshot, and exposes it as
+  `--region` / `--regions-bed` on both `aforge design` and `aforge batch`. All three verticals accept the
+  parameter. Two of the three call sites did not pass it: the base editor did, **SpCas9 nuclease and prime
+  editing did not**. So the restriction was inert for the two most-used chemistries, and the artifact said
+  otherwise — the snapshot recorded the intended scope while the engine scanned every contig:
+
+      offtarget_regions=[chr2:0-50]  ->  provenance: 50 bases, actually searched: 140
+
+  Both directions of that are wrong. A scan wider than asked for is slower than asked for, on the axis where
+  the `--region` help says scoping "is usually what makes a run practical" — so against a real hg38 a
+  panel-scoped design run was a whole-genome one, which is the difference between practical and impossible.
+  And the provenance asserted a restriction that was never applied, which is the claim a re-run is checked
+  against. The bug was invisible to everything: the parameter existed end to end, every signature accepted it,
+  the suite was green, and a region naming a contig the reference does not have — which `search()` refuses by
+  name — was accepted without a word, because it never reached `search()`.
 
 - **Three ancestries requested, an empty breakdown, and nothing in the report saying the request went
   unhonored.** `--populations` names the labels to stratify by; it supplies no alleles. Asked for three with no

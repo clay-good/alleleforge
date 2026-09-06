@@ -5798,6 +5798,57 @@ And when a correct-looking decision cites a mechanism elsewhere — "warned sepa
 "covered by the other test" — the citation is the part to go and check.**
 
 
+## Round 191 — the scoped run that scanned everything
+
+Two allowances audited first, both clean: the 46 `pragma: no cover` markers each carry a reason and the
+logic-based ones hold (`_nice_max`'s fallback really is unreachable — `10 ** floor(log10(v))` guarantees the
+`10.0` step catches); `_OLIGO_NOT_IN_PDF`'s claims that `rtt`, `pbs` and `motif` are "encoded in the ext
+duplex that is actually ordered" are already asserted in `test_oligos.py`; and `aforge verify` was found to be
+exemplary — it already distinguishes "provenance is complete" from "artifact bytes were re-hashed" and says
+so in both directions, including the `--cache-dir`-given-but-nothing-hashed case. Negative results, recorded.
+
+The query that paid was the one my notes call the highest-yield in this project: take `design()`'s parameter
+list and check it against each shell. Run against the web API it found a gap *inside* the API —
+`DesignRequest` carried `offtarget_regions`, `cell_context`, `allow_ng` and `allow_spry`; `BatchRequest`
+carried none of the four, all of which `aforge batch` has had all along. So the most expensive path was the
+one that could not be scoped, and a cohort — the setting where a variant with no actionable NGG guide is
+*certain* to appear — could not offer the fallback built for exactly that case.
+
+Wiring them through took minutes. The test written alongside them is what mattered, because one assertion in
+it went beyond "the field is accepted" to "the value reached the engine": a region naming a contig the
+reference does not have, which `search()` refuses by name. It did not fail. The whole cohort ran, genome-wide,
+and reported success.
+
+The region was never reaching the engine at all — and not because of the web API:
+
+    design(..., offtarget_regions=[chr2:0-50])
+      provenance snapshot : 50 bases
+      actually searched   : 140 bases (the whole contig)
+
+`design()` forwards `offtarget_regions` to `design_base_editor` and **not** to `design_prime` or
+`design_cas9`. All three accept the parameter. Two call sites omitted it. So the restriction was inert for the
+two most-used chemistries, while the snapshot recorded it as applied — the run slower than asked for on the
+axis where the `--region` help says scoping "is usually what makes a run practical", and the artifact claiming
+a scope that never happened. Against a real hg38 that is the difference between a panel scan and an
+impossible one, silently.
+
+Nothing could see it. The parameter existed end to end, every signature accepted it, the suite was green, and
+the one input that would have raised — an unknown contig — was swallowed because it never got far enough to be
+refused. R189's `over N bases` is what finally made it visible: without a number for the extent actually
+searched there was nothing to compare the snapshot against.
+
+Then the regression test reproduced the bug inside itself. Deleting the prime wiring failed it; deleting the
+**nuclease** wiring left all six tests green, because the fixture variant only ever yielded prime candidates
+and the per-chemistry loop had one chemistry to iterate. The file is now parametrized over three scenarios,
+one per vertical, each with a guard asserting it really produces the chemistry it claims — and each of the
+three wirings now kills exactly three tests when removed.
+
+**Lesson: a defect that is per-branch needs a fixture per branch, and "iterate over whatever the fixture
+produced" is not that — it is a loop that silently has one element. Mutate each site separately, not the
+feature as a whole: mutating "the region wiring" would have looked fine, because one of the three sites was
+enough to fail the tests I had.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
