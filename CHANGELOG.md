@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **Every closed-set refusal names the values it accepts.** Three of the CLI's five did (`--scorer`,
+  `bench run`, `data show`); `--intent` and `--chemistry` — the flags on the primary command a first-time
+  caller most often gets wrong — did not. The chemistry message echoed pydantic's `'PRIME' is not a valid
+  Chemistry`, which names the *class* rather than a word from the caller's vocabulary, and reported only the
+  first bad value of a repeatable flag. Both now list the accepted values, on the CLI and on the web API,
+  where it matters more because there is no `--help` on the other end of a `422`. All five are pinned by one
+  parametrized test, so the next closed-set input joins the list or fails.
+
 - **An unexamined ancestry now names the labels that would have worked.** `docs/data.md` documents three
   ancestry vocabularies (gnomAD `afr`, 1000 Genomes `AFR`, HGDP `africa`), so `--populations AFR` against a
   gnomAD slice whose columns are `afr`/`nfe` produced a true but unactionable warning: the request went

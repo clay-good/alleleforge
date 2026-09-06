@@ -20,6 +20,7 @@ Two invariants from the specification:
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any
@@ -114,16 +115,33 @@ def _design_options(
     from alleleforge.design.ranking import DEFAULT_WEIGHTS, RankingWeights
     from alleleforge.types.edit import Chemistry, EditIntent
 
+    # A `422` a client cannot act on is worse than the CLI's equivalent: there is no
+    # `--help` on the other end of an HTTP call, so the accepted vocabulary has to
+    # travel with the refusal.
+    def _known(values: Iterable[object]) -> str:
+        return ", ".join(sorted(str(getattr(v, "value", v)) for v in values))
+
     try:
         intent = EditIntent(intent_str)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=f"unknown intent {intent_str!r}") from exc
+        raise HTTPException(
+            status_code=422,
+            detail=f"unknown intent {intent_str!r}; choose one of: {_known(EditIntent)}",
+        ) from exc
     chemistries = None
     if chemistries_in:
-        try:
-            chemistries = [Chemistry(c) for c in chemistries_in]
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=f"unknown chemistry: {exc}") from exc
+        known = {c.value for c in Chemistry}
+        unknown = sorted(c for c in chemistries_in if c not in known)
+        if unknown:
+            # Not pydantic's "'PRIME' is not a valid Chemistry", which names the class.
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"unknown chemistry: {', '.join(repr(c) for c in unknown)}; "
+                    f"choose one of: {_known(Chemistry)}"
+                ),
+            )
+        chemistries = [Chemistry(c) for c in chemistries_in]
     weights = DEFAULT_WEIGHTS
     if weights_in is not None:
         e, c, s, p = weights_in

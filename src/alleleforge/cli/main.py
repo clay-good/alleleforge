@@ -281,6 +281,17 @@ def _parse_populations(spec: Any) -> list[str] | None:
     return labels or None
 
 
+def _known(values: Iterable[Any]) -> str:
+    """Render a closed vocabulary for a refusal message.
+
+    A refusal that names the rejected value and not the accepted ones sends the
+    reader to `--help` for something the refusing code already has in a local
+    variable. Three of this CLI's five closed-set refusals did list them; these are
+    the other two.
+    """
+    return ", ".join(sorted(str(getattr(v, "value", v)) for v in values))
+
+
 #: The ranking axes, in the order the `--weights` string spells them.
 _WEIGHT_AXES = ("efficiency", "cleanliness", "safety", "simplicity")
 
@@ -866,14 +877,21 @@ def design(
     try:
         edit_intent = EditIntent(intent_str)
     except ValueError as exc:
-        _echo_err(f"error: unknown intent {intent_str!r}")
+        _echo_err(f"error: unknown intent {intent_str!r}; choose one of: {_known(EditIntent)}")
         raise typer.Exit(ExitCode.USAGE) from exc
     chemistries = None
     if chem_list:
         try:
             chemistries = [Chemistry(c) for c in chem_list]
         except ValueError as exc:
-            _echo_err(f"error: unknown chemistry: {exc}")
+            # Not `{exc}`: pydantic's message is "'PRIME' is not a valid Chemistry",
+            # which names the *class*. `Chemistry` is not a word in the vocabulary the
+            # caller is being asked to use.
+            unknown = sorted(c for c in chem_list if c not in {m.value for m in Chemistry})
+            _echo_err(
+                f"error: unknown chemistry: {', '.join(repr(c) for c in unknown)}; "
+                f"choose one of: {_known(Chemistry)}"
+            )
             raise typer.Exit(ExitCode.USAGE) from exc
     pops = _parse_populations(pops_str)
     _warn_if_ancestries_unbacked(pops, gnomad, haplotypes)
@@ -1349,14 +1367,21 @@ def batch(
     try:
         edit_intent = EditIntent(intent_str)
     except ValueError as exc:
-        _echo_err(f"error: unknown intent {intent_str!r}")
+        _echo_err(f"error: unknown intent {intent_str!r}; choose one of: {_known(EditIntent)}")
         raise typer.Exit(ExitCode.USAGE) from exc
     chemistries = None
     if chem_list:
         try:
             chemistries = [Chemistry(c) for c in chem_list]
         except ValueError as exc:
-            _echo_err(f"error: unknown chemistry: {exc}")
+            # Not `{exc}`: pydantic's message is "'PRIME' is not a valid Chemistry",
+            # which names the *class*. `Chemistry` is not a word in the vocabulary the
+            # caller is being asked to use.
+            unknown = sorted(c for c in chem_list if c not in {m.value for m in Chemistry})
+            _echo_err(
+                f"error: unknown chemistry: {', '.join(repr(c) for c in unknown)}; "
+                f"choose one of: {_known(Chemistry)}"
+            )
             raise typer.Exit(ExitCode.USAGE) from exc
     if not inputs.is_file():
         _echo_err(f"error: input file not found: {inputs}")

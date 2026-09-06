@@ -7361,6 +7361,38 @@ usually the set the reader needs. Check what the warning code already knows befo
 deciding it has said enough.**
 
 
+## Round 227 — three refusals out of five said what to do instead
+
+R226's lesson generalizes: a refusal built from a closed set usually has that set in a
+local variable. So: which of this CLI's closed-vocabulary refusals print it?
+
+    --scorer nope      unknown scorer 'nope'; choose one of: cfd, cfd-cas12a, mit      ok
+    bench run nope     unknown task 'nope'; known: ('be-outcome', …)                   ok
+    data show nope     unknown dataset 'nope'; known: ('1000g', …)                     ok
+    --intent fixit     unknown intent 'fixit'                                          .
+    --chemistry PRIME  unknown chemistry: 'PRIME' is not a valid Chemistry             .
+
+Three to two, and the two are the flags on the primary command a first-time caller is
+most likely to get wrong. The chemistry message is worse than silent: `'PRIME' is not a
+valid Chemistry` is pydantic's, and `Chemistry` is the *class* — a word from the
+implementation offered to someone who is being asked to use a vocabulary. It also names
+only the first bad value of a repeatable flag.
+
+Both now read like the three that were already right, on the CLI and on the web API.
+The HTTP surface matters more, not less: there is no `--help` on the other end of a
+`422`, so a client that cannot guess the vocabulary has nowhere to look.
+
+The count is the finding, not either message. Five instances of one rule, three
+following it, written at different times by whoever last touched that path — nobody was
+wrong, and the rule was never anywhere. It is now five parametrized cases in one file,
+so the next closed-set input joins the list or fails.
+
+**Lesson: when a convention is followed in most places, the exceptions are not
+oversights to fix one at a time — they are evidence the convention exists only in the
+heads of the people who happened to apply it. Count the instances before fixing any of
+them; the ratio tells you whether you are fixing a bug or writing down a rule.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

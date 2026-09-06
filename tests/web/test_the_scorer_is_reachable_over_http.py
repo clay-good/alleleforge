@@ -123,3 +123,26 @@ def test_the_offtarget_response_identifies_the_genome(client: TestClient) -> Non
     assert "length" in body["reference"]["pins"]
     assert body["coordinate_system"] == "0-based-half-open"
     assert "not a medical device" in body["disclaimer"]
+
+
+@pytest.mark.parametrize(
+    "body, bad, expected",
+    [
+        ({"variant": "chr2:71:A>C", "intent": "fixit"}, "fixit", "knock_out"),
+        ({"variant": "chr2:71:A>C", "chemistries": ["PRIME"]}, "PRIME", "prime"),
+    ],
+    ids=["intent", "chemistry"],
+)
+def test_a_422_names_the_vocabulary_it_rejected(
+    client: TestClient, body: dict[str, object], bad: str, expected: str
+) -> None:
+    """There is no `--help` on the other end of an HTTP call.
+
+    The chemistry refusal also used to echo pydantic's "is not a valid Chemistry",
+    which names the class rather than a word the caller can use.
+    """
+    response = client.post("/api/design", json=body)
+    assert response.status_code == 422, response.text
+    assert bad in response.text
+    assert expected in response.text
+    assert "is not a valid Chemistry" not in response.text
