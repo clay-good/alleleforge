@@ -8,6 +8,20 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **Eight modules reached the API reference for the first time**, including `design_many` — the cohort
+  entry point, with its own README section and its own example notebook, absent from the reference since it
+  was written. Also `alleleforge.config` (the `Settings` and network-consent surface), the cross-run caches,
+  VCF ingestion, the model-checkpoint loader, the PRIDICT engine adapter, and the shared spacer-quality
+  checks. The docs build passed throughout: mkdocstrings renders what it is pointed at and says nothing
+  about what it is not.
+
+  `tests/test_api_docs_cover_the_package.py` now fails when a public module has no `:::` directive and is
+  not listed in `_NOT_IN_API_REFERENCE` with a reason — currently four entries, all documented as endpoints
+  or commands rather than as functions. A second test rejects an exclusion naming a module that no longer
+  exists, so the list cannot become a stale excuse.
+
 ### Fixed
 
 - **A one-shot safety input reached only the first *item* of a cohort.** `design_many` forwards its

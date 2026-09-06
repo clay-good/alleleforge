@@ -24,3 +24,8 @@ gated behind the `real_weights` test marker and require the `ml` extra.
 ## Calibrated uncertainty
 
 ::: alleleforge.scoring.uncertainty
+
+
+## PRIDICT engine adapter
+
+::: alleleforge.scoring.pridict_engine

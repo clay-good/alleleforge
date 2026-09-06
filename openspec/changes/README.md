@@ -3782,6 +3782,31 @@ and here the field did not exist yet and had to be added first. If you cannot wr
 the system would have to say for the difference to be visible, and consider whether it should be saying it
 anyway.**
 
+## Round 131 — the reference that stopped keeping up
+
+The aliasing family is swept at three layers, so: a different axis. Forty-odd rounds have added public
+API — `caveats`, `provenance_lines`, `spacer_quality_flags`, `indistinguishable_leaders`, `bench compare`,
+`artifact_download_permitted`. Does any of it appear in the API reference?
+
+Twelve modules had no `:::` directive anywhere in `docs/`. The docs build is silent about this by
+construction: mkdocstrings renders what you point it at, and has nothing to say about what you never
+mentioned. So the reference falls behind at exactly the rate new modules are added, and nothing complains.
+
+The clearest gap was not one of my additions. **`alleleforge.design.cohort`** — `design_many`, the
+cohort-scale batch entry point, with its own README section, its own CLI command and its own example
+notebook — has never been in the API reference. A user reading the reference to find how to design a cohort
+would not find it.
+
+Eight modules added, four excluded on the record (the CLI and the HTTP surface, documented as commands and
+endpoints rather than as functions), and a test that fails on a public module which is neither. Plus a
+second test rejecting an exclusion for a module that no longer exists, so the list cannot decay into an
+excuse.
+
+**Lesson: a documentation tool that renders on request is a documentation tool that cannot notice absence.
+Anything driven by an explicit list — nav entries, `:::` directives, `__all__`, an exclusion set — needs a
+check that the list still covers the thing it lists *from*. The build passing means the pages it was told
+about are valid, not that the pages exist.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

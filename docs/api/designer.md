@@ -64,3 +64,18 @@ differently.
 ## The designer
 
 ::: alleleforge.design.designer
+
+
+## Cohort-scale batch design
+
+`design_many` is the cohort multiplier over `design`: it streams the input so memory
+stays bounded, isolates per-item failures, and is resumable from a JSONL run manifest.
+
+::: alleleforge.design.cohort
+
+## Spacer quality
+
+Pol III transcription caveats, shared by every chemistry — they are properties of a
+spacer as a transcribed reagent, not of the chemistry holding it.
+
+::: alleleforge.design.spacer_quality

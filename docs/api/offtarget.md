@@ -30,3 +30,17 @@ and the reference-bias rationale.
 ## Cas-OFFinder cross-check
 
 ::: alleleforge.offtarget.cas_offinder_adapter
+
+
+## Cross-run search cache
+
+Safety-gated to reference-only, default-scorer searches: a possibly stale entry is never
+served once population, haplotype or patient augmentation is present.
+
+::: alleleforge.offtarget.cache
+
+## Cross-run disk cache
+
+The dependency-free, content-addressed store the search cache is built on.
+
+::: alleleforge.cache

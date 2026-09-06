@@ -86,3 +86,14 @@ aforge bench leaderboard cas9.json offtarget.json --format html --out board.html
     menu's provenance block. The same seed and config produce byte-identical
     output modulo the UTC timestamp — and a `<output>.provenance.json` sidecar is
     written alongside every file output so any result can be re-derived.
+
+## Configuration and consent
+
+`Settings` holds the run-scoped configuration (seed, cache directory, reference build,
+interval level, MAF threshold) and the network permission that gates artifact downloads.
+
+::: alleleforge.config
+
+## Model checkpoint loading
+
+::: alleleforge.model_zoo.loader
