@@ -32,7 +32,7 @@ jobs:
           python-version: "3.12"
       # The genome deps are installed so the genome package type-checks against
       # the real pyfaidx / pyliftover modules.
-      - run: pip install -e ".[dev,cli,web]" "pyfaidx>=0.8" "pyliftover>=0.4"
+      - run: pip install -e ".[dev,cli,web,genome-light]"
       - run: mypy --strict src/alleleforge
 
   test:
@@ -52,7 +52,7 @@ jobs:
       # pyliftover for chain-file liftover) so tests/genome runs and counts
       # toward the coverage gate. The heavier genome stack (pysam, cyvcf2,
       # mappy) is pulled in by later phases that need it.
-      - run: pip install -e ".[dev,cli,web]" "pyfaidx>=0.8" "pyliftover>=0.4"
+      - run: pip install -e ".[dev,cli,web,genome-light]"
       - run: pytest
 
   docs:
@@ -66,7 +66,7 @@ jobs:
       # mkdocstrings imports the package to render the API reference, so the
       # core install plus the genome deps (pyfaidx is a top-level import in the
       # genome layer) are needed alongside the docs toolchain.
-      - run: pip install -e ".[docs]" "pyfaidx>=0.8" "pyliftover>=0.4"
+      - run: pip install -e ".[docs,genome-light]"
       - run: mkdocs build --strict
 
   examples:
@@ -81,7 +81,7 @@ jobs:
       # extras as the test job guarantee every transitive import resolves, and the
       # notebook runner (nbmake) ships in the dev extra. --no-cov disables the
       # library coverage gate for this notebook-only run.
-      - run: pip install -e ".[dev,cli,web]" "pyfaidx>=0.8" "pyliftover>=0.4"
+      - run: pip install -e ".[dev,cli,web,genome-light]"
       - run: pytest --nbmake examples/ --no-cov
 
   reproduce:
@@ -95,7 +95,7 @@ jobs:
       # Re-derive the canonical weight-free design run from config + seed and diff
       # it against the committed golden manifest, proving the run is reproducible
       # and has not silently drifted.
-      - run: pip install -e ".[dev,cli,web]" "pyfaidx>=0.8" "pyliftover>=0.4"
+      - run: pip install -e ".[dev,cli,web,genome-light]"
       - run: python scripts/reproduce.py
 
   security:
@@ -112,7 +112,7 @@ jobs:
       # for now (|| true): the advisory DBs move independently of our code, so a
       # newly-published advisory must not turn an unrelated PR red — Dependabot
       # opens the remediation PR. Tighten to blocking before the v1.0 tag.
-      - run: pip install -e ".[dev,cli,web]" "pyfaidx>=0.8" "pyliftover>=0.4" pip-audit
+      - run: pip install -e ".[dev,cli,web,genome-light]" pip-audit
       - run: pip-audit --strict --desc || true
       - run: cargo install cargo-audit --locked
       - run: cargo audit || true
@@ -139,7 +139,7 @@ jobs:
       # Build the wheel, install it alongside the library, and run the native
       # parity tests so the Rust FM-index is proven byte-identical to the
       # pure-Python fallback (not just compiled).
-      - run: pip install -e ".[dev]" "pyfaidx>=0.8" "pyliftover>=0.4"
+      - run: pip install -e ".[dev,genome-light]"
       - run: maturin build --release --out dist
         working-directory: rust
       - run: pip install rust/dist/*.whl

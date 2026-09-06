@@ -48,10 +48,17 @@ def test_the_web_extra_includes_a_fasta_reader() -> None:
 
 
 def test_the_dockerfile_no_longer_compensates() -> None:
-    """The image added pyfaidx by hand because the extra lacked it; that is drift."""
+    """The image added pyfaidx by hand because the extra lacked it; that is drift.
+
+    Asserts the *rule*, not the exact extras string: which extras the image selects
+    is free to change (it since gained `genome-light`), and what must not come back
+    is a package dependency appended beside them. The general form of this lives in
+    `tests/test_no_build_artifact_compensates_for_an_extra.py`; this keeps the
+    specific regression that motivated it named where the web extra is tested.
+    """
     dockerfile = (_ROOT / "Dockerfile").read_text()
     install = next(line for line in dockerfile.splitlines() if line.startswith("RUN pip install"))
-    assert "[core,variant,cli,web]" in install
+    assert "web" in install, install
     assert '"pyfaidx' not in install, install
 
 

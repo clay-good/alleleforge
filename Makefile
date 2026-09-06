@@ -7,7 +7,7 @@ help: ## Show this help.
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
 install: ## Editable install with the dev + genome extras.
-	pip install -e ".[dev,cli,web]" "pyfaidx>=0.8" "pyliftover>=0.4"
+	pip install -e ".[dev,cli,web,genome-light]"
 
 lint: ## Ruff lint + format check.
 	ruff check src tests scripts examples

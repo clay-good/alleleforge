@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **A `genome-light` extra names the set every build was assembling by hand.** `"pyfaidx>=0.8"
+  `"pyliftover>=0.4"` was appended to an extra in seven CI jobs, the Makefile and the Docker image — the
+  light half of `genome` (pure-Python FASTA reader and liftover, without the compiled pysam/cyvcf2/mappy
+  chain), described in prose by the Dockerfile's own comment and nameable by nobody outside the repository.
+  `genome` is now defined in terms of it so the two cannot diverge, and a new check fails any `pip install`
+  line in the Makefile, Dockerfile or workflows that names a package dependency beside an extra — such a line
+  is either an extra missing something (which broke `pip install "alleleforge[web]"`) or a set that deserves
+  a name.
+
 - **`pip install "alleleforge[web]"` can actually serve.** The extra was `fastapi`, `uvicorn`, `httpx` — no
   FASTA reader — so the documented three-line quickstart died at import on
   `uvicorn alleleforge.web.api.app:app`, because `create_app()` runs at module scope and reads

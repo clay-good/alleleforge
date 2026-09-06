@@ -7832,6 +7832,47 @@ checked the index rather than the contents. When writing a "these two must agree
 say out loud which bytes are being compared.**
 
 
+## Round 238 — the dependency set with no name
+
+R236 found the `[web]` extra missing a FASTA reader, with the Dockerfile compensating
+by hand. R237's grep for that pattern turned up eleven more: `"pyfaidx>=0.8"
+"pyliftover>=0.4"` appended to an extra in seven CI jobs, the Makefile and the image.
+
+Nothing was broken — every build got what it needed. What was missing is a name. That
+pair is a real, coherent set: the light half of `genome`, the pure-Python FASTA reader
+and liftover without the compiled pysam/cyvcf2/mappy chain. The Dockerfile's own comment
+had been describing it in prose for as long as it existed. Nobody outside the repository
+could ask for it, and eleven hand-assembled copies are eleven places to drift.
+
+`genome-light` is that name, and `genome` is now defined as
+`["alleleforge[genome-light]", "pysam…", "cyvcf2…", "mappy…"]` so the light half cannot
+drift out of the full one. Verified by installing both from a built wheel into clean
+interpreters: `[genome-light]` gives pyfaidx and pyliftover and no pysam; `[genome]`
+still gives all five.
+
+The check is the point of the round. `test_no_build_artifact_compensates_for_an_extra`
+reads every `pip install` line in the Makefile, the Dockerfile and both workflows, and
+fails on any package dependency named beside an extra — because such a line is either
+an extra that is missing something (the `[web]` bug, which broke a documented install)
+or a set that deserves a name (this one). Tools that are not dependencies of the package
+— `pip-audit`, `build`, `cyclonedx-bom` — are listed as exempt.
+
+It immediately caught one I had missed: the Dockerfile still appended `pyliftover` after
+last round removed `pyfaidx` from it. The API never needs it — it is imported lazily and
+a `[web]` install with no pyliftover serves designs fine — but `aforge lift` inside the
+container does, so the image selects `genome-light` rather than dropping it. Naming the
+set, not changing what is installed.
+
+Writing it also aged a test from two rounds ago, which had pinned the Dockerfile's exact
+extras string. Which extras an image selects is free to change; what must not come back
+is a dependency appended beside them. That test now asserts the rule and points at the
+general one.
+
+**Lesson: a list assembled identically in many places is a concept the codebase has and
+the vocabulary does not. The fix is not deduplication — it is finding the word, and the
+word is usually already written in a comment next to one of the copies.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
