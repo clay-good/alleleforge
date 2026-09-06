@@ -10,6 +10,13 @@ acceptance.
 
 ### Added
 
+- **A non-finite allele frequency is pinned as rejected.** `nan > 1.0` and `nan < 0.0` are both False, so a
+  range check written `if af > 1 or af < 0` admits `NaN` — which then compares False against every MAF
+  threshold and silently drops the variant from the search. The validator is written `not 0.0 <= af <= 1.0`,
+  whose negation catches it: correct by construction and one refactor away from not being. The same property
+  already cost this project a fix in `RankingWeights`. Pinned for gnomAD and for the haplotype panel, which
+  feeds the same ancestry stratification.
+
 - **The OOD detector's conservative degeneration is pinned.** Checked alongside the conformal shortfall,
   since both ask what a mechanism claims when the data is too thin: with a one- or two-point reference the
   threshold collapses, and it collapses toward refusing to vouch for anything rather than toward vouching

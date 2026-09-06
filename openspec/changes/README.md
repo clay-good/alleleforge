@@ -5573,6 +5573,36 @@ information is valuable but this presentation is not" is a third option that is 
 binary framing. The gate showing me the *actual new output* is what made the middle path visible; without
 it I would have shipped the paragraph or dropped the feature.**
 
+## Round 186 — the ingest boundary
+
+Rotated to the loaders that parse user-supplied files, and fed the gnomAD one deliberately broken rows:
+negative frequencies, frequencies above 1, `NaN`, `inf`, zero and negative positions, empty and non-ACGT
+alleles, lower-case bases.
+
+It holds up. Every out-of-range frequency is refused with a message naming the offending field and the locus.
+Non-sequence alleles (`*`, `<DEL>`) are skipped deliberately, with a comment noting that the ClinVar and
+dbSNP loaders skip them identically — "the three loaders agree on what a usable row is", which is the kind of
+consistency that is invisible until it is absent. A wholly-unusable file surfaces through
+`sources_considered` as `gnomad: 0`, the "supplied and covered nothing here" signal from R116. Clean bill.
+
+One property is correct in a way that would not survive a plausible tidy-up. `NaN > 1.0` and `NaN < 0.0` are
+both False, so the obvious spelling —
+
+    if af > 1.0 or af < 0.0: raise ...
+
+— admits `NaN`, which then compares False against every MAF threshold and *silently drops the variant from
+the search*, on the axis where a silent drop reads as safety. The validator is written `not 0.0 <= af <= 1.0`,
+and the negation catches it. Nothing tested that distinction, and this project has already paid for it once
+in `RankingWeights`, where a non-finite weight poisoned the composite the ranking sorts on.
+
+So: pinned, for gnomAD and for the haplotype panel that feeds the same ancestry stratification. Rewriting the
+check to the fragile form fails the test, which is the whole point of having it.
+
+**Lesson: some code is correct because of how an expression is *shaped*, not because of a decision anyone
+recorded. `not 0 <= x <= 1` and `x > 1 or x < 0` read as synonyms and differ on exactly one input. Those are
+worth a test even when nothing is wrong today, because the next reader will see two spellings of the same
+idea and pick the one that reads better.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

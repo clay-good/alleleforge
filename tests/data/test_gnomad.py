@@ -155,3 +155,38 @@ def test_available_populations_is_computed_once() -> None:
     # Identity, not equality: a recomputed frozenset would be equal but not the same
     # object, so this fails if the cache is removed.
     assert db.available_populations is first
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
+def test_a_non_finite_allele_frequency_is_rejected(bad: float) -> None:
+    """`NaN` slips past a bare range comparison, and this validator survives it by shape.
+
+    `nan > 1.0` and `nan < 0.0` are both False, so a check written as
+    `if af > 1 or af < 0` admits `NaN` — which then propagates into every MAF
+    comparison, where it compares False against any threshold and silently drops the
+    variant from the search. The validator is written as `not 0.0 <= af <= 1.0`, whose
+    negation catches it. That is correct by construction and one refactor away from not
+    being, so it is pinned rather than left to the shape of an expression.
+
+    The same property already cost this project a fix in `RankingWeights`, where a
+    non-finite weight poisoned the composite the ranking sorts on.
+    """
+    with pytest.raises(ValidationError, match="outside"):
+        PopulationFrequency(chrom="chr2", pos=1, ref="A", alt="G", overall_af=bad)
+    with pytest.raises(ValidationError, match="outside"):
+        PopulationFrequency(
+            chrom="chr2", pos=1, ref="A", alt="G", overall_af=0.1, populations={"afr": bad}
+        )
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf")])
+def test_a_haplotype_frequency_is_validated_the_same_way(bad: float) -> None:
+    """The sibling source must not admit what gnomAD refuses.
+
+    Both feed the same ancestry stratification, so a non-finite frequency reaching the
+    search from either one has the same effect.
+    """
+    from alleleforge.data.haplotypes import Haplotype
+
+    with pytest.raises(ValidationError):
+        Haplotype(chrom="chr1", variants=(), frequencies={"afr": bad})
