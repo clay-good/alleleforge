@@ -4696,6 +4696,41 @@ look confirmed the change was intended before updating the golden.
 it is sitting in the `continue` statements, thrown away one branch at a time. A search that rejects
 candidates in a loop can always say what it rejected them for; the only real cost is deciding to carry it.**
 
+## Round 158 — the siblings
+
+R116's question, which this log keeps finding useful: after fixing something, which siblings did I just skip?
+R157 gave prime a reason for its empty results. Cas9 and the base editor have the same silent-`continue`
+loops.
+
+The base editor's are the more valuable, because one of them is not about the locus at all. *No deaminase in
+the panel installs this substitution* means base editing is the wrong chemistry for this edit and no amount
+of looking elsewhere in the genome will help; *the target base is outside every activity window* means try an
+editor with a different window; *no PAM in range* means try a different PAM. Reporting "no actionable
+candidate" collapses a fact about the edit into a fact about the search.
+
+Before writing the third copy of the tallying helper I moved it into `enumerate/_reasons.py` and rewired
+prime onto it — `project.md`'s rule is to read the existing implementation before writing a local version,
+and I was about to become the person that rule is about. Each enumerator keeps its own reason *labels*, in
+its own words; the shared module owns only the counting and the rendering.
+
+Two process notes. Generalising the empty-tally string from "no protospacer was examined" to "no candidate
+was examined" broke the test I had written the round before — correct, and caught immediately. More
+usefully: the designer wiring for the base editor **silently never got applied**. An earlier edit script
+raised partway through, after printing progress for the step before the failure, and I read the success line
+and moved on; `git status` not listing `designer.py` is what caught it, two steps later. `_run_base_editors`
+builds its own `_run_chemistry` call, so nothing about the prime wiring reaches it and no test would have
+noticed until I wrote one.
+
+Both verticals now report:
+
+    - base_abe: eligible but no actionable candidate enumerated — no PAM match at this offset (44)
+    - prime: eligible but no actionable candidate enumerated — no PAM match at this offset (226)
+
+**Lesson: a multi-file edit script that fails partway leaves the tree in a state where everything compiles,
+every test passes, and one of the changes is simply absent. `git status` at the end of a change is not
+bookkeeping — it is the only thing that notices a step that never ran. Compare the files you *intended* to
+touch against the files that changed.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

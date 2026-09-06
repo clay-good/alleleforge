@@ -49,6 +49,7 @@ from alleleforge.design.prime import (
 from alleleforge.design.ranking import DEFAULT_WEIGHTS, RankingWeights, rank_candidates
 from alleleforge.design.routing import ChemistryDecision, route
 from alleleforge.enumerate.base_editor import BASE_EDITORS
+from alleleforge.enumerate.base_editor import rejection_summary as base_rejection_summary
 from alleleforge.enumerate.prime import rejection_summary
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.scoring.prime_outcome import PrimeOutcomePredictor
@@ -446,6 +447,12 @@ def _run_base_editors(
     if not chosen:
         return []
     editors = tuple(e for e in BASE_EDITORS if e.chemistry in chosen)
+    # Same reasoning as the prime vertical: base editing's failure modes have different
+    # remedies — no deaminase in the panel writes this substitution, the target base
+    # sits outside every activity window, no PAM reaches it — and the first of those is
+    # a fact about the *edit*, not the locus, which a reader should not infer from
+    # silence.
+    be_tally: dict[str, int] = {}
     return _run_chemistry(
         "+".join(sorted(c.value for c in chosen)),
         lambda: design_base_editor(
@@ -461,8 +468,10 @@ def _run_base_editors(
             populations=populations,
             run_offtarget=run_offtarget,
             max_candidates=max_candidates,
+            tally=be_tally,
         ),
         notes,
+        empty_reason=lambda: base_rejection_summary(be_tally),
     )
 
 

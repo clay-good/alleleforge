@@ -207,6 +207,13 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
   sourced from a real commit, and false. Check what the neighbours already say before
   writing anything into a hole.
 
+- **After a multi-file change, diff the files you intended to touch against the files
+  that changed.** An edit script that raises partway leaves a tree where everything
+  compiles and every test passes with one of the changes simply missing — and it will
+  have printed a success line for the step before the failure. R158: the base-editor
+  designer wiring never got applied, and `git status` not listing `designer.py` is what
+  caught it, two steps later. `git status` at the end of a change is not bookkeeping.
+
 ## Existing planning docs (background, not OpenSpec)
 
 `SPEC.md` (v1 build phases), `SPEC_V2.md` (R0–R6 roadmap), and `specs/*.md` (model-

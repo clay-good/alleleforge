@@ -18,8 +18,11 @@ C->T / G->A on the plus strand (editing the appropriate strand).
 
 from __future__ import annotations
 
+from collections.abc import Mapping, MutableMapping
+
 from pydantic import BaseModel, ConfigDict
 
+from alleleforge.enumerate._reasons import note, summarize
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.edit import Chemistry, EditIntent
 from alleleforge.types.guide import DEFAULT_SPACER_LENGTH, PAM, BaseEditWindow, Spacer
@@ -133,6 +136,32 @@ def _editable_positions(spacer: str, window: tuple[int, int], target_base: str) 
     )
 
 
+#: Why a candidate protospacer (or editor) was rejected, in the words a user needs.
+#: Each sends a reader somewhere different: no editor for the substitution means the
+#: chemistry is wrong for this edit, an out-of-window target means try an editor with a
+#: different window, and no PAM in range means try a different PAM or another chemistry.
+REJECTION_REASONS: dict[str, str] = {
+    "no-editor-for-substitution": (
+        "no base editor in the panel installs this substitution — base editing writes "
+        "only the transitions its deaminases catalyse"
+    ),
+    "no-pam": "no PAM match at this offset",
+    "ambiguous": "the protospacer or PAM spans an assembly gap (N)",
+    "target-outside-window": (
+        "the target base falls outside the editor's activity window on every "
+        "protospacer that reaches it"
+    ),
+    "target-not-editable": (
+        "the base at the target position is not the editor's substrate on the protospacer strand"
+    ),
+}
+
+
+def rejection_summary(tally: Mapping[str, int]) -> str:
+    """Render the base-editor rejection tally as one sentence."""
+    return summarize(tally, REJECTION_REASONS)
+
+
 def _windows_for_editor(
     template: str,
     *,
@@ -143,6 +172,7 @@ def _windows_for_editor(
     target_pos: int,
     spacer_length: int,
     window: tuple[int, int],
+    tally: MutableMapping[str, int] | None = None,
 ) -> list[BaseEditWindow]:
     """Enumerate sgRNAs placing ``target_pos``'s base in-window for ``editor``."""
     pam_len = len(editor.pam.pattern)
@@ -151,6 +181,7 @@ def _windows_for_editor(
         pam_window = template[k : k + pam_len]
         if strand is Strand.PLUS:
             if k < spacer_length or "N" in pam_window or not editor.pam.matches(pam_window):
+                note(tally, "ambiguous" if "N" in pam_window else "no-pam")
                 continue
             spacer = template[k - spacer_length : k]
             gproto = offset + k - spacer_length  # genomic protospacer start
@@ -163,6 +194,7 @@ def _windows_for_editor(
             rc_pam = str(DNASequence(pam_window).reverse_complement())
             proto_end = k + pam_len + spacer_length
             if proto_end > len(template) or "N" in rc_pam or not editor.pam.matches(rc_pam):
+                note(tally, "ambiguous" if "N" in rc_pam else "no-pam")
                 continue
             spacer = str(DNASequence(template[k + pam_len : proto_end]).reverse_complement())
             gproto = offset + k + pam_len  # genomic protospacer start (plus coords)
@@ -173,8 +205,10 @@ def _windows_for_editor(
             )
             concrete_pam = rc_pam
         if "N" in spacer or not window[0] <= ppos <= window[1]:
+            note(tally, "ambiguous" if "N" in spacer else "target-outside-window")
             continue
         if spacer[ppos - 1] != editor.target_base:
+            note(tally, "target-not-editable")
             continue  # the target base must be editable on the protospacer strand
         editable = _editable_positions(spacer, window, editor.target_base)
         out.append(
@@ -200,6 +234,7 @@ def enumerate_base_edits(
     editors: tuple[BaseEditor, ...] = BASE_EDITORS,
     spacer_length: int = DEFAULT_SPACER_LENGTH,
     window: tuple[int, int] | None = None,
+    tally: MutableMapping[str, int] | None = None,
 ) -> list[BaseEditWindow]:
     """Enumerate base-editor sgRNAs that place the variant's base in-window.
 
@@ -211,6 +246,9 @@ def enumerate_base_edits(
         spacer_length: Protospacer length (default 20).
         window: Override the activity window for every editor (default: each
             editor's own window).
+        tally: Optional mapping the reason for each rejected editor or protospacer is
+            counted into, so a caller that enumerated nothing can say *why*. One dict
+            increment per rejection, and nothing at all when omitted.
 
     Returns:
         One :class:`BaseEditWindow` per eligible (editor, sgRNA), sorted by editor
@@ -237,6 +275,7 @@ def enumerate_base_edits(
     for editor in editors:
         strand = editor.installs(from_base, to_base)
         if strand is None:
+            note(tally, "no-editor-for-substitution")
             continue
         results.extend(
             _windows_for_editor(
@@ -248,6 +287,7 @@ def enumerate_base_edits(
                 target_pos=var.pos,
                 spacer_length=spacer_length,
                 window=window or editor.window,
+                tally=tally,
             )
         )
     results.sort(key=lambda w: (w.editor, w.placement.start if w.placement else 0))

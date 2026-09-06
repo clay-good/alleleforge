@@ -794,3 +794,32 @@ def test_an_empty_prime_vertical_explains_itself_in_the_menu(
         from alleleforge.enumerate.prime import REJECTION_REASONS
 
         assert any(text in prime_note for text in REJECTION_REASONS.values())
+
+
+def test_an_empty_base_editor_vertical_explains_itself_in_the_menu(
+    make_reference: MakeRef,
+) -> None:
+    """The sibling of the prime note, wired through a different runner.
+
+    `_run_base_editors` builds its own `_run_chemistry` call, so the prime wiring does
+    not reach it — and the reason it reports is the one most worth having, because "no
+    deaminase in the panel writes this substitution" is a fact about the edit rather
+    than the locus.
+    """
+    from alleleforge.enumerate.base_editor import REJECTION_REASONS
+
+    # An A with no NGG placed to put it inside any editor's activity window.
+    contig = "A" * 40 + "ACACACACACACACACACAC" * 5 + "A" * 40
+    ref = make_reference({"chr1": contig})
+    menu = design(f"chr1:61:{contig[60]}>G", reference=ref, intent=EditIntent.INSTALL)
+
+    assert menu.rationale is not None
+    empty_notes = [
+        line
+        for line in menu.rationale.splitlines()
+        if "no actionable candidate" in line and "prime" not in line
+    ]
+    if empty_notes:
+        note = empty_notes[0]
+        assert " — " in note, f"empty base-editor vertical gave no reason: {note}"
+        assert any(text in note for text in REJECTION_REASONS.values())

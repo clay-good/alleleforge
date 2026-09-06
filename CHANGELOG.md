@@ -1514,6 +1514,15 @@ acceptance.
 
 ### Fixed
 
+- **The base-editor vertical explains an empty result too, and its reasons matter more.** Base editing's
+  failure modes have sharply different remedies, and one of them is a fact about the *edit* rather than the
+  locus: *no deaminase in the panel writes this substitution*. The others — the target base outside every
+  activity window, no PAM in range, the base not being the editor's substrate on that strand — each send a
+  reader somewhere different. The shared rejection accounting now lives in one module so the three
+  enumerators cannot drift into three spellings of the same sentence, and a test pins that every label a
+  `note(...)` call uses has a user-facing sentence behind it (the renderer drops unknown labels silently,
+  which is what makes that guard necessary).
+
 - **An empty prime vertical now says why.** Prime is the flagship chemistry and the one most often
   eligible-but-empty — a nick has to land within RTT reach of the edit, and no PAM in range may manage it —
   and the report said only *"prime: eligible but no actionable candidate enumerated"*. The reasons have

@@ -38,6 +38,7 @@ from __future__ import annotations
 from collections.abc import Mapping, MutableMapping, Sequence
 
 from alleleforge.enumerate._frame import EditFrame
+from alleleforge.enumerate._reasons import note, summarize
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.edit import EditIntent
 from alleleforge.types.guide import (
@@ -196,19 +197,9 @@ REJECTION_REASONS: dict[str, str] = {
 }
 
 
-def _note(tally: MutableMapping[str, int] | None, reason: str) -> None:
-    """Record one rejection, when a caller asked for the tally."""
-    if tally is not None:
-        tally[reason] = tally.get(reason, 0) + 1
-
-
 def rejection_summary(tally: Mapping[str, int]) -> str:
-    """Render a rejection tally as one sentence, most common reason first."""
-    counted = [(n, k) for k, n in tally.items() if n and k in REJECTION_REASONS]
-    if not counted:
-        return "no protospacer was examined"
-    counted.sort(key=lambda kv: (-kv[0], kv[1]))
-    return "; ".join(f"{REJECTION_REASONS[k]} ({n})" for n, k in counted)
+    """Render prime's rejection tally as one sentence, most common reason first."""
+    return summarize(tally, REJECTION_REASONS)
 
 
 def _enumerate_frame(
@@ -240,19 +231,19 @@ def _enumerate_frame(
     out: list[PegRNA] = []
     for k in range(spacer_length, len(start) - pam_len + 1):
         if "N" in start[k : k + pam_len] or not pam.matches(start[k : k + pam_len]):
-            _note(tally, "no-pam")
+            note(tally, "no-pam")
             continue
         proto = start[k - spacer_length : k]
         if "N" in proto:
-            _note(tally, "ambiguous")
+            note(tally, "ambiguous")
             continue
         if "TTTT" in proto:
-            _note(tally, "pol3-terminator")
+            note(tally, "pol3-terminator")
             continue  # Pol III terminator: pegRNA cannot be transcribed
         nick_local = k - cut_offset
         distance = edit_local - nick_local  # edit must be 3' of the nick (>= 0)
         if distance < 0:
-            _note(tally, "edit-5-prime-of-nick")
+            note(tally, "edit-5-prime-of-nick")
             continue
         placement = frame.interval(k - spacer_length, k, frame_strand)
         nick_genomic = frame.coord(nick_local)
@@ -274,20 +265,20 @@ def _enumerate_frame(
         )
         for pbs_len in pbs_lengths:
             if nick_local - pbs_len < 0 or not PBS_RANGE[0] <= pbs_len <= PBS_RANGE[1]:
-                _note(tally, "pbs-out-of-range")
+                note(tally, "pbs-out-of-range")
                 continue
             pbs = _rc(start[nick_local - pbs_len : nick_local])
             for homology in rtt_homologies:
                 rtt_len = distance + edit_len + homology
                 if not RTT_RANGE[0] <= rtt_len <= RTT_RANGE[1]:
-                    _note(tally, "rtt-out-of-range")
+                    note(tally, "rtt-out-of-range")
                     continue
                 if nick_local + rtt_len > len(edited):
-                    _note(tally, "rtt-past-window")
+                    note(tally, "rtt-past-window")
                     continue
                 rtt_window = edited[nick_local : nick_local + rtt_len]
                 if "N" in rtt_window:
-                    _note(tally, "rtt-spans-gap")
+                    note(tally, "rtt-spans-gap")
                     # The RT template spans an assembly-gap N (the reference is unknown
                     # there). Skip it, mirroring the spacer/PAM N-guards above and the
                     # per-span guards in the cas9/base-editor enumerators: a pegRNA whose

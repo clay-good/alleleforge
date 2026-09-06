@@ -403,7 +403,7 @@ def test_an_empty_prime_enumeration_says_why(make_reference: MakeRef) -> None:
     assert tally, "nothing was recorded, so the summary would be empty"
 
     summary = rejection_summary(tally)
-    assert summary != "no protospacer was examined"
+    assert summary != "no candidate was examined"
     # Every reason rendered is one of the documented ones, in plain language.
     assert any(text in summary for text in REJECTION_REASONS.values())
     # Most common reason first, with its count.
@@ -424,4 +424,21 @@ def test_the_tally_is_optional_and_costs_nothing_when_omitted(make_reference: Ma
     assert enumerate_prime(resolved, EditIntent.INSTALL, reference=reference) == enumerate_prime(
         resolved, EditIntent.INSTALL, reference=reference, tally=with_tally
     )
-    assert rejection_summary({}) == "no protospacer was examined"
+    assert rejection_summary({}) == "no candidate was examined"
+
+
+def test_every_prime_rejection_label_has_a_sentence() -> None:
+    """A label with no sentence behind it is silently dropped from the summary.
+
+    `summarize` skips unknown keys deliberately — a raw label like `rtt-past-window`
+    is not something to show a reader — which means a mistyped or newly added label
+    disappears rather than erroring. This is what makes that safe.
+    """
+    import inspect
+
+    from alleleforge.enumerate import prime
+
+    used = set(re.findall(r'note\(tally,\s*"([a-z0-9-]+)"', inspect.getsource(prime)))
+    assert used, "no rejection labels found — this check would be vacuous"
+    missing = sorted(used - set(prime.REJECTION_REASONS))
+    assert not missing, f"rejection labels with no user-facing sentence: {missing}"

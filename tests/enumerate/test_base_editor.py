@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 
 from alleleforge.enumerate.base_editor import (
@@ -11,6 +12,7 @@ from alleleforge.enumerate.base_editor import (
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.edit import Chemistry, EditIntent
 from alleleforge.types.sequence import GenomicInterval, Strand
+from alleleforge.types.variant import Variant
 from alleleforge.variant.resolver import ResolvedVariant, resolve
 
 MakeRef = Callable[[dict[str, str]], ReferenceGenome]
@@ -133,3 +135,55 @@ def test_window_override(make_reference: MakeRef) -> None:
         rv, reference=ref, intent=EditIntent.INSTALL, editors=(custom,), window=(1, 10)
     )
     assert all(w.window == (1, 10) for w in windows)
+
+
+def test_an_empty_base_editor_enumeration_says_why(make_reference: MakeRef) -> None:
+    """The sibling of the prime diagnosis, and its reasons matter more.
+
+    Base editing's failure modes have sharply different remedies: *no deaminase in the
+    panel writes this substitution* means the chemistry is wrong for the edit, *the
+    target base is outside every activity window* means try an editor with a different
+    window, *no PAM in range* means try a different PAM. Reporting only "no actionable
+    candidate" collapses all three, and one of them is a fact about the edit rather
+    than about the locus.
+    """
+    from alleleforge.enumerate._reasons import summarize
+    from alleleforge.enumerate.base_editor import (
+        REJECTION_REASONS,
+        enumerate_base_edits,
+        rejection_summary,
+    )
+
+    # An A with no NGG placed to put it inside any editor's activity window.
+    contig = "A" * 40 + "ACACACACACACACACACAC" * 5 + "A" * 40
+    reference = make_reference({"chr1": contig})
+    resolved = resolve(
+        Variant(chrom="chr1", pos=60, ref=contig[60], alt="G", build="hg38"),
+        reference=reference,
+    )
+
+    tally: dict[str, int] = {}
+    assert not enumerate_base_edits(
+        resolved, reference=reference, intent=EditIntent.INSTALL, tally=tally
+    ), "this locus must enumerate nothing for the check to mean anything"
+    assert tally, "nothing was recorded, so the summary would be empty"
+
+    summary = rejection_summary(tally)
+    assert any(text in summary for text in REJECTION_REASONS.values())
+    assert re.search(r"\(\d+\)", summary)
+    # The shared renderer, so the three enumerators cannot drift into three spellings.
+    assert summary == summarize(tally, REJECTION_REASONS)
+
+
+def test_every_base_editor_rejection_label_has_a_sentence() -> None:
+    """A label with no sentence behind it is silently dropped from the summary."""
+    import inspect
+
+    from alleleforge.enumerate import base_editor
+
+    source = inspect.getsource(base_editor)
+    used = set(re.findall(r'note\(tally,\s*(?:"[^"]+" if [^\n]*? else )?"([a-z-]+)"', source))
+    used |= set(re.findall(r'note\(tally,\s*"([a-z-]+)" if ', source))
+    assert used, "no rejection labels found — this check would be vacuous"
+    missing = sorted(used - set(base_editor.REJECTION_REASONS))
+    assert not missing, f"rejection labels with no user-facing sentence: {missing}"

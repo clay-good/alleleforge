@@ -9,7 +9,7 @@ The cleanest combination is flagged as the recommendation.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, MutableMapping, Sequence
 from typing import Protocol
 
 from alleleforge.data.gnomad import GnomadDB
@@ -101,6 +101,7 @@ def design_base_editor(
     offtarget_regions: Sequence[GenomicInterval] | None = None,
     run_offtarget: bool = True,
     max_candidates: int | None = None,
+    tally: MutableMapping[str, int] | None = None,
 ) -> list[DesignCandidate]:
     """Design base-editor candidates for a resolved variant.
 
@@ -116,13 +117,17 @@ def design_base_editor(
         populations: Ancestry labels to query/stratify.
         offtarget_regions: Restrict the off-target search (default: every contig).
         run_offtarget: Run the off-target engine (set ``False`` to skip it).
+        tally: Optional mapping that records why each editor or protospacer was
+            rejected, so a caller can explain an empty result rather than only report it.
         max_candidates: Cap the number of returned candidates.
 
     Returns:
         Candidates ranked by descending exact-intended probability then ascending
         bystander burden; the top (cleanest) candidate is flagged ``recommended``.
     """
-    windows = enumerate_base_edits(resolved, reference=reference, intent=intent, editors=editors)
+    windows = enumerate_base_edits(
+        resolved, reference=reference, intent=intent, editors=editors, tally=tally
+    )
     predictor = outcome_predictor or BaseEditOutcomePredictor()
     by_name = {e.name: e for e in editors}
 
