@@ -8304,6 +8304,37 @@ the build, and belongs to the same class as an assertion in code. Ask of each: w
 this red when the constant moves?**
 
 
+## Round 251 — running it found what reading it did not
+
+R249 put the frequency-weighted burden on every surface, so I ran the real command
+against the real reference-bias case to see it — the rs114518452-style scenario where a
+spacer has no PAM in the reference and an AFR-enriched allele creates one. The burden
+printed correctly. The line under it did not:
+
+    chr2:10-30(+)  pam=CGG  mm=0  score=1.0  mit=1.0  population chr2:32:T>G
+
+`score=1.0` looks catastrophic, and it is the same string whether the causal allele sits
+in one genome in ten or one in a thousand. Those are different decisions. The JSON had
+carried `frequency` and the per-ancestry breakdown from the first day, and the HTML and
+PDF have shown the per-ancestry worst case since it existed — so the CLI user of the
+capability this project exists to provide had to re-run with `--json` to find out whether
+the hit mattered, and the surfaces disagreed about what a reader is told.
+
+Now:
+
+    worst off-target score by ancestry: afr 1.000, nfe 1.000
+    chr2:10-30(+)  pam=CGG  mm=0  score=1.0  mit=1.0  population chr2:32:T>G
+      carried at 0.105 (afr 0.105, nfe 0.001)
+
+A hundredfold difference between two ancestries at one site, previously visible only to a
+machine. A reference-only scan prints none of it — pinned, along with a test that the two
+forms of the same run state the same numbers.
+
+**Lesson: after wiring a value into a surface, run the surface. R249 was reasoned about
+from the model down and was right; one command showed that the row underneath had the same
+disease. Reading finds what a value *is*; running shows what a reader *gets*.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -162,9 +162,24 @@ is population-aware.
 - **THEN** the command warns that the scan is reference-only and the breakdown is
   unmeasured — and it does **not** warn when either source was supplied
 
+A nominated population site SHALL state how common its causal allele is on **every**
+form of the output, not only the machine-readable one: the same `score=1.0` is a hit in
+one genome in ten or one in a thousand, and those are different decisions.
+
 #### Scenario: Population source supplied
 - **WHEN** a population source is supplied and an allele creates a de-novo PAM
 - **THEN** the site is nominated with `population` origin and an ancestry breakdown
+
+#### Scenario: Reading a population site as a person
+- **WHEN** the human-readable form of a population-aware scan is printed
+- **THEN** each population site's row carries the causal allele's frequency and its
+  per-ancestry breakdown, and the summary carries the per-ancestry worst case and the
+  frequency-weighted expected burden — the same facts the JSON and the report renders
+  carry
+
+#### Scenario: A reference-only scan
+- **WHEN** no site's presence is probabilistic
+- **THEN** no frequency, ancestry, or burden line is printed at all, rather than a zero
 
 #### Scenario: Unreadable population source
 - **WHEN** any population, haplotype, or patient source cannot be read

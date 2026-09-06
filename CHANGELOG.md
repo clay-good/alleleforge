@@ -2036,6 +2036,15 @@ acceptance.
 
 ### Fixed
 
+- **A population off-target now says how common it is, to a person as well as a machine.** Running the real
+  `aforge offtarget --gnomad` on the rs114518452-style reference-bias case printed
+  `score=1.0 ... population chr2:32:T>G` — the same string whether the causal allele is in one genome in ten
+  or one in a thousand. The JSON had carried `frequency` and the per-ancestry breakdown all along, and the
+  HTML and PDF have shown the per-ancestry worst case since it existed, so the CLI user of the feature this
+  project exists for had to re-run with `--json` to learn whether the site mattered. The row now ends
+  `carried at 0.105 (afr 0.105, nfe 0.001)` and the summary carries the per-ancestry worst case. A
+  reference-only scan prints neither.
+
 - **The documented ensemble size and interval level are pinned to the code.** `N=5` and `80% interval` are
   restated in six and seven places — the README, the concepts page, the preprint, and the bundled
   `cas9-efficiency-ensemble` **model card** (both as prose and as `metrics.ensemble_size`). Nothing tied any

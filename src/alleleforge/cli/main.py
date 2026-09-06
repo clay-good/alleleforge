@@ -1864,15 +1864,36 @@ def offtarget(
         f"  reference build {state.reference_build}"
         f"{_shape_suffix(_reference_snapshot(reference))}; {COORDINATE_NOTE}",
     ]
-    for s in sites:
+    # The HTML and PDF renders have shown the per-ancestry worst case since it existed;
+    # the CLI put it in the JSON only. Same fact, every surface.
+    strata = report.ancestry_stratification()
+    if strata:
+        worst_by = ", ".join(
+            f"{a} {v:.3f}" for a, v in sorted(strata.items(), key=lambda kv: (-kv[1], kv[0]))
+        )
+        human_lines.append(f"  worst off-target score by ancestry: {worst_by}")
+    for site, s in zip(report.sites, sites, strict=True):
         mit = f"  mit={s['mit_score']}" if s["mit_score"] is not None else ""
         # The PAM belongs on the row: an NGG and a low-stringency NAG site carry very
         # different real risk, and two overlapping rows are only distinguishable — one
         # locus reached from two adjacent PAMs, not one locus printed twice — by it.
         pam = f"  pam={s['pam']}" if s["pam"] else ""
+        # A population site's *frequency* is what makes it actionable or not: the same
+        # `score=1.0` is a hit in one genome in ten or one in a thousand, and the two
+        # are different decisions. The JSON carried the frequency and the per-ancestry
+        # breakdown from the start; the human line named the causal allele and stopped,
+        # so the CLI user of the population-aware feature had to re-run with `--json`
+        # to learn whether the site mattered.
+        carried = ""
+        if site.frequency is not None:
+            breakdown = ", ".join(f"{a} {v:.3g}" for a, v in sorted(site.ancestries.items()))
+            carried = f"  carried at {site.frequency:.3g}" + (
+                f" ({breakdown})" if breakdown else ""
+            )
         human_lines.append(
             f"  {s['locus']}{pam}  mm={s['mismatches']}  score={s['score']}{mit}  "
             f"{s['origin']}{' ' + str(s['causal_allele']) if s['causal_allele'] else ''}"
+            f"{carried}"
         )
     _emit(payload, as_json=as_json, human="\n".join(human_lines))
     # A search that examined nothing exits non-zero, after saying so. The human line
