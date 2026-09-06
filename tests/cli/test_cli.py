@@ -12,6 +12,7 @@ from typer.testing import CliRunner
 from alleleforge._version import __version__
 from alleleforge.cli.main import ExitCode, app
 from alleleforge.types.candidate import RankedMenu
+from alleleforge.types.sequence import GenomicInterval
 
 DesignCmd = Callable[[Path, str], list[str]]
 
@@ -1670,3 +1671,34 @@ def test_the_patient_source_is_recorded_without_fingerprinting_it(
     datasets = {d["name"]: d for d in json.loads(result.output)["provenance"]["datasets"]}
     assert datasets["patient-variants"]["version"] == "n=1"
     assert datasets["patient-variants"]["sha256"] is None
+
+
+def test_lift_gives_a_build_mismatch_a_remedy_in_the_tool(runner: CliRunner) -> None:
+    """`resolve` told the caller to lift, and the CLI offered no way to do it.
+
+    Refusing a record whose native assembly disagrees with the requested build is
+    right — relabeling a coordinate designs a guide at the wrong place in the genome
+    — but the error named an operation only reachable from Python. `Liftover` was
+    implemented, tested, and called by nothing in the library.
+    """
+    chain = Path(__file__).parent.parent / "genome" / "fixtures" / "forward.chain"
+    result = runner.invoke(
+        app, ["lift", "chr1:10-20", "--chain", str(chain), "--from", "hg38", "--to", "t2t"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "chr1:10-20(+)\tchrA:210-220(+)" in result.output
+    # The output is in the locus form --region accepts, so it pipes straight back in.
+    lifted = result.output.strip().split("\t")[1]
+    assert GenomicInterval.parse(lifted).chrom == "chrA"
+
+
+def test_lift_reports_an_unmappable_locus_instead_of_dropping_it(runner: CliRunner) -> None:
+    """A shorter region list searches less than was asked for and reads as safer."""
+    chain = Path(__file__).parent.parent / "genome" / "fixtures" / "forward.chain"
+    result = runner.invoke(
+        app,
+        ["lift", "chr1:10-20", "chrZ:1-9", "--chain", str(chain), "--from", "hg38", "--to", "t2t"],
+    )
+    assert result.exit_code != 0
+    assert "chrZ:1-9(+)\tUNMAPPED" in result.output
+    assert "1 of 2 loci did not lift" in result.output

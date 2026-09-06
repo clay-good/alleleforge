@@ -8,6 +8,16 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **`aforge lift` — a build mismatch now has a remedy inside the tool.** `resolve` refuses a record whose
+  native assembly disagrees with the requested build (relabeling a coordinate designs a guide at the wrong
+  place in the genome) and told the caller to lift the coordinates first — naming an operation the CLI did
+  not offer. `Liftover` was implemented, tested, and called by nothing in the library; `from_chain_file` had
+  no callers outside its own tests. The new command takes loci in the same form `--region` accepts and emits
+  them the same way, so its output pipes straight back in, and an unmappable locus prints `UNMAPPED` and
+  exits non-zero rather than being silently dropped — a shorter region list searches less than was asked for.
+
 ### Fixed
 
 - **No user-facing surface said which coordinate base its loci were in.** AlleleForge is uniformly 0-based

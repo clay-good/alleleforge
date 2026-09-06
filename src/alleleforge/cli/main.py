@@ -1528,6 +1528,79 @@ def verify(
 
 
 data_app = typer.Typer(name="data", help="Inspect the dataset registry.", no_args_is_help=True)
+
+
+@app.command()
+def lift(
+    loci: Annotated[
+        list[str],
+        typer.Argument(
+            help="Loci to lift, 'chrom:start-end' — 0-based half-open, as everywhere else."
+        ),
+    ],
+    chain: Annotated[
+        Path, typer.Option("--chain", help="A local UCSC chain file. Never downloaded.")
+    ],
+    from_build: Annotated[
+        str, typer.Option("--from", help="The build the input loci are in, e.g. 'hg19'.")
+    ],
+    to_build: Annotated[str, typer.Option("--to", help="The build to lift to, e.g. 'hg38'.")],
+) -> None:
+    """Lift loci to another assembly, so a build mismatch has a remedy in the tool.
+
+    `resolve` refuses a record whose native assembly disagrees with the requested
+    build — the right answer, since relabeling a coordinate designs a guide at the
+    wrong place in the genome — and tells the caller to lift first. The liftover was
+    implemented and tested but reachable only from Python, so that instruction named
+    an operation the CLI did not offer.
+
+    Prints `input<TAB>output` per locus, in order, in the same locus form `--region`
+    accepts, so the result pipes straight back in. An unmappable locus prints
+    `UNMAPPED` rather than being dropped — a shorter list is a smaller search — and
+    exits non-zero.
+    """
+    from alleleforge.genome.coordinates import Liftover
+
+    if not chain.is_file():
+        _echo_err(f"error: chain file not found: {chain}")
+        raise typer.Exit(ExitCode.MISSING_DATA)
+    intervals = [GenomicInterval.parse(text) for text in _parsed_loci(loci)]
+    try:
+        lo = Liftover.from_chain_file(chain, source_build=from_build, target_build=to_build)
+    except ImportError as exc:  # pragma: no cover - depends on the optional extra
+        _echo_err(f"error: liftover needs pyliftover: pip install 'pyliftover>=0.4' ({exc})")
+        raise typer.Exit(ExitCode.UNAVAILABLE) from exc
+    except (OSError, ValueError) as exc:
+        _echo_err(f"error: could not read chain file {chain}: {exc}")
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
+
+    unmapped = 0
+    for interval in intervals:
+        lifted = lo.lift_interval(interval)
+        if lifted is None:
+            unmapped += 1
+            typer.echo(f"{interval}\tUNMAPPED")
+        else:
+            typer.echo(f"{interval}\t{lifted}")
+    if unmapped:
+        _echo_err(
+            f"error: {unmapped} of {len(intervals)} loci did not lift from "
+            f"{from_build} to {to_build}; they are dropped, not approximated"
+        )
+        raise typer.Exit(ExitCode.UNAVAILABLE)
+
+
+def _parsed_loci(loci: list[str]) -> list[str]:
+    """Return ``loci``, failing with a usage error on the first unparseable one."""
+    for text in loci:
+        try:
+            GenomicInterval.parse(text)
+        except ValueError as exc:
+            _echo_err(f"error: {exc}")
+            raise typer.Exit(ExitCode.USAGE) from exc
+    return loci
+
+
 app.add_typer(data_app)
 
 

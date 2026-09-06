@@ -481,7 +481,8 @@ def resolve(
         raise ValueError(
             f"source assembly {variant.source_assembly!r} disagrees with requested build "
             f"{build!r}; lift the coordinates to {build!r} before resolving rather than "
-            "relabeling them"
+            f"relabeling them — `aforge lift <locus> --chain <file> --from "
+            f"{variant.source_assembly} --to {build}`"
         )
     variant = variant.model_copy(update={"build": build})
     if reference is not None:

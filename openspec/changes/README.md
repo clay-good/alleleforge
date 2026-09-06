@@ -3891,6 +3891,34 @@ up cost two minutes; reporting it would have been wrong in public.
 `skipped` were both honest and individually documented, and their juxtaposition was the lie — nothing in
 either field's definition is wrong, and no test of either one alone would have caught it.**
 
+## Round 137 — an instruction the tool would not carry out
+
+R136's tell, run as a sweep: for every `to_*`/`from_*`/`normalize*`/`canonical*`/`convert*` in the tree,
+count callers in `src` versus `tests`. Four came back defined-but-called-only-by-tests. `from_gtf` and
+`from_build` are library entry points a user is meant to call, so that is the expected shape. `to_one_based`
+was R136. The fourth was `Liftover.from_chain_file` — and pulling on it, **nothing in the entire library
+constructs a `Liftover` at all**.
+
+Which matters because of where the subject comes up. `resolve` refuses a database record whose native
+assembly disagrees with the requested build, and it is right to: relabeling a GRCh37 coordinate as hg38
+designs a guide at the wrong place in the genome, and the check was deliberately written to reconcile rather
+than overwrite. Its error message ends *"lift the coordinates to hg38 before resolving rather than relabeling
+them."* The liftover is implemented, tested against real chain files, correct, and fails closed on a split
+interval — and reachable only by writing Python. The README advertises liftover in the genome layer,
+`pyliftover` is a declared dependency, and the CLI offered no way to do it. A hard stop whose stated remedy
+the tool declines to perform is a dead end for the person it stops.
+
+Added `aforge lift`. It takes loci in exactly the form `--region` accepts and prints them in the same form,
+so its output pipes straight back in — the parse/print inverse makes that exact, which is the payoff of the
+uniform convention R136 documented. An unmappable locus prints `UNMAPPED` and the run exits non-zero rather
+than the locus disappearing from the list: this repo's standing rule is that a smaller search reports fewer
+off-targets and reads as safer. The resolver's error now names the command.
+
+**Lesson: a "0 callers in src" converter was R136's tell for an unarbitrated boundary; here the same tell
+found an unreachable *capability*. Worth pairing with a second query — grep the error messages for
+imperatives ("lift the coordinates", "run X first", "pass --y") and check the tool can actually do each
+thing it tells the user to do. An instruction is a promise.**
+
 ## Round 136 — the number a scientist pastes into a browser
 
 Following R135 into other presentations that assert something on their own. The design menu turned out to be

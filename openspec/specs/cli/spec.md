@@ -227,3 +227,19 @@ count, which is zero for a resume with nothing outstanding.
 #### Scenario: A manifest reused with a narrower list
 - **WHEN** a run requests fewer items than the manifest records
 - **THEN** the skipped count reflects only the requested items already recorded
+
+### Requirement: A build mismatch has a remedy in the tool
+
+When variant resolution refuses a record whose native assembly disagrees with the
+requested build, the coordinate lift it instructs the caller to perform SHALL be
+available as a CLI command. An instruction a user cannot act on is a dead end.
+
+The command SHALL accept and emit loci in the same form `--region` accepts, so its
+output can be handed straight back, and SHALL report an unmappable locus explicitly
+and exit non-zero rather than omitting it — a shorter region list searches less than
+was asked for and reports fewer off-targets.
+
+#### Scenario: A locus that does not lift
+- **WHEN** one of several loci has no mapping in the chain file
+- **THEN** it is printed as `UNMAPPED`, the others are still printed, and the command
+  exits non-zero
