@@ -10,6 +10,22 @@ acceptance.
 
 ### Fixed
 
+- **A one-shot safety input reached only the first *item* of a cohort.** `design_many` forwards its
+  `design_kwargs` verbatim to every variant, and — with `max_workers > 1` — to every worker thread. A
+  generator among them was consumed by the first item, leaving every later variant screened without it; in
+  parallel, which item won was a race. Fixing the same aliasing inside `design()` did not help here, because
+  the exhausted original is what the next item receives.
+
+### Added
+
+- **A cohort row now says which safety sources it was actually screened against** (`offtarget_sources`, in
+  the JSON row and the summary TSV). This is where a per-item difference hides: one variant screened against
+  a haplotype panel and the next screened without it produce identical-looking rows, the candidate counts do
+  not move, and the row is what a reader scans across hundreds of variants. It is also what made the bug
+  above observable at all.
+
+### Fixed
+
 - **A one-shot safety input reached only the first chemistry in a menu.** `design()` hands `haplotypes` and
   `patient_vcf` — both typed `Iterable` — to every eligible vertical in turn. A caller passing a generator
   had it consumed by whichever chemistry ran first, so a single menu could hold **haplotype-aware

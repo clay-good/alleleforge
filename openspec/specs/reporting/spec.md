@@ -294,3 +294,15 @@ A table showing every allele SHALL add no such note.
 #### Scenario: An NHEJ spectrum
 - **WHEN** a knock-out candidate's distribution holds more alleles than the table shows
 - **THEN** the render states the count and the shown probability mass
+
+### Requirement: A cohort row records which safety sources screened it
+
+A cohort is scanned row by row, and two variants screened against different sources
+produce identical-looking rows — the candidate counts do not move when a haplotype panel
+or patient VCF is absent. Each row SHALL record which supplied sources contributed for
+that variant, so a per-item difference in screening is visible where the reader is
+looking.
+
+#### Scenario: A panel that reached only some items
+- **WHEN** items in one cohort were screened against different sources
+- **THEN** their rows differ in the recorded sources rather than appearing identical

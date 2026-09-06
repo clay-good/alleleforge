@@ -3750,6 +3750,38 @@ version finds one, the sweep finds the family. And the layer above is usually wo
 fixed, because a shared resource consumed at a fan-out point fails *asymmetrically*, and asymmetric failures
 survive comparison.**
 
+## Round 130 — one layer up again
+
+R129 ended on "the layer above is usually worse". There is one more layer above `design()`: `design_many`,
+which forwards `design_kwargs` verbatim to every variant in a cohort and, when `max_workers > 1`, to every
+worker thread.
+
+A generator passed there is consumed by the first item. Every later variant is screened without it. In
+parallel, *which* variant gets it is a race between threads. Fixing the aliasing inside `design()` — last
+round — does nothing for this, because `design()` materializes its own local copy while the exhausted
+original is what the next item receives.
+
+The instructive part was that I could not test it. Both mutations passed: removing the fix changed no
+assertion I could write, because a cohort summary reports candidate counts, and the haplotype panel does not
+move those — it changes off-target *sites*. The difference between "screened against the panel" and "not
+screened" was genuinely unobservable from the surface a cohort produces.
+
+So the fix needed a companion. `offtarget_sources` now appears on each cohort row: which safety sources
+actually contributed for that variant. That is worth having on its own terms — a cohort row is scanned
+across hundreds of variants, and two rows that were screened differently looked identical — and it is what
+makes the aliasing bug detectable. With it, the mutation fails.
+
+One mutation still passes, and the reason is worth recording rather than papering over: converting
+unconditionally would strip the provenance descriptor these carriers hold, but a cohort keeps summaries and
+*discards the per-item menus* that would carry that record, so the loss has no observer here by design. It
+is pinned where it is visible, in `design()`.
+
+**Lesson: when a bug is untestable, the missing test is usually a missing *output*. Twice now the fix has
+been detectable only because some earlier round had added a field recording what a run actually consumed —
+and here the field did not exist yet and had to be added first. If you cannot write the assertion, ask what
+the system would have to say for the difference to be visible, and consider whether it should be saying it
+anyway.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

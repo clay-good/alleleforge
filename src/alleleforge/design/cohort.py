@@ -150,6 +150,16 @@ def _summarize(menu: RankedMenu) -> dict[str, Any]:
         "best_bystander_burden": (
             best.bystander_burden.value if best and best.bystander_burden else None
         ),
+        # Which safety sources actually contributed for this variant. A cohort is where
+        # a per-item difference hides: one variant screened against a haplotype panel
+        # and the next screened without it produce identical-looking rows, and the row
+        # is what a reader scans. It is also the only place the difference is
+        # observable — the candidate counts do not move.
+        "offtarget_sources": (
+            dict(best.offtarget.sources_considered)
+            if best is not None and best.offtarget is not None
+            else None
+        ),
         "worst_offtarget": worst_ot,
         "best_specificity": best_specificity,
     }
@@ -221,6 +231,22 @@ def design_many(
         raise ValueError("parallel cohort runs (max_workers > 1) require a reference_factory")
     if reference is None and reference_factory is None:
         raise ValueError("design_many needs a reference or a reference_factory")
+    # `design_kwargs` is forwarded verbatim to every item — and, with `max_workers > 1`,
+    # to every worker thread. A one-shot safety input among them is consumed by the
+    # first item, leaving every later variant screened without it; in parallel the
+    # winner is whichever thread gets there first. `design()` materializes such an
+    # input for its own use, which does not help here, because the exhausted original
+    # is what the next item receives.
+    #
+    # Only a true `Iterator` is converted, so a `HaplotypePanel` or `_PatientVariants`
+    # keeps the provenance descriptor it carries as an attribute. That half is not
+    # observable from here — a cohort keeps summaries and discards the per-item menus
+    # that would carry the record — so it is pinned where it is visible, in `design()`.
+    for shared in ("haplotypes", "patient_vcf"):
+        value = design_kwargs.get(shared)
+        if isinstance(value, Iterator):
+            design_kwargs[shared] = list(value)
+
     id_of = item_id or str
 
     manifest = Path(manifest_path) if manifest_path is not None else None

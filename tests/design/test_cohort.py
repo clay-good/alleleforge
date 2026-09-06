@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
@@ -15,6 +15,7 @@ from alleleforge.types.guide import PAM, Guide, Spacer
 from alleleforge.types.offtarget import OffTargetReport, OffTargetSite, ScoreMethod
 from alleleforge.types.prediction import Prediction, UncertaintyMethod
 from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
+from alleleforge.types.variant import Variant
 
 PAD = "T" * 20
 ABE_PROTO = "TTTAAACGTTTTTTTTTTTT"  # in-window A at chr2:26 (1-based), NGG PAM downstream
@@ -408,3 +409,54 @@ def test_the_cohort_summary_never_reports_a_bare_efficiency() -> None:
     assert empty["best_efficiency_low"] is None
     assert empty["best_efficiency_in_distribution"] is None
     assert empty["best_caveats"] == []
+
+
+def test_a_generator_safety_input_reaches_every_cohort_item(reference: ReferenceGenome) -> None:
+    """`design_kwargs` is forwarded verbatim to every item, and to every worker thread.
+
+    A one-shot input among them is consumed by the first variant, leaving every later
+    one screened without it — and in parallel, the winner is whichever thread arrives
+    first. `design()` materializes such an input for its own use, which does not help
+    here: the exhausted original is what the next item receives.
+    """
+    from alleleforge.data.haplotypes import Haplotype
+
+    panel = [
+        Haplotype(
+            hap_id="H1",
+            interval=GenomicInterval(chrom="chr2", start=0, end=80, strand=Strand.PLUS),
+            variants=(Variant(chrom="chr2", pos=26, ref="A", alt="C"),),
+            frequencies={"afr": 0.2},
+            source="1000g",
+        )
+    ]
+
+    def _run(haplotypes: object) -> list[dict[str, int] | None]:
+        report = design_many(
+            [OK_1, OK_2],
+            reference=reference,
+            intent=EditIntent.INSTALL,
+            haplotypes=haplotypes,  # type: ignore[arg-type]
+            populations=("afr",),
+        )
+        # Which sources each item was actually screened against — the candidate counts
+        # do not move, so this is the only place the difference is visible.
+        return [(item.summary or {}).get("offtarget_sources") for item in report.items]
+
+    from_list = _run(list(panel))
+    assert len(from_list) == 2
+    assert all(sources == {"haplotypes": 1} for sources in from_list), from_list
+
+    # A generator must screen every item the same way. Before the fix the first item
+    # consumed the panel and the second ran without it.
+    assert _run(iter(panel)) == from_list
+
+    # ...and the generator really is drained once, at the top, rather than per item.
+    drained: list[str] = []
+
+    def _generator() -> Iterator[Haplotype]:
+        drained.append("read")
+        yield from panel
+
+    _run(_generator())
+    assert drained == ["read"]
