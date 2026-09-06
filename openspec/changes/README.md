@@ -5056,6 +5056,40 @@ deliberately contain a bad variant; both updated, with the reason.
 is under more obligation to distinguish them, not less. Isolation makes the failures survivable and therefore
 easy to stop reporting. Anything that continues past an error should be asked separately what it returns.**
 
+## Round 169 — the word for a bug
+
+R168 ended on: anything that continues past an error should be asked separately what it returns. The design
+path continues past an error too — `_run_chemistry` catches per vertical, so one broken chemistry does not
+lose the menu. So I asked what it reports, by making a vertical raise:
+
+    - prime: skipped (RuntimeError: boom: a real defect)
+
+"Skipped" is the word a chemistry gets when it legitimately does not apply. A crash gets the same one.
+
+The mechanism was there and correct — `_EXPECTED_DESIGN_FAILURES` exists precisely to separate the two, and
+its comment says a real bug must not be *"silently swallowed behind an 'eligible but empty' note"*. The list
+contained `RuntimeError`, which is how most Python defects reach a boundary, so the promise was defeated for
+the commonest case by its own allow-list.
+
+It was there for a reason, and finding the reason is what made the fix safe: `ConsentError`, `ChecksumError`,
+`LicenseError` and `CardError` are all `RuntimeError` subclasses, and six adapters raise a bare `RuntimeError`
+to mean "this optional dependency is not installed". Catching the base class was the shortest way to let all
+of those degrade gracefully. R141's unification made naming them individually possible; the six bare raises
+became a new `MissingDependencyError`, which is still a `RuntimeError` so no existing handler breaks.
+
+The exclusion matters as much as the inclusion. `CacheIntegrityError` and `FMIndexIntegrityError` are also
+`RuntimeError` subclasses, and they mean corruption or tampering — R142 turned the cache's verification on
+precisely so those surface. Degrading them to "skipped" would have quietly undone that, and an allow-list
+written by exception *type* rather than by *meaning* is how that happens without anyone deciding it.
+
+One existing test simulated "model checkpoint unavailable" by raising a bare `RuntimeError` and asserting
+"skipped" — the same conflation, encoded. The scenario is right; it now raises what the real code raises.
+
+**Lesson: an allow-list of exception types is an allow-list of *meanings*, and the two drift apart as soon as
+one type carries several meanings. `RuntimeError` meant "a dependency is missing" at six call sites and "a bug"
+everywhere else, and the list could not tell. When catching by type, check what else in the codebase raises
+that type — and when a base class is caught, what its subclasses mean.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

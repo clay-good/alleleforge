@@ -1563,6 +1563,16 @@ acceptance.
 
 ### Fixed
 
+- **A genuine defect in a chemistry vertical was reported as "skipped".** `_EXPECTED_DESIGN_FAILURES` exists
+  so "this chemistry produced no design" and "this code has a bug" read differently — its own comment says a
+  real bug must not be "silently swallowed behind an 'eligible but empty' note". `RuntimeError` was on the
+  list, which is the commonest way a Python defect reaches a boundary, so a crash in a vertical got the same
+  word as a chemistry that simply did not apply. It was there for a reason — the consent, license and
+  missing-dependency signals are all `RuntimeError` subclasses — so they are now named individually, with a
+  new `alleleforge.errors.MissingDependencyError` for the "requires the optional X extra" sites. Deliberately
+  excluded: `CacheIntegrityError` and `FMIndexIntegrityError`, which mean corruption or tampering; degrading
+  those to "skipped" would undo the fail-closed gates that exist to surface them.
+
 - **A cohort item that designed nothing said `ok` and nothing else.** The single-variant path explains an
   empty result in full — which chemistries were routed out, which rejected every protospacer and why — and
   the cohort summary dropped all of it, leaving a row reading `ok` with every column blank. A cohort is the

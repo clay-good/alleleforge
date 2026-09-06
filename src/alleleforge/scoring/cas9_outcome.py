@@ -21,6 +21,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
+from alleleforge.errors import MissingDependencyError
 from alleleforge.model_zoo.loader import WeightGate
 from alleleforge.model_zoo.registry import (
     Downloader,
@@ -314,7 +315,7 @@ def _require_lindel(repo: Path) -> tuple[Any, Any, Any]:  # pragma: no cover - n
         with open(os.path.join(lp, "model_prereq.pkl"), "rb") as handle:
             prereq = pickle.load(handle)
     except (ImportError, FileNotFoundError) as exc:
-        raise RuntimeError(
+        raise MissingDependencyError(
             "the trained Lindel model requires NumPy and a Lindel checkout. Clone "
             "https://github.com/shendurelab/Lindel and set $ALLELEFORGE_LINDEL_REPO; "
             "see specs/cas9-outcome-integration.md"

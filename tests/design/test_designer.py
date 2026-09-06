@@ -263,12 +263,20 @@ def test_prime_path_yields_pegrna_candidates(make_reference: MakeRef) -> None:
 def test_chemistry_failure_degrades_gracefully(
     make_reference: MakeRef, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # If a chemistry's vertical raises (e.g. an unavailable model), the designer
-    # records why and returns the rest of the menu rather than failing.
+    # If a chemistry's vertical raises for a reason that means "no design available
+    # here" — an absent optional dependency, a gate refusal, an unavailable checkpoint
+    # — the designer records why and returns the rest of the menu rather than failing.
+    #
+    # This used to raise a bare `RuntimeError`, which the designer treated as graceful
+    # degradation. It no longer does: `RuntimeError` is how most Python *defects* reach
+    # a boundary, and treating it as expected reported a real bug with the same word as
+    # a chemistry that did not apply. The scenario is unchanged; it now raises the type
+    # the real code raises for it.
     import alleleforge.design.designer as designer_mod
+    from alleleforge.errors import MissingDependencyError
 
     def _boom(*args: object, **kwargs: object) -> list[object]:
-        raise RuntimeError("model checkpoint unavailable")
+        raise MissingDependencyError("model checkpoint unavailable")
 
     monkeypatch.setattr(designer_mod, "design_cas9", _boom)
     ref = make_reference({"chr2": PAD + "ACGTAACGTTACGTAACGTT" + "TGG" + PAD})
@@ -871,3 +879,73 @@ def test_the_pam_fallbacks_are_reachable_from_design(make_reference: MakeRef) ->
         if line.startswith("- cas9_nuclease:")
     )
     assert "no actionable candidate" not in note
+
+
+def test_a_defect_in_a_vertical_is_not_reported_as_skipped(
+    make_reference: MakeRef, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`RuntimeError` was on the graceful-degradation list, so a bug read as a skip.
+
+    `_EXPECTED_DESIGN_FAILURES` exists so "this chemistry produced no design" and
+    "this code has a bug" are reported differently — its own comment says a real bug
+    must not be "silently swallowed behind an 'eligible but empty' note". `RuntimeError`
+    was in the list, which is the commonest way a Python defect reaches a boundary, so
+    a genuine crash in a vertical was reported with the same word as a chemistry that
+    simply did not apply.
+
+    It was there for a reason: the consent, license and missing-dependency signals are
+    all `RuntimeError` subclasses. Naming them individually keeps the graceful path.
+    """
+    import alleleforge.design.designer as designer_module
+
+    ref = _abe_ref(make_reference)
+
+    def _boom(*_args: object, **_kwargs: object) -> list[object]:
+        raise RuntimeError("boom: a real defect")
+
+    monkeypatch.setattr(designer_module, "design_prime", _boom)
+    menu = design("chr2:26:A>G", reference=ref, intent=EditIntent.INSTALL)
+
+    note = next(
+        line for line in (menu.rationale or "").splitlines() if line.strip().startswith("- prime:")
+    )
+    assert "ERROR" in note, f"a defect was not reported as one: {note}"
+    assert "a defect, not 'no design'" in note
+    assert "skipped" not in note
+
+
+def test_a_missing_dependency_is_still_graceful(
+    make_reference: MakeRef, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Narrowing the list must not turn "not installed here" into a reported defect."""
+    import alleleforge.design.designer as designer_module
+    from alleleforge.errors import MissingDependencyError
+
+    ref = _abe_ref(make_reference)
+
+    def _absent(*_args: object, **_kwargs: object) -> list[object]:
+        raise MissingDependencyError("the trained model needs the 'ml' extra")
+
+    monkeypatch.setattr(designer_module, "design_prime", _absent)
+    menu = design("chr2:26:A>G", reference=ref, intent=EditIntent.INSTALL)
+
+    note = next(
+        line for line in (menu.rationale or "").splitlines() if line.strip().startswith("- prime:")
+    )
+    assert "skipped" in note
+    assert "ERROR" not in note
+
+
+def test_a_corrupt_cache_or_index_is_not_degraded_to_skipped() -> None:
+    """Integrity failures are tampering or corruption, not "no design available".
+
+    Both are `RuntimeError` subclasses, so the old list swallowed them — which would
+    have undone the fail-closed gates that exist precisely to surface them.
+    """
+    from alleleforge.cache import CacheIntegrityError
+    from alleleforge.design.designer import _EXPECTED_DESIGN_FAILURES
+    from alleleforge.genome.index import FMIndexIntegrityError
+
+    assert CacheIntegrityError not in _EXPECTED_DESIGN_FAILURES
+    assert FMIndexIntegrityError not in _EXPECTED_DESIGN_FAILURES
+    assert RuntimeError not in _EXPECTED_DESIGN_FAILURES

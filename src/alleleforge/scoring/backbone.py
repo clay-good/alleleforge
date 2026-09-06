@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from alleleforge.cache import ContentAddressedCache
+from alleleforge.errors import MissingDependencyError
 from alleleforge.model_zoo.loader import WeightGate
 from alleleforge.model_zoo.registry import Downloader, ModelRegistry, ModelUse
 
@@ -224,7 +225,7 @@ def _require_transformers() -> Any:  # pragma: no cover - requires the ml extra
         import torch
         from transformers import AutoModel, AutoTokenizer
     except ImportError as exc:  # noqa: BLE001
-        raise RuntimeError(
+        raise MissingDependencyError(
             "real backbone embedders require the 'ml' extra (torch, transformers); "
             "install alleleforge[ml] or use StubEmbedder in tests"
         ) from exc

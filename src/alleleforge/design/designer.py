@@ -51,7 +51,13 @@ from alleleforge.design.routing import ChemistryDecision, route
 from alleleforge.enumerate.base_editor import BASE_EDITORS
 from alleleforge.enumerate.base_editor import rejection_summary as base_rejection_summary
 from alleleforge.enumerate.prime import rejection_summary
+from alleleforge.errors import (
+    ChecksumError,
+    ConsentError,
+    MissingDependencyError,
+)
 from alleleforge.genome.reference import ReferenceGenome
+from alleleforge.model_zoo.registry import CardError, LicenseError
 from alleleforge.scoring.prime_outcome import PrimeOutcomePredictor
 from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import Chemistry, EditIntent
@@ -380,14 +386,27 @@ def design(
 #: graceful-degradation path. Any *other* exception type signals a defect in the
 #: code, not "no design", and is noted distinctly so a real bug is not silently
 #: swallowed behind an "eligible but empty" note.
+#:
+#: `RuntimeError` used to be in this list and defeated that promise for the commonest
+#: way a Python defect surfaces: a genuine bug in a vertical was reported with the same
+#: word — "skipped" — as a chemistry that simply did not apply. It was there because the
+#: gate refusals and the missing-dependency signals are all `RuntimeError` subclasses;
+#: naming them individually keeps the graceful path and gives the base class back its
+#: meaning. Deliberately absent: `FMIndexIntegrityError` and `CacheIntegrityError`, which
+#: are corruption or tampering — degrading those to "skipped" would undo the fail-closed
+#: gates that exist to catch them.
 _EXPECTED_DESIGN_FAILURES: tuple[type[Exception], ...] = (
     ValueError,
     KeyError,
-    RuntimeError,
     NotImplementedError,
     FileNotFoundError,
     ImportError,
     OSError,
+    ConsentError,
+    ChecksumError,
+    LicenseError,
+    CardError,
+    MissingDependencyError,
 )
 
 

@@ -38,6 +38,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from alleleforge.errors import MissingDependencyError
 from alleleforge.model_zoo.loader import WeightGate
 from alleleforge.model_zoo.registry import (
     Downloader,
@@ -151,7 +152,7 @@ def _require_rs3_runtime() -> tuple[Any, Any]:  # pragma: no cover - needs the c
         import lightgbm
         import sglearn
     except ImportError as exc:
-        raise RuntimeError(
+        raise MissingDependencyError(
             "the trained Rule Set 3 model requires the 'cas9-rs3' extra "
             "(lightgbm, sglearn); install alleleforge[cas9-rs3], or use "
             "RuleSet3Scorer for the weight-free baseline"

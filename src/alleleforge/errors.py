@@ -21,7 +21,7 @@ changes is that they now refer to one class each, and ``isinstance`` says so.
 
 from __future__ import annotations
 
-__all__ = ["ChecksumError", "ConsentError"]
+__all__ = ["ChecksumError", "ConsentError", "MissingDependencyError"]
 
 
 class ConsentError(RuntimeError):
@@ -30,3 +30,15 @@ class ConsentError(RuntimeError):
 
 class ChecksumError(RuntimeError):
     """Raised when an artifact's content hash does not match its pinned value."""
+
+
+class MissingDependencyError(RuntimeError):
+    """Raised when an optional dependency or artifact a feature needs is absent.
+
+    A `RuntimeError` subclass so existing handlers keep working, and a *named* type so
+    a caller can tell "this feature is not installed here" from "this code has a bug".
+    The design path treats the first as graceful degradation and must not treat the
+    second that way — it was catching bare `RuntimeError` for both, which reported a
+    genuine defect in a vertical with the same word ("skipped") as a chemistry that
+    simply did not apply.
+    """

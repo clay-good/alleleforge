@@ -24,6 +24,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict
 
+from alleleforge.errors import MissingDependencyError
 from alleleforge.types.variant import Variant
 
 #: ``reference:`` prefix (RefSeq accession or contig) is optional and captured.
@@ -192,7 +193,7 @@ class HgvsLibraryProjector:
             import hgvs.dataproviders.uta  # pragma: no cover - reached only with hgvs installed
             import hgvs.parser  # pragma: no cover - reached only with hgvs installed
         except ImportError as exc:
-            raise RuntimeError(
+            raise MissingDependencyError(
                 "HgvsLibraryProjector requires the optional 'hgvs' package "
                 "(and a reachable UTA database + SeqRepo)"
             ) from exc

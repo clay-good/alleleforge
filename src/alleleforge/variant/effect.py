@@ -21,7 +21,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict
 
-from alleleforge.errors import ConsentError
+from alleleforge.errors import ConsentError, MissingDependencyError
 from alleleforge.types.variant import Variant
 
 
@@ -372,7 +372,9 @@ class VepRestPredictor:
         try:
             import requests
         except ImportError as exc:
-            raise RuntimeError("VepRestPredictor requires the optional 'requests' package") from exc
+            raise MissingDependencyError(
+                "VepRestPredictor requires the optional 'requests' package"
+            ) from exc
         response = requests.get(url, headers={"Accept": "application/json"}, timeout=30)
         response.raise_for_status()
         data: list[dict[str, Any]] = response.json()

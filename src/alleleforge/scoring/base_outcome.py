@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from alleleforge.enumerate.base_editor import BaseEditor
+from alleleforge.errors import MissingDependencyError
 from alleleforge.model_zoo.loader import WeightGate
 from alleleforge.model_zoo.registry import (
     Downloader,
@@ -301,7 +302,7 @@ def _require_bedict(repo: Path) -> tuple[Any, Any]:  # pragma: no cover - needs 
             sys.path.insert(0, str(repo))
         from criscas.predict_model import BEDICT_CriscasModel
     except ImportError as exc:
-        raise RuntimeError(
+        raise MissingDependencyError(
             "the trained BE-DICT model requires PyTorch and a BE-DICT checkout. "
             "Clone https://github.com/uzh-dqbm-cmi/crispr and point the adapter at it "
             "(repo_dir=... or $ALLELEFORGE_BEDICT_REPO); see "
