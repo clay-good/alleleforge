@@ -2036,6 +2036,19 @@ acceptance.
 
 ### Fixed
 
+- **The frequency-weighted off-target burden reaches a reader.** `expected_burden()` weights each site by
+  the probability a genome carries it, so a 0.1%-MAF population hit and a universal reference hit of the same
+  raw score — indistinguishable in the frequency-blind `worst_score` and `specificity` — are weighted a
+  thousandfold apart. Population-aware nomination is the project's differentiator and the shipped spec says
+  the burden appears "in the summary numbers"; it was on the model and on no surface. It now appears in the
+  HTML, the PDF, the TSV (`offtarget_expected_burden`, schema 8), the JSON, `aforge offtarget`, and
+  `POST /api/offtarget` — reported only when some site's presence is probabilistic, since with reference
+  sites alone it merely restates the score sum. Every surface asks the same
+  `OffTargetReport.is_frequency_weighted()` so they agree on when it is worth showing.
+- **The documented TSV `schema_version` matched the code again.** `docs/api/cli.md` named version 6 while the
+  exporter shipped 7 — the one field a consumer is told to branch on, wrong where they read it. Now pinned
+  by a test.
+
 - **`resolve` says why it recommends another build.** Both shells answered with a bare
   `"reference_recommendation": "T2T-CHM13v2"`, and the CLI's human render — what a person actually reads —
   did not mention it at all. `ReferenceRecommendation.reason`, which names the regions that triggered it,

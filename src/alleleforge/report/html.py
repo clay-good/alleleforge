@@ -221,6 +221,11 @@ def _candidate_html(c: CandidateReport) -> str:
         if c.offtarget_specificity is not None
         else ""
     )
+    # Only when some site's presence is probabilistic: with reference sites alone this
+    # is the unweighted score sum and adds a number without adding a fact.
+    if c.offtarget_expected_burden is not None:
+        spec += f"; expected burden {c.offtarget_expected_burden:.3f} (frequency-weighted)"
+
     if c.offtarget_by_ancestry:
         rows = "".join(
             f"<tr><td>{_esc(r.ancestry)}</td><td>{r.worst_score:.3f}</td></tr>"

@@ -382,6 +382,15 @@ class OffTargetResponse(BaseModel):
     specificity: float = Field(
         description="Aggregate genome-wide specificity 1/(1+Σ scores) in (0, 1]."
     )
+    expected_burden: float | None = Field(
+        default=None,
+        description=(
+            "Frequency-weighted expected off-target burden, present only when some "
+            "site's presence in a genome is probabilistic. `worst_score` and "
+            "`specificity` are frequency-blind, so a 0.1%-MAF hit and a universal "
+            "reference hit of the same raw score are indistinguishable in them."
+        ),
+    )
     on_target_excluded: bool = Field(
         description=(
             "Whether the spacer's own locus was excluded. When false, the guide's own "
@@ -448,6 +457,7 @@ class OffTargetResponse(BaseModel):
             n_sites=report.n_sites,
             worst_score=report.worst_score(),
             specificity=report.specificity_score(),
+            expected_burden=(report.expected_burden() if report.is_frequency_weighted() else None),
             on_target_excluded=on_target_excluded,
             search_description=report.search_description(),
             ancestry_stratification=report.ancestry_stratification(),

@@ -21,7 +21,7 @@ from alleleforge.types.candidate import RankedMenu
 #: added, removed, or reinterpreted so a downstream consumer can detect the drift —
 #: and for v6, when the TSV grew its leading `#` note block, which a reader that skips
 #: no comments does see.
-EXPORT_SCHEMA_VERSION = 7
+EXPORT_SCHEMA_VERSION = 8
 
 #: The flat TSV column order (one row per candidate). ``schema_version`` leads so a
 #: reader can branch on the format before touching any other column.
@@ -54,6 +54,11 @@ TSV_COLUMNS = (
     # the one a pipeline actually filters on, carried neither. A row that reads
     # `n_offtarget_sites = 0` is uninterpretable and comparable to nothing.
     "offtarget_specificity",
+    # Empty unless some site's presence is probabilistic — with reference sites alone
+    # the burden is the unweighted score sum and says nothing the specificity does not.
+    # When it is populated it is the only column separating a rare-variant off-target
+    # from a universal one, which is the whole point of a population-aware search.
+    "offtarget_expected_burden",
     "offtarget_scorer",
     "offtarget_matrix",
     "offtarget_scorer_citation",
@@ -106,6 +111,11 @@ def _row(candidate: Any) -> dict[str, Any]:
         "p_intended_in_distribution": None if pi is None else pi.in_distribution,
         "p_intended_calibrated": None if pi is None else pi.calibrated,
         "n_offtarget_sites": candidate.n_offtarget_sites,
+        "offtarget_expected_burden": (
+            ""
+            if candidate.offtarget_expected_burden is None
+            else round(candidate.offtarget_expected_burden, 4)
+        ),
         "offtarget_specificity": (
             None
             if candidate.offtarget_specificity is None

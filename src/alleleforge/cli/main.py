@@ -1814,6 +1814,12 @@ def offtarget(
         "on_target_excluded": locus is not None,
         "worst_score": round(report.worst_score(), 4),
         "specificity": round(report.specificity_score(), 4),
+        # Present only for a population-aware search: with reference sites alone the
+        # burden is the unweighted score sum. When it is present it is the one number
+        # here that tells a rare-variant off-target from a universal one.
+        "expected_burden": (
+            round(report.expected_burden(), 4) if report.is_frequency_weighted() else None
+        ),
         "ancestry_stratification": {
             a: round(v, 4) for a, v in report.ancestry_stratification().items()
         },
@@ -1840,10 +1846,16 @@ def offtarget(
     on_target_note = (
         "" if locus is not None else "  [on-target locus NOT excluded; pass --on-target]"
     )
+    burden_note = (
+        f", expected burden {report.expected_burden():.3f} (frequency-weighted)"
+        if report.is_frequency_weighted()
+        else ""
+    )
     human_lines = [
         f"spacer {report.spacer} / PAM {report.pam}: {report.n_sites} site(s), "
         f"worst score {report.worst_score():.3f}, "
-        f"specificity {report.specificity_score():.3f}{scorer_note}{on_target_note}",
+        f"specificity {report.specificity_score():.3f}{burden_note}{scorer_note}"
+        f"{on_target_note}",
         # Every number on the line above is conditional on the budgets and cut-offs,
         # so print them under it rather than leaving "3 site(s)" to be read as absolute.
         f"  search: {report.search_description()}",

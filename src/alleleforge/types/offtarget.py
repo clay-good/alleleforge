@@ -380,6 +380,22 @@ class OffTargetReport(BaseModel):
         """
         return 1.0 / (1.0 + sum(s.score for s in self.sites) + self.subthreshold_score_sum)
 
+    def is_frequency_weighted(self) -> bool:
+        """Return ``True`` if any site's presence in a genome is probabilistic.
+
+        A reference site is in every genome and a patient site is certain in this one,
+        so with only those, :meth:`expected_burden` is just the unweighted score sum and
+        says nothing :meth:`specificity_score` does not. It becomes a distinct number
+        exactly when a population or haplotype site carries a frequency — which is when
+        a rare-variant off-target and a universal one stop being interchangeable. Every
+        surface asks this before reporting the burden, so they agree on when it is worth
+        a reader's attention.
+        """
+        return any(
+            site.origin is not SiteOrigin.REFERENCE and site.frequency is not None
+            for site in self.sites
+        )
+
     def expected_burden(self) -> float:
         """Return the frequency-weighted expected off-target burden.
 

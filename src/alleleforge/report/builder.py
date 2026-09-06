@@ -269,6 +269,12 @@ class CandidateReport(BaseModel):
         n_offtarget_sites: Number of nominated off-target sites, if searched.
         offtarget_specificity: Aggregate genome-wide specificity in ``(0, 1]``
             (Hsu-2013-style ``1/(1+Σ scores)``), if searched; ``1.0`` = no off-targets.
+        offtarget_expected_burden: The frequency-weighted expected burden, present only
+            when some site's presence is probabilistic. `specificity_score` and
+            `worst_score` are frequency-blind, so a 0.1%-MAF hit and a universal
+            reference hit of the same raw score are indistinguishable in them; this is
+            the number that separates them, and it reached no surface at all until it
+            was asked for by name.
         offtarget_by_ancestry: Worst-case off-target score per ancestry.
         offtarget_scorer: Name of the specificity scorer that produced the site
             scores (e.g. ``"CFD"``), so a reader can tell which scorer was used.
@@ -318,6 +324,7 @@ class CandidateReport(BaseModel):
     outcome_shown_mass: float = 0.0
     n_offtarget_sites: int | None
     offtarget_specificity: float | None
+    offtarget_expected_burden: float | None = None
     offtarget_by_ancestry: tuple[AncestryOffTarget, ...]
     offtarget_scorer: str | None = None
     offtarget_scorer_citation: str | None = None
@@ -409,6 +416,7 @@ def _candidate_report(
 
     n_sites: int | None = None
     specificity: float | None = None
+    expected_burden: float | None = None
     ancestry_rows: tuple[AncestryOffTarget, ...] = ()
     offtarget_scorer: str | None = None
     offtarget_scorer_citation: str | None = None
@@ -417,6 +425,8 @@ def _candidate_report(
     if candidate.offtarget is not None:
         n_sites = candidate.offtarget.n_sites
         specificity = candidate.offtarget.specificity_score()
+        if candidate.offtarget.is_frequency_weighted():
+            expected_burden = candidate.offtarget.expected_burden()
         offtarget_scorer = candidate.offtarget.scorer
         offtarget_scorer_citation = (
             scorer_citation(offtarget_scorer) if offtarget_scorer is not None else None
@@ -448,6 +458,7 @@ def _candidate_report(
         outcome_shown_mass=outcome_shown_mass,
         n_offtarget_sites=n_sites,
         offtarget_specificity=specificity,
+        offtarget_expected_burden=expected_burden,
         offtarget_by_ancestry=ancestry_rows,
         offtarget_scorer=offtarget_scorer,
         offtarget_scorer_citation=offtarget_scorer_citation,

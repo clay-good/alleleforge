@@ -8244,6 +8244,42 @@ transfers to the reader's next decision, and it is the half most likely to be si
 unread on an object nobody surfaces.**
 
 
+## Round 249 — the differentiator, computed and shown to nobody
+
+Third round on the same query, and the third hit: an accessor on a user-facing model
+that only tests call. R247 was `apply_to`, R248 was `reason`, and this one is
+`OffTargetReport.expected_burden()`.
+
+It weights each off-target by the probability a genome actually carries it. The two
+numbers every surface *does* print — `worst_score` and `specificity_score` — are
+frequency-blind, so a 0.1%-MAF population hit and a universal reference hit of the same
+raw score are identical in both. The burden weights them a thousandfold apart. This is
+population-aware off-target nomination, the thing this project exists to do, and the
+shipped spec is explicit:
+
+    The report SHALL expose a frequency-aware `expected_burden` ... alongside the
+    frequency-blind `worst_score` and `specificity_score`, so a rare-variant off-target
+    and a universal one are distinguishable in the summary numbers.
+
+Half-met: exposed on the model, absent from every summary a reader sees. Not the HTML,
+the PDF, the TSV, the JSON, `aforge offtarget`, or `POST /api/offtarget`. A spec
+requirement can be satisfied by the object and violated by the product.
+
+It now appears on all six, gated on `is_frequency_weighted()` — a new predicate on the
+report, because with reference sites alone the burden is just the unweighted score sum
+and adds a number without adding a fact, and because six surfaces answering that
+question separately is R246's bug waiting to happen. TSV schema 7 -> 8.
+
+One thing fell out on the way: `docs/api/cli.md` told pipeline authors the
+`schema_version` was 6 while the exporter shipped 7. The single field whose job is
+letting a consumer detect that the columns moved, wrong in the place they read it, two
+bumps stale. Pinned by a test now.
+
+**Lesson: a spec requirement is satisfied by the surface, not by the object. "The report
+SHALL expose X" was true of the class and false of every artifact the report produces —
+read each requirement as a claim about what a reader receives, and check it there.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

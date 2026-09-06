@@ -159,8 +159,13 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
             f"({c.outcome_shown_mass:.2f} of the probability mass)",
             indent="      ",
         )
+    burden = (
+        f", expected burden {c.offtarget_expected_burden:.3f} frequency-weighted"
+        if c.offtarget_expected_burden is not None
+        else ""
+    )
     spec = (
-        f" (specificity {c.offtarget_specificity:.3f})"
+        f" (specificity {c.offtarget_specificity:.3f}{burden})"
         if c.offtarget_specificity is not None
         else ""
     )
