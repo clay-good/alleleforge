@@ -1576,6 +1576,13 @@ acceptance.
 
 ### Fixed
 
+- **A region naming an unknown contig crashed the library with a bare `KeyError`.** The CLI checked this and
+  said which contig, which the reference actually has, and that *"a dropped region searches less than you
+  asked for"* — the library and the web API got `KeyError: "unknown contig 'chrNOPE'"` from deep inside the
+  fetch. A panel built against another assembly or naming convention is the ordinary way this happens. The
+  check moved into `search()`, and the CLI's early exit now calls it rather than keeping a second
+  implementation of "is this contig known".
+
 - **The MIT/bulge refusal was in the CLI, so the library still crashed mid-scan.** Two rounds ago the
   combination was refused at the shell — but `search()` is what the library, the cohort path and any future
   web caller go through, and they still hit `ValueError: … this one is 19 nt` from deep inside the scan,

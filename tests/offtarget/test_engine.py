@@ -775,3 +775,49 @@ def test_search_refuses_a_scorer_that_cannot_serve_the_budget(make_reference: Ma
         rna_bulges=0,
     )
     assert report.scorer == "MIT"
+
+
+def test_search_rejects_a_region_the_reference_cannot_serve(make_reference: MakeRef) -> None:
+    """The CLI validated regions and the library did not.
+
+    A panel built against another assembly or naming convention is the ordinary way
+    this happens, and from the library it surfaced as a bare `KeyError: "unknown contig
+    'chrNOPE'"` from deep inside the fetch — while the CLI, for the same mistake, said
+    which contig, which the reference has, and that a dropped region searches less than
+    was asked for. One of three callers got an answer they could act on.
+    """
+    reference = make_reference({"chr1": "ACGT" * 60})
+    spacer = Spacer(sequence=DNASequence("TTTAAACGTTTTTTTTTTTT"))
+    bad = GenomicInterval(chrom="chrNOPE", start=0, end=100, strand=Strand.PLUS)
+
+    with pytest.raises(ValueError) as excinfo:
+        search(spacer, PAM(pattern="NGG"), reference=reference, regions=[bad])
+    message = str(excinfo.value)
+    assert "chrNOPE" in message  # names the offender
+    assert "chr1" in message  # ...and what the reference actually has
+    assert "searches less than you asked for" in message  # ...and why it matters
+
+    # A region the reference *can* serve is not refused.
+    good = GenomicInterval(chrom="chr1", start=0, end=100, strand=Strand.PLUS)
+    assert search(spacer, PAM(pattern="NGG"), reference=reference, regions=[good]) is not None
+
+
+def test_the_cli_pre_check_refuses_the_same_regions(make_reference: MakeRef) -> None:
+    """The CLI keeps an early exit; it must enforce the engine's rule, not its own.
+
+    Asserted by behaviour rather than by grepping the source for the helper's name —
+    the first version of this test did that, and left the call replaced by `pass`
+    while still passing, because the import line kept the name in the source.
+    """
+    import typer
+
+    from alleleforge.cli.main import _validate_regions
+
+    reference = make_reference({"chr1": "ACGT" * 60})
+    bad = GenomicInterval(chrom="chrNOPE", start=0, end=100, strand=Strand.PLUS)
+    good = GenomicInterval(chrom="chr1", start=0, end=100, strand=Strand.PLUS)
+
+    with pytest.raises(typer.Exit):
+        _validate_regions([bad], reference)
+    _validate_regions([good], reference)  # must not raise
+    _validate_regions(None, reference)

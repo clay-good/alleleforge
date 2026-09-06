@@ -258,6 +258,29 @@ def _is_whole_contig(
     )
 
 
+def _reject_unknown_contigs(regions: Sequence[GenomicInterval], reference: ReferenceGenome) -> None:
+    """Raise if any region names a contig ``reference`` does not have.
+
+    Raises:
+        ValueError: naming the offending contig and what the reference does have.
+            Deliberately not a `KeyError` from the fetch: the caller's mistake is the
+            *region list*, and the fix is usually the panel's assembly or its `chr`
+            prefixing, neither of which a bare missing-key error suggests.
+    """
+    if not regions:
+        return
+    known = {canonical_contig(c) for c in reference.contigs}
+    for region in regions:
+        if canonical_contig(region.chrom) not in known:
+            available = ", ".join(sorted(reference.contigs)[:8])
+            more = "…" if len(reference.contigs) > 8 else ""
+            raise ValueError(
+                f"region {region} names contig {region.chrom!r}, which this reference "
+                f"does not have (it has: {available}{more}). Check the panel's assembly "
+                "and contig naming — a dropped region searches less than you asked for."
+            )
+
+
 def search(
     spacer: Spacer | DNASequence | str,
     pam: PAM,
@@ -365,6 +388,14 @@ def search(
         )
     scan_pam = low_stringency_pam(pam)
     search_regions = list(regions) if regions is not None else _contig_regions(reference)
+    # Fail on a region this reference cannot serve, naming the offender. A panel built
+    # against another assembly or naming convention is the ordinary way this happens,
+    # and it used to surface as a bare `KeyError` from deep inside the fetch. The CLI
+    # had this check and the library did not, so only one of three callers got an
+    # answer they could act on — and skipping the region instead would be worse than
+    # either, because a smaller search reports fewer off-targets, the direction that
+    # reads as safer and is not.
+    _reject_unknown_contigs(search_regions, reference)
     haplotype_list = list(haplotypes)
 
     # A genome_index built from a different assembly than `reference` would anchor

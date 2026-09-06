@@ -5379,6 +5379,36 @@ problem" is almost never that point. I found this one from the shell, so I fixed
 question that would have caught it is the same one shell-parity asks in the other direction — not "can every
 caller reach this capability?" but "does every caller reach this guard?"**
 
+## Round 179 — the same question, one round later
+
+R178's lesson ran as a sweep: which validations live in a shell that every caller should reach? The CLI's
+`_validate_regions` is the next one, and its own docstring explains why it matters — *"a silently dropped
+region means the search covered less than was asked for, and a smaller search reports fewer off-targets, the
+direction that reads as safer and is not."* That reasoning is right and it protected one of three callers.
+
+From the library:
+
+    KeyError: "unknown contig 'chrNOPE'"
+
+against the CLI's version, which names the offending contig, lists what the reference does have, and says
+what the consequence would be. A panel built against another assembly, or against Ensembl naming when the
+reference is UCSC, is the ordinary way this happens — it is the *expected* user error, and the library met it
+with the least informative failure available.
+
+Moved into `search()`. The CLI keeps an early exit — failing before a reference is loaded is genuinely better
+for a shell — but it now calls the engine's check instead of holding its own copy, since two implementations
+of "is this contig known" will drift and the engine's is the one the web API and the cohort depend on.
+
+A note on my own test. The first version asserted that the CLI's source *contains* the helper's name, and it
+kept passing when I replaced the call with `pass` — the import line still carried the name. A source-grep
+test for "does this call that" is not a test of behaviour; rewritten to actually invoke it and assert the
+refusal.
+
+**Lesson: two rounds, two guards in the wrong place, both found by asking the same question — and the second
+was findable the moment the first was fixed. A lesson gets one round of attention when it deserves a sweep.
+After fixing an instance, run the query over the whole tree *before* moving on, because that is the only
+moment the question is fully loaded.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

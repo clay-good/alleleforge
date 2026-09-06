@@ -40,7 +40,7 @@ from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.errors import MissingDependencyError
 from alleleforge.types.provenance import DatasetVersion
-from alleleforge.types.sequence import GenomicInterval, Strand, canonical_contig
+from alleleforge.types.sequence import GenomicInterval, Strand
 from alleleforge.types.variant import Variant
 
 
@@ -358,35 +358,26 @@ def _load_encode_tracks(path: Path | None, track: str | None) -> tuple[Any | Non
 
 
 def _validate_regions(regions: list[GenomicInterval] | None, reference: Any) -> None:
-    """Fail loudly on a region the reference cannot serve, naming the offender.
+    """Fail loudly on a region the reference cannot serve, before any work begins.
 
-    A panel built against another assembly or naming convention is the ordinary way
-    this happens, and it used to surface as an unhandled ``KeyError`` traceback from
-    deep in the fetch. Failing is the right answer rather than skipping: a silently
-    dropped region means the search covered less than was asked for, and a smaller
-    search reports fewer off-targets — the direction that reads as safer and is not.
+    The rule itself lives in the engine (`_reject_unknown_contigs`), where every caller
+    passes — this is the CLI's early exit, so a bad `--region` costs a usage error
+    rather than a loaded reference and a started scan, and it reports the offending
+    contig with the CLI's exit code rather than as a traceback.
 
-    Only an *unknown contig* is refused. A region running past a contig end is valid
-    scoping, and the report's searchable-fraction line already states exactly how
-    little of it held sequence.
+    Deliberately a thin call rather than a second copy of the check: two
+    implementations of "is this contig known" would drift, and the engine's is the one
+    the library and the web API depend on.
     """
+    from alleleforge.offtarget.engine import _reject_unknown_contigs
+
     if not regions:
         return
-    known = set(reference.contigs)
-    for region in regions:
-        if canonical_contig(region.chrom) not in {canonical_contig(c) for c in known}:
-            _echo_err(
-                f"error: region {region} names contig {region.chrom!r}, which this "
-                f"reference does not have (it has: {', '.join(sorted(known)[:8])}"
-                f"{'…' if len(known) > 8 else ''}). Check the panel's assembly and "
-                "contig naming — a dropped region searches less than you asked for."
-            )
-            raise typer.Exit(ExitCode.USAGE)
-        # Deliberately *not* an error for a region past the contig end. That is a
-        # legitimate way to scope a search to nothing on a contig, and the report
-        # already says so precisely — the searchable-fraction line reads "0% of the N
-        # requested bases were searchable", which is more informative than a refusal.
-        # An unknown contig is different: no coordinate makes it valid.
+    try:
+        _reject_unknown_contigs(regions, reference)
+    except ValueError as exc:
+        _echo_err(f"error: {exc}")
+        raise typer.Exit(ExitCode.USAGE) from exc
 
 
 def _load_regions(regions: list[str] | None, bed: Path | None) -> list[GenomicInterval] | None:
