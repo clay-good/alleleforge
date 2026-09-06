@@ -26,19 +26,12 @@ from collections.abc import Callable
 from pathlib import Path
 
 from alleleforge.config import artifact_download_permitted, get_settings
+from alleleforge.errors import ChecksumError, ConsentError
 from alleleforge.types.provenance import DatasetVersion
 
 #: A downloader writes the artifact at ``url`` to ``dest``. Injected so tests
 #: never touch the network; the default implementation is consent-gated.
 Downloader = Callable[[str, Path], None]
-
-
-class ConsentError(RuntimeError):
-    """Raised when a fetch is needed but the caller withheld consent."""
-
-
-class ChecksumError(RuntimeError):
-    """Raised when an artifact is unverifiable or fails checksum verification."""
 
 
 class DatasetDescriptor(DatasetVersion):

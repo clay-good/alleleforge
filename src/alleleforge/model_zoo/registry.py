@@ -32,6 +32,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from alleleforge.config import artifact_download_permitted
+from alleleforge.errors import ChecksumError, ConsentError
 from alleleforge.types.provenance import ModelCheckpoint
 
 #: Directory of bundled model cards shipped with AlleleForge.
@@ -52,14 +53,6 @@ class ModelUse(StrEnum):
 
     RESEARCH = "research"
     COMMERCIAL = "commercial"
-
-
-class ConsentError(RuntimeError):
-    """Raised when a download is needed but the caller withheld consent."""
-
-
-class ChecksumError(RuntimeError):
-    """Raised when a checkpoint is unverifiable or fails checksum verification."""
 
 
 class LicenseError(RuntimeError):

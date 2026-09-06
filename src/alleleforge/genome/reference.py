@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 from pyfaidx import Fasta
 
 from alleleforge.config import artifact_download_permitted, get_settings
+from alleleforge.errors import ChecksumError, ConsentError
 from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import (
     CoordinateSystem,
@@ -41,10 +42,6 @@ if TYPE_CHECKING:
 #: A downloader writes the artifact at ``url`` to ``dest``. Injected so tests
 #: never touch the network; the default implementation is consent-gated.
 Downloader = Callable[[str, Path], None]
-
-
-class ConsentError(RuntimeError):
-    """Raised when a download is needed but the caller withheld consent."""
 
 
 class ContigNamingError(KeyError):
@@ -65,10 +62,6 @@ def _contig_aliases(chrom: str) -> tuple[str, ...]:
     else:
         candidates = (chrom, base, f"chr{base}")
     return tuple(dict.fromkeys(candidates))
-
-
-class ChecksumError(RuntimeError):
-    """Raised when a downloaded artifact fails checksum verification."""
 
 
 @dataclass(frozen=True)

@@ -8,8 +8,8 @@ raw target sequence into a left-aligned, reference-validated
 
 from __future__ import annotations
 
+from alleleforge.errors import ConsentError
 from alleleforge.variant.effect import (
-    ConsentError,
     Consequence,
     EffectPredictor,
     Impact,

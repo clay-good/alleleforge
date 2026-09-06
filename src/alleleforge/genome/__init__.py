@@ -8,6 +8,7 @@ infrastructure: it knows about sequence and coordinates, not CRISPR chemistry.
 
 from __future__ import annotations
 
+from alleleforge.errors import ChecksumError, ConsentError
 from alleleforge.genome.coordinates import (
     DEFAULT_RECOMMENDED_BUILD,
     HG38_DIFFICULT_REGIONS,
@@ -28,8 +29,6 @@ from alleleforge.genome.index import (
 from alleleforge.genome.reference import (
     BUILTIN_BUILDS,
     BuildDescriptor,
-    ChecksumError,
-    ConsentError,
     FetchResult,
     ReferenceGenome,
 )

@@ -21,6 +21,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict
 
+from alleleforge.errors import ConsentError
 from alleleforge.types.variant import Variant
 
 
@@ -282,10 +283,6 @@ def _select_transcript(consequences: list[dict[str, Any]], transcript: str) -> d
         if c.get("canonical"):
             return c
     return consequences[0]  # 3. else the first reported block
-
-
-class ConsentError(RuntimeError):
-    """Raised when a network fetch is needed but the caller withheld consent."""
 
 
 class VepRestPredictor:

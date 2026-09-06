@@ -9,12 +9,11 @@ checkpoint. Loaded checkpoints surface as Phase 1
 
 from __future__ import annotations
 
+from alleleforge.errors import ChecksumError, ConsentError
 from alleleforge.model_zoo.registry import (
     CARDS_DIR,
     FORBIDDEN_LICENSES,
     CardError,
-    ChecksumError,
-    ConsentError,
     LicenseError,
     ModelCard,
     ModelRegistry,

@@ -3891,6 +3891,43 @@ up cost two minutes; reporting it would have been wrong in public.
 `skipped` were both honest and individually documented, and their juxtaposition was the lie — nothing in
 either field's definition is wrong, and no test of either one alone would have caught it.**
 
+## Round 141 — one name, seven classes
+
+R140's lesson sent me through the other gates asking whether each keeps the losing side. They all do, and
+better than I expected: `Split.verify` names the leaking fold *and an example id*; the FM-index integrity
+check prints expected and reconstructed digests; `aforge verify` accumulates a `problems` list rather than
+failing on the first. Nothing to fix. Recorded.
+
+What the sweep did surface was next to those checks rather than inside them. Three modules each define their
+own `ChecksumError`; four define their own `ConsentError`. Not aliases — seven distinct classes, exported
+under two names from four public packages:
+
+    >>> from alleleforge.genome import ChecksumError as G
+    >>> from alleleforge.data import ChecksumError as D
+    >>> G is D
+    False
+    >>> try: raise D("dataset checksum mismatch for gnomad.vcf")
+    ... except G: ...
+    alleleforge.data.registry.ChecksumError: dataset checksum mismatch for gnomad.vcf
+
+A caller who guards a design run with the one they happened to import catches a third of the artifact-gate
+surface and the rest escapes as an unrelated-looking `RuntimeError`. There is no visible edge to this: the
+name is identical, the base class is identical, the docstrings are near-identical, and the scorers' own
+docstrings say *"ConsentError / LicenseError / ChecksumError: From the weight gate"* as though each named one
+type. Checked the four `ConsentError` docstrings before unifying — "download", "fetch", "network fetch" — one
+policy in four wordings, not four policies.
+
+`alleleforge/errors.py` now holds one class each; every module re-exports the names, so no import breaks and
+`isinstance` agrees. Rewiring the re-exports made `mypy --strict` complain that a package cannot re-export an
+imported name implicitly — which pushed the `__init__` files to import from the canonical module directly,
+the better shape anyway.
+
+**Lesson: duplication is usually a tidiness complaint, and this one is not — a duplicated *exception* is a
+duplicated `except`, and the failure mode is that a correct-looking handler silently declines to run. Worth a
+standing check: for every exception name defined more than once in a tree, confirm the copies are genuinely
+different failures. Same name plus same base class plus same meaning is a bug with no symptom until the day
+it matters.**
+
 ## Round 140 — a gate that could fail but not explain
 
 Continuing R139's boundary question onto the design side. There is no `agrees_with` there; the equivalent is

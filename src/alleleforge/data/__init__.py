@@ -28,12 +28,11 @@ from alleleforge.data.haplotypes import Haplotype, HaplotypePanel
 from alleleforge.data.hgdp import HGDP
 from alleleforge.data.registry import (
     DEFAULT_REGISTRY,
-    ChecksumError,
-    ConsentError,
     DatasetDescriptor,
     DatasetRegistry,
 )
 from alleleforge.data.thousand_genomes import ThousandGenomes
+from alleleforge.errors import ChecksumError, ConsentError
 
 __all__ = [
     "DEFAULT_REGISTRY",

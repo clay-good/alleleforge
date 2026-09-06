@@ -94,6 +94,15 @@ interval level, MAF threshold) and the network permission that gates artifact do
 
 ::: alleleforge.config
 
+## Artifact-gate exceptions
+
+The two failures a caller most plausibly handles uniformly: consent withheld for a
+download, and an artifact that did not hash to its pinned value. Every gate — model
+zoo, genome reference, data registry, VEP — raises these same classes, so one
+`except` covers them all.
+
+::: alleleforge.errors
+
 ## Model checkpoint loading
 
 ::: alleleforge.model_zoo.loader

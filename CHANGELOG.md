@@ -8,6 +8,18 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Seven exception classes wore two names, so `except` on an artifact gate caught a third of it.**
+  `ChecksumError` was defined independently in the model zoo, the genome reference, and the data registry;
+  `ConsentError` in those three plus the VEP adapter — and each was exported under that name from its public
+  package. A caller writing `from alleleforge.genome import ChecksumError` and guarding a design run with it
+  caught reference-checksum failures and silently missed the model-checkpoint and dataset ones, which escaped
+  as unrelated-looking `RuntimeError`s, while the scorers' docstrings promised "ConsentError / LicenseError /
+  ChecksumError from the weight gate" as though each named one type. Both now live in
+  `alleleforge.errors` and every module re-exports them, so existing imports keep working and `isinstance`
+  finally agrees. "Nothing may be downloaded without my say-so" is one policy, not four.
+
 ### Changed
 
 - **The reproducibility gate now says what drifted.** `scripts/reproduce.py` is a blocking `make ci` job, and
