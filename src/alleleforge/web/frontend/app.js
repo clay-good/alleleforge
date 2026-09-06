@@ -158,20 +158,34 @@ function renderBatch(data) {
           eff += ' <span class="err">OOD</span>';
         }
       }
+      // A worst-case score alone is the most reassuring number the system can make
+      // and the least interpretable: it is conditional on the aggregate specificity
+      // the scan is summarized by, and on whether any population source backed it.
+      // `offtarget_sources` is `{}` when none did — which over HTTP is always, since
+      // no file-backed source can be supplied to this deployment — and an empty
+      // ancestry picture means "not measured", not "clean".
       const worst = typeof s.worst_offtarget === "number" ? s.worst_offtarget.toFixed(3) : "—";
+      const spec =
+        typeof s.best_specificity === "number" ? s.best_specificity.toFixed(3) : "—";
+      const sources = s.offtarget_sources;
+      const backed = sources && Object.keys(sources).length > 0;
+      const basis = backed
+        ? esc(Object.keys(sources).join(", "))
+        : '<span class="err">reference-only</span>';
       const flagged = Array.isArray(s.best_caveats) ? s.best_caveats : [];
       const caveats = flagged.length ? `<span class="err">${flagged.map(esc).join(", ")}</span>` : "—";
       const detail =
         it.status === "ok"
-          ? `<td>${cell(s.best_chemistry)}</td><td>${eff}</td><td>${worst}</td><td>${caveats}</td><td>${cell(s.n_candidates)}</td>`
-          : `<td colspan="5" class="err">${cell(it.error)}</td>`;
+          ? `<td>${cell(s.best_chemistry)}</td><td>${eff}</td><td>${worst}</td><td>${spec}</td><td>${basis}</td><td>${caveats}</td><td>${cell(s.n_candidates)}</td>`
+          : `<td colspan="7" class="err">${cell(it.error)}</td>`;
       return `<tr class="${it.status}"><td>${esc(it.item_id)}</td><td>${it.status}</td>${detail}</tr>`;
     })
     .join("");
   batchResults.innerHTML = `
     <table class="results">
       <thead><tr><th>variant</th><th>status</th><th>best</th><th>efficiency</th>
-        <th>worst off-target</th><th>caveats</th><th>candidates</th></tr></thead>
+        <th>worst off-target</th><th>specificity</th><th>off-target basis</th>
+        <th>caveats</th><th>candidates</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }

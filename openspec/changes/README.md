@@ -7136,6 +7136,43 @@ true of the whole file — that is precisely the fact no single small improvemen
 ever about.**
 
 
+## Round 222 — the column next to the one that was already fixed
+
+The frontend's cohort table has a test called
+`test_the_browser_cohort_table_never_shows_a_bare_estimate`, written by an earlier
+round because the table rendered `0.61` with no interval. It fixed the **efficiency**
+column. The column beside it read:
+
+    worst off-target
+    0.000
+
+`worst_offtarget` alone is the most reassuring number this system can produce and the
+least interpretable one. The batch response the table is built from also carries
+`best_specificity` — the aggregate the whole scan is summarized by — and
+`offtarget_sources`, which is `{}` when no population source contributed. Over HTTP
+that is *always* the case, because no file-backed source can be supplied to a
+deployment, so every cohort row in the browser was showing a reference-only result as
+a clean one. The table now reads:
+
+    worst off-target  specificity  off-target basis
+    0.000             0.879        reference-only     <- in the error style
+
+Verified in a real browser, not only by test: the SPA was served, a three-variant
+cohort submitted through the form, and the rendered row read back from the DOM with
+its class attributes, because "the string is in app.js" and "the cell renders" are
+different claims and this file's whole purpose is the second one.
+
+The shape is R217's again, at its sharpest. When one member of a family is unguarded
+it is not random which — and here the family was the *columns of a single table*, and
+the guarded one was the column somebody had already been burned by. The fix for the
+efficiency column did not generalize to the row it lived in, because a fix generalizes
+only as far as the sentence that motivated it.
+
+**Lesson: the strongest predictor of an unfixed instance is an adjacent fixed one. A
+test named "never shows a bare estimate" is a claim about a table; check it against
+every column, not the one in the commit that added it.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

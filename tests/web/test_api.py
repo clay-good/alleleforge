@@ -67,6 +67,28 @@ async def test_the_browser_cohort_table_never_shows_a_bare_estimate(
     assert "OOD" in app_js
 
 
+async def test_the_browser_cohort_table_never_shows_a_bare_offtarget_score(
+    client: httpx.AsyncClient,
+) -> None:
+    """The column next to the one the test above fixed had the same defect.
+
+    `worst_offtarget` is rendered alone as `0.000` — the most reassuring number the
+    system can produce — while the batch response also carries `best_specificity`
+    (the aggregate the whole scan is summarized by) and `offtarget_sources` (which
+    safety sources actually contributed, `{}` meaning none did, which over HTTP is
+    always the case because no file-backed source can be supplied there).
+
+    A bare worst-score with neither is the failure this project keeps returning to:
+    "not measured" rendered as "clean", on the triage view for its least technical
+    audience.
+    """
+    app_js = (await client.get("/app.js")).text
+    for field in ("best_specificity", "offtarget_sources"):
+        assert field in app_js, f"the cohort table ignores {field}"
+    # And the empty case is named rather than left as an absent column.
+    assert "reference-only" in app_js
+
+
 async def test_the_browser_cohort_table_escapes_user_input(client: httpx.AsyncClient) -> None:
     """A cohort row is built from a pasted variant list and inserted with innerHTML.
 

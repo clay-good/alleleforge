@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **The browser cohort table shows specificity and the off-target basis, not a bare worst-case score.** The
+  column beside the one an earlier round fixed for bare efficiency estimates rendered `worst off-target 0.000`
+  alone — the most reassuring number the system can produce. The batch response also carries
+  `best_specificity` and `offtarget_sources` (`{}` when nothing backed the scan, which over HTTP is always,
+  since no file-backed population source can reach a deployment), and the table ignored both, so every cohort
+  row in the browser showed a reference-only result as a clean one. It now shows the specificity and marks the
+  basis `reference-only` in the error style. Verified by driving the served SPA in a browser and reading the
+  rendered row back from the DOM, not only by asserting on `app.js`.
+
 - **A standalone off-target result says which genome it searched.** `aforge offtarget --json` and
   `POST /api/offtarget` carried extensive per-search honesty (`on_target_excluded`, `searched_bases`,
   `effective_matrix`, the ancestry stratification) and no document-level context at all: no reference

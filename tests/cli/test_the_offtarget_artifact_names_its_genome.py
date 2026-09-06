@@ -90,9 +90,7 @@ def test_the_payload_identifies_the_genome(runner: CliRunner, tmp_path: Path) ->
 def test_two_genomes_do_not_share_a_payload(runner: CliRunner, tmp_path: Path) -> None:
     """The premise: the two scans really do disagree about the answer."""
     plain, _ = _run(runner, _fasta(tmp_path, "a.fa"))
-    decoy, _ = _run(
-        runner, _fasta(tmp_path, "b.fa", "TATATATATATACCAATATA" + "TGG" + "T" * 20)
-    )
+    decoy, _ = _run(runner, _fasta(tmp_path, "b.fa", "TATATATATATACCAATATA" + "TGG" + "T" * 20))
     assert plain["specificity"] != decoy["specificity"]
     assert plain["reference"] != decoy["reference"]
 
@@ -103,9 +101,7 @@ def test_the_payload_states_its_coordinate_system(runner: CliRunner, tmp_path: P
     assert payload["coordinate_system"] == "0-based-half-open"
 
 
-def test_the_payload_carries_the_research_use_disclaimer(
-    runner: CliRunner, tmp_path: Path
-) -> None:
+def test_the_payload_carries_the_research_use_disclaimer(runner: CliRunner, tmp_path: Path) -> None:
     payload, _ = _run(runner, _fasta(tmp_path, "a.fa"))
     assert "not a medical device" in payload["disclaimer"]
 
