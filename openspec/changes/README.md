@@ -4388,6 +4388,38 @@ the automated one say the same thing.
 record are read only by strangers, months later, and their failure mode is that someone else is wrong about
 your work. Enumerate what the repository emits, not just what it builds.**
 
+## Round 149 — the install nobody had done
+
+R148's lesson: enumerate what the repository *emits*. The largest thing it emits is the package, and the test
+suite has never once run against it — `make ci` runs from `src/` with every optional extra installed. So:
+build the wheel, install it into an empty venv, and be a new user.
+
+The wheel itself is fine, and worth recording as a negative: hatchling ships all 33 non-Python runtime files
+— the CFD matrix, seventeen model cards, the benchmark splits and fixtures, `py.typed` — and a diff of the
+package tree against the archive is empty. Data files resolve from the installed location.
+
+Then I ran the quickstart the way the deployment guide writes it. `pip install "alleleforge[cli]"`, then
+`aforge design …`:
+
+    ModuleNotFoundError: No module named 'pyfaidx'
+
+with a full Rich traceback. That is a *documented* install — the guide's table lists "CLI" and "Genome
+access" as separate rows — so the first command a new user runs after the CLI install fails, and fails in the
+least useful way available. The irony is that this codebase answers this question well everywhere it asks it
+explicitly: *"install the 'genome' extra"*, *"install alleleforge[cas9-rs3], or use…"*. It never gets to ask.
+The CLI defers its heavy imports into the command bodies, but the modules those pull in import their own
+dependencies at module level, so the ImportError escapes from inside the import statement, upstream of every
+guard.
+
+`design`, `batch` and `offtarget` now translate it: the module name, mapped to the extra that installs it,
+and a non-zero exit. Then installed `pyfaidx` and ran the design again from the installed package, end to
+end, to confirm the whole thing actually works: one ABE candidate, real reagent, provenance written.
+
+**Lesson: a test suite that runs from the source tree tests the source tree. Everything about how the product
+is *obtained* — the wheel's contents, the extras' boundaries, the first command after the documented install
+— is outside what CI can see, and it is the entire experience of every user who is not me. Build it, install
+it somewhere empty, and use it.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

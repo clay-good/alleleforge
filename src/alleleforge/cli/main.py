@@ -30,7 +30,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import IntEnum, StrEnum
 from pathlib import Path
-from typing import Annotated, Any, TypeVar
+from typing import Annotated, Any, NoReturn, TypeVar
 
 import typer
 
@@ -73,6 +73,54 @@ app = typer.Typer(
 def _echo_err(message: str) -> None:
     """Write a message to stderr."""
     typer.echo(message, err=True)
+
+
+#: Which optional extra installs each third-party module a command may need. The CLI's
+#: heavy imports are deferred into the command bodies, but the modules they pull in
+#: import their dependencies at module level — so a missing optional package surfaces
+#: as a raw ImportError traceback from inside the import, not from the guarded call.
+_EXTRA_FOR_MODULE: dict[str, str] = {
+    "pyfaidx": "genome",
+    "pyliftover": "genome",
+    "cyvcf2": "genome",
+    "pysam": "genome",
+    "mappy": "genome",
+    "polars": "core",
+    "pyarrow": "core",
+    "numpy": "core",
+    "hgvs": "variant",
+    "torch": "ml",
+    "transformers": "ml",
+    "lightgbm": "cas9-rs3",
+    "sglearn": "cas9-rs3",
+    "fastapi": "web",
+    "uvicorn": "web",
+}
+
+
+def _missing_dependency(exc: ImportError) -> NoReturn:
+    """Turn an optional-dependency ImportError into an actionable message.
+
+    `pip install "alleleforge[cli]"` is a documented install, and every design command
+    needs the genome stack on top of it — so the first command a new user runs used to
+    end in a `ModuleNotFoundError: No module named 'pyfaidx'` traceback. The library
+    already answers this well wherever it checks explicitly ("install the 'genome'
+    extra"); this gives the same answer for the imports that fail before any check runs.
+    """
+    module = (exc.name or "").split(".")[0]
+    extra = _EXTRA_FOR_MODULE.get(module)
+    fix = (
+        f"pip install 'alleleforge[{extra}]'"
+        if extra
+        else f"pip install {module}"
+        if module
+        else "install the missing dependency"
+    )
+    _echo_err(
+        f"error: this command needs the optional dependency {module or '?'}, which is "
+        f"not installed: {fix}"
+    )
+    raise typer.Exit(ExitCode.UNAVAILABLE)
 
 
 def _version_callback(value: bool) -> None:
@@ -666,14 +714,17 @@ def design(
     ] = False,
 ) -> None:
     """Design a ranked, multi-chemistry editing menu for a variant."""
-    from alleleforge.config import Settings
-    from alleleforge.design.designer import design as run_design
-    from alleleforge.report.builder import DEFAULT_RENDER_CANDIDATES, build_report
-    from alleleforge.report.export import report_to_json, report_to_tsv
-    from alleleforge.report.html import render_html
-    from alleleforge.report.pdf import render_pdf
-    from alleleforge.types.edit import Chemistry, EditIntent
-    from alleleforge.variant.resolver import resolve as resolve_variant
+    try:
+        from alleleforge.config import Settings
+        from alleleforge.design.designer import design as run_design
+        from alleleforge.report.builder import DEFAULT_RENDER_CANDIDATES, build_report
+        from alleleforge.report.export import report_to_json, report_to_tsv
+        from alleleforge.report.html import render_html
+        from alleleforge.report.pdf import render_pdf
+        from alleleforge.types.edit import Chemistry, EditIntent
+        from alleleforge.variant.resolver import resolve as resolve_variant
+    except ImportError as exc:
+        _missing_dependency(exc)
 
     state: GlobalState = ctx.obj
     cfg = _load_config(config)
@@ -1014,7 +1065,11 @@ def batch(
     fast path; anything else is read as a one-variant-per-line list.
     """
     from alleleforge.config import Settings
-    from alleleforge.design.cohort import design_many
+
+    try:
+        from alleleforge.design.cohort import design_many
+    except ImportError as exc:
+        _missing_dependency(exc)
     from alleleforge.types.edit import Chemistry, EditIntent
 
     state: GlobalState = ctx.obj
@@ -1261,7 +1316,10 @@ def offtarget(
     as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Run population/haplotype-aware off-target search for a spacer."""
-    from alleleforge.offtarget.engine import search
+    try:
+        from alleleforge.offtarget.engine import search
+    except ImportError as exc:
+        _missing_dependency(exc)
     from alleleforge.types.guide import PAM
 
     state: GlobalState = ctx.obj

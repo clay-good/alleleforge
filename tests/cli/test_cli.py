@@ -1702,3 +1702,52 @@ def test_lift_reports_an_unmappable_locus_instead_of_dropping_it(runner: CliRunn
     assert result.exit_code != 0
     assert "chrZ:1-9(+)\tUNMAPPED" in result.output
     assert "1 of 2 loci did not lift" in result.output
+
+
+def test_a_missing_optional_dependency_is_a_message_not_a_traceback(
+    runner: CliRunner, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`pip install "alleleforge[cli]"` then `aforge design` ended in a traceback.
+
+    That is a documented install — the deployment guide lists the CLI and the genome
+    stack as separate lines — so the first command a new user runs raised
+    `ModuleNotFoundError: No module named 'pyfaidx'` from inside a deferred import.
+    The CLI defers its heavy imports, but the modules they pull in import *their*
+    dependencies at module level, so the failure happens before any of the explicit
+    checks that already answer this well ("install the 'genome' extra").
+
+    Found by building the wheel, installing it into a clean venv, and running the
+    quickstart — the suite always ran from `src/` with every extra present.
+    """
+    import sys
+
+    monkeypatch.setitem(sys.modules, "alleleforge.design.designer", None)
+    result = runner.invoke(
+        app, ["design", "chr2:25:A>G", "--reference-fasta", str(tmp_path / "ref.fa")]
+    )
+    assert result.exit_code == ExitCode.UNAVAILABLE
+    assert "Traceback" not in result.output
+    assert "optional dependency" in result.output
+
+
+def test_the_dependency_message_names_the_extra_that_fixes_it(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A bare package name is not actionable; the extra that installs it is.
+
+    `pyfaidx` does not tell a user what to type. `alleleforge[genome]` does, and it is
+    the spelling the deployment guide and the library's own explicit checks both use.
+    """
+    import typer
+
+    from alleleforge.cli.main import _missing_dependency
+
+    with pytest.raises(typer.Exit) as excinfo:
+        _missing_dependency(ImportError(name="pyfaidx"))
+    assert excinfo.value.exit_code == ExitCode.UNAVAILABLE
+    assert "alleleforge[genome]" in capsys.readouterr().err
+
+    # An unmapped module still gets a usable instruction rather than a bare name.
+    with pytest.raises(typer.Exit):
+        _missing_dependency(ImportError(name="somethingelse"))
+    assert "pip install somethingelse" in capsys.readouterr().err

@@ -1482,6 +1482,15 @@ acceptance.
 
 ### Fixed
 
+- **`pip install "alleleforge[cli]"` then `aforge design` ended in a traceback.** That is a documented
+  install — the deployment guide lists the CLI and the genome stack as separate rows — so the first command
+  a new user runs raised `ModuleNotFoundError: No module named 'pyfaidx'`. The CLI defers its heavy imports,
+  but the modules those pull in import *their* dependencies at module level, so the failure happens before
+  any of the explicit checks that already answer this well. `design`, `batch`, and `offtarget` now report
+  `error: this command needs the optional dependency pyfaidx, which is not installed: pip install
+  'alleleforge[genome]'` and exit non-zero. Found by building the wheel, installing it into a clean venv, and
+  running the quickstart; the suite had only ever run from `src/` with every extra present.
+
 - **The disk cache's integrity gate was implemented and nothing switched it on.** `ContentAddressedCache`
   defaults to `verify=False`, and the persistent embedding cache — the only cache constructed anywhere in the
   library — took the default, so `verify=True` appeared solely in the cache's own tests: the checksum

@@ -243,3 +243,15 @@ was asked for and reports fewer off-targets.
 - **WHEN** one of several loci has no mapping in the chain file
 - **THEN** it is printed as `UNMAPPED`, the others are still printed, and the command
   exits non-zero
+
+### Requirement: A missing optional dependency is reported, not raised
+
+A command whose deferred imports need an optional extra SHALL report the missing
+module and the extra that installs it, and exit non-zero. The heavy imports are
+deferred into the command bodies, but the modules they pull in import their own
+dependencies at module level, so the failure arrives before any explicit check.
+
+#### Scenario: The documented CLI install, without the genome extra
+- **WHEN** `aforge design` runs in an environment installed as `alleleforge[cli]`
+- **THEN** it prints the missing dependency and `pip install 'alleleforge[genome]'`
+  rather than a `ModuleNotFoundError` traceback
