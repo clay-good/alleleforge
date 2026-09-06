@@ -118,14 +118,19 @@ is threaded through every stochastic step and recorded in the provenance block o
 every result, so a run is re-derivable from its config plus seed. The CLI writes a
 `<output>.provenance.json` sidecar next to any file output.
 
+Every `ALLELEFORGE_*` variable below is the `Settings` field name under the
+`ALLELEFORGE_` prefix, and a check keeps this table honest: a name documented here
+that nothing reads fails the suite, because an ignored setting is silent.
+
 | Setting | Env var | Default |
 |---|---|---|
-| Reference build | `ALLELEFORGE_REFERENCE_BUILD` | `hg38` |
+| Reference build | `ALLELEFORGE_REFERENCE` | `hg38` |
 | Reference FASTA (web) | `ALLELEFORGE_REFERENCE_FASTA` | _none (503 until set)_ |
 | Global seed | `ALLELEFORGE_SEED` | `20240501` |
 | Predictive-interval level | `ALLELEFORGE_INTERVAL_LEVEL` | `0.80` |
 | Off-target MAF threshold | `ALLELEFORGE_MAF_THRESHOLD` | `0.001` |
-| Cache directory | `XDG_CACHE_HOME` | `~/.cache/alleleforge` |
+| Allow network access | `ALLELEFORGE_ALLOW_NETWORK` | `false` |
+| Cache directory | `ALLELEFORGE_CACHE_DIR`, else `XDG_CACHE_HOME` | `~/.cache/alleleforge` |
 
 ## Optional native acceleration
 

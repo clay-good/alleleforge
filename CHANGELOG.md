@@ -10,6 +10,16 @@ acceptance.
 
 ### Added
 
+- **The documented environment variables are checked against the ones the software reads.**
+  `docs/deployment.md` named the reference build `ALLELEFORGE_REFERENCE_BUILD`; the `Settings` field is
+  `reference`, so the real variable is `ALLELEFORGE_REFERENCE` and exporting the documented name silently left
+  the build on `hg38` — a deployer aiming at mm39 would have had every downstream coordinate interpreted
+  against the wrong genome, with nothing said. The table also omitted `ALLELEFORGE_ALLOW_NETWORK` and credited
+  the cache directory to `XDG_CACHE_HOME` alone when `ALLELEFORGE_CACHE_DIR` takes precedence. All three are
+  fixed, and a new check fails the suite for any `ALLELEFORGE_*` name in the docs that is neither a `Settings`
+  field nor read from `os.environ` in `src/`, with three variables additionally exercised end to end so the
+  derived "honored" list cannot drift into agreeing with a wrong table.
+
 - **CLI help is checked against the flags it names.** `--region`'s help on `design`, `batch` and
   `offtarget` warned that the locus is 0-based "unlike `--variant` and `--pop-freqs`" — two flags that do not
   exist (the variant is a positional argument; the frequency file is `--gnomad`), a wrong pair repeated in

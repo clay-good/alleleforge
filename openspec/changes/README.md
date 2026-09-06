@@ -6661,6 +6661,48 @@ mentions it. Prose about flags can be checked mechanically against the flags; do
 rather than proofreading it.**
 
 
+## Round 211 — the setting that was documented and ignored
+
+`docs/deployment.md` tabulates the `ALLELEFORGE_*` variables a deployer sets. The first
+row was the reference build, as `ALLELEFORGE_REFERENCE_BUILD`. The `Settings` field is
+`reference`, so the variable the software reads is `ALLELEFORGE_REFERENCE`:
+
+    ALLELEFORGE_REFERENCE_BUILD=mm39  ->  Settings().reference == 'hg38'
+    ALLELEFORGE_REFERENCE=mm39        ->  Settings().reference == 'mm39'
+
+No warning, no error. A deployer who sets the build from the documentation gets hg38 and
+believes they have mm39, and every coordinate downstream is then interpreted against the
+wrong genome. This is the shape the log keeps returning to — a real input inert on the
+axis it names, with nothing anywhere saying so — and it reached the config table because
+`env_prefix` derives variable names from field names, so renaming or naming a field never
+touches the prose that documents it.
+
+The same table omitted `ALLELEFORGE_ALLOW_NETWORK`, the switch governing whether the
+library may reach the network at all, and listed the cache directory under `XDG_CACHE_HOME`
+alone when `ALLELEFORGE_CACHE_DIR` takes precedence and is what `--cache-dir` exports.
+
+`test_documented_env_vars_are_read` is R210's query one surface over: prose that names an
+interface can be checked against the interface. A name is honored if it is a `Settings`
+field under the prefix or if `src/` hands its literal to `os.environ`; anything the docs
+name that is neither fails. Because "honored" is derived rather than listed, three of the
+names are also exercised for real — set the variable, assert the setting moved — so the
+derivation cannot drift into agreeing with a table that is wrong.
+
+Writing the scan cost one false accusation worth recording. Its first `os.environ`
+pattern captured `[A-Z_]+`, which does not match a digit, so `ALLELEFORGE_PRIDICT2_REPO`
+and `ALLELEFORGE_PRIDICT2_PYTHON` were reported as documented-but-unread when both are
+read a line apart in `pridict_engine.py`. A checker that names innocent surfaces gets
+switched off, and the failure mode is quiet: had those two been the *only* hits, the
+obvious response would have been to delete two correct lines of documentation. The three
+"is not vacuous" assertions in this file and the last are cheap next to that.
+
+**Lesson: a settings framework that derives environment-variable names from field names
+has moved the name out of the code and into a convention, and a convention cannot be
+grepped for by the person editing the field. Every derived public name — env vars, CLI
+flags, JSON keys — needs a test that walks from the docs back to the definition, because
+nothing else will.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
