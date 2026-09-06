@@ -10,6 +10,13 @@ acceptance.
 
 ### Added
 
+- **Every native kernel's speedup is re-measurable.** `scripts/native_speedup.py` timed four things while
+  the crate exposed six, and the R223 contig fold was timed by nothing — so several claims in the round log
+  existed only as prose. It now also times the bulged-alignment kernel (R208), the per-anchor evaluation
+  kernel (R224) and the fold to the index alphabet, each against the fallback it replaced: **9.5x**, **8.9x**
+  and **13.5x/19.4x** on this machine. A `TIMED_KERNELS` map ties each function registered in
+  `rust/src/lib.rs` to the section that times it, and a test fails in both directions — a kernel with no
+  section, or a section naming a kernel that no longer exists.
 - **The specificity says what else went into it.** `specificity_score()` is
   `1 / (1 + Σ reported + subthreshold_score_sum)`: the tail is deliberate, so a guide does not become clean
   because the caller asked to see fewer of its off-targets. Nothing disclosed it, so the headline number could

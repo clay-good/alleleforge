@@ -8084,6 +8084,37 @@ is where a reader's trust goes, and it is the one most likely to have an undiscl
 term in it — here, literally, a hidden addend in the denominator.**
 
 
+## Round 244 — a dozen speedup claims, and no way to check six of them
+
+Switching from auditing to construction. `scripts/native_speedup.py` exists precisely
+because a performance claim in prose cannot be re-measured — the same standard
+`scripts/reproduce.py` holds the scientific result to. It timed four things. The crate
+exposes six, two of which I added in this session, and the R223 contig fold was measured
+by nothing at all. So the log's own numbers — "2 Mb: 59.8ms -> 3.3ms", "~1.25s -> ~0.89s"
+— were exactly the kind of unverifiable prose the script was written to prevent.
+
+The script now times the bulged-alignment kernel (R208), the per-anchor evaluation
+kernel (R224), and the fold to the index alphabet (R223), each against the fallback it
+replaced, and asserts the fold still returns the same string. Measured here: **9.5x**,
+**8.9x**, and **13.5x / 19.4x** (clean contig / one stray base). The README quotes them
+with the caveat that wall-clock is hardware-dependent and the script is the answer.
+
+The part worth keeping is the guard. A script that enumerates what it covers will fall
+behind what there is to cover, silently, exactly as this one did. `TIMED_KERNELS` maps
+each name the crate registers in `rust/src/lib.rs` to the section that times it, and
+`test_the_speedup_script_times_every_kernel` fails in both directions — a new kernel with
+no section, or a section naming a kernel that no longer exists — plus a staleness check
+on the one exemption (`version`, which does no work) and a check that each named heading
+is really printed. Removing `evaluate_anchor` from the map fails the first; adding a
+fictional `fm_ghost` fails the second and third. Verified by mutation, not by reading.
+
+**Lesson: an explicit list of what you measure needs a check that it still covers what
+there is to measure. This is the third round where the defect was in the machinery meant
+to prevent defects (R187-R190, R231, R238) — the coverage list, not the thing covered.
+Every enumeration in the repo should be asked: what makes this fail when the world
+grows?**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

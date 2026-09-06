@@ -514,6 +514,15 @@ attribute a site's burden to a population that merely shows a trace, sub-thresho
 > [`scripts/native_speedup.py`](scripts/native_speedup.py).
 
 > [!NOTE]
+> **Every kernel's speedup is re-measurable, not just quoted.**
+> [`scripts/native_speedup.py`](scripts/native_speedup.py) times all six functions the crate exposes
+> plus the contig fold, and a test fails if the crate gains one the script does not cover. On this
+> machine: bulged alignment **~10x** native, per-anchor evaluation **~9x** native, and the fold to the
+> index alphabet **~13x** (clean 2 Mb contig) to **~19x** (one non-ACGTN base) after moving from a
+> per-base loop to `str.translate`. Wall-clock is hardware-dependent — run the script rather than
+> trusting these numbers.
+
+> [!NOTE]
 > **FM-index seed-and-extend on the reference scan (R2, landed).** Stage 1 now anchors PAMs through a
 > content-addressed FM-index (`search(..., use_fm_index=...)`): each concrete PAM is *located* in the
 > index (the PAM is the seed) and only those anchors are *extended* by the shared alignment, replacing
