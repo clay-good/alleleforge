@@ -162,6 +162,11 @@ class OffTargetReport(BaseModel):
     #: examined when nothing for it exists. Empty when every request is backed, and
     #: empty when no source was supplied at all (a different case, warned elsewhere).
     unbacked_populations: tuple[str, ...] = ()
+    #: 1-based spacer positions holding a non-ACGT base. Such a position cannot be
+    #: scored — the CFD matrix has no entry for it — so the aligner counts it as a
+    #: mismatch and the site's score falls toward 0, the *optimistic* direction on a
+    #: safety axis, since the real base is unknown and may match perfectly.
+    ambiguous_spacer_positions: tuple[int, ...] = ()
     reference_build: str = "hg38"
     scorer: str | None = None
     score_matrix: str | None = None
@@ -199,6 +204,13 @@ class OffTargetReport(BaseModel):
                     "were searchable (the rest are assembly gaps, ambiguity codes, or "
                     "past a contig end)"
                 )
+        if self.ambiguous_spacer_positions:
+            listed = ", ".join(str(p) for p in self.ambiguous_spacer_positions)
+            coverage += (
+                f"; the spacer is ambiguous at position(s) {listed}, which cannot be "
+                "scored — those positions count as mismatches, pushing scores DOWN, so "
+                "a low score here is not evidence of safety"
+            )
         if self.unbacked_populations:
             coverage += (
                 "; no supplied source carries data for "

@@ -169,3 +169,20 @@ recalibrated scorer drops in without engine changes.
 #### Scenario: Custom scorer
 - **WHEN** a caller supplies a scorer implementing the protocol
 - **THEN** the engine uses it without modification (and disables the reference-only cache)
+
+### Requirement: An unscoreable spacer position is reported with the direction of its bias
+
+A non-ACGT spacer base has no entry in the scoring matrix, so it is counted as a mismatch
+and the site's score falls — the reassuring direction, for a value where low means safe.
+The true base is unknown and may match perfectly, so an ambiguous position is precisely
+where a reader should be less confident.
+
+Such positions SHALL be recorded and named beside the result, together with the direction
+in which they bias the score. The score itself SHALL NOT be silently re-derived under a
+different convention: adopting one without saying so is how the misleading behaviour
+arose.
+
+#### Scenario: A degenerate spacer
+- **WHEN** a spacer carries an ambiguous base
+- **THEN** the report names the position and states that scores are pushed down, so a low
+  score there is not evidence of safety

@@ -3515,6 +3515,39 @@ are built and tested around having input, and the empty case tends to fall throu
 default, which is silence. Silence reads as success. For anything that reports a risk, the zero-input path
 deserves an explicit test, because that is the path where a wrong answer is maximally reassuring.**
 
+## Round 123 — the mismatch that was not one
+
+R122's rule — check what the system says when it has nothing — extended to *degenerate* rather than empty
+inputs: a PAM of `NNN`, a one-base spacer, a spacer with an `N`.
+
+The last one:
+
+```
+spacer ACGTAACGTTACGTAACGTN: 1 site(s), worst score 0.000, specificity 1.000
+```
+
+The site is the guide's own locus, at one mismatch, CFD **0.0**. The CFD matrix has no entry for a non-ACGT
+base, so the position is treated as a mismatch, and a mismatch lowers the score. The headline safety number
+for that guide is therefore the best one available.
+
+The direction is what makes it a bug rather than a limitation. An unknown base *might match perfectly* — an
+ambiguous position is the case where a reader should be **less** sure a guide is safe, and the arithmetic
+made them more sure. Everywhere else this project treats an unmeasured thing as unmeasured; here it was
+silently treated as measured-and-fine.
+
+What I deliberately did **not** do: change the score. Treating the ambiguous position as a match instead —
+the conservative direction — is a convention, and adopting one silently is how the current behaviour arose.
+The score stays as computed and the report now names the positions and states which way they bias it, so a
+reader can discount the number rather than have it quietly re-derived for them.
+
+Also confirmed sound in the same sweep: a `NNN` PAM (matches everywhere, still runs and scores correctly)
+and a one-base spacer (0 sites, and a sub-threshold tail correctly keeping specificity below 1.0).
+
+**Lesson: when a value cannot be computed, check which way the fallback leans. "Unscoreable → 0" is the
+natural implementation and, for a score where low means safe, it is a bug that only shows up as
+over-confidence. For every default that stands in for a missing measurement, ask whether it reads as good
+news, and if it does, say what it actually is.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

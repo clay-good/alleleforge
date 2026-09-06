@@ -287,6 +287,15 @@ def search(
         ancestry-stratified by default.
     """
     sp = _spacer_str(spacer)
+    # An ambiguous spacer position cannot be scored. The CFD matrix has no entry for
+    # it, so the aligner treats it as a mismatch and the site scores toward 0 — which
+    # is the *optimistic* direction on a safety axis: the true base is unknown and
+    # might match perfectly. A degenerate spacer is a legitimate reagent (the oligo
+    # layer says so explicitly), so this is recorded rather than refused, but it must
+    # not read as "this guide is clean".
+    ambiguous_spacer_positions = tuple(
+        i + 1 for i, base in enumerate(sp.upper()) if base not in "ACGT"
+    )
     primary = scorer if scorer is not None else CfdScorer()
     scan_pam = low_stringency_pam(pam)
     search_regions = list(regions) if regions is not None else _contig_regions(reference)
@@ -514,6 +523,7 @@ def search(
         searched_bases=total_bases,
         resolved_bases=resolved_bases,
         sources_considered=sources_considered,
+        ambiguous_spacer_positions=ambiguous_spacer_positions,
         unbacked_populations=unbacked,
         reference_build=reference.build or "hg38",
         scorer=primary.name,

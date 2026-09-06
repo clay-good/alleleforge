@@ -190,6 +190,14 @@
   },
   "description": "An aggregated, ancestry-stratified off-target nomination report.\n\nAttributes:\n    spacer: The on-target spacer the search was run for (5'->3').\n    pam: The PAM pattern searched.\n    sites: All nominated sites passing the reporting thresholds.\n    mismatch_threshold: Max mismatches allowed in the search.\n    dna_bulge_budget: Max DNA bulges allowed in the search.\n    rna_bulge_budget: Max RNA bulges allowed in the search.\n    cfd_threshold: The CFD score at or above which a site is *reported*.\n    mit_threshold: The MIT score at or above which a site is *reported*.\n    reference_build: The reference build searched.\n    scorer: Name of the specificity scorer that produced the site scores.\n    score_matrix: Identity of the weight source the scorer used, so a consumer\n        can tell whether the scores are published-CFD or an approximation.\n    subthreshold_score_sum: Sum of the best per-placement scores of in-budget\n        off-target sites that were nominated but did **not** clear the reporting\n        threshold, so :meth:`specificity_score` can aggregate over the full\n        nominated set (including the sub-threshold tail) rather than only over\n        reported sites. Defaults to ``0.0`` for a report built without a tail.",
   "properties": {
+    "ambiguous_spacer_positions": {
+      "default": [],
+      "items": {
+        "type": "integer"
+      },
+      "title": "Ambiguous Spacer Positions",
+      "type": "array"
+    },
     "cfd_threshold": {
       "default": 0.2,
       "title": "Cfd Threshold",

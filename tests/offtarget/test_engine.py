@@ -629,3 +629,34 @@ def test_a_search_over_no_sequence_says_so(make_reference: MakeRef) -> None:
     # A real search says nothing of the kind.
     real = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
     assert "NO SEQUENCE" not in search(SPACER, NGG, reference=real).search_description()
+
+
+def test_an_ambiguous_spacer_position_is_named_because_it_biases_scores_low(
+    make_reference: MakeRef,
+) -> None:
+    """An unscoreable position pushes the score toward 0 — the reassuring direction.
+
+    The CFD matrix has no entry for a non-ACGT base, so the aligner counts it as a
+    mismatch and the site's score falls. On a safety axis that is exactly backwards:
+    the real base is unknown and may match perfectly, so an ambiguous position should
+    make a reader *less* confident and instead made the number look better. A
+    degenerate spacer is a legitimate reagent — the oligo layer says so — so this is
+    recorded rather than refused.
+    """
+    reference = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    degenerate = SPACER[:-1] + "N"
+
+    report = search(degenerate, NGG, reference=reference)
+    assert report.ambiguous_spacer_positions == (len(SPACER),)
+    described = report.search_description()
+    assert "ambiguous at position(s) 20" in described
+    assert "not evidence of safety" in described
+
+    # The bias is real, not hypothetical: the same locus scores lower with the
+    # ambiguous base than with the concrete one it stands in for.
+    concrete = search(SPACER, NGG, reference=reference)
+    assert concrete.worst_score() > report.worst_score()
+
+    # A concrete spacer says nothing, or the caveat is furniture.
+    assert concrete.ambiguous_spacer_positions == ()
+    assert "ambiguous at position" not in concrete.search_description()

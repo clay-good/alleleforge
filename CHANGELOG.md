@@ -8,6 +8,17 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **An ambiguous spacer position now says that it biases the safety score downward.** A non-ACGT base in a
+  spacer cannot be scored — the CFD matrix has no entry for it — so the aligner counts it as a mismatch and
+  the site's score falls toward 0. On a safety axis that is exactly backwards: the true base is unknown and
+  may match perfectly, so an ambiguous position should make a reader *less* confident and instead made the
+  number look better. A degenerate spacer with an `N` at position 20 reported `worst score 0.000` on its own
+  locus. It is recorded rather than refused — a degenerate spacer is a legitimate reagent, and the oligo
+  layer says so explicitly — and `OffTargetReport` carries `ambiguous_spacer_positions`, with the search
+  description naming the positions and stating the direction of the bias.
+
 ### Fixed
 
 - **A truncated reference genome produced the most reassuring report the system can make.** A FASTA that is
