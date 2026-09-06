@@ -723,12 +723,20 @@ def test_offtarget_states_the_settings_its_site_count_depends_on(
     assert "sites reported at CFD >= 0.05 or MIT >= 0.01" in human.output
 
     payload = json.loads(runner.invoke(app, [*args, *strict, "--json"]).output)
+    # Exact equality, deliberately: a payload that silently loses a key a consumer
+    # filters on is the failure this pins. The extent joined the block because every
+    # number beside it is conditional on it -- a panel scan and a genome-wide scan
+    # report different specificities -- and `searched_bases: 0` is the value that makes
+    # "0 sites, specificity 1.000" mean nothing at all.
     assert payload["search"] == {
         "mismatch_threshold": 3,
         "dna_bulge_budget": 0,
         "rna_bulge_budget": 0,
         "cfd_threshold": 0.05,
         "mit_threshold": 0.01,
+        "searched_bases": 63,
+        "resolved_bases": 63,
+        "maf_threshold": None,
     }
     # ...and the defaults are reported as the defaults, not as whatever was last used.
     default = json.loads(runner.invoke(app, [*args, "--json"]).output)["search"]
@@ -752,7 +760,13 @@ def test_an_unreadable_reference_fasta_fails_clearly(runner: CliRunner, tmp_path
     result = runner.invoke(
         app, ["offtarget", "ACGTAACGTTACGTAACGTT", "--reference-fasta", str(truncated)]
     )
-    assert result.exit_code == 0
+    # It still returns that result, and still says what it is -- but it no longer exits
+    # 0 while doing so. This assertion read `== 0` directly beneath a comment calling
+    # this "the dangerous one ... the most reassuring result the system can produce":
+    # the hazard was identified and the behavior pinned rather than fixed, and a caller
+    # branching on the status could not tell it from a clean guide. The two cases below
+    # already exited MISSING_DATA, so all three unreadable references now agree.
+    assert result.exit_code == ExitCode.MISSING_DATA
     assert "0 site(s)" in result.output and "specificity 1.000" in result.output
     assert "NO SEQUENCE WAS SEARCHED" in result.output
 

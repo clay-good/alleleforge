@@ -1628,6 +1628,17 @@ acceptance.
 
 ### Fixed
 
+- **A search that examined nothing exited 0.** Over a truncated reference — a contig header with no bases,
+  which is what an interrupted download leaves — `aforge offtarget` prints `0 site(s), worst score 0.000,
+  specificity 1.000` and, underneath, "NO SEQUENCE WAS SEARCHED … this is not a clean result, it is an empty
+  one". The human reading the terminal is told plainly; a pipeline branching on `$?` saw a spotless guide.
+  That is the same "not measured printed as clean" the warning exists to prevent, one surface over. It now
+  exits `MISSING_DATA` **after** saying why — `aforge batch` already draws this distinction, where a run whose
+  items failed completes without having succeeded. The `--json` payload had the matching gap: its `search`
+  block carried the budgets and cut-offs but not the extent, so a machine consumer could not tell a
+  genome-wide scan from a 140-base one, nor see the zero that makes every other number meaningless. It now
+  carries `searched_bases`, `resolved_bases` and `maf_threshold`.
+
 - **Two cohort workers writing the same output file shared one temp file.** `_atomic_write_text` named its
   temp file `<path>.<pid>.tmp` — unique per *process*, while the function runs inside `_design_one`, which runs
   in a worker thread. Two items with the same id resolve to the same output path and therefore the same temp

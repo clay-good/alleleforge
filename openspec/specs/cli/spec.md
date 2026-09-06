@@ -299,3 +299,20 @@ line, since silently skipping it would silently recompute or silently drop an it
 - **WHEN** a cohort with one success and one failure is run again with the same manifest
 - **THEN** the successful item is skipped, the failed one is retried, and the run does
   not report itself as empty and clean
+
+### Requirement: An empty search is not a successful exit
+
+Where the off-target command examined no sequence at all, it SHALL emit its output,
+including the statement that nothing was searched, and then exit non-zero with the
+missing-data status. The numbers such a run prints — no sites, worst score zero,
+specificity one — are the most reassuring the tool can produce, and a caller that
+branches on the exit status has no other way to tell them apart from a real result.
+
+The machine-readable payload SHALL carry the extent searched alongside the budgets and
+cut-offs, since every number it reports is conditional on that extent and a zero there
+makes the rest meaningless.
+
+#### Scenario: A truncated reference
+- **WHEN** the reference holds a contig with no bases
+- **THEN** the command explains that nothing was searched and exits non-zero, and the
+  JSON payload reports `searched_bases` as zero

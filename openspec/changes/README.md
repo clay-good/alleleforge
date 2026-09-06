@@ -6071,6 +6071,50 @@ elsewhere in the tree: the defect was not ignorance of the rule, it was a second
 already solved. That is worth checking for first, and it is cheaper than the audit that finds it later.**
 
 
+## Round 197 — the verdict a machine reads
+
+R195 turned on a re-run exiting 0 when it had done nothing. Exit codes are the
+machine-readable verdict — what a CI job branches on — and they had never been audited as
+a surface of their own.
+
+`aforge offtarget` over a truncated reference, a contig header with no bases, which is
+what an interrupted download leaves:
+
+    0 site(s), worst score 0.000, specificity 1.000
+      search: ... NO SEQUENCE WAS SEARCHED — the reference or region scope yielded no
+      bases, so this is not a clean result, it is an empty one
+    exit=0
+
+The human is told exactly what happened, in words the project chose carefully. The
+pipeline sees a spotless guide. Same defect as R190's ancestry warning: the disclosure
+exists and lives on the one surface that does not reach the consumer who acts on it.
+
+What makes this round's find sharper than most is what the existing test said. It pinned
+`assert result.exit_code == 0`, four lines under its own comment:
+
+    # ...that path is asserted separately below because it is the dangerous one: it
+    # returns a *result*, and the most reassuring one the system can produce.
+
+The hazard was seen, named precisely, and then pinned as the expected behavior. Two cases
+in the same test — an empty file and a VCF passed as a FASTA — already exited
+MISSING_DATA; only the one that produces a plausible-looking answer exited 0. All three
+now agree, which is what makes the fix small: nothing about the output changed, only the
+status that says whether to trust it.
+
+The `--json` payload had the matching gap. Its `search` block listed the budgets and
+cut-offs and not the extent, so a machine consumer could not distinguish a genome-wide
+scan from a 140-base one — R189's finding, one surface over and still open, because R189
+fixed the human line and the payload is assembled separately. It now carries
+`searched_bases`, `resolved_bases` and `maf_threshold`, and the test that pins the block
+does so by exact equality, so the next field cannot be added to one and not the other.
+
+**Lesson: a caveat is only as good as the narrowest surface it reaches. This project keeps
+finding the same disclosure written once, correctly, on one of three surfaces — terminal
+but not report (R190), human line but not payload (R197), report but not exit status. The
+question to ask of any new caveat is not "is it true" but "which of the three consumers
+sees it": the person reading, the artifact they hand on, and the program that branches.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

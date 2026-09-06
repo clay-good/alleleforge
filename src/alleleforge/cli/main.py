@@ -1549,6 +1549,13 @@ def offtarget(
             "rna_bulge_budget": report.rna_bulge_budget,
             "cfd_threshold": report.cfd_threshold,
             "mit_threshold": report.mit_threshold,
+            # The extent, for the consumer that cannot read the human line. Every
+            # number below is conditional on it -- a panel scan and a genome-wide scan
+            # report different specificities -- and `searched_bases: 0` is the one
+            # value that makes "0 sites, specificity 1.000" mean nothing at all.
+            "searched_bases": report.searched_bases,
+            "resolved_bases": report.resolved_bases,
+            "maf_threshold": report.maf_threshold,
         },
         "on_target_excluded": locus is not None,
         "worst_score": round(report.worst_score(), 4),
@@ -1598,6 +1605,15 @@ def offtarget(
             f"{s['origin']}{' ' + str(s['causal_allele']) if s['causal_allele'] else ''}"
         )
     _emit(payload, as_json=as_json, human="\n".join(human_lines))
+    # A search that examined nothing exits non-zero, after saying so. The human line
+    # already reads "NO SEQUENCE WAS SEARCHED -- this is not a clean result, it is an
+    # empty one", and the exit code said 0, so a pipeline branching on `$?` saw a
+    # spotless guide: 0 sites, worst score 0.000, specificity 1.000. `aforge batch`
+    # already draws this distinction -- a run with failed items *completes* without
+    # having *succeeded* -- and a truncated reference or a scope that resolves to
+    # nothing is missing data, which is what that code is for.
+    if report.searched_bases == 0:
+        raise typer.Exit(ExitCode.MISSING_DATA)
 
 
 @app.command()
