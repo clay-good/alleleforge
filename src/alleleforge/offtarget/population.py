@@ -19,6 +19,7 @@ from collections.abc import Iterable, Sequence
 
 from alleleforge.data.gnomad import PopulationFrequency
 from alleleforge.genome.reference import ReferenceGenome
+from alleleforge.offtarget._bounds import reject_non_finite
 from alleleforge.offtarget._search import (
     Hit,
     SearchBudget,
@@ -210,7 +211,13 @@ def enumerate_population_sites(
 
     Returns:
         ``(hit, provenance)`` pairs with ``provenance.origin = POPULATION``.
+
+    Raises:
+        ValueError: If ``maf`` is not finite.
     """
+    # `ancestries[p] >= maf` below is an *include* test, so a NaN `maf` admits no
+    # population at all and every population off-target disappears without a word.
+    reject_non_finite(maf=maf)
     sp = str(spacer).upper()
     scorer = scorer if scorer is not None else CfdScorer()
     out: list[tuple[Hit, SiteProvenance]] = []

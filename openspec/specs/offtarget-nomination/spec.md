@@ -297,3 +297,18 @@ sees only the caveats block.
 - **WHEN** a nominated off-target scores at or above the band
 - **THEN** the candidate carries `offtarget-high:<score>` and the report renders it as
   a caveat, whichever chemistry produced the guide
+
+### Requirement: A non-finite threshold is refused, not reinterpreted
+
+The fractions that govern a search — `maf`, `cfd_threshold`, `mit_threshold` — SHALL be
+finite. A range check spelled as a pair of comparisons admits `NaN`, which then compares
+False against every score it meets; what that means is decided by the direction of the
+consumer's test rather than by anything the caller asked for. The site filter is a *skip*
+test, so `NaN` reports every site while the report names a cutoff it is not applying. The
+population filter is an *include* test, so `NaN` admits no record and the report shows no
+population off-targets at all. The refusal SHALL name the offending parameter, and SHALL
+happen before any sequence is scanned, at every entry point that accepts the fraction.
+
+#### Scenario: A NaN minimum allele frequency
+- **WHEN** a caller passes `maf=nan` to a search or to population nomination
+- **THEN** it raises rather than reporting a search with no population off-targets

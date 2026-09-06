@@ -5604,6 +5604,47 @@ worth a test even when nothing is wrong today, because the next reader will see 
 idea and pick the one that reads better.**
 
 
+## Round 187 — a `NaN` threshold, reachable from the command line
+
+R186 ended on a lesson about expression *shape*: `not 0 <= x <= 1` and `x > 1 or x < 0` read as synonyms and
+differ on exactly one input. This round swept the tree for the fragile spelling. Every hit was on an integer —
+mismatches, bulge budgets, array indices, sequence lengths — where `NaN` cannot arrive. A clean bill.
+
+So the query rotated from *where is the spelling* to *where can a user put the value*. Three CLI options take a
+float with `min=0.0, max=1.0`, and Click's range check is that same pair of comparisons:
+
+    aforge offtarget ... --cfd-threshold -1    -> Usage error
+    aforge offtarget ... --cfd-threshold 2     -> Usage error
+    aforge offtarget ... --cfd-threshold inf   -> Usage error
+    aforge offtarget ... --cfd-threshold nan   -> 3 site(s), worst score 1.000
+
+Accepted. What it *did* then depended on nothing but the direction of the consumer's comparison, and the two
+consumers were written in opposite directions:
+
+* `if cfd < cfd_threshold and mit < mit_threshold: continue` is a **skip** test. `NaN` skips nothing, so every
+  site was reported — three where the real threshold gives two — and the report's own provenance line read
+  `sites reported at CFD >= nan`, naming a cutoff it was not applying. Over-reporting is the safe direction;
+  claiming a threshold you are not applying is not.
+* `max_af(populations) >= maf` is an **include** test. `NaN` includes nothing, so `--maf nan` produced a
+  report with **zero population off-targets**. Measured on a fixture whose common variant creates a
+  perfect-match PAM: `maf=0.001` finds it, `maf=nan` finds nothing, no error, no warning.
+
+The second is the class this project keeps rediscovering — a real safety input inert on the axis it governs,
+with a green suite (R10, R11) — so the fix refuses the input rather than picking a direction for it. The guard
+lives in a small shared module and is called at the narrowest point every caller reaches, per R178/R179: in
+`search()` for all three fractions, and in `enumerate_population_sites()` for `maf`, because that function is
+exported and is where the mask actually happened. `inf` is caught by the same check: it is orderable, so the
+shell already refuses it, but nothing stopped a library or web caller passing it to mean "report nothing".
+
+All three guards were mutation-checked: dropping either call, or removing the offender's name from the
+message, fails the new tests.
+
+**Lesson: a validation that is *reachable* is worth more than one that is thorough. R186 found the fragile
+spelling by reading code and concluded, correctly, that nothing was wrong. The same property was one
+command-line flag away from silently emptying the population-safety section of a report. Sweep the input
+surface, not only the source.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

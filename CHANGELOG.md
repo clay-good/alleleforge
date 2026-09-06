@@ -1583,6 +1583,19 @@ acceptance.
 
 ### Fixed
 
+- **A `NaN` threshold silently changed which off-target sites were reported.** `--cfd-threshold -1`, `2` and
+  `inf` are all refused with a usage error; `nan` was accepted, because Click's `min=0.0, max=1.0` is a pair
+  of comparisons and every comparison against `NaN` is False. The value then reached a consumer that compared
+  against it, where the same property decided the outcome by whichever way that consumer's test happened to be
+  written. The site filter is a *skip* test, so a `NaN` threshold skipped nothing and reported every site —
+  while the report printed `sites reported at CFD >= nan`, a cutoff it was not applying. The population filter
+  is an *include* test, so `--maf nan` admitted no record at all: **every population off-target disappeared**
+  and the report read as a clean bill of health on the population-safety axis, with no error and no warning.
+  Non-finite `maf`, `cfd_threshold` and `mit_threshold` are now refused by name at both public entry points —
+  `search()`, which every shell, web and cohort caller passes, and `enumerate_population_sites()`, where the
+  mask occurred — before anything is scanned. This is R186's shape found in a live input rather than a latent
+  one: the same expression property, this time reachable from the command line.
+
 - **A declined chemistry gave no reason unless *every* chemistry declined.** The routing rationales were
   computed either way and shown only for an empty menu. `base_abe=no` is least actionable precisely for the
   reader who needed a base editor — someone avoiding a double-strand break, who sees a prime candidate and no

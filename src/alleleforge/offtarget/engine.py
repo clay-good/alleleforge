@@ -25,6 +25,7 @@ from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.genome.index import GenomeIndex
 from alleleforge.genome.reference import ReferenceGenome
+from alleleforge.offtarget._bounds import reject_non_finite
 from alleleforge.offtarget._search import Hit, SearchBudget, SiteProvenance, scan_sequence
 from alleleforge.offtarget.cache import OffTargetCache, search_signature
 from alleleforge.offtarget.haplotype import enumerate_haplotype_sites
@@ -346,6 +347,11 @@ def search(
     Returns:
         An :class:`OffTargetReport`, sorted by descending score and
         ancestry-stratified by default.
+
+    Raises:
+        ValueError: If ``maf``, ``cfd_threshold`` or ``mit_threshold`` is not finite;
+            if the scorer cannot serve the bulge budget; or if a region names a contig
+            the reference does not have.
     """
     # Materialize a one-shot patient iterable. `search` reads it twice — once to count
     # how much of it covers the searched region, once to enumerate the personalized
@@ -363,6 +369,11 @@ def search(
     # is worth more than a saved microsecond.
     if patient_vcf is not None:
         patient_vcf = list(patient_vcf)
+    # Refuse a non-finite fraction before anything is scanned. Click's `min=0.0,
+    # max=1.0` rejects -1, 2 and inf and accepts NaN, and each of these three then
+    # reaches a comparison that NaN makes False -- silently reporting every site, or
+    # none. See `_bounds` for which way each one failed.
+    reject_non_finite(maf=maf, cfd_threshold=cfd_threshold, mit_threshold=mit_threshold)
     sp = _spacer_str(spacer)
     # An ambiguous spacer position cannot be scored. The CFD matrix has no entry for
     # it, so the aligner treats it as a mismatch and the site scores toward 0 — which
