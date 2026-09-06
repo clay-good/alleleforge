@@ -348,6 +348,24 @@ def design(
                 f"chromatin track {chromatin_track!r} was supplied but covers none of "
                 "the candidate loci — every efficiency here is the unadjusted estimate"
             )
+    # `cell_context` is consumed by the prime vertical alone -- SpCas9 nuclease and base
+    # editing do not take it, so for those chemistries the supplied context is never
+    # examined. Their `in_distribution` flag stays truthful about what it does measure
+    # (the guide context: no ambiguous base, long enough for the head to read), and that
+    # is exactly the problem: a reader who asked for K562 sees `in_distribution: True`
+    # next to a nuclease candidate and reads it as a statement about K562. It is not one.
+    # An unrecognized context makes this plainest -- prime flags `ood` and the other two
+    # report in-distribution -- so name the chemistries that could not consider it.
+    if cell_context is not None and candidates:
+        unconsidered = sorted(
+            {c.chemistry.value for c in candidates if c.chemistry is not Chemistry.PRIME}
+        )
+        if unconsidered:
+            notes.append(
+                f"cell context {cell_context!r} was supplied but is only consumed by prime "
+                f"editing; it was not considered for {', '.join(unconsidered)}, whose "
+                "in-distribution flags describe the guide context alone"
+            )
     rationale = _menu_rationale(decisions, eligible, notes, outcome.rationale)
     provenance = Provenance.capture(
         alleleforge_version=__version__,

@@ -704,10 +704,12 @@ def design(
         typer.Option(
             "--cell-context",
             help=(
-                "The target cell line or type (e.g. HEK293T, K562, HepG2). A context "
-                "outside a scorer's training distribution flags every efficiency "
-                "prediction out-of-distribution instead of reporting it as if it were "
-                "in-domain. Omitted, no OOD claim is made either way."
+                "The target cell line or type (e.g. HEK293T, K562, HepG2). Consumed by "
+                "prime editing, where a context outside the scorer's training "
+                "distribution flags the efficiency prediction out-of-distribution "
+                "instead of reporting it as if it were in-domain. SpCas9 nuclease and "
+                "base editing do not take it, and the rationale says so when a context "
+                "is supplied and they run. Omitted, no OOD claim is made either way."
             ),
         ),
     ] = None,

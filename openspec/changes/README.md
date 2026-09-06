@@ -5849,6 +5849,55 @@ feature as a whole: mutating "the region wiring" would have looked fine, because
 enough to fail the tests I had.**
 
 
+## Round 192 — the forwarding matrix, and what it does not show
+
+R191 found `offtarget_regions` reaching one vertical of three. The obvious next question is whether anything
+else is. So: parse `designer.py`, collect the keyword arguments at each vertical call site, and cross them
+against each vertical's signature.
+
+Clean. After R191's fix every parameter a vertical accepts is passed to it (`intent` and `resolved` flag as
+"dropped" only because they are positional). A negative result, and a cheap one — the check is a dozen lines
+of `ast` and it is now the kind of thing worth keeping in mind rather than repeating by eye.
+
+The finding was in the cells the matrix marks "n/a" — not a parameter dropped, but one a vertical never had:
+
+    option            cas9   prime   base_ed
+    cell_context        NO     yes        NO
+    chromatin_track     NO     yes        NO
+    encode_tracks       NO     yes        NO
+
+`--cell-context` is offered unconditionally on `aforge design`, and is consumed by prime editing alone. What
+the other two chemistries then report is worse than nothing:
+
+    cell_context='not-a-real-cell-line'
+      prime          -> ood flag, in_distribution=False
+      cas9_nuclease  -> no flag,  in_distribution=True
+      base_abe       -> no flag,  in_distribution=True
+
+Both `True`s are honest. `context_in_distribution` checks the *guide* context — no ambiguous base, long enough
+for the head to read — and the codebase is careful that it is never hardcoded. That is precisely what makes it
+misleading here: the flag is a real measurement on a real axis, sitting next to a supplied input it has
+nothing to do with, in a column a pipeline filters on. Ask for K562, get `in_distribution: True` beside a
+nuclease candidate.
+
+The fix is a declaration, following the `chromatin_track` precedent three lines above it in the same function.
+It would have been easy, and wrong, to "fix" this by wiring a cell-context OOD check into the nuclease and
+base-editor scorers: they have no cell-context training distribution, so any check I invented would be a
+number with nothing behind it — the failure this project exists to avoid. Naming the gap is the honest move
+and the smaller one. The CLI help and both web request models also claimed the context "flags **every**
+efficiency prediction out-of-distribution", which was simply false; they now name the chemistry that consumes
+it.
+
+One test in the new file pins the misleading state itself — `in_distribution is True`, no `ood` flag, note
+present. If a cell-context distribution is ever wired into those scorers, that test fails, which is the right
+moment to revisit the note rather than leave it describing something no longer true.
+
+**Lesson: an audit that compares two lists finds what is missing from one of them, and is blind to what is
+missing from both. The forwarding matrix came back clean; the defect was in a column the matrix printed as
+"n/a" and moved past. When a check reports no findings, ask what shape of defect it was structurally incapable
+of seeing.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

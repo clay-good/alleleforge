@@ -1611,6 +1611,23 @@ acceptance.
 
 ### Fixed
 
+- **A cell context two of three chemistries never looked at, reported as in-distribution.** `cell_context` is
+  consumed by the prime vertical alone — `design_cas9` and `design_base_editor` have no such parameter — so for
+  those chemistries a supplied context is never examined. With a context no scorer recognizes:
+
+      prime          -> ood flag, in_distribution=False
+      cas9_nuclease  -> no flag,  in_distribution=True
+      base_abe       -> no flag,  in_distribution=True
+
+  Those two `True`s are truthful about what they measure — `context_in_distribution` checks the *guide*
+  context, no ambiguous base and long enough for the head to read, and is never hardcoded — and that is what
+  makes them misleading. A reader who asked for K562 sees `in_distribution: True` beside a nuclease candidate,
+  in a column a pipeline filters on, and reads it as a statement about K562. The rationale now names the
+  chemistries that could not consider the context, and says what their in-distribution flag does describe. The
+  fix is a declaration rather than an invented OOD check: fabricating a cell-context distribution for scorers
+  that have none would be worse than the silence. The CLI help and both web request models said the context
+  "flags **every** efficiency prediction out-of-distribution"; they now say which chemistry consumes it.
+
 - **A design run scoped to a gene panel scanned the whole genome anyway, for two of three chemistries.**
   `design()` takes `offtarget_regions`, documents it, records it in the provenance snapshot, and exposes it as
   `--region` / `--regions-bed` on both `aforge design` and `aforge batch`. All three verticals accept the

@@ -188,3 +188,17 @@ specificity — and an empty Cas9 vertical SHALL name the variants it did not tr
 - **WHEN** no `NGG` guide is actionable and the fallbacks are not enabled
 - **THEN** the rationale says so and names SpCas9-NG and SpRY as not enabled, rather
   than reporting only that nothing was found
+
+### Requirement: An input a chemistry cannot consider is declared, not implied away
+
+Where a run supplies an input that some chemistries consume and others do not, the
+report SHALL name the chemistries that did not consider it. A prediction's
+in-distribution flag describes the axes its scorer actually checks; beside a supplied
+input that scorer never saw, an unqualified "in distribution" reads as a claim about
+that input. The remedy is to state the gap, never to synthesize a check the scorer does
+not have.
+
+#### Scenario: A cell context on a nuclease design
+- **WHEN** a cell context is supplied and SpCas9 nuclease or base-editor candidates run
+- **THEN** the rationale names those chemistries as not having considered it, and says
+  what their in-distribution flag does describe
