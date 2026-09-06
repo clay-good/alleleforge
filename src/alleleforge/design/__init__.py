@@ -26,6 +26,8 @@ from alleleforge.design.ranking import (
     score_candidate,
 )
 from alleleforge.design.routing import (
+    PRIME_MAX_EDIT,
+    PRIME_MAX_TEMPLATED_EDIT,
     ROUTING_RULES,
     ChemistryDecision,
     RoutingRule,
@@ -34,6 +36,8 @@ from alleleforge.design.routing import (
 )
 
 __all__ = [
+    "PRIME_MAX_EDIT",
+    "PRIME_MAX_TEMPLATED_EDIT",
     "DEFAULT_WEIGHTS",
     "ROUTING_RULES",
     "CandidateScore",

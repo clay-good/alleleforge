@@ -3807,6 +3807,33 @@ Anything driven by an explicit list — nav entries, `:::` directives, `__all__`
 check that the list still covers the thing it lists *from*. The build passing means the pages it was told
 about are valid, not that the pages exist.**
 
+## Round 132 — the other explicit lists
+
+R131's lesson — anything driven by an explicit list needs a check that the list still covers what it lists
+*from* — names its own follow-up. This repository has several such lists. I went through them.
+
+The **mkdocs nav** is complete: every page is listed, every listing has a page. Clean.
+
+Module-level `__all__` turned out to be a non-question: exactly one module of sixty-five defines one, so the
+convention here is that *packages* declare their surface and modules do not. Worth knowing before
+"fixing" sixty-four modules to match a convention that was never adopted — the R101 trap.
+
+The gap was one level over. Seven public names are not re-exported by their packages, and the two clearest
+were declared public elsewhere and simply not honored: `routing.__all__` names `PRIME_MAX_EDIT` and
+`PRIME_MAX_TEMPLATED_EDIT`, the README cites both by name, and `alleleforge.design` exports neither.
+`alleleforge.data` exports `ClinicalSignificance` and not the `ClinicalAssertion` that carries it. And
+`alleleforge.report` — the package for a project whose principle is "the library is the source of truth" —
+exported the renderers but none of the pieces a caller needs to write a render of their own.
+
+The rules I settled on are deliberately mechanical, because "what belongs in the public API" is a taste
+question and taste does not survive forty rounds. A name in a submodule's `__all__` is a *declaration*, so
+the package must honor it. A dotted name the docs cite must resolve. Both are checkable, neither requires a
+judgment, and the second catches a cross-reference left pointing at a renamed function.
+
+**Lesson: before enforcing a convention across a codebase, check how widely it is actually followed. One
+module in sixty-five defining `__all__` is not sixty-four omissions — it is a different convention, and the
+"fix" would have been a large, confident, wrong change. Look at the ratio before writing the sweep.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

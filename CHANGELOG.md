@@ -10,6 +10,19 @@ acceptance.
 
 ### Added
 
+- **Seven public names are now re-exported from their packages.** `alleleforge.design` did not export
+  `PRIME_MAX_EDIT` or `PRIME_MAX_TEMPLATED_EDIT` — the two prime budgets `routing.__all__` declares public
+  and the README cites by name — and `alleleforge.data` exported `ClinicalSignificance` but not the
+  `ClinicalAssertion` that carries it. `alleleforge.report` gained `caveats`, `provenance_lines`,
+  `model_limitation_lines` and `visible_candidates`, which is everything a caller needs to build a report
+  view of their own; they were reachable only from `alleleforge.report.builder`.
+
+  Two mechanical rules now hold this, so neither depends on anyone's taste about what "the API" is: a name
+  in a submodule's `__all__` is a declaration the package must honor, and a dotted name the docs cite must
+  resolve. The second catches a renamed or deleted name that a cross-reference still points at.
+
+### Added
+
 - **Eight modules reached the API reference for the first time**, including `design_many` — the cohort
   entry point, with its own README section and its own example notebook, absent from the reference since it
   was written. Also `alleleforge.config` (the `Settings` and network-consent surface), the cross-run caches,

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from alleleforge.data.annotations import EncodeTracks, Gene, GeneModels
 from alleleforge.data.clinvar import (
+    ClinicalAssertion,
     ClinicalSignificance,
     ClinVarDB,
     ClinVarRecord,
@@ -41,6 +42,7 @@ __all__ = [
     "ChecksumError",
     "ClinVarDB",
     "ClinVarRecord",
+    "ClinicalAssertion",
     "ClinicalSignificance",
     "ConsentError",
     "DatasetDescriptor",

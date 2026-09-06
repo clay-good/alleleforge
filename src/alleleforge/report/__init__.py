@@ -16,6 +16,10 @@ from alleleforge.report.builder import (
     CandidateReport,
     DesignReport,
     build_report,
+    caveats,
+    model_limitation_lines,
+    provenance_lines,
+    visible_candidates,
 )
 from alleleforge.report.export import (
     menu_to_json,
@@ -52,6 +56,10 @@ __all__ = [
     "SgRnaOligos",
     "VectorScheme",
     "build_report",
+    "caveats",
+    "model_limitation_lines",
+    "provenance_lines",
+    "visible_candidates",
     "menu_to_json",
     "oligos_for",
     "donor_oligo",
