@@ -6532,6 +6532,48 @@ like where the answer is interesting, not only where it is common — and when t
 distribution cannot be measured, that is itself the reason not to ship.**
 
 
+## Round 208 — the kernel the previous round pointed at
+
+R207 measured three Python rewrites of `_best_with_removed_base`, shipped none of them,
+and said where the remaining win actually was: interpreter overhead on a million calls of
+a twenty-element loop, in a project that already has a Rust crate doing the FM-index,
+k-mer seeding and haplotype walking. Both `cargo` and `maturin` are present here and the
+crate was already built, so that was a recommendation I could act on rather than defer.
+
+`rust/src/align.rs` implements the same two-pass prefix/suffix decomposition, wired
+through the crate's existing conventions: a `native_align_available()` probe, a dispatcher
+that resolves the symbol **once at import** (an availability check inside a million-call
+loop would eat the win), and `_python_best_with_removed_base` kept as the fallback.
+Measured end to end on the same 2 Mb reference:
+
+    python  min=2.031s   1 site, spec 0.586837
+    native  min=1.155s   1 site, spec 0.586837     +43.2%
+
+Identical results, and the reproducibility golden is unchanged. Across R205, R206 and this
+round the same scan went 2.621s -> 1.155s, 56%.
+
+The kernel found a bug in the function it was copying. The Python documented a
+precondition — `longer` is exactly one base longer than `shorter` — and never checked it.
+Violated, it raised `IndexError` for most shapes, and for a **two**-base-longer input it
+silently returned a wrong alignment: `("ACGTAC", "ACGT")` gave `(0, "ACGTC")`. Unreachable
+from the scan, which slices the window to exactly `n + 1`. But writing a second
+implementation forced the question "what does this do off its contract", and the honest
+answer was three different things depending on how far off you were. Both paths now
+refuse, which is also what makes the parity claim true *everywhere* rather than only on
+the inputs the caller happens to produce.
+
+That the edge cases were in the parity test at all is why it was found: the randomized
+generator only ever produces well-formed pairs, and it passed. The eight hand-written
+shapes at the bottom of the file are the ones that failed.
+
+**Lesson: porting a function to a second language is a specification exercise. The
+translation cannot inherit "whatever the original happens to do off its contract" — it has
+to decide — and every place the two implementations disagree is a place the original was
+relying on its callers rather than on itself. Three rounds in this log found bugs by
+writing a second implementation of something (the pysam differential, R205's naive
+comparison, this one); it is a more reliable instrument than reading the code.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

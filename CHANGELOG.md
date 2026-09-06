@@ -10,6 +10,21 @@ acceptance.
 
 ### Added
 
+- **A fourth native kernel: the scan's innermost bulged alignment.** `_best_with_removed_base` was 57% of the
+  off-target scan's self time after the cheaper Python wins — a million calls over 2 Mb, two per PAM-positive
+  anchor — and the previous round measured three Python variants that all bought the reject path with the
+  survivor path and shipped none of them. Moved to the Rust crate (`rust/src/align.rs`) behind the same
+  fallback-plus-parity contract the FM-index, k-mer and haplotype kernels keep: **43% off a whole scan**, with
+  byte-identical results pinned by a 30,000-case differential against the Python path, which is itself pinned
+  against the naive definition. A scan that took 2.62 s at the start of this work now takes 1.16 s.
+
+  Writing the kernel surfaced a latent trap in the Python it mirrors. The function documented but never
+  checked its precondition that `longer` is exactly one base longer than `shorter`; violated, it raised
+  `IndexError` for most shapes and, for a two-base-longer input, silently returned a **wrong alignment**
+  (`("ACGTAC", "ACGT")` gave `(0, "ACGTC")`). Unreachable from the scan, which slices the window to exactly
+  `n + 1` — but the native kernel had to decide what to do off-contract, and making both refuse is what lets
+  the parity claim hold everywhere rather than only where the caller happens to be correct.
+
 - **Capping the menu is pinned as returning a prefix of the full ranking.** `--max-per-chemistry` is applied
   after the composite sort, so "the top three" means the first three of "all of them" rather than three of
   them. That the cap keeps the *best* of each chemistry was already covered; that it keeps them *in order* was
