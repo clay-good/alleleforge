@@ -7574,6 +7574,57 @@ found by guessing, because writing down why they are exempt is what stops a late
 "fixing" them.**
 
 
+## Round 232 — a corrupt index answers "no occurrences", which reads as clean
+
+A new surface: the content-addressed FM-index cache. The directory is named for the
+sequence hash, so a *wrong directory* is already impossible. A corrupt *file inside the
+right directory* was not checked at all.
+
+    clean     : count(ACGTACGT) = 6   locate = [0, 49, 98, 147]
+    truncated : loaded without complaint; count = 0   locate = []
+    tampered  : loaded without complaint; count = 5   locate = [98, 147, 165, 196]
+
+The truncation is the realistic failure — an interrupted build, a full disk — and in
+this tool it is the worse of the two: zero hits renders as "0 site(s), specificity
+1.000", the most reassuring output the system can produce, from an index that has lost
+half its BWT. The one-byte tamper is worse in kind: it drops a real occurrence *and*
+returns two positions that are not occurrences, so a scan nominates loci that do not
+exist.
+
+`FMIndex.verify()` catches both. Its docstring says a corrupted cache "fails closed
+rather than serving wrong locations" — and **nothing in `src/` calls it**, so it did
+neither. It is `O(n)`, minutes over hg38, so running it on every load is not the fix.
+The fix is that `meta.json` already records the facts needed to catch truncation in
+constant time: `load()` now refuses a BWT whose length disagrees with the recorded one,
+or a `c_table` that is not a non-decreasing set of offsets inside it. Same-length
+tampering still needs `verify()`, and the check says so rather than implying more.
+
+**A second finding on the same surface, and the larger one.** `FMIndex.build` documents
+`cache_dir`, `rebuild`, `occ_rate`, `sa_rate` — and with the Rust crate built, the
+configuration the README recommends for real genomes, the first line dispatches to
+`ext.fm_build(str(text))` and drops all of them:
+
+    native  type=NativeFmIndex  cache files=[]
+    python  type=FMIndex        cache files=['bwt.bin', 'meta.json', 'occ.json', …]
+
+No cache, no error, no indication, and the index rebuilt on every call — once per
+candidate in a design. Persisting the Rust index is a feature, not a correction, so
+this round makes the ignoring *stated*: a warning naming the dropped arguments and the
+way out (`prefer_native=False`), fired only when one was actually supplied.
+
+Two mistakes of my own, both caught by running it. I summed `c_table`'s values as if
+they were counts; they are cumulative *offsets*, and the clean fixture failed the check
+I had just written. And I listed `in_memory` among the ignored arguments — the native
+index *is* in memory, so it is satisfied, not ignored, and including it made the warning
+fire on every native scan, which is exactly the noise a warning must not be.
+
+**Lesson: a method whose docstring describes a guarantee ("fails closed") is a claim
+about the system, not about itself, and it is false until something calls it. Grep for
+callers of every integrity check before believing the property it names — and when the
+check is too expensive to run always, ask what the metadata already records that is
+cheap enough to check every time.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

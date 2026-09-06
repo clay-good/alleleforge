@@ -117,6 +117,7 @@ def _random_reference(seed: int, length: int) -> str:
 
 @pytest.mark.parametrize("ref_seed", [1, 7, 1234])
 @pytest.mark.parametrize(("mm", "dnab", "rnab"), [(4, 1, 1), (2, 0, 0), (1, 1, 0), (5, 0, 1)])
+@pytest.mark.filterwarnings("ignore:the native FM-index kernel")
 def test_fm_index_path_matches_brute_force(
     tmp_path: Path, ref_seed: int, mm: int, dnab: int, rnab: int
 ) -> None:
@@ -134,6 +135,10 @@ def test_fm_index_path_matches_brute_force(
     kw = dict(mismatches=mm, dna_bulges=dnab, rna_bulges=rnab)
 
     brute = scan_sequence("chr1", ref, SP, NRG, seed=False, **kw)
+    # `fm_cache_dir` here only keeps any cache out of the user's real cache root; this
+    # test asserts parity, not caching. With the native crate built there is no
+    # on-disk cache at all and `FMIndex.build` says so, which is correct and expected
+    # here — hence the filter rather than a silenced warning elsewhere.
     fm = scan_sequence("chr1", ref, SP, NRG, use_fm_index=True, fm_cache_dir=tmp_path, **kw)
     assert fm == brute
 

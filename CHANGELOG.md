@@ -10,6 +10,22 @@ acceptance.
 
 ### Added
 
+- **A corrupt FM-index cache is refused instead of answering "no occurrences".** The cache directory is named
+  for the sequence hash, so a wrong *directory* was impossible and a corrupt *file inside the right one* was
+  never checked: a truncated `bwt.bin` loaded silently and reported zero hits — which renders as
+  "0 site(s), specificity 1.000" — and a one-byte tamper dropped a real occurrence while returning two
+  positions that are not occurrences. `FMIndex.verify()` catches both and **nothing called it**, so its
+  documented "fails closed" guarantee held for nobody; it is `O(n)` and cannot run on every load, so
+  `FMIndex.load` now checks in constant time what `meta.json` already records — the BWT's length, and that
+  `c_table` is a non-decreasing set of offsets inside it. Same-length tampering still needs `verify()`, and
+  the check says so.
+
+- **The native FM-index says which cache arguments it ignores.** With the Rust crate built — the configuration
+  the README recommends for real genomes — `FMIndex.build` dispatches to the in-memory kernel and silently
+  dropped `cache_dir`, `rebuild`, `occ_rate` and `sa_rate`, so a caller passing `cache_dir=` (or
+  `search(..., fm_cache_dir=...)`) got no cache, no error, and a rebuild on every call. It now warns, naming
+  the dropped arguments and `prefer_native=False`, and only when one was actually supplied.
+
 - **One check over every artifact the tool writes.** Four rounds running found the same missing
   document-level context one artifact over, each missed because the existing check is keyed to a *type*.
   `test_every_artifact_says_what_it_is` enumerates the writers instead: the design HTML/PDF/TSV/JSON, the

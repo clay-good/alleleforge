@@ -204,6 +204,35 @@ class FMIndex:
             ValueError: If ``text`` is empty or contains non-``ACGTN`` bases.
         """
         if prefer_native and native_fm_available():  # pragma: no cover - native not built in CI
+            # The native kernel builds in memory and has no on-disk form, so every
+            # cache argument below is dropped here. Silently dropping them meant a
+            # caller who passed `cache_dir=` — or `search(..., fm_cache_dir=...)`,
+            # which threads it down — got no cache, no error and no indication, and a
+            # rebuild on every call. Warn only when one was actually supplied: a
+            # warning on the default path is noise, and noise gets filtered.
+            # `in_memory` is deliberately absent: the native index *is* in memory, so
+            # asking for that is satisfied rather than ignored. Listing it made the
+            # warning fire on every native scan, because `_scan_sequence` always
+            # passes `in_memory=True` — a warning that always fires is the noise this
+            # is trying not to be.
+            supplied = [
+                name
+                for name, given in (
+                    ("cache_dir", cache_dir is not None),
+                    ("rebuild", rebuild),
+                    ("occ_rate", occ_rate != _DEFAULT_OCC_RATE),
+                    ("sa_rate", sa_rate != _DEFAULT_SA_RATE),
+                )
+                if given
+            ]
+            if supplied:
+                warnings.warn(
+                    f"the native FM-index kernel builds in memory and ignores "
+                    f"{', '.join(supplied)}; it has no on-disk cache, so the index is "
+                    "rebuilt on every call. Pass prefer_native=False for the cached "
+                    "pure-Python index.",
+                    stacklevel=2,
+                )
             ext = _native._ext  # type: ignore[attr-defined]  # optional native kernel
             return cast("FMIndex", ext.fm_build(str(text)))
         s = str(text).upper()
@@ -301,8 +330,46 @@ class FMIndex:
             # raises (a corrupt cache, ENOMEM), rather than leaking the handle.
             with bwt_path.open("rb") as fh:
                 mm = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
+        # The cache directory is named for the sequence hash, so a *wrong directory*
+        # is already impossible — a corrupt *file inside the right directory* was not
+        # checked at all. Half a BWT loaded and answered "no occurrences", which in
+        # this tool renders as "0 site(s), specificity 1.000": the most reassuring
+        # output the system can produce, from an index that has lost half itself.
+        #
+        # `verify()` catches that and more, but it reconstructs the whole text and is
+        # `O(n)` — minutes over hg38 — so it cannot run on every load. These checks
+        # cost nothing: `meta.json` already records the length and the character
+        # counts, and a BWT that disagrees with either is corrupt without
+        # reconstructing anything. Same-length tampering still needs `verify()`, and
+        # this deliberately does not pretend otherwise.
+        length = meta["length"]
+        actual = len(mm) if mm is not None else len(bwt or "")
+        if actual != length:
+            raise FMIndexIntegrityError(
+                f"cached FM-index at {cache} is corrupt: bwt.bin holds {actual:,} "
+                f"bytes, meta.json records length {length:,}. A truncated index "
+                "reports no occurrences, which reads as a clean result. Rebuild it "
+                "(pass rebuild=True, or delete the directory)."
+            )
+        # `c_table[c]` is the *first row* of character `c` in the sorted rotations —
+        # a cumulative offset, not a count — so the invariant is that it starts at 0
+        # and never decreases across the sorted alphabet, staying inside the BWT.
+        # (Summing these is meaningless; the first draft of this check did, and the
+        # clean fixture failed it.)
+        starts = [meta["c_table"][c] for c in sorted(meta["c_table"])]
+        if starts and (
+            starts[0] != 0
+            or starts[-1] >= length
+            or any(b < a for a, b in zip(starts, starts[1:], strict=False))
+        ):
+            raise FMIndexIntegrityError(
+                f"cached FM-index at {cache} is corrupt: meta.json's c_table is not a "
+                f"non-decreasing set of offsets inside a BWT of length {length:,} "
+                f"(got {starts}). Rebuild it (pass rebuild=True, or delete the "
+                "directory)."
+            )
         return cls(
-            length=meta["length"],
+            length=length,
             c_table=meta["c_table"],
             occ=occ,
             occ_rate=meta["occ_rate"],
