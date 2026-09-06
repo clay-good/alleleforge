@@ -34,6 +34,7 @@ import tempfile
 from collections.abc import Callable
 from pathlib import Path
 
+from alleleforge.errors import MissingDependencyError
 from alleleforge.types.guide import PAM
 from alleleforge.types.offtarget import OffTargetReport, SiteOrigin
 from alleleforge.types.sequence import Strand
@@ -182,7 +183,7 @@ class CasOffinderAdapter:
                 installed.
         """
         if runner is None and not self.available():
-            raise RuntimeError(f"Cas-OFFinder binary {self.binary!r} is not on PATH")
+            raise MissingDependencyError(f"Cas-OFFinder binary {self.binary!r} is not on PATH")
         deck = self.format_input(reference, spacer, pam, mismatches)
         with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as fh:
             fh.write(deck)

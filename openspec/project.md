@@ -214,6 +214,14 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
   designer wiring never got applied, and `git status` not listing `designer.py` is what
   caught it, two steps later. `git status` at the end of a change is not bookkeeping.
 
+- **A "convert every X to Y" change is not done until a check enumerates X.** A sweep
+  is only as complete as the directory you happened to be reading, and the miss shows
+  up later as a *different* bug — usually while narrowing something that depended on
+  the sweep being finished. R169 converted six missing-dependency raises under
+  `scoring/` and left three elsewhere; R170 found them by nearly breaking the cyvcf2
+  path, and the fix was a test that enumerates the pattern rather than a more careful
+  grep. Write the enumerating check in the same commit as the conversion.
+
 ## Existing planning docs (background, not OpenSpec)
 
 `SPEC.md` (v1 build phases), `SPEC_V2.md` (R0–R6 roadmap), and `specs/*.md` (model-

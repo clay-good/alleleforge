@@ -5090,6 +5090,40 @@ one type carries several meanings. `RuntimeError` meant "a dependency is missing
 everywhere else, and the list could not tell. When catching by type, check what else in the codebase raises
 that type — and when a base class is caught, what its subclasses mean.**
 
+## Round 170 — the sibling I skipped one round ago
+
+R169's lesson said: when catching by type, check what else raises that type. Run as a sweep over every broad
+`except` in the tree, it lands immediately on two handlers in the CLI:
+
+    except RuntimeError as exc:  # e.g. a VCF input but cyvcf2 is not installed
+        _echo_err(f"error: {exc}")
+        raise typer.Exit(ExitCode.UNAVAILABLE)
+
+One wraps the patient-VCF reader, the other wraps the *entire cohort run*. Both translate the exception into
+"a feature is not installed" and exit `UNAVAILABLE`. So a genuine defect inside `iter_vcf`, or anywhere in
+`design_many`'s machinery, was reported to the user as an installation problem — advising them to install
+something that was already installed, which is worse than a traceback because it sends them somewhere wrong.
+
+Narrowing them needed the conversion R169 started, and checking that turned up the real finding of this
+round: **R169 converted six missing-dependency raises and left three.** The six were all under `scoring/`,
+which is where I was looking; the VCF reader, the Cas-OFFinder adapter and the Parquet export were not. So
+narrowing the handler would have *broken* the cyvcf2 path — the exact case its comment names — because the
+raise it was written for had not been converted. R158's "which siblings did I just skip?" question, asked one
+round too late again.
+
+Three sites converted. `_native.py`'s version-mismatch `RuntimeError` is deliberately left alone: a native
+extension built against a different version is a broken build, not an absent package, and telling someone to
+install something would be the same mistake in a new place.
+
+The durable part is a check rather than a lesson: any `raise RuntimeError` whose message contains "install",
+"not on PATH", "requires the optional" or the like now fails the suite. That is the check that would have
+caught R169's miss on the day it happened.
+
+**Lesson: a conversion sweep is only as complete as the directory I happened to be reading. Twice now
+(R158, R170) the missed siblings were the ones outside the package I had open — and both times the next
+round found them by accident, while narrowing something that depended on the sweep being finished. When a
+change has the form "convert every X to Y", the commit is not done until a check enumerates X.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

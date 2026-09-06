@@ -31,6 +31,7 @@ from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
+from alleleforge.errors import MissingDependencyError
 from alleleforge.variant.resolver import VcfRecord
 
 #: Alleles that are not a concrete ACGTN sequence and so cannot be designed against.
@@ -85,7 +86,7 @@ def _open_cyvcf2(source: str) -> Iterable[VcfVariantLike]:
     try:
         from cyvcf2 import VCF
     except ImportError as exc:  # pragma: no cover - exercised only without cyvcf2
-        raise RuntimeError(
+        raise MissingDependencyError(
             "iter_vcf needs cyvcf2 to read a VCF path; install the 'genome' extra "
             "(pip install 'alleleforge[genome]') or pass an iterable of records."
         ) from exc

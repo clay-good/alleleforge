@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from alleleforge.errors import MissingDependencyError
 from alleleforge.report.builder import DesignReport, caveats
 from alleleforge.types.candidate import RankedMenu
 
@@ -134,7 +135,7 @@ def report_to_parquet(report: DesignReport, path: str | Path) -> Path:
     try:
         import polars as pl
     except ImportError as exc:  # pragma: no cover - exercised only without polars
-        raise RuntimeError(
+        raise MissingDependencyError(
             "Parquet export requires the optional 'polars' dependency (install alleleforge[core])"
         ) from exc
     rows = [_row(c) for c in report.candidates]

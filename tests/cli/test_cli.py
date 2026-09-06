@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 
 from alleleforge._version import __version__
 from alleleforge.cli.main import ExitCode, app
+from alleleforge.errors import MissingDependencyError
 from alleleforge.types.candidate import RankedMenu
 from alleleforge.types.sequence import GenomicInterval
 
@@ -805,7 +806,12 @@ def test_a_missing_optional_dependency_is_reported_not_raised(
     import alleleforge.variant as variant_pkg
 
     def _absent(*_args: object, **_kw: object) -> object:
-        raise RuntimeError("iter_vcf needs cyvcf2 to read a VCF path; install the 'genome' extra")
+        # The type the real reader raises. It used to be a bare `RuntimeError`, which
+        # the CLI caught to mean "missing dependency" — and therefore reported a
+        # genuine defect in the reader as an installation problem.
+        raise MissingDependencyError(
+            "iter_vcf needs cyvcf2 to read a VCF path; install the 'genome' extra"
+        )
 
     monkeypatch.setattr(variant_pkg, "iter_vcf", _absent)
     vcf = tmp_path / "p.vcf"

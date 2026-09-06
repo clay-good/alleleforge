@@ -1563,6 +1563,14 @@ acceptance.
 
 ### Fixed
 
+- **The CLI reported a defect as a missing package.** Two handlers caught `RuntimeError` to mean "an optional
+  dependency is absent" — one for the patient-VCF reader, one around the whole cohort run — so a genuine bug
+  in the reader or in `design_many` was reported as an installation problem, telling the user to install
+  something they already had. Both are narrowed to `MissingDependencyError`. The previous entry converted six
+  such raise sites and missed three outside `scoring/` (the VCF reader, the Cas-OFFinder adapter, the Parquet
+  export); those are converted too, and a test now rejects any bare `raise RuntimeError` whose message is
+  about an absent dependency — the check that would have caught the miss.
+
 - **A genuine defect in a chemistry vertical was reported as "skipped".** `_EXPECTED_DESIGN_FAILURES` exists
   so "this chemistry produced no design" and "this code has a bug" read differently — its own comment says a
   real bug must not be "silently swallowed behind an 'eligible but empty' note". `RuntimeError` was on the

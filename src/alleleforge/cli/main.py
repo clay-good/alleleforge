@@ -38,6 +38,7 @@ from alleleforge._version import __version__
 from alleleforge.config import DEFAULT_REFERENCE, DEFAULT_SEED
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
+from alleleforge.errors import MissingDependencyError
 from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import GenomicInterval, Strand, canonical_contig
 from alleleforge.types.variant import Variant
@@ -480,10 +481,13 @@ def _load_patient_variants(path: Path | None, reference: Any) -> list[Variant] |
             name="patient-variants", version=f"n={len(variants)}"
         )
         return variants
-    except RuntimeError as exc:
+    except MissingDependencyError as exc:
         # A missing optional dependency (cyvcf2, for a real VCF path) already carries
         # an actionable message; it just arrived as a traceback. UNAVAILABLE, not
-        # MISSING_DATA: the file is fine, the feature is not installed.
+        # MISSING_DATA: the file is fine, the feature is not installed. Named rather
+        # than `RuntimeError`: catching the base class reported a genuine defect in the
+        # reader as an installation problem, telling the user to install something that
+        # was already installed.
         _echo_err(f"error: {exc}")
         raise typer.Exit(ExitCode.UNAVAILABLE) from exc
     except (OSError, ValueError, KeyError) as exc:
@@ -1288,7 +1292,9 @@ def batch(
             settings=settings,
             **ref_kwargs,
         )
-    except RuntimeError as exc:  # e.g. a VCF input but cyvcf2 is not installed
+    # Named rather than `RuntimeError`: a defect escaping `design_many` is a bug in the
+    # cohort machinery, not a missing package, and must not be reported as one.
+    except MissingDependencyError as exc:
         _echo_err(f"error: {exc}")
         raise typer.Exit(ExitCode.UNAVAILABLE) from exc
 
