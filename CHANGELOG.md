@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **`openspec/project.md`'s conventions are current again.** The file distils the audit into durable rules
+  and had stopped at R128, so a stretch of process lessons existed only inside individual round entries.
+  Seven added: co-presented numbers must range over the same population; an aggregate can be a claim even
+  when it is not a number; for an opt-in check the question is *who opted in*; a guard in a convenience
+  wrapper is not a guard on the documented path; a duplicated exception is a duplicated `except`; an audit
+  returning implausible results has two suspects and one is the audit; and audit the artifacts the audit
+  produces. A test pins that every round a convention cites resolves to a log entry — which immediately
+  caught a dangling `R117`.
+
 - **The audit log is navigable again, and pinned.** `openspec/changes/README.md` ran ascending for rounds
   1–134 and then **descending** for 135–145, because each of those rounds prepended its entry ahead of the
   previous one — the log read chronologically and then reversed. Two round numbers (50, 71) had shipped work

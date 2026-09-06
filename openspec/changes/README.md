@@ -4332,6 +4332,34 @@ in ways no individual diff shows — the changelog's 77 headings and this file's
 per commit and obvious in one `grep`. Also: "missing entry" and "skipped number" look identical from the
 gap, and only one of them is repaired by writing something.**
 
+## Round 147 — the rules had stopped keeping up
+
+Third pass of R145's standing query, on the third artifact every round edits: the specs. Those came back
+clean — every `###` is a `Requirement:`, every `####` a `Scenario:`, no requirement without a scenario, no
+duplicate titles, and the flat `Purpose`/`Requirements` shape means appending is the right place to append.
+A negative, and a welcome one after two documents in a row.
+
+The defect was one level up. `openspec/project.md` is where the audit's findings become *rules* — the file a
+future contributor reads instead of 4,000 lines of log — and its conventions stopped at R128. Everything from
+R134 onward existed only inside individual round entries, which is exactly the failure the file exists to
+prevent: a lesson that has to be rediscovered because it was recorded somewhere nobody reads twice.
+
+Added the seven that are genuinely actionable rules rather than findings — co-presented numbers over
+different populations; an ordering as an unretractable claim; "who opted in" for an opt-in check; a guard
+that the documented command routes around; a duplicated exception as a duplicated `except`; a broken checker
+as a bug with an owner; and audit-your-own-artifacts, with the "missing entry vs skipped number" corollary.
+
+Then pinned the thing that makes the file usable: every `R<n>` a rule cites must resolve to a log entry. The
+check found a dangling citation on its first run — `R117`, cited by the git-amend rule, the number R146
+established does not exist — which now resolves via the documented skip. Its first mutation did **not** fire:
+I had restricted the check to citations inside the log's range, which quietly excused a citation to a
+*future* round, the most likely typo of all. Tightened to flag anything at or above the first round.
+
+**Lesson: a distillation is a cache, and caches go stale silently. The log grew by twelve rounds while the
+rules file did not, and nothing about either document made that visible — the log looked healthy because it
+was growing, and the rules file looked healthy because it was not shrinking. When one artifact is derived
+from another, the check worth having is not on either one but on the *link* between them.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

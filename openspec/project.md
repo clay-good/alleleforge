@@ -140,6 +140,68 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
   that iterates `Model.model_fields` instead of naming fields covers the fields that do
   not exist yet.
 
+- **When two numbers are presented together, check they range over the same thing.**
+  Each can be individually correct and documented while their juxtaposition is a lie,
+  and no test of either one alone will catch it. R134: a cohort's `total` counted what
+  the run processed and `skipped` counted the *manifest file*, so a two-item request
+  reported `total: 0, skipped: 5`. R139: the benchmark's reproducibility digest covered
+  `n_test` and not `n_out_of_distribution` — a denominator inside the integrity envelope
+  and a numerator outside it — so a model that disclaimed nine predictions in ten
+  compared as "the same scientific result" as one that stood behind all ten. The same
+  question applies to a ratio's parts split across *any* boundary: signed/unsigned,
+  scientific/volatile, shown/hidden.
+
+- **An aggregate can be a claim even when it is not a number.** R135: the leaderboard
+  labelled every row with its split version and marked synthetic corpora, and still
+  ranked a 0.91 on the synthetic fixture as **#1** above a 0.42 on a real corpus. Every
+  cell was honest; the rank column was the assertion, and annotating the rows does not
+  retract it. When a fix is "we now show X", ask what the surrounding presentation still
+  asserts on its own.
+
+- **For an opt-in check, the audit question is "who opted in", not "is it correct".**
+  A safety mechanism with a flag has two implementations — the code, and the set of call
+  sites that pass the flag. R142: the disk cache's integrity gate (checksum sidecar,
+  fail-closed read, careful publish ordering) is genuinely well built, and `verify=True`
+  appeared only in its own tests, so none of it ever ran in the product. Enumerate the
+  call sites. The related tell, which has now found something in several rounds: an
+  exported helper for a boundary with **zero non-test callers** means the boundary is not
+  being crossed (R136 `to_one_based`, R137 `Liftover`).
+
+- **A guard in a convenience wrapper is not a guard on the documented path.** R143:
+  `serve()` refuses a non-loopback bind without an API token, and both the deployment
+  guide and the Dockerfile run `uvicorn …app:app`, which binds the module-level app and
+  never calls it — while `create_app` did not read `ALLELEFORGE_API_TOKEN` either. An
+  operator who published the port and set the variable got a fully open API. After
+  writing a guard, run what the docs tell people to run.
+
+- **A duplicated exception is a duplicated `except`.** R141: `ChecksumError` was defined
+  in three modules and `ConsentError` in four, each exported under that name from its
+  public package. `from alleleforge.genome import ChecksumError` then caught one third of
+  the artifact-gate surface and the rest escaped as an unrelated-looking `RuntimeError` —
+  a correct-looking handler that silently declines to run, with no symptom until it
+  matters. For any exception name defined more than once, confirm the copies are
+  genuinely different failures.
+
+- **An audit that returns implausible results has two suspects, and one of them is the
+  audit.** R138 built a check comparing documented `--flags` against the CLI, got obvious
+  false positives, and recorded it as "inconclusive, not a clean bill" without finding
+  the cause. Six rounds later the same question came up and the tool was still broken —
+  a `TyperGroup` is not an `isinstance` of the `click.Group` visible here, so the walk
+  found no subcommands (R144). A check abandoned as untrustworthy is a bug with an owner.
+  Fix it or delete it; "inconclusive" makes the next person pay the same cost.
+
+- **Audit the artifacts the audit produces.** Every round edits the changelog, the round
+  log and the specs, and those edits get exactly the review that unreviewed work gets.
+  R145: `[Unreleased]` had grown **77** change-type headings because each round prepended
+  its own instead of merging. R146: the round log ran ascending for 134 rounds and then
+  *descending* for eleven, because those rounds prepended their entries — and two cited
+  round numbers had no entry at all. Both were invisible in any individual diff and
+  obvious in one `grep`. Related: **"missing entry" and "skipped number" look identical
+  from the gap.** A third apparent gap in that log was a skipped *number* whose work was
+  logged under its neighbour; reconstructing an entry there would have been plausible,
+  sourced from a real commit, and false. Check what the neighbours already say before
+  writing anything into a hole.
+
 ## Existing planning docs (background, not OpenSpec)
 
 `SPEC.md` (v1 build phases), `SPEC_V2.md` (R0–R6 roadmap), and `specs/*.md` (model-

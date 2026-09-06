@@ -57,3 +57,26 @@ def test_documented_skips_are_really_absent() -> None:
     numbers = set(_round_numbers())
     stale = sorted(n for n in _SKIPPED if n in numbers)
     assert not stale, f"_SKIPPED lists rounds that now have entries: {stale}"
+
+
+def test_every_round_cited_in_the_conventions_exists() -> None:
+    """`project.md` distils the log into rules, and each rule cites its round.
+
+    A citation is the only path from a one-paragraph rule back to the evidence for it,
+    so a dangling `R<n>` costs a reader the reason the rule exists. Round 117 is the
+    live case: it is cited by two entries and is not a round.
+    """
+    conventions = _LOG.parent.parent / "project.md"
+    cited = {int(n) for n in re.findall(r"\bR(\d{1,3})\b", conventions.read_text())}
+    assert cited, "no round citations found in project.md — this check would be vacuous"
+    known = set(_round_numbers())
+    # `R0`–`R5` in that file also name the post-v0.1.0 roadmap tracks, so numbers below
+    # the log's first round are not read as citations. Everything at or above it is —
+    # including a number past the last round, which is the typo this most needs to
+    # catch. A documented skip resolves: a reader following it lands on the note saying
+    # where that work is logged instead.
+    dangling = sorted(n for n in cited if n >= min(known) and n not in known and n not in _SKIPPED)
+    assert not dangling, (
+        f"project.md cites rounds with no entry in the log: {dangling}. Write the entry, "
+        f"or record the number in _SKIPPED with its reason. Documented skips: {_SKIPPED}"
+    )
