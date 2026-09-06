@@ -78,6 +78,7 @@
           "ambiguous_spacer_positions": [],
           "cfd_threshold": 0.2,
           "dna_bulge_budget": 1,
+          "maf_threshold": null,
           "mismatch_threshold": 4,
           "mit_threshold": 0.1,
           "pam": "NGG",
@@ -201,5 +202,5 @@
     "rationale": "Routing: base_abe=yes, base_cbe=no, prime=yes, cas9_nuclease=no.\nEligible and run: base_abe, prime.\nWhy the other chemistries declined:\n- base_cbe: Cytosine base editing installs a C->T / G->A transition in a narrow window with no double-strand break \u2014 eligible when the required change is a G:C->A:T transition SNV.\n- cas9_nuclease: An SpCas9 double-strand break repaired by error-prone NHEJ yields frameshifting indels that ablate gene function \u2014 the canonical knock-out route.\n- ClinVar: pathogenic\n- intent install writes an allele ClinVar classifies as pathogenic \u2014 a disease model, not a correction\n- base_abe: 1 candidate(s)\n- prime: eligible but no actionable candidate enumerated \u2014 no PAM match at this offset (155); the spacer contains TTTT, which terminates Pol III transcription (1)\nRanked by a weighted sum of four higher-is-better objectives (efficiency 0.35, cleanliness 0.30, safety 0.30, simplicity 0.05); the safety term uses the worst-affected ancestry and the efficiency term is uncertainty-discounted. The Pareto front lists the 1 candidate(s) not dominated on all four objectives."
   },
   "n_candidates": 1,
-  "sha256": "77e501469f70a10d049c3614b010ad9817dce9cc5e830b0fb5750b40d541eb38"
+  "sha256": "3d987e4ef9835a575d9f8c7dc6ef1d9c51872ede8c3311887d29b5f8b3faa7eb"
 }

@@ -5730,6 +5730,74 @@ the fixture is the thing that is wrong. Weakening an assertion to fit a degenera
 check to keep a fake one, and the second time I reached for it was the signal.**
 
 
+## Round 190 — the allowance that excused eight things by rendering two
+
+R189 fixed one omission and left a thread. `PROVENANCE_FOOTER_OMITTED` is the report's honesty mechanism: the
+footer is a curated summary, and every field it skips must be listed there with a reason, so an omission is a
+decision rather than an accident. It had exactly one entry — `config_snapshot`, excused as "rendered inline
+beside the results."
+
+The snapshot holds eight keys. `build_report` reads two.
+
+The method that settled it was not reading code. Render a report, vary one setting, and look at what a reader
+would actually see. Two traps showed up immediately, and both would have produced a wrong answer:
+
+* **A page that differs proves nothing.** Varying `cell_context` "changed the page" — the only differing
+  fragment was the footer timestamp. Varying `populations` also "changed the page", because the *results*
+  changed; nothing said which setting produced them. That is R189's finding restated: a difference in output
+  is not a disclosure of input.
+* **A name that appears proves nothing either.** `"K562" in page` was True for `cell_context="K562"` — and
+  equally True for `cell_context="HEK293T"` and for no context at all. Both strings live in a model card's
+  known-failure-modes text. R182's coincidental-substring trap, caught only by checking the negative case.
+
+With those controlled, three keys reached no reader:
+
+**`populations`.** Requested `afr, eas, sas` with no gnomAD and no haplotypes: `unbacked_populations` came
+back `()`. The engine computed it with a trailing `if backed else ()` — deliberate, with a comment deferring
+the no-source case to "the R75 case, warned elsewhere." Elsewhere is `_warn_if_ancestries_unbacked`, in the
+CLI, printing to the terminal. Its own docstring names the danger precisely: an empty breakdown "reads like
+'no ancestry-specific risk found' rather than 'nothing was searched'." So the warning existed, was correct,
+and was in the one place that does not survive: not the HTML a collaborator opens, not the PDF, not the TSV,
+and not reachable at all from the library or the web API. The two cases differ in how a user *fixes* them,
+not in what the report has to *say*.
+
+**`settings.maf_threshold`.** The cut-off that decides which population alleles enter the scan, one step
+earlier than the reporting cut-offs the description already named. One 2% PAM-creating variant:
+
+    maf=0.001 -> 1 site,  specificity 0.500
+    maf=0.05  -> 0 sites, specificity 1.000
+
+Identical descriptions on that axis, and the reassuring one is the one you get by tightening a threshold. The
+inert-source note made it worse: "supplied but contributing nothing *in this region*" blamed the locus for
+what the caller's own threshold had done. Both now name the cut-off; a reference-only scan still names none,
+because a provenance line that is always present teaches a reader to skip provenance lines.
+
+**`cell_context`.** Reaches a reader only through the distribution check — an unrecognized value flags `ood`,
+a recognized one changes nothing, and the efficiency is not cell-adjusted without ENCODE tracks. That is a
+real route, so it is recorded as one rather than fixed into something it is not.
+
+`CONFIG_SNAPSHOT_ROUTES` now records all eight, each verified by varying the setting and reading the page, and
+a test fails when a key is added without a route. Writing that comment was itself the round's sharpest moment:
+the first draft claimed "cell_context -> named beside the efficiency it adjusts", which the K562 check had
+already disproved. I had reached for a tidy sentence about output I had not looked at — the exact failure R188
+was about, one round later, while writing the fix for it.
+
+The `populations` fix broke a test that pinned the old behavior outright: `assert none_given.
+unbacked_populations == ()`, with the comment *"that case has its own warning, and two warnings for one
+situation is worse than one."* The principle is right and the premise was not — the other warning is the
+CLI's, printed to the terminal, so the report carried zero warnings rather than one. On the CLI path the two
+now co-exist and are not duplicates: one tells the person at the keyboard how to fix the run, the other tells
+whoever opens the HTML months later that an empty ancestry breakdown means nothing was searched. The
+assertion was inverted with that reasoning written beside it, rather than deleted.
+
+**Lesson: the honesty mechanisms need auditing on the same schedule as the code, and by the same method. An
+allowance list, a coverage exception, a documented skip — each is a claim, each is written once and read
+forever, and each is exactly the kind of thing that is true when written and quietly false three features
+later. Two of the last three rounds found a defect not in the product but in the thing meant to prevent one.
+And when a correct-looking decision cites a mechanism elsewhere — "warned separately", "rendered inline",
+"covered by the other test" — the citation is the part to go and check.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

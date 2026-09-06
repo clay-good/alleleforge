@@ -468,10 +468,37 @@ COORDINATE_NOTE = (
 )
 
 
+#: Where each ``config_snapshot`` key reaches a reader. The footer prints none of them,
+#: so the single allowance below has to account for all eight — it used to say "rendered
+#: inline beside the results", which was true of two of them, and the audit that checked
+#: found three keys that reached no reader at all. Each route here was verified by
+#: varying the setting and reading the rendered page, and each is pinned by a test in
+#: ``tests/report/test_config_snapshot_reaches_a_reader.py``.
+CONFIG_SNAPSHOT_ROUTES: dict[str, str] = {
+    "intent": "named on the report's summary line",
+    "weights": "named on the report's summary line",
+    "cell_context": (
+        "the distribution check — an unrecognized context flags `ood`. It does not "
+        "adjust efficiency; encode_tracks + chromatin_track do that"
+    ),
+    "run_offtarget": "the `offtarget-not-searched` flag, per candidate",
+    "offtarget_regions": "the extent, in each search description ('over N bases')",
+    "populations": "named in the search description when nothing backs them",
+    "chromatin_track": (
+        "refused outright without encode_tracks; noted in the rationale when it covers "
+        "no candidate locus; the `chromatin-adjusted` flag when it applies"
+    ),
+    "settings": (
+        "the resolved values appear where they took effect — seed and reference build "
+        "in the footer, interval_level on every prediction, maf_threshold in the search "
+        "description. allow_network governs how the run fetched data, not how a result "
+        "is to be read, and qualifies nothing a reader sees"
+    ),
+}
+
+
 PROVENANCE_FOOTER_OMITTED: dict[str, str] = {
-    # Already rendered in full above the footer: the intent, weights and the settings
-    # that scoped the run each appear beside the results they qualify.
-    "config_snapshot": "rendered inline beside the results, not repeated in the footer",
+    "config_snapshot": "each key is rendered where it took effect (see CONFIG_SNAPSHOT_ROUTES)",
 }
 
 

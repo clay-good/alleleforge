@@ -509,13 +509,22 @@ def search(
     # whose records carry only `afr` and `nfe` contributes nothing and is dropped
     # silently, while the provenance snapshot records `sas` among the populations
     # considered — the report asserts an ancestry was examined when nothing for it
-    # exists. Distinct from the R75 case (ancestries requested with no source at all).
+    # exists.
+    #
+    # This deliberately also covers the case where *no* ancestry source was supplied,
+    # which it used to exclude with a trailing `if backed else ()` on the reasoning that
+    # the CLI warns about it separately. It does -- to the terminal. The report a
+    # collaborator is handed carried nothing, and a library or web caller was told
+    # nothing at all: three ancestries requested, an empty breakdown, and no statement
+    # anywhere in the artifact that the request went unhonored. The two cases differ in
+    # how a user fixes them, not in what the report has to say, and "requested but not
+    # examined" is true of both.
     backed: set[str] = set()
     if gnomad is not None:
         backed |= gnomad.available_populations
     for hap in haplotype_list:
         backed |= {pop for pop, freq in hap.frequencies.items() if freq > 0.0}
-    unbacked = tuple(sorted(p for p in (populations or ()) if p not in backed)) if backed else ()
+    unbacked = tuple(sorted(p for p in (populations or ()) if p not in backed))
 
     sources_considered: dict[str, int] = {}
     if gnomad is not None:
@@ -630,6 +639,10 @@ def search(
         sources_considered=sources_considered,
         ambiguous_spacer_positions=ambiguous_spacer_positions,
         unbacked_populations=unbacked,
+        # Only when an ancestry source was actually supplied: on a reference-only
+        # scan the cut-off never applied, and printing it would describe a filter
+        # that did nothing.
+        maf_threshold=maf if (gnomad is not None or haplotype_list) else None,
         reference_build=reference.build or "hg38",
         scorer=primary.name,
         score_matrix=getattr(primary, "matrix", None),

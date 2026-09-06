@@ -634,6 +634,18 @@
           "title": "Dna Bulge Budget",
           "type": "integer"
         },
+        "maf_threshold": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maf Threshold"
+        },
         "mismatch_threshold": {
           "default": 4,
           "title": "Mismatch Threshold",

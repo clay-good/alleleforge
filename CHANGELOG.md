@@ -10,6 +10,13 @@ acceptance.
 
 ### Added
 
+- **Every setting recorded in provenance is now pinned to a route that reaches a reader.** The report footer
+  is a curated summary, and `PROVENANCE_FOOTER_OMITTED` is the mechanism that forces "every omission must be a
+  decision". It had one entry — `config_snapshot`, excused as "rendered inline beside the results". The
+  snapshot holds eight keys; two are rendered inline, and the footer was skipping all eight on the strength of
+  those two. `CONFIG_SNAPSHOT_ROUTES` now records where each key reaches a reader, every route verified by
+  varying the setting and reading the rendered page, and a test fails when a new key is added without one.
+
 - **Every candidate now says where in the genome it edits.** A prior round labelled the report's coordinate
   convention on the reasoning that "a printed cut site is the number a reader pastes into a genome browser" —
   and then the coordinates themselves went unaudited. SpCas9 printed `cut 117` inside the reagent line, a bare
@@ -1594,6 +1601,25 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+
+- **Three ancestries requested, an empty breakdown, and nothing in the report saying the request went
+  unhonored.** `--populations` names the labels to stratify by; it supplies no alleles. Asked for three with no
+  `--gnomad` and no `--haplotypes`, the scan is reference-only and the breakdown comes back empty — which, as
+  the CLI's own warning puts it, "reads like 'no ancestry-specific risk found' rather than 'nothing was
+  searched'." That warning went to the terminal. `unbacked_populations`, the field that carries the same fact
+  into the HTML page, the PDF and the TSV, was switched off in exactly this case by a trailing `if backed else
+  ()`, on the reasoning that the CLI warned separately. So the durable artifact said nothing and a library or
+  web caller was told nothing at all. The two cases — no source, and a source lacking the label — differ in
+  how a user fixes them, not in what the report has to say.
+
+- **The population cut-off decided the verdict without appearing in it.** The MAF threshold decides which
+  population alleles enter the scan at all, one step earlier than the reporting cut-offs the description
+  already named. Against a source holding one 2% PAM-creating variant: `maf=0.001` gives 1 site at
+  specificity 0.500, `maf=0.05` gives **0 sites at a clean 1.000** — and both descriptions were identical on
+  that axis. The existing note for an inert source made it worse by naming the wrong cause, attributing to the
+  locus ("contributing nothing *in this region*") what the caller's own threshold had done. The cut-off is now
+  named whenever it applied, and the inert-source note names it too. A reference-only scan still says nothing
+  about MAF, since a provenance line that is always present teaches a reader to skip provenance lines.
 
 - **A panel scan and a genome-wide scan described themselves identically.** `search_description()` exists so
   that "a reader comparing two reports" can do so — the site count, the worst score and the specificity are

@@ -159,9 +159,18 @@ class OffTargetReport(BaseModel):
     #: Ancestries the caller asked to stratify by that no supplied source carries data
     #: for. They contribute nothing and are dropped silently, while provenance records
     #: them among the populations considered — so a report can assert an ancestry was
-    #: examined when nothing for it exists. Empty when every request is backed, and
-    #: empty when no source was supplied at all (a different case, warned elsewhere).
+    #: examined when nothing for it exists. Empty when every request is backed. Covers
+    #: the no-source case too: the CLI warns about that one, but only to the terminal,
+    #: so the durable artifact said nothing and a library caller was told nothing.
     unbacked_populations: tuple[str, ...] = ()
+    #: Minimum population allele frequency a variant had to reach to be considered,
+    #: or ``None`` when no ancestry source was supplied and the cut-off never applied.
+    #: It decides which population alleles enter the scan at all, so it moves the site
+    #: count and the specificity exactly the way the reporting cut-offs do -- a 2%
+    #: PAM-creating variant is a site at ``maf=0.001`` and nothing at ``maf=0.05``,
+    #: turning specificity 0.500 into a clean 1.000. The description said neither the
+    #: number nor that a cut-off was responsible.
+    maf_threshold: float | None = None
     #: 1-based spacer positions holding a non-ACGT base. Such a position cannot be
     #: scored — the CFD matrix has no entry for it — so the aligner counts it as a
     #: mismatch and the site's score falls toward 0, the *optimistic* direction on a
@@ -230,11 +239,22 @@ class OffTargetReport(BaseModel):
             )
         inert = sorted(name for name, n in self.sources_considered.items() if n == 0)
         if inert:
+            # "in this region" alone attributed an empty contribution to the locus. The
+            # MAF cut-off is the other reason a supplied source comes back with nothing,
+            # and it is the one the caller chose.
+            at_maf = f" at MAF >= {self.maf_threshold:g}" if self.maf_threshold is not None else ""
             coverage += (
-                f"; supplied but contributing nothing in this region: {', '.join(inert)} "
-                "— the scan is that much closer to reference-only here, and an empty "
-                "ancestry breakdown means 'not measured', not 'clean'"
+                f"; supplied but contributing nothing in this region{at_maf}: "
+                f"{', '.join(inert)} — the scan is that much closer to reference-only "
+                "here, and an empty ancestry breakdown means 'not measured', not 'clean'"
             )
+        # The population cut-off, whenever one applied. It gates which alleles enter the
+        # scan, so it moves the numbers the same way the reporting cut-offs do.
+        population_cutoff = (
+            f"; population alleles at MAF >= {self.maf_threshold:g}"
+            if self.maf_threshold is not None
+            else ""
+        )
         # The extent, unconditionally -- except that "over 0 bases" beside a table of
         # nominated sites is not a scope, it is a contradiction. `searched_bases` has a
         # default, so a report deserialized from before the field existed arrives at 0
@@ -251,7 +271,7 @@ class OffTargetReport(BaseModel):
             f"up to {self.mismatch_threshold} mismatches, "
             f"{self.dna_bulge_budget} DNA / {self.rna_bulge_budget} RNA bulges; "
             f"sites reported at CFD >= {self.cfd_threshold:g} "
-            f"or MIT >= {self.mit_threshold:g}{coverage}"
+            f"or MIT >= {self.mit_threshold:g}{population_cutoff}{coverage}"
         )
 
     @property

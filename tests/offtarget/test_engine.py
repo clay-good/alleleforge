@@ -480,7 +480,9 @@ def test_a_population_source_that_covers_nothing_here_says_so(make_reference: Ma
     )
     inert = search(SPACER, NGG, reference=reference, gnomad=elsewhere, populations=("afr",))
     assert inert.sources_considered == {"gnomad": 0}
-    assert "supplied but contributing nothing in this region: gnomad" in (
+    # The cut-off is named alongside the region: it is the other reason a supplied
+    # source comes back empty, and the one the caller chose.
+    assert "supplied but contributing nothing in this region at MAF >= 0.001: gnomad" in (
         inert.search_description()
     )
 
@@ -605,10 +607,20 @@ def test_an_ancestry_with_no_data_behind_it_is_named(make_reference: MakeRef) ->
     )
     assert both.unbacked_populations == ()
 
-    # With no source at all this stays empty: that case has its own warning, and two
-    # warnings for one situation is worse than one.
+    # With no source at all, every request is unbacked and all of them are named.
+    #
+    # This assertion used to read `== ()`, on the reasoning that "that case has its own
+    # warning, and two warnings for one situation is worse than one." The principle is
+    # right; the premise was not. The other warning is `_warn_if_ancestries_unbacked`,
+    # which lives in the CLI and prints to the terminal -- so the report carried zero
+    # warnings, not one, and a library or web caller got nothing at all. On the CLI path
+    # the two now co-exist, and they are not duplicates: the terminal one tells the
+    # person running the command how to fix it, this one tells whoever later opens the
+    # HTML, the PDF or the TSV that the ancestry breakdown is empty because nothing was
+    # searched, not because nothing was found.
     none_given = search(SPACER, NGG, reference=reference, populations=("afr", "sas"))
-    assert none_given.unbacked_populations == ()
+    assert none_given.unbacked_populations == ("afr", "sas")
+    assert "no supplied source carries data for afr, sas" in none_given.search_description()
 
 
 def test_a_search_over_no_sequence_says_so(make_reference: MakeRef) -> None:

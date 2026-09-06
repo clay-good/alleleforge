@@ -326,3 +326,29 @@ zero, since a stated zero invites a comparison that cannot be made.
 #### Scenario: A panel scan beside a genome-wide scan
 - **WHEN** the same guide is searched over one contig and then over the whole reference
 - **THEN** the two descriptions differ, each naming the number of bases it covered
+
+### Requirement: A requested ancestry with no source at all is named in the report
+
+Ancestry labels requested with nothing behind them SHALL be named in the report itself,
+whether the gap is a source that lacks the label or the absence of any source. A
+terminal warning does not satisfy this: the report is the artifact that is kept and
+handed on, and a library or web caller never sees the terminal. An empty ancestry
+breakdown means "not measured", and left unqualified it reads as "no risk found".
+
+#### Scenario: Ancestries requested on a reference-only scan
+- **WHEN** populations are requested with no ancestry-bearing source supplied
+- **THEN** the search description names them as requested but not examined
+
+### Requirement: The population cut-off is stated whenever it applied
+
+Where an ancestry source was supplied, the search description SHALL name the minimum
+allele frequency a variant had to reach. It decides which population alleles enter the
+scan, so it moves the site count and the specificity the way the reporting cut-offs do,
+and its effect is in the reassuring direction: a variant below the cut-off leaves a
+clean report. Where a supplied source contributed nothing, the note SHALL name the
+cut-off alongside the region rather than attributing the absence to the locus alone. A
+scan with no ancestry source SHALL state no cut-off, having applied none.
+
+#### Scenario: A common variant below the chosen threshold
+- **WHEN** the same source is searched at two different minimum allele frequencies
+- **THEN** the two descriptions differ, each naming the threshold it used
