@@ -607,3 +607,25 @@ def test_an_ancestry_with_no_data_behind_it_is_named(make_reference: MakeRef) ->
     # warnings for one situation is worse than one.
     none_given = search(SPACER, NGG, reference=reference, populations=("afr", "sas"))
     assert none_given.unbacked_populations == ()
+
+
+def test_a_search_over_no_sequence_says_so(make_reference: MakeRef) -> None:
+    """An empty search returns the most reassuring report the system can produce.
+
+    A truncated reference — a contig header with no bases, i.e. an interrupted
+    download — indexes without complaint and yields "0 sites, worst score 0.000,
+    specificity 1.000". Every number is correct and the conclusion a reader draws is
+    the opposite of the truth. The searchable-fraction line does not fire either,
+    because there were no requested bases to take a fraction of.
+    """
+    empty = make_reference({"chr1": ""})
+    report = search(SPACER, NGG, reference=empty)
+
+    assert report.n_sites == 0
+    assert report.specificity_score() == 1.0  # arithmetically right, and meaningless
+    assert report.searched_bases == 0
+    assert "NO SEQUENCE WAS SEARCHED" in report.search_description()
+
+    # A real search says nothing of the kind.
+    real = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    assert "NO SEQUENCE" not in search(SPACER, NGG, reference=real).search_description()

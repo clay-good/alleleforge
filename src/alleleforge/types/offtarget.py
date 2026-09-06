@@ -180,6 +180,15 @@ class OffTargetReport(BaseModel):
         # font has no glyph for the mathematical <= or >=, and would print "?3
         # mismatches" on the page a collaborator is handed.
         coverage = ""
+        if self.searched_bases == 0 and self.sites == ():
+            # No sequence at all — a truncated or header-only reference, or a scope that
+            # resolved to nothing. Left unsaid this returns "0 sites, specificity 1.000",
+            # the most reassuring report the system can produce, from a search that
+            # examined nothing.
+            coverage = (
+                "; NO SEQUENCE WAS SEARCHED — the reference or region scope yielded no "
+                "bases, so this is not a clean result, it is an empty one"
+            )
         if self.searched_bases > 0:
             fraction = self.resolved_bases / self.searched_bases
             # Only when it materially narrows the search: a genome with a few scattered

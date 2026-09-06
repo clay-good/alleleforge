@@ -3482,6 +3482,39 @@ answer it is. Three failures in one sweep wanted three different treatments — 
 alternatives, refuse with the expected schema, and report a missing capability — and collapsing them into
 one generic handler would have thrown away the useful part.**
 
+## Round 122 — the empty genome that passed
+
+Continuing the input sweep with files that are malformed in *plausible* ways rather than absent ones.
+
+**A frequency column in percent.** `af=1.5`, `afr=2.0` was accepted without complaint. Downstream the MAF
+filter admits everything and the ancestry breakdown — the table a person reads to decide whether a guide is
+safe in a population — shows 200%. Frequencies are now validated as fractions at the parse boundary, with a
+message that names the likely cause, because a scale error that propagates produces a safety number wrong by
+100x that looks entirely deliberate.
+
+**And then the one that matters.** Chasing an empty-FASTA traceback, I tried a *header-only* FASTA — a
+download that got `>chr1` and stopped. It indexes fine. The scan returns:
+
+```
+0 site(s), worst score 0.000, specificity 1.000
+```
+
+A perfect safety report, from a genome containing no bases. Every number is arithmetically correct. R115's
+searchable-fraction line does not fire, because it takes a fraction of the requested bases and there were
+none. This is the purest example of the pattern this entire audit has been about: the *most reassuring
+output the system can produce* is what it produces when it has nothing at all.
+
+Two smaller notes on discipline, both from mutation runs. My first fix added a `not reference.contigs` guard
+at load time; it is unreachable — a header-only FASTA has a contig — and the mutation proved it, so it is
+gone and the condition is reported where it is actually observable. And a narrow `except (OSError,
+ValueError, KeyError)` in front of a broad `except Exception` also survived removal: two clauses differing
+only in the verb of their message. One handler now.
+
+**Lesson: check what the system says when it has *nothing* — no sequence, no data, no candidates. Systems
+are built and tested around having input, and the empty case tends to fall through every guard into the
+default, which is silence. Silence reads as success. For anything that reports a risk, the zero-input path
+deserves an explicit test, because that is the path where a wrong answer is maximally reassuring.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

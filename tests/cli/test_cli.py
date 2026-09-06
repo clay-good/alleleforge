@@ -725,6 +725,37 @@ def test_offtarget_states_the_settings_its_site_count_depends_on(
     assert default["dna_bulge_budget"] == 1 and default["cfd_threshold"] == 0.20
 
 
+def test_an_unreadable_reference_fasta_fails_clearly(runner: CliRunner, tmp_path: Path) -> None:
+    """An empty or non-FASTA reference raised an indexing traceback.
+
+    A truncated download and a file that is really a VCF are the ordinary causes, and
+    both surfaced as a stack trace from whichever fetch happened to run first rather
+    than at the point the file was opened.
+    """
+    # A header-only FASTA — a truncated download — indexes fine and has no bases, so
+    # no check at load time can catch it. It is reported by the search instead, and
+    # that path is asserted separately below because it is the dangerous one: it
+    # returns a *result*, and the most reassuring one the system can produce.
+    truncated = tmp_path / "truncated.fa"
+    truncated.write_text(">chr1\n")
+    result = runner.invoke(
+        app, ["offtarget", "ACGTAACGTTACGTAACGTT", "--reference-fasta", str(truncated)]
+    )
+    assert result.exit_code == 0
+    assert "0 site(s)" in result.output and "specificity 1.000" in result.output
+    assert "NO SEQUENCE WAS SEARCHED" in result.output
+
+    for name, content in (("empty.fa", ""), ("notfasta.fa", "##fileformat=VCFv4.2\n")):
+        path = tmp_path / name
+        path.write_text(content)
+        result = runner.invoke(
+            app, ["offtarget", "ACGTAACGTTACGTAACGTT", "--reference-fasta", str(path)]
+        )
+        assert result.exit_code == ExitCode.MISSING_DATA, name
+        assert "reference FASTA" in result.output
+        assert "Traceback" not in result.output
+
+
 def test_a_wrong_schema_haplotype_panel_fails_clearly(
     runner: CliRunner, nuclease_fasta: Path, tmp_path: Path
 ) -> None:

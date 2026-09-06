@@ -10,6 +10,24 @@ acceptance.
 
 ### Fixed
 
+- **A truncated reference genome produced the most reassuring report the system can make.** A FASTA that is
+  a contig header with no bases — an interrupted download — indexes without complaint, and a scan over it
+  returned *"0 site(s), worst score 0.000, specificity 1.000"*. Every number is correct and the conclusion a
+  reader draws is the opposite of the truth. The searchable-fraction line did not fire either: there were no
+  requested bases to take a fraction of. A search that examined **no sequence at all** now says so, plainly,
+  next to the numbers.
+
+- **An allele-frequency column given as a percentage was accepted silently.** `af=1.5`, `afr=2.0` — the
+  ordinary cause is a percent column (0–100) read as a fraction — passed validation, defeated the MAF filter,
+  and put "200%" into the ancestry breakdown a human reads to judge whether a guide is safe in a population.
+  `PopulationFrequency` now rejects any frequency outside `[0, 1]`, naming every offending field and saying
+  frequencies are fractions. `0.0` and `1.0` remain valid: a monomorphic and a fixed allele are both real.
+
+- **An empty or non-FASTA reference raised an indexing traceback**, now a clean `MISSING_DATA` error. A
+  truncated download and a file that is really a VCF are the ordinary causes.
+
+### Fixed
+
 - **Two more file inputs failed with a raw traceback.** A haplotype panel whose header lacks a column
   raised a bare `KeyError`; it now names the missing column *and* the expected header, since a hand-built or
   differently-exported panel is the ordinary cause. Reading a real VCF without the optional `genome` extra

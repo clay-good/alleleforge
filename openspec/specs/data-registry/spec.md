@@ -186,3 +186,15 @@ because it is not in the cache.
 #### Scenario: The in-package dataset
 - **WHEN** a dataset whose bytes ship inside the package is listed
 - **THEN** it is reported as available, not as uncached
+
+### Requirement: Allele frequencies are validated as fractions
+
+A frequency column supplied as a percentage is the ordinary scale error, and it defeats
+the MAF filter and puts an impossible number into the ancestry breakdown a person reads
+to judge a guide's safety. Frequencies SHALL be rejected outside `[0, 1]` at the parse
+boundary, naming every offending field, since a scale error that propagates produces a
+safety figure wrong by a hundredfold that looks deliberate. `0.0` and `1.0` are valid.
+
+#### Scenario: A percent-scaled column
+- **WHEN** a frequency source carries a value above 1
+- **THEN** it is refused with a message saying frequencies are fractions

@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from alleleforge.data.gnomad import GnomadDB, PopulationFrequency
 from alleleforge.types.sequence import GenomicInterval, Strand
@@ -99,3 +100,34 @@ def test_missing_header_raises(tmp_path: Path) -> None:
     bad.write_text("chr2\t60150\tC\tG\t0.02\n")
     with pytest.raises(ValueError, match="missing its"):
         GnomadDB.from_sites_tsv(bad)
+
+
+def test_a_percent_scaled_frequency_column_is_refused() -> None:
+    """A frequency of 2.0 is a percent column, and it used to be accepted silently.
+
+    The consequences are quiet and bad: the MAF filter admits everything, and the
+    ancestry breakdown a human reads to judge whether a guide is safe in a population
+    shows "200%". A scale error has to fail at the parse boundary — propagated, it
+    produces a safety figure wrong by 100x that looks deliberate.
+    """
+    with pytest.raises(ValidationError, match="fractions, not percentages"):
+        PopulationFrequency(
+            chrom="chr2", pos=1, ref="A", alt="G", overall_af=1.5, populations={"afr": 2.0}
+        )
+
+    # The message names every offending field, not just the first one found.
+    with pytest.raises(ValidationError) as excinfo:
+        PopulationFrequency(
+            chrom="chr2", pos=1, ref="A", alt="G", overall_af=50.0, populations={"afr": 80.0}
+        )
+    assert "overall_af=50.0" in str(excinfo.value) and "afr=80.0" in str(excinfo.value)
+
+    # A negative frequency is equally impossible.
+    with pytest.raises(ValidationError, match="outside"):
+        PopulationFrequency(chrom="chr2", pos=1, ref="A", alt="G", overall_af=-0.1)
+
+    # The boundaries are valid: a monomorphic and a fixed allele are both real.
+    assert PopulationFrequency(chrom="chr2", pos=1, ref="A", alt="G", overall_af=0.0)
+    assert PopulationFrequency(
+        chrom="chr2", pos=1, ref="A", alt="G", overall_af=1.0, populations={"afr": 1.0}
+    )

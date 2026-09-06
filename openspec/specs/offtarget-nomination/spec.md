@@ -272,3 +272,15 @@ when no source was supplied at all, since that case is warned about separately.
 #### Scenario: Every requested ancestry backed
 - **WHEN** each requested ancestry is carried by some supplied source
 - **THEN** nothing is said
+
+### Requirement: A search that examined no sequence says so
+
+With no sequence to scan — a truncated reference, a contig header with no bases, a scope
+resolving to nothing — the report is "0 sites, worst score 0.000, specificity 1.000".
+Every number is correct and the conclusion is the opposite of the truth, and the
+searchable-fraction statement cannot help because there are no requested bases to take a
+fraction of. A search over zero bases SHALL state that plainly beside its numbers.
+
+#### Scenario: A truncated reference
+- **WHEN** the reference holds a contig with no sequence
+- **THEN** the report says no sequence was searched, rather than presenting a clean result

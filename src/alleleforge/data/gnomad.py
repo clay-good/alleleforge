@@ -16,7 +16,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator, Sequence
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from alleleforge.config import get_settings
 from alleleforge.data._io import is_sequence_allele, open_text
@@ -46,6 +46,31 @@ class PopulationFrequency(BaseModel):
     alt: str
     overall_af: float
     populations: dict[str, float] = {}
+
+    @model_validator(mode="after")
+    def _frequencies_are_fractions(self) -> PopulationFrequency:
+        """Reject a frequency outside ``[0, 1]``.
+
+        A frequency column given as a *percentage* (0-100) is the ordinary way this
+        happens, and it was accepted silently: the MAF filter then admits everything,
+        and the report shows an ancestry frequency of "200%". The numbers this carries
+        are read by a human deciding whether a guide is safe in a population, so a
+        scale error has to fail at the parse boundary rather than propagate — the
+        alternative is a safety figure that is wrong by 100x and looks deliberate.
+        """
+        bad = {"overall_af": self.overall_af} | {
+            pop: freq for pop, freq in self.populations.items() if not 0.0 <= freq <= 1.0
+        }
+        if 0.0 <= self.overall_af <= 1.0:
+            del bad["overall_af"]
+        if bad:
+            listed = ", ".join(f"{k}={v!r}" for k, v in sorted(bad.items()))
+            raise ValueError(
+                f"allele frequency outside [0, 1] at {self.chrom}:{self.pos}: {listed}. "
+                "Frequencies are fractions, not percentages — divide a percent column "
+                "by 100."
+            )
+        return self
 
     def max_af(self, populations: Sequence[str] | None = None) -> float:
         """Return the highest frequency across the requested populations.

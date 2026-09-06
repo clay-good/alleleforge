@@ -135,7 +135,24 @@ def _load_reference(fasta: Path | None, build: str = DEFAULT_REFERENCE) -> Any:
         raise typer.Exit(ExitCode.MISSING_DATA)
     from alleleforge.genome.reference import ReferenceGenome
 
-    return ReferenceGenome(fasta, build=build)
+    try:
+        # Index eagerly so a malformed FASTA fails here, with a message, rather than as
+        # a traceback from whichever fetch happened to run first. An empty file, a
+        # truncated download and a FASTA that is really a VCF all land here.
+        #
+        # A *header-only* FASTA indexes fine — it has a contig with no bases — so no
+        # check here can catch it. That case is reported where it matters, by the
+        # search's searchable-bases accounting: a scan over no sequence says so instead
+        # of returning a spotless report.
+        reference = ReferenceGenome(fasta, build=build)
+    except Exception as exc:  # noqa: BLE001 - pyfaidx raises its own indexing errors
+        # One handler on purpose. A narrower `(OSError, ValueError, KeyError)` clause in
+        # front of this changed nothing observable — the indexer's own exception type is
+        # not in that set, and everything else it raises lands here anyway. Two clauses
+        # differing only in the verb is a branch no test can distinguish.
+        _echo_err(f"error: cannot read reference FASTA {fasta}: {exc}")
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
+    return reference
 
 
 def _emit(payload: dict[str, Any], *, as_json: bool, human: str) -> None:
