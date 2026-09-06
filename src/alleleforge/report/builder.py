@@ -44,6 +44,16 @@ RESEARCH_USE_CORE = (
     "provide medical advice."
 )
 
+#: For a surface that nominates off-target sites but ranks no candidates — the standalone
+#: `aforge offtarget` command and `POST /api/offtarget`. The validation sentence is
+#: exactly right there; "the candidates below are ranked" describes a menu that is not on
+#: the page.
+RESEARCH_USE_OFFTARGET = (
+    f"{RESEARCH_USE_CORE} Every off-target nomination is computational and must "
+    "be experimentally validated (e.g. GUIDE-seq / CHANGE-seq / amplicon "
+    "sequencing) before any wet-lab or therapeutic use."
+)
+
 RESEARCH_USE_DISCLAIMER = (
     f"{RESEARCH_USE_CORE} The candidates below are ranked, explicitly "
     "uncertain computational hypotheses. Every off-target nomination is "

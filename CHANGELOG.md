@@ -2036,6 +2036,14 @@ acceptance.
 
 ### Fixed
 
+- **Each artifact's disclaimer describes that artifact.** Found by starting the API as `docs/deployment.md`
+  documents it and reading the responses: `GET /api/health` — a liveness probe — returned "The candidates
+  below are ranked ... Every off-target nomination is computational and must be experimentally validated",
+  promising validation of nominations it does not make about candidates it does not have. The standalone
+  off-target surfaces had the mirror-image problem. Three wordings now, nested so every artifact still
+  carries the core research-use sentence: core alone for status, core plus validation for an off-target
+  nomination, the full text for a ranked menu.
+
 - **A reference-only cohort row still reads differently from an unsearched one.** Blanking empty
   collections in the cohort TSV (above) would have collapsed `offtarget_sources` `{}` — a search ran, no
   optional source was supplied — into the empty cell that means no search happened at all. It now renders

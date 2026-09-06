@@ -8542,6 +8542,40 @@ to fixed precision — enumerate the values that map to the new one and check no
 meant different things.**
 
 
+## Round 258 — serving the API and reading what it says
+
+Started the web API exactly as `docs/deployment.md` documents it, and read the responses
+as a client. `POST /api/resolve` carried R248's reason; the design refusal without a
+reference was a clean 503 naming the two ways to supply one. Then `GET /api/health`:
+
+    {"status": "ok", "version": "0.1.0.dev0", "reference_loaded": false,
+     "disclaimer": "AlleleForge is a research tool... The candidates below are ranked,
+     explicitly uncertain computational hypotheses. Every off-target nomination is
+     computational and must be experimentally validated (e.g. GUIDE-seq / CHANGE-seq /
+     amplicon sequencing) before any wet-lab or therapeutic use."}
+
+A liveness probe promising experimental validation of off-target nominations it does not
+make, about candidates it does not have.
+
+The repo had already diagnosed this class and left the cure sitting there. `RESEARCH_USE_CORE`
+exists because the full text was once reused verbatim on a leaderboard of *models*, and the
+comment above it reads: "a caveat that does not describe the thing it is attached to is
+noise, and reusing one verbatim across artifacts is how that happens." The fix was applied
+to the leaderboard and to nothing else, so the health endpoint kept the wrong one.
+
+The mirror image was also there: `aforge offtarget` and `POST /api/offtarget` nominate
+sites and rank no candidates, so the validation sentence is exactly right for them and the
+ranked-candidates sentence describes a menu that is not on the page.
+
+Three wordings now, nested — every artifact still carries the core sentence, and the test
+asserts the nesting rather than three string literals, so a later edit to the core text
+cannot silently split them.
+
+**Lesson: when a fix introduces a narrower constant for one caller, grep the old constant's
+remaining callers the same day. A cure that gets applied to the case that prompted it and
+no other is indistinguishable from no cure at all for every case that did not.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

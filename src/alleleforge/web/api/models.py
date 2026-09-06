@@ -14,7 +14,7 @@ from typing import Annotated, Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from alleleforge.design.ranking import OBJECTIVES
-from alleleforge.report.builder import COORDINATE_SYSTEM, RESEARCH_USE_DISCLAIMER
+from alleleforge.report.builder import COORDINATE_SYSTEM, RESEARCH_USE_OFFTARGET
 from alleleforge.types.offtarget import OffTargetReport
 from alleleforge.types.sequence import GenomicInterval, Strand
 
@@ -439,8 +439,12 @@ class OffTargetResponse(BaseModel):
         ),
     )
     disclaimer: str = Field(
-        default=RESEARCH_USE_DISCLAIMER,
-        description="The research-use disclaimer, as on every other AlleleForge artifact.",
+        default=RESEARCH_USE_OFFTARGET,
+        description=(
+            "The research-use disclaimer. The off-target wording: this response nominates "
+            "sites and ranks no candidates, so the sentence about ranked candidates would "
+            "describe a menu that is not here."
+        ),
     )
 
     @classmethod

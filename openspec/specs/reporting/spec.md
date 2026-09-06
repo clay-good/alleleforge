@@ -21,6 +21,20 @@ field the on-screen report shows. A candidate that was **not** off-target-search
 ranking toward the least-evidenced guide; a *searched* candidate with zero sites legitimately
 plots `0.0`.
 
+Every artifact SHALL carry the core research-use sentence, and SHALL carry only the
+further sentences that describe *it*. A caveat that does not describe the thing it is
+attached to is noise, and reusing one verbatim across artifacts is how that happens: the
+ranked-candidates sentence belongs to a menu, the off-target-validation sentence to a
+surface that nominates sites.
+
+#### Scenario: A surface with neither candidates nor nominations
+- **WHEN** a liveness or status response carries the disclaimer
+- **THEN** it carries the core sentence alone
+
+#### Scenario: A surface that nominates sites but ranks nothing
+- **WHEN** the standalone off-target command or endpoint carries the disclaimer
+- **THEN** it carries the validation sentence and not the ranked-candidates one
+
 #### Scenario: Out-of-distribution candidate
 - **WHEN** a candidate is out of distribution
 - **THEN** the HTML and PDF renders annotate it explicitly

@@ -35,6 +35,7 @@ from alleleforge._version import __version__
 from alleleforge.config import Settings
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
+    RESEARCH_USE_CORE,
     RESEARCH_USE_DISCLAIMER,
     DesignReport,
     build_report,
@@ -362,7 +363,10 @@ def create_app(
             status="ok",
             version=__version__,
             reference_loaded=app.state.reference is not None,
-            disclaimer=RESEARCH_USE_DISCLAIMER,
+            # The core sentence only. A liveness probe has no candidates below it and
+            # nominates no off-target site, and `RESEARCH_USE_CORE` exists because "a
+            # caveat that does not describe the thing it is attached to is noise".
+            disclaimer=RESEARCH_USE_CORE,
         )
 
     @app.post("/api/resolve", response_model=ResolveResponse)

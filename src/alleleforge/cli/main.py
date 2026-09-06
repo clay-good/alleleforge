@@ -1798,7 +1798,7 @@ def offtarget(
     from alleleforge.report.builder import (
         COORDINATE_NOTE,
         COORDINATE_SYSTEM,
-        RESEARCH_USE_DISCLAIMER,
+        RESEARCH_USE_OFFTARGET,
     )
 
     sites = [
@@ -1849,7 +1849,9 @@ def offtarget(
         "reference_build": state.reference_build,
         "reference": _reference_snapshot(reference),
         "coordinate_system": COORDINATE_SYSTEM,
-        "disclaimer": RESEARCH_USE_DISCLAIMER,
+        # This command nominates off-target sites and ranks no candidates, so it carries
+        # the off-target wording rather than the menu's.
+        "disclaimer": RESEARCH_USE_OFFTARGET,
         "on_target_excluded": locus is not None,
         "worst_score": round(report.worst_score(), 4),
         "specificity": round(report.specificity_score(), 4),

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from alleleforge.report.builder import (
     RESEARCH_USE_DISCLAIMER,
+    RESEARCH_USE_OFFTARGET,
     AncestryOffTarget,
     CandidateReport,
     DesignReport,
@@ -48,6 +49,7 @@ __all__ = [
     "PEGRNA_GG_BSAI",
     "PX330_BBSI",
     "RESEARCH_USE_DISCLAIMER",
+    "RESEARCH_USE_OFFTARGET",
     "AncestryOffTarget",
     "CandidateReport",
     "DesignReport",
