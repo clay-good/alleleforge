@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **The README explains all three off-target summary numbers.** It described the worst case and the
+  aggregate specificity, and said specificity "surfaces on every output surface that summarizes
+  off-target" — then `expected_burden` was added to those same surfaces and the paragraph was not
+  revisited. The one number that tells a rare-variant off-target from a universal one was undocumented in
+  the place a reader goes to understand the summary. Now explained, including that it appears only when
+  some site's presence is probabilistic, so its absence is not read as "no burden".
+
 - **The README describes the web surface that ships.** It explained that the four file-backed inputs were
   "deliberately absent" from the web API because a client-supplied path would be a server-side file-read
   primitive, and that the surface "needs server-side configuration like the reference already has". The

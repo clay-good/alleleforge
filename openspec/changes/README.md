@@ -8876,6 +8876,34 @@ When you add a capability, grep the docs for the explanation of why it used to b
 missing.**
 
 
+## Round 269 — the paragraph that lists the surfaces, one number short
+
+R268's query — grep the docs for the explanation of what changed — run against R249's
+work. The README's off-target section explains the worst-case score and the aggregate
+specificity, and lists, carefully, every place specificity appears:
+
+    It surfaces on every output surface that summarizes off-target: the HTML/PDF report
+    and the CandidateReport.offtarget_specificity export field, the standalone
+    aforge offtarget command and its POST /api/offtarget web equivalent ... and the
+    cohort batch summary
+
+R249 put `expected_burden` on that same list of surfaces and did not touch this paragraph.
+So the number that distinguishes a 0.1%-MAF population hit from a universal reference hit
+— in a project whose stated differentiator is population-aware nomination — was explained
+nowhere a reader looks to understand the summary.
+
+Documented, including the part that keeps it honest: it appears only when some site's
+presence is probabilistic, so a reader who does not see it should not conclude the guide
+carries no burden. The guard lists the report's three aggregate accessors and requires the
+README to explain each, accepting prose for the worst case (which it describes without
+naming the method) — the check is that the *number* is explained, not that an identifier
+appears.
+
+**Lesson: a doc paragraph that enumerates surfaces is a list like any other, and needs the
+same question asked of it — what makes this fail when the product grows? Two rounds running,
+the stale text was the sentence that had been most carefully written.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

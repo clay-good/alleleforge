@@ -573,6 +573,12 @@ It surfaces on **every output surface that summarizes off-target**: the HTML/PDF
 `POST /api/offtarget` web equivalent (both alongside the site count and worst-case score), and the cohort
 batch summary (`best_specificity`), so triage can rank by total burden, not just the single worst site.
 
+Specificity and the worst-case are both **frequency-blind**: a 0.1%-MAF population hit and a universal
+reference hit of the same raw score are identical in them. When any site's presence in a genome is
+probabilistic, the same surfaces also carry `expected_burden` — each site's score weighted by the
+probability a genome actually carries it — which weights those two a thousandfold apart. It appears only
+when it says something the other two cannot: with reference sites alone it is just the unweighted score sum.
+
 All three site scores sit behind one swappable `OffTargetScorer` protocol, so a Phase 6 ML scorer drops in
 without touching the engine. Reporting thresholds default to **CFD ≥ 0.20 or MIT ≥ 0.10** — an **OR**, so
 a site can be nominated on its MIT score even when its CFD is sub-threshold. So that a nomination stays
