@@ -3891,6 +3891,36 @@ up cost two minutes; reporting it would have been wrong in public.
 `skipped` were both honest and individually documented, and their juxtaposition was the lie — nothing in
 either field's definition is wrong, and no test of either one alone would have caught it.**
 
+## Round 142 — the gate was built, tested, and never opened
+
+Closed R141's sweep first: every exception name in the tree is now defined exactly once. Then took the
+"implemented but nothing switches it on" tell — which has now found something in three consecutive rounds
+(R136 `to_one_based`, R137 `Liftover`, R141's unreachable `except`) — and pointed it at on-disk state.
+
+`ContentAddressedCache` has a genuinely careful integrity design: a checksum sidecar per entry, re-verified
+on read, a *missing* sidecar treated as corruption rather than downgraded to an unverified read, and the
+sidecar published before the payload so a concurrent reader never sees a payload without one. Someone thought
+hard about this. It is gated on `verify=`, which defaults to `False`.
+
+The library constructs exactly one cache — `PersistentEmbeddingCache` — and it took the default. So
+`verify=True` occurs only in `tests/test_cache.py`. Every one of those careful behaviours has run in CI and
+never once in the product.
+
+The default is defensible in general and wrong for this cache specifically. A corrupted embedding does not
+raise; it deserializes into a plausible vector, which becomes an efficiency score, which is the number a
+guide is ranked on — a wrong answer with no error, the failure class this project keeps finding. And the cost
+is a SHA-256 over a few kilobytes, weighed against the transformer forward pass the cache exists to skip.
+
+One migration detail worth stating, because turning a gate on is not free. A missing sidecar is *deliberately*
+an integrity failure and not a miss — otherwise `rm *.sum` defeats the gate. So flipping the flag would have
+turned a user's warm cache from an earlier release into hard errors on data that is perfectly valid. The
+namespace now carries a `v2` segment: old entries are simply never looked up. Inert, not fatal.
+
+**Lesson: a safety mechanism with a flag has two implementations — the code, and the set of call sites that
+pass the flag. Reviewing the first and never enumerating the second is how a well-tested gate ends up never
+running. When a check is opt-in, the audit question is not "is it correct" but "who opted in", and the answer
+here was: only its tests.**
+
 ## Round 141 — one name, seven classes
 
 R140's lesson sent me through the other gates asking whether each keeps the losing side. They all do, and

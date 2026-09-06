@@ -82,11 +82,33 @@ class PersistentEmbeddingCache:
     namespace scoped to the embedder identity, so an embedding computed in one run
     is reused by the next and two different backbones never collide. Satisfies
     :class:`EmbeddingCache`.
+
+    Opened with ``verify=True``. The cache's integrity gate — a checksum sidecar per
+    entry, re-checked on read, failing closed — was implemented and exercised only by
+    its own tests: this was the sole cache constructed anywhere in the library and it
+    took the ``verify=False`` default. That is the wrong default *here* in particular.
+    A corrupted embedding does not fail; it produces a plausible vector, which becomes
+    an efficiency score, which is what a guide is ranked on. And the cost of checking
+    is a SHA-256 over a few kilobytes against the alternative it exists to avoid — a
+    transformer forward pass.
+
+    The namespace carries a version segment. Turning verification on makes an entry
+    written without a sidecar an integrity *failure* rather than a miss (deliberately:
+    ``rm *.sum`` must not defeat the gate), so a user with a warm cache from an earlier
+    release would get hard errors on valid data. Bumping the namespace leaves those
+    entries unreferenced instead — inert, not fatal — and every entry under the new one
+    is verified from the start.
     """
+
+    #: Namespace version. Bump when the on-disk contract changes — v2 adds the
+    #: checksum sidecar, which entries written under v1 do not have.
+    NAMESPACE_VERSION = "v2"
 
     def __init__(self, embedder_id: str, *, root: str | Path | None = None) -> None:
         """Open the persistent cache for ``embedder_id`` (e.g. ``"stub-0"``)."""
-        self._store = ContentAddressedCache(f"embeddings/{embedder_id}", root=root)
+        self._store = ContentAddressedCache(
+            f"embeddings/{self.NAMESPACE_VERSION}/{embedder_id}", root=root, verify=True
+        )
 
     def __contains__(self, key: str) -> bool:
         """Return ``True`` if ``key``'s embedding is on disk."""

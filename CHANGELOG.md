@@ -10,6 +10,18 @@ acceptance.
 
 ### Fixed
 
+- **The disk cache's integrity gate was implemented and nothing switched it on.** `ContentAddressedCache`
+  defaults to `verify=False`, and the persistent embedding cache — the only cache constructed anywhere in the
+  library — took the default, so `verify=True` appeared solely in the cache's own tests: the checksum
+  sidecar, the fail-closed read, the careful publish ordering all ran in CI and never in the product. That is
+  the wrong default here in particular: a corrupted embedding does not fail, it produces a plausible vector,
+  which becomes an efficiency score, which is what a guide is ranked on — and the check costs a SHA-256 over
+  a few kilobytes against the transformer forward pass it exists to avoid. The embedding namespace also gains
+  a version segment, so a warm cache written before the sidecar existed goes unreferenced rather than raising
+  integrity errors on valid data.
+
+### Fixed
+
 - **Seven exception classes wore two names, so `except` on an artifact gate caught a third of it.**
   `ChecksumError` was defined independently in the model zoo, the genome reference, and the data registry;
   `ConsentError` in those three plus the VEP adapter — and each was exported under that name from its public

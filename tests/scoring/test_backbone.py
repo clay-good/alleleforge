@@ -145,3 +145,44 @@ def test_real_adapters_expose_metadata(cls: type, name: str, window: int) -> Non
     assert adapter.context_window == window
     assert adapter.model_id  # a HuggingFace model id is declared
     assert isinstance(adapter, SequenceEmbedder)
+
+
+def test_a_corrupted_cached_embedding_is_not_served_as_a_score(tmp_path: Path) -> None:
+    """The cache's integrity gate existed and nothing in the library switched it on.
+
+    `ContentAddressedCache` defaults to `verify=False`, and the persistent embedding
+    cache — the only cache constructed anywhere in the library — took the default,
+    so `verify=True` appeared solely in the cache's own tests. A corrupted embedding
+    does not fail: it produces a plausible vector, which becomes an efficiency score,
+    which is what a guide is ranked on.
+    """
+    from alleleforge.cache import CacheIntegrityError
+    from alleleforge.scoring.backbone import PersistentEmbeddingCache, sequence_hash
+
+    cache = PersistentEmbeddingCache("stub-0", root=tmp_path)
+    key = sequence_hash("ACGTACGTACGTACGTACGT")
+    cache[key] = (0.1, 0.2, 0.3)
+    assert cache[key] == (0.1, 0.2, 0.3)
+
+    # Corrupt the payload on disk the way a bad sector or an edit would.
+    payload = next(p for p in tmp_path.rglob(key) if p.is_file())
+    payload.write_text("[9.9, 9.9, 9.9]")
+    with pytest.raises(CacheIntegrityError):
+        _ = cache[key]
+
+
+def test_the_embedding_namespace_is_versioned(tmp_path: Path) -> None:
+    """Entries written before the sidecar existed must be inert, not fatal.
+
+    A missing sidecar is deliberately an integrity failure rather than a miss, so
+    switching verification on would turn a warm pre-existing cache into hard errors
+    on valid data. The version segment leaves those entries unreferenced instead.
+    """
+    from alleleforge.scoring.backbone import PersistentEmbeddingCache, sequence_hash
+
+    cache = PersistentEmbeddingCache("stub-0", root=tmp_path)
+    cache[sequence_hash("ACGTACGTACGTACGTACGT")] = (0.5,)
+    written = {p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*") if p.is_file()}
+    assert any(
+        f"embeddings/{PersistentEmbeddingCache.NAMESPACE_VERSION}/stub-0" in p for p in written
+    )
