@@ -7488,6 +7488,47 @@ until something breaks, which is how a real finding gets replaced by a manufactu
 Record what held, name why it held, and move to a different surface.**
 
 
+## Round 230 — the most publishable artifact had the least context
+
+Of everything this tool writes, the leaderboard is the one most likely to be
+published, linked, screenshotted and quoted. It carried the fact it most needs —
+every synthetic split is marked `(synthetic)` on its row and *synthetic stand-in* in
+its section heading — and nothing else:
+
+    contains 'synthetic'             True
+    contains 'not a medical device'  False
+    contains 'research'              False
+
+No research-use statement, no version, no generation time. A ranked table of CRISPR
+models to four decimal places with nothing saying what produced it or what it is for.
+It is not a `DesignReport` render, a cohort summary or an off-target payload, so none
+of the checks written for those three had ever looked at it — the fourth artifact in
+this stretch found the same way.
+
+Two things went wrong in the first version of the fix, both worth more than the fix.
+
+**The disclaimer did not describe the artifact.** Reusing `RESEARCH_USE_DISCLAIMER`
+verbatim put "The candidates below are ranked, explicitly uncertain computational
+hypotheses" at the top of a board of *models* — there are no candidates below it. A
+caveat that does not describe the thing it is attached to is noise, and the reader who
+notices it is wrong has been given a reason to skim the next one. The constant is now
+split: a `RESEARCH_USE_CORE` that is true of every artifact, and the design report's
+fuller sentence built from it. The board adds its own — that a benchmark score on a
+frozen split is not evidence a model is fit for a therapeutic decision.
+
+**The escaping was for a different job.** `_md_cell` exists because a submitter handle
+is attacker-controlled text in a table cell, and it backslash-escapes every Markdown
+metacharacter. Applied to this project's own prose it printed
+`validated \(e.g. GUIDE-seq\)`. Reaching for the nearest existing helper is usually
+right and was not here: the helper's contract is about *where the string came from*,
+not where it is going.
+
+**Lesson: a shared caveat constant is a claim about every artifact that reuses it, and
+the reuse is invisible at the point where it becomes false. Before importing a
+disclaimer into a new surface, read it aloud against that surface — the sentence that
+made it worth writing is usually the sentence that does not travel.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

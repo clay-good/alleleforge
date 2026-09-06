@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **The CRISPR-Bench leaderboard says what it is.** The artifact most likely to be published, linked and
+  quoted marked its synthetic splits — the fact it most needs — and carried no research-use statement, no
+  version and no generation time. Both renders (and the empty board, the one most likely to be published
+  first) now lead with a shared context block. `RESEARCH_USE_DISCLAIMER` is split into a
+  `RESEARCH_USE_CORE` true of every artifact plus the design report's fuller sentence, because reusing the
+  full one verbatim put "The candidates below are ranked…" at the top of a board of *models*; the board adds
+  that a benchmark score on a frozen split is not evidence a model is fit for a therapeutic decision.
+
 - **`resolve` says when a variant changes nothing.** `chr1:1000:A>A` — reference and alternate identical —
   came back as `[snv, build hg38, from coordinates]`, because `variant_class` is computed from allele
   *lengths*: one base against one base is an `snv` whether or not they differ. The design path already refuses

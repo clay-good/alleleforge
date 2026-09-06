@@ -34,9 +34,18 @@ from alleleforge.types.sequence import GenomicInterval
 #: encodings; `test_the_two_spellings_agree` keeps them saying the same thing.
 COORDINATE_SYSTEM = "0-based-half-open"
 
-RESEARCH_USE_DISCLAIMER = (
+#: The part of the disclaimer that is true of every artifact this tool writes, with
+#: no reference to what the artifact contains. Split out because the full sentence
+#: below says "the candidates below", which is right on a design report and wrong on
+#: a leaderboard of models — a caveat that does not describe the thing it is attached
+#: to is noise, and reusing one verbatim across artifacts is how that happens.
+RESEARCH_USE_CORE = (
     "AlleleForge is a research tool. It is not a medical device and does not "
-    "provide medical advice. The candidates below are ranked, explicitly "
+    "provide medical advice."
+)
+
+RESEARCH_USE_DISCLAIMER = (
+    f"{RESEARCH_USE_CORE} The candidates below are ranked, explicitly "
     "uncertain computational hypotheses. Every off-target nomination is "
     "computational and must be experimentally validated (e.g. GUIDE-seq / "
     "CHANGE-seq / amplicon sequencing) before any wet-lab or therapeutic use."

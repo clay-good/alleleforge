@@ -21,12 +21,14 @@ per group.
 from __future__ import annotations
 
 import html
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import NamedTuple
 
 from pydantic import BaseModel, ConfigDict
 
+from alleleforge._version import __version__
 from alleleforge.benchmark.runner import BenchmarkResult, ModelInfo
+from alleleforge.report.builder import RESEARCH_USE_CORE
 
 #: Metrics for which a lower value is better (everything else ranks descending).
 LOWER_IS_BETTER = frozenset({"kl", "ece"})
@@ -224,6 +226,29 @@ class LeaderboardEntry(BaseModel):
         )
 
 
+def _context_lines() -> list[str]:
+    """Return the lines every rendered board carries, whatever its format.
+
+    A leaderboard is the artifact this tool produces that is most likely to be
+    published, linked, screenshotted and quoted. It already marks a synthetic split
+    on every row and in every section heading — the fact it most needs — and carried
+    nothing else: no research-use disclaimer, no version, no generation time. A
+    ranked table of CRISPR models to four decimal places, with nothing saying what
+    produced it or what it is for.
+
+    Shared by both renders, and by the empty board, so a fact added to one cannot go
+    missing from the others — which is how this same gap reached four other artifacts
+    in this codebase.
+    """
+    return [
+        RESEARCH_USE_CORE,
+        "Scores are benchmark metrics on frozen splits, not evidence that any model "
+        "is fit for a therapeutic decision. A split marked (synthetic) is a stand-in "
+        "fixture, and a number measured on one says nothing about real performance.",
+        f"Rendered by AlleleForge {__version__} at {datetime.now(UTC).isoformat()}.",
+    ]
+
+
 def _rank_within(entries: list[LeaderboardEntry]) -> list[LeaderboardEntry]:
     """Order one comparison group best-first (see :meth:`Leaderboard.rankings`)."""
     descending = metric_is_descending(entries[0].primary_metric)
@@ -309,9 +334,19 @@ class Leaderboard:
 
     def render_markdown(self) -> str:
         """Render the whole board as GitHub-flavored Markdown."""
-        if not self._entries:
-            return "# CRISPR-Bench Leaderboard\n\n_No submissions yet._\n"
         lines = ["# CRISPR-Bench Leaderboard", ""]
+        for note in _context_lines():
+            # Not `_md_cell`: that escapes every inline metacharacter for an
+            # attacker-controlled *table cell*, and turns this project's own prose
+            # into "validated \\(e.g. GUIDE-seq\\)". These lines are literals from
+            # this module, not submitter input.
+            lines.append(f"> {note}")
+            lines.append("")
+        if not self._entries:
+            # The empty board is the one most likely to be published first, so it is
+            # the one that least deserves to be the page with no context on it.
+            lines.append("_No submissions yet._")
+            return "\n".join(lines) + "\n"
         for task in self.tasks:
             groups = self.comparison_groups(task)
             lines.append(f"## {_md_cell(task)}")
@@ -345,6 +380,7 @@ class Leaderboard:
             '<html lang="en"><head><meta charset="utf-8">',
             "<title>CRISPR-Bench Leaderboard</title></head><body>",
             "<h1>CRISPR-Bench Leaderboard</h1>",
+            *(f"<p><em>{_html_cell(note)}</em></p>" for note in _context_lines()),
         ]
         if not self._entries:
             parts.append("<p>No submissions yet.</p>")
