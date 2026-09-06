@@ -121,6 +121,12 @@ CAVEAT_FLAGS: dict[str, str] = {
     "relaxed-pam": (
         "a non-canonical PAM was accepted; activity and the off-target profile differ from NGG"
     ),
+    "ambiguous-region": (
+        "the edit site lies in a region where the hg38 assembly is ambiguous (a "
+        "segmental duplication, centromere, or other known-difficult locus), so a "
+        "read cannot be placed uniquely here — the off-target search under-reports "
+        "and the on-target coordinates are less certain than elsewhere"
+    ),
     "recommend-reference": (
         "this locus is ambiguous in the current build; the named assembly resolves it"
     ),

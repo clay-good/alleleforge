@@ -1344,7 +1344,7 @@ Every default is overridable; these are the spec-mandated starting points.
 
 | Topic | Default | Notes |
 |---|---|---|
-| Reference / coordinates | hg38, **0-based half-open** | T2T-CHM13 auto-recommended for ambiguous loci; mm39 for mouse |
+| Reference / coordinates | hg38, **0-based half-open** | T2T-CHM13 auto-recommended for ambiguous loci, and every candidate designed there carries the `ambiguous-region:<kind>` caveat; mm39 for mouse |
 | Strand | always explicit | no implicit "default strand"; spacers stored 5'→3' |
 | SpCas9 PAM | `NGG` (primary), `NAG` low-stringency | NG / SpRY opt-in when no NGG is actionable |
 | Off-target search | ≤ 4 mismatches, ≤ 1 DNA + ≤ 1 RNA bulge | report CFD ≥ 0.20 **or** MIT ≥ 0.10 |

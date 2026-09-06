@@ -2036,6 +2036,18 @@ acceptance.
 
 ### Fixed
 
+- **A design inside a segmental duplication now says so.** The resolver already flagged loci overlapping
+  segdups, centromeres, and other hg38-difficult regions, built `ambiguous-region:<kind>` and
+  `recommend-reference:<build>` flags for them, and recommended T2T — and
+  `ReferenceRecommendation.apply_to`, its own docstring calling it "the wiring point into the Phase 1 result
+  types", had no caller. A design at a flagged locus returned 70 candidates, an HTML page, a PDF and a JSON
+  export, none mentioning it: the condition under which a read cannot be placed uniquely, which is when the
+  off-target search under-reports. The designer now applies it, `ambiguous-region` is classified as a caveat
+  with the consequence spelled out, and the flag-classification guard was rebuilt on the AST — its regexes
+  had missed three emission idioms, and each miss was a flag rendered with no sentence behind it. Its
+  "classified but nothing emits it" check now covers `CAVEAT_FLAGS` too, which is what `recommend-reference`
+  had been failing silently.
+
 - **Every shell spells the ranking objectives from the ranker.** `design.ranking.OBJECTIVES` names the four
   axes; the CLI held its own copy, and the web API held two more — a hardcoded `min_length=4`/`max_length=4`
   and a positional `e, c, s, p = weights_in` unpack. Four spellings of one fact, which agreed only about the

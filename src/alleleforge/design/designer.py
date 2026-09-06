@@ -334,6 +334,16 @@ def design(
             )
         )
 
+    # The resolver flags a locus overlapping a segmental duplication, centromere, or
+    # other hg38-difficult region and recommends T2T. That recommendation reached the
+    # `resolve` output and stopped there: `ReferenceRecommendation.apply_to` — its own
+    # docstring calls it "the wiring point into the Phase 1 result types" — had no
+    # caller in the package. So a design inside a segdup produced a full menu with
+    # nothing on it saying that alignment here is ambiguous, which is exactly the
+    # condition under which the off-target search under-reports.
+    if resolved.reference_recommendation is not None:
+        candidates = [resolved.reference_recommendation.apply_to(c) for c in candidates]
+
     outcome = rank_candidates(
         candidates, weights=weights, max_per_chemistry=max_candidates_per_chemistry
     )

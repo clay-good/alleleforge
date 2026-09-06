@@ -8175,6 +8175,43 @@ tomorrow's. Ask what the copy does with the entry the original gains, and check 
 merely ignores it or actively refuses it.**
 
 
+## Round 247 — the caveat that was written but never reachable
+
+Following R246's thread into the report's flag vocabulary. `CAVEAT_FLAGS` maps a
+candidate flag to the sentence a reader needs, and a guard checks the source for flags
+nothing classifies. Two questions it was not asked: does the scan cover every place
+flags are built, and is every classified flag actually reachable?
+
+Both answers were no, and they were the same bug seen from two ends. The resolver flags
+a locus overlapping a segmental duplication or a centromere, builds
+`ambiguous-region:<kind>` and `recommend-reference:<build>`, and recommends T2T.
+`ReferenceRecommendation.apply_to` — "the wiring point into the Phase 1 result types",
+its own words — had no caller in `src/`. Only tests called it. Designing at a flagged
+locus gave me 70 candidates and this:
+
+    report mentions segdup / ambiguous / T2T:  False  False  False
+
+A segmental duplication is precisely where a read cannot be placed uniquely, so it is
+precisely where the off-target search under-reports — the number the entire safety axis
+rests on. And `recommend-reference` sat in `CAVEAT_FLAGS` with a carefully written
+sentence, waiting for a flag that never arrived. It read as coverage.
+
+Three fixes. The designer applies the recommendation before ranking, so every candidate
+carries it. `ambiguous-region` is classified, with the consequence for off-target search
+named rather than the geography. And the guard: its "classified but nothing emits it"
+check now covers `CAVEAT_FLAGS` (it only walked `DESCRIPTIVE_FLAGS`, which is why
+`recommend-reference` never surfaced), its scope is pinned by a check that no module
+outside it attaches candidate flags, and its regexes are replaced by an AST pass —
+they had missed three idioms (`update={"flags": ...}`, `flags = [f"..." for ...]`, and a
+bare `return [f"..."]`), each miss a flag printed to a reader with no sentence behind it.
+Turning it on found two more inert flags immediately.
+
+**Lesson: for every table mapping a code to an explanation, check the reachability of
+each entry, not just the coverage of each code. A written explanation for a condition
+that cannot occur is indistinguishable from a safeguard, and the test that only walks
+one of the two tables will tell you it is one.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

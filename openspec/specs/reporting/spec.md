@@ -240,7 +240,13 @@ still shown — separated, not filtered.
 
 Every flag the system emits SHALL be classified as either a hazard or a description.
 An unclassified flag SHALL fail the build rather than default to either, since
-defaulting to "descriptive" silently demotes a hazard.
+defaulting to "descriptive" silently demotes a hazard. Conversely, every classified
+flag SHALL be one the system can actually emit: a written explanation for a condition
+no candidate can carry reads as coverage while providing none.
+
+#### Scenario: A classified flag nothing attaches
+- **WHEN** a flag has a caveat sentence but no code path attaches it to a candidate
+- **THEN** the build fails, because the sentence is a promise rather than a safeguard
 
 #### Scenario: A candidate with a close nick
 - **WHEN** a candidate carries `close-nick`
@@ -306,6 +312,21 @@ looking.
 #### Scenario: A panel that reached only some items
 - **WHEN** items in one cohort were screened against different sources
 - **THEN** their rows differ in the recorded sources rather than appearing identical
+
+### Requirement: A design at an assembly-ambiguous locus discloses it
+
+A locus overlapping a segmental duplication, a centromere, or another known-difficult
+region of the current build is one where a read cannot be placed uniquely — so the
+off-target search under-reports there and the on-target coordinates are less certain.
+The resolver already detects this. Every candidate designed at such a locus SHALL carry
+the ambiguity as a caveat flag naming the region kind, alongside the recommended
+alternative build, and every render SHALL explain what it means for the result rather
+than only naming the geography.
+
+#### Scenario: A design inside a segmental duplication
+- **WHEN** the resolved variant's working interval overlaps a segdup
+- **THEN** every candidate carries `ambiguous-region:segdup` and the recommended build,
+  and the caveat states that the off-target search under-reports there
 
 ### Requirement: A report states the coordinate base of its loci
 
