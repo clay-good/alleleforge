@@ -114,14 +114,33 @@ def _decline_reason(menu: RankedMenu) -> str | None:
     Built from the rationale's per-chemistry notes — the lines the single-variant
     report shows under "How this menu was assembled" — flattened onto one line so it
     survives a TSV cell. ``None`` when the menu recorded no rationale at all.
+
+    The run notes lead, then the declined chemistries. Both blocks are kept: a cohort
+    row is often the only thing a reader sees for that variant. But they answer
+    different questions, and only one is about *this* variant. A no-op input
+    (``chr2:1200:A>A``) produced::
+
+        base_abe: Adenine base editing installs an A->G / T->C transition in a narrow
+        window with no double-strand break — ... | base_cbe: ... | cas9_nuclease: ... |
+        prime: eligible but no actionable candidate enumerated — the requested edit does
+        not change the sequence ...
+
+    Three definitions of what a chemistry is for, and then the one sentence that says
+    what went wrong with the input, 700 characters in. The blocks became separable when
+    the rationale gained its own heading for run notes.
     """
     if not menu.rationale:
         return None
-    notes = [
-        line.strip().removeprefix("- ").strip()
-        for line in menu.rationale.splitlines()
-        if line.strip().startswith("- ")
-    ]
+    declined: list[str] = []
+    run_notes: list[str] = []
+    target = declined
+    for raw in menu.rationale.splitlines():
+        line = raw.strip()
+        if line.startswith("Run notes:"):
+            target = run_notes
+        elif line.startswith("- "):
+            target.append(line.removeprefix("- ").strip())
+    notes = run_notes + declined
     return " | ".join(notes) if notes else None
 
 

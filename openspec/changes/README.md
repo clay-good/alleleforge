@@ -8458,6 +8458,34 @@ override point that makes it reachable is exactly the advanced path where the di
 matters most.**
 
 
+## Round 255 — running the cohort, and R252 paying for itself
+
+Ran `aforge batch` over a five-line cohort — three designable variants, one malformed
+input, one no-op — and read the output. The failure isolation, the exit code, the ingest
+accounting and the new `!pol3-terminator` caveat all behaved. One row did not:
+
+    chr2:1200:A>A  ok  best=-  eff=-  n=0  — base_abe: Adenine base editing installs an
+    A->G / T->C transition in a narrow window with no double-strand break — the cleanest
+    fix when ... | base_cbe: ... | cas9_nuclease: ... | prime: eligible but no actionable
+    candidate enumerated — the requested edit does not change the sequence ...
+
+Three definitions of what a chemistry is *for*, and then, 700 characters in, the sentence
+about what is wrong with this input. `_decline_reason` joined every `- ` bullet in
+rationale order — correct for a report, which is read top-down, wrong for a cohort row,
+which is scanned left to right across hundreds of variants.
+
+R252 is what made the fix possible: before it, the two blocks were one undifferentiated
+run of bullets and nothing in the text could tell a routing rationale from a run outcome.
+Giving the notes their own heading was a readability fix in the report; a round later it
+turned out to be a structural one. Both blocks are still emitted — a cohort row is often
+all a reader sees for that variant — and a test pins that nothing is dropped, only
+reordered.
+
+**Lesson: the same content ordered for one surface can be wrong for another. A report is
+read from the top; a table cell is read from the left and truncated on the right. When a
+string is shared between them, ask which end each reader starts at.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

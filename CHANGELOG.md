@@ -2036,6 +2036,13 @@ acceptance.
 
 ### Fixed
 
+- **A cohort row leads with what happened to that variant.** `_decline_reason` flattened every rationale
+  bullet in report order, and routing rationales come first because the report reads top-down while a cohort
+  row is scanned left to right. So a no-op input gave three definitions of what each chemistry is *for* and
+  then, 700 characters in, the one sentence about the input: the reference and desired alleles are
+  identical. Nothing is dropped — a cohort row is often all a reader sees for that variant — but the run
+  notes lead. They became separable when the rationale gained its own heading for them.
+
 - **A base-editor candidate can now say it is out of distribution.** `ood` is the sharpest label the
   honesty machinery has — the point estimate should not be trusted, and the candidate was ranked on its
   lower interval bound. `design/cas9.py` and `design/prime.py` both raise it; `design/base_editor.py`'s
