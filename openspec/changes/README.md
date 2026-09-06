@@ -3891,6 +3891,37 @@ up cost two minutes; reporting it would have been wrong in public.
 `skipped` were both honest and individually documented, and their juxtaposition was the lie — nothing in
 either field's definition is wrong, and no test of either one alone would have caught it.**
 
+## Round 144 — the checker I threw away was the one that was broken
+
+R143 ended on "when a guard lives in a convenience wrapper, check what the docs tell people to run instead."
+The general form: every copy-pasteable command in the prose is a promise, and nothing checked them.
+
+I had tried this before. In R138 I extracted the `--flags` named in string literals, compared them against a
+click walk of the CLI, got a page of obvious false positives (`--region` "not a CLI option"), concluded the
+traversal was broken rather than the app, and dropped it. That was the right call on the evidence and I never
+found out why. It is this:
+
+    >>> c = typer.main.get_command(app)
+    >>> isinstance(c, click.Group)
+    False
+    >>> sorted(c.commands)
+    ['batch', 'bench', 'data', 'design', 'lift', 'offtarget', 'resolve', 'verify']
+
+A `TyperGroup` is not an instance of the `click.Group` visible from here, so an isinstance-gated walk finds
+no subcommands and reports the root callback's five options as the entire CLI. Walking on
+`hasattr(cmd, "commands")` gives the real tree.
+
+With that fixed the check runs, and all 25 documented commands resolve — every subcommand real, every flag
+accepted. A clean negative, which is the outcome I expected and wanted; the value is in it staying that way,
+so it is now a test rather than a one-off script, sitting beside the existing command-appears-in-the-docs
+check as its converse. Mutation-checked by renaming one flag in the README.
+
+**Lesson: an audit that produces implausible results has two suspects, and I recorded the right verdict
+("inconclusive, not a clean bill") without going back for the cause. Six rounds later the same question came
+up and the tool was still broken. When a check is abandoned as untrustworthy, the finding is that the check
+is broken — which is a bug with an owner, not a dead end. Fix it or delete it; leaving it "inconclusive"
+means the next person pays the same cost.**
+
 ## Round 143 — the token nothing read
 
 Three negative results first, and they are worth recording because they are places I expected to find

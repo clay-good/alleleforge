@@ -8,6 +8,12 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **Every copy-pasteable `aforge` command in the prose is now checked against the real CLI.** One direction
+  was pinned — every command appears somewhere in the docs — and not the other, so a renamed flag would turn
+  a quickstart into a usage error with nothing to notice. All 25 documented commands currently resolve.
+
 ### Security
 
 - **`ALLELEFORGE_API_TOKEN` was inert on the documented deployment path.** The variable was read only inside
