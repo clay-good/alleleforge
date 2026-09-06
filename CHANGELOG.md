@@ -10,6 +10,11 @@ acceptance.
 
 ### Added
 
+- **The OOD detector's conservative degeneration is pinned.** Checked alongside the conformal shortfall,
+  since both ask what a mechanism claims when the data is too thin: with a one- or two-point reference the
+  threshold collapses, and it collapses toward refusing to vouch for anything rather than toward vouching
+  for everything. A far input is never called in-distribution. Now a test, not a check done once.
+
 - **Every number that gates what a user sees now says what kind of number it is.** The CFD and MIT thresholds
   decide which off-target sites appear in a report *at all*; the MAF threshold decides which population
   variants are considered; the GC band decides which spacers get a quality caveat. None is a published cutoff

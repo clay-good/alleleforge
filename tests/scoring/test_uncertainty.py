@@ -341,3 +341,41 @@ def test_the_minimum_calibration_size_is_exact(level: float) -> None:
     n = min_calibration_size(level)
     assert math.ceil((n + 1) * level) <= n, "the returned size does not support the level"
     assert n == 1 or math.ceil(n * level) > n - 1, "a smaller size would also have worked"
+
+
+@pytest.mark.parametrize(
+    ("name", "reference"),
+    [
+        ("one point", [(0.0, 0.0)]),
+        ("two identical points", [(0.0, 0.0), (0.0, 0.0)]),
+        ("two distinct points", [(0.0, 0.0), (1.0, 0.0)]),
+        ("a tight cluster", [(0.0, i * 0.01) for i in range(5)]),
+    ],
+)
+def test_a_degenerate_ood_reference_fails_conservatively(
+    name: str, reference: list[tuple[float, ...]]
+) -> None:
+    """A reference too small to define a distribution must not vouch for anything.
+
+    The threshold is a quantile of the reference's own nearest-neighbour distances, so
+    on one or two points it degenerates — and the direction it degenerates in is what
+    matters. Checked alongside the conformal shortfall, because the failure there was a
+    guarantee claimed from too little data and this is the same shape one module over:
+    the answer here is that it errs toward OOD, never toward vouching for a far input.
+    """
+    detector = OODDetector(reference)
+    assert not detector.is_in_distribution((99.0, 99.0)), (
+        f"a {name} reference declared a far input in-distribution"
+    )
+
+
+def test_the_isotonic_calibrator_makes_no_calibration_claim() -> None:
+    """It returns plain floats, so it cannot mint `calibrated=True` on thin data.
+
+    Recorded because it is the obvious next place to look after the conformal
+    shortfall, and the answer is that there is nothing to look at: only
+    `Prediction.calibrated_by` can set that flag, and isotonic never calls it.
+    """
+    calibrator = IsotonicCalibrator().fit([0.1, 0.2], [0.0, 1.0])
+    assert isinstance(calibrator.predict_one(0.15), float)
+    assert not hasattr(calibrator, "calibrate")

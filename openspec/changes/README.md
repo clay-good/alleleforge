@@ -5324,6 +5324,34 @@ reading the source, which is nobody at the moment the number is used. Every hone
 was present and correct, and none of it was attached to the object that travels. Ask where a caveat *lives*,
 not whether it was written down.**
 
+## Round 177 — bounding the previous find
+
+R176 found a real defect in `scoring/uncertainty.py`, which makes the neighbouring code
+worth reading rather than assuming: a module that mislabels one guarantee is a module
+where the *shape* of that mistake might repeat. Two candidates, both clean, both now
+pinned rather than left as a check I did once.
+
+**The OOD detector on a degenerate reference.** Its threshold is a quantile of the
+reference's own nearest-neighbour distances, so with one or two points it collapses.
+The question is which way. Measured: a single point gives threshold 0.0 and declares
+everything OOD; two identical points the same; two distinct points admit only inputs
+within their separation. In every case a far input is refused. It errs toward "I do not
+vouch for this", which is the direction a safety flag has to fail in, and the opposite
+of R176's conformal shortfall where too little data produced a *stronger* claim.
+
+**The isotonic calibrator.** It returns plain floats, never `Prediction` objects, so it
+cannot mint `calibrated=True` on thin data at all — `Prediction.calibrated_by` is the
+only path to that flag and isotonic never calls it. The design already prevented the
+failure I went looking for.
+
+Both are now tests. A verification done once during an audit is worth about as much as
+a comment: it describes a moment, and the thing it describes can change the next day.
+
+**Lesson: after a find, read its neighbours — but expect most of them to be clean, and
+write the clean ones down as tests rather than as prose. R176's defect and R177's two
+non-defects are the same question asked three times ("what does this claim when the data
+is too thin?"), and the value of the two negatives is that they now stay negative.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
