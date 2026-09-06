@@ -1,0 +1,1 @@
+error: unrecognized variant input: 'chr1:144500000:A'

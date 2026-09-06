@@ -8212,6 +8212,38 @@ that cannot occur is indistinguishable from a safeguard, and the test that only 
 one of the two tables will tell you it is one.**
 
 
+## Round 248 — the answer with the question removed
+
+R247's finding, one layer out. The design menu now discloses an assembly-ambiguous
+locus. `resolve` — the documented debugging aid, the command whose entire job is telling
+a caller what their input means — still said:
+
+    "reference_recommendation": "T2T-CHM13v2"
+
+and the human render, which is what a person actually reads, said nothing at all. Both
+shells reported the recommendation; neither reported its cause.
+`ReferenceRecommendation.reason`, which names the regions that triggered it, was
+consumed by nothing in the package — the second inert accessor on the same object in two
+rounds.
+
+A build name is an answer with the question removed. What changes a reader's behaviour
+is not "use T2T", it is *why*: a segmental duplication is where a read cannot be placed
+uniquely, which is where an off-target search under-reports. Running the real command
+against a real hg38 segdup coordinate now prints:
+
+    NOTE: chr1:144499899-144500100 overlaps segdup; recommend T2T-CHM13v2; a read
+    cannot be placed uniquely here, so an off-target search at this locus under-reports
+
+with `reference_recommendation_reason` beside the build name in the JSON and in
+`POST /api/resolve`. An ordinary locus still says nothing — pinned, because a note that
+always appears is not a note.
+
+**Lesson: when a surface reports a recommendation, check that it reports the finding
+behind it. The recommendation is the cheap half; the observation that produced it is what
+transfers to the reader's next decision, and it is the half most likely to be sitting
+unread on an object nobody surfaces.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

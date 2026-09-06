@@ -2036,6 +2036,14 @@ acceptance.
 
 ### Fixed
 
+- **`resolve` says why it recommends another build.** Both shells answered with a bare
+  `"reference_recommendation": "T2T-CHM13v2"`, and the CLI's human render — what a person actually reads —
+  did not mention it at all. `ReferenceRecommendation.reason`, which names the regions that triggered it,
+  was consumed by nothing. The build name is an answer with the question removed; the cause is the part that
+  matters, because a segmental duplication is where a read cannot be placed uniquely and so where an
+  off-target search under-reports. Both surfaces now carry
+  `reference_recommendation_reason`, and an ordinary locus still says nothing.
+
 - **A design inside a segmental duplication now says so.** The resolver already flagged loci overlapping
   segdups, centromeres, and other hg38-difficult regions, built `ambiguous-region:<kind>` and
   `recommend-reference:<build>` flags for them, and recommended T2T — and

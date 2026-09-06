@@ -141,9 +141,21 @@ database is not supplied; `c.`/`p.` HGVS SHALL raise when no transcript projecto
 when a reference is available) and attach a T2T build recommendation only when the
 working interval overlaps an hg38-difficult region.
 
+Every surface that reports the recommendation SHALL report its cause alongside it. The
+build name alone omits the part that changes what a reader does: a read cannot be placed
+uniquely in such a region, so an off-target search there under-reports.
+
 #### Scenario: Difficult-region variant
 - **WHEN** the working interval overlaps an hg38-difficult region
 - **THEN** `reference_recommendation` is set on the result
+
+#### Scenario: Reporting the recommendation
+- **WHEN** `aforge resolve` or `POST /api/resolve` returns a recommendation
+- **THEN** the response names the regions that caused it, not only the recommended build
+
+#### Scenario: An ordinary locus
+- **WHEN** the working interval overlaps no difficult region
+- **THEN** neither surface mentions a recommendation at all
 
 ### Requirement: VCF ingestion splits and filters alleles
 

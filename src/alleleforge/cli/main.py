@@ -252,6 +252,15 @@ def resolve(
             if resolved.reference_recommendation is not None
             else None
         ),
+        # The build name alone is an answer with no question attached. `reason` names
+        # the regions that triggered it — the segdup, the centromere — which is what
+        # tells a reader that alignment here is ambiguous, and so that an off-target
+        # search at this locus under-reports.
+        "reference_recommendation_reason": (
+            resolved.reference_recommendation.reason
+            if resolved.reference_recommendation is not None
+            else None
+        ),
     }
     note = (
         ""
@@ -259,9 +268,15 @@ def resolve(
         else "\nNOTE: this does not change the sequence — the reference and alternate "
         "alleles are identical, so there is no edit to design"
     )
+    recommendation = (
+        f"\nNOTE: {resolved.reference_recommendation.reason}; a read cannot be placed "
+        "uniquely here, so an off-target search at this locus under-reports"
+        if resolved.reference_recommendation is not None
+        else ""
+    )
     human = (
         f"{v}  [{v.variant_class.value}, build {v.build}, from {resolved.source}]\n"
-        f"working interval: {resolved.working_interval}{note}"
+        f"working interval: {resolved.working_interval}{note}{recommendation}"
     )
     _emit(payload, as_json=as_json, human=human)
 

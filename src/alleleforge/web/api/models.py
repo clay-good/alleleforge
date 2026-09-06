@@ -95,6 +95,10 @@ class ResolveResponse(BaseModel):
     source: str
     working_interval: str
     reference_recommendation: str | None = None
+    #: Why a different build is recommended — the ambiguous regions the locus overlaps.
+    #: The build name on its own does not say that alignment here is ambiguous, which is
+    #: the part that matters: an off-target search at such a locus under-reports.
+    reference_recommendation_reason: str | None = None
 
 
 class DesignRequest(BaseModel):

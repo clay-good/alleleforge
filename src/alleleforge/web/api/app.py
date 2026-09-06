@@ -379,6 +379,7 @@ def create_app(
             source=resolved.source,
             working_interval=str(resolved.working_interval),
             reference_recommendation=rec.recommended_build if rec is not None else None,
+            reference_recommendation_reason=rec.reason if rec is not None else None,
         )
 
     @app.post("/api/design", response_model=DesignReport)
