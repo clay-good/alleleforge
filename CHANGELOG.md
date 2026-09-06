@@ -1548,6 +1548,12 @@ acceptance.
 
 ### Fixed
 
+- **The readiness report graded R2 on half its criterion.** Shipped one round earlier, it checked "on their
+  hot paths with parity tests" and printed MET without checking "**and a recorded speedup**". The verdict
+  happens to be right — `scripts/native_speedup.py` exists and the README cites it — but it was reached on
+  half the evidence, which is the failure mode the report exists to prevent. Both halves are now graded, and
+  a test requires each criterion's summary to name every conjunct its `SPEC_V2.md` bullet does.
+
 - **The base-editor vertical explains an empty result too, and its reasons matter more.** Base editing's
   failure modes have sharply different remedies, and one of them is a fact about the *edit* rather than the
   locus: *no deaminase in the panel writes this substitution*. The others — the target base outside every

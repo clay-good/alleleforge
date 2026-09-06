@@ -4962,6 +4962,34 @@ artifact was frozen or a corpus became available, because the claim lived in pro
 someone remembers to change it. Measuring a blocked thing is not wasted work; it is how you find out it
 stopped being blocked.**
 
+## Round 166 — grading myself generously
+
+R145's standing query is to audit the artifacts the audit produces, and the newest artifact is one round old:
+the readiness report. Reading its R2 check against the bullet it claims to measure —
+
+    SPEC_V2: "The native bwt/kmer/haplotype kernels are on their hot paths with
+              parity tests **and a recorded speedup** (R2)."
+    my check: met = bool(parity)
+
+It printed **MET** on half the criterion. The verdict is correct — `scripts/native_speedup.py` exists, the
+README cites its numbers — but I did not check that, and the one criterion my report graded as passing is the
+one it graded least carefully. That is not a coincidence: the criteria I expected to be open got scrutiny
+because I was writing down why they were blocked, and the one I expected to pass got a single `bool()`.
+
+Both halves are graded now, and the general form is pinned: each criterion's summary must name every conjunct
+its spec bullet names, so a criterion cannot be silently narrowed to the part that passes.
+
+The check also surfaced something I deliberately did **not** decide. R2 is described in three places: its
+`SPEC_V2.md` header says "◐ in progress", all four of its deliverables underneath say "(◐ landed)", and the
+README table says "in progress". Either the track has scope nobody wrote down, or it is finished and two
+documents are stale. Declaring a roadmap track complete is a release-scope judgment that belongs to the
+maintainer, not to an automated pass, so it is flagged with the evidence rather than resolved.
+
+**Lesson: a check is least rigorous exactly where it returns the answer you expected. Four criteria I
+believed were blocked got carefully sourced evidence; the fifth, which I believed was met, got one boolean —
+and it was the only one where being wrong would have been an overclaim rather than an understatement.
+Reviewing a report's *passing* rows is worth more than reviewing its failing ones.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

@@ -113,17 +113,25 @@ def _native_kernels() -> Criterion:
         for p in (_ROOT / "tests").rglob("test_*.py")
         if "pytest.mark.native" in p.read_text()
     )
+    # The criterion has two halves — "with parity tests **and a recorded speedup**" —
+    # and the first version of this checked only the first, so it reported MET on half
+    # the evidence. A readiness report that grades itself generously is the failure
+    # mode it exists to prevent.
+    harness = _ROOT / "scripts" / "native_speedup.py"
+    recorded = harness.is_file() and "native_speedup" in (_ROOT / "README.md").read_text()
     return Criterion(
         track="R2",
-        summary="native kernels on their hot paths with parity tests",
-        met=bool(parity),
+        summary="native kernels on their hot paths with parity tests and a recorded speedup",
+        met=bool(parity) and recorded,
         detail=(
             f"{len(parity)} test module(s) exercise the native path; "
+            f"speedup harness {'present and cited in the README' if recorded else 'missing'}; "
             f"the compiled extension is {'importable' if available else 'not built here'}"
         ),
-        blocked_by="",
+        blocked_by="" if (parity and recorded) else "no recorded speedup",
         evidence=[
             "parity modules: " + ", ".join(parity),
+            f"speedup harness: {harness.relative_to(_ROOT)}",
             "the extension is optional at runtime: the Python fallback is pinned "
             "byte-identical, so an unbuilt kernel changes speed and not results",
         ],

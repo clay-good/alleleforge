@@ -74,3 +74,25 @@ def test_the_report_renders_and_exits_non_zero_while_open(
     """It is usable as a release gate, not only as prose."""
     assert release_readiness.main([]) in (0, 1)
     assert release_readiness.main(["--json"]) in (0, 1)
+
+
+def test_a_criterion_summary_covers_its_spec_bullet() -> None:
+    """A criterion may not quietly grade a subset of what the spec asks for.
+
+    R2's bullet reads "…on their hot paths with parity tests **and a recorded
+    speedup**", and the first version of this report checked only the parity tests and
+    printed MET. Each reported summary must mention every conjunct its spec bullet
+    names, so half-credit cannot pass as full.
+    """
+    from pathlib import Path
+
+    spec = (Path(__file__).resolve().parents[1] / "SPEC_V2.md").read_text()
+    section = spec.split("## R6 — v1.0 release criteria")[1].split("\nUntil then")[0]
+    assert "recorded speedup" in section, "the R2 bullet changed; update this check"
+
+    native = next(c for c in release_readiness.criteria() if c.track == "R2")
+    assert "parity tests" in native.summary
+    assert "recorded speedup" in native.summary, (
+        "the R2 criterion is graded on both halves; its summary must say so"
+    )
+    assert "speedup harness" in native.detail
