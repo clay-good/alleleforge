@@ -1571,6 +1571,17 @@ acceptance.
 
 ### Fixed
 
+- **Three model cards reported an unmeasured accuracy as `0.0`.** `spearman_validation: 0.0` sat on the
+  Rule Set 3, PRIDICT2-baseline and Cas9-ensemble cards, with the reason in a YAML comment no consumer reads
+  — *"populated when CRISPR-Bench scores it"*, *"not fitted/scored"*. `card.metrics` handed back
+  `{'spearman_validation': 0.0}`, so anything reading a card saw a model claiming **zero** rank correlation
+  with the truth: the floor of the scale, and for a correlation the damning extreme rather than the
+  reassuring one. On the trained Rule Set 3 card that asserted a published model has no predictive value.
+  This project states the principle in its own cohort code — defaulting an unmeasured axis to a number makes
+  "we did not look" indistinguishable from a measurement. The key is now absent, the Rule Set 3 card says
+  plainly that AlleleForge has not independently scored it, and a test rejects any performance metric of
+  exactly 0.0.
+
 - **`P(intended)` had no caveat at any value.** It is the number a reader is actually deciding on — of
   everything this reagent produces, how much is the edit that was asked for — and a real report printed
   `P(intended) = 0.05` beside an outcome table whose most likely row was a bystander-only edit at 0.288, with

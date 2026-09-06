@@ -228,3 +228,54 @@ def test_to_checkpoint_carries_every_field_the_two_models_share() -> None:
         assert getattr(checkpoint, field) == getattr(card, field), (
             f"{field} is on both models but to_checkpoint() drops it"
         )
+
+
+def test_no_card_reports_an_unmeasured_metric_as_zero() -> None:
+    """`spearman_validation: 0.0` meant "nobody measured it".
+
+    Three cards carried it, and the YAML said so in a comment no consumer reads —
+    "populated when CRISPR-Bench scores it", "not fitted/scored". `card.metrics` handed
+    back `{'spearman_validation': 0.0}`, so anything reading a card saw a model
+    claiming **zero** rank correlation with the truth: the floor of the scale, and for
+    a correlation the damning extreme rather than the reassuring one. On the trained
+    Rule Set 3 card that asserted a published model has no predictive value.
+
+    This project states the principle in its own cohort code — defaulting an unmeasured
+    axis to a number makes "we did not look" indistinguishable from a measurement — and
+    the model cards did exactly that. An unmeasured metric is now *absent*, and the
+    reason lives in a field a reader sees.
+    """
+    from alleleforge.model_zoo.registry import default_registry
+
+    #: Metrics whose scale has 0.0 as an extreme, so a literal zero is either a
+    #: remarkable claim or an unmeasured placeholder — and is never worth the risk.
+    performance = ("spearman", "pearson", "auroc", "auprc", "accuracy", "top1", "r2")
+
+    zoo = default_registry()
+    cards = [zoo.get(name) for name in zoo.names]
+    assert cards, "no cards registered — this check would be vacuous"
+
+    offenders = [
+        f"{card.name}: {key}={value}"
+        for card in cards
+        for key, value in card.metrics.items()
+        if value == 0.0 and any(word in key.lower() for word in performance)
+    ]
+    assert not offenders, (
+        "these cards report a performance metric of exactly 0.0, which is how an "
+        f"unmeasured value gets encoded as a damning one: {offenders}. Omit the key "
+        "and say why in known_failure_modes."
+    )
+
+
+def test_a_card_with_no_metrics_still_says_what_is_unknown() -> None:
+    """Removing a misleading number must not remove the information with it."""
+    from alleleforge.model_zoo.registry import default_registry
+
+    zoo = default_registry()
+    for name in zoo.names:
+        card = zoo.get(name)
+        if card.metrics:
+            continue
+        text = " ".join(card.known_failure_modes) + card.intended_use
+        assert text.strip(), f"{name} reports no metrics and documents nothing"

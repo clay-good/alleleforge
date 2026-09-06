@@ -5227,6 +5227,38 @@ spec, cites no source, and reads as authority — and it sat above the two numbe
 report contains. When a comment explains a constant, check whether it explains where the *value* came from or
 only what the value does; those are different sentences and only one of them is provenance.**
 
+## Round 174 — zero as a placeholder
+
+R173 asked whether a constant's comment explains where the *value* came from. The same question, asked of the
+model cards' `metrics` field, has a sharper answer.
+
+Most of what those cards report is descriptive and honest — parameter counts, cell types covered, context
+windows. Three report a *performance* number:
+
+    spearman_validation: 0.0  # populated when CRISPR-Bench scores it (Phase 14)
+    spearman_validation: 0.0  # not fitted/scored; transparent geometry prior
+
+The comments are correct and they are in the YAML, which no consumer reads. `card.metrics` returns
+`{'spearman_validation': 0.0}`, and a card is precisely the artifact meant to be read *instead of* the source.
+So the shipped claim is that these models have zero rank correlation with the truth — and 0.0 is not a neutral
+placeholder for a correlation, it is the worst attainable value. On the `rule-set-3` card, which describes a
+published model with real numbers in its citation, the card asserted the model has no predictive value.
+
+This project already wrote the rule, in its own cohort summariser: *"Defaulting an unmeasured axis to it makes
+'we did not look' indistinguishable from 'we looked and it is clean', on the one axis where that confusion is
+dangerous."* Same repository, same principle, opposite direction — here the placeholder is not reassuring but
+damning, which is why it survived: nobody worries about a number that understates.
+
+The key is gone. The two baselines already said what they are in `known_failure_modes`, so nothing was lost
+there; `rule-set-3` did not, and now states that AlleleForge has not independently scored it — *"the card
+reports no accuracy metric because none has been measured here, not because it measured zero."* The guard
+rejects any metric whose name is a performance measure and whose value is exactly 0.0.
+
+**Lesson: a placeholder survives in proportion to how flattering it is *not*. R171's `safe 0.00` and this
+`spearman 0.0` are the same defect and both went unnoticed for the same reason — a number that makes the
+project look worse reads as modesty rather than as a bug. Check the pessimistic placeholders too; they are
+just as false, and nobody is motivated to find them.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

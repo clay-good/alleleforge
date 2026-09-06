@@ -11,7 +11,6 @@ training_data: >-
   Rule Set 3 validation) and publishing first-party head weights is future work.
 metrics:
   ensemble_size: 5.0
-  spearman_validation: 0.0  # not yet fitted/scored; heads are an unfitted scaffold
 intended_use: >-
   Exercises the calibrated-uncertainty and embedding-space OOD plumbing end to
   end. For meaningful baseline on-target activity today use rule-set-3 (a real

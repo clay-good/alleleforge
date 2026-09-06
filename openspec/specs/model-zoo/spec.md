@@ -118,3 +118,15 @@ that documents no limitation SHALL produce no entry and no section heading: an e
 #### Scenario: A card documenting none
 - **WHEN** no model in the result documents a limitation
 - **THEN** no limitations section is rendered at all
+
+### Requirement: An unmeasured metric is absent, not zero
+
+A model card SHALL omit a performance metric it has not measured rather than report it
+as `0.0`, and SHALL say in a reader-facing field that it is unmeasured. `0.0` is the
+floor of every correlation and accuracy scale, so a placeholder there is not neutral —
+it claims the model has no predictive value.
+
+#### Scenario: A carded model the project has not scored
+- **WHEN** a card describes a model for which no accuracy measurement exists here
+- **THEN** its `metrics` carries no accuracy key, and its documented failure modes say
+  that none has been measured

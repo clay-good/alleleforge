@@ -9,8 +9,6 @@ training_data: >-
   screen, so scores are emitted as method=HEURISTIC — a mechanistic prior, not a
   trained efficiency prediction. Wiring the real trained PRIDICT2.0 (see
   pridict2) is the opt-in path for published numbers.
-metrics:
-  spearman_validation: 0.0  # not fitted/scored; transparent geometry prior
 intended_use: >-
   A deterministic, dependency-free default that exercises the calibrated-
   uncertainty and OOD plumbing end to end and gives a reasonable geometry-based
