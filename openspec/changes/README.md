@@ -8115,6 +8115,39 @@ Every enumeration in the repo should be asked: what makes this fail when the wor
 grows?**
 
 
+## Round 245 — two tables, one question, opposite defaults
+
+Applying R244's query — *what makes this enumeration fail when the world grows?* — to
+every module-level table in `src/`. The benchmark package has two answers to "does a
+higher value of this metric rank ahead of a lower one?":
+
+    runner.HIGHER_IS_BETTER = {spearman: True, ..., kl: False, ece: False}   # allowlist
+    leaderboard.LOWER_IS_BETTER = frozenset({"kl", "ece"})                   # denylist
+
+They agree today, and they are free to stop agreeing, but the drift was not the bug. The
+bug is the *defaults*: the allowlist raises on a metric it has not heard of; the denylist
+ranked it descending without a word. `primary_metric` is a free-form string on a signed
+result, so I built a valid, correctly signed submission ranking on `rmse` — where lower
+is better — and the public board printed:
+
+    | Rank | Model | Submitter | rmse ↑ |
+    | 1 | bad-model | x | 0.9000 |
+    | 2 | good-model | x | 0.2000 |
+
+The worst model first, under an arrow asserting a direction the board had never been
+told. On the one surface whose entire job is comparing models honestly.
+
+`LOWER_IS_BETTER` is now a view of the runner's table rather than a second copy, and
+`metric_is_descending` raises instead of defaulting. The refusal happens at ingestion,
+in `validate_admissible`, and names the metrics whose direction is known. A completeness
+test checks the surviving table against the metric battery of every shipped task, which
+is the check that can still fail as the world grows.
+
+**Lesson: when two places answer the same question, compare their behaviour on the input
+neither was written for. Agreement on the known cases hides that one fails closed and the
+other fails silent, and the silent one is always the surface a reader trusts.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

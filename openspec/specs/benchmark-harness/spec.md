@@ -176,6 +176,13 @@ deterministic tie-breaks.
 - **WHEN** a submission omits a license
 - **THEN** it is rejected before any entry is created
 
+#### Scenario: A metric whose direction is unknown
+- **WHEN** a signed result ranks on a `primary_metric` the harness declares no direction
+  for (`primary_metric` is a free-form string, so a submitter may send any)
+- **THEN** the submission is rejected, naming the metrics whose direction is known —
+  the board never assumes higher wins, which would order the worst model first and
+  print a confident arrow beside it
+
 ### Requirement: A rank never crosses a comparison group
 
 A leaderboard rank SHALL be computed only within a comparison group — the

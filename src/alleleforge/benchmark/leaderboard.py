@@ -27,11 +27,15 @@ from typing import NamedTuple
 from pydantic import BaseModel, ConfigDict
 
 from alleleforge._version import __version__
-from alleleforge.benchmark.runner import BenchmarkResult, ModelInfo
+from alleleforge.benchmark.runner import HIGHER_IS_BETTER, BenchmarkResult, ModelInfo
 from alleleforge.report.builder import RESEARCH_USE_CORE
 
-#: Metrics for which a lower value is better (everything else ranks descending).
-LOWER_IS_BETTER = frozenset({"kl", "ece"})
+#: Metrics for which a lower value is better. Derived from the runner's
+#: :data:`~alleleforge.benchmark.runner.HIGHER_IS_BETTER` rather than restated, because
+#: this module held its own hand-written copy and the two answered the same question by
+#: opposite defaults: the runner raises on a metric it does not know, while a denylist
+#: here silently ranked one ascending-is-better.
+LOWER_IS_BETTER = frozenset(metric for metric, higher in HIGHER_IS_BETTER.items() if not higher)
 
 
 #: Markdown inline metacharacters backslash-escaped in a table cell so submitter
@@ -97,8 +101,20 @@ _INCOMPARABLE_NOTE = (
 
 
 def metric_is_descending(metric: str) -> bool:
-    """Return ``True`` if higher values of ``metric`` rank ahead of lower ones."""
-    return metric not in LOWER_IS_BETTER
+    """Return ``True`` if higher values of ``metric`` rank ahead of lower ones.
+
+    Raises:
+        SubmissionError: If the direction of ``metric`` is not known. Guessing is
+            what the old denylist did, and guessing wrong inverts a public ranking
+            while stamping it with a confident arrow.
+    """
+    if metric not in HIGHER_IS_BETTER:
+        known = ", ".join(sorted(HIGHER_IS_BETTER))
+        raise SubmissionError(
+            f"unknown ranking metric {metric!r}: the leaderboard does not know whether "
+            f"higher or lower is better, so it cannot rank on it. Known metrics: {known}"
+        )
+    return HIGHER_IS_BETTER[metric]
 
 
 class SubmissionError(ValueError):
@@ -152,6 +168,13 @@ class Submission(BaseModel):
                 raise SubmissionError(
                     f"result model {r.model.name!r} does not match submission model "
                     f"{self.model.name!r}"
+                )
+            if r.primary_metric not in HIGHER_IS_BETTER:
+                known = ", ".join(sorted(HIGHER_IS_BETTER))
+                raise SubmissionError(
+                    f"result for task {r.task!r} ranks on unknown metric "
+                    f"{r.primary_metric!r}; the leaderboard cannot say whether higher "
+                    f"or lower is better. Known metrics: {known}"
                 )
             if r.task in tasks_seen:
                 raise SubmissionError(

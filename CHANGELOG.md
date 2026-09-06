@@ -2036,6 +2036,13 @@ acceptance.
 
 ### Fixed
 
+- **The leaderboard no longer guesses which direction a metric ranks.** Two tables in the same package
+  answered "does higher win?" by opposite defaults: `runner.HIGHER_IS_BETTER` raises on a metric it does not
+  know, while `leaderboard.LOWER_IS_BETTER` was a hand-written denylist, so anything outside `{kl, ece}` was
+  silently ranked descending. `primary_metric` is a free-form string on a submitted result, so a submission
+  ranking on `rmse` put the worst model in first place and printed `rmse ↑` beside it. `LOWER_IS_BETTER` is
+  now derived from the runner's table — one fact, one place — and a submission whose ranking metric has no
+  declared direction is refused, naming the metrics that do.
 - **`make ci` now reproduces CI's lint job, which was failing.** CI runs
   `ruff check|format --check src tests scripts examples`; the Makefile's `lint` target ran
   `src tests scripts`, so the local gate reported green over three paths while CI ran four. With the pinned
