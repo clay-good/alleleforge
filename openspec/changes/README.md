@@ -3891,6 +3891,30 @@ up cost two minutes; reporting it would have been wrong in public.
 `skipped` were both honest and individually documented, and their juxtaposition was the lie — nothing in
 either field's definition is wrong, and no test of either one alone would have caught it.**
 
+## Round 145 — the document I had been damaging
+
+Went looking for my own deferrals, per R144. The standing one — `Prediction.calibrated` coerced to `False` on
+an untrusted reload — is a deliberate anti-forgery design, pinned in both directions by its own tests, and
+re-confirmed as contained. That is a decision, not an abandoned check; left alone.
+
+What I found instead was a document I had been actively making worse for sixty rounds. `## [Unreleased]` held
+**77** change-type headings: 36 separate `### Fixed`, 32 `### Added`, 7 `### Changed`, 2 `### Security`. Keep
+a Changelog gives each release one section per type; every round of this session prepended a fresh heading
+rather than merging into the existing one, which is a small, invisible-per-commit choice that compounds into a
+document where *"what was fixed"* cannot be read in one place — the only question a changelog exists to
+answer. A human had already been asked to clean up the thirteen that predated me. I had turned thirteen into
+seventy-seven.
+
+Consolidated to four sections, in the documented order, with all 300 bullets preserved verbatim — verified by
+diffing the sorted bullet sets before and after, which is the check that makes a mechanical rewrite of a
+hand-written document safe to do at all. Then pinned it, because the reason it drifted is that nothing looked.
+
+**Lesson: I have spent sixty rounds auditing the product and never once audited my own output. Every round
+edits the changelog, the round log, and the specs, and those edits get exactly the review that unreviewed
+work gets. Worth adding to the rotation: run the audit on the artifacts the audit produces. The tell here was
+cheap — one `grep -c '^### '` — and the defect was mine, growing by one every round, while I looked for other
+people's.**
+
 ## Round 144 — the checker I threw away was the one that was broken
 
 R143 ended on "when a guard lives in a convenience wrapper, check what the docs tell people to run instead."
