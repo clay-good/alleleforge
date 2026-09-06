@@ -6115,6 +6115,44 @@ question to ask of any new caveat is not "is it true" but "which of the three co
 sees it": the person reading, the artifact they hand on, and the program that branches.**
 
 
+## Round 198 — a small round, and four things that were already right
+
+R197's lesson was to ask which of three consumers sees a given caveat — the person reading, the artifact they
+hand on, the program that branches. Swept the codebase for warnings that reach only the terminal, and the
+sweep came back nearly empty: there are exactly two, and R190 had already given the ancestry one a report-side
+counterpart. The other is an unknown key in a run-config TOML, and it turns out to be adequately mitigated —
+every config key resolves to a *default* when mistyped, and the defaults are the conservative choice on every
+safety-relevant one (`maf_threshold` falls back to 0.001, admitting more population variants, not fewer;
+`run_offtarget` falls back to running the search). R189 and R190 also now print the effective thresholds in
+the search description, so a reader comparing them against their config sees the discrepancy.
+
+So the round went looking at `aforge lift`, never examined in this session, where a wrong answer means
+designing a guide at the wrong place in the genome. Four things checked, three of them clean:
+
+* The output round-trips: `str(GenomicInterval)` produces `chr1:100-120(+)` and `GenomicInterval.parse`
+  accepts it, strand included. The documented promise holds — and was untested, so it is now.
+* `UNMAPPED` is printed rather than dropped, and the run exits non-zero. Both hold; both now tested.
+* `lift_interval` is rigorous: it rejects unmapped bases, cross-contig spans, mixed strands, and any length
+  change, and it sorts positions so a minus-strand mapping does not invert the span.
+* The per-base scan is justified in a comment by "the lifted intervals here are short (guides/windows,
+  ~20-200 bp)" — and `aforge lift` hands it arbitrary user-supplied loci. Measured before claiming anything:
+  0.7 s per megabase, linear. A whole-chromosome lift takes about three minutes. Slow, not broken; no fix.
+
+What was wrong was the docstring, which describes lifting "the first and last bases independently". The code
+lifts every base, and the comment below it explains that an endpoint-only check passes a *balanced* interior
+gap — a source deletion and target insertion of the same size — leaving the endpoints mapped and the length
+unchanged while the interior maps to nothing. That change is tested
+(`test_liftover_balanced_interior_gap_returns_none`, with a better explanation than the docstring above it).
+Only the docstring lagged, and it lagged in the rare direction: it *understates* the guarantee, so a reader
+auditing for that hazard concludes it is present and either distrusts the tool or writes a redundant guard.
+
+**Lesson: a round whose main finding is a stale docstring is a cheap round, and worth saying so plainly rather
+than dressing up. The four negative results are the actual product here — `lift` is in good shape, and now
+three of its documented promises are pinned instead of merely true. Verifying a suspicion costs little; the
+measurement that killed the performance hypothesis took two minutes and stopped a fix that would have been
+solving nothing.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

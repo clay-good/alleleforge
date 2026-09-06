@@ -10,6 +10,12 @@ acceptance.
 
 ### Added
 
+- **`aforge lift`'s documented promises are now checked.** Its help says the output "pipes straight back in"
+  to `--region`, that an unmappable locus prints `UNMAPPED` rather than being dropped ("a shorter list is a
+  smaller search"), and that the run exits non-zero. All three held and none were tested; the two commands sit
+  on opposite sides of the tool, one formatting a `GenomicInterval` and the other parsing one, and the promise
+  is the only reason the liftover is usable from a shell.
+
 - **Five checks that could pass while examining nothing now have a floor.** A test whose only assertion is
   that a scanned collection is empty — `assert not broken` — is satisfied perfectly by finding nothing to
   check, and that is invisible in a green run. Measured, not argued: neutralizing the prose corpus in
@@ -1627,6 +1633,15 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+
+- **`lift_interval`'s docstring described the algorithm it had been changed to stop using.** It said the method
+  "lifts the first and last bases independently and rebuilds the span". The code lifts *every* base, and the
+  comment three lines below it explains why: an endpoint-only check passes a **balanced** interior chain gap —
+  a source deletion and a target insertion of the same size — because the endpoints still map and the span
+  length is unchanged while the interior maps to nothing. The implementation was strengthened, the guarantee
+  is tested, and the docstring went on describing the weaker version whose hole the change closed. Unusually
+  for this project the doc *understated* the guarantee, so a reader auditing for that exact hazard would have
+  concluded it was present.
 
 - **A search that examined nothing exited 0.** Over a truncated reference — a contig header with no bases,
   which is what an interrupted download leaves — `aforge offtarget` prints `0 site(s), worst score 0.000,

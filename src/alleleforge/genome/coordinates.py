@@ -206,16 +206,25 @@ class Liftover:
     ) -> GenomicInterval | None:
         """Lift a 0-based half-open interval to the target build.
 
-        Lifts the first and last bases independently and rebuilds the span, then
-        **fails closed** — returns ``None`` — rather than emitting a scrambled
-        interval when the two endpoints disagree about the region's shape:
+        Lifts **every** base in the span, then **fails closed** — returns ``None`` —
+        rather than emitting an interval that does not describe the same bases:
 
-        * either endpoint fails to map, or they land on different contigs;
-        * the endpoints map to **different strands** (an inversion boundary splits
-          the interval — keeping one endpoint's strand would mis-orient the span);
+        * any base fails to map, or the bases land on different contigs;
+        * the bases map to **different strands** (an inversion boundary splits the
+          interval — keeping one base's strand would mis-orient the span);
         * the lifted span's length differs from the source length by more than
           ``length_tolerance`` (a chain **indel** inside the interval silently
           resized it — the lifted coordinates no longer describe the same bases).
+
+        This described lifting "the first and last bases independently" until the
+        implementation stopped doing that. An endpoint-only check passes a *balanced*
+        interior gap — a source deletion and a target insertion of the same size —
+        because the endpoints still map and the span length is unchanged while the
+        interior maps to nothing. The code was changed to scan every base for exactly
+        that reason (see the comment below, and
+        ``test_liftover_balanced_interior_gap_returns_none``); the docstring was not,
+        so it went on describing the weaker algorithm whose hole the change closed.
+        Cost is linear and about 0.7 s per megabase.
 
         A faithful 1:1 lift preserves the length exactly, so the default tolerance
         of ``0`` accepts a clean lift and rejects any resize; raise it only to admit
