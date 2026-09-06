@@ -8991,6 +8991,37 @@ error paths are written once, tested for "did it fail", and never read side by s
 the synchronous one they are supposed to match.**
 
 
+## Round 273 — a state nothing can reach, and two false alarms checked
+
+Continuing R272's query — the same operation by two routes — I diffed the *successful*
+design payloads, sync versus job. Byte-identical once the timestamp is removed. Clean.
+
+Two probe failures on the way, both mine, both worth naming because each looked like a
+serious defect for about a minute. A 43 KB job-status body came back "invalid control
+character" from Python's parser: that was my shell mangling the response through a
+variable — fetched straight to a file it parses strictly. And R272's "hung job" was the
+same shape of artifact. Neither reached a commit message, which is the point of checking.
+
+The finding was in the contract itself. `JobStatusResponse.state`:
+
+    state: str = Field(description="queued | running | done | error.")
+
+Nothing emits `queued` — a job starts `pending`. A client that polls until the state leaves
+the documented first value waits forever. And because the field was a bare `str`, the
+OpenAPI schema said `type: string` and nothing more, so there was no machine-readable
+vocabulary for the prose to disagree with; the drift could only be found by reading both.
+
+The field one line below is `progress`, whose docstring says it was typed and documented so
+"the shape is visible in the OpenAPI schema rather than inferred from two observations".
+The fix was applied to the field that had confused someone and not to its neighbour — R258
+exactly, one file over.
+
+**Lesson: a free-text description of a closed vocabulary is a second copy of it, and the
+one that nothing validates. If the values are an enum in the code, make the response field
+that enum: the schema then carries the vocabulary and the prose has nothing left to get
+wrong.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

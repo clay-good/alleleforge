@@ -497,6 +497,15 @@ class OffTargetResponse(BaseModel):
         )
 
 
+class JobState(StrEnum):
+    """Lifecycle state of an async design job."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    DONE = "done"
+    ERROR = "error"
+
+
 class JobStatusResponse(BaseModel):
     """An async job's state, coarse progress, and result when it is finished.
 
@@ -511,7 +520,13 @@ class JobStatusResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     job_id: str
-    state: str = Field(description="queued | running | done | error.")
+    #: Typed as the enum, not as `str`, so the four values reach the OpenAPI schema and
+    #: a generated client can switch on them. As prose it said "queued | running | done |
+    #: error" — and nothing ever emits `queued`; a job starts `pending`. A client polling
+    #: for the documented first state waits forever, and the schema said only
+    #: `type: string`, so there was nothing to check the prose against. The neighbouring
+    #: `progress` field was typed and documented for exactly this reason one line below.
+    state: JobState
     progress: float = Field(
         description=(
             "Coarse, three-valued: 0.0 queued, 0.1 running, 1.0 finished. NOT a "
@@ -593,15 +608,6 @@ class BenchListResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     tasks: tuple[BenchTaskRow, ...]
-
-
-class JobState(StrEnum):
-    """Lifecycle state of an async design job."""
-
-    PENDING = "pending"
-    RUNNING = "running"
-    DONE = "done"
-    ERROR = "error"
 
 
 class JobSubmitResponse(BaseModel):

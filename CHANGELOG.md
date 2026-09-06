@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **The job status contract names the states it emits.** `JobStatusResponse.state` was typed `str` and
+  described as "queued | running | done | error" — and nothing emits `queued`; a job starts `pending`. A
+  client polling until the state leaves the documented first value waits forever, and a bare string field
+  put nothing in the OpenAPI schema for that prose to be checked against. It is the enum now, so the four
+  values travel with the schema. The neighbouring `progress` field had been typed and documented for
+  exactly this reason.
+
 - **A failed design job reports what the synchronous call reports.** `POST /api/design` with an unparseable
   variant answers `422 {"detail": "unrecognized variant input: ..."}`; the identical request through
   `POST /api/jobs/design` recorded `HTTPException: 422: unrecognized variant input: ...` — the framework's

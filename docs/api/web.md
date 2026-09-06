@@ -37,7 +37,7 @@ auto-generated at `/openapi.json`.
 | `POST /api/resolve` | Normalize any input form to a canonical variant. |
 | `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf`. |
 | `POST /api/jobs/design` | Submit an async design job (`202`, returns a job id). |
-| `GET /api/jobs/{id}` | Poll an async job's state, progress, and result. |
+| `GET /api/jobs/{id}` | Poll an async job: `state` (`pending` → `running` → `done` / `error`, an enum in the schema so a generated client can switch on it), a three-valued `progress`, and the result or the failure reason. |
 | `POST /api/batch` | Cohort design over a variant list; per-item summaries and provenance, a failed item isolated rather than failing the run. |
 | `POST /api/offtarget` | Standalone population-aware off-target search, including the `scorer` choice (`cfd` / `mit` / `cfd-cas12a`) so a Cas12a run is labelled as the unvalidated approximation rather than as the published matrix. |
 | `GET /api/data` / `GET /api/data/{name}` | Inspect the dataset registry. |
