@@ -163,6 +163,14 @@ class OffTargetReport(BaseModel):
     #: the no-source case too: the CLI warns about that one, but only to the terminal,
     #: so the durable artifact said nothing and a library caller was told nothing.
     unbacked_populations: tuple[str, ...] = ()
+    #: Every ancestry label the supplied sources actually carry. Telling a caller their
+    #: request went unexamined without naming the alternatives is an unactionable
+    #: warning: the three documented vocabularies (gnomAD `afr`, 1000 Genomes `AFR`,
+    #: HGDP `africa`) look interchangeable on the page and are not, and the report has
+    #: this set in hand because it computed it to decide `unbacked_populations`. Empty
+    #: when no ancestry source was supplied at all, which is a different statement and
+    #: gets a different sentence.
+    available_populations: tuple[str, ...] = ()
     #: Minimum population allele frequency a variant had to reach to be considered,
     #: or ``None`` when no ancestry source was supplied and the cut-off never applied.
     #: It decides which population alleles enter the scan at all, so it moves the site
@@ -237,6 +245,20 @@ class OffTargetReport(BaseModel):
                 "requested but not examined, and their absence from the breakdown "
                 "means 'no data', not 'no risk'"
             )
+            # What to do about it. The labels are the source's own and are NOT
+            # case-folded onto the request: gnomAD's `afr` and 1000 Genomes' `AFR`
+            # are different groupings, so answering a question about one with data
+            # about the other would be a silent substitution. Naming them lets the
+            # caller choose; matching them would hide the choice.
+            if self.available_populations:
+                coverage += (
+                    f"; the supplied source(s) carry: {', '.join(self.available_populations)}"
+                )
+            else:
+                coverage += (
+                    "; no ancestry source was supplied at all, so there is no label "
+                    "that would have worked — pass --gnomad or --haplotypes"
+                )
         inert = sorted(name for name, n in self.sources_considered.items() if n == 0)
         if inert:
             # "in this region" alone attributed an empty contribution to the locus. The

@@ -332,6 +332,14 @@
           "title": "Ambiguous Spacer Positions",
           "type": "array"
         },
+        "available_populations": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Available Populations",
+          "type": "array"
+        },
         "cfd_threshold": {
           "default": 0.2,
           "title": "Cfd Threshold",

@@ -674,6 +674,7 @@ def search(
         sources_considered=sources_considered,
         ambiguous_spacer_positions=ambiguous_spacer_positions,
         unbacked_populations=unbacked,
+        available_populations=tuple(sorted(backed)),
         # Only when an ancestry source was actually supplied: on a reference-only
         # scan the cut-off never applied, and printing it would describe a filter
         # that did nothing.

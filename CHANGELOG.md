@@ -10,6 +10,16 @@ acceptance.
 
 ### Added
 
+- **An unexamined ancestry now names the labels that would have worked.** `docs/data.md` documents three
+  ancestry vocabularies (gnomAD `afr`, 1000 Genomes `AFR`, HGDP `africa`), so `--populations AFR` against a
+  gnomAD slice whose columns are `afr`/`nfe` produced a true but unactionable warning: the request went
+  unexamined, and the report — which had computed the backed set to decide that very sentence — did not say
+  what the sources carry. `OffTargetReport.available_populations` now does, and where no ancestry source was
+  supplied at all it says that instead, since an empty list of alternatives would read as "these exist and
+  yours is not among them". The labels are deliberately **not** case-folded: gnomAD's `afr` and 1000 Genomes'
+  `AFR` are different groupings, and matching them would silently answer a question about one with data about
+  the other.
+
 - **A reported locus is named the way the searched reference names it.** The same off-target site in the same
   genome was called `chr2:43-63` unscoped and `2:43-63` when scoped with `--region 2:0-183`: unscoped the
   contigs come from the reference, scoped they carried whatever the caller typed, so **the identity of a site

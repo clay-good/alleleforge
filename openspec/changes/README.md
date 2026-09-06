@@ -7321,6 +7321,46 @@ When a system accepts several spellings of an identifier, ask what it *emits* �
 answer is usually "whichever one it happened to be holding".**
 
 
+## Round 226 — a true warning nobody can act on
+
+R225's question — "when a system accepts several spellings of an identifier, what does
+it *emit*?" — asked of ancestry labels. `docs/data.md` documents three vocabularies:
+gnomAD's lowercase `afr`, 1000 Genomes' uppercase `AFR`, HGDP's `africa`. A caller who
+reads that page, types `--populations AFR`, and supplies a gnomAD slice whose columns
+are `afr` and `nfe` gets:
+
+    no supplied source carries data for AFR — those ancestries were requested but not
+    examined, and their absence from the breakdown means 'no data', not 'no risk'
+
+Every word of that is true, and it is the honesty machinery working exactly as designed
+— the request is not silently dropped. It is also unactionable. The report computed the
+set of *backed* labels in order to decide that sentence, held `{afr, nfe}` in hand, and
+did not say. One case away from the answer, and the caller is left guessing whether
+their file is wrong, their flag is wrong, or their locus is wrong.
+
+`available_populations` is now on the report and named in the description. Where no
+ancestry source was supplied at all it says that instead, because listing an empty set
+of alternatives would read as "these exist and yours is not among them" when the truth
+is that nothing was supplied — a different problem with a different fix.
+
+**What this deliberately does not do is match the labels.** Case-folding `AFR` onto
+`afr` would make the warning disappear, which is why it is tempting, and it would be a
+silent substitution of one cohort's frequencies for another's. gnomAD's `afr` and 1000
+Genomes' `AFR` are different groupings of different samples. Naming the alternatives
+puts the choice in front of the caller; matching for them would hide that there was one.
+
+The reproducibility golden moved for the first time in this whole stretch of rounds, and
+the diff is why the check is worth having: exactly one line, `available_populations:
+added ([])`, plus the digest. A new field with an empty value and not one scientific
+number touched — read field by field before updating, as the log's own note requires.
+
+**Lesson: "the tool discloses it" is not the same as "the user can act on it", and the
+second is where a disclosure earns its place. A warning built from a computation almost
+always has the remedy sitting in a local variable — the set that decided the warning is
+usually the set the reader needs. Check what the warning code already knows before
+deciding it has said enough.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
