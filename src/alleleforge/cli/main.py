@@ -1149,11 +1149,34 @@ def _batch_tsv(rows: list[dict[str, Any]], provenance: Any | None = None) -> str
     ]
 
     def _cell(value: Any) -> str:
+        """Render one cohort cell for TSV, matching `report/export.py`'s conventions.
+
+        This writer passed every value through `str()`, so a TSV — the format a pipeline
+        reads — carried Python reprs and raw float noise::
+
+            best_caveats            ['pol3-terminator', 'gc-out-of-band:0.20']
+            offtarget_sources       {}
+            best_efficiency_low     0.44999999999999996
+
+        The report exporter formats its values before they reach the cell: floats
+        rounded to four places, flags joined with `;`. A consumer should not need a
+        Python parser for one of this project's two TSVs and not the other.
+        """
         # Neutralize the delimiters so a tab/newline in a field (item_id is a raw
         # input line; error is an exception message) cannot misalign the TSV.
         if value is None:
             return ""
-        return str(value).replace("\t", " ").replace("\r", " ").replace("\n", " ")
+        if isinstance(value, bool):
+            rendered: Any = value  # before the float branch: a bool is an int
+        elif isinstance(value, float):
+            rendered = round(value, 4)
+        elif isinstance(value, Mapping):
+            rendered = ";".join(f"{k}={v}" for k, v in sorted(value.items()))
+        elif isinstance(value, (list, tuple)):
+            rendered = ";".join(str(item) for item in value)
+        else:
+            rendered = value
+        return str(rendered).replace("\t", " ").replace("\r", " ").replace("\n", " ")
 
     from alleleforge.report.builder import COORDINATE_NOTE, RESEARCH_USE_DISCLAIMER
 

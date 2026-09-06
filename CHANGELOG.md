@@ -2036,6 +2036,12 @@ acceptance.
 
 ### Fixed
 
+- **The cohort TSV is readable without a Python parser.** `_batch_tsv` passed every value through `str()`,
+  so the file a pipeline reads carried `['pol3-terminator', 'gc-out-of-band:0.20']` in a tab-separated cell,
+  `{}` for an empty mapping, and `0.44999999999999996` for a rounded interval bound. `report/export.py` —
+  this project's *other* TSV — formats before it renders: four decimal places, `;`-joined flags. Now both
+  do, with empty collections rendering as empty cells and a populated mapping as `gnomad=3;reference=1`.
+
 - **A cohort row leads with what happened to that variant.** `_decline_reason` flattened every rationale
   bullet in report order, and routing rationales come first because the report reads top-down while a cohort
   row is scanned left to right. So a no-op input gave three definitions of what each chemistry is *for* and

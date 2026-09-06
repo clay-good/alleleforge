@@ -8486,6 +8486,34 @@ read from the top; a table cell is read from the left and truncated on the right
 string is shared between them, ask which end each reader starts at.**
 
 
+## Round 256 — reading the cohort TSV as a pipeline, not a person
+
+Same run as R255, next artifact. `aforge batch --summary-tsv` writes the file a whole
+cohort is triaged through, and it held:
+
+    best_caveats            ['pol3-terminator', 'gc-out-of-band:0.20']
+    offtarget_sources       {}
+    best_efficiency_low     0.44999999999999996
+
+A Python list literal inside a tab-separated cell — quotes, brackets, `, ` separators —
+an empty dict repr, and seventeen significant digits of binary noise where an interval
+bound belongs. `_batch_tsv` rendered every value with `str()`.
+
+The comparison that makes it a defect rather than a nit: `report/export.py` is this
+project's other TSV, and it formats before it renders — four decimal places, flags joined
+with `;`, empty for `None`. One project, one format, two conventions, and only one of them
+survives `pandas.read_csv` without a post-processing step to strip brackets and quotes.
+The cohort file is the one a pipeline consumes at scale.
+
+Both sides agree now, with a bool checked before the float branch (a bool is an int in
+Python, and `round(True, 4)` is `1`), empty collections as empty cells, and a populated
+mapping as `gnomad=3;reference=1`.
+
+**Lesson: when a project writes the same format from two places, diff a real file from
+each. The conventions that matter — rounding, list joining, the empty value — are
+invisible in the code and obvious side by side.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
