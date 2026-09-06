@@ -7795,6 +7795,43 @@ the wrong file — the place where a compensation lives tells you where the defe
 it is never where the compensation is.**
 
 
+## Round 237 — the gate was red and the local mirror said green
+
+R236's query — grep the build artifacts for dependencies installed *on top of* an
+extra — turned up `"pyfaidx>=0.8" "pyliftover>=0.4"` appended in seven CI jobs, the
+Makefile and (until last round) the Dockerfile. Eleven hand-assembled copies of a set
+that has no name. That is worth fixing and it is not what this round found.
+
+Reading `ci.yml` beside the Makefile to write that check, the `lint` job said:
+
+    ruff check src tests scripts examples
+    ruff format --check src tests scripts examples
+
+and the Makefile's `lint` target said `src tests scripts`. The commit that created the
+difference is `02c15f9 ci(lint): extend the ruff gate to the example notebooks so they
+can't drift` — a change whose entire purpose was to stop drift, which drifted the
+mirror in the act of preventing it.
+
+**And the gate is red because of it.** With the pinned `ruff==0.15.21` — not the older
+one in my environment, which is why I checked before touching anything —
+`examples/03_batch_vcf.ipynb` fails `ruff format --check`. It was last edited by two
+commits that fixed real defects in it; `make lint` cannot see `examples`, so nothing
+local objected, and the file went to `main` unformatted. The notebook is now formatted
+with the pinned version and still executes.
+
+`test_gate_mirrors_ci.py` exists to prevent exactly this and did not, because it
+compared **job names** to **target names**. Names are not a gate. It now compares the
+commands too, with a `COMMANDS_DIFFER` list for any pair that should legitimately
+differ — empty today. Mutation-checked by restoring the old Makefile line, which fails
+precisely the `lint` case.
+
+**Lesson: a mirror test that compares the two lists of things, rather than the two
+things, will pass for as long as both lists are the same length. This one had a good
+docstring, a real motivating incident, and an escape hatch with reasons — and still
+checked the index rather than the contents. When writing a "these two must agree" test,
+say out loud which bytes are being compared.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -10,8 +10,8 @@ install: ## Editable install with the dev + genome extras.
 	pip install -e ".[dev,cli,web]" "pyfaidx>=0.8" "pyliftover>=0.4"
 
 lint: ## Ruff lint + format check.
-	ruff check src tests scripts
-	ruff format --check src tests scripts
+	ruff check src tests scripts examples
+	ruff format --check src tests scripts examples
 
 type: ## mypy --strict over the library.
 	mypy --strict src/alleleforge

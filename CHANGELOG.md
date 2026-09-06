@@ -1978,6 +1978,14 @@ acceptance.
 
 ### Fixed
 
+- **`make ci` now reproduces CI's lint job, which was failing.** CI runs
+  `ruff check|format --check src tests scripts examples`; the Makefile's `lint` target ran
+  `src tests scripts`, so the local gate reported green over three paths while CI ran four. With the pinned
+  `ruff==0.15.21`, `examples/03_batch_vcf.ipynb` fails `ruff format --check` — it reached `main` because
+  nothing local could see it. The notebook is formatted (and still executes), the Makefile matches, and
+  `test_gate_mirrors_ci.py` — which compared job *names* to target *names* — now compares the commands, with
+  a reasoned escape list that is empty.
+
 - **A cohort was silently smaller than the VCF it came from.** `iter_vcf` drops three kinds of row, all of
   them correctly — none names a designable substitution: a soft-filtered call (`FILTER` is not PASS, skipped
   by default), a row whose REF is symbolic, and a symbolic ALT (`<DEL>`, `<DUP>`, a breakend, the `*`
