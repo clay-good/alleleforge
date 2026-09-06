@@ -1,4 +1,205 @@
 {
-  "sha256": "15c7255c68273cb36314a333f7e19dec3b25754bd0388c93063f5d90e45ad87f",
-  "n_candidates": 1
+  "body": {
+    "candidates": [
+      {
+        "base_edit_window": {
+          "bystander_positions": [
+            4,
+            5
+          ],
+          "editor": "ABE8e",
+          "pam": {
+            "pattern": "NGG"
+          },
+          "pam_sequence": {
+            "sequence": "TGG"
+          },
+          "placement": {
+            "chrom": "chr2",
+            "coordinate_system": "0-based-half-open",
+            "end": 40,
+            "start": 20,
+            "strand": "+"
+          },
+          "spacer": {
+            "sequence": {
+              "sequence": "TTTAAACGTTTTTTTTTTTT"
+            }
+          },
+          "target_positions": [
+            6
+          ],
+          "window": [
+            4,
+            8
+          ]
+        },
+        "bystander_burden": {
+          "calibrated": false,
+          "in_distribution": true,
+          "interval": [
+            0.45,
+            0.75
+          ],
+          "interval_level": 0.8,
+          "method": "heuristic",
+          "notes": [
+            "count-valued quantity: interval is a nominal spread, not a coverage band"
+          ],
+          "point_from_trained_model": false,
+          "value": 0.6
+        },
+        "chemistry": "base_abe",
+        "efficiency": {
+          "calibrated": false,
+          "in_distribution": true,
+          "interval": [
+            0.45,
+            0.75
+          ],
+          "interval_level": 0.8,
+          "method": "heuristic",
+          "notes": [
+            "nominal interval level: fixed heuristic half-width, coverage not measured"
+          ],
+          "point_from_trained_model": false,
+          "value": 0.6
+        },
+        "flags": [
+          "bystander-present:2",
+          "bystander-burden:0.60",
+          "no-5prime-g",
+          "gc-out-of-band:0.10",
+          "recommended"
+        ],
+        "guide": null,
+        "hdr_donor": null,
+        "offtarget": {
+          "ambiguous_spacer_positions": [],
+          "cfd_threshold": 0.2,
+          "dna_bulge_budget": 1,
+          "mismatch_threshold": 4,
+          "mit_threshold": 0.1,
+          "pam": "NGG",
+          "reference_build": "hg38",
+          "resolved_bases": 63,
+          "rna_bulge_budget": 1,
+          "score_matrix": "doench-2016-cfd",
+          "scorer": "CFD",
+          "searched_bases": 63,
+          "sites": [],
+          "sources_considered": {},
+          "spacer": "TTTAAACGTTTTTTTTTTTT",
+          "subthreshold_score_sum": 0.0,
+          "unbacked_populations": []
+        },
+        "outcome": {
+          "alleles": [
+            {
+              "allele": "wildtype",
+              "is_intended": false,
+              "probability": 0.192
+            },
+            {
+              "allele": "A4G",
+              "is_intended": false,
+              "probability": 0.048
+            },
+            {
+              "allele": "A5G",
+              "is_intended": false,
+              "probability": 0.128
+            },
+            {
+              "allele": "A6G",
+              "is_intended": true,
+              "probability": 0.288
+            },
+            {
+              "allele": "A4G;A5G",
+              "is_intended": false,
+              "probability": 0.032
+            },
+            {
+              "allele": "A4G;A6G",
+              "is_intended": false,
+              "probability": 0.072
+            },
+            {
+              "allele": "A5G;A6G",
+              "is_intended": false,
+              "probability": 0.192
+            },
+            {
+              "allele": "A4G;A5G;A6G",
+              "is_intended": false,
+              "probability": 0.048
+            }
+          ],
+          "partial": false
+        },
+        "pegrna": null,
+        "rationale": "ABE8e sgRNA on + strand; P(exact)=0.29, bystander burden=0.60; score 0.641 [eff 0.60 [0.45, 0.75], clean 0.29, safe 1.00, simple 0.90]"
+      }
+    ],
+    "pareto_front": [
+      0
+    ],
+    "provenance": {
+      "datasets": [],
+      "models": [
+        {
+          "chemistry": "base_abe",
+          "citation": "AlleleForge contributors (heuristic); mechanism after Marquart et al. 2021 (BE-DICT)",
+          "intended_use": "A deterministic, dependency-free default base-editing window-outcome prior (which editable bases are edited and the bystander spectrum). For the published BE-DICT outcome use the opt-in trained model (be-dict). Research use.",
+          "known_failure_modes": [
+            "Transparent motif heuristic, not the trained BE-DICT model: a re-run from this checkpoint reproduces the heuristic, not published BE-DICT numbers. Use be-dict for the trained model.",
+            "Treats editable positions as independent and does not model deaminase- and context-dependent bystander transfer."
+          ],
+          "license": "MIT",
+          "name": "be-dict-baseline",
+          "out_of_scope_use": "Trusting the outcome as the trained BE-DICT prediction (it is a transparent heuristic); clinical decision-making; chemistries other than base editing.",
+          "sha256": null,
+          "version": "0.1"
+        },
+        {
+          "chemistry": "prime",
+          "citation": "AlleleForge contributors (heuristic); mechanism after Mathis et al. 2023/2024 (PRIDICT2.0)",
+          "intended_use": "A deterministic, dependency-free default that exercises the calibrated- uncertainty and OOD plumbing end to end and gives a reasonable geometry-based ranking prior. For published PRIDICT2.0 efficiency use the opt-in trained model (pridict2). Research use.",
+          "known_failure_modes": [
+            "Transparent geometry heuristic, not the trained PRIDICT2.0 model (method=HEURISTIC): a re-run from this checkpoint reproduces the heuristic, not published PRIDICT2.0 numbers. Use pridict2 for the trained model.",
+            "Cell-context OOD is flagged from the HEK293T/K562 window, but the score itself does not model chromatin without ePRIDICT + an ENCODE track.",
+            "No edit-size or edit-class feature: two pegRNAs with identical geometry score identically whether they write one base or a 29-nt insertion, which the RTT-length penalty only indirectly proxies. A score for a non-single-base edit carries an explicit note saying so; use the trained pridict2 model for size-aware numbers."
+          ],
+          "license": "MIT",
+          "name": "pridict2-baseline",
+          "out_of_scope_use": "Trusting the point estimate as the trained PRIDICT2.0 prediction (it is a transparent heuristic); clinical decision-making; a substitute for experimental validation.",
+          "sha256": null,
+          "version": "0.1"
+        },
+        {
+          "chemistry": "prime",
+          "citation": "AlleleForge contributors (heuristic); byproduct channels after Anzalone et al. 2019 (prime editing)",
+          "intended_use": "A deterministic, dependency-free default for the intended-vs-byproduct distribution and the intended probability that feeds the menu's cleanliness objective. Research use.",
+          "known_failure_modes": [
+            "Transparent geometry heuristic, not a trained byproduct model: a re-run from this checkpoint reproduces the heuristic, not measured product distributions.",
+            "Keyed on pegRNA geometry only \u2014 no target-sequence context, no cell type, and no edit-size or edit-class term, so two pegRNAs with identical geometry receive the same split whether they write one base or a 29-nt insertion.",
+            "The three modeled byproduct channels (scaffold incorporation, partial RT product, indel) are the dominant ones, not an exhaustive account of what a pegRNA can produce."
+          ],
+          "license": "MIT",
+          "name": "prime-outcome-baseline",
+          "out_of_scope_use": "Trusting the byproduct split as a measured product distribution (it is a transparent heuristic); clinical decision-making; a substitute for sequencing the edited product.",
+          "sha256": null,
+          "version": "0.1"
+        }
+      ],
+      "reference_build": "hg38",
+      "seed": 20240501,
+      "timestamp": "2024-05-01T00:00:00Z",
+      "tools": []
+    },
+    "rationale": "Routing: base_abe=yes, base_cbe=no, prime=yes, cas9_nuclease=no.\nEligible and run: base_abe, prime.\n- ClinVar: pathogenic\n- intent install writes an allele ClinVar classifies as pathogenic \u2014 a disease model, not a correction\n- base_abe: 1 candidate(s)\n- prime: eligible but no actionable candidate enumerated\nRanked by a weighted sum of four higher-is-better objectives (efficiency 0.35, cleanliness 0.30, safety 0.30, simplicity 0.05); the safety term uses the worst-affected ancestry and the efficiency term is uncertainty-discounted. The Pareto front lists the 1 candidate(s) not dominated on all four objectives."
+  },
+  "n_candidates": 1,
+  "sha256": "15c7255c68273cb36314a333f7e19dec3b25754bd0388c93063f5d90e45ad87f"
 }

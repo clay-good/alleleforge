@@ -3891,6 +3891,36 @@ up cost two minutes; reporting it would have been wrong in public.
 `skipped` were both honest and individually documented, and their juxtaposition was the lie — nothing in
 either field's definition is wrong, and no test of either one alone would have caught it.**
 
+## Round 140 — a gate that could fail but not explain
+
+Continuing R139's boundary question onto the design side. There is no `agrees_with` there; the equivalent is
+`scripts/reproduce.py`, which re-derives a canonical menu twice (asserting determinism) and diffs a
+canonicalized digest against a committed golden. It is a blocking `make ci` job.
+
+Read what it excludes: `_VOLATILE_KEYS = {alleleforge_version, config_snapshot}`. The config snapshot is
+dropped wholesale, but `seed` also lives at the top level of provenance and is *not* dropped, and any setting
+that changes a result changes the candidates it is hashed over — so the exclusion is sound. Negative result.
+
+The defect is in what happens when it fails. Induced a drift and read the output:
+
+    REPRODUCIBILITY DRIFT
+      golden : 0000000000000000000000000000000000000000000000000000000000000000
+      current: 15c7255c68273cb36314a333f7e19dec3b25754bd0388c93063f5d90e45ad87f
+
+That is the whole report. A blocking gate tells a developer that something moved and refuses to say what,
+while holding both bodies in memory at the moment it prints. The golden stored `{sha256, n_candidates}`, so
+the information was not on disk either — even `git log` on the manifest shows only a changed hash, and a
+reviewer looking at a reproducibility change sees one opaque line.
+
+The canonical body is 8 KB and 200 lines. Committing it makes the golden a readable artifact where drift
+shows up as an ordinary diff in review, and lets the gate walk the two bodies and name the leaves:
+`candidates[0].efficiency: 0.5 -> 0.7`, truncated after 25. Also gave the script its first tests — it is the
+mechanism the project's central reproducibility claim rests on and it had none.
+
+**Lesson: a check that can only say yes or no is half a check. Whenever a gate compares two artifacts, ask
+whether it keeps the losing side around long enough to explain itself — and whether the committed reference
+is something a human can read in review, or only a hash that changes for reasons no diff will show.**
+
 ## Round 139 — the denominator was covered and the numerator was not
 
 First, two negative results. Chasing R138 further, I checked which other qualification helpers reach which

@@ -14,6 +14,10 @@ last-ULP difference across platforms is not a spurious failure; everything that
 defines the result — candidates, scores, intervals, outcomes, off-targets — is
 kept.
 
+The golden manifest stores the canonical body alongside its digest, so a drift is a
+readable diff in review and the gate can name the values that moved instead of
+printing two hashes and leaving the bisection to a human.
+
 Usage:
     python scripts/reproduce.py            # diff against the golden; exit 1 on drift
     python scripts/reproduce.py --update    # regenerate the golden manifest
@@ -114,6 +118,42 @@ def _digest() -> tuple[str, dict[str, Any]]:
     return hashlib.sha256(blob.encode()).hexdigest(), body
 
 
+def _changed_paths(golden: Any, current: Any, prefix: str = "") -> list[str]:
+    """Return dotted paths where ``current`` differs from ``golden``, deepest-first.
+
+    A blocking gate that fails with two 64-character hashes and nothing else leaves a
+    developer to bisect by hand for a drift the script already has both sides of. This
+    walks the two canonical bodies together and names the leaves that moved.
+    """
+    if isinstance(golden, dict) and isinstance(current, dict):
+        out: list[str] = []
+        for key in sorted(set(golden) | set(current)):
+            path = f"{prefix}.{key}" if prefix else str(key)
+            if key not in golden:
+                out.append(f"{path}: added ({current[key]!r})")
+            elif key not in current:
+                out.append(f"{path}: removed (was {golden[key]!r})")
+            else:
+                out += _changed_paths(golden[key], current[key], path)
+        return out
+    if isinstance(golden, list) and isinstance(current, list):
+        if len(golden) != len(current):
+            return [f"{prefix}: length {len(golden)} -> {len(current)}"]
+        return [
+            p
+            for i, (g, c) in enumerate(zip(golden, current, strict=True))
+            for p in _changed_paths(g, c, f"{prefix}[{i}]")
+        ]
+    if golden != current:
+        return [f"{prefix}: {golden!r} -> {current!r}"]
+    return []
+
+
+#: How many changed leaves a drift report prints before truncating. A wholesale
+#: change (a renamed field, a new default) moves hundreds; the first few identify it.
+_MAX_REPORTED_CHANGES = 25
+
+
 def main(argv: list[str] | None = None) -> int:
     """Diff (or update) the golden reproducibility manifest."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -124,7 +164,14 @@ def main(argv: list[str] | None = None) -> int:
     n_candidates = len(body.get("candidates", []))
 
     if args.update:
-        GOLDEN.write_text(json.dumps({"sha256": digest, "n_candidates": n_candidates}, indent=2))
+        GOLDEN.write_text(
+            json.dumps(
+                {"sha256": digest, "n_candidates": n_candidates, "body": body},
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        )
         print(f"updated {GOLDEN.name}: sha256={digest} ({n_candidates} candidates)")
         return 0
 
@@ -135,6 +182,22 @@ def main(argv: list[str] | None = None) -> int:
         print("REPRODUCIBILITY DRIFT", file=sys.stderr)
         print(f"  golden : {golden['sha256']}", file=sys.stderr)
         print(f"  current: {digest}", file=sys.stderr)
+        changes = _changed_paths(golden.get("body", {}), body) if "body" in golden else []
+        if changes:
+            print(f"  {len(changes)} changed value(s):", file=sys.stderr)
+            for line in changes[:_MAX_REPORTED_CHANGES]:
+                print(f"    {line}", file=sys.stderr)
+            if len(changes) > _MAX_REPORTED_CHANGES:
+                print(
+                    f"    … and {len(changes) - _MAX_REPORTED_CHANGES} more",
+                    file=sys.stderr,
+                )
+        else:
+            print(
+                "  (the golden manifest predates the stored body; run --update to "
+                "record it, so the next drift can name what moved)",
+                file=sys.stderr,
+            )
         return 1
     print(f"reproduced: sha256={digest} ({n_candidates} candidates) matches golden")
     return 0

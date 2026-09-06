@@ -252,3 +252,14 @@ and how many artifacts were actually re-hashed.
   unknown layout
 - **THEN** the output says nothing about artifact integrity was established, rather than
   reporting a clean check
+
+### Requirement: The reproducibility gate names what drifted
+
+When the canonical re-derivation differs from the committed golden, the gate SHALL
+report which values changed, not only that the digests differ. The golden manifest
+SHALL store the canonical body it pins, so drift is reviewable as an ordinary diff
+rather than as a changed hash.
+
+#### Scenario: A drifted score
+- **WHEN** a change moves one candidate's efficiency
+- **THEN** the gate fails naming that value's path and its old and new values

@@ -10,6 +10,13 @@ acceptance.
 
 ### Changed
 
+- **The reproducibility gate now says what drifted.** `scripts/reproduce.py` is a blocking `make ci` job, and
+  on failure it printed the golden hash, the current hash, and nothing else — leaving a developer to bisect
+  by hand for a difference the script was holding both sides of. The golden manifest now stores the
+  canonical body alongside its digest (8 KB, 200 lines), so drift is a readable diff in review, and the gate
+  walks the two bodies and names the values that moved:
+  `candidates[0].efficiency: 0.5 -> 0.7`. The script also gained tests; it previously had none.
+
 - **`BenchmarkResult` schema version 4:** `n_out_of_distribution` moves into the scientific body, so it is
   covered by the reproducibility digest. A result produced under an earlier version keeps a digest that will
   not re-derive; the bumped `schema_version` is how a consumer detects that rather than misreading it.
