@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **A malformed gnomAD sites file is refused with the line and the reason.** `--gnomad` was the one
+  user-supplied format whose parse errors escaped as a bare traceback (`KeyError: 'af'` on a row with its
+  trailing columns lost, because `zip(..., strict=False)` truncates silently and `_load_gnomad` catches only
+  `OSError`/`ValueError`) — and it is the input that makes a scan population-aware. Three cases now get three
+  answers: a header missing a core column prints the expected header, a row that cannot supply the core
+  columns names the line and its field count, and a header naming the same column twice is refused rather
+  than silently keeping the last of two frequencies for one ancestry. A row omitting only trailing population
+  columns stays legal.
+
 - **The specificity scorer is reachable over HTTP, and unknown request fields are refused.**
   `OffTargetRequest` had no `scorer` field, so `POST /api/offtarget {"scorer": "cfd-cas12a"}` returned `200`
   scored by the SpCas9 CFD matrix — pydantic ignores an unknown key by default. Because `pam` *is* settable,

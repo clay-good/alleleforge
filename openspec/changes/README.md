@@ -6923,6 +6923,48 @@ server's answer to their own request. Forbidding unknown fields is not strictnes
 its own sake; it is the difference between "I did not do that" and silence.**
 
 
+## Round 217 — the differentiator had the only uncaught parser
+
+This round fed each user-supplied file format a malformed version of itself. The
+honesty machinery came out well: a gnomAD file whose ancestry column is misspelled
+produces the full "requested but not examined … absence from the breakdown means 'no
+data', not 'no risk'" disclosure, which is exactly right. The haplotype loader names
+the missing column and prints the expected header. BED and bedGraph surface a caught
+`ValueError` and exit 3.
+
+`--gnomad` raised `KeyError: 'af'` as a bare traceback.
+
+    chrom  pos  ref  alt          (a row with its trailing columns lost)
+    KeyError: 'af'
+
+`zip(header, cols, strict=False)` truncates silently, so a short row simply lacked the
+keys the parser then indexed, and `_load_gnomad` catches `(OSError, ValueError)` —
+`KeyError` is neither. Of the five formats, the one with the raw traceback was the one
+that makes the scan population-aware, which is the capability the whole project is
+built around. A truncated download of a real gnomAD slice is not an exotic input.
+
+The fix follows the haplotype loader, which was already the right shape, and separates
+three cases wanting three different answers: a header missing a core column (nothing in
+the file is usable — print what is expected), a row that cannot supply the core columns
+(name the line and the field count, so a truncated file can be found), and a header
+naming the same column twice (`dict(zip(...))` kept the last silently — two frequencies
+for one ancestry have no single meaning). A row that omits only *trailing population*
+columns stays legal, because a ragged tail is ordinary and an absent per-population
+value was already treated as absent.
+
+The duplicate-column case is the one worth noticing. It never crashed and never
+warned: `afr` twice, at 0.08 and 0.99, and the scan quietly used 0.99. Refusing it is
+not defensive programming, it is declining to pick one of two answers on the user's
+behalf.
+
+**Lesson: when one member of a family of loaders is unguarded, it is not random which
+one. Look for the format that arrived first, or the one nobody hand-edits — and then
+check whether it is also the most important. Here it was both, and the exception type
+was the tell: every sibling raised `ValueError`, so the `except` clause that had been
+written once and copied everywhere silently did not apply to the one that raised
+`KeyError`.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

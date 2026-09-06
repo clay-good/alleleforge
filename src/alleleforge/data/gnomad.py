@@ -94,6 +94,11 @@ class PopulationFrequency(BaseModel):
         return f"{self.chrom}:{self.pos}:{self.ref}>{self.alt}"
 
 
+#: The columns every sites row must carry; anything after them is an ancestry
+#: label, and a row may omit those trailing values.
+_CORE_COLUMNS = ("chrom", "pos", "ref", "alt", "af")
+
+
 class GnomadDB:
     """Indexed access to gnomAD per-population allele frequencies."""
 
@@ -116,17 +121,55 @@ class GnomadDB:
 
     @staticmethod
     def _parse(path: str | Path) -> Iterator[PopulationFrequency]:
-        """Yield one :class:`PopulationFrequency` per TSV data row."""
+        """Yield one :class:`PopulationFrequency` per TSV data row.
+
+        A malformed file is refused with the line and what was wrong. This is the
+        input that makes a scan population-aware, and it was the one user-supplied
+        format whose parse errors escaped as a bare ``KeyError`` from the row dict:
+        ``zip(..., strict=False)`` truncates silently, so a short row lost the keys
+        the parser then indexed.
+
+        A row that omits only *trailing population* columns stays legal — a ragged
+        tail is ordinary in a hand-assembled panel and an absent per-population value
+        is already treated as absent. What is refused is a row that cannot supply the
+        core columns, a row carrying an unnamed extra column (data ``zip`` would have
+        dropped), and a header naming the same column twice, which has no single
+        meaning.
+
+        Raises:
+            ValueError: On a missing header, a missing core column, a duplicated
+                column name, or a row whose field count cannot be reconciled.
+        """
         header: list[str] | None = None
-        for line in open_text(path):
+        for lineno, line in enumerate(open_text(path), start=1):
             if not line.strip():
                 continue
             cols = line.rstrip("\n").split("\t")
             if line.startswith("#"):
                 header = [c.lstrip("#") for c in cols]
+                duplicates = sorted({c for c in header if header.count(c) > 1})
+                if duplicates:
+                    raise ValueError(
+                        f"gnomAD TSV header names the same column twice: "
+                        f"{', '.join(duplicates)} (line {lineno}). Two frequencies for "
+                        "one ancestry have no single meaning; remove one."
+                    )
+                missing = [c for c in _CORE_COLUMNS if c not in header]
+                if missing:
+                    raise ValueError(
+                        f"gnomAD TSV header is missing {', '.join(missing)} (line "
+                        f"{lineno}). Expected a tab-separated header of: "
+                        f"{'  '.join(_CORE_COLUMNS)}  <pop>..."
+                    )
                 continue
             if header is None:
                 raise ValueError("gnomAD TSV is missing its '#chrom ...' header line")
+            if len(cols) < len(_CORE_COLUMNS) or len(cols) > len(header):
+                raise ValueError(
+                    f"gnomAD TSV line {lineno} has {len(cols)} field(s); expected "
+                    f"between {len(_CORE_COLUMNS)} and {len(header)} for the header "
+                    f"{'  '.join(header)}"
+                )
             row = dict(zip(header, cols, strict=False))
             # A symbolic/spanning-deletion ALT (`*`, `<DEL>`) is not literal sequence;
             # skip it instead of storing a bogus PopulationFrequency (clinvar/dbsnp skip
