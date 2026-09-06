@@ -239,3 +239,40 @@ def test_a_rendered_report_fetches_nothing_off_origin(prime_menu: RankedMenu) ->
     assert "<script" not in page, "the report should need no script element at all"
     # ...and it still draws its charts.
     assert "<svg" in page
+
+
+def test_the_html_shows_the_same_oligo_block_as_the_printable_sheet() -> None:
+    """The HTML dumped the oligo record as JSON, and the two surfaces drifted.
+
+    A serialized object "contains" every field, which is how the HDR donor and the
+    prepended-G note counted as rendered in the HTML while being absent from the sheet
+    a lab actually orders from. A reader scanning a report does not read a serialized
+    object. Both surfaces now render the same lines.
+    """
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from alleleforge.report.builder import build_report
+    from alleleforge.report.oligos import oligos_for
+    from alleleforge.types.candidate import RankedMenu as _Menu
+    from report.test_oligos import _precise_cas9_candidate  # type: ignore[import-not-found]
+
+    candidate = _precise_cas9_candidate("TTGGCCAA" * 12 + "TTGG")
+    oligos = oligos_for(candidate)
+    assert oligos is not None and oligos.donor is not None
+
+    report = build_report(_Menu(candidates=(candidate,), pareto_front=(0,)))
+    page = render_html(report)
+
+    # Scoped to the oligo block. Asserting against the whole page passed even with the
+    # JSON dump restored, because the candidate summary line above it already reads
+    # "+ HDR donor 100 nt" — a search that succeeds is not evidence that the thing you
+    # are looking for is where you think it is.
+    import re as _re
+
+    block = _re.search(r"<details><summary>Cloning oligos</summary>(.*?)</details>", page, _re.S)
+    assert block, "no cloning-oligos block in the page"
+    body = block.group(1)
+    assert "HDR donor" in body, "the oligo block omits the repair template"
+    assert "&quot;kind&quot;" not in body, "the oligo record is still dumped as JSON"

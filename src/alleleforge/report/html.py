@@ -30,6 +30,7 @@ from alleleforge.report.builder import (
     provenance_lines,
     visible_candidates,
 )
+from alleleforge.report.pdf import oligo_lines
 from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE
 from alleleforge.viz.svg import Series, bar_chart
 
@@ -234,9 +235,15 @@ def _candidate_html(c: CandidateReport) -> str:
                 + _esc(c.oligos.scheme.phosphorylation)
                 + "</p>"
             )
+        # The same lines the printable sheet builds, not a JSON dump of the record.
+        # The dump technically "contained" everything — which is how the HDR donor and
+        # the prepended-G note counted as rendered here while being absent from the
+        # sheet a lab actually orders from — but a reader scanning a report does not
+        # read a serialized object, and the two surfaces then drift by construction.
+        block = "\n".join(line.strip() for line in oligo_lines(c.oligos) if line.strip())
         parts.append(
             "<details><summary>Cloning oligos</summary><pre class='mono'>"
-            + _esc(c.oligos.model_dump_json(indent=2))
+            + _esc(block)
             + "</pre></details>"
         )
     elif c.oligos_requested:

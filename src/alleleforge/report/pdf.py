@@ -40,7 +40,7 @@ def _wrap(text: str, *, indent: str = "") -> list[str]:
     return [indent + line for line in wrapped]
 
 
-def _oligo_lines(oligos: SgRnaOligos | PegRNAOligos) -> list[str]:
+def oligo_lines(oligos: SgRnaOligos | PegRNAOligos) -> list[str]:
     """Render the cloning oligos to order, with warnings and the prep note.
 
     The PDF is the printable leave-behind, so it must carry the exact oligos to
@@ -162,7 +162,7 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
     if c.flags:
         lines += _wrap("flags: " + ", ".join(c.flags), indent="    ")
     if c.oligos is not None:
-        lines += _oligo_lines(c.oligos)
+        lines += oligo_lines(c.oligos)
     elif c.oligos_requested:
         lines += _wrap("cloning oligos: none required (no synthesized reagent)", indent="    ")
     if c.rationale:

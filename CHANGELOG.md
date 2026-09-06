@@ -1576,6 +1576,12 @@ acceptance.
 
 ### Fixed
 
+- **The interactive report showed the oligos as a JSON dump; both surfaces now share one block.** A
+  serialized object "contains" every field, which is how the HDR donor and the prepended-G note counted as
+  rendered in the HTML while being absent from the sheet a lab orders from — and it is not what a reader
+  scanning a report reads. The HTML now renders the same lines the printable sheet builds, so the two cannot
+  drift again.
+
 - **The printable order sheet omitted the HDR donor — half the reagent.** `oligos_for` pairs a precise Cas9
   candidate with its repair template, and its own test says why: *"returning only the guide would hand the
   bench the half that cannot edit."* The PDF then handed the bench exactly that half — no donor sequence, not

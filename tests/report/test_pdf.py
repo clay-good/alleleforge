@@ -104,13 +104,13 @@ def test_the_order_sheet_says_when_a_g_was_prepended(prime_menu: RankedMenu) -> 
     dump of that record, and the PDF's formatted block omitted it entirely.
     """
     from alleleforge.report.oligos import sgrna_oligos
-    from alleleforge.report.pdf import _oligo_lines
+    from alleleforge.report.pdf import oligo_lines
 
     # A spacer that does not begin with G, so the scheme adds one.
     oligos = sgrna_oligos("TTTAAACGTTTTTTTTTTTT")
     assert oligos.g_added, "this spacer must trigger the prepend for the check to mean anything"
 
-    text = " ".join(_oligo_lines(oligos))
+    text = " ".join(oligo_lines(oligos))
     assert "prepended" in text
     assert "21 nt" in text  # the cloned length
     assert "20-nt spacer" in text  # ...and the scored one
@@ -119,11 +119,11 @@ def test_the_order_sheet_says_when_a_g_was_prepended(prime_menu: RankedMenu) -> 
 def test_no_note_when_the_spacer_already_starts_with_g() -> None:
     """The note must not appear where nothing was changed."""
     from alleleforge.report.oligos import sgrna_oligos
-    from alleleforge.report.pdf import _oligo_lines
+    from alleleforge.report.pdf import oligo_lines
 
     oligos = sgrna_oligos("GACCCCCTCCACCCCGCCTC")
     assert not oligos.g_added
-    assert "prepended" not in " ".join(_oligo_lines(oligos))
+    assert "prepended" not in " ".join(oligo_lines(oligos))
 
 
 def test_the_order_sheet_carries_the_hdr_donor() -> None:
@@ -140,7 +140,7 @@ def test_the_order_sheet_carries_the_hdr_donor() -> None:
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from alleleforge.report.oligos import oligos_for
-    from alleleforge.report.pdf import _oligo_lines
+    from alleleforge.report.pdf import oligo_lines
     from report.test_oligos import _precise_cas9_candidate  # type: ignore[import-not-found]
 
     # Deliberately unlike the fixture's ACGT-repeat spacer: an earlier version of this
@@ -149,7 +149,7 @@ def test_the_order_sheet_carries_the_hdr_donor() -> None:
     oligos = oligos_for(_precise_cas9_candidate(donor))
     assert oligos.donor is not None
 
-    text = " ".join(_oligo_lines(oligos))
+    text = " ".join(oligo_lines(oligos))
     assert "HDR donor" in text
     assert "100 nt" in text
     assert "re-cut blocked" in text
@@ -159,6 +159,6 @@ def test_the_order_sheet_carries_the_hdr_donor() -> None:
 
 def test_a_guide_without_a_donor_gets_no_donor_block() -> None:
     from alleleforge.report.oligos import sgrna_oligos
-    from alleleforge.report.pdf import _oligo_lines
+    from alleleforge.report.pdf import oligo_lines
 
-    assert "HDR donor" not in " ".join(_oligo_lines(sgrna_oligos("GACCCCCTCCACCCCGCCTC")))
+    assert "HDR donor" not in " ".join(oligo_lines(sgrna_oligos("GACCCCCTCCACCCCGCCTC")))

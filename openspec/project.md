@@ -237,6 +237,13 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
   in both directions: "can every caller reach this capability?" and "does every caller
   reach this guard?"
 
+- **Scope an assertion to the part of the artifact it is about.** A page-wide
+  `assert "HDR donor" in page` passed against a deliberately broken renderer because a
+  summary line elsewhere on the page said the same words (R183). Pair this with
+  "verify the mutation applied" (R175): together they catch a green test after an edit
+  that did nothing, and a green test after an edit the assertion could not see. Both
+  were needed within one round of each other.
+
 ## Existing planning docs (background, not OpenSpec)
 
 `SPEC.md` (v1 build phases), `SPEC_V2.md` (R0–R6 roadmap), and `specs/*.md` (model-

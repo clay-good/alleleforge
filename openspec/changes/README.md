@@ -5496,6 +5496,30 @@ something else. I nearly closed this as a non-finding on a fixture whose two seq
 alphabet. Construct the probe so a coincidental match is impossible, especially when the answer you get is
 the convenient one.**
 
+## Round 183 — one block, two surfaces
+
+The last two rounds fixed the printable sheet twice: the prepended-G note, then the HDR donor. Both were
+present in the HTML, in the sense that the HTML dumps the whole oligo record as JSON — which is exactly how
+they went missing from the sheet without anyone noticing. A serialized object satisfies every "is this field
+rendered?" check and is not something a reader reads.
+
+So the HTML now renders the same lines the PDF builds. One block, one implementation, and the drift that
+produced two rounds of findings is gone rather than patched twice.
+
+The round's real content is the test I wrote for it, which was wrong in the exact way R182 had just warned
+about. I asserted `"HDR donor" in page` — and it passed with the JSON dump restored, because the candidate
+summary line above the block already reads *"+ HDR donor 100 nt"*. A search that succeeded, on the wrong
+part of the page, one round after writing down that a search that succeeds is not evidence.
+
+It only surfaced because I checked the mutation had actually applied (R175's rule) rather than accepting a
+passing test as a weak one. Two process rules from the last eight rounds, both needed, both in the same five
+minutes. The assertion is now scoped to the `<details>` block it is about.
+
+**Lesson: the two failure modes compose. "Verify the mutation applied" and "verify the match is where you
+think it is" catch different halves of the same illusion — a green test after an edit that did nothing, and a
+green test after an edit that did something the assertion could not see. Neither alone is enough, and I have
+now hit each of them within a round of writing them down.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
