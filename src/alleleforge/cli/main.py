@@ -590,8 +590,10 @@ def design(
             help=(
                 "Restrict the off-target search to this locus, 'chrom:start-end' "
                 "— 0-based half-open, as in a BED file, NOT the 1-based form a "
-                "genome browser shows (unlike --variant and --pop-freqs, which take "
-                "1-based VCF positions). A BED file works too: --regions-bed. "
+                "genome browser shows. The variant inputs are the exception and take "
+                "1-based VCF positions, as a VCF record holds them: the variant string "
+                "itself, `--gnomad` and `--patient-vcf`. A BED file works too: "
+                "--regions-bed. "
                 "Whole-genome search over a real reference is slow in pure Python, so "
                 "scoping to a gene panel is usually what makes a run practical."
             ),
@@ -609,7 +611,9 @@ def design(
                 "Phased common-haplotype panel TSV (plain or .gz), "
                 "'#hap_id chrom start end population frequency variants' — enables the "
                 "haplotype-aware pass, which catches a site that only exists on a "
-                "co-inherited combination of alleles."
+                "co-inherited combination of alleles. Its start/end and the pos inside "
+                "each `chrom:pos:ref>alt` are 0-based, like --region and unlike "
+                "--gnomad."
             ),
         ),
     ] = None,
@@ -1012,8 +1016,10 @@ def batch(
             help=(
                 "Restrict the off-target search to this locus, 'chrom:start-end' "
                 "— 0-based half-open, as in a BED file, NOT the 1-based form a "
-                "genome browser shows (unlike --variant and --pop-freqs, which take "
-                "1-based VCF positions). A BED file works too: --regions-bed. "
+                "genome browser shows. The variant inputs are the exception and take "
+                "1-based VCF positions, as a VCF record holds them: the variant string "
+                "itself, `--gnomad` and `--patient-vcf`. A BED file works too: "
+                "--regions-bed. "
                 "Whole-genome search over a real reference is slow in pure Python, so "
                 "scoping to a gene panel is usually what makes a run practical."
             ),
@@ -1031,7 +1037,9 @@ def batch(
                 "Phased common-haplotype panel TSV (plain or .gz), "
                 "'#hap_id chrom start end population frequency variants' — enables the "
                 "haplotype-aware pass, which catches a site that only exists on a "
-                "co-inherited combination of alleles."
+                "co-inherited combination of alleles. Its start/end and the pos inside "
+                "each `chrom:pos:ref>alt` are 0-based, like --region and unlike "
+                "--gnomad."
             ),
         ),
     ] = None,
@@ -1411,8 +1419,10 @@ def offtarget(
             help=(
                 "Restrict the off-target search to this locus, 'chrom:start-end' "
                 "— 0-based half-open, as in a BED file, NOT the 1-based form a "
-                "genome browser shows (unlike --variant and --pop-freqs, which take "
-                "1-based VCF positions). A BED file works too: --regions-bed. "
+                "genome browser shows. The variant inputs are the exception and take "
+                "1-based VCF positions, as a VCF record holds them: the variant string "
+                "itself, `--gnomad` and `--patient-vcf`. A BED file works too: "
+                "--regions-bed. "
                 "Whole-genome search over a real reference is slow in pure Python, so "
                 "scoping to a gene panel is usually what makes a run practical."
             ),
@@ -1430,7 +1440,9 @@ def offtarget(
                 "Phased common-haplotype panel TSV (plain or .gz), "
                 "'#hap_id chrom start end population frequency variants' — enables the "
                 "haplotype-aware pass, which catches a site that only exists on a "
-                "co-inherited combination of alleles."
+                "co-inherited combination of alleles. Its start/end and the pos inside "
+                "each `chrom:pos:ref>alt` are 0-based, like --region and unlike "
+                "--gnomad."
             ),
         ),
     ] = None,
@@ -1658,8 +1670,8 @@ def verify(
     non-zero on incomplete provenance or an artifact hash mismatch.
 
     Takes either shape `design` produces: the full result JSON, or the bare
-    `<out>.provenance.json` sidecar written beside it. For `--format tsv`, `html` and
-    `pdf` the sidecar is the only machine-readable provenance a run leaves behind, so
+    `<out>.provenance.json` sidecar written beside it. For `design --format` tsv, html
+    and pdf the sidecar is the only machine-readable provenance a run leaves behind, so
     refusing it would put this contract out of reach of three of the four formats.
     """
     from alleleforge.data.registry import DEFAULT_REGISTRY
@@ -1821,7 +1833,7 @@ def lift(
     implemented and tested but reachable only from Python, so that instruction named
     an operation the CLI did not offer.
 
-    Prints `input<TAB>output` per locus, in order, in the same locus form `--region`
+    Prints `input<TAB>output` per locus, in order, in the same locus form `design --region`
     accepts, so the result pipes straight back in. An unmappable locus prints
     `UNMAPPED` rather than being dropped — a shorter list is a smaller search — and
     exits non-zero.

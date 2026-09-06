@@ -353,7 +353,7 @@ def test_the_region_option_states_its_coordinate_base() -> None:
     from alleleforge.cli.main import app
 
     help_text = CliRunner().invoke(app, ["design", "--help"]).output
-    assert "1-based" in help_text  # --variant / --pop-freqs, as before
+    assert "1-based" in help_text  # the variant inputs / --gnomad, as before
     assert "0-based half-open" in help_text  # --region, which said nothing
 
 

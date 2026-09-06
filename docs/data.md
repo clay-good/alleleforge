@@ -88,8 +88,11 @@ plainly because the tool is uniformly BED-style while most genomics interfaces a
 | `--region chrom:start-end`, `--regions-bed` | 0-based half-open. `chr7:100-200` is **100 bases** starting at offset 100 — not the 101 a genome browser would show for the same string. |
 | Every locus a report prints (cut site, nick site, off-target interval) | 0-based half-open, so a printed locus can be handed straight back to `--region`. |
 
-`--variant` and `--pop-freqs` are the exception, and say so in their own help: they
-take **1-based** positions, because that is what a VCF record holds.
+The **variant** inputs are the exception, and say so in their own help: the variant
+string a command takes, `--gnomad` and `--patient-vcf` are **1-based**, because that is
+what a VCF record holds. `--haplotypes` is not a variant input in this sense — its
+`start`/`end` and the `pos` inside each `chrom:pos:ref>alt` are 0-based, like the rest of
+the table.
 
 Every rendered report states the convention in its footer. A caller converting a
 locus for display elsewhere can use `GenomicInterval.to_one_based()`.

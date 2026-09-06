@@ -6618,6 +6618,49 @@ of the source the interpreter is importing. `pip install -e` pins a path, and a 
 is a different path.**
 
 
+## Round 210 — the warning that pointed at a flag nobody has
+
+`--region`'s help, identical on `design`, `batch` and `offtarget`, said the locus is
+0-based half-open, "NOT the 1-based form a genome browser shows (unlike `--variant` and
+`--pop-freqs`, which take 1-based VCF positions)".
+
+Neither flag exists. The variant is a positional argument, and the population
+allele-frequency file is `--gnomad`. `docs/data.md` repeated both names, and a comment in
+`tests/report/test_builder.py` cited them as the reason its assertion was there.
+
+This is not a typo in decoration. Mixing the two conventions moves a locus by one base,
+which is how a scan silently covers the wrong window, and this sentence is the only place
+the tool warns about it. A reader who took the advice went looking for `--pop-freqs`,
+found nothing, and was left with a warning they could not act on. `--help` is where a CLI
+user looks first, and it was the surface nothing checked.
+
+Two more things fell out of writing the check. `lift`'s docstring says its output pipes
+back into "the same locus form `--region` accepts" — true, but `lift` has no `--region`,
+so the reader has to already know which command does. And the R209 entry immediately
+above this one introduced a fourth, naming `--format` and `--out` in `verify`'s help,
+where they belong to `design`. Both are now qualified (`design --region`), which the
+check accepts precisely because it resolves a qualified mention against *that* command.
+
+The fix is the check, not the four sentences. `test_help_text_names_real_flags` walks
+every command and asserts that every long option named in any of its help strings is
+either its own or explicitly qualified by the command that has it. What is actually true
+of the inputs also got written down while it was in hand: `--gnomad` and `--patient-vcf`
+are 1-based, and `--haplotypes` — the one user-supplied file whose base was never stated
+anywhere — is 0-based, in its span *and* in the `pos` of each `chrom:pos:ref>alt`.
+
+The walk needed a guard of its own. The first version tested `isinstance(cmd,
+click.Group)`; Typer builds a `TyperGroup` that is not a `click.Group` subclass, so it
+descended into nothing, collected one command, and passed. Seventeen tests where there
+should have been seventeen was not the tell — "2 passed" was. A test that walks a tree
+needs an assertion that it reached the leaves, and there is now one.
+
+**Lesson: `--help` is documentation that ships inside the binary, and it drifts exactly
+like a README does — except no build step reads it. Cross-references in it are the
+brittle part, because renaming a flag fixes the definition and leaves every sentence that
+mentions it. Prose about flags can be checked mechanically against the flags; do that
+rather than proofreading it.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

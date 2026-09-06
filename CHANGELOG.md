@@ -10,6 +10,16 @@ acceptance.
 
 ### Added
 
+- **CLI help is checked against the flags it names.** `--region`'s help on `design`, `batch` and
+  `offtarget` warned that the locus is 0-based "unlike `--variant` and `--pop-freqs`" — two flags that do not
+  exist (the variant is a positional argument; the frequency file is `--gnomad`), a wrong pair repeated in
+  `docs/data.md`. The sentence is the tool's only warning about the coordinate convention that, mixed up,
+  moves a scan one base off target, so an unfollowable version of it is worse than none. A new check walks
+  every command and requires each long option named in its help to be its own or qualified by the command that
+  owns it; it also caught `lift`'s bare `--region` and, in `verify`, `--format`/`--out`, which belong to
+  `design`. What is true is now stated too: `--gnomad` and `--patient-vcf` take 1-based VCF positions, and
+  `--haplotypes` is 0-based in both its span and the `pos` of each `chrom:pos:ref>alt`.
+
 - **`aforge verify` reads the provenance sidecar `aforge design` writes.** `design --out X` leaves a
   `X.provenance.json` block beside the result; `verify` — the command that turns provenance from a record into
   a checkable contract — parsed only a full `RankedMenu` and rejected that sidecar with a pydantic error about
