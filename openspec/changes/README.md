@@ -6324,6 +6324,42 @@ thing and look at the output*, which has now caught more defects than reading th
 has, including several of my own from the same hour.**
 
 
+## Round 203 — a round with no findings, and what that is worth recording
+
+R202 found a silent drop at one ingest boundary, so this round swept the others. Nothing
+to fix. Written down because the next session should not re-tread these, and because
+"checked and sound" is only useful if it says what was checked.
+
+* **`--regions-bed`.** Fails loudly on a malformed line (`IndexError`/`ValueError` →
+  exit MISSING_DATA) and skips only blank, `#`, `track` and `browser` lines, which is the
+  BED spec. No silent drop.
+* **The variant list.** Skips blanks and `#` comments; anything else reaches the cohort
+  and fails as a per-item error that is reported and, since R195, retried on resume.
+* **The gnomAD sites reader.** Raises when the header is missing. Silently skips symbolic
+  and spanning-deletion alleles — correct, and already summarized at the point of use by
+  `sources_considered`, which counts what the source actually contributed in the searched
+  region. Considered adding a parse-time counter on R202's principle that "correct to
+  drop" is not "fine to drop silently"; judged not worth it, because the existing count
+  covers the consequence and a second number for the same fact is noise. Recorded rather
+  than done, so the reasoning is available if someone disagrees.
+* **`is_sequence_allele`.** Case-insensitive (`.upper()`), so a soft-masked lowercase
+  allele is not silently discarded — the failure I went looking for. Its docstring also
+  explains why the three loaders skip rather than abort: one symbolic row in a real
+  ClinVar release would otherwise lose every record after it.
+* **The prime enumerator.** The area I expected to be weakest, having previously hidden a
+  hardcoded `- 1` and a frame-shifted window. `test_rt_product_installs_the_intended_edit`
+  is a real simulation: six edit classes (SNV, MNV, insertion, deletion, delins, large
+  deletion) crossed with both intents and both strands, asserting the reverse-complemented
+  PBS+RTT product appears verbatim *and uniquely* in the edited genome, computed in the
+  pegRNA's own coordinate frame. Stronger than what I was about to write.
+
+**Lesson: five probes, five clean. That is the finding. Sixteen rounds in, the areas
+reachable by the queries this session has been running are genuinely well tended, and the
+honest report is that the yield has dropped rather than that more rounds would keep paying
+at the earlier rate. Worth saying plainly, because a log of rounds that only ever records
+defects reads as a codebase that is only ever broken.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
