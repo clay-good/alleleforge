@@ -4990,6 +4990,42 @@ believed were blocked got carefully sourced evidence; the fifth, which I believe
 and it was the only one where being wrong would have been an overclaim rather than an understatement.
 Reviewing a report's *passing* rows is worth more than reviewing its failing ones.**
 
+## Round 167 — scope, not mutations
+
+R166's lesson was that a check is least rigorous where it returns the expected answer. The generalisation:
+mutation-checking proves a guard detects *the mutation I chose*, not that its **scope** matches the claim. R162
+is the proof — the frontend guard passed its mutation while missing the report entirely, because I had scoped
+it to a directory.
+
+So I re-read my own guards for scope rather than for correctness, and the shell-parity check was scoped to
+`design()`. The off-target engine — the project's differentiator — had no parity check at all. Diffing
+`search()` against both shells:
+
+    search() accepts, CLI never forwards: cache, genome_index, pam, scorer, spacer, use_fm_index
+    search() accepts, web cannot request:  … scorer, cache, genome_index, use_fm_index …
+
+`spacer` and `pam` are positional, fine. The real one is **`scorer`**: three specificity scorers are
+implemented, carded and cited, and selectable only by importing the class. MIT was unreachable from every
+shell — and so was the Cas12a analog, which is a different nuclease's scoring sitting in the package with
+nothing able to ask for it. The report has always *named* which scorer produced its numbers; the user could
+not choose.
+
+Exposing it found a second defect immediately, which is the argument for exposing things. `--scorer mit` on a
+20-nt spacer failed with **"MIT score requires 20-nt spacers"**. The spacer is 20 nt. The message is about the
+*alignment*: a bulge changes the length, and MIT is undefined for a gapped alignment, so the default bulge
+budget kills it partway through the scan with a complaint about an input that is already correct. Now refused
+before the scan, naming the flags that fix it, and the underlying error names the alignment.
+
+The remaining gaps — the cross-run off-target cache and the prebuilt whole-genome FM-index, both R4
+deliverables, both library-only — are now *recorded* with reasons rather than silent. That is the honest
+state: they need a path option and a session to hold an object, which is a design decision, not an omission I
+should make unilaterally at the end of a round.
+
+**Lesson: a guard has two properties and mutation testing only checks one. "Does it fire when the thing it
+watches breaks" is not "does it watch everything the claim covers", and the second is where the misses live —
+R162's directory-scoped scan, and this round's `design()`-scoped parity check that left the differentiator
+unguarded. After writing a guard, state the claim in one sentence and ask what else that sentence covers.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

@@ -1776,3 +1776,58 @@ def test_allow_ng_is_reachable_from_the_cli(runner: CliRunner, tmp_path: Path) -
     with_ng = runner.invoke(app, [*args, "--allow-ng", "--allow-spry"])
     assert with_ng.exit_code == 0, with_ng.output
     assert json.loads(with_ng.output)["candidates"], "the flags changed nothing"
+
+
+def test_the_offtarget_scorer_is_selectable(runner: CliRunner, tmp_path: Path) -> None:
+    """Three scorers were implemented, carded and cited; no shell could pick one.
+
+    `search(scorer=...)` took an `OffTargetScorer`, selectable only by importing the
+    class — so MIT was unreachable from the CLI and the web, and so was the Cas12a
+    analog, which is a whole nuclease's scoring. The report already *names* which
+    scorer produced its numbers; the user could not choose it.
+    """
+    contig = "T" * 20 + "TTTAAACGTTTTTTTTTTTT" + "TGG" + "T" * 20
+    fasta = tmp_path / "ref.fa"
+    fasta.write_text(">chr1\n" + contig + "\n")
+    base = [
+        "offtarget",
+        "TTTAAACGTTTTTTTTTTTT",
+        "--reference-fasta",
+        str(fasta),
+        "--dna-bulges",
+        "0",
+        "--rna-bulges",
+        "0",
+    ]
+
+    cfd = runner.invoke(app, [*base, "--scorer", "cfd"])
+    mit = runner.invoke(app, [*base, "--scorer", "mit"])
+    assert cfd.exit_code == 0, cfd.output
+    assert mit.exit_code == 0, mit.output
+    assert "scorer CFD" in cfd.output
+    assert "scorer MIT" in mit.output
+
+    bad = runner.invoke(app, [*base, "--scorer", "bogus"])
+    assert bad.exit_code == ExitCode.USAGE
+    assert "cfd-cas12a" in bad.output  # the error lists what is available
+
+
+def test_mit_with_bulges_is_refused_before_the_scan(runner: CliRunner, tmp_path: Path) -> None:
+    """The MIT score is undefined for a gapped alignment, and said so confusingly.
+
+    Selecting MIT with the default bulge budget died partway through the search with
+    "MIT score requires 20-nt spacers" — while the user's spacer was a valid 20 nt and
+    the bulge budget was the cause. The combination is now refused up front, naming
+    the flags that fix it.
+    """
+    contig = "T" * 20 + "TTTAAACGTTTTTTTTTTTT" + "TGG" + "T" * 20
+    fasta = tmp_path / "ref.fa"
+    fasta.write_text(">chr1\n" + contig + "\n")
+
+    result = runner.invoke(
+        app,
+        ["offtarget", "TTTAAACGTTTTTTTTTTTT", "--reference-fasta", str(fasta), "--scorer", "mit"],
+    )
+    assert result.exit_code == ExitCode.USAGE
+    assert "undefined for bulged alignments" in result.output
+    assert "--dna-bulges 0" in result.output

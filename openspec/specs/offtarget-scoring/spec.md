@@ -186,3 +186,18 @@ arose.
 - **WHEN** a spacer carries an ambiguous base
 - **THEN** the report names the position and states that scores are pushed down, so a low
   score there is not evidence of safety
+
+### Requirement: The specificity scorer is selectable from a shell
+
+Every scorer the engine implements SHALL be selectable by name from the CLI, not only
+by importing its class. A scorer that is implemented, carded and cited but unreachable
+from the product is not shipped — this covered MIT and the Cas12a analog.
+
+A combination the scorer cannot serve SHALL be refused before the scan, naming what to
+change: the MIT score is undefined for a gapped alignment, so selecting it with a bulge
+budget must fail up front rather than partway through with a message about the spacer.
+
+#### Scenario: MIT selected with the default bulge budget
+- **WHEN** a user selects the MIT scorer without disabling bulges
+- **THEN** the run is refused before searching, naming `--dna-bulges 0 --rna-bulges 0`
+  and the CFD alternative

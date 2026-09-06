@@ -1425,6 +1425,15 @@ def offtarget(
             ),
         ),
     ] = None,
+    scorer: Annotated[
+        str | None,
+        typer.Option(
+            "--scorer",
+            help="Specificity scorer: 'cfd' (default, published Doench 2016 matrix), "
+            "'mit' (Hsu 2013 position weights), or 'cfd-cas12a' (the Cas12a analog, "
+            "5' seed and TTTV PAM — pair it with --pam TTTV).",
+        ),
+    ] = None,
     on_target: Annotated[
         str | None,
         typer.Option(
@@ -1459,11 +1468,33 @@ def offtarget(
     except ValueError as exc:
         _echo_err(f"error: {exc}")
         raise typer.Exit(ExitCode.USAGE) from exc
+    scorer_impl = None
+    if scorer is not None:
+        from alleleforge.offtarget.scoring import scorer_for
+        from alleleforge.types.offtarget import ScoreMethod
+
+        try:
+            scorer_impl = scorer_for(scorer)
+        except ValueError as exc:
+            _echo_err(f"error: {exc}")
+            raise typer.Exit(ExitCode.USAGE) from exc
+        # Refuse the combination up front rather than after the scan. The MIT score is
+        # undefined for a gapped alignment, so MIT-as-primary plus a bulge budget dies
+        # partway through the search with a message about spacer length — while the
+        # user's spacer is fine and the bulge budget is the cause.
+        if scorer_impl.method is ScoreMethod.MIT and (dna_bulges or rna_bulges):
+            _echo_err(
+                "error: the MIT score is undefined for bulged alignments; re-run with "
+                "--dna-bulges 0 --rna-bulges 0, or use the default CFD scorer, which "
+                "scores bulged hits"
+            )
+            raise typer.Exit(ExitCode.USAGE)
     try:
         report = search(
             spacer,
             PAM(pattern=pam),
             reference=reference,
+            scorer=scorer_impl,
             on_target=locus,
             mismatches=mismatches,
             dna_bulges=dna_bulges,

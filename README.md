@@ -1087,7 +1087,7 @@ flowchart LR
 | `aforge design <input>` | Variant → ranked, multi-chemistry menu rendered to JSON/TSV/HTML/PDF. `--allow-ng` / `--allow-spry` offer the SpCas9-NG and SpRY PAM-flexible fallbacks when no NGG guide is actionable; `--trained-efficiency` / `--trained-outcome` / `--trained-base-outcome` / `--trained-prime` swap in the consent-gated trained models. |
 | `aforge lift <locus>… --chain <file> --from <build> --to <build>` | Lift loci to another assembly, in the same locus form `--region` accepts. An unmappable locus prints `UNMAPPED` and exits non-zero rather than being dropped. |
 | `aforge batch <vcf\|list>` | Cohort design over a VCF (cyvcf2 fast path) or variant list — streaming, resumable, failure-isolated. |
-| `aforge offtarget <spacer>` | Standalone population/haplotype-aware off-target search. |
+| `aforge offtarget <spacer>` | Standalone population/haplotype-aware off-target search. `--scorer cfd|mit|cfd-cas12a` selects the specificity scorer. |
 
 > [!IMPORTANT]
 > **The three safety inputs are opt-in files, and the scan is reference-only without them.**

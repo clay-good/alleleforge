@@ -147,3 +147,78 @@ def test_the_cohort_command_offers_every_design_option() -> None:
 def test_the_design_only_allowances_are_real_options() -> None:
     stale = sorted(set(_DESIGN_ONLY_OPTIONS) - _command_options("design"))
     assert not stale, f"allowances recorded for options `design` no longer has: {stale}"
+
+
+#: Parameters of `search()` a shell legitimately does not expose, with the reason.
+#: The off-target engine is the project's differentiator and had no parity check at
+#: all — only `design()` did — which is how three R4-era capabilities and a whole
+#: nuclease's scorer came to be library-only.
+_SEARCH_NOT_IN_CLI: dict[str, str] = {
+    "spacer": "the positional argument",
+    "pam": "the `--pam` option, passed positionally as a PAM object",
+    "reference": "built by the CLI from --reference-fasta",
+    "cache": "a cross-run cache object; the CLI has no session to hold one",
+    "genome_index": "a prebuilt whole-genome FM-index object; needs a path option to "
+    "select and is not yet exposed (R4 scale path, library-only)",
+    "use_fm_index": "an override for a heuristic that auto-engages past 1 Mb; the "
+    "default is the documented behaviour",
+}
+
+_SEARCH_NOT_IN_WEB: dict[str, str] = {
+    "spacer": "the request's `spacer` field",
+    "pam": "the request's `pam` field",
+    "reference": "the server's own reference genome, configured at startup",
+    "regions": "the request's `offtarget_regions` field",
+    "gnomad": "file-backed input; a client-supplied path on a server reads server files",
+    "haplotypes": "file-backed input; see `gnomad`",
+    "patient_vcf": "file-backed input; see `gnomad`",
+    "scorer": "not yet exposed; the CLI's `--scorer` has no web counterpart",
+    "cache": "server-side concern, not a client's to choose",
+    "genome_index": "server-side concern; see `cache`",
+    "use_fm_index": "server-side performance heuristic, not a client's to choose",
+}
+
+
+def _search_parameters() -> set[str]:
+    import inspect
+
+    from alleleforge.offtarget.engine import search
+
+    return {
+        name
+        for name, param in inspect.signature(search).parameters.items()
+        if param.kind is not param.VAR_KEYWORD
+    }
+
+
+def _cli_search_forwards() -> set[str]:
+    source = (_ROOT / "src" / "alleleforge" / "cli" / "main.py").read_text()
+    call = re.search(r"report = search\(\n(?:.*\n)*?\s{8}\)", source)
+    assert call, "could not find the CLI's search() call — this check would be vacuous"
+    return set(re.findall(r"^\s+(\w+)=", call.group(0), re.M))
+
+
+def test_the_cli_forwards_every_search_parameter_or_says_why() -> None:
+    missing = sorted(_search_parameters() - _cli_search_forwards() - set(_SEARCH_NOT_IN_CLI))
+    assert not missing, (
+        f"search() accepts these and `aforge offtarget` never forwards them: {missing}. "
+        "Add the option, or record it in _SEARCH_NOT_IN_CLI with the reason."
+    )
+
+
+def test_the_web_api_exposes_every_search_parameter_or_says_why() -> None:
+    from alleleforge.web.api.models import OffTargetRequest
+
+    missing = sorted(
+        _search_parameters() - set(OffTargetRequest.model_fields) - set(_SEARCH_NOT_IN_WEB)
+    )
+    assert not missing, (
+        f"search() accepts these and OffTargetRequest cannot request them: {missing}. "
+        "Add the field, or record it in _SEARCH_NOT_IN_WEB with the reason."
+    )
+
+
+def test_the_search_allowances_are_real_parameters() -> None:
+    known = _search_parameters()
+    stale = sorted((set(_SEARCH_NOT_IN_CLI) | set(_SEARCH_NOT_IN_WEB)) - known)
+    assert not stale, f"allowances recorded for parameters search() no longer takes: {stale}"

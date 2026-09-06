@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **`aforge offtarget --scorer`: the three specificity scorers are selectable at last.** `search(scorer=…)`
+  took an `OffTargetScorer` object, so a scorer could only be chosen by importing its class — MIT was
+  unreachable from every shell, and so was the **Cas12a analog**, a whole nuclease's scoring, implemented,
+  carded and cited. The report already *named* which scorer produced its numbers; the user could not choose
+  it. The off-target engine also had no shell-parity check at all — only `design()` did — which is now fixed,
+  with the remaining gaps (the R4 cross-run cache and prebuilt genome index) recorded with reasons rather
+  than left silent.
+
 - **`scripts/release_readiness.py` measures the v1.0 criteria instead of leaving them as prose.** `SPEC_V2.md`
   lists five conditions for cutting v1.0 and nothing checked any of them, so "how close are we" was answered
   by reading bullet points. Four are blocked outside the repository — which is exactly why measuring is worth
@@ -1547,6 +1555,13 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+
+- **Selecting the MIT scorer failed with a message about the wrong thing.** The MIT score is defined only for
+  an ungapped 20-nt alignment, and a bulge changes the length — so MIT with the default bulge budget died
+  partway through the search with *"MIT score requires 20-nt spacers"*, while the user's spacer was a
+  perfectly valid 20 nt and the bulge budget was the cause. The combination is now refused before the scan
+  with the flags that fix it, and the underlying error names the alignment rather than the input. Found
+  immediately on exposing `--scorer`.
 
 - **The readiness report graded R2 on half its criterion.** Shipped one round earlier, it checked "on their
   hot paths with parity tests" and printed MET without checking "**and a recorded speedup**". The verdict

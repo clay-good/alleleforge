@@ -286,7 +286,14 @@ def mit_score(spacer: str, protospacer: str) -> float:
     if len(spacer) != len(protospacer):
         raise ValueError("spacer and protospacer must be the same length for MIT")
     if len(spacer) != len(MIT_WEIGHTS):
-        raise ValueError(f"MIT score requires {len(MIT_WEIGHTS)}-nt spacers")
+        # Names the *alignment*, not the user's spacer. A bulged hit is one base
+        # longer or shorter than the spacer, so this fires on a perfectly valid 20-nt
+        # spacer as soon as a bulge is allowed — and "MIT score requires 20-nt
+        # spacers" then reads as a complaint about an input that is already correct.
+        raise ValueError(
+            f"the MIT score is defined only for an ungapped {len(MIT_WEIGHTS)}-nt "
+            f"alignment; this one is {len(spacer)} nt (a bulge changes the length)"
+        )
     spacer, protospacer = spacer.upper(), protospacer.upper()
     mm_positions = [i for i, (s, t) in enumerate(zip(spacer, protospacer, strict=True)) if s != t]
     if not mm_positions:
@@ -496,3 +503,37 @@ class Cas12aCfdScorer:
         return cas12a_cfd_score(
             spacer, protospacer, pam_sequence, mismatch_weights=self._mismatch_weights
         )
+
+
+#: The name each scorer is selected by on a shell. Keyed by the same spellings a
+#: report prints for `offtarget_scorer`, lower-cased, so a user reading "CFD-Cas12a"
+#: in a result can ask for it by name without translating.
+_SCORERS_BY_NAME: dict[str, str] = {
+    "cfd": "CfdScorer",
+    "mit": "MitScorer",
+    "cfd-cas12a": "Cas12aCfdScorer",
+    "cfd_cas12a": "Cas12aCfdScorer",
+}
+
+
+def scorer_for(name: str) -> OffTargetScorer:
+    """Return the scorer ``name`` selects, for a CLI or API that takes a string.
+
+    The three scorers were selectable only by importing the class, so no shell could
+    ask for MIT or for the Cas12a analog — a whole nuclease's scoring implemented,
+    carded, cited, and unreachable from the product.
+
+    Raises:
+        ValueError: If ``name`` is not one of the known scorers, listing them.
+    """
+    key = name.strip().lower()
+    class_name = _SCORERS_BY_NAME.get(key)
+    if class_name is None:
+        known = ", ".join(sorted({k for k in _SCORERS_BY_NAME if "_" not in k}))
+        raise ValueError(f"unknown scorer {name!r}; choose one of: {known}")
+    scorer: OffTargetScorer = {
+        "CfdScorer": CfdScorer,
+        "MitScorer": MitScorer,
+        "Cas12aCfdScorer": Cas12aCfdScorer,
+    }[class_name]()
+    return scorer
