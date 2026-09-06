@@ -7672,6 +7672,42 @@ found it, because both lines are correct in isolation and the contradiction is o
 between them.**
 
 
+## Round 234 — the fifth documentation claim, and a mutation that was a no-op
+
+R233's method again: read what a new reader meets. The README's Python snippets are the
+first thing anyone copies, so run them. Five of nine fail — every one a `NameError` on a
+name the surrounding prose introduces (`spacer`, `hg38`, `menu`). That is a
+documentation style, not a defect, and "every block must execute" is the wrong bar.
+
+What a snippet actually *asserts* is that these names can be imported from these
+modules, and that is checkable exactly. The docs already check four claims — every CLI
+command the prose invokes, every flag it names, every local link, every module path it
+cites. The `from alleleforge… import X` lines inside the fences were the fifth, and only
+their *modules* were verified, never the symbols. Renaming an export would leave every
+documented snippet importing a name that is not there, with the suite green and an
+`ImportError` on the reader's first line.
+
+All eighteen resolve today, so the check is preventive. Which makes mutation-verifying
+it the whole job — and the first mutation was worthless.
+
+I renamed the entry in `alleleforge/types/__init__.__all__` and the test stayed green.
+**`__all__` does not bind or unbind anything**; it controls `from x import *` and
+nothing else, so `hasattr(module, "DNASequence")` was still true and the export I
+thought I had removed was still there. Editing the actual import binding fails 33 cases,
+which is what confirms the check.
+
+That sent me to look at whether the package's own `__all__` lists can drift from what is
+bound — a name in `__all__` with no binding breaks `import *` while leaving `hasattr`
+happy. Twenty packages, all clean, and `test_a_submodule_all_is_re_exported_by_its_package`
+already pins part of it. Recorded so it is not re-probed.
+
+**Lesson: a mutation must remove the thing the test observes, not the thing that looks
+like it. `__all__` is documentation that Python only consults for one narrow operation,
+and mutating it proves nothing about `hasattr`, direct imports, or anything a reader
+actually writes. When a mutation leaves a test green, the first hypothesis should be that
+the mutation was wrong — not that the test is.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

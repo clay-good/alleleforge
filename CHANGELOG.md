@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **A symbol a documented snippet imports must exist.** The docs already check every CLI command the prose
+  invokes, every flag it names, every local link and every module path it cites; the `from alleleforge… import
+  X` lines inside the Python fences were the one unchecked claim, and only their modules were verified. A
+  renamed export would have left every documented snippet importing a name that is not there, with the suite
+  green and an `ImportError` on the reader's first line. All eighteen resolve today, so this is preventive —
+  and mutation-verified, after a first attempt that edited `__all__` and proved nothing (it does not bind or
+  unbind names, only `import *`).
+
 - **The shipped Docker deployment starts without a pre-built `.fai`.** Opening a reference writes
   `<fasta>.fai` beside it when none exists; the bundled `docker-compose.yml` mounts the reference read-only
   (correctly) while calling the index optional (wrongly). Without one, `uvicorn alleleforge.web.api.app:app`
