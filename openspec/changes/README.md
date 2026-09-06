@@ -5190,6 +5190,43 @@ to defend and everyone has to trust; a comparison — "X is more likely than Y" 
 survives disagreement about what counts as bad. The two hazards this round and last both turned out to have
 one available, and only one of them needed a band at all.**
 
+## Round 173 — "spec defaults"
+
+R172 ended on preferring a comparison to a threshold. The obvious follow-up is the thresholds that already
+exist, so I listed every constant in the tree whose name suggests a judgement and read what each says about
+itself.
+
+Most are fine, and some are exemplary. `CLOSE_NICK_NT` spends five lines explaining that it is "a
+deliberately conservative floor well inside that, not a fitted threshold", that it drives an annotation only,
+and that turning nick distance into a score would need calibration data the project does not have.
+`OOD_MIN_HALF_WIDTH` derives its value from an inequality. Someone took this seriously.
+
+Then:
+
+    #: Report any site scoring at or above either threshold (spec defaults).
+    DEFAULT_CFD_THRESHOLD = 0.20
+    DEFAULT_MIT_THRESHOLD = 0.10
+
+"Spec defaults" reads as though a specification somewhere derived them. These are the most consequential
+numbers in the off-target engine: a site below them is not deprioritised, it is **absent** from the report.
+`DEFAULT_MAF_THRESHOLD` and `GC_BAND` were the same — a description of what they do, nothing about what kind
+of number they are.
+
+The failure here is one-directional, which is what makes it worth a round. A reader who assumes a number is
+sourced does not question it; a reader told it is a project choice can decide whether it suits them. Each now
+says so, along with the fact that lowering it only ever adds sites — the direction of the error matters more
+than the value.
+
+What I did **not** do is cite anything. Each of these plausibly has literature behind it, and asserting a
+source I have not checked against the paper is precisely the failure this labeling exists to prevent — the
+same judgement as the epegRNA motifs and the PE3 threshold before it. Flagged for a human, with the note that
+a citation satisfies the new test as readily as the current wording.
+
+**Lesson: "(spec defaults)" is the kind of parenthetical that answers a question by appearing to. It names no
+spec, cites no source, and reads as authority — and it sat above the two numbers that decide what a safety
+report contains. When a comment explains a constant, check whether it explains where the *value* came from or
+only what the value does; those are different sentences and only one of them is provenance.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

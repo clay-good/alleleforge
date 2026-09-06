@@ -12,6 +12,12 @@ from __future__ import annotations
 
 #: Spacer GC band (Pol III): outside it, U6 transcription and synthesis suffer, so
 #: the spacer is annotated (not dropped) as an inspectable quality caveat.
+#:
+#: **A project default, not a published cutoff.** The direction is well established —
+#: very low and very high GC spacers transcribe and synthesize worse — but the exact
+#: edges are a convention, and a spacer at 0.29 is not meaningfully different from one
+#: at 0.31. That is why crossing the band annotates rather than filters, and why the
+#: flag carries the measured GC so a reader judges the margin rather than the verdict.
 GC_BAND = (0.30, 0.80)
 
 

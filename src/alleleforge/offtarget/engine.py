@@ -44,8 +44,21 @@ from alleleforge.types.sequence import (
 )
 from alleleforge.types.variant import Variant, assembly_matches
 
-#: Report any site scoring at or above either threshold (spec defaults).
+#: Report any site scoring at or above either threshold.
+#:
+#: **Project defaults, not published cutoffs.** No threshold separates a real
+#: off-target from an irrelevant one — CFD and MIT are continuous estimates — and these
+#: are set where a site stops being one of very many weak alignments and becomes worth
+#: a reader's attention. They are the most consequential numbers in the engine, because
+#: a site below them is not merely deprioritised, it is *absent* from the report; that
+#: is why every report states them inline ("sites reported at CFD >= 0.20 or MIT >=
+#: 0.10") rather than leaving a count to be read as absolute. Both are per-call
+#: overridable, and lowering them only ever adds sites.
 DEFAULT_CFD_THRESHOLD = 0.20
+
+#: The MIT companion to the CFD threshold above, and a project default on the same
+#: terms: not a published cutoff, stated inline in every report, per-call overridable,
+#: and lowering it only ever adds sites.
 DEFAULT_MIT_THRESHOLD = 0.10
 
 #: Length of the canonical SpCas9 spacer the MIT score is defined for.

@@ -31,6 +31,12 @@ DEFAULT_REFERENCE = "hg38"
 DEFAULT_INTERVAL_LEVEL = 0.80
 
 #: Default population minor-allele-frequency threshold for off-target inclusion.
+#:
+#: **A project default, not a published cutoff.** 0.1% is a conventional dividing line
+#: between rare and common variation, but nothing makes a variant at 0.09% safe to
+#: ignore — it is a scope control, and a rarer allele can still create a PAM in the
+#: patient in front of you. Lowering it only ever adds candidate sites; the patient-VCF
+#: path exists for the case where frequency is the wrong question entirely.
 DEFAULT_MAF_THRESHOLD = 0.001
 
 

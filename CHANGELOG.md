@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **Every number that gates what a user sees now says what kind of number it is.** The CFD and MIT thresholds
+  decide which off-target sites appear in a report *at all*; the MAF threshold decides which population
+  variants are considered; the GC band decides which spacers get a quality caveat. None is a published cutoff
+  and three said nothing about that — `DEFAULT_CFD_THRESHOLD` carried the comment "spec defaults", which reads
+  as though a specification had derived it. Each now states plainly that it is a project default, what it
+  costs to be wrong, and that lowering it only ever adds sites. A test requires it, so a new judgement
+  constant cannot arrive unlabeled.
+
 - **`aforge offtarget --scorer`: the three specificity scorers are selectable at last.** `search(scorer=…)`
   took an `OffTargetScorer` object, so a scorer could only be chosen by importing its class — MIT was
   unreachable from every shell, and so was the **Cas12a analog**, a whole nuclease's scoring, implemented,
