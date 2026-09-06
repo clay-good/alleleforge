@@ -8,8 +8,11 @@ wired + validated: trained Rule Set 3 and PRIDICT2.0).
 ## 0. Pre-flight (once per release)
 
 - [ ] Bump the version in [`src/alleleforge/_version.py`](src/alleleforge/_version.py)
-      from `0.1.0.dev0` to the release version (e.g. `0.1.0`). The Rust crate's
-      `version()` is asserted equal in the test suite.
+      from `0.1.0.dev0` to the release version (e.g. `0.1.0`), **and the matching
+      `version:` in [`CITATION.cff`](CITATION.cff)** — a stale one makes every citation
+      of the software name a version that was never released. The Rust crate's
+      `version()` and `CITATION.cff`'s are both asserted equal in the test suite, so
+      `make ci` fails if either is missed.
 - [ ] `make ci` green (lint, type, test, docs, reproduce). Native: `make native`.
 - [ ] CHANGELOG updated.
 - [ ] README claims are honest (heuristic vs trained scorers; see the prime/cas9

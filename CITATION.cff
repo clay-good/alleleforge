@@ -23,5 +23,6 @@ keywords:
   - off-target
   - bioinformatics
   - uncertainty quantification
+  - benchmark
 license: MIT
 version: 0.1.0.dev0

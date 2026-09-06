@@ -4360,6 +4360,34 @@ rules file did not, and nothing about either document made that visible — the 
 was growing, and the rules file looked healthy because it was not shrinking. When one artifact is derived
 from another, the check worth having is not on either one but on the *link* between them.**
 
+## Round 148 — the version nobody would have bumped
+
+R147 ended on: when one artifact is derived from another, check the *link*. So: enumerate the derived
+artifacts. Most are already pinned, and pleasingly so — the JSON schemas against the pydantic models, the API
+reference against the package, the README's command table against the CLI in both directions, the
+reproducibility golden against the design pipeline, the benchmark splits by content hash, the committed
+figures by a CI regeneration check. Six links, six guards.
+
+The unguarded pair is the one that leaves the repository entirely. `CITATION.cff` and `.zenodo.json` restate
+the version, the license, the title, the repository URL, the authors and the keywords — facts owned by
+`_version.py` and `pyproject.toml`, and by each other — and nothing compared any of them. `CITATION.cff`
+carries `version: 0.1.0.dev0` by hand. `RELEASE.md`'s pre-flight says to bump `_version.py` and notes that
+the Rust crate's version is asserted equal in the suite; it did not mention this file, and no test did
+either. So the first release bumps the package and leaves the citation naming a version that never existed —
+in the one artifact whose entire job is to be quoted by someone else, in a project whose stated purpose is
+reproducible open science.
+
+Pinned: version against the package, license against `pyproject` and the `LICENSE` file, title/URL/authors/
+keywords between the two files. It found a live divergence immediately — the keyword lists differ by
+`benchmark`, present in the Zenodo record and absent from the CFF, and Zenodo is the correct one since the
+project does ship CRISPR-Bench. Added it, and added the file to the release checklist so the human step and
+the automated one say the same thing.
+
+**Lesson: the derived artifacts that go stale are the ones that leave the repository. Everything consumed by
+`make ci` gets checked because a failure is felt immediately; a citation file, a package recipe, a Zenodo
+record are read only by strangers, months later, and their failure mode is that someone else is wrong about
+your work. Enumerate what the repository emits, not just what it builds.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

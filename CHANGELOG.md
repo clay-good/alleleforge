@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **The citation metadata is now checked against the package it ships with.** `CITATION.cff` and
+  `.zenodo.json` restate the version, license, title, repository URL, authors, and keywords that live
+  authoritatively in `_version.py` and `pyproject.toml` — and nothing checked any of it, so the next version
+  bump would leave `CITATION.cff` naming a release that never existed and every citation of the software
+  pointing at it. For a project whose stated purpose is reproducible open science that is not a cosmetic
+  defect. The check found a live divergence on its first run: the two files listed different keywords
+  (`.zenodo.json` had `benchmark`, which is right — the project ships CRISPR-Bench). `RELEASE.md`'s
+  version-bump step now names the file too.
+
 - **`openspec/project.md`'s conventions are current again.** The file distils the audit into durable rules
   and had stopped at R128, so a stretch of process lessons existed only inside individual round entries.
   Seven added: co-presented numbers must range over the same population; an aggregate can be a claim even
