@@ -312,3 +312,17 @@ happen before any sequence is scanned, at every entry point that accepts the fra
 #### Scenario: A NaN minimum allele frequency
 - **WHEN** a caller passes `maf=nan` to a search or to population nomination
 - **THEN** it raises rather than reporting a search with no population off-targets
+
+### Requirement: A search states the extent it covered
+
+The one-line search description SHALL state how much sequence was examined, whether or
+not that extent was fully resolvable. Every number the report carries is conditional on
+the scope, and scoping to a panel is the ordinary way a run is made practical, so two
+reports that searched different extents SHALL NOT describe themselves identically —
+otherwise the narrower search, which nominates fewer sites, reads as the safer guide.
+Where the extent was never recorded, the description SHALL say so rather than report
+zero, since a stated zero invites a comparison that cannot be made.
+
+#### Scenario: A panel scan beside a genome-wide scan
+- **WHEN** the same guide is searched over one contig and then over the whole reference
+- **THEN** the two descriptions differ, each naming the number of bases it covered

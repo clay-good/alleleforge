@@ -5684,6 +5684,52 @@ what made the absence invisible — a reader sees a coordinate statement and ass
 a *statement about* the output, verify the output it describes actually exists.**
 
 
+## Round 189 — the smaller search read as the safer guide
+
+R188's lesson was that a *statement about* the output is worth nothing until you check the output it
+describes exists. The natural next target was the other direction of the same idea: statements that exist and
+are incomplete. `PROVENANCE_FOOTER_OMITTED` is a curated list of provenance fields the footer deliberately
+skips, each with a reason, and it has exactly one entry — `config_snapshot`, excused as "rendered inline
+beside the results."
+
+The snapshot holds eight keys. `build_report` reads two of them (`intent`, `weights`). The other six —
+`populations`, `run_offtarget`, `offtarget_regions`, `cell_context`, `chromatin_track`, `settings` — are read
+by no renderer at all, so the footer skips them on the strength of an inline render that does not happen.
+
+`offtarget_regions` is the one that matters, and its own comment in `designer.py` says why: *"A restricted
+scan reports far fewer sites than a genome-wide one, and without this the two results are indistinguishable —
+'0 off-targets' would read the same whether every contig or a 100 bp window was examined."* Written down,
+recorded in provenance, and then not shown.
+
+Measured over a two-contig reference holding the same locus twice:
+
+    chr2 only  -> 1 site, specificity 0.468, searched 140 bases
+    whole ref  -> 2 sites, specificity 0.305, searched 280 bases
+
+    both -> 'up to 4 mismatches, 1 DNA / 1 RNA bulges; sites reported at CFD >= 0.2 or MIT >= 0.1'
+
+Identical. `OffTargetReport` already carried `searched_bases`; `search_description()` mentioned it only when
+the *resolved* fraction fell below 99%, and both of these resolved fully. So the field whose docstring says a
+reader "cannot compare two reports without them" was omitting the setting that separated 0.468 from 0.305 —
+in the direction where the narrower search, the one that nominates fewer off-targets, reads as the safer
+guide. Scoping to a panel is not an edge case; the `--region` help calls it what usually makes a run
+practical.
+
+The extent now leads the description. Two follow-ons fell out of doing it:
+
+* The fixture the HTML and PDF render tests share had `searched_bases` at its default of 0, so it printed
+  "over 0 bases" beside a table of two nominated sites. The field has a default, which means a report
+  deserialized from before it existed arrives the same way — so 0 with sites attached now says the extent is
+  *unrecorded*, not zero. A stated zero invites precisely the comparison this change exists to enable.
+* Three existing assertions pinned the old string. Two rounds of loosening them to accommodate the shifting
+  PDF line wrap was the wrong instinct: the fixture was wrong, not the assertions. Giving it a real extent let
+  all three tighten instead — the PDF now asserts `search: over 248,956,422 bases` glyph-for-glyph.
+
+**Lesson: when a fix makes an existing assertion fail and the obvious repair is to weaken it, check whether
+the fixture is the thing that is wrong. Weakening an assertion to fit a degenerate fixture spends a real
+check to keep a fake one, and the second time I reached for it was the signal.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

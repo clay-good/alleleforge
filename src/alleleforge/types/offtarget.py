@@ -173,13 +173,23 @@ class OffTargetReport(BaseModel):
     subthreshold_score_sum: float = 0.0
 
     def search_description(self) -> str:
-        """Return a one-line statement of the budgets and cut-offs used.
+        """Return a one-line statement of the extent searched, the budgets and cut-offs.
 
         Every number this report carries — the site count, the worst score, the
-        specificity — is conditional on these five settings, and a reader comparing
+        specificity — is conditional on these settings, and a reader comparing
         two reports cannot do so without them. Recording them on the model (so they
         survive serialization) is only half the job; this is the form a render can
         put next to the numbers.
+
+        ``searched_bases`` leads, unconditionally. Scoping to a gene panel is the
+        ordinary way a run is made practical — the ``--region`` help says so — and the
+        scope is the setting that moves the numbers most: over a two-contig reference,
+        restricting to one gave 1 site at specificity 0.468 where the whole reference
+        gave 2 at 0.305. Both descriptions were identical, because the extent was
+        mentioned only when the *resolved* fraction was degraded, and both were fully
+        resolved. A reader comparing a panel scan against a genome-wide one saw two
+        different specificities under the same provenance string, with the smaller
+        search — the one that finds fewer off-targets — reading as the safer guide.
         """
         # Deliberately ASCII: this string reaches the PDF leave-behind, whose WinAnsi
         # font has no glyph for the mathematical <= or >=, and would print "?3
@@ -225,7 +235,19 @@ class OffTargetReport(BaseModel):
                 "— the scan is that much closer to reference-only here, and an empty "
                 "ancestry breakdown means 'not measured', not 'clean'"
             )
+        # The extent, unconditionally -- except that "over 0 bases" beside a table of
+        # nominated sites is not a scope, it is a contradiction. `searched_bases` has a
+        # default, so a report deserialized from before the field existed arrives at 0
+        # with sites attached; saying the extent is unrecorded is the honest form, and
+        # keeps the reader from comparing two numbers that are not comparable.
+        if self.searched_bases > 0:
+            extent = f"over {self.searched_bases:,} bases; "
+        elif self.sites:
+            extent = "over an unrecorded extent (not comparable with another report); "
+        else:
+            extent = ""  # the empty-search clause below already says what happened
         return (
+            f"{extent}"
             f"up to {self.mismatch_threshold} mismatches, "
             f"{self.dna_bulge_budget} DNA / {self.rna_bulge_budget} RNA bulges; "
             f"sites reported at CFD >= {self.cfd_threshold:g} "

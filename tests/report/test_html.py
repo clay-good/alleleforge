@@ -120,7 +120,10 @@ def test_html_renders_ancestry_offtarget_chart_and_table(ancestry_menu: RankedMe
     assert "doench-2016-cfd" in html
     # ...and so is the search that produced the count: "2 nominated site(s)" means one
     # thing at a 0.05 CFD cut-off with no bulges allowed and another at the defaults.
-    assert "off-target search: up to 3 mismatches, 0 DNA / 0 RNA bulges; " in html
+    assert "up to 3 mismatches, 0 DNA / 0 RNA bulges; " in html
+    # ...including how much sequence it covered: the scope moves the specificity
+    # more than any other setting, and used to go unstated whenever it resolved.
+    assert "off-target search: over 248,956,422 bases; " in html
     assert "sites reported at CFD &gt;= 0.05 or MIT &gt;= 0.01" in html  # HTML-escaped
 
 

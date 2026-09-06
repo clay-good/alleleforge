@@ -112,6 +112,11 @@ def ancestry_menu() -> RankedMenu:
         rna_bulge_budget=0,
         cfd_threshold=0.05,
         mit_threshold=0.01,
+        # A real search records how much sequence it covered. Left at the default 0,
+        # this fixture exercised the "extent not recorded" branch instead of the
+        # ordinary one, so the render assertions were reading the degenerate string.
+        searched_bases=248_956_422,
+        resolved_bases=248_956_422,
         sites=(
             OffTargetSite(
                 locus=GenomicInterval(chrom="chr3", start=10, end=30, strand=Strand.PLUS),

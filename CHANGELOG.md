@@ -1595,6 +1595,18 @@ acceptance.
 
 ### Fixed
 
+- **A panel scan and a genome-wide scan described themselves identically.** `search_description()` exists so
+  that "a reader comparing two reports" can do so — the site count, the worst score and the specificity are
+  all conditional on the settings it names. It named the mismatch and bulge budgets and the two reporting
+  cut-offs, and not the *extent* searched, which is the setting that moves the numbers most. Scoping to a gene
+  panel is the ordinary way a run is made practical; the `--region` help says so outright. Over a two-contig
+  reference holding the same locus twice, restricting to one contig gave **1 site at specificity 0.468** where
+  the whole reference gave **2 at 0.305** — and both printed the same provenance string, because
+  `searched_bases` was mentioned only when the *resolved* fraction was degraded and both resolved fully. The
+  smaller search, the one that finds fewer off-targets, read as the safer guide. The extent now leads the
+  description. A report whose `searched_bases` is unset (the field has a default, so an older serialized
+  report arrives at 0 with its sites attached) says its extent is unrecorded rather than claiming zero.
+
 - **The README said human-readable reports were 1-based. They are 0-based half-open.** One row of the
   coordinate cheat-sheet lumped HGVS together with "human-readable reports" and labelled the pair 1-based.
   HGVS is; the reports are not, and say so in their own provenance block. A reader trusting the table would

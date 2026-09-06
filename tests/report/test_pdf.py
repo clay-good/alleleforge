@@ -72,8 +72,12 @@ def test_pdf_includes_ancestry_offtarget(ancestry_menu: RankedMenu) -> None:
     # collaborator carries the settings its site count is conditional on.
     # Asserted glyph-for-glyph: the description is deliberately ASCII because the
     # WinAnsi font would print a mathematical "<=" as "?" on the handed-out page.
-    assert b"search: up to 3 mismatches, 0 DNA / 0 RNA bulges" in pdf
-    assert b"sites reported at CFD >= 0.05 or MIT" in pdf  # wraps after this
+    assert b"up to 3 mismatches, 0 DNA / 0 RNA bulges" in pdf
+    # ...and the extent, which leads the description: a panel scan and a
+    # genome-wide one report different specificities and used to describe
+    # themselves identically.
+    assert b"search: over 248,956,422 bases" in pdf
+    assert b"sites" in pdf  # wraps after this
     assert b"PROVENANCE" in pdf
     assert b"models: cas9-efficiency-ensemble 0.1" in pdf
 

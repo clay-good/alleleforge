@@ -716,7 +716,10 @@ def test_offtarget_states_the_settings_its_site_count_depends_on(
 
     human = runner.invoke(app, [*args, *strict])
     assert human.exit_code == 0
-    assert "search: up to 3 mismatches, 0 DNA / 0 RNA bulges" in human.output
+    assert "up to 3 mismatches, 0 DNA / 0 RNA bulges" in human.output
+    # ...and the extent, without which a panel scan and a genome-wide one are
+    # indistinguishable while reporting different specificities.
+    assert "bases;" in human.output
     assert "sites reported at CFD >= 0.05 or MIT >= 0.01" in human.output
 
     payload = json.loads(runner.invoke(app, [*args, *strict, "--json"]).output)
