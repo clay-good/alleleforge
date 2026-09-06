@@ -242,7 +242,7 @@
       "type": "object"
     },
     "DesignCandidate": {
-      "description": "One scored design option for a variant.\n\nAttributes:\n    chemistry: The chemistry this candidate uses.\n    guide: The reagent, when it is a Cas9 nuclease guide.\n    base_edit_window: The reagent, when it is a base-editor sgRNA + window.\n    pegrna: The reagent, when it is a prime-editing pegRNA.\n    hdr_donor: The repair template a *precise* nuclease candidate needs. A\n        double-strand break alone cannot correct anything \u2014 it is repaired by\n        error-prone NHEJ \u2014 so a nuclease candidate offered for a correction is\n        only a complete reagent when this donor accompanies its guide.\n    efficiency: Calibrated on-target efficiency prediction. For base editing\n        this carries ``p_intended_exact`` (the probability of the exact\n        intended allele), the dimension the chemistry is ranked on.\n    bystander_burden: Calibrated expected number of bystander edits, for\n        base-editor candidates (``None`` for nuclease / prime candidates).\n    outcome: Predicted edit-outcome distribution.\n    offtarget: Ancestry-stratified off-target report.\n    flags: Free-form annotations (e.g. ``\"ood\"``, ``\"bystander-risk\"``).\n    rationale: Human-readable note on this candidate's standing.",
+      "description": "One scored design option for a variant.\n\nAttributes:\n    chemistry: The chemistry this candidate uses.\n    guide: The reagent, when it is a Cas9 nuclease guide.\n    base_edit_window: The reagent, when it is a base-editor sgRNA + window.\n    pegrna: The reagent, when it is a prime-editing pegRNA.\n    hdr_donor: The repair template a *precise* nuclease candidate needs. A\n        double-strand break alone cannot correct anything \u2014 it is repaired by\n        error-prone NHEJ \u2014 so a nuclease candidate offered for a correction is\n        only a complete reagent when this donor accompanies its guide.\n    efficiency: Calibrated on-target efficiency prediction. For base editing\n        this carries ``p_intended_exact`` (the probability of the exact\n        intended allele), the dimension the chemistry is ranked on.\n    p_intended: The probability the edit produces the intended allele, with its\n        interval and honesty flags \u2014 the number a reader is most likely to act\n        on, and the one that reached every surface as a bare float while the two\n        beside it carried an envelope. ``None`` for a chemistry whose outcome\n        predictor makes no such prediction (SpCas9 nuclease), where the figure a\n        report shows is a derived sum over the indel spectrum and has no\n        calibrated band behind it. Inventing one there is the failure this field\n        exists to prevent.\n    bystander_burden: Calibrated expected number of bystander edits, for\n        base-editor candidates (``None`` for nuclease / prime candidates).\n    outcome: Predicted edit-outcome distribution.\n    offtarget: Ancestry-stratified off-target report.\n    flags: Free-form annotations (e.g. ``\"ood\"``, ``\"bystander-risk\"``).\n    rationale: Human-readable note on this candidate's standing.",
       "properties": {
         "base_edit_window": {
           "anyOf": [
@@ -325,6 +325,17 @@
           "anyOf": [
             {
               "$ref": "#/$defs/EditOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "p_intended": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Prediction_float_"
             },
             {
               "type": "null"

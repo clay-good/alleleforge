@@ -150,16 +150,24 @@ def test_html_omits_nominal_caveat_for_calibrated_interval(prime_menu: RankedMen
     report = build_report(prime_menu)
 
     def _calibrate(cand: object) -> object:
-        e = cand.efficiency  # type: ignore[attr-defined]
-        if e is None:
+        # Calibrate *every* prediction on the candidate, not only efficiency. The
+        # caveat is asserted absent from the whole page, so leaving a genuinely
+        # uncalibrated neighbour (bystander burden, p_intended) in place would make
+        # this test fail for a reason that has nothing to do with what it checks —
+        # and it did, the first time `p_intended` grew an interval.
+        update = {}
+        for field in ("efficiency", "bystander_burden", "p_intended_prediction"):
+            prediction = getattr(cand, field, None)
+            if prediction is not None:
+                update[field] = Prediction.calibrated_by(
+                    value=prediction.value,
+                    interval=prediction.interval,
+                    method=UncertaintyMethod.CONFORMAL,
+                    interval_level=prediction.interval_level,
+                )
+        if not update:
             return cand
-        cal = Prediction.calibrated_by(
-            value=e.value,
-            interval=e.interval,
-            method=UncertaintyMethod.CONFORMAL,
-            interval_level=e.interval_level,
-        )
-        return cand.model_copy(update={"efficiency": cal})  # type: ignore[attr-defined]
+        return cand.model_copy(update=update)  # type: ignore[attr-defined]
 
     calibrated = report.model_copy(
         update={"candidates": tuple(_calibrate(c) for c in report.candidates)}

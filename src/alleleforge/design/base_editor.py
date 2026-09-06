@@ -156,6 +156,10 @@ def design_base_editor(
             # is not a duplicate of the cleanliness axis (outcome.p_intended); the
             # ranker weighs the two distinctly instead of double-charging bystanders.
             efficiency=outcome.p_target_edited,
+            # `p_intended_exact` is P(target edited AND no bystander edited) —
+            # exactly the intended-allele probability, already carrying its
+            # interval and flags.
+            p_intended=outcome.p_intended_exact,
             bystander_burden=outcome.bystander_burden,
             outcome=outcome.outcome,
             offtarget=offreport,

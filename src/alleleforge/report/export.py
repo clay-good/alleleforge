@@ -21,7 +21,7 @@ from alleleforge.types.candidate import RankedMenu
 #: added, removed, or reinterpreted so a downstream consumer can detect the drift —
 #: and for v6, when the TSV grew its leading `#` note block, which a reader that skips
 #: no comments does see.
-EXPORT_SCHEMA_VERSION = 6
+EXPORT_SCHEMA_VERSION = 7
 
 #: The flat TSV column order (one row per candidate). ``schema_version`` leads so a
 #: reader can branch on the format before touching any other column.
@@ -40,6 +40,13 @@ TSV_COLUMNS = (
     "calibrated",
     "bystander_burden",
     "p_intended",
+    # The same three qualifiers `efficiency` carries. `p_intended` alone is the
+    # number a pipeline filters on, and without these a derived sum over an indel
+    # spectrum and a calibrated prediction are the same column.
+    "p_intended_low",
+    "p_intended_high",
+    "p_intended_in_distribution",
+    "p_intended_calibrated",
     "n_offtarget_sites",
     # `n_offtarget_sites` alone is not a safety number. It is conditional on the
     # cut-offs that produced it and it says nothing about the aggregate, both of which
@@ -75,6 +82,10 @@ def menu_to_json(menu: RankedMenu, *, indent: int | None = 2) -> str:
 def _row(candidate: Any) -> dict[str, Any]:
     """Flatten one :class:`CandidateReport` into a TSV/Parquet row dict."""
     eff = candidate.efficiency
+    # `None` for a chemistry whose outcome predictor makes no such prediction; the
+    # four columns are then blank, which is the difference between "no interval was
+    # computed" and "the interval is zero-width".
+    pi = candidate.p_intended_prediction
     burden = candidate.bystander_burden
     worst = candidate.offtarget_by_ancestry[0] if candidate.offtarget_by_ancestry else None
     return {
@@ -90,6 +101,10 @@ def _row(candidate: Any) -> dict[str, Any]:
         "calibrated": None if eff is None else eff.calibrated,
         "bystander_burden": None if burden is None else round(burden.value, 4),
         "p_intended": None if candidate.p_intended is None else round(candidate.p_intended, 4),
+        "p_intended_low": None if pi is None else round(pi.interval[0], 4),
+        "p_intended_high": None if pi is None else round(pi.interval[1], 4),
+        "p_intended_in_distribution": None if pi is None else pi.in_distribution,
+        "p_intended_calibrated": None if pi is None else pi.calibrated,
         "n_offtarget_sites": candidate.n_offtarget_sites,
         "offtarget_specificity": (
             None

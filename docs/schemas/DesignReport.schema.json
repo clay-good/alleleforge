@@ -216,6 +216,17 @@
           ],
           "title": "P Intended"
         },
+        "p_intended_prediction": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Prediction_float_"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "rank": {
           "title": "Rank",
           "type": "integer"

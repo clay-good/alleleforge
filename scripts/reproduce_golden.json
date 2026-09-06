@@ -140,6 +140,21 @@
           ],
           "partial": false
         },
+        "p_intended": {
+          "calibrated": false,
+          "in_distribution": true,
+          "interval": [
+            0.138,
+            0.438
+          ],
+          "interval_level": 0.8,
+          "method": "heuristic",
+          "notes": [
+            "nominal interval level: fixed heuristic half-width, coverage not measured"
+          ],
+          "point_from_trained_model": false,
+          "value": 0.288
+        },
         "pegrna": null,
         "rationale": "ABE8e sgRNA on + strand; P(exact)=0.29, bystander burden=0.60; score 0.641 [eff 0.60 [0.45, 0.75], clean 0.29, safe 1.00, simple 0.90]"
       }
@@ -203,5 +218,5 @@
     "rationale": "Routing: base_abe=yes, base_cbe=no, prime=yes, cas9_nuclease=no.\nEligible and run: base_abe, prime.\nWhy the other chemistries declined:\n- base_cbe: Cytosine base editing installs a C->T / G->A transition in a narrow window with no double-strand break \u2014 eligible when the required change is a G:C->A:T transition SNV.\n- cas9_nuclease: An SpCas9 double-strand break repaired by error-prone NHEJ yields frameshifting indels that ablate gene function \u2014 the canonical knock-out route.\n- ClinVar: pathogenic\n- intent install writes an allele ClinVar classifies as pathogenic \u2014 a disease model, not a correction\n- base_abe: 1 candidate(s)\n- prime: eligible but no actionable candidate enumerated \u2014 no PAM match at this offset (155); the spacer contains TTTT, which terminates Pol III transcription (1)\nRanked by a weighted sum of four higher-is-better objectives (efficiency 0.35, cleanliness 0.30, safety 0.30, simplicity 0.05); the safety term uses the worst-affected ancestry and the efficiency term is uncertainty-discounted. The Pareto front lists the 1 candidate(s) not dominated on all four objectives."
   },
   "n_candidates": 1,
-  "sha256": "e122d08f56a0cd6ec7784c4c4e9547d5692aa8a97aa2cb7774b85af7ee4e34a3"
+  "sha256": "daaa91777651af97edd019aed6caa56c4687c2e2f6e1649d23d5c5a14d164631"
 }

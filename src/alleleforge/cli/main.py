@@ -1876,6 +1876,7 @@ def verify(
     refusing it would put this contract out of reach of three of the four formats.
     """
     from alleleforge.data.registry import DEFAULT_REGISTRY
+    from alleleforge.report.builder import DesignReport
     from alleleforge.types.candidate import RankedMenu
     from alleleforge.types.prediction import trusted_deserialization_context
     from alleleforge.types.provenance import Provenance
@@ -1888,19 +1889,34 @@ def verify(
     # the trusted context: a calibrated efficiency/bystander prediction keeps its
     # `calibrated=True` instead of being silently coerced to False on load.
     context = trusted_deserialization_context()
-    prov: Provenance | None
-    try:
-        prov = RankedMenu.model_validate_json(text, context=context).provenance
-    except ValueError as menu_exc:
+    # The three shapes this tool writes, most common first: `design --format json`
+    # emits a `DesignReport`, a cohort's per-item file is a `RankedMenu`, and the
+    # sidecar is a bare `Provenance`.
+    #
+    # `DesignReport` was previously absent from this list and a report still verified,
+    # because the two candidate models overlapped enough for pydantic to coerce one
+    # into the other — so `verify` was reading a different object than the file
+    # described and only ever touching `.provenance`, where the difference did not
+    # show. Adding a field to `DesignCandidate` ended the coincidence; naming all
+    # three shapes ends the reliance on it.
+    prov: Provenance | None = None
+    errors: list[str] = []
+    for model in (DesignReport, RankedMenu):
+        try:
+            prov = model.model_validate_json(text, context=context).provenance
+        except ValueError as exc:
+            errors.append(f"{model.__name__}: {exc}")
+        else:
+            break
+    else:
         try:
             prov = Provenance.model_validate_json(text, context=context)
-        except ValueError:
-            # Report the menu error, not the sidecar one: a file that is neither is far
-            # more often a malformed result than a malformed provenance block.
+        except ValueError as exc:
             _echo_err(
-                f"error: not a valid result JSON, and not a provenance sidecar either: {menu_exc}"
+                "error: not a design report, a ranked menu, or a provenance sidecar. "
+                + " / ".join(errors)
             )
-            raise typer.Exit(ExitCode.USAGE) from menu_exc
+            raise typer.Exit(ExitCode.USAGE) from exc
     if prov is None:
         _echo_err("error: result carries no provenance block; it is not verifiable")
         raise typer.Exit(ExitCode.UNAVAILABLE)

@@ -57,7 +57,7 @@ Cas-OFFinder, …) behind a unified, typed, uncertainty-honest interface and add
 ## Design principles
 
 1. **Variant-first.** The canonical journey starts from *what is broken*, not from a guide.
-2. **Honest uncertainty.** Every numeric prediction ships with a calibrated interval. No scorer returns a bare float.
+2. **Honest uncertainty.** Every numeric prediction ships with a calibrated interval. No scorer returns a bare float — including `P(intended)`, the probability the edit produces the allele you asked for, which is the number a reader is most likely to act on. Where a chemistry's outcome predictor makes no such prediction (SpCas9 nuclease), the figure is labelled *derived from the outcome distribution* rather than given a band it does not have.
 3. **Population-aware, and explicit when it cannot be.** Reference-only off-target analysis is a known
    safety gap (the Casgevy / BCL11A `rs114518452` case is the canonical cautionary tale), so population and
    haplotype variation is a first-class search pass rather than an add-on. It is **not** on by default,

@@ -134,7 +134,22 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
     for note in _uncovered_notes(c):
         lines += _wrap(f"note: {note}", indent="    ")
     if c.p_intended is not None:
-        lines += _wrap(f"P(intended) = {c.p_intended:.2f}", indent="    ")
+        prediction = c.p_intended_prediction
+        if prediction is None:
+            lines += _wrap(
+                f"P(intended) = {c.p_intended:.2f} (derived from the outcome "
+                "distribution; no calibrated interval)",
+                indent="    ",
+            )
+        else:
+            cal = "" if prediction.calibrated else " (nominal - coverage not measured)"
+            ood = "" if prediction.in_distribution else " (out of distribution)"
+            lines += _wrap(
+                f"P(intended) = {prediction.value:.2f} "
+                f"[{prediction.interval[0]:.2f}, {prediction.interval[1]:.2f}] "
+                f"@ {prediction.interval_level:.0%}{cal}{ood}",
+                indent="    ",
+            )
     for a in c.outcome_top:
         mark = " (intended)" if a.is_intended else ""
         lines += _wrap(f"outcome {a.allele}  p={a.probability:.3f}{mark}", indent="      ")

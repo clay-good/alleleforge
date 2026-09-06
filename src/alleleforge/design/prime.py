@@ -340,6 +340,10 @@ def design_prime(
             pegrna=pegrna,
             efficiency=efficiency,
             outcome=outcome.outcome,
+            # The scorer returns `p_intended` as a Prediction; passing only
+            # `outcome.outcome` dropped it, and every surface then recomputed a
+            # bare sum over the alleles.
+            p_intended=outcome.p_intended,
             offtarget=peg_offtarget,
             flags=_flags(
                 pegrna,

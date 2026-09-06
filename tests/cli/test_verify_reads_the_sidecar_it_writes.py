@@ -18,6 +18,7 @@ still rejected, and says which two shapes are accepted.
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -94,14 +95,45 @@ def test_sidecar_and_result_verify_to_the_same_report(
 
 
 def test_a_file_that_is_neither_shape_is_still_rejected(runner: CliRunner, tmp_path: Path) -> None:
-    """Widening the input must not widen it to anything; the error names both shapes."""
+    """Widening the input must not widen it to anything; the error names every shape."""
     junk = tmp_path / "junk.json"
     junk.write_text('{"hello": "world"}')
 
     result = runner.invoke(app, ["verify", str(junk)])
     assert result.exit_code == ExitCode.USAGE
     combined = result.output + result.stderr
-    assert "result" in combined and "provenance" in combined
+    for shape in ("design report", "ranked menu", "provenance sidecar"):
+        assert shape in combined, combined
+
+
+def test_a_ranked_menu_verifies_too(runner: CliRunner, tmp_path: Path) -> None:
+    """A cohort's per-item file is a `RankedMenu`, not a `DesignReport`.
+
+    `verify` listed only `RankedMenu` and still accepted a report, because the two
+    candidate models overlapped enough for pydantic to coerce one into the other —
+    so it was reading a different object than the file described, and only ever
+    touching `.provenance`, where the difference did not show. Both shapes are named
+    now; this pins that the second one really is accepted rather than inherited from
+    that coincidence.
+    """
+    from alleleforge.types.candidate import RankedMenu
+    from alleleforge.types.provenance import Provenance
+
+    menu = RankedMenu(
+        candidates=(),
+        provenance=Provenance(
+            alleleforge_version="0.0.0-test",
+            seed=1,
+            timestamp=datetime.now(UTC),
+            config_snapshot={"intent": "correct"},
+        ),
+    )
+    path = tmp_path / "item.json"
+    path.write_text(menu.model_dump_json())
+
+    result = runner.invoke(app, ["verify", str(path), "--json"])
+    assert result.exit_code == 0, result.output + result.stderr
+    assert json.loads(result.stdout)["verified"] is True
 
 
 def test_a_result_without_provenance_is_still_unverifiable(

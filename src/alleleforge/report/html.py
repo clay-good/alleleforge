@@ -181,7 +181,26 @@ def _candidate_html(c: CandidateReport) -> str:
     for note in _uncovered_notes(c):
         parts.append(f"<p class='muted'><strong>note:</strong> {_esc(note)}</p>")
     if c.p_intended is not None:
-        parts.append(f"<p>P(intended) = <strong>{c.p_intended:.2f}</strong></p>")
+        # The number a reader is most likely to act on. Where the chemistry's outcome
+        # predictor made a prediction for it, it carries the same envelope efficiency
+        # and bystander burden do; where it did not (SpCas9), the figure is a derived
+        # sum over the indel spectrum and says so rather than being shown as if it
+        # were of the same kind.
+        prediction = c.p_intended_prediction
+        if prediction is None:
+            parts.append(
+                f"<p>P(intended) = <strong>{c.p_intended:.2f}</strong> "
+                "<em>(derived from the outcome distribution; no calibrated "
+                "interval)</em></p>"
+            )
+        else:
+            cal = "" if prediction.calibrated else " <em>(nominal — coverage not measured)</em>"
+            ood = "" if prediction.in_distribution else " <em>(out of distribution)</em>"
+            parts.append(
+                f"<p>P(intended) = <strong>{prediction.value:.2f}</strong> "
+                f"[{prediction.interval[0]:.2f}, {prediction.interval[1]:.2f}] "
+                f"@ {prediction.interval_level:.0%}{cal}{ood}</p>"
+            )
     if c.outcome_top:
         rows = "".join(
             f"<tr><td class='mono'>{_esc(a.allele)}</td><td>{a.probability:.3f}</td>"

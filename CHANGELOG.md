@@ -10,6 +10,24 @@ acceptance.
 
 ### Added
 
+- **`P(intended)` ships with its uncertainty, like the two numbers beside it.** A candidate carried
+  `efficiency` and `bystander_burden` as `Prediction[float]` and `p_intended` — the probability the edit
+  produces the allele you asked for, the number a reader is most likely to act on — as a bare float on every
+  surface. It was not missing but *discarded*: `PrimeOutcomePredictor` returns a `Prediction` for it that
+  `prime.py` dropped in one line, and base editing's `p_intended_exact` never reached the candidate; both were
+  recomputed downstream as a plain sum. `DesignCandidate.p_intended` now carries the scorer's prediction, the
+  HTML and PDF show its interval and flags, and the TSV gains `p_intended_low/high/in_distribution/calibrated`
+  (`EXPORT_SCHEMA_VERSION` 7). SpCas9's outcome predictor makes no such prediction, so there the field is
+  `None` and the renders say *derived from the outcome distribution; no calibrated interval* instead of
+  inventing a band.
+
+- **`aforge verify` names the three artifact shapes it accepts.** It parsed everything as a `RankedMenu`, and
+  a `DesignReport` — what `design --format json` actually writes — had been validating as one by structural
+  coincidence, so `verify` was reading a different object than the file described. Adding a field to
+  `DesignCandidate` ended the coincidence and would have made `verify` reject the tool's own primary output;
+  it now tries `DesignReport`, `RankedMenu` and the bare `Provenance` sidecar explicitly, and the middle one
+  is pinned so it is accepted on purpose.
+
 - **Every closed-set refusal names the values it accepts.** Three of the CLI's five did (`--scorer`,
   `bench run`, `data show`); `--intent` and `--chemistry` — the flags on the primary command a first-time
   caller most often gets wrong — did not. The chemistry message echoed pydantic's `'PRIME' is not a valid

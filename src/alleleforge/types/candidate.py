@@ -33,6 +33,14 @@ class DesignCandidate(BaseModel):
         efficiency: Calibrated on-target efficiency prediction. For base editing
             this carries ``p_intended_exact`` (the probability of the exact
             intended allele), the dimension the chemistry is ranked on.
+        p_intended: The probability the edit produces the intended allele, with its
+            interval and honesty flags — the number a reader is most likely to act
+            on, and the one that reached every surface as a bare float while the two
+            beside it carried an envelope. ``None`` for a chemistry whose outcome
+            predictor makes no such prediction (SpCas9 nuclease), where the figure a
+            report shows is a derived sum over the indel spectrum and has no
+            calibrated band behind it. Inventing one there is the failure this field
+            exists to prevent.
         bystander_burden: Calibrated expected number of bystander edits, for
             base-editor candidates (``None`` for nuclease / prime candidates).
         outcome: Predicted edit-outcome distribution.
@@ -49,6 +57,7 @@ class DesignCandidate(BaseModel):
     pegrna: PegRNA | None = None
     hdr_donor: HDRDonor | None = None
     efficiency: Prediction[float] | None = None
+    p_intended: Prediction[float] | None = None
     bystander_burden: Prediction[float] | None = None
     outcome: EditOutcome | None = None
     offtarget: OffTargetReport | None = None

@@ -293,6 +293,11 @@ class CandidateReport(BaseModel):
     efficiency: Prediction[float] | None
     bystander_burden: Prediction[float] | None
     p_intended: float | None
+    #: The scorer's own prediction for `p_intended`, when the chemistry made one.
+    #: `None` for SpCas9, whose outcome predictor does not — there the scalar above
+    #: is a derived sum over the indel spectrum with no calibrated band behind it,
+    #: and the renders say so instead of drawing one.
+    p_intended_prediction: Prediction[float] | None = None
     outcome_top: tuple[AlleleOutcome, ...]
     n_outcome_alleles: int = 0
     outcome_shown_mass: float = 0.0
@@ -364,6 +369,7 @@ def _candidate_report(
     n_outcome_alleles = 0
     outcome_shown_mass = 0.0
     p_intended: float | None = None
+    p_intended_prediction: Prediction[float] | None = None
     if candidate.outcome is not None:
         ordered = sorted(candidate.outcome.alleles, key=lambda a: a.probability, reverse=True)
         shown = list(ordered[:top_alleles])
@@ -384,6 +390,7 @@ def _candidate_report(
         n_outcome_alleles = len(ordered)
         outcome_shown_mass = sum(a.probability for a in outcome_top)
         p_intended = candidate.outcome.p_intended
+        p_intended_prediction = candidate.p_intended
 
     n_sites: int | None = None
     specificity: float | None = None
@@ -420,6 +427,7 @@ def _candidate_report(
         efficiency=candidate.efficiency,
         bystander_burden=candidate.bystander_burden,
         p_intended=p_intended,
+        p_intended_prediction=p_intended_prediction,
         outcome_top=outcome_top,
         n_outcome_alleles=n_outcome_alleles,
         outcome_shown_mass=outcome_shown_mass,

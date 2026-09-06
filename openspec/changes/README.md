@@ -7393,6 +7393,58 @@ heads of the people who happened to apply it. Count the instances before fixing 
 them; the ratio tells you whether you are fixing a bug or writing down a rule.**
 
 
+## Round 228 — the cardinal rule, on the number it matters most for
+
+R227's method — count the instances of a convention before fixing any — applied to
+design principle 2: *"No scorer returns a bare float. Every numeric prediction ships
+with a calibrated interval, a method tag, a calibrated flag, and an OOD flag."*
+
+Sweeping every typed model for `float` fields outside a `Prediction` gave eleven hits.
+Nine are correct: thresholds the caller chose, allele frequencies read from a data
+source, CFD/MIT scores from a deterministic matrix (not a model, so no calibrated band
+exists to report), and `Prediction`'s own internals. One is the finding.
+
+A candidate carries three predicted quantities:
+
+    efficiency         Prediction[float]   0.45 [0.30, 0.60]  calibrated=False
+    bystander_burden   Prediction[float]
+    p_intended         float               0.61
+
+`p_intended` is the probability the edit produces the allele that was asked for. Of the
+three it is the one a reader acts on, and it reached every surface as a bare number.
+
+**It was not missing — it was discarded.** `PrimeOutcomePredictor.predict` returns a
+`p_intended` that *is* a `Prediction[float]`, and `prime.py` dropped it in one line by
+passing `outcome=outcome.outcome`; base editing computes `p_intended_exact:
+Prediction[float]` and never put it on the candidate. Both were recomputed downstream
+as a plain sum over the allele distribution. The honest number was produced, thrown
+away, and replaced with a dishonest one that happened to be equal.
+
+SpCas9 is what keeps the fix honest. Its outcome predictor makes no such prediction, so
+there `p_intended` genuinely is a derived sum with nothing behind it. The rule cannot be
+"always show an interval" — it is "never show a number whose status is unclear" — so
+that candidate carries `None` and the renders say *derived from the outcome
+distribution; no calibrated interval* rather than inventing a band. The TSV gains four
+columns that are blank in exactly that case, which is the difference between "no
+interval was computed" and "the interval is zero-width".
+
+**And the change surfaced a latent defect in `verify`.** Adding a field to
+`DesignCandidate` made `aforge verify` reject the tool's own primary output. The cause
+was not the new field: `verify` parsed every file as a `RankedMenu`, and a
+`DesignReport` had been validating as one **by structural coincidence** — the two
+candidate models overlapped enough for pydantic to coerce one into the other. It was
+reading a different object than the file described and only ever touching
+`.provenance`, where the difference could not show. It now names all three shapes it is
+given (`DesignReport`, `RankedMenu`, bare `Provenance`), and the second is pinned so it
+is accepted on purpose rather than inherited from an accident.
+
+**Lesson: a value that is computed correctly and then discarded is more dangerous than
+one that was never computed, because the discard is invisible at the point of use.
+`p_intended` looked like a quantity with no uncertainty available; it was a quantity
+whose uncertainty had been dropped one call earlier. When a number looks unavoidably
+bare, search for it upstream before concluding it has no envelope to carry.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
