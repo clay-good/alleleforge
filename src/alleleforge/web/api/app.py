@@ -104,6 +104,35 @@ def _load_reference_from_env() -> Any | None:
         return None
 
 
+#: Set when a configured population source could not be read, so `/api/health` can say
+#: so rather than reporting the same `false` as "none configured".
+_GNOMAD_LOAD_ERROR: str | None = None
+
+
+def _load_gnomad_from_env() -> Any | None:
+    """Load a population allele-frequency source from ``ALLELEFORGE_GNOMAD_TSV`` if set.
+
+    Population-aware off-target nomination is the capability this project exists for, and
+    over HTTP it was unreachable: the request model accepts `populations` but no source,
+    `create_app` took no source, and no environment variable supplied one — so every API
+    scan was reference-only and every ancestry breakdown came back empty. The source is
+    operator-configured, exactly like the reference genome, because a client-supplied path
+    would be an arbitrary file read on the server.
+    """
+    global _GNOMAD_LOAD_ERROR
+    _GNOMAD_LOAD_ERROR = None
+    path = os.environ.get("ALLELEFORGE_GNOMAD_TSV")
+    if not path:
+        return None
+    try:
+        from alleleforge.data.gnomad import GnomadDB
+
+        return GnomadDB.from_sites_tsv(Path(path))
+    except (OSError, ValueError, ImportError) as exc:
+        _GNOMAD_LOAD_ERROR = str(exc)
+        return None
+
+
 def _require_reference(request: Request) -> Any:
     """Return the configured reference genome, or raise ``503``."""
     reference = request.app.state.reference
@@ -203,6 +232,10 @@ def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
         chemistries=chemistries,
         weights=weights,
         populations=req.populations,
+        # The operator-configured population source, so `populations` on a request means
+        # something over HTTP. Without it the scan is reference-only whatever ancestry
+        # labels were asked for, and the report says so.
+        gnomad=request.app.state.gnomad,
         offtarget_regions=_regions(req.offtarget_regions),
         cell_context=req.cell_context,
         run_offtarget=req.run_offtarget,
@@ -275,6 +308,7 @@ def _truncate_echoed(value: Any) -> Any:
 def create_app(
     *,
     reference: Any | None = None,
+    gnomad: Any | None = None,
     settings: Settings | None = None,
     api_token: str | None = None,
 ) -> FastAPI:
@@ -283,6 +317,10 @@ def create_app(
     Args:
         reference: A pre-loaded :class:`ReferenceGenome`. If ``None``, one is
             loaded from ``ALLELEFORGE_REFERENCE_FASTA`` when that is set.
+        gnomad: A pre-loaded population allele-frequency source. If ``None``, one is
+            loaded from ``ALLELEFORGE_GNOMAD_TSV`` when that is set. Without it every
+            scan this API runs is reference-only, whatever `populations` a request asks
+            for — the capability was unreachable over HTTP entirely.
         settings: Settings to thread into provenance (default: ``Settings.load()``,
             resolving the user config file + env with the standard precedence).
         api_token: When set, every ``/api/*`` request (except ``/api/health``)
@@ -313,6 +351,7 @@ def create_app(
         ),
     )
     app.state.reference = reference if reference is not None else _load_reference_from_env()
+    app.state.gnomad = gnomad if gnomad is not None else _load_gnomad_from_env()
     # Resolve through Settings.load() so the web interface honors the user config file
     # (~/.config/alleleforge/config.toml) with the same precedence as the CLI and library
     # — the provenance-reproducibility spec requires the config file to apply to web runs,
@@ -363,6 +402,7 @@ def create_app(
             status="ok",
             version=__version__,
             reference_loaded=app.state.reference is not None,
+            gnomad_loaded=app.state.gnomad is not None,
             # The core sentence only. A liveness probe has no candidates below it and
             # nominates no off-target site, and `RESEARCH_USE_CORE` exists because "a
             # caveat that does not describe the thing it is attached to is noise".
@@ -510,6 +550,7 @@ def create_app(
                 mit_threshold=req.mit_threshold,
                 maf=req.maf,
                 populations=req.populations,
+                gnomad=request.app.state.gnomad,
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc

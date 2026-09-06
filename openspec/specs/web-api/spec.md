@@ -8,6 +8,25 @@ research-use disclaimer on the surface.
 
 ## Requirements
 
+### Requirement: The population-aware search is reachable over HTTP
+
+Population-aware off-target nomination is the capability this tool exists for, so it
+SHALL be reachable from the web shell as well as the CLI. The population source is
+**operator-configured** — `create_app(gnomad=...)` or `ALLELEFORGE_GNOMAD_TSV` — because
+a client-supplied path would be an arbitrary file read on the server. Since a client
+cannot supply it, `GET /api/health` SHALL report whether one is configured: without it
+every scan is reference-only whatever ancestry labels a request carries, and an empty
+breakdown reads as "no risk found" rather than "nothing was searched".
+
+#### Scenario: A configured deployment
+- **WHEN** a population source is configured and a request asks for ancestry labels
+- **THEN** population-origin sites are nominated with their per-ancestry frequencies
+
+#### Scenario: An unconfigured deployment
+- **WHEN** no source is configured
+- **THEN** `gnomad_loaded` is false and the search description states that nothing was
+  measured, without naming a flag that belongs to a different shell
+
 ### Requirement: A schema-validated endpoint surface
 
 The service SHALL expose health, resolve, design, async design jobs, batch, off-target,

@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **The population-aware off-target search is reachable over HTTP.** `OffTargetRequest` accepted
+  `populations` and `maf` but no population source, `create_app` took none, and no environment variable
+  supplied one — so every API scan was reference-only whatever ancestry labels a client asked for, and every
+  breakdown came back empty, which reads as "no ancestry-specific risk" rather than "nothing was searched".
+  The same gap was found and closed for the CLI rounds ago; the web shell kept it. The source is
+  operator-configured (`create_app(gnomad=...)` or `ALLELEFORGE_GNOMAD_TSV`) because a client-supplied path
+  would be an arbitrary file read, and `GET /api/health` now reports `gnomad_loaded` so a client can tell
+  which deployment it is talking to.
 - **Every native kernel's speedup is re-measurable.** `scripts/native_speedup.py` timed four things while
   the crate exposed six, and the R223 contig fold was timed by nothing — so several claims in the round log
   existed only as prose. It now also times the bulged-alignment kernel (R208), the per-anchor evaluation
@@ -2035,6 +2043,11 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+
+- **A report no longer tells an API client to pass a CLI flag.** `search_description()` — a library method
+  returned verbatim over HTTP and rendered into every report — advised "pass `--gnomad` or `--haplotypes`",
+  flags that exist on one of the three shells and that an HTTP client or Python caller cannot pass at all.
+  It names the capability now; the CLI keeps its own flag-specific warning.
 
 - **`verify` names the sidecar when handed the artifact beside it.** `design --format html` prints "wrote
   report.html and report.html.provenance.json", so the obvious next command is `aforge verify report.html`

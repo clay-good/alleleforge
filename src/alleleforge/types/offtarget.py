@@ -288,7 +288,8 @@ class OffTargetReport(BaseModel):
             else:
                 coverage += (
                     "; no ancestry source was supplied at all, so there is no label "
-                    "that would have worked — pass --gnomad or --haplotypes"
+                    "that would have worked — supply a population allele-frequency "
+                    "source or a haplotype panel"
                 )
         inert = sorted(name for name, n in self.sources_considered.items() if n == 0)
         if inert:

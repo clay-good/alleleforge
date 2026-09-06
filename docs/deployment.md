@@ -35,6 +35,10 @@ aforge design chr2:71:A>C --reference-fasta /data/hg38.fa --intent install
 
 # Web: supply it once via env var (or create_app(reference=...))
 export ALLELEFORGE_REFERENCE_FASTA=/data/hg38.fa
+    # Optional, and the difference between a population-aware deployment and a
+    # reference-only one: without it a request's `populations` is accepted and the
+    # ancestry breakdown comes back empty. `GET /api/health` reports `gnomad_loaded`.
+    export ALLELEFORGE_GNOMAD_TSV=/data/gnomad-sites.tsv
 ```
 
 !!! warning "The `.fai` index is required on a read-only mount"
@@ -139,6 +143,7 @@ that nothing reads fails the suite, because an ignored setting is silent.
 |---|---|---|
 | Reference build | `ALLELEFORGE_REFERENCE` | `hg38` |
 | Reference FASTA (web) | `ALLELEFORGE_REFERENCE_FASTA` | _none (503 until set)_ |
+| Population sites TSV (web) | `ALLELEFORGE_GNOMAD_TSV` | _none (every scan reference-only)_ |
 | Global seed | `ALLELEFORGE_SEED` | `20240501` |
 | Predictive-interval level | `ALLELEFORGE_INTERVAL_LEVEL` | `0.80` |
 | Off-target MAF threshold | `ALLELEFORGE_MAF_THRESHOLD` | `0.001` |

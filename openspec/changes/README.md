@@ -8672,6 +8672,41 @@ Check the error path for the mistake your own success message invites — and if
 already documents the answer in a docstring, the refusal is where it belongs.**
 
 
+## Round 262 — the differentiator, unreachable from a whole shell
+
+R261's sweep of remedy strings turned up one that named a CLI flag from inside the
+*library*:
+
+    types/offtarget.py:  "... — pass --gnomad or --haplotypes"
+
+`search_description()` is returned verbatim by `POST /api/offtarget` and rendered into
+every report, so an HTTP client and a Python caller were being told to pass a flag neither
+of them has. Chasing what those callers *should* do instead produced the real finding.
+
+`OffTargetRequest` accepts `populations` and `maf`. It accepts no population source.
+`create_app` took none. No environment variable supplied one. So every scan the web API
+ran was reference-only, whatever ancestry labels a client asked for, and every ancestry
+breakdown came back empty — which reads as "no ancestry-specific risk found" rather than
+"nothing was searched", the confusion this project exists to prevent. Population-aware
+off-target nomination is the capability the project is *for*, it was found and fixed as
+CLI-unreachable rounds ago, and the web shell kept the same gap. A client could not even
+detect it: `/api/health` reported whether a reference was loaded and nothing else.
+
+Now `create_app(gnomad=...)` or `ALLELEFORGE_GNOMAD_TSV`, operator-configured exactly like
+the reference genome, because a client-supplied path would be an arbitrary file read on the
+server. The rs114518452-style bias case over HTTP:
+
+    n_sites: 1  burden: 0.105  origin: population  ancestries: {afr: 0.105, nfe: 0.001}
+
+previously `n_sites: 0`. `/api/health` reports `gnomad_loaded`, and the library's message
+names the capability rather than one shell's spelling of it.
+
+**Lesson: a message that names a flag is a message written for one shell, and finding it
+inside a shared layer is a reliable way to discover that the other shells cannot do the
+thing at all. Follow the remedy: if you cannot carry it out from the surface the message
+reaches, the capability is missing, not the wording.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

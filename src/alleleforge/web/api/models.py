@@ -517,6 +517,10 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     reference_loaded: bool
+    #: Whether a population allele-frequency source is configured. Without one every scan
+    #: this deployment runs is reference-only, whatever ancestry labels a request asks
+    #: for — a client cannot supply the source and had no way to find that out.
+    gnomad_loaded: bool = False
     disclaimer: str
 
 
