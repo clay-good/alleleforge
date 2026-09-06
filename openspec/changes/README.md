@@ -4560,6 +4560,37 @@ alone and fails in the full run right after a mutation loop — suspect the rest
 place no one would look because the test's name promised coverage. When a stated rule enumerates, make the
 test enumerate from the *rule*, not from the implementations you happen to think of.**
 
+## Round 154 — enumerating from the rule
+
+R153's lesson, applied to itself. That round found a test for an eight-word principle that checked two of its
+three nouns; the file it lived in has the same shape one level up. `test_stated_principles.py` is named for
+*the principles* and its docstring says it "pins the mechanically checkable ones" — and it contained three
+tests for eight principles, with no record of which five were unaccounted for or why.
+
+Checked the rest by hand first, which is the part worth keeping. Principle 2 ("no bare float; every
+prediction ships an interval, a method tag, a calibrated flag and an OOD flag") is structurally satisfied:
+`Prediction` requires `interval` and `method` and defaults both flags, and `ensure_prediction` /
+`BareFloatError` reject a bare float at the scorer boundary — four nouns, all four enforced by the type. 5
+and 7 are `scripts/reproduce.py` and `make ci`. 1 is structural. 4 ("wrap, don't rebuild") is a judgement
+about whether a new model fills a genuine coverage gap, and no assertion decides that; 6 ("three audiences,
+one core") is not checkable as stated, and its nearest evidence is the cross-surface parity tests that live
+with each surface.
+
+So the deliverable is not a new assertion about the code — it is that the *list* is now the source of the
+check. The test parses the numbered principles out of `openspec/project.md` and requires each to name its
+evidence: a test in this module (which must exist), or the reason it cannot be mechanised. A ninth principle
+added to the list fails the suite until someone writes down how we know it holds. Mutation-checked both ways.
+
+Recording the honest limit: this asserts that we have written down how we know, not that the principles are
+true. Four of the eight rest on structure or judgement rather than on an assertion, and saying so in a file
+that a reader will take as coverage is the whole point.
+
+**Lesson: the fix for "a test that covers a subset while reading as complete" is not more tests — it is to
+make the *enumeration itself* the thing under test, with an explicit, reasoned entry for every member,
+including the ones that cannot be checked. Then the gap is a failure rather than an absence. That is the
+third time this session the same shape has worked: documented skips in the round log, `_SKIPPED` for cited
+rounds, and now evidence-per-principle.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

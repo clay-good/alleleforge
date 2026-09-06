@@ -10,6 +10,13 @@ acceptance.
 
 ### Added
 
+- **Each of the eight non-negotiable principles now has its evidence written down.** `test_stated_principles`
+  checked three of them while reading as though it covered "the principles" — the same shape as the
+  principle-8 gap it sat next to. It now parses the numbered list from `openspec/project.md` and requires
+  every principle to name either the test that checks it or the reason it cannot be checked mechanically
+  (principle 4, "wrap don't rebuild", is a judgement no assertion decides). A named test must actually exist.
+  A ninth principle added to the list fails the suite until its evidence is recorded.
+
 - **The frontend's "loads no third-party scripts" promise is now enforced.** The README, the deployment guide
   and the page itself all state it, and it is a privacy claim about a page a lab opens while pasting patient
   variants into it — a CDN font leaks the fact and timing of every visit, and a third-party script leaks
