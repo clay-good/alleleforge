@@ -40,6 +40,16 @@ def _flags(
 ) -> tuple[str, ...]:
     """Return free-form annotations surfacing the bystander tradeoff."""
     flags: list[str] = []
+    # The out-of-distribution disclosure, on the same terms as the other two verticals.
+    # `_flags` was never handed the efficiency prediction, so `ood` could not be raised
+    # for a base-editor candidate whatever the predictor said — while the ranker, which
+    # reads `in_distribution` off the prediction directly, was already demoting such a
+    # candidate to its lower interval bound. Ranked as untrustworthy, rendered as
+    # ordinary. The default predictor's own OOD condition (an `N` in the spacer) is
+    # excluded by the enumerator, but `base_outcome_predictor` is a documented override
+    # point and any trained model behind it can return `in_distribution=False`.
+    if not outcome.p_target_edited.in_distribution:
+        flags.append("ood")
     if window.has_bystanders:
         flags.append(f"bystander-present:{len(window.bystander_positions)}")
     else:

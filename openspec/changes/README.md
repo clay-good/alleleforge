@@ -8426,6 +8426,38 @@ every angle except the one that matters, and the one left behind is disproportio
 awkward one — which is often the severe one.**
 
 
+## Round 254 — the same asymmetry, one flag over
+
+R253's query run against the whole caveat vocabulary: for each flag, which verticals can
+emit it? One line stood out —
+
+    ood    ['cas9.py', 'designer.py', 'prime.py', 'ranking.py']
+
+Two of three design verticals. `ood` is the sharpest label this machinery has: it says the
+efficiency point estimate should not be trusted, and that the candidate was ranked on its
+lower interval bound instead. `design/base_editor.py`'s `_flags` takes the window, the
+outcome and the off-target report — never the efficiency prediction — so a base-editor
+candidate could not carry it under any circumstances.
+
+The ranker was never fooled. It reads `in_distribution` off the prediction directly and
+was already demoting such a candidate. So the two halves of one fact disagreed: ranked as
+untrustworthy, rendered as ordinary, with the demotion visible in the score and its reason
+visible nowhere.
+
+Why nothing noticed: the bundled predictor's OOD condition is an `N` in the spacer, and
+the enumerator rejects an `N`-containing protospacer before a candidate exists — so the
+default path can never produce one, and the "fail-honest OOD flag, never hardcoded True"
+in `base_outcome.py` is, in practice, hardcoded True. But `base_outcome_predictor` is a
+documented override taking any predictor satisfying the protocol, including the opt-in
+trained BE-DICT adapter, and a trained model's OOD detector returns `False` on real
+inputs. Three lines, mirroring the other two verticals.
+
+**Lesson: for a *disclosure*, ask which code paths can raise it, not whether the condition
+is currently reachable. An unreachable-by-default condition is why nobody notices, and the
+override point that makes it reachable is exactly the advanced path where the disclosure
+matters most.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

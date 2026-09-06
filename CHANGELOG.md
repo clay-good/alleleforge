@@ -2036,6 +2036,15 @@ acceptance.
 
 ### Fixed
 
+- **A base-editor candidate can now say it is out of distribution.** `ood` is the sharpest label the
+  honesty machinery has — the point estimate should not be trusted, and the candidate was ranked on its
+  lower interval bound. `design/cas9.py` and `design/prime.py` both raise it; `design/base_editor.py`'s
+  `_flags` was never handed the efficiency prediction, so no base-editor candidate could carry it whatever
+  the predictor said. The ranker was never fooled — it reads `in_distribution` directly and was already
+  demoting such a candidate — so one could be *ranked* as untrustworthy and *rendered* as ordinary.
+  Reachable through the documented `base_outcome_predictor` override, where a trained model's OOD detector
+  legitimately returns `False`.
+
 - **A Pol III terminator in the spacer is flagged on every chemistry.** Four consecutive Ts end U6
   transcription, so the guide is never made at full length — categorically worse than the two caveats
   `design/spacer_quality.py` already shared. The check stayed behind in the prime vertical when the others
