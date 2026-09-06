@@ -6489,6 +6489,49 @@ question is not "is it faster" but "what did the old code refuse to do that the 
 will do quietly", and that answer is the test.**
 
 
+## Round 207 — a measured dead end in the remaining hot spot
+
+After R205 and R206, `_best_with_removed_base` is the largest single cost in the scan:
+1.70s of 3.0s, 1,002,524 calls (two per PAM-positive anchor, one per bulge direction —
+the caller guards both correctly, so none of those calls is waste).
+
+The function is already carefully optimized: both passes stop the moment the budget is
+blown, and the search range is bounded from both ends. What remains per call is two
+21-element list allocations, and the measurement that made them look worth attacking:
+
+    20000/20000 calls return None (100.0%)   on random sequence
+
+Every one of those million calls allocates two lists and throws them away. Three variants
+were written and each checked against the current implementation over 60,000 randomized
+shapes and budgets before being timed:
+
+    variant          random (all reject)   survivors   mixed
+    bound-first             +25.9%          -64.7%     +6.6%
+    rolling, no lists       +24.2%          -52.7%    +11.4%
+    one list, rolled suffix +14.6%          -36.5%     +0.9%
+
+All three buy the reject path with the survivor path, because a survivor makes the
+bounding passes run to completion and then pays for the accumulation again. **Not
+shipped.** The reject path dominates on random sequence, but the survivors are where the
+scientific output is — a real off-target, a repetitive region, a segmental duplication —
+and I cannot measure a realistic survivor rate without real genomic sequence, which this
+repo deliberately does not ship. Optimizing for the synthetic distribution while
+pessimizing the meaningful one, on an assumption I have no way to test, is a bad trade
+made confidently.
+
+Where the remaining win actually is: this is interpreter overhead on a million calls of a
+twenty-element loop, and the project already has a Rust kernel doing the FM-index search,
+k-mer seeding and haplotype walking. This function is the obvious next thing to move
+across, and that is a change for someone with the toolchain built (`pip install maturin`,
+then `maturin develop`), not a Python micro-optimization.
+
+**Lesson: a 100%-of-calls measurement is not a 100%-of-cases measurement. "Every call
+returns None" was true of the benchmark and false of the workload that matters, and three
+variants were written before that distinction surfaced. Ask what the distribution looks
+like where the answer is interesting, not only where it is common — and when the
+distribution cannot be measured, that is itself the reason not to ship.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
