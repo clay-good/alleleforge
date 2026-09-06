@@ -8383,6 +8383,49 @@ kind. And a golden fixture proves stability, not correctness — read the golden
 content at least once, because whatever is wrong in it is being reproduced perfectly.**
 
 
+## Round 253 — reading the golden as content, immediately
+
+R252 ended with "read the golden as content at least once — whatever is wrong in it is
+being reproduced perfectly." So I did, the same round, and it produced a second finding
+straight away.
+
+The fixture's single candidate — the one marked `recommended` — is an ABE8e sgRNA on:
+
+    TTTAAACGTTTTTTTTTTTT
+
+Twelve consecutive Ts. Four are enough to terminate Pol III, so a U6-expressed guide on
+this spacer is truncated: the reagent is not made. Its flags were
+`bystander-present:2, bystander-burden:0.60, no-5prime-g, gc-out-of-band:0.10,
+recommended`. Both of the softer problems named; the categorical one absent.
+
+`design/spacer_quality.py` exists precisely to stop this. Its docstring: these caveats
+"are properties of an sgRNA spacer as a *transcribed reagent*, not of the chemistry that
+uses it" — written when a low-GC spacer was flagged on prime and reported clean on the
+other two. Two of prime's three checks moved there. The third, the severe one, stayed
+behind, so the constraint had three answers depending on chemistry: prime refuses the
+protospacer, the cas9 efficiency model docks 1.5 logits, base editing was silent. The
+module built to end this class was itself incomplete on its worst member — the same shape
+as R247, where the guard against unclassified flags had a hand-drawn scope.
+
+Now in the shared module, leading the list because it is categorical where the others are
+gradual, annotated rather than dropped (the enumerators decide what to refuse; this says
+what is wrong with what they kept), and classified as a hazard whose sentence names the
+consequence — truncated, not merely inefficient — rather than the motif. Golden re-pinned,
+and this time it re-pins something truer than what it held.
+
+One deliberate boundary, recorded so a later round does not relitigate it: the candidate
+stays ranked and still reads `recommended`. Pol III termination applies to a *U6-expressed*
+guide, and a chemically synthesized sgRNA is a routine delivery route where it does not —
+so this is a caveat conditional on delivery, not an invalid reagent. That is why the flag
+annotates rather than demotes, matching the GC-band precedent in the same module, and why
+the sentence names the remedy as well as the consequence.
+
+**Lesson: when a shared module is created to unify a scattered check, count the checks it
+absorbed against the checks that existed. Two of three looks like a completed refactor from
+every angle except the one that matters, and the one left behind is disproportionately the
+awkward one — which is often the severe one.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

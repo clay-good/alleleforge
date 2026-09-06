@@ -23,7 +23,19 @@ MakeRef = Callable[[dict[str, str]], ReferenceGenome]
 def test_the_checks_themselves() -> None:
     assert spacer_quality_flags("GACGTACGTACGTACGTACG") == []  # 5' G, GC 0.50 in band
     assert spacer_quality_flags("ACGTACGTACGTACGTACGT") == ["no-5prime-g"]
-    assert spacer_quality_flags("TTTTTATTTTTTTTTTTTTT") == ["no-5prime-g", "gc-out-of-band:0.00"]
+    # This low-GC example is also a poly-T tract, so it now carries the terminator flag
+    # too — which is the point of adding it: nothing here had noticed that the fixture
+    # standing in for "transcribes badly" was in fact a spacer that does not transcribe.
+    assert spacer_quality_flags("TTTTTATTTTTTTTTTTTTT") == [
+        "pol3-terminator",
+        "no-5prime-g",
+        "gc-out-of-band:0.00",
+    ]
+    # ...and a low-GC spacer without a T-run keeps exactly the two older flags.
+    assert spacer_quality_flags("ATATATATACATATATATAT") == [
+        "no-5prime-g",
+        "gc-out-of-band:0.05",
+    ]
     assert spacer_quality_flags("GGGGGGGGGGGGGGGGGGGG") == ["gc-out-of-band:1.00"]
     assert spacer_quality_flags("") == []  # no spacer, no claim
     # The band is a band, not a floor: both edges are exercised above.

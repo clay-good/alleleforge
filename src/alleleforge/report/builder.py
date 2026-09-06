@@ -88,6 +88,11 @@ CAVEAT_FLAGS: dict[str, str] = {
         "the two nicks are close enough to act as a staggered double-strand break, the "
         "outcome prime editing is chosen to avoid; expect indel byproducts"
     ),
+    "pol3-terminator": (
+        "the spacer contains TTTT, which terminates Pol III transcription — a "
+        "U6-expressed guide is truncated rather than merely inefficient, so this "
+        "reagent needs a synthesized sgRNA or a different spacer"
+    ),
     "gc-out-of-band": (
         "spacer GC is outside the band where U6 transcription and oligo synthesis behave"
     ),

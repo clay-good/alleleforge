@@ -2036,6 +2036,15 @@ acceptance.
 
 ### Fixed
 
+- **A Pol III terminator in the spacer is flagged on every chemistry.** Four consecutive Ts end U6
+  transcription, so the guide is never made at full length — categorically worse than the two caveats
+  `design/spacer_quality.py` already shared. The check stayed behind in the prime vertical when the others
+  moved, so the same constraint had three answers: prime refuses the protospacer, the Cas9 efficiency model
+  docks 1.5 logits, base editing said nothing. The golden reproducibility fixture shipped the proof — its
+  single `recommended` candidate is an ABE8e sgRNA on `TTTAAACGTTTTTTTTTTTT`, flagged for GC and a missing
+  5' G, silent about twelve consecutive Ts, reproduced byte-exactly on every run. Now annotated by the
+  shared module and classified as a hazard naming its consequence.
+
 - **The menu rationale's headings are true of the lines under them.** Run outcomes and caveats were appended
   as bare `- ` bullets directly beneath "Why the other chemistries declined:", in that list's own format, so
   a reader met `- prime: 90 candidate(s)` as a reason prime declined — on a page where prime produced all 90
