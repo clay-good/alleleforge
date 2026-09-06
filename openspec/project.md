@@ -45,9 +45,13 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
 1. **Variant-first.** The canonical journey starts from a variant, not a guide.
 2. **Honest uncertainty.** No scorer returns a bare float. Every numeric prediction
    ships with a calibrated interval, a method tag, a calibrated flag, and an OOD flag.
-3. **Population-aware by default.** Off-target search covers population variation and
-   stratifies by ancestry; a minor allele can create a de novo PAM a reference-only
-   scan misses.
+3. **Population-aware, and explicit when it cannot be.** A minor allele can create a
+   de novo PAM a reference-only scan misses, so population and haplotype variation is a
+   first-class search pass rather than an add-on. It is **not** on by default, because
+   AlleleForge vendors no gnomAD data: supply a frequency source (`--gnomad`,
+   `--haplotypes`, `--patient-vcf`) and the scan is population-aware; supply none and it
+   is reference-only — and every surface says so, because an empty ancestry breakdown
+   means *not measured*, not *clean*.
 4. **Wrap, don't rebuild.** Integrate the best existing tools behind one typed
    interface; add new ML only at genuine coverage gaps.
 5. **Reproducible to the byte.** Pinned environments, versioned datasets, deterministic

@@ -7873,6 +7873,47 @@ the vocabulary does not. The fix is not deduplication — it is finding the word
 word is usually already written in a comment next to one of the copies.**
 
 
+## Round 239 — the source of truth still said the thing that was corrected
+
+R237's lesson — a check that compares two *lists* instead of two *things* passes while
+both stay the same length — asked of the other agreement checks in the suite. One
+matched: `_PRINCIPLE_EVIDENCE` in `test_stated_principles.py` is keyed by principle
+*number*, and `_stated_principles()` returns `{number: title}`. The check compared key
+sets. Reword a principle and its recorded evidence transfers to the new wording in
+silence, which matters most for principle 3, whose evidence is a test about that
+principle's exact claim. The evidence now records the title it was written against.
+
+That mutation is what found the real thing. Rewording principle 3 to something honest
+made the check fire — and then the two statements of the principles turned out to
+disagree already:
+
+    openspec/project.md   3. Population-aware by default
+    README.md             3. Population-aware, and explicit when it cannot be
+
+The README's version is the corrected one. The overclaim was found and fixed in the
+user-facing prose — the test guarding it even explains why ("Principle 3, as stated, was
+false, and contradicted the same README's CLI section") — and `openspec/project.md`,
+which `_stated_principles()` itself calls **the source of truth**, still said
+*Population-aware by default. Off-target search covers population variation and
+stratifies by ancestry*, which is not what the tool does unless you supply a frequency
+source.
+
+The guard did not catch it because it read `README.md` and `docs/index.md`. **A guard
+that reads every surface except the canonical one** is the shape this log keeps
+finding, and it is sharper here than usual: the canonical file is the one other
+documents are supposed to be checked against.
+
+Three fixes: the source of truth carries the honest wording, the overclaim guard reads
+it, and a new check requires the two statements of the principles to agree — because a
+claim written out twice is a claim that can disagree with itself. Restoring the old
+wording fails all three.
+
+**Lesson: when a project designates a file as its source of truth, that file is the one
+most likely to go unchecked — everything else is verified *against* it, so nothing is
+pointed *at* it. Ask what reads the canonical document, and expect the answer to be
+"the other documents' authors, once".**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

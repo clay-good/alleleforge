@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **The design principles agree with themselves.** `openspec/project.md` — the file the tests call the source
+  of truth — still stated *"Population-aware by default. Off-target search covers population variation and
+  stratifies by ancestry"*, the overclaim the README and docs had already been corrected for; the guard
+  against that claim read `README.md` and `docs/index.md` and not the canonical file. The source of truth now
+  carries the honest wording, the guard reads it, and a new check requires the README's restatement of the
+  principles to match it. `_PRINCIPLE_EVIDENCE` also now records the *title* each entry was written against,
+  not just the number, so rewording a principle cannot silently transfer its evidence.
+
 - **A `genome-light` extra names the set every build was assembling by hand.** `"pyfaidx>=0.8"
   `"pyliftover>=0.4"` was appended to an extra in seven CI jobs, the Makefile and the Docker image — the
   light half of `genome` (pure-Python FASTA reader and liftover, without the compiled pysam/cyvcf2/mappy
