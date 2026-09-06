@@ -1576,6 +1576,15 @@ acceptance.
 
 ### Fixed
 
+- **The printable order sheet omitted the HDR donor — half the reagent.** `oligos_for` pairs a precise Cas9
+  candidate with its repair template, and its own test says why: *"returning only the guide would hand the
+  bench the half that cannot edit."* The PDF then handed the bench exactly that half — no donor sequence, not
+  even the word "donor" — while the candidate line above read "+ HDR donor 100 nt", so a reader knew one
+  existed and could not order it from the page. The sheet now carries the donor's sequence, length, re-cut
+  disposition, note and warnings. The field-coverage guard is extended to both oligo models, checked against
+  the PDF's hand-formatted block specifically: the HTML dumps the whole record as JSON, so every field is
+  trivially "present" there and nothing is learned.
+
 - **The printable order sheet did not say that the cloned guide differs from the scored spacer.** U6
   transcription needs a 5' G, so the lentiGuide scheme prepends one when the spacer lacks it — the duplex a
   lab orders encodes a **21-nt** guide while every efficiency and off-target number on the page describes the

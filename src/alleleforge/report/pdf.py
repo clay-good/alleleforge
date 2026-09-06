@@ -72,6 +72,21 @@ def _oligo_lines(oligos: SgRnaOligos | PegRNAOligos) -> list[str]:
         if oligos.nicking is not None:
             lines += _wrap(f"ngRNA top    5'-{oligos.nicking.top}-3'", indent="      ")
             lines += _wrap(f"ngRNA bottom 5'-{oligos.nicking.bottom}-3'", indent="      ")
+    donor = oligos.donor if isinstance(oligos, SgRnaOligos) else None
+    if donor is not None:
+        # Half the reagent. A precise nuclease edit is a guide *and* its repair
+        # template — `oligos_for` pairs them for exactly that reason — and the printable
+        # order sheet listed only the duplex, without the donor sequence or even the
+        # word "donor". The candidate line above says "+ HDR donor 100 nt", so a reader
+        # knew one existed and had no way to order it from this page.
+        recut = "re-cut blocked" if donor.recut_blocked else "re-cut NOT blocked"
+        lines += _wrap(f"HDR donor ({donor.kind}, {len(donor)} nt, {recut}):", indent="    ")
+        lines += _wrap(f"5'-{donor.sequence}-3'", indent="      ")
+        if donor.note:
+            lines += _wrap(f"note: {donor.note}", indent="      ")
+        for warning in donor.warnings:
+            lines += _wrap(f"WARNING - {warning}", indent="      ")
+
     for warning in oligos.warnings:
         lines += _wrap(f"WARNING: {warning}", indent="      ")
     if scheme.phosphorylation:

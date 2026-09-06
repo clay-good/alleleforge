@@ -5467,6 +5467,35 @@ the one people read. The HTML "renders" `g_added` only in the sense that a JSON 
 satisfies a field-coverage check and no reader. When two surfaces render the same object by different
 mechanisms, the field-by-field one is where a fact goes missing.**
 
+## Round 182 — the half that cannot edit
+
+R181's lesson said the hand-formatted view is where a fact goes missing, and the guard I had built in R156
+covered the report models and not the oligo ones. Extending it found something much worse than the missing
+sentence that prompted it.
+
+`SgRnaOligos.donor` reached no renderer. For a precise Cas9 edit the repair template *is* half the reagent —
+`oligos_for` pairs them deliberately, and the test that pins the pairing says outright that "returning only
+the guide would hand the bench the half that cannot edit". The printable order sheet then did that: the guide
+duplex, the prep note, and no donor sequence. Not even the word "donor". The candidate line above it reads
+"+ HDR donor 100 nt", so a reader knew one existed and had no way to order it from the page they were
+ordering from.
+
+Two process notes, both about my own checking.
+
+My first attempt to confirm the absence searched the PDF text for the donor sequence and found it — because
+the fixture's donor and its spacer are both `ACGT` repeats. A coincidental match reported the bug as
+absent. Re-run with a donor unlike the spacer, it is plainly missing.
+
+Then the guard itself matched *nothing at all* under pytest while working standalone — a regex built by
+f-string interpolation. I spent several minutes assuming the path resolution was wrong before replacing it
+with plain substring checks. A checker that silently finds nothing looks exactly like a clean bill, which is
+the failure mode this whole guard exists to prevent, reproduced inside it.
+
+**Lesson: when confirming a bug's *presence*, a search that succeeds is not evidence — it may have matched
+something else. I nearly closed this as a non-finding on a fixture whose two sequences happened to share an
+alphabet. Construct the probe so a coincidental match is impossible, especially when the answer you get is
+the convenient one.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

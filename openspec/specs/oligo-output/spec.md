@@ -181,3 +181,14 @@ off-target number on it was computed for the unmodified spacer.
 #### Scenario: A spacer that does not begin with G
 - **WHEN** the scheme prepends a G
 - **THEN** the order sheet names the prepend, the cloned length, and the scored spacer
+
+### Requirement: The order sheet carries every component of the reagent
+
+A printable report SHALL list every oligo a candidate requires, including the HDR
+repair template for a precise nuclease edit. A precise edit is a guide *and* its donor;
+a sheet listing only the duplex hands the bench the half that cannot edit.
+
+#### Scenario: A precise Cas9 candidate with a donor
+- **WHEN** a candidate carries an HDR donor
+- **THEN** the printable sheet lists the donor's sequence, length, re-cut disposition
+  and any ordering warnings, alongside the guide duplex

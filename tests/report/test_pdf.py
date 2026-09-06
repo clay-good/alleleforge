@@ -124,3 +124,41 @@ def test_no_note_when_the_spacer_already_starts_with_g() -> None:
     oligos = sgrna_oligos("GACCCCCTCCACCCCGCCTC")
     assert not oligos.g_added
     assert "prepended" not in " ".join(_oligo_lines(oligos))
+
+
+def test_the_order_sheet_carries_the_hdr_donor() -> None:
+    """The printable sheet listed the guide duplex and not the repair template.
+
+    `oligos_for` pairs a precise Cas9 candidate with its donor, and its own test says
+    why: "returning only the guide would hand the bench the half that cannot edit."
+    The PDF then handed the bench exactly that half — no donor sequence, and not even
+    the word "donor", while the candidate line above said "+ HDR donor 100 nt", so a
+    reader knew one existed and could not order it from the page.
+    """
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from alleleforge.report.oligos import oligos_for
+    from alleleforge.report.pdf import _oligo_lines
+    from report.test_oligos import _precise_cas9_candidate  # type: ignore[import-not-found]
+
+    # Deliberately unlike the fixture's ACGT-repeat spacer: an earlier version of this
+    # check matched the spacer by coincidence and reported the donor as present.
+    donor = "TTGGCCAA" * 12 + "TTGG"
+    oligos = oligos_for(_precise_cas9_candidate(donor))
+    assert oligos.donor is not None
+
+    text = " ".join(_oligo_lines(oligos))
+    assert "HDR donor" in text
+    assert "100 nt" in text
+    assert "re-cut blocked" in text
+    # The sequence itself, ignoring the line wrapping the PDF applies.
+    assert donor in text.replace(" ", "").replace("\n", "")
+
+
+def test_a_guide_without_a_donor_gets_no_donor_block() -> None:
+    from alleleforge.report.oligos import sgrna_oligos
+    from alleleforge.report.pdf import _oligo_lines
+
+    assert "HDR donor" not in " ".join(_oligo_lines(sgrna_oligos("GACCCCCTCCACCCCGCCTC")))
