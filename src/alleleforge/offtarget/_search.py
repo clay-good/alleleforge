@@ -271,7 +271,59 @@ def _best_with_removed_base(longer: str, shorter: str, max_mm: int) -> tuple[int
     return _python_best_with_removed_base(longer, shorter, max_mm)
 
 
+def _native_evaluate_available() -> bool:
+    """Return ``True`` if the native crate exposes the per-anchor evaluation kernel."""
+    ext = getattr(_native, "_ext", None)
+    return _native.NATIVE_AVAILABLE and ext is not None and hasattr(ext, "evaluate_anchor")
+
+
+#: Resolved once at import, for the same reason the bulged-alignment dispatcher is:
+#: this runs once per PAM-positive anchor -- half a million times over 2 Mb -- so an
+#: availability check inside the loop would eat the win it is dispatching to.
+_NATIVE_EVALUATE = (
+    _native._ext.evaluate_anchor  # type: ignore[attr-defined]
+    if _native_evaluate_available()
+    else None
+)
+
+
 def _evaluate(
+    spacer: str,
+    seq: str,
+    pam_at: int,
+    pam_len: int,
+    *,
+    max_mm: int,
+    dna_bulges: int,
+    rna_bulges: int,
+) -> tuple[int, int, int, int, str, str] | None:
+    """Evaluate the protospacer 5' of a PAM, natively when the crate is built.
+
+    Dispatches to the Rust kernel when it is available and to
+    :func:`_python_evaluate` otherwise. The two are pinned byte-identical by a parity
+    test, so an unbuilt crate changes the *speed* of a scan and not its results — the
+    contract every other kernel here keeps.
+
+    The native path subsumes the ungapped comparison and both bulge alignments, so a
+    scan crosses the FFI boundary once per anchor rather than three times.
+    """
+    if _NATIVE_EVALUATE is not None:  # pragma: no cover - native not built in CI
+        native: tuple[int, int, int, int, str, str] | None = _NATIVE_EVALUATE(
+            spacer, seq, pam_at, max_mm, dna_bulges, rna_bulges
+        )
+        return native
+    return _python_evaluate(
+        spacer,
+        seq,
+        pam_at,
+        pam_len,
+        max_mm=max_mm,
+        dna_bulges=dna_bulges,
+        rna_bulges=rna_bulges,
+    )
+
+
+def _python_evaluate(
     spacer: str,
     seq: str,
     pam_at: int,
@@ -294,11 +346,28 @@ def _evaluate(
     """
     n = len(spacer)
     candidates: list[tuple[int, int, int, int, str, str]] = []
+    if pam_at > len(seq):
+        # No window ends here, so there is nothing to score. Worth stating rather than
+        # letting the slices decide: for an *empty* spacer every slice is legally empty
+        # and the ungapped comparison then reported a zero-mismatch hit at a coordinate
+        # outside the sequence — the most confident possible answer about a protospacer
+        # that does not exist.
+        return None
+    # `pam_at` past the end of `seq` is off-contract — the scan only ever reports a
+    # PAM it found inside the sequence — but Python slicing silently returns a short
+    # window there, and the ungapped comparison then raised `ValueError` from a `zip`
+    # three frames down. The native kernel had to decide what to do instead, and the
+    # honest answer is that there is no protospacer to score. Each branch below
+    # therefore checks that its slice yielded the bases it asked for. In contract this
+    # is always true, so nothing the scan produces changes; off contract both paths now
+    # return `None`, which is what makes the parity claim hold everywhere rather than
+    # only where the caller happens to be correct (the same decision the bulged
+    # alignment kernel forced).
     # Ungapped: protospacer is exactly n bases immediately 5' of the PAM.
     start = pam_at - n
     if start >= 0:
         window = seq[start:pam_at]
-        mm = _best_ungapped(spacer, window, max_mm)
+        mm = _best_ungapped(spacer, window, max_mm) if len(window) == n else None
         if mm is not None:
             candidates.append((start, mm, 0, 0, spacer, window))
     # DNA bulge: protospacer is n+1 bases (one extra genomic base); remove it so
@@ -307,7 +376,7 @@ def _evaluate(
         start = pam_at - (n + 1)
         if start >= 0:
             window = seq[start:pam_at]
-            best = _best_with_removed_base(window, spacer, max_mm)
+            best = _best_with_removed_base(window, spacer, max_mm) if len(window) == n + 1 else None
             if best is not None:
                 mm, reduced_target = best
                 candidates.append((start, mm, 1, 0, spacer, reduced_target))
@@ -317,7 +386,7 @@ def _evaluate(
         start = pam_at - (n - 1)
         if start >= 0:
             window = seq[start:pam_at]
-            best = _best_with_removed_base(spacer, window, max_mm)
+            best = _best_with_removed_base(spacer, window, max_mm) if len(window) == n - 1 else None
             if best is not None:
                 mm, reduced_spacer = best
                 candidates.append((start, mm, 0, 1, reduced_spacer, window))

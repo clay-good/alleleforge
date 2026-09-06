@@ -7230,6 +7230,57 @@ divergence impossible in the same patch, which left a test that passes for a rea
 unrelated to the one in its name — the most expensive kind, because it will be trusted.**
 
 
+## Round 224 — a fifth kernel, and two decisions the Python had never made
+
+R223's profile named the next two costs after the contig fold: `_evaluate` (0.503s
+self, 501,262 calls) and `_best_ungapped` (0.465s, the same count). `_evaluate` is the
+per-anchor entry point — it does the ungapped comparison in Python and then crosses the
+FFI boundary twice more, once per bulge direction, into the R208 kernel. Moving the
+whole decision into Rust replaces three crossings with one and removes the interpreter
+loop with them.
+
+`rust/src/evaluate.rs`, wired through the crate's existing conventions: a
+`_native_evaluate_available()` probe, a dispatcher resolved **once at import**, and
+`_python_evaluate` kept as the byte-identical fallback. Measured as interleaved A/B
+pairs so the figure is not one run against another run's weather:
+
+    before  1.184s  1.287s  1.274s  1.235s  1.256s
+    after   0.893s  0.923s  0.869s  0.901s  0.887s        ~28%
+
+Specificity identical to nine decimal places in every run.
+
+**Porting is a specification exercise, and this is the second time in a row it has
+found something.** Two off-contract inputs — the scan only ever reports a PAM it found
+*inside* the sequence — where the Python's accidental answer was worse than an error:
+
+* `pam_at` past the end of `seq`: Python sliced a short window and raised `ValueError`
+  from a `zip(..., strict=True)` three frames down.
+* the same with an **empty spacer**: every slice is legally empty, so the ungapped
+  comparison returned a *zero-mismatch hit at a coordinate outside the sequence* — the
+  most confident possible answer about a protospacer that does not exist.
+
+Both paths now return `None`. In contract nothing changes: a slice that ends at or
+before the end of the sequence always yields exactly the bases asked for.
+
+The generator is the part to remember. My first randomized differential drew
+`n = randint(2, 8)` and `pam_at <= len(seq)`, ran **200,000 cases, and reported zero
+mismatches** — over two implementations that disagreed on both shapes above. Widening
+it to `n >= 0` and `pam_at <= len(seq) + 3` found 5,355 disagreements in the same
+number of draws. A differential test is only as wide as its generator, and a generator
+written after the implementation inherits the implementation's assumptions about what
+inputs exist.
+
+I also kept the shared venv out of it: the wheel is built with `maturin build` and
+unpacked into a scratch directory that goes on `PYTHONPATH` for the native runs, rather
+than `maturin develop`, which would have installed a worktree build into the checkout
+every other session shares.
+
+**Lesson: "200,000 randomized cases passed" is a statement about the generator, not
+about the code. Before trusting a differential, ask which inputs it cannot produce —
+and note that the answer is usually the inputs whose handling was never decided, which
+is exactly the set a port exists to surface.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -14,6 +14,7 @@ use pyo3::prelude::*;
 
 mod align;
 mod bwt;
+mod evaluate;
 mod haplotype;
 mod kmer;
 mod sais;
@@ -149,6 +150,25 @@ fn align_best_with_removed_base(
     align::best_with_removed_base(longer, shorter, max_mm)
 }
 
+/// Per-anchor protospacer evaluation: the edit-minimal in-budget alignment 5' of a PAM.
+///
+/// Returns `(proto_start, mismatches, dna_bulge, rna_bulge, aligned_spacer,
+/// aligned_target)`, or `None` when nothing is within budget. Subsumes the ungapped
+/// comparison and both bulge alignments, so the scan crosses the FFI boundary once per
+/// anchor instead of three times.
+#[pyfunction]
+#[allow(clippy::too_many_arguments)]
+fn evaluate_anchor(
+    spacer: &str,
+    seq: &str,
+    pam_at: usize,
+    max_mm: usize,
+    dna_bulges: usize,
+    rna_bulges: usize,
+) -> Option<(usize, usize, usize, usize, String, String)> {
+    evaluate::evaluate(spacer, seq, pam_at, max_mm, dna_bulges, rna_bulges)
+}
+
 /// Off-target seeding: reference offsets sharing an exact k-mer with `spacer`.
 #[pyfunction]
 fn kmer_seed_positions(sequence: &str, spacer: &str, k: usize) -> Vec<usize> {
@@ -177,6 +197,7 @@ fn aforge_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fm_locate, m)?)?;
     m.add_function(wrap_pyfunction!(fm_suffix_array, m)?)?;
     m.add_function(wrap_pyfunction!(align_best_with_removed_base, m)?)?;
+    m.add_function(wrap_pyfunction!(evaluate_anchor, m)?)?;
     m.add_function(wrap_pyfunction!(kmer_seed_positions, m)?)?;
     m.add_function(wrap_pyfunction!(haplotype_apply_variants, m)?)?;
     m.add_class::<NativeFmIndex>()?;

@@ -10,6 +10,18 @@ acceptance.
 
 ### Added
 
+- **A fifth native kernel: the per-anchor protospacer evaluation.** `_evaluate` runs once per PAM-positive
+  anchor — 500,000 times over 2 Mb — doing the ungapped comparison in Python and crossing the FFI boundary
+  twice more for the two bulge directions. `rust/src/evaluate.rs` does the whole decision, so a scan crosses
+  once per anchor instead of three times: **a 2 Mb scan goes ~1.25s to ~0.89s, 28%**, measured as interleaved
+  A/B pairs, with the specificity identical to nine decimal places. Same contract as every other kernel — an
+  unbuilt crate changes the speed of a run and not its results, pinned by a parity suite.
+
+  Writing the port forced two decisions the Python had never made, both off-contract and both worse than an
+  error: `pam_at` past the end of the sequence raised `ValueError` from a `zip` three frames down, and the
+  same with an *empty spacer* returned a zero-mismatch hit at a coordinate outside the sequence. Both paths
+  now refuse. Nothing in contract changes.
+
 - **Folding a contig to the index alphabet runs in C, not per base in Python.** `_sanitize` maps every base
   outside `ACGTN` to `N` so the linear scan and the FM-index path agree about what a window holds; it did so
   with `all(b in _INDEX_ALPHABET for b in seq)` plus a comprehension — one pass of interpreter overhead per
