@@ -2056,6 +2056,14 @@ acceptance.
 
 ### Fixed
 
+- **A wider off-target search is pinned never to report a safer guide.** Raising the mismatch budget,
+  lowering the reporting cut-off, or allowing bulges can only find more, so no result from a wider search
+  may look better than the cheap one — the worst direction for that failure to run in, and a class this
+  project has already shipped once (a benign ancestry-tagged site *raising* a candidate's safety score).
+  Now tested, including the subtlety that makes the naive form of the property false: the engine keeps the
+  best-scoring alignment per site, so a hit realigned through a bulge reports a different interval, and what
+  must hold is coverage — every ungapped site overlapped by a bulged site scoring at least as high.
+
 - **The documented scientific defaults are pinned to the code.** The off-target budgets and reporting
   thresholds (`CFD >= 0.20 or MIT >= 0.10`, `<= 4 mismatches`) and the pegRNA geometry (`PBS 8-17 nt`,
   `RTT 7-34 nt`) are restated fourteen times across the README's feature and parameter tables, its

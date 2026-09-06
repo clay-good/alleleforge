@@ -10,6 +10,21 @@ tool misses.
 
 ## Requirements
 
+### Requirement: A wider search never reports a safer guide
+
+Every search knob trades runtime for thoroughness, so no result from a wider budget SHALL
+look better than one from a narrower search of the same spacer: raising the mismatch
+budget or lowering the reporting cut-off SHALL NOT drop a nominated locus, allowing bulges
+SHALL leave every ungapped site covered by an overlapping site scoring at least as high,
+and the aggregate specificity SHALL NOT rise. Coverage rather than identity, because the
+engine keeps the best-scoring alignment per site: a hit realigned through a bulge
+legitimately reports a different interval and a higher score.
+
+#### Scenario: Bulges allowed on a previously ungapped hit
+- **WHEN** the same spacer is searched with and without a bulge budget
+- **THEN** every site the ungapped scan nominated is overlapped by a site the bulged scan
+  nominated with an equal or higher score, and the specificity does not improve
+
 ### Requirement: Both strands are scanned within a shared edit budget
 
 The system SHALL scan both strands of each requested region for PAM-anchored protospacer

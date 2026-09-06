@@ -9075,6 +9075,36 @@ nuisance in an exit code, an inconvenience in a schema version, and a false clai
 parameter a scientist would cite.**
 
 
+## Round 276 — a monotonicity probe, and the property I stated wrong first
+
+Back to the product. Every knob on `search()` buys thoroughness — more mismatches, bulges,
+a lower cut-off — so nothing derived from a wider search should look *better* than the same
+spacer scanned narrowly. That direction matters: a user who paid for the thorough scan
+being told their guide is safer is the worst way for this to fail, and the project has
+shipped a monotonicity violation on the safety axis before.
+
+Built a reference with a perfect site and five progressively worse ones and swept the
+knobs. Mismatch budget: monotone. Reporting cut-off: monotone. Bulges:
+
+    ungapped: chr1:596-616(+)  mm=2  score=0.517
+    bulges  : chr1:595-616(+)  mm=0 dna=1  score=1.000
+
+which my first formulation — "every locus found narrowly is still found widely" — called a
+lost site. It is not lost. It is the same site realigned through a bulge, one base longer,
+scoring twice as high; the engine keeps the best-scoring alignment per site, so the
+interval moved. My property was wrong, the behaviour was right, and reporting it as a bug
+would have been the fourth false alarm of the session — checked instead, which is what the
+extra ten minutes are for.
+
+The property that does hold, and now has a test: every narrowly-found site is *overlapped*
+by a widely-found site scoring at least as high, the aggregate specificity never improves,
+and the worst-case never drops. Coverage, not identity.
+
+**Lesson: when a monotonicity probe fires, suspect the property before the code. The useful
+form is usually about the *quantity* the system exists to report — here risk — and not
+about the identifiers it happens to report it under.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
