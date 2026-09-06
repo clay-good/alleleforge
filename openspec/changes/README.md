@@ -9229,6 +9229,34 @@ second one runs the sequence. Where one documented command consumes another's ou
 document is a program — execute it.**
 
 
+## Round 281 — the second documented chain, and the table that must not merge
+
+R280 executed the README's benchmark block. `docs/api/cli.md` documents a longer one, and
+its last three lines are more interesting than the README's:
+
+    aforge bench run cas9-efficiency --out cas9.json
+    aforge bench run offtarget-classification --out offtarget.json
+    aforge bench leaderboard cas9.json offtarget.json --format html --out board.html
+
+Two *different tasks* on one board. A Spearman correlation on a regression task and an
+AUROC on a classification task are not comparable, and the spec says a rank never crosses a
+comparison group. Ran it: two separate tables, each with its own metric header, each ranking
+its own entry first. Correct.
+
+Worth pinning because of how the failure would look. A refactor that merged the groups
+produces one ranked table with `0.7500` above `0.0000` — a leaderboard asserting that one
+model beat another when the two numbers are not the same kind of quantity. It would look
+completely normal. Collapsing `comparison_group`'s metric term turns the new test red at
+exactly that: one header row carrying both metrics.
+
+The rest of the chain (`resolve`, `data list`, `data show gnomad`) runs clean too, so the
+CLI reference is executable end to end where it does not need a genome.
+
+**Lesson: when a documented workflow combines two results, ask what the combination
+asserts. Rendering is where incomparable things get put side by side, and a table is a
+claim that its rows belong in one order.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

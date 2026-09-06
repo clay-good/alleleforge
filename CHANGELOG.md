@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **The docs' two-task leaderboard is pinned to keep the tasks apart.** `docs/api/cli.md` documents scoring
+  two tasks and rendering one board. A Spearman on a regression task and an AUROC on a classification task
+  are not comparable, and the spec says a rank never crosses a comparison group — so a refactor that merged
+  the groups would put `0.7500` above `0.0000` as though one model beat another, which is the most
+  plausible way for that board to become actively misleading. The documented chain is now executed and the
+  grouping asserted; collapsing the comparison group turns it red.
+
 - **The README's benchmark walkthrough is executed by the suite.** Four commands presented as the way to
   use CRISPR-Bench — list, score, write a signed result, render a model-card-gated board — proofread by
   existing guards (real flags, real symbols) and run start to finish by none. A renamed subcommand, or a
