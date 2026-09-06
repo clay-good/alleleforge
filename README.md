@@ -1393,7 +1393,8 @@ Rust crate builds locally with maturin (`cd rust && maturin develop`); the libra
 mode without it.
 
 Contributions are welcome — please read [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
-[Contributor Covenant 2.1](CODE_OF_CONDUCT.md) code of conduct.
+[Contributor Covenant 2.1](CODE_OF_CONDUCT.md) code of conduct. To report a security
+issue, follow [`SECURITY.md`](SECURITY.md) — open a private advisory, not an issue.
 
 ### Acceptance: the definition of done, as executable checks
 

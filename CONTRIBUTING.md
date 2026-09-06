@@ -80,3 +80,8 @@ reference build, the populations queried, and the exact spacer/PAM — ancestry 
 
 AlleleForge is licensed under the [MIT License](LICENSE) — all code, schemas, benchmark, and any first-party
 model weights. By contributing you agree your contributions are licensed under MIT.
+
+## Security reports
+
+Do not open a public issue for a vulnerability. See [`SECURITY.md`](SECURITY.md) —
+reports go through a private advisory, which is visible only to the maintainers.

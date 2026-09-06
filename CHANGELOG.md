@@ -8,6 +8,26 @@ acceptance.
 
 ## [Unreleased]
 
+### Security
+
+- **`ALLELEFORGE_API_TOKEN` was inert on the documented deployment path.** The variable was read only inside
+  `resolve_serve_token`, which only `serve()` calls — and both the deployment guide and the Dockerfile run
+  `uvicorn alleleforge.web.api.app:app`, which binds the module-level app directly. So the guard that refuses
+  a non-loopback bind without a token never ran there, and an operator who published the port and set the
+  variable believing it protected the service got a **fully open API**: a `/api/resolve` request with no
+  `X-API-Token` header returned `200`. `create_app()` now defaults the token from the environment, so it is
+  enforced on every path. The deployment guide's quickstart binds `127.0.0.1` (with a documented token form
+  for anything else), and `docker-compose.yml` maps `127.0.0.1:8000:8000` rather than every host interface.
+
+### Added
+
+- **`SECURITY.md`.** A public repository that ships a web API, downloads pinned artifacts, and accepts signed
+  leaderboard submissions from strangers had no stated way to report a vulnerability privately. Reports go
+  through a GitHub private advisory — the same channel the code of conduct uses. It states what is in scope
+  (untrusted-input parsing, the API and frontend, the artifact gates, generated leave-behinds), what is not
+  (a wrong scientific prediction is a modeling issue, not a vulnerability), and the deployment facts an
+  operator needs.
+
 ### Fixed
 
 - **The disk cache's integrity gate was implemented and nothing switched it on.** `ContentAddressedCache`

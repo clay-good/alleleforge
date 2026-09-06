@@ -3891,6 +3891,46 @@ up cost two minutes; reporting it would have been wrong in public.
 `skipped` were both honest and individually documented, and their juxtaposition was the lie — nothing in
 either field's definition is wrong, and no test of either one alone would have caught it.**
 
+## Round 143 — the token nothing read
+
+Three negative results first, and they are worth recording because they are places I expected to find
+something. Every `bool = False` default in the tree is fail-safe in the conservative direction
+(`allow_network`, `calibrated`, `synthetic`), and `OffTargetResponse.from_report`'s `on_target_excluded`
+default is passed correctly by its one caller. `RankingWeights` rejects non-finite, negative, and all-zero
+weights, so a user cannot pass `--weights 0 0 0 0` and get an arbitrary order presented as a ranking. And
+diffing the HTML and PDF renderers by the fields each reads returns the empty set in both directions — they
+are genuinely in step.
+
+Then, the missing SECURITY.md. This repository ships a web API with an auth token, downloads pinned
+artifacts, and accepts signed JSON submissions from strangers; it had no stated way to report a vulnerability
+privately. Writing that file honestly meant reading the actual posture rather than describing a generic one —
+and reading it is what found the round's real defect.
+
+`resolve_serve_token` refuses a non-loopback bind without a token. Good. It is called by `serve()`. And the
+deployment guide's flagship command is:
+
+    uvicorn alleleforge.web.api.app:app --host 0.0.0.0 --port 8000
+
+as is the Dockerfile's `CMD`. Both bind the module-level `app`; neither goes anywhere near `serve()`. So the
+guard does not run on the documented path — which I expected, and which is only half of it. `create_app` did
+not read the environment either. Checked it directly:
+
+    ALLELEFORGE_API_TOKEN=s3cret → POST /api/resolve with no header → 200
+
+An operator who publishes the port and sets the variable, exactly as the variable's name invites, gets a
+fully open API. The security control is not weak on that path; it is absent, and it looks present.
+
+`create_app` now defaults `api_token` from the environment, so the variable works everywhere and
+`resolve_serve_token` keeps its distinct job of *requiring* one before a public bind. The guide binds
+loopback by default and documents the token form for anything else; compose maps `127.0.0.1:8000:8000`
+instead of every host interface. Then SECURITY.md, describing the posture as it now actually is.
+
+**Lesson: writing the honest version of a document is an audit. I set out to record what the security
+controls are and could not do it without checking each one on the path users are actually sent down — which
+is a different path from the one the control was written against. Two of the last three rounds found a
+mechanism that exists and does not run; this one found the entry point that skips it. When a guard lives in a
+convenience wrapper, check what the docs tell people to run instead of that wrapper.**
+
 ## Round 142 — the gate was built, tested, and never opened
 
 Closed R141's sweep first: every exception name in the tree is now defined exactly once. Then took the

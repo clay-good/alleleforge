@@ -189,11 +189,22 @@ def create_app(
             resolving the user config file + env with the standard precedence).
         api_token: When set, every ``/api/*`` request (except ``/api/health``)
             SHALL carry a matching ``X-API-Token`` header or is rejected with 401.
-            ``None`` (the localhost default) leaves the API open.
+            Defaults to ``ALLELEFORGE_API_TOKEN`` from the environment, and only
+            leaves the API open when that is unset too — the localhost default.
 
     Returns:
         The configured :class:`FastAPI` app (frontend mounted at ``/``).
     """
+    # Read the environment here, not only in `resolve_serve_token`. The deployment
+    # guide and the Dockerfile both run `uvicorn alleleforge.web.api.app:app`, which
+    # binds the module-level app directly and never calls `serve()` — so the
+    # non-loopback guard did not run, and an operator who published the port and set
+    # ALLELEFORGE_API_TOKEN believing it protected the service got a fully open API:
+    # the variable was read by nothing on that path. Defaulting it here makes the
+    # token work on every path, and leaves `resolve_serve_token` its distinct job of
+    # *requiring* one before a public bind.
+    if api_token is None:
+        api_token = os.environ.get("ALLELEFORGE_API_TOKEN") or None
     app = FastAPI(
         title="AlleleForge API",
         version=__version__,

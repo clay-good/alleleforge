@@ -719,3 +719,44 @@ def test_the_offtarget_envelope_says_what_the_search_covered() -> None:
     # ...and so, now, is the sentence that makes them readable.
     assert envelope.search_description == empty.search_description()
     assert "NO SEQUENCE WAS SEARCHED" in envelope.model_dump_json()
+
+
+def test_the_api_token_env_var_is_enforced_by_the_app_itself(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`ALLELEFORGE_API_TOKEN` was read by `serve()` and by nothing else.
+
+    The deployment guide and the Dockerfile both run
+    `uvicorn alleleforge.web.api.app:app`, which binds the module-level app directly
+    and never calls `serve()`. So the "refusing to bind to a non-loopback host
+    without an API token" guard never ran on the documented path — and worse, an
+    operator who published the port and set the variable believing it protected the
+    service got a fully open API, because nothing on that path read it.
+    """
+    from fastapi.testclient import TestClient
+
+    from alleleforge.web.api.app import create_app
+
+    monkeypatch.setenv("ALLELEFORGE_API_TOKEN", "s3cret")
+    client = TestClient(create_app())
+    body = {"variant": "chr1:1:A>T", "build": "hg38"}
+    assert client.post("/api/resolve", json=body).status_code == 401
+    assert (
+        client.post("/api/resolve", json=body, headers={"X-API-Token": "s3cret"}).status_code == 200
+    )
+    # Health stays reachable so a liveness probe does not need the secret.
+    assert client.get("/api/health").status_code == 200
+
+
+def test_an_unset_token_leaves_the_local_api_open(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The unchanged local experience: no token set, no header needed."""
+    from fastapi.testclient import TestClient
+
+    from alleleforge.web.api.app import create_app
+
+    monkeypatch.delenv("ALLELEFORGE_API_TOKEN", raising=False)
+    client = TestClient(create_app())
+    assert (
+        client.post("/api/resolve", json={"variant": "chr1:1:A>T", "build": "hg38"}).status_code
+        == 200
+    )

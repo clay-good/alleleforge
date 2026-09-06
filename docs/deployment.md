@@ -45,12 +45,26 @@ refused.
 ## Running the web service
 
 ```bash
-# Direct
+# Direct — local, single user. Loopback only: an open API must not be reachable.
 pip install "alleleforge[web]"
 ALLELEFORGE_REFERENCE_FASTA=/data/hg38.fa \
-    uvicorn alleleforge.web.api.app:app --host 0.0.0.0 --port 8000
+    uvicorn alleleforge.web.api.app:app --host 127.0.0.1 --port 8000
 # → http://localhost:8000  ·  OpenAPI at /docs
 ```
+
+To reach the service from anywhere else, set a token. Every `/api/*` request
+(except `/api/health`) then needs a matching `X-API-Token` header:
+
+```bash
+export ALLELEFORGE_API_TOKEN="$(python -c 'import secrets;print(secrets.token_urlsafe(32))')"
+ALLELEFORGE_REFERENCE_FASTA=/data/hg38.fa \
+    uvicorn alleleforge.web.api.app:app --host 0.0.0.0 --port 8000
+```
+
+`alleleforge.web.api.serve()` additionally *refuses* a non-loopback bind without a
+token. Running `uvicorn` against the module-level `app`, as above, binds the socket
+itself and cannot consult that guard — so on that path the token is the control, and
+setting it is on you.
 
 ```bash
 # Container (one-command local deploy; mount the reference at ./data/reference.fa)

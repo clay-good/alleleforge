@@ -191,3 +191,16 @@ searched at all.
 - **WHEN** the reference or region scope yields no searchable bases
 - **THEN** the response reports zero sites *and* states that no sequence was searched,
   so an empty run cannot be read as a clean one
+
+### Requirement: The API token is enforced wherever the app is served
+
+`ALLELEFORGE_API_TOKEN` SHALL be honored by the application itself, not only by the
+`serve()` convenience wrapper. The documented deployment commands bind the
+module-level app directly and never call that wrapper, so a token enforced only there
+is absent on every path an operator is told to use — while appearing to be set.
+
+#### Scenario: A token set in the environment, app served by uvicorn
+- **WHEN** `ALLELEFORGE_API_TOKEN` is set and the app is created without an explicit
+  token argument
+- **THEN** an `/api/*` request without a matching `X-API-Token` header is rejected
+  with 401, and `/api/health` stays reachable for liveness probes

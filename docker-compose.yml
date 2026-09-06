@@ -13,9 +13,15 @@ services:
     build: .
     image: alleleforge-api
     ports:
-      - "8000:8000"
+      # Host-local by default: a bare "8000:8000" publishes on every host interface,
+      # and this deployment is open unless ALLELEFORGE_API_TOKEN is set below.
+      - "127.0.0.1:8000:8000"
     environment:
       ALLELEFORGE_REFERENCE_FASTA: /data/reference.fa
+      # Uncomment before publishing this port beyond the host. Every /api/* request
+      # (except /api/health) then requires a matching X-API-Token header. The default
+      # mapping above is host-local, and the API is open without this.
+      # ALLELEFORGE_API_TOKEN: "change-me-to-a-random-secret"
     volumes:
       - ./data:/data:ro          # reference genome (read-only)
       - aforge-cache:/cache      # XDG cache for datasets / embeddings
