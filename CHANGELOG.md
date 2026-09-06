@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **An unmeasured off-target axis is pinned never to render as a number.** `0.0` in a worst-case column and
+  `1.0` in a specificity column are the *reassuring* values, and this project has shipped that confusion
+  once already (`worst_offtarget: 0.0` for a candidate with no report). The guard derives the field list
+  from `CandidateReport` rather than listing today's seven columns, so an off-target field added later is
+  covered the day it appears — and it checks the model, the TSV and the JSON, since a value can be
+  suppressed on one surface and invented on another.
+
 - **The safety axis is pinned monotone under adding an off-target.** This project shipped that bug twice —
   a patient off-target masked on the safety axis, and a benign ancestry-tagged site *raising* a candidate's
   safety by switching `worst_ancestry()` onto a stratified path that never saw the danger. Both fixes left

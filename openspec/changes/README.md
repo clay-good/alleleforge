@@ -9136,6 +9136,35 @@ invariant. And when a mutation leaves a test green, the first suspect is the mut
 twice in a row here, and the third attempt found the bug the test really does catch.**
 
 
+## Round 278 — the invariant, not the seven columns
+
+R277's lesson applied to the project's most-repeated defect: "we did not look" rendering
+as "we looked and found nothing". Every instance has been fixed as it was found —
+`worst_offtarget` going `None` instead of `0.0`, `best_specificity` empty rather than
+`1.0`, `offtarget_sources` distinguishing reference-only from unsearched (this session,
+R257, my own regression). Every fix guarded its own column.
+
+Checked the current state end to end: a candidate with no off-target report renders every
+derived field empty on the model, in the TSV and in the JSON. Nothing to fix. So the round
+is the guard, and its shape is the point — the field list is *derived* from
+`CandidateReport`, so an off-target field added next month is covered the day it appears,
+rather than the day someone notices it defaulting to zero.
+
+It checks three surfaces because a value can be suppressed on one and invented on another:
+the model is where `None` lives, the TSV is where an empty cell has to survive rendering,
+and the JSON is where a `0` would be indistinguishable from a measurement. Defaulting the
+specificity to `1.0` when unsearched — the shipped bug's exact shape — fails all three.
+
+The safety *score* stays 1.0 for an unsearched candidate, which is deliberate and
+documented: penalising an unmeasured axis is a policy the project has no basis for. What
+makes it honest is the `offtarget-not-searched` flag in the same row, so the test pins the
+flag rather than the number.
+
+**Lesson: after the third fix in one class, stop fixing instances and write the guard that
+enumerates the population from the code. The fixes were all correct; what was missing was
+the thing that makes the fourth instance impossible to introduce.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
