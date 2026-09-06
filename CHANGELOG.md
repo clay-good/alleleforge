@@ -2056,6 +2056,14 @@ acceptance.
 
 ### Fixed
 
+- **The safety axis is pinned monotone under adding an off-target.** This project shipped that bug twice —
+  a patient off-target masked on the safety axis, and a benign ancestry-tagged site *raising* a candidate's
+  safety by switching `worst_ancestry()` onto a stratified path that never saw the danger. Both fixes left
+  behind a regression test for their own case and no property test, so the invariant they restored was
+  guarded only against those two shapes. Now swept over every subset of a mixed pool (reference,
+  ancestry-tagged, patient, and a population site whose attribution is unknown), plus the composite
+  ranking. Verified by reintroducing the historical bug: safety rises 0.50 → 0.80 and the test fails.
+
 - **A wider off-target search is pinned never to report a safer guide.** Raising the mismatch budget,
   lowering the reporting cut-off, or allowing bulges can only find more, so no result from a wider search
   may look better than the cheap one — the worst direction for that failure to run in, and a class this

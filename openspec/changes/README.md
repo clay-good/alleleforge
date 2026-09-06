@@ -9105,6 +9105,37 @@ form is usually about the *quantity* the system exists to report — here risk �
 about the identifiers it happens to report it under.**
 
 
+## Round 277 — the invariant behind two shipped bugs, and a mutation that lied to me
+
+R276 pinned monotonicity in the *engine*. The same question one layer up: can adding an
+off-target ever make a candidate look better? This project has shipped that bug twice — a
+patient off-target masked on the safety axis, and a benign ancestry-tagged site raising a
+candidate's safety because it switched `worst_ancestry()` onto a stratified path that never
+saw the danger. Both fixes landed with a regression test for their own case. Neither left a
+property test, so the invariant was guarded against exactly the two shapes that had already
+happened.
+
+Swept every subset of a mixed pool against every possible addition: monotone. Then, to
+check the guard rather than trust it, I reintroduced the historical bug — and the first two
+attempts stayed green. The first mutation was in the wrong function (`expected_burden`, not
+`ancestry_stratification`); the second deleted one clause of a three-clause condition whose
+branches overlap for the site shapes I had built. Only the full historical form —
+attribution credited to reference sites alone — failed it, at exactly the shipped signature:
+
+    assert 0.8 <= (0.5 + 1e-12)
+
+adding a benign ancestry site to a patient-only report raising safety from 0.50 to 0.80.
+
+Adding a site whose attribution is unknown (a population hit with a frequency and an empty
+per-ancestry breakdown) makes a second clause independently load-bearing. The third stays
+unpinned, and the test says so: every shape the engine emits with no frequency also has an
+empty breakdown, so covering it would mean constructing a state the engine cannot produce.
+
+**Lesson: a fix's regression test guards the incident; only a property test guards the
+invariant. And when a mutation leaves a test green, the first suspect is the mutation —
+twice in a row here, and the third attempt found the bug the test really does catch.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
