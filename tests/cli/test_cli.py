@@ -453,7 +453,9 @@ def test_batch_summary_tsv(runner: CliRunner, cohort_fasta: Path, tmp_path: Path
     )
     # Contains a bad variant on purpose; a failed item now exits non-zero.
     assert result.exit_code == ExitCode.UNAVAILABLE
-    lines = out.read_text().strip().splitlines()
+    # The summary leads with `#` note lines (disclaimer, provenance, coordinates);
+    # the table starts at the first non-comment line.
+    lines = [ln for ln in out.read_text().strip().splitlines() if not ln.startswith("#")]
     header = lines[0].split("\t")
     assert header[:2] == ["item_id", "status"]
     assert "best_specificity" in header  # aggregate specificity surfaces in the cohort TSV

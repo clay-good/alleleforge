@@ -37,7 +37,11 @@ from uuid import uuid4
 
 from alleleforge._version import __version__
 from alleleforge.config import get_settings
-from alleleforge.design.designer import _EXPECTED_DESIGN_FAILURES, design
+from alleleforge.design.designer import (
+    _EXPECTED_DESIGN_FAILURES,
+    _reference_snapshot,
+    design,
+)
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.report.builder import caveats
 from alleleforge.types.candidate import RankedMenu
@@ -325,6 +329,13 @@ def design_many(
         # when no settings were passed (matching design()'s own default).
         "seed": (design_kwargs.get("settings") or get_settings()).seed,
         "reference_build": _build_name(reference, reference_factory),
+        # The build is a *label*; two different FASTAs both carrying "hg38" give
+        # different off-target verdicts. The per-item menus record the genome's shape
+        # (see `_reference_snapshot`); the run header recorded only the name, so a
+        # cohort summary could not say which genome the whole cohort was screened
+        # against. `None` under the parallel path, where the reference is opened
+        # per worker and there is no run-wide one to describe.
+        "reference": None if reference is None else _reference_snapshot(reference),
         "intent": intent.value,
         "started_at": datetime.now(UTC).isoformat(),
     }

@@ -7059,6 +7059,46 @@ because the gap it found had survived every round that looked at the JSON export
 directly.**
 
 
+## Round 220 — the cohort summary was outside the table
+
+R219's fact-by-surface check covers the four renders of a `DesignReport`. A cohort
+summary is not one of them, so running `aforge batch` and asking the same question
+found the same hole one artifact over:
+
+    not a medical device     sum.tsv:.   item.json:.
+    0-based                  sum.tsv:.   item.json:Y
+    reference identity       sum.tsv:.   item.json:.
+    build / seed             sum.tsv:.   item.json:Y
+
+`--summary-tsv` is the file a whole-cohort run is read through and the one that gets
+forwarded — one row per patient, with efficiencies, specificities and off-target
+counts — and it carried none of the five. It now leads with the same `#` note block
+the per-design export got in R218.
+
+Building those notes exposed the second half. `CohortRunReport.provenance` is a plain
+dict the cohort runner assembles by hand rather than the `Provenance` a menu carries,
+and it records `reference_build` — a *label* — and nothing about the genome. That is
+R214's finding, still standing in this path six rounds later, and it stood because the
+fix landed on the object the cohort does not use. The run header now carries the same
+`_reference_snapshot` descriptor the per-item menus do.
+
+Then the parallel path printed:
+
+    # reference build None
+
+Under `--max-workers` the reference is opened per worker, so there genuinely is no
+run-wide genome to name — `_build_name` returns `None` on purpose, with a comment
+saying why. But `None` in a report reads as a missing value rather than a located one,
+which is the failure this project spends its rounds on. It now says that each item's
+own result records the genome it used, which is both true and actionable.
+
+**Lesson: a check is scoped to a type, and the drift happens in whatever is not that
+type. R219's table walks `DesignReport` renders; the cohort summary is assembled from
+dicts by a different module and was therefore invisible to it. When a guard is keyed
+on a class, the next question is which artifacts do the same job without being that
+class — and here the answer was the one with a row per patient.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

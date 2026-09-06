@@ -10,6 +10,16 @@ acceptance.
 
 ### Added
 
+- **The cohort summary TSV carries its caveats, and the run records which genome it screened against.**
+  `aforge batch --summary-tsv` — the file a whole-cohort run is read through, one row per patient — carried no
+  disclaimer, no coordinate convention, no reference identity and no seed. It now leads with the same `#` note
+  block the per-design export got, so the column header is still the first non-comment line. Building those
+  notes exposed the second half: `CohortRunReport.provenance` is a dict the cohort assembles by hand, and it
+  recorded `reference_build` (a label) and nothing about the genome — the same gap the design path closed
+  earlier, still standing here because the fix landed on an object the cohort does not use. The run header now
+  carries the same shape descriptor. Under `--max-workers` there is no run-wide reference, and the summary now
+  says each item's own result records the genome it used, rather than printing `reference build None`.
+
 - **Every render of a report is checked to state the same whole-document facts.** A `fact x surface` table
   (disclaimer, coordinate convention, reference identity, build, seed, models across HTML/TSV/JSON/PDF) is now
   a test with an explicit, reasoned omission list, so a fact added to one render cannot quietly skip the

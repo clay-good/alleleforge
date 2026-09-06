@@ -1032,8 +1032,57 @@ def _batch_rows(report: Any) -> list[dict[str, Any]]:
     return rows
 
 
-def _batch_tsv(rows: list[dict[str, Any]]) -> str:
-    """Render the per-item summary rows as TSV (one row per cohort item)."""
+def _reference_note(build: str | None, shape: Any) -> str:
+    """Return the cohort summary's reference line.
+
+    Under `--max-workers` the reference is opened per worker, so the run has no
+    single genome to name and `reference_build` is `None`. Printing "reference build
+    None" reads as a missing value; what is true is that each item's own menu records
+    the genome it was designed against, and saying that is the difference between
+    "not recorded" and "recorded elsewhere".
+    """
+    if build is None:
+        return (
+            "reference build: not recorded run-wide — the parallel path opens a "
+            "reference per worker; each item's own result records the genome it used"
+        )
+    return f"reference build {build}{_shape_suffix(shape)}"
+
+
+def _shape_suffix(shape: Any) -> str:
+    """Return the parenthesized reference shape for a cohort note line.
+
+    Mirrors the report footer's phrasing, including the statement of what the digest
+    covers. Empty when the run had no single reference to describe — the parallel
+    path opens one per worker, and inventing a run-wide identity there would be a
+    claim nothing checked.
+    """
+    if not isinstance(shape, dict):
+        return ""
+    plural = "" if shape.get("contigs") == 1 else "s"
+    digest = str(shape.get("sha256", ""))[:8]
+    return (
+        f" ({shape.get('contigs')} contig{plural}, {shape.get('bases'):,} bases, "
+        f"shape {digest} — pins {shape.get('pins', 'an unstated extent')})"
+    )
+
+
+def _batch_tsv(rows: list[dict[str, Any]], provenance: Any | None = None) -> str:
+    """Render the per-item summary rows as TSV (one row per cohort item).
+
+    Led by the same `#` note block the per-design export carries: the research-use
+    disclaimer, the coordinate convention, the reference genome's identity and the
+    seed. This is the file a whole-cohort run is read through and the one that gets
+    forwarded, and a row per patient with a bare `best_specificity` and no statement
+    of which genome was searched is not interpretable.
+
+    Args:
+        rows: One summary dict per cohort item.
+        provenance: The run's provenance block, if there is one, for the notes.
+
+    Returns:
+        The TSV text: `#` notes, the column header, one row per item.
+    """
     cols = [
         "item_id",
         "status",
@@ -1059,7 +1108,24 @@ def _batch_tsv(rows: list[dict[str, Any]]) -> str:
             return ""
         return str(value).replace("\t", " ").replace("\r", " ").replace("\n", " ")
 
-    lines = ["\t".join(cols)]
+    from alleleforge.report.builder import COORDINATE_NOTE, RESEARCH_USE_DISCLAIMER
+
+    # `CohortRunReport.provenance` is a plain dict assembled by the cohort runner,
+    # not the `Provenance` model a menu carries, so the notes are built from it
+    # directly rather than through `provenance_lines`.
+    run = provenance or {}
+    shape = run.get("reference")
+    notes = [
+        RESEARCH_USE_DISCLAIMER,
+        f"AlleleForge {run.get('alleleforge_version', __version__)}",
+        _reference_note(run.get("reference_build"), shape),
+        COORDINATE_NOTE,
+        f"seed {run.get('seed')}",
+        f"intent {run.get('intent')}",
+        f"started {run.get('started_at')}",
+    ]
+    lines = [f"# {_cell(note)}" for note in notes if note]
+    lines.append("\t".join(cols))
     for r in rows:
         lines.append("\t".join(_cell(r[c]) for c in cols))
     return "\n".join(lines) + "\n"
@@ -1398,7 +1464,7 @@ def batch(
 
     rows = _batch_rows(report)
     if summary_tsv is not None:
-        summary_tsv.write_text(_batch_tsv(rows), encoding="utf-8")
+        summary_tsv.write_text(_batch_tsv(rows, report.provenance), encoding="utf-8")
     if state.verbose:
         _echo_err(f"designed {report.succeeded}/{report.total} (skipped {report.skipped})")
 
