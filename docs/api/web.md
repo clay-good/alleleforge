@@ -39,10 +39,13 @@ auto-generated at `/openapi.json`.
 | `POST /api/jobs/design` | Submit an async design job (`202`, returns a job id). |
 | `GET /api/jobs/{id}` | Poll an async job's state, progress, and result. |
 | `POST /api/batch` | Cohort design over a variant list; per-item summaries and provenance, a failed item isolated rather than failing the run. |
-| `POST /api/offtarget` | Standalone population-aware off-target search. |
+| `POST /api/offtarget` | Standalone population-aware off-target search, including the `scorer` choice (`cfd` / `mit` / `cfd-cas12a`) so a Cas12a run is labelled as the unvalidated approximation rather than as the published matrix. |
 | `GET /api/data` / `GET /api/data/{name}` | Inspect the dataset registry. |
 | `GET /api/bench` | CRISPR-Bench (`501` until Phase 14). |
 | `GET /` | The served single-page frontend. |
+
+Every request model forbids unknown fields, so a misspelled or unsupported parameter is a
+`422` naming it rather than a `200` describing a different run than the one asked for.
 
 A reference genome is supplied by the deployment (`create_app(reference=...)` or
 `ALLELEFORGE_REFERENCE_FASTA`); endpoints that need it return `503` until one is

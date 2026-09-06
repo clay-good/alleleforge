@@ -54,11 +54,15 @@ ChemistryStr = Annotated[str, Field(max_length=MAX_BUILD_LEN)]
 #: other string on these models was already bounded; this was the one that was not.
 IntentStr = Annotated[str, Field(max_length=MAX_BUILD_LEN)]
 
+#: A specificity-scorer name, bounded for the same reason as the intent above; the
+#: set of valid names lives in `scorer_for`, which raises with the list on a miss.
+ScorerStr = Annotated[str, Field(max_length=MAX_BUILD_LEN)]
+
 
 class ResolveRequest(BaseModel):
     """A request to normalize any variant input form."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     variant: str = Field(
         max_length=MAX_VARIANT_LEN, description="ClinVar / rsID / HGVS / VCF / coords input."
@@ -86,7 +90,7 @@ class ResolveResponse(BaseModel):
 class DesignRequest(BaseModel):
     """A request to design a ranked, multi-chemistry editing menu."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     variant: str = Field(
         max_length=MAX_VARIANT_LEN, description="ClinVar / rsID / HGVS / VCF / coords input."
@@ -161,7 +165,7 @@ class DesignRequest(BaseModel):
 class BatchRequest(BaseModel):
     """A request to design a cohort of variants in one streaming run."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     variants: list[VariantStr] = Field(
         min_length=1,
@@ -286,7 +290,7 @@ class Region(BaseModel):
 class OffTargetRequest(BaseModel):
     """A request for a standalone population-aware off-target search."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     spacer: str = Field(max_length=MAX_SPACER_LEN, description="The on-target spacer (5'->3').")
     pam: str = Field(default="NGG", max_length=MAX_PAM_LEN, description="PAM pattern (IUPAC).")
@@ -315,6 +319,16 @@ class OffTargetRequest(BaseModel):
             "Restrict the off-target search to these intervals (default: every contig). "
             "Scoping to a gene panel is usually what makes a scan over a real reference "
             "practical. Sent as objects, the same shape a reported site's `locus` has."
+        ),
+    )
+    scorer: ScorerStr | None = Field(
+        default=None,
+        description=(
+            "Specificity scorer: 'cfd' (default, the published Doench 2016 matrix), "
+            "'mit' (Hsu 2013 position weights), or 'cfd-cas12a' (the Cas12a analog, "
+            '5\' seed and TTTV PAM — pair it with `pam: "TTTV"`). The choice travels '
+            "into `effective_matrix`, so a Cas12a run is labelled as the unvalidated "
+            "approximation it is rather than as the published matrix."
         ),
     )
     on_target: GenomicInterval | None = Field(

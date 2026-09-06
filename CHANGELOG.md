@@ -10,6 +10,16 @@ acceptance.
 
 ### Added
 
+- **The specificity scorer is reachable over HTTP, and unknown request fields are refused.**
+  `OffTargetRequest` had no `scorer` field, so `POST /api/offtarget {"scorer": "cfd-cas12a"}` returned `200`
+  scored by the SpCas9 CFD matrix — pydantic ignores an unknown key by default. Because `pam` *is* settable,
+  a Cas12a search was already reachable and came back labelled `doench-2016-cfd`, the published matrix, where
+  the CLI labels the same run `cas12a-analog-approximation (unvalidated)`: a wrong honesty label on the
+  surface most likely to be read by a machine. `scorer` now resolves through the same `scorer_for` the CLI
+  uses (an unknown name is a `422` listing the valid ones), and **every** API request model now forbids
+  unknown fields, so `populatoins`, `intnet` or `buidl` is a `422` naming the key rather than a `200`
+  describing a run the client did not ask for.
+
 - **The accessibility track is pinned in provenance, and its name is checked.** Two runs over bedGraphs
   differing only in signal produced different efficiencies (0.484 vs 0.457) and identical provenance with an
   empty `datasets` list: `_attach_source` pins gnomAD and the haplotype panel by content hash, and the ENCODE

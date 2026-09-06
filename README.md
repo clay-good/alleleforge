@@ -1116,7 +1116,9 @@ flowchart LR
 > `--encode-tracks`) are deliberately absent: a client-supplied filesystem path would be a server-side
 > file-read primitive, so that surface needs server-side configuration like the reference already has.
 > Everything that is *data* rather than a path — region scoping, cell context, the render cap, the
-> on-target locus — is available over HTTP.
+> on-target locus, the specificity scorer — is available over HTTP, and every request model **forbids
+> unknown fields**: a parameter this server does not support is a `422` naming it, never a `200`
+> describing a run the client did not ask for.
 | `aforge verify <result.json \| result.provenance.json>` | Check a result's provenance is complete — it names every model and dataset used and carries seed, version and config — and, with `--cache-dir`, re-hash each pinned checkpoint and dataset found there against the recorded hash. Exits non-zero on incomplete provenance or a hash mismatch: provenance as a *checkable contract*, not a record. Takes either shape `design` produces — the result JSON, or the bare `.provenance.json` sidecar written beside it, which for `--format tsv`, `html` and `pdf` is the only machine-readable provenance a run leaves behind. **Without `--cache-dir` no bytes are re-hashed, and the command says so**: completeness and artifact integrity are two different claims and only one of them is free. |
 | `aforge data list` / `show <name>` | Inspect the dataset registry (versions, licenses, provenance). |
 | `aforge bench list` / `run` | List and run CRISPR-Bench tasks against frozen splits. |

@@ -6877,6 +6877,52 @@ one of the two ways to half-supply one. When reading a guard, do not check that 
 what it says; enumerate the ways the input can be wrong and find which ones it misses.**
 
 
+## Round 216 — the web API answered a question it was not asked
+
+The web is one of the three audiences and the shell I had never actually driven, so
+this round drove it: health, resolve, design, batch, jobs, offtarget, data, bench. Most
+of it is in good shape — the R214 reference descriptor reaches the API, and
+`/api/offtarget` already returns `on_target_excluded`, which is the disclosure the CLI
+prints in words.
+
+Then, against the README's own claim that "everything that is *data* rather than a
+path … is available over HTTP":
+
+    POST /api/offtarget {"spacer": ..., "scorer": "cfd-cas12a"}   ->  200
+    effective_matrix: doench-2016-cfd
+
+`OffTargetRequest` had no `scorer` field, and pydantic's default for an unknown key is
+to **ignore** it. The client asked for the Cas12a analog and was served the SpCas9 CFD
+matrix, with a 200 and no mention of the substitution.
+
+`pam` *is* settable over HTTP, which makes it worse than a missing feature. A Cas12a
+search was already reachable — `pam: "TTTV"` — and its result came back labelled
+`doench-2016-cfd`, the published, cross-verified matrix, where the CLI labels the same
+run `cas12a-analog-approximation (unvalidated)`. Not a missing capability: a **wrong
+honesty label**, on the surface where a number is most likely to be consumed by a
+machine that will not read a caveat.
+
+`scorer` is now a field, resolved through the same `scorer_for` the CLI uses, so an
+unknown name is a 422 listing the valid ones and the Cas12a label follows the choice.
+
+The silence is the more general defect, so **every API request model now forbids
+unknown fields**. `populatoins`, `intnet`, `buidl` were all 200s describing a run the
+client had not asked for; each is now a 422 naming the offending key. That is four
+models, not one, because the ignore-by-default was never a decision anyone made about
+`OffTargetRequest` — it was pydantic's default sitting under all of them.
+
+One more thing the round confirmed rather than fixed: `--scorer mit` with bulges
+enabled refuses, with a reason ("the MIT score is undefined for bulged alignments"),
+and that refusal survives the HTTP boundary as a 422 instead of becoming a 500. Pinned,
+since it was the one path where a library-level `ValueError` could have escaped.
+
+**Lesson: a schema that ignores what it does not understand answers a different
+question than the one it was asked, and returns 200. Where the extra field names a
+scientific choice — a scorer, a threshold, a model — the client then attributes the
+server's answer to their own request. Forbidding unknown fields is not strictness for
+its own sake; it is the difference between "I did not do that" and silence.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

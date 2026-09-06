@@ -429,6 +429,7 @@ def create_app(
     def offtarget_endpoint(req: OffTargetRequest, request: Request) -> OffTargetResponse:
         """Run a standalone population-aware off-target search for a spacer."""
         from alleleforge.offtarget.engine import search
+        from alleleforge.offtarget.scoring import scorer_for
         from alleleforge.types.guide import PAM
 
         reference = _require_reference(request)
@@ -436,10 +437,18 @@ def create_app(
         # malformed locus is already a 422 — never a silently skipped exclusion.
         locus = req.on_target
         try:
+            # An unknown name raises ValueError listing the known scorers, which the
+            # handler already turns into a 422. The alternative — the model ignoring
+            # the field — served a CFD result to a client that asked for Cas12a.
+            scorer = scorer_for(req.scorer) if req.scorer else None
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        try:
             report = search(
                 req.spacer,
                 PAM(pattern=req.pam),
                 reference=reference,
+                scorer=scorer,
                 on_target=locus,
                 regions=_regions(req.offtarget_regions),
                 mismatches=req.mismatches,
