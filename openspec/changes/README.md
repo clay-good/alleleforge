@@ -6191,6 +6191,42 @@ checked a term rather than the relationship between them. When a formula has a p
 make some other quantity *not* matter, the test to write is the one that varies that quantity.**
 
 
+## Round 200 — the quantities that are supposed not to matter
+
+R199's lesson, applied as a query: when a formula or a flag exists so that some other
+quantity has *no* effect, the test to write is the one that varies that quantity. Two
+candidates, both documented, neither checked.
+
+**The render cap.** `--render-candidates` caps the drawing, and three separate places say
+so — the CLI help ("the json/tsv exports are never capped"), the web request model, and a
+comment in the API handler. Nothing tested it. A prime design yields about ninety
+candidates; a leak would write three of them to the JSON a pipeline consumes while only
+the HTML mentions the other eighty-seven. It holds, and now fails if it stops.
+
+**Worker count.** A parallel-vs-sequential equivalence test already exists and is good —
+it compares per-item status and summary. It does not pass `output_dir`, so the files on
+disk, which are the actual deliverable of a batch run, were outside it. That is also
+exactly the surface R196's temp-file collision lived on.
+
+And the first version of that new test did not catch R196's bug either. Three distinct
+variants never collide on an output path, so restoring the old process-scoped temp name
+left all four tests green. The trigger needs a **repeated** item — which is ordinary in a
+VCF, and is the case the fix was written for. Caught only because the mutation run was
+done properly: M1 fired, M2 did not, and the docstring I had already written claimed the
+test protected exactly the property M2 was proving it did not.
+
+That is the second time in three rounds that a regression test written for a specific bug
+failed to reproduce that bug (R191: a per-vertical defect and a fixture exercising one
+vertical). Both times the mutation run was the only thing that said so, and both times the
+fix was to make the fixture contain the shape the bug needed rather than to weaken the
+test.
+
+**Lesson: writing the regression test after the fix means never seeing it fail for the
+right reason. The mutation is not a formality at the end — it is the only evidence that
+the test and the bug are about the same thing, and a docstring asserting the connection is
+worth nothing next to a mutation that demonstrates it.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

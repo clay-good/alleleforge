@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **Two documented "this must not matter" claims are now checked.** `--render-candidates` caps the drawing,
+  not the data: the CLI help, the web request model and a handler comment all say the JSON and TSV exports are
+  never capped, and nothing checked it. A prime design yields ~90 candidates; a leak would have written three
+  of them to the JSON a pipeline consumes, with only the HTML mentioning the other eighty-seven. And a cohort's
+  written artifacts must not depend on worker count — the existing parallel-vs-sequential test compares
+  in-memory summaries and never uses `output_dir`, which is the surface the temp-file collision fixed in the
+  previous round actually lived on. Both hold; both are pinned.
+
 - **The specificity score is pinned as independent of the display filter.** `specificity_score` is
   `1 / (1 + Σ reported + subthreshold_score_sum)`, and the second term exists so the reporting cut-off decides
   what is *shown* and not what is *counted*. Measured across the whole range on a reference carrying four
