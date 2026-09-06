@@ -255,3 +255,14 @@ dependencies at module level, so the failure arrives before any explicit check.
 - **WHEN** `aforge design` runs in an environment installed as `alleleforge[cli]`
 - **THEN** it prints the missing dependency and `pip install 'alleleforge[genome]'`
   rather than a `ModuleNotFoundError` traceback
+
+### Requirement: The cohort command offers the single-variant command's options
+
+Every option `aforge design` accepts SHALL be accepted by `aforge batch`, except those
+that shape a single rendered document, which the cohort path does not produce. A
+cohort is where a trained model or a PAM-flexible fallback matters most, and an option
+honoured only through a config file is invisible from `--help`.
+
+#### Scenario: A cohort run with a trained model
+- **WHEN** a user runs `aforge batch … --trained-efficiency`
+- **THEN** the trained scorer is used for every item, as it is for `aforge design`

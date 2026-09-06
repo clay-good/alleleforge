@@ -1076,6 +1076,63 @@ def batch(
     no_resume: Annotated[
         bool, typer.Option("--no-resume", help="Re-run every item even if the manifest records it.")
     ] = False,
+    chemistry: Annotated[
+        list[str] | None,
+        typer.Option("--chemistry", help="Restrict to these chemistries (repeatable)."),
+    ] = None,
+    cell_context: Annotated[
+        str | None,
+        typer.Option("--cell-context", help="Cell type / context label for the design."),
+    ] = None,
+    allow_ng: Annotated[
+        bool,
+        typer.Option(
+            "--allow-ng",
+            help="Fall back to SpCas9-NG (NG PAM) guides when no NGG guide is "
+            "actionable. Off by default: an NG guide is a different reagent with "
+            "different specificity, so it is offered rather than assumed.",
+        ),
+    ] = False,
+    allow_spry: Annotated[
+        bool,
+        typer.Option(
+            "--allow-spry",
+            help="Fall back to SpRY (NRN/NYN PAM) guides when neither NGG nor NG "
+            "yields one. Off by default, for the same reason as --allow-ng.",
+        ),
+    ] = False,
+    trained_efficiency: Annotated[
+        bool,
+        typer.Option(
+            "--trained-efficiency",
+            help="Use the real trained Rule Set 3 model for SpCas9 efficiency "
+            "(consent-gated weight download).",
+        ),
+    ] = False,
+    trained_outcome: Annotated[
+        bool,
+        typer.Option(
+            "--trained-outcome",
+            help="Use the trained Lindel model for SpCas9 repair outcomes "
+            "(consent-gated weight download).",
+        ),
+    ] = False,
+    trained_base_outcome: Annotated[
+        bool,
+        typer.Option(
+            "--trained-base-outcome",
+            help="Use the trained BE-DICT model for base-editing outcomes "
+            "(consent-gated weight download).",
+        ),
+    ] = False,
+    trained_prime: Annotated[
+        bool,
+        typer.Option(
+            "--trained-prime",
+            help="Use the trained DeepPrime model for prime-editing efficiency "
+            "(consent-gated weight download).",
+        ),
+    ] = False,
     output_dir: Annotated[
         Path | None, typer.Option(help="Write each item's full menu JSON to <dir>/<item>.json.")
     ] = None,
@@ -1121,8 +1178,9 @@ def batch(
     # `chemistry`/`cell_context` are whitelisted config keys (no typo warning), so they
     # must actually restrict/route the run — otherwise batch silently ignores them while
     # `design`, the web `/api/batch`, and `design_many` all honor them (a parity gap).
-    chem_list = cfg.get("chemistry")
-    cell_context = cfg.get("cell_context")
+    # A CLI flag wins over the config file, matching every other option here.
+    chem_list = chemistry if chemistry else cfg.get("chemistry")
+    cell_context = cell_context or cfg.get("cell_context")
     run_offtarget = _resolve_run_offtarget(no_offtarget, cfg)
 
     try:
@@ -1175,6 +1233,29 @@ def batch(
         }
 
     try:
+        # The same consent-gated opt-ins the single-variant command offers. A cohort is
+        # where a trained model matters most — it is the run someone leaves going — and
+        # the batch path could not select one by any means, config file included.
+        cas9_scorer = None
+        if trained_efficiency:
+            from alleleforge.scoring.cas9_efficiency import TrainedRuleSet3Scorer
+
+            cas9_scorer = TrainedRuleSet3Scorer(consent=True)
+        cas9_outcome = None
+        if trained_outcome:
+            from alleleforge.scoring.cas9_outcome import LindelAdapter
+
+            cas9_outcome = LindelAdapter(consent=True)
+        base_outcome = None
+        if trained_base_outcome:
+            from alleleforge.scoring.base_outcome import BeDictAdapter
+
+            base_outcome = BeDictAdapter(consent=True)
+        prime_scorer = None
+        if trained_prime:
+            from alleleforge.scoring.prime_efficiency import DeepPrimeAdapter
+
+            prime_scorer = DeepPrimeAdapter(consent=True)
         report = design_many(
             variants,
             intent=edit_intent,
@@ -1196,6 +1277,12 @@ def batch(
             max_candidates_per_chemistry=max_per_chemistry,
             chemistries=chemistries,
             cell_context=cell_context,
+            allow_ng=allow_ng,
+            allow_spry=allow_spry,
+            cas9_efficiency_scorer=cas9_scorer,
+            cas9_outcome_predictor=cas9_outcome,
+            base_outcome_predictor=base_outcome,
+            prime_efficiency_scorer=prime_scorer,
             settings=settings,
             **ref_kwargs,
         )

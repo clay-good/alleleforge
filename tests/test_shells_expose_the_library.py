@@ -99,3 +99,51 @@ def test_the_recorded_exceptions_are_real_parameters() -> None:
     known = _design_parameters()
     stale = sorted((set(_NOT_IN_CLI) | set(_NOT_IN_WEB)) - known)
     assert not stale, f"exceptions recorded for parameters design() no longer takes: {stale}"
+
+
+#: Options that belong to `aforge design` alone, with the reason. `batch` shapes its
+#: output through `--output-dir`, `--manifest` and `--summary-tsv` instead, so the
+#: single-result rendering options have no meaning there.
+_DESIGN_ONLY_OPTIONS: dict[str, str] = {
+    "--format": "batch writes a directory of results, not one rendered document",
+    "--out": "batch uses --output-dir and --manifest",
+    "--render-candidates": "caps a single rendered report; batch renders none",
+}
+
+
+def _command_options(command: str) -> set[str]:
+    """Return the long options a CLI subcommand accepts, from the live click tree."""
+    import typer
+
+    from alleleforge.cli.main import app
+
+    # Duck-typed on `.commands`/`.params`, not `isinstance(…, click.Group)`: a
+    # TyperCommand is not an instance of the click classes visible here, which is how
+    # an earlier version of this check (R138/R144) reported the whole CLI as five
+    # options. I wrote the isinstance assert anyway and it failed immediately.
+    root = typer.main.get_command(app)
+    sub = root.commands[command]  # type: ignore[attr-defined]
+    assert sub.params, f"no options found for {command!r} — this check would be vacuous"
+    return {opt for param in sub.params for opt in param.opts if opt.startswith("--")}
+
+
+def test_the_cohort_command_offers_every_design_option() -> None:
+    """A cohort is where a trained model or a PAM fallback matters most.
+
+    `aforge batch` is the scale path — the run someone leaves going over a whole VCF —
+    and it could not select a trained model or a PAM-flexible fallback by any means,
+    config file included, while `aforge design` could. `--chemistry` and
+    `--cell-context` were config-file-only there, which is the same gap in a quieter
+    form: honoured if you know to write TOML, invisible from `--help`.
+    """
+    design_only = _command_options("design") - _command_options("batch")
+    unexplained = sorted(design_only - set(_DESIGN_ONLY_OPTIONS) - {"--help"})
+    assert not unexplained, (
+        f"`aforge design` accepts these and `aforge batch` does not: {unexplained}. Add "
+        "them, or record them in _DESIGN_ONLY_OPTIONS with the reason."
+    )
+
+
+def test_the_design_only_allowances_are_real_options() -> None:
+    stale = sorted(set(_DESIGN_ONLY_OPTIONS) - _command_options("design"))
+    assert not stale, f"allowances recorded for options `design` no longer has: {stale}"

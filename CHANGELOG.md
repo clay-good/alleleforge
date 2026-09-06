@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **`aforge batch` offers the design options it was missing.** The cohort path — the run someone leaves going
+  over a whole VCF, where a trained model or a PAM-flexible fallback matters most — could not select a
+  trained model or a fallback **by any means**, config file included, while `aforge design` could.
+  `--chemistry` and `--cell-context` were config-file-only there: honoured if you knew to write TOML,
+  invisible from `--help`. All eight are now flags on `batch`, and a test requires every `design` option to
+  exist on `batch` or be recorded with a reason (`--format`, `--out` and `--render-candidates` shape a single
+  rendered document, which `batch` does not produce).
+
 - **`--trained-prime`, and shell/library parity is now pinned.** `design()` is the one entry point behind all
   three audiences, and a parameter it accepts that a shell does not forward is a capability that exists and
   cannot be reached. Three instances: the PAM fallbacks (previous entry); the trained prime-efficiency model,

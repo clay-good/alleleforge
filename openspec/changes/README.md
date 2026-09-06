@@ -4789,6 +4789,41 @@ where a parameter goes missing without anything failing. Three shells and one co
 forget, each invisible from the others — and the round that fixes one is the round most likely to create the
 next, because the new parameter only gets added where you were already looking.**
 
+## Round 161 — the third shell
+
+R160 pinned parity for two shells and named the risk in its own lesson: three shells and one core means three
+chances to forget. The third is the cohort path, so I went looking there before anything else.
+
+`design_many` itself is clean — it takes a `design_kwargs` passthrough, so no parameter can go missing by
+construction. The gap is in the CLI command above it. Diffing `aforge design --help` against
+`aforge batch --help`:
+
+    in design, not in batch: --allow-ng --allow-spry --cell-context --chemistry --format --out
+                             --render-candidates --trained-base-outcome --trained-efficiency
+                             --trained-outcome --trained-prime
+
+Three of those are output shaping and belong to `design` alone — `batch` writes a directory and a manifest,
+not one rendered document. The other eight are design options, and the cohort is precisely where they matter
+most: it is the run someone starts and walks away from. A user could not select a trained model for a whole
+VCF **by any means**, config file included. `--chemistry` and `--cell-context` were subtler — batch read them
+from the config file and forwarded them correctly, so they were honoured if you knew to write TOML and
+invisible from `--help`, which is a parity gap that looks like a feature to whoever wrote it.
+
+All eight added, and the parity pinned with the same documented-exception shape as R160's.
+
+One thing worth recording plainly. The helper that reads a subcommand's options needs to walk the Typer tree,
+and I wrote `assert isinstance(sub, click.Command)` — the exact trap R144 diagnosed and wrote into this log
+and into `project.md`, where a TyperCommand is not an instance of the visible click classes. It failed
+immediately, so it cost a minute rather than six rounds. But knowing the rule, having written the rule, and
+still reaching for `isinstance` says something about how much a written lesson actually protects you: it
+turns a silent wrong answer into a loud one, which is most of the value, and it does not stop you making the
+mistake.
+
+**Lesson: when a lesson names a risk in the abstract ("three chances to forget"), the next round should spend
+its first five minutes on the specific instance the lesson predicts. R160 wrote that sentence and stopped at
+two shells; the third had eight missing options waiting. A lesson that is not immediately cashed out is a
+prediction nobody acted on.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
