@@ -35,6 +35,15 @@ since wiring one ancestry source and not the other leaves the capability half-re
 - **WHEN** a panel is configured
 - **THEN** the haplotype-aware pass runs for API callers and `haplotypes_loaded` is true
 
+A source that was configured but could not be read SHALL be distinguishable from one that
+was never configured. Both leave the capability unavailable; only one is a deployment
+mistake, and the operator is the only party who can fix it.
+
+#### Scenario: A configured source that fails to load
+- **WHEN** an environment variable names a source that cannot be read
+- **THEN** `GET /api/health` reports the reason under `source_errors`, rather than the
+  same response an unconfigured deployment returns
+
 ### Requirement: A schema-validated endpoint surface
 
 The service SHALL expose health, resolve, design, async design jobs, batch, off-target,

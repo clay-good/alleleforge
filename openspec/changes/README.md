@@ -8786,6 +8786,35 @@ breaks it. Grep the spec for SHALLs whose only evidence is that the code current
 complies — a requirement with no test is a comment.**
 
 
+## Round 266 — the coverage report as an audit tool, and my own bug
+
+First, a check I had been carrying unverified: every suite run this session used
+`--no-cov` for speed, so twenty-two pushed commits had never met the 85% gate CI enforces.
+Ran it: **97.31%**. The assumption held, and now it is a fact rather than a hope.
+
+Then I read the report for what the new code left uncovered, and it pointed at two
+variables:
+
+    _GNOMAD_LOAD_ERROR = str(exc)        # set, read by nothing
+    _HAPLOTYPES_LOAD_ERROR = str(exc)    # set, read by nothing
+
+Written by me three rounds ago, copied from the reference's pattern — where the error *is*
+surfaced, through the 503 that `/api/design` raises. The copies were dead. So:
+
+    ALLELEFORGE_GNOMAD_TSV=/data/typo.tsv   ->  {"gnomad_loaded": false}
+    (nothing configured)                    ->  {"gnomad_loaded": false}
+
+An operator who fat-fingered a path, or shipped a container without the mount, got exactly
+what a deliberately reference-only deployment reports — the "we did not look" versus "we
+looked and found nothing" class, in code I added while fixing that very class elsewhere.
+`source_errors` on `/api/health` now carries the reason, for all four sources including
+the tracks (whose error I had not even recorded).
+
+**Lesson: a coverage report is an audit tool, not a score. The uncovered lines in code you
+just wrote are the branches you did not think about — and a branch that only assigns to a
+variable nothing reads is uncovered because it does nothing, which is the finding.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

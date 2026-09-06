@@ -162,6 +162,10 @@ def _load_haplotypes_from_env() -> Any:
         return ()
 
 
+#: As `_GNOMAD_LOAD_ERROR`, for the accessibility tracks.
+_ENCODE_TRACKS_LOAD_ERROR: str | None = None
+
+
 def _load_encode_tracks_from_env() -> Any | None:
     """Load accessibility tracks from ``ALLELEFORGE_ENCODE_TRACKS`` if set.
 
@@ -169,6 +173,8 @@ def _load_encode_tracks_from_env() -> Any | None:
     per-request, because one bedGraph can hold several cell types and the choice belongs
     to the caller. Without the file the chromatin adjustment is unreachable over HTTP.
     """
+    global _ENCODE_TRACKS_LOAD_ERROR
+    _ENCODE_TRACKS_LOAD_ERROR = None
     path = os.environ.get("ALLELEFORGE_ENCODE_TRACKS")
     if not path:
         return None
@@ -176,7 +182,8 @@ def _load_encode_tracks_from_env() -> Any | None:
         from alleleforge.data.annotations import EncodeTracks
 
         return EncodeTracks.from_bedgraph(Path(path))
-    except (OSError, ValueError, ImportError):
+    except (OSError, ValueError, ImportError) as exc:
+        _ENCODE_TRACKS_LOAD_ERROR = str(exc)
         return None
 
 
@@ -502,6 +509,20 @@ def create_app(
             haplotypes_loaded=bool(app.state.haplotypes),
             # The names, not a flag: a client picks one per request and has no other way
             # to discover what this deployment's bedGraph contains.
+            # `_*_LOAD_ERROR` was recorded for each optional source and read by
+            # nothing, so a path that could not be opened reported exactly what an
+            # unconfigured deployment reports. The reference's error already reached a
+            # caller through the 503; the other two reached no one.
+            source_errors={
+                name: error
+                for name, error in (
+                    ("reference", _REFERENCE_LOAD_ERROR),
+                    ("gnomad", _GNOMAD_LOAD_ERROR),
+                    ("haplotypes", _HAPLOTYPES_LOAD_ERROR),
+                    ("encode_tracks", _ENCODE_TRACKS_LOAD_ERROR),
+                )
+                if error
+            },
             chromatin_tracks=(
                 tuple(app.state.encode_tracks.tracks) if app.state.encode_tracks is not None else ()
             ),

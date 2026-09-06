@@ -546,6 +546,12 @@ class HealthResponse(BaseModel):
     #: per request via `chromatin_track` and has no other way to learn what the
     #: operator's bedGraph contains.
     chromatin_tracks: tuple[str, ...] = ()
+    #: Why a *configured* source is not loaded, keyed by source name; empty when every
+    #: configured source loaded. Without it `gnomad_loaded: false` means either "the
+    #: operator configured none" or "the operator configured one and it could not be
+    #: read" — a broken deployment indistinguishable from a deliberate one, on the axis
+    #: where the difference decides whether any population site can be nominated.
+    source_errors: dict[str, str] = {}
     disclaimer: str
 
 

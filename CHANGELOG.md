@@ -2056,6 +2056,12 @@ acceptance.
 
 ### Fixed
 
+- **A misconfigured data source is distinguishable from an absent one.** Each optional source recorded why
+  it failed to load, and only the reference's reason was ever read. So
+  `ALLELEFORGE_GNOMAD_TSV=/data/typo.tsv` and configuring nothing at all both returned `gnomad_loaded:
+  false` — an operator's broken mount indistinguishable from a deliberate choice, on the axis that decides
+  whether any population site can be nominated. `GET /api/health` now reports `source_errors`.
+
 - **The cohort/single-variant option parity is enforced, not just stated.** The spec has required since it
   shipped that "every option `aforge design` accepts SHALL be accepted by `aforge batch`" — established once
   and guarded by nothing, so every option added since had to be copied by hand and the failure mode was a
