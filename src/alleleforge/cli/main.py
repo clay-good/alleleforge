@@ -26,7 +26,7 @@ import hashlib
 import json
 import os
 import tomllib
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import IntEnum, StrEnum
 from pathlib import Path
@@ -252,23 +252,88 @@ def resolve(
     _emit(payload, as_json=as_json, human=human)
 
 
-def _parse_weights(spec: str | None) -> Any:
-    """Parse a ``eff,clean,safe,simple`` weights string into RankingWeights."""
+def _parse_populations(spec: Any) -> list[str] | None:
+    """Parse ancestry labels from the CLI's comma string or a config TOML's array.
+
+    The flag takes ``afr,eur``; a TOML file naturally writes ``["afr", "eur"]``, and
+    `populations` is a whitelisted config key, so the array form arrived unwarned and
+    was handed to `str.split`.
+
+    Args:
+        spec: A comma-separated string, a sequence of labels, or ``None``.
+
+    Returns:
+        The labels, or ``None`` when nothing was requested.
+    """
+    if spec is None:
+        return None
+    if isinstance(spec, str):
+        parts = spec.split(",")
+    elif isinstance(spec, Sequence):
+        parts = [str(item) for item in spec]
+    else:
+        _echo_err(
+            "error: populations must be a comma-separated string or an array, "
+            f"not {type(spec).__name__}"
+        )
+        raise typer.Exit(ExitCode.USAGE)
+    labels = [p.strip() for p in parts if p.strip()]
+    return labels or None
+
+
+#: The ranking axes, in the order the `--weights` string spells them.
+_WEIGHT_AXES = ("efficiency", "cleanliness", "safety", "simplicity")
+
+
+def _parse_weights(spec: Any) -> Any:
+    """Parse a weights specification from the CLI or a run-config TOML.
+
+    Three spellings mean the same thing, because a config file is TOML and should
+    be writable as TOML: the CLI's ``"eff,clean,safe,simple"`` string, a
+    four-element array in that same order, and a table keyed by the axis names.
+    The table is the shape a result's own ``provenance.config_snapshot`` records,
+    so a user reconstructing a run from its provenance writes that one.
+
+    Args:
+        spec: A string, a sequence of four numbers, a mapping keyed by axis name,
+            or ``None`` for the defaults.
+
+    Returns:
+        The parsed :class:`RankingWeights`.
+    """
     from alleleforge.design.ranking import DEFAULT_WEIGHTS, RankingWeights
 
     if spec is None:
         return DEFAULT_WEIGHTS
-    parts = spec.split(",")
-    if len(parts) != 4:
-        _echo_err("error: --weights expects 'efficiency,cleanliness,safety,simplicity'")
+    expected = "'efficiency,cleanliness,safety,simplicity', a 4-element array, or a table"
+    if isinstance(spec, str):
+        values: Any = spec.split(",")
+    elif isinstance(spec, Mapping):
+        unknown = sorted(set(spec) - set(_WEIGHT_AXES))
+        missing = sorted(set(_WEIGHT_AXES) - set(spec))
+        if unknown or missing:
+            _echo_err(
+                f"error: weights table must name exactly {list(_WEIGHT_AXES)}"
+                + (f"; unexpected {unknown}" if unknown else "")
+                + (f"; missing {missing}" if missing else "")
+            )
+            raise typer.Exit(ExitCode.USAGE)
+        values = [spec[axis] for axis in _WEIGHT_AXES]
+    elif isinstance(spec, Sequence):
+        values = list(spec)
+    else:
+        _echo_err(f"error: weights must be {expected}, not {type(spec).__name__}")
+        raise typer.Exit(ExitCode.USAGE)
+    if len(values) != 4:
+        _echo_err(f"error: weights expects {expected}")
         raise typer.Exit(ExitCode.USAGE)
     try:
-        eff, clean, safe, simple = (float(p) for p in parts)
+        eff, clean, safe, simple = (float(v) for v in values)
         # RankingWeights rejects non-finite / negative / all-zero weights; surface
         # those as a clean usage error rather than an uncaught traceback.
         return RankingWeights(efficiency=eff, cleanliness=clean, safety=safe, simplicity=simple)
-    except ValueError as exc:
-        _echo_err(f"error: --weights must be four non-negative numbers: {exc}")
+    except (TypeError, ValueError) as exc:
+        _echo_err(f"error: weights must be four non-negative numbers: {exc}")
         raise typer.Exit(ExitCode.USAGE) from exc
 
 
@@ -520,7 +585,7 @@ def _attach_source(obj: _T, path: Path, name: str) -> _T:
 
 
 def _warn_if_ancestries_unbacked(
-    populations: str | None, gnomad: Path | None, haplotypes: Path | None
+    populations: list[str] | None, gnomad: Path | None, haplotypes: Path | None
 ) -> None:
     """Warn when ancestry labels are requested with no ancestry-bearing data.
 
@@ -785,8 +850,8 @@ def design(
         except ValueError as exc:
             _echo_err(f"error: unknown chemistry: {exc}")
             raise typer.Exit(ExitCode.USAGE) from exc
-    pops = [p.strip() for p in pops_str.split(",")] if pops_str else None
-    _warn_if_ancestries_unbacked(pops_str, gnomad, haplotypes)
+    pops = _parse_populations(pops_str)
+    _warn_if_ancestries_unbacked(pops, gnomad, haplotypes)
     gnomad_db = _load_gnomad(gnomad)
     haplotype_panel = _load_haplotypes(haplotypes)
     region_list = _load_regions(regions, regions_bed)
@@ -1205,8 +1270,8 @@ def batch(
     if not inputs.is_file():
         _echo_err(f"error: input file not found: {inputs}")
         raise typer.Exit(ExitCode.MISSING_DATA)
-    pops = [p.strip() for p in pops_str.split(",")] if pops_str else None
-    _warn_if_ancestries_unbacked(pops_str, gnomad, haplotypes)
+    pops = _parse_populations(pops_str)
+    _warn_if_ancestries_unbacked(pops, gnomad, haplotypes)
     gnomad_db = _load_gnomad(gnomad)
     haplotype_panel = _load_haplotypes(haplotypes)
     region_list = _load_regions(regions, regions_bed)
@@ -1501,8 +1566,8 @@ def offtarget(
 
     state: GlobalState = ctx.obj
     reference = _load_reference(reference_fasta, state.reference_build)
-    pops = [p.strip() for p in populations.split(",")] if populations else None
-    _warn_if_ancestries_unbacked(populations, gnomad, haplotypes)
+    pops = _parse_populations(populations)
+    _warn_if_ancestries_unbacked(pops, gnomad, haplotypes)
     gnomad_db = _load_gnomad(gnomad)
     haplotype_panel = _load_haplotypes(haplotypes)
     region_list = _load_regions(regions, regions_bed)

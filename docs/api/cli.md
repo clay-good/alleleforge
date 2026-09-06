@@ -81,6 +81,34 @@ aforge bench run offtarget-classification --out offtarget.json
 aforge bench leaderboard cas9.json offtarget.json --format html --out board.html
 ```
 
+### The run-config file
+
+`--config run.toml` carries the same knobs as the flags, so a run is described by a
+file rather than a shell line. A flag on the command line still wins.
+
+```toml
+# Run parameters
+intent = "correct"
+chemistry = ["prime", "cas9_nuclease"]
+populations = ["afr", "eur"]
+max_per_chemistry = 5
+run_offtarget = true
+
+# Ranking weights: a table keyed by axis, a 4-element array in the order
+# efficiency, cleanliness, safety, simplicity, or the flag's "0.4,0.3,0.2,0.1"
+# string. The table is the shape a result's provenance records them in, so a
+# run reconstructed from its own provenance can be written straight back.
+[weights]
+efficiency = 0.4
+cleanliness = 0.3
+safety = 0.2
+simplicity = 0.1
+```
+
+`Settings` fields (`seed`, `reference`, `interval_level`, `maf_threshold`,
+`allow_network`, `cache_dir`) go at the top level of the same file. An unrecognized
+key is warned about and ignored rather than silently accepted.
+
 !!! note "Reproducibility"
     `aforge --seed S design ...` records the seed and resolved config in the
     menu's provenance block. The same seed and config produce byte-identical

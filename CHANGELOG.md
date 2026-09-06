@@ -10,6 +10,16 @@ acceptance.
 
 ### Added
 
+- **A run-config TOML can be written as TOML.** `weights` and `populations` are whitelisted config keys —
+  so `--config` accepted them without a typo warning — and both were then handed to a parser that only knew
+  the CLI's comma-separated string, crashing with `AttributeError: 'list' object has no attribute 'split'` on
+  the natural TOML spellings. The `[weights]` table is exactly the shape a result's own
+  `provenance.config_snapshot` records, so the user most likely to hit it was the one reconstructing a run
+  from its provenance. Both keys now accept either spelling (weights also as a 4-element array), a malformed
+  one is a usage error naming what was expected instead of a traceback, and the three weight spellings are
+  pinned as producing the same run. `docs/api/cli.md` now shows the run-config file it referenced in three
+  places and never displayed, and a test extracts that block from the markdown and runs it.
+
 - **The API reference lists every endpoint, and a check keeps it that way.** `docs/api/web.md` heads a
   table "Endpoints" and omitted `POST /api/batch` — cohort design over a variant list, a whole capability —
   while the README's copy of the same table had it. Nothing was broken, which is why nothing caught it: the

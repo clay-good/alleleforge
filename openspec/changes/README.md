@@ -6732,6 +6732,49 @@ describing — then a third copy costs one line in a parametrize instead of a fo
 opportunity to drift.**
 
 
+## Round 213 — a config file that could not be written in TOML
+
+R209's query was "for every artifact the tool writes, feed it back to the tool that
+consumes that kind of artifact". A design result records a `config_snapshot` in its
+provenance, the docs say a run is "re-derivable from its config plus seed", and
+`--config` takes a run-config TOML. So: turn the snapshot into a TOML file and hand it
+back.
+
+    AttributeError: 'list' object has no attribute 'split'
+
+`weights` is on `_RUN_PARAM_KEYS`, so `_load_config` accepts it with no typo warning and
+passes it to `_parse_weights`, which only ever handled the CLI's
+`"eff,clean,safe,simple"` string. A TOML array crashed. A TOML table crashed. The table
+is not a hypothetical spelling — it is exactly how `provenance.config_snapshot` records
+the weights, so the user most likely to write it is the one reconstructing a run from its
+provenance, which is what provenance is for.
+
+Then the documented example found the second one. Writing a run-config block for
+`docs/api/cli.md` — the file was referenced as `run.toml` in three places and its
+contents shown nowhere — and running it produced the same traceback from `populations`,
+where the flag takes `afr,eur` and TOML naturally writes `["afr", "eur"]`. Same
+mechanism, one key over: **every whitelisted config key whose flag is a comma-separated
+string had this defect**, and the whitelist is what suppresses the warning that would
+otherwise have been the only sign.
+
+Both now take either spelling, a malformed one is a usage error naming what was expected
+rather than a traceback, and the three weight spellings are pinned as producing the same
+run. The documented TOML block is extracted from the markdown and executed by a test, not
+proofread — it is a config file, and a config file that has never been fed to the program
+is a guess.
+
+One detail worth keeping. `populations` reaching the search is not directly observable in
+the menu; what proves it parsed is that the reference-only ancestry warning fires. The
+honesty mechanism turned out to be the assertion.
+
+**Lesson: a whitelist of accepted keys is a promise about a type as much as a name.
+`_load_config` said "this key is known" and then handed it to a parser that knew one
+encoding of it, so validation ran and told the user their file was fine two lines before
+the program crashed on it. Whenever the same knob exists as a flag and as a config key,
+the config file's own native type is a case the parser must handle — the flag's string
+form is the special case, not the general one.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
