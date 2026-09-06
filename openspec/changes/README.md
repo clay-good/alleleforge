@@ -5645,6 +5645,45 @@ command-line flag away from silently emptying the population-safety section of a
 surface, not only the source.**
 
 
+## Round 188 — the report never said which chromosome
+
+R187 ended on "sweep the input surface, not only the source." The obvious next boundary was coordinate
+convention: VCF is 1-based inclusive, BED is 0-based half-open, internal hits are 0-based, and an off-by-one
+in a printed locus sends a lab to the wrong base. The inputs turned out to be in good shape — every parser
+converts on read, and an earlier round had already labelled `--region` and `--variant` in the CLI help.
+
+So the query rotated to the egress. `GenomicInterval.to_one_based` is the declared converter for I/O
+boundaries and has no callers in `src/` outside its own definition, which an earlier round had noticed and
+answered by labelling the convention: the report's provenance block says "coordinates 0-based half-open." The
+question nobody had asked was what coordinates it was describing. Rendering both fixture reports and searching
+the entire page for a contig token:
+
+    [prime_menu]    contig tokens in page: []
+    [ancestry_menu] contig tokens in page: []
+
+Not one. SpCas9 printed `cut 117` inside the reagent line — a bare integer with no chromosome. Prime editing
+printed no genomic coordinate at all: five candidates differing only in RTT length, none saying where the edit
+lands. Base editing gave a protospacer-relative window. The provenance block was carefully labelling the
+convention of coordinates the report did not have.
+
+`CandidateReport.locus` now carries `chr11:100-120 (+), cut 117` — read from whichever of the three
+chemistries is placed, `None` when none is — and reaches the HTML page, the printable PDF and a new `locus`
+column in the flat export, which a pipeline previously could not join to anything genomic. Four mutations, all
+fatal, including dropping the PDF render specifically: R183's lesson is that the printable sheet is where a
+field silently goes missing, and the assertion had to be scoped past the PDF's paren escaping to be real.
+
+Then the README contradicted the fix. Its coordinate cheat-sheet had one row reading `HGVS (g.),
+human-readable reports | 1-based`. HGVS is 1-based; the reports are 0-based half-open and say so themselves. A
+reader trusting the table would read the new locus as 1-based inclusive and land one base off — precisely the
+failure the locus exists to prevent. Row split, and pinned against `COORDINATE_NOTE`, because the table and the
+note live in different files and had already drifted apart once.
+
+**Lesson: labelling a convention is not the same as checking there is anything to label. The earlier round
+added a correct, well-reasoned note about coordinates the report was not printing, and the note's presence is
+what made the absence invisible — a reader sees a coordinate statement and assumes coordinates. When a fix is
+a *statement about* the output, verify the output it describes actually exists.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

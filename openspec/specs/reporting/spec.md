@@ -355,3 +355,17 @@ that something else will happen more often than what they asked for.
 - **WHEN** the highest-probability allele is not the intended one
 - **THEN** the candidate carries `intended-not-modal:<P(intended)>` and the report
   renders it as a caveat
+
+### Requirement: A placed candidate states where in the genome it edits
+
+Every candidate whose reagent has a genomic placement SHALL carry a contig-qualified
+locus, together with the cut or nick site where the chemistry defines one, on every
+human-readable surface and in the flat export. A coordinate without its contig cannot be
+opened in a genome browser and is not unique in a cohort report spanning several genes.
+The locus SHALL be read from the placement, never synthesized: an unplaced candidate
+states no locus rather than naming a contig it does not have.
+
+#### Scenario: A prime-editing report
+- **WHEN** a report is rendered for placed pegRNA candidates
+- **THEN** each names its contig, interval and nick site, rather than describing the
+  reagent with no genomic position at all

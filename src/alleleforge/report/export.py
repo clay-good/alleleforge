@@ -19,7 +19,7 @@ from alleleforge.types.candidate import RankedMenu
 
 #: Schema version for the flat TSV/Parquet candidate export. Bump when a column is
 #: added, removed, or reinterpreted so a downstream consumer can detect the drift.
-EXPORT_SCHEMA_VERSION = 4
+EXPORT_SCHEMA_VERSION = 5
 
 #: The flat TSV column order (one row per candidate). ``schema_version`` leads so a
 #: reader can branch on the format before touching any other column.
@@ -27,6 +27,9 @@ TSV_COLUMNS = (
     "schema_version",
     "rank",
     "chemistry",
+    # Where the edit lands. A pipeline cannot join a candidate row to anything genomic
+    # without it, and no column carried a contig.
+    "locus",
     "on_pareto_front",
     "efficiency",
     "efficiency_low",
@@ -76,6 +79,7 @@ def _row(candidate: Any) -> dict[str, Any]:
         "schema_version": EXPORT_SCHEMA_VERSION,
         "rank": candidate.rank,
         "chemistry": candidate.chemistry.value,
+        "locus": candidate.locus,
         "on_pareto_front": candidate.on_pareto_front,
         "efficiency": None if eff is None else round(eff.value, 4),
         "efficiency_low": None if eff is None else round(eff.interval[0], 4),

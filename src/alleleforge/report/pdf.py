@@ -110,6 +110,10 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
     front = "  [Pareto-optimal]" if c.on_pareto_front else ""
     lines += _wrap(f"#{c.rank}  {c.chemistry.value}{front}")
     lines += _wrap(c.reagent, indent="    ")
+    # The locus belongs on the printable sheet too: it is what a bench reader checks
+    # in a browser before ordering anything.
+    if c.locus is not None:
+        lines += _wrap(c.locus, indent="    ")
     if c.efficiency is not None:
         e = c.efficiency
         ood = "" if e.in_distribution else "  (OUT-OF-DISTRIBUTION)"

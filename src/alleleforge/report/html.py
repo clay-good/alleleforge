@@ -158,6 +158,11 @@ def _candidate_html(c: CandidateReport) -> str:
     badge = '<span class="badge">Pareto</span>' if c.on_pareto_front else ""
     parts = [f"<div class='candidate'><h3>#{c.rank} · {_esc(c.chemistry.value)}{badge}</h3>"]
     parts.append(f"<div class='mono'>{_esc(c.reagent)}</div>")
+    # The contig-qualified locus, beside the reagent it belongs to. Without it the
+    # page named no chromosome anywhere, while the provenance block below described
+    # the coordinate convention those absent coordinates were in.
+    if c.locus is not None:
+        parts.append(f"<div class='mono'>{_esc(c.locus)}</div>")
     if c.efficiency is not None:
         e = c.efficiency
         ood = "" if e.in_distribution else " <strong>(out-of-distribution)</strong>"

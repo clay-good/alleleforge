@@ -437,7 +437,8 @@ boundaries are 1-based. Every parser converts on read.
 | ClinVar / gnomAD / dbSNP VCF | 1-based | `pos − 1` on read |
 | GENCODE GTF | 1-based inclusive | `[start − 1, end)` on read |
 | ENCODE bedGraph | 0-based half-open | unchanged |
-| HGVS (`g.`), human-readable reports | 1-based | boundary helpers only |
+| HGVS (`g.`) | 1-based | `hgvs_adapter` on read |
+| Human-readable reports (HTML/PDF/TSV `locus`) | **0-based half-open** | — (stated in the report's own provenance block) |
 
 **Dataset provenance** (pinned, versioned, citation-stamped — full table in [`docs/data.md`](docs/data.md)):
 

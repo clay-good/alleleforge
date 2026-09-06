@@ -25,6 +25,7 @@ from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import AlleleOutcome, Chemistry
 from alleleforge.types.prediction import Prediction
 from alleleforge.types.provenance import Provenance
+from alleleforge.types.sequence import GenomicInterval
 
 #: The research-use disclaimer that leads every rendered report.
 RESEARCH_USE_DISCLAIMER = (
@@ -154,6 +155,36 @@ def caveats(flags: tuple[str, ...]) -> tuple[tuple[str, str], ...]:
     return tuple(out)
 
 
+def _placement(candidate: DesignCandidate) -> GenomicInterval | None:
+    """Return the protospacer's genomic interval for whichever chemistry is present."""
+    for part in (candidate.guide, candidate.pegrna, candidate.base_edit_window):
+        if part is not None and part.placement is not None:
+            return part.placement
+    return None
+
+
+def _locus_summary(candidate: DesignCandidate) -> str | None:
+    """Return the contig-qualified locus of the edit, or ``None`` if unplaced.
+
+    The reagent line carried `cut 117` -- a bare integer with no contig -- and the
+    prime and base-editor lines carried no genomic coordinate at all. No contig name
+    appeared anywhere in a rendered report, while the provenance block promised the
+    coordinates were 0-based half-open. A locus without its contig cannot be opened in
+    a browser, and in a cohort report spanning several genes it is not even unique.
+    """
+    placement = _placement(candidate)
+    if placement is None:
+        return None
+    line = f"{placement.chrom}:{placement.start}-{placement.end} ({placement.strand.value})"
+    # The cut and nick are the positions a reader acts on, and they are the reason the
+    # contig had to be stated: both were already printed, unqualified.
+    if candidate.guide is not None:
+        line += f", cut {candidate.guide.cut_site}"
+    elif candidate.pegrna is not None and candidate.pegrna.nick_site is not None:
+        line += f", nick {candidate.pegrna.nick_site}"
+    return line
+
+
 def _reagent_summary(candidate: DesignCandidate) -> str:
     """Return a one-line human description of the candidate's reagent."""
     if candidate.guide is not None:
@@ -238,6 +269,10 @@ class CandidateReport(BaseModel):
             render distinguish a **reagent-free** candidate (requested, but nothing
             to synthesize) from one where oligos were simply not asked for, so a
             reagent-free candidate can say so rather than omitting the section.
+        locus: Contig-qualified genomic interval of the protospacer, with the cut
+            or nick site, in the report's stated 0-based half-open convention;
+            ``None`` for an unplaced candidate. The one thing a reader needs to open
+            the design in a genome browser, and the report had no contig anywhere.
         flags: Free-form candidate flags.
         rationale: The candidate's ranking rationale.
     """
@@ -248,6 +283,7 @@ class CandidateReport(BaseModel):
     chemistry: Chemistry
     on_pareto_front: bool
     reagent: str
+    locus: str | None = None
     efficiency: Prediction[float] | None
     bystander_burden: Prediction[float] | None
     p_intended: float | None
@@ -368,6 +404,7 @@ def _candidate_report(
         chemistry=candidate.chemistry,
         on_pareto_front=on_pareto_front,
         reagent=_reagent_summary(candidate),
+        locus=_locus_summary(candidate),
         efficiency=candidate.efficiency,
         bystander_burden=candidate.bystander_burden,
         p_intended=p_intended,

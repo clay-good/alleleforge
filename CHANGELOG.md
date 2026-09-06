@@ -10,6 +10,18 @@ acceptance.
 
 ### Added
 
+- **Every candidate now says where in the genome it edits.** A prior round labelled the report's coordinate
+  convention on the reasoning that "a printed cut site is the number a reader pastes into a genome browser" —
+  and then the coordinates themselves went unaudited. SpCas9 printed `cut 117` inside the reagent line, a bare
+  integer with **no contig**. Prime editing printed no genomic coordinate at all: five candidates differing
+  only in RTT length, none saying where the edit lands. Base editing gave a protospacer-relative window and no
+  locus. Rendering a report and searching the whole page for a contig name returned nothing — not one `chr…`
+  token anywhere, while the provenance block described the convention those absent coordinates were in. A
+  locus without its contig cannot be opened in a browser and is not even unique in a cohort report spanning
+  genes. `CandidateReport.locus` now carries the contig-qualified interval plus the cut or nick site, on all
+  three chemistries, and reaches the HTML page, the printable PDF and a new `locus` TSV/Parquet column
+  (`EXPORT_SCHEMA_VERSION` 4 → 5). An unplaced candidate still reports `None` rather than inventing one.
+
 - **A non-finite allele frequency is pinned as rejected.** `nan > 1.0` and `nan < 0.0` are both False, so a
   range check written `if af > 1 or af < 0` admits `NaN` — which then compares False against every MAF
   threshold and silently drops the variant from the search. The validator is written `not 0.0 <= af <= 1.0`,
@@ -1582,6 +1594,13 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+
+- **The README said human-readable reports were 1-based. They are 0-based half-open.** One row of the
+  coordinate cheat-sheet lumped HGVS together with "human-readable reports" and labelled the pair 1-based.
+  HGVS is; the reports are not, and say so in their own provenance block. A reader trusting the table would
+  have read the new `locus` as 1-based inclusive and landed one base off — the single failure the whole
+  surface exists to prevent. The row is split, and a test pins the table against the report's own note, which
+  live in different files.
 
 - **A `NaN` threshold silently changed which off-target sites were reported.** `--cfd-threshold -1`, `2` and
   `inf` are all refused with a usage error; `nan` was accepted, because Click's `min=0.0, max=1.0` is a pair
