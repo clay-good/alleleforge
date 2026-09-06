@@ -135,6 +135,17 @@ class DesignRequest(BaseModel):
         default=None, ge=1, description="Cap candidates kept per chemistry."
     )
     run_offtarget: bool = Field(default=True, description="Run the off-target engine.")
+    allow_ng: bool = Field(
+        default=False,
+        description=(
+            "Offer SpCas9-NG (NG PAM) guides when no NGG guide is actionable. Off by "
+            "default: an NG guide is a different reagent with different specificity."
+        ),
+    )
+    allow_spry: bool = Field(
+        default=False,
+        description="Offer SpRY (NRN/NYN PAM) guides when neither NGG nor NG yields one.",
+    )
 
 
 class BatchRequest(BaseModel):

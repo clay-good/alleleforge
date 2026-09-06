@@ -4759,6 +4759,36 @@ observation. Cas9 genuinely lacks the multi-reason structure the other two had, 
 the actual defect was one frame up, in what the unified entry point declines to forward. When a sweep clears
 a sibling, check the layer that calls it before closing the question.**
 
+## Round 160 — what the shells decline to forward
+
+R159's lesson said to check the calling layer before closing a question. The mechanical form of that is a
+parameter diff, so I ran one: `design()` against the three verticals below it, and against the two shells
+above it.
+
+Below: clean. Every parameter the verticals accept, `design()` forwards.
+
+Above: three gaps, and the third is mine from one round ago.
+
+* **The trained prime model.** The CLI has `--trained-efficiency`, `--trained-outcome` and
+  `--trained-base-outcome`. It has nothing for prime, while `design()` accepts `prime_efficiency_scorer` and
+  `DeepPrimeAdapter` sits in the registry with a card. Three trained-model opt-ins, one missing, on the
+  chemistry the project leads with.
+* **`--allow-ng` / `--allow-spry` on the web API.** I added them to `design()` and the CLI last round and
+  did not look at the other shell. R159's own lesson, one round old, applied to me.
+* (`build`, `clinvar`, `hgvs` and friends turned out to be genuine non-gaps — the CLI resolves the variant
+  before calling `design()`, and the web API does it server-side.)
+
+The durable part is not the two flags. It is that the parity is now a test: every `design()` parameter must
+be forwarded by each shell or recorded with the reason it is not. Writing those reasons out was itself
+worthwhile — the web API's file-backed exclusions (`gnomad`, `haplotypes`, `patient_vcf`, `encode_tracks`)
+are a deliberate refusal to accept client-supplied filesystem paths on a server, and that reasoning now sits
+next to the check rather than in a commit message from twenty rounds ago.
+
+**Lesson: "library is truth, the shells are thin" is a claim about a boundary, and boundaries are exactly
+where a parameter goes missing without anything failing. Three shells and one core means three chances to
+forget, each invisible from the others — and the round that fixes one is the round most likely to create the
+next, because the new parameter only gets added where you were already looking.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

@@ -165,6 +165,8 @@ def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
         cell_context=req.cell_context,
         run_offtarget=req.run_offtarget,
         max_candidates_per_chemistry=req.max_per_chemistry,
+        allow_ng=req.allow_ng,
+        allow_spry=req.allow_spry,
         settings=settings,
     )
     return build_report(menu, variant=str(resolved.variant), intent=intent.value)

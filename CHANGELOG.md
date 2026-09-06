@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **`--trained-prime`, and shell/library parity is now pinned.** `design()` is the one entry point behind all
+  three audiences, and a parameter it accepts that a shell does not forward is a capability that exists and
+  cannot be reached. Three instances: the PAM fallbacks (previous entry); the trained prime-efficiency model,
+  which had no CLI flag while its Cas9 and base-editor siblings did — on the flagship chemistry; and
+  `--allow-ng`/`--allow-spry`, which the previous entry added to the CLI and not to the web API. All three are
+  closed, and a test now requires every `design()` parameter to be forwarded by each shell or recorded with
+  the reason it is not (the web API's file-backed exclusions, for instance, are a deliberate refusal to accept
+  client-supplied filesystem paths on a server).
+
 - **`--allow-ng` and `--allow-spry`: the PAM-flexible fallbacks are reachable at last.** `enumerate_cas9`
   falls back to SpCas9-NG (`NG`) and SpRY (`NRN`/`NYN`) when no `NGG` guide is actionable, and `design_cas9`
   exposed both — but `design()`, which the CLI, the web API and the cohort path all use, did not, so no shell

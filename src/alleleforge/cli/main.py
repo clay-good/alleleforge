@@ -286,6 +286,7 @@ _RUN_PARAM_KEYS = frozenset(
         "trained_efficiency",
         "trained_outcome",
         "trained_base_outcome",
+        "trained_prime",
         "cell_context",
     }
 )
@@ -685,6 +686,15 @@ def design(
             "Default is the weight-free microhomology baseline.",
         ),
     ] = False,
+    trained_prime: Annotated[
+        bool,
+        typer.Option(
+            "--trained-prime",
+            help="Use the trained DeepPrime model for prime-editing efficiency "
+            "instead of the transparent PRIDICT2-style baseline (consent-gated "
+            "weight download).",
+        ),
+    ] = False,
     trained_base_outcome: Annotated[
         bool,
         typer.Option(
@@ -759,6 +769,7 @@ def design(
     trained_efficiency = trained_efficiency or bool(cfg.get("trained_efficiency", False))
     trained_outcome = trained_outcome or bool(cfg.get("trained_outcome", False))
     trained_base_outcome = trained_base_outcome or bool(cfg.get("trained_base_outcome", False))
+    trained_prime = trained_prime or bool(cfg.get("trained_prime", False))
     run_offtarget = _resolve_run_offtarget(no_offtarget, cfg)
 
     try:
@@ -803,6 +814,11 @@ def design(
         from alleleforge.scoring.base_outcome import BeDictAdapter
 
         base_outcome = BeDictAdapter(consent=True)
+    prime_scorer = None
+    if trained_prime:
+        from alleleforge.scoring.prime_efficiency import DeepPrimeAdapter
+
+        prime_scorer = DeepPrimeAdapter(consent=True)
     try:
         resolved = resolve_variant(variant, build=state.reference_build, reference=reference)
         menu = run_design(
@@ -825,6 +841,7 @@ def design(
             cas9_efficiency_scorer=cas9_scorer,
             cas9_outcome_predictor=cas9_outcome,
             base_outcome_predictor=base_outcome,
+            prime_efficiency_scorer=prime_scorer,
             allow_ng=allow_ng,
             allow_spry=allow_spry,
         )
