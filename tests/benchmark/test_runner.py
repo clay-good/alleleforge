@@ -227,3 +227,37 @@ def test_a_tampered_scientific_field_breaks_the_digest(fixed_ts: datetime) -> No
     tampered = BenchmarkResult.model_validate({**body, "signature": content_hash(body)})
     assert tampered.verify_signature()
     assert not tampered.verify_reproducibility_digest()
+
+
+def test_disclaimed_predictions_are_part_of_the_scientific_result(fixed_ts: datetime) -> None:
+    """Two runs that disclaimed wildly different amounts compared as the same result.
+
+    `n_test` was in the scientific body and `n_out_of_distribution` was not, which
+    split one ratio across the honesty boundary: the denominator was covered by the
+    reproducibility digest and the numerator was not. A run whose model stood behind
+    all ten predictions and a run whose model disclaimed nine of them produced the
+    *same* digest, and `bench compare` reported "the same scientific result" and
+    exited 0. The leaderboard already treats this quantity as ranking-relevant — a
+    board without it puts two very different models on the same row — so it is part
+    of the claim, not of the volatile provenance.
+    """
+    task = get_task("cas9-efficiency")
+    split, dataset = load_split("cas9-efficiency")
+    result = run_benchmark(
+        build_baseline(task, split, dataset), task, split=split, dataset=dataset, timestamp=fixed_ts
+    )
+    assert "n_out_of_distribution" in result.scientific_body()
+    assert result.verify_reproducibility_digest()
+
+    from alleleforge.benchmark._canon import reproducibility_digest
+
+    disclaimed = result.model_copy(update={"n_out_of_distribution": result.n_test})
+    # A second lab's run that disclaimed every prediction re-derives to a *different*
+    # digest, so `agrees_with` separates them...
+    assert reproducibility_digest(disclaimed.scientific_body()) != result.reproducibility_digest
+    # ...and a record carrying the old digest with a changed count fails its own
+    # verification, which is what `bench compare` reports as a problem.
+    assert not disclaimed.verify_reproducibility_digest()
+    # The difference is nameable, which is what `bench compare` prints under DIFFER.
+    body, other = disclaimed.scientific_body(), result.scientific_body()
+    assert [k for k in body if body[k] != other[k]] == ["n_out_of_distribution"]

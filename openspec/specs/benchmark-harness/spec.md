@@ -286,3 +286,16 @@ and the differing fields named when they are not.
 #### Scenario: A re-signed result with an altered number
 - **WHEN** a scientific field is edited and the result re-signed
 - **THEN** the signature check passes and the digest check fails
+
+### Requirement: How much a model disclaimed is part of the scientific result
+
+The count of predictions a model self-flagged out-of-distribution SHALL be part of the
+scientific body the reproducibility digest covers, alongside the test-fold size it is
+a share of. A digest covering the denominator and not the numerator guarantees half a
+fraction.
+
+#### Scenario: Two runs disclaiming different amounts
+- **WHEN** two results agree on task, split, dataset, model and metrics but one model
+  disclaimed nine predictions in ten and the other disclaimed none
+- **THEN** their reproducibility digests differ and `bench compare` reports them as
+  not the same scientific result, naming the field that differs

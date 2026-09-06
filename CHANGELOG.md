@@ -8,7 +8,23 @@ acceptance.
 
 ## [Unreleased]
 
+### Changed
+
+- **`BenchmarkResult` schema version 4:** `n_out_of_distribution` moves into the scientific body, so it is
+  covered by the reproducibility digest. A result produced under an earlier version keeps a digest that will
+  not re-derive; the bumped `schema_version` is how a consumer detects that rather than misreading it.
+
 ### Fixed
+
+- **`bench compare` called two very different results "the same scientific result."** `n_test` was in the
+  scientific body the reproducibility digest covers and `n_out_of_distribution` was not, which split one
+  ratio across the honesty boundary — denominator covered, numerator not. Two runs of one model on one split,
+  one standing behind all ten predictions and one disclaiming nine of them, produced the *same* digest, and
+  `aforge bench compare` printed *"agree: the same scientific result"* and exited 0. The leaderboard already
+  treats this quantity as ranking-relevant — a board without it "puts two very different models on the same
+  row" — so it belongs in the claim, not in the volatile provenance. Compare now reports
+  `DIFFER … n_out_of_distribution: 0 != 9`.
+
 
 - **The web API returned a spotless-looking off-target result for a search that ran on nothing.**
   `OffTargetResponse` exists, by its own docstring, to give a client "the same summary the `aforge offtarget`

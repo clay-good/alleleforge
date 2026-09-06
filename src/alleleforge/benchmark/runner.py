@@ -81,8 +81,10 @@ class ModelInfo(BaseModel):
 #: removed, or reinterpreted so a downstream consumer can detect the drift instead
 #: of silently misreading a changed record. Part of the signed body. v2 adds
 #: ``split_sha256`` and ``reproducibility_digest`` and lets a metric be ``null``
-#: (undefined calibration).
-RESULT_SCHEMA_VERSION = 3
+#: (undefined calibration). v4 moves ``n_out_of_distribution`` into the scientific
+#: body, so a result whose model disclaimed nine predictions in ten no longer
+#: re-derives to the digest of one that stood behind all ten.
+RESULT_SCHEMA_VERSION = 4
 
 
 class BenchmarkResult(BaseModel):
@@ -194,6 +196,7 @@ class BenchmarkResult(BaseModel):
             ),
             "dataset_is_synthetic": self.dataset_is_synthetic,
             "n_test": self.n_test,
+            "n_out_of_distribution": self.n_out_of_distribution,
             "metrics": self.metrics,
             "primary_metric": self.primary_metric,
             "primary_value": self.primary_value,
@@ -535,6 +538,15 @@ def run_benchmark(
         # the real corpus, so two such runs must not share a reproducibility digest.
         "dataset_is_synthetic": dataset.synthetic,
         "n_test": len(examples),
+        # How much of that test fold the model actually stood behind. `n_test` was in
+        # the scientific body and this was not, which split one ratio across the
+        # honesty boundary: two runs of one model on one split, one disclaiming
+        # nothing and the other disclaiming nine in ten, produced the *same*
+        # reproducibility digest and `bench compare` called them the same scientific
+        # result. The leaderboard already treats this as ranking-relevant — a board
+        # without it "puts two very different models on the same row" — so it is part
+        # of the claim, not of the volatile provenance.
+        "n_out_of_distribution": n_ood,
         "metrics": metrics,
         "primary_metric": task_obj.primary_metric,
         "primary_value": primary_value,
@@ -543,7 +555,6 @@ def run_benchmark(
     digest = reproducibility_digest(scientific_body)
     body: dict[str, Any] = {
         **scientific_body,
-        "n_out_of_distribution": n_ood,
         "provenance": provenance.model_dump(mode="json"),
         "reproducibility_digest": digest,
     }

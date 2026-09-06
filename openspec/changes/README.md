@@ -3891,6 +3891,47 @@ up cost two minutes; reporting it would have been wrong in public.
 `skipped` were both honest and individually documented, and their juxtaposition was the lie — nothing in
 either field's definition is wrong, and no test of either one alone would have caught it.**
 
+## Round 139 — the denominator was covered and the numerator was not
+
+First, two negative results. Chasing R138 further, I checked which other qualification helpers reach which
+surfaces: `model_limitation_lines` renders only in HTML and PDF, but the JSON and API paths carry the raw
+`ModelCheckpoint` fields it formats, so the data travels. And `report_to_tsv`'s `caveats` column joins only
+the flag names from `caveats()`, discarding the reason half — which looks exactly like R138 until you read
+the test beside it: the column is *deliberately* the hazard subset of `flags`, so a pipeline can filter on
+"needs review". A documented, tested design decision, not an oversight. Left alone.
+
+Then: run a command I had not run. `aforge bench compare` — a *comparison* surface, which after R135 is a
+category worth suspecting.
+
+Ran it on two results differing in exactly one field:
+
+    a.json: cas9-efficiency @ v1  digest e699679b422d…
+    b.json: cas9-efficiency @ v1  digest e699679b422d…
+    agree: the same scientific result (timestamps and versions aside)      exit 0
+
+One of those models stood behind every one of its ten predictions. The other disclaimed nine of them.
+
+`n_test` was in the scientific body; `n_out_of_distribution` was not. One ratio, split across the honesty
+boundary — the digest covered how many examples were scored and not how many the model was willing to be
+judged on. And this is not a field nobody cares about: the leaderboard carries it precisely because a board
+without it *"puts two very different models on the same row"*, in a comment written when that column was
+added. The same argument that made it ranking-relevant makes it part of the scientific claim.
+
+Moved it into the body, bumped `RESULT_SCHEMA_VERSION` to 4 — an old result's stored digest will no longer
+re-derive, and the version is how a consumer detects that instead of misreading it. Compare now says
+`DIFFER — n_out_of_distribution: 0 != 9`.
+
+One note on the test. My first version asserted `not disclaimed.agrees_with(result)` after a `model_copy`,
+and it failed: `agrees_with` compares *stored* digests, and a copy carries the original's. The record was
+right and my assertion was wrong. The real guarantees are that a genuinely-different run re-derives to a
+different digest, and that a record whose count was edited fails its own digest verification — which is what
+`bench compare` reported. Asserting the mechanism I had actually demonstrated, rather than the one I assumed.
+
+**Lesson: when a ratio's parts are stored as separate fields, check they sit on the same side of every
+boundary that matters — signed/unsigned, scientific/volatile, shown/hidden. R134 found `total` and `skipped`
+ranging over different populations; this is the same pair split by a different axis. A denominator inside the
+integrity envelope and a numerator outside it is a guarantee that covers half a fraction.**
+
 ## Round 138 — the same result, told differently on two surfaces
 
 Started on R137's paired query — check the tool can do what its error messages instruct — and it came back
