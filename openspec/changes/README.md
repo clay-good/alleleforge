@@ -8758,6 +8758,34 @@ half the surface. Grep for the *callee*, not the endpoint you were editing — `
 the diff.**
 
 
+## Round 265 — the requirement with no test behind it
+
+R264's bug — a field on `DesignRequest` and not `BatchRequest`, a cohort endpoint left
+reference-only — is one the spec already forbids:
+
+    Every option `aforge design` accepts SHALL be accepted by `aforge batch`, except
+    those that shape a single rendered document ... A cohort is where a trained model or
+    a PAM-flexible fallback matters most, and an option honoured only through a config
+    file is invisible from `--help`.
+
+Checked it: the CLI parity holds today, and nothing enforces it. It was established once,
+and every option added since has been copied across by hand — which worked until this
+session, when I watched myself do it wrong on the web models within a single round.
+
+The guard compares the two signatures and the two request models, with an exemption set
+for the render-shaping options a cohort has no document for, and a staleness check that
+each exemption is still a real parameter. Removing `chromatin_track` from `BatchRequest`
+turns it red.
+
+Nothing about this round is a discovery. It converts a requirement that was true by
+diligence into one that is true by construction, which is the difference between a spec
+that describes the code and a spec that holds it.
+
+**Lesson: when a spec requirement is satisfied by hand, the next edit is the one that
+breaks it. Grep the spec for SHALLs whose only evidence is that the code currently
+complies — a requirement with no test is a comment.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

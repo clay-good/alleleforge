@@ -346,9 +346,18 @@ that shape a single rendered document, which the cohort path does not produce. A
 cohort is where a trained model or a PAM-flexible fallback matters most, and an option
 honoured only through a config file is invisible from `--help`.
 
+The same parity SHALL hold for the web shell's `POST /api/design` and `POST /api/batch`,
+which build their calls separately.
+
 #### Scenario: A cohort run with a trained model
 - **WHEN** a user runs `aforge batch … --trained-efficiency`
 - **THEN** the trained scorer is used for every item, as it is for `aforge design`
+
+#### Scenario: An option added to one command
+- **WHEN** an option or request field exists on the single-variant surface and not the
+  cohort one, outside the documented render-shaping exemptions
+- **THEN** the build fails, rather than the option being silently unavailable where a
+  cohort needs it most
 
 ### Requirement: A cohort reports both completion and success
 

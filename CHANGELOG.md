@@ -2056,6 +2056,12 @@ acceptance.
 
 ### Fixed
 
+- **The cohort/single-variant option parity is enforced, not just stated.** The spec has required since it
+  shipped that "every option `aforge design` accepts SHALL be accepted by `aforge batch`" — established once
+  and guarded by nothing, so every option added since had to be copied by hand and the failure mode was a
+  flag silently missing from the surface where it matters most. Now a test, covering the web's
+  `DesignRequest`/`BatchRequest` too, where this session watched the drift happen in real time.
+
 - **A report no longer tells an API client to pass a CLI flag.** `search_description()` — a library method
   returned verbatim over HTTP and rendered into every report — advised "pass `--gnomad` or `--haplotypes`",
   flags that exist on one of the three shells and that an HTTP client or Python caller cannot pass at all.
