@@ -25,6 +25,8 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -210,6 +212,27 @@ _SECURITY_HEADERS: dict[str, str] = {
 }
 
 
+#: How much of a rejected value the 422 shows back. Long enough to see a typo in a
+#: variant string or a PAM, short enough that the response is not a mirror.
+MAX_ECHOED_INPUT = 200
+
+
+def _truncate_echoed(value: Any) -> Any:
+    """Return ``value`` trimmed to something safe to put in an error body.
+
+    FastAPI's default validation error includes the offending ``input`` verbatim, so a
+    field bounded at 128 characters still answered a 100 KB value with a 100 KB error:
+    the bounds constrain what is *accepted* and not what is *reflected*. Every string
+    field on these models was already bounded and every one of them behaved this way,
+    which is why this belongs on the handler rather than on any field.
+    """
+    if isinstance(value, str) and len(value) > MAX_ECHOED_INPUT:
+        return f"{value[:MAX_ECHOED_INPUT]}… ({len(value)} characters, truncated)"
+    if isinstance(value, list) and len(value) > 10:
+        return [*value[:10], f"… ({len(value)} items, truncated)"]
+    return value
+
+
 def create_app(
     *,
     reference: Any | None = None,
@@ -257,6 +280,22 @@ def create_app(
     # not only the seed. A bare Settings() would read env vars but silently skip the file.
     app.state.settings = settings or Settings.load()
     app.state.jobs = JobManager()
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_error(request: Request, exc: RequestValidationError) -> Response:
+        """Answer a rejected request without mirroring it back.
+
+        Same body as FastAPI's default -- `loc`, `msg`, `type` per error, which is what
+        a caller needs to find their mistake -- with the echoed `input` trimmed.
+        """
+        errors = []
+        for error in exc.errors():
+            trimmed = dict(error)
+            if "input" in trimmed:
+                trimmed["input"] = _truncate_echoed(trimmed["input"])
+            trimmed.pop("ctx", None)  # may carry the value again, and the message has it
+            errors.append(trimmed)
+        return JSONResponse(status_code=422, content={"detail": jsonable_encoder(errors)})
 
     @app.middleware("http")
     async def _security_headers(request: Request, call_next: Any) -> Response:

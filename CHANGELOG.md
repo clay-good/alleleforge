@@ -3971,6 +3971,23 @@ acceptance.
 
 ### Security
 
+- **A rejected request was echoed back at its own size.** Every string field on the web models is bounded —
+  `variant` at 8192, `spacer` at 512, `intent` and `cell_context` at 128 — and none of those bounds constrained
+  the *response*. FastAPI's default validation error carries the offending `input` verbatim, so a 100 KB value
+  sent to a field bounded at 128 characters came back as a 100 KB error, on every field:
+
+      variant (bounded 8192)      HTTP 422  resp=100152B
+      intent (bounded 128)        HTTP 422  resp=100149B
+      cell_context (bounded 128)  HTTP 422  resp=100155B
+      spacer (bounded 512)        HTTP 422  resp=100149B
+
+  The bounds say what is *accepted*; the rejection is what carries the value, so a field-level fix does not
+  help — bounding `intent` (the one string field that was unbounded) changed the response by 3 bytes. A
+  validation-error handler now trims the echoed input, turning those 100 KB responses into ~360 bytes, while
+  keeping `loc`, `msg` and `type` — what makes a 422 actionable — and echoing short values unchanged so a
+  caller still sees their own typo. Being on the handler, it covers every field on every model, including ones
+  not written yet.
+
 - **The web app now sends security headers; it sent none.** A Content-Security-Policy is the structural form
   of a promise the project already made in prose — *"the served frontend loads no third-party scripts"* —
   which was violated for as long as the rendered report carried a `cdn.plot.ly` script tag, because nothing

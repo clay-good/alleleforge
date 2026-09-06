@@ -48,6 +48,12 @@ PopulationStr = Annotated[str, Field(max_length=MAX_BUILD_LEN)]
 #: A chemistry name bounded likewise.
 ChemistryStr = Annotated[str, Field(max_length=MAX_BUILD_LEN)]
 
+#: An edit intent is one of four short words, and an unrecognized one is echoed back in
+#: the 422 (`unknown intent '...'`, so a caller can see their typo). Unbounded, that echo
+#: reflects whatever was sent: a 100 KB intent produced a 100 KB error response. Every
+#: other string on these models was already bounded; this was the one that was not.
+IntentStr = Annotated[str, Field(max_length=MAX_BUILD_LEN)]
+
 
 class ResolveRequest(BaseModel):
     """A request to normalize any variant input form."""
@@ -85,7 +91,9 @@ class DesignRequest(BaseModel):
     variant: str = Field(
         max_length=MAX_VARIANT_LEN, description="ClinVar / rsID / HGVS / VCF / coords input."
     )
-    intent: str = Field(default="correct", description="correct | knock_out | install | revert.")
+    intent: IntentStr = Field(
+        default="correct", description="correct | knock_out | install | revert."
+    )
     chemistries: list[ChemistryStr] | None = Field(
         default=None,
         max_length=MAX_CHEMISTRIES,
@@ -160,7 +168,9 @@ class BatchRequest(BaseModel):
         max_length=MAX_BATCH_VARIANTS,
         description="Variant input forms (ClinVar / rsID / HGVS / coords).",
     )
-    intent: str = Field(default="correct", description="correct | knock_out | install | revert.")
+    intent: IntentStr = Field(
+        default="correct", description="correct | knock_out | install | revert."
+    )
     chemistries: list[ChemistryStr] | None = Field(
         default=None,
         max_length=MAX_CHEMISTRIES,

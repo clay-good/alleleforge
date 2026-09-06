@@ -6360,6 +6360,42 @@ at the earlier rate. Worth saying plainly, because a log of rounds that only eve
 defects reads as a codebase that is only ever broken.**
 
 
+## Round 204 — the bounds that bounded the wrong thing
+
+A query family not used before: which collections and strings in a request payload have no
+upper bound. The answer was almost none — `MAX_BATCH_VARIANTS`, `MAX_REGIONS`,
+`MAX_POPULATIONS`, `MAX_SPACER_LEN` and the rest are all there, and someone clearly went
+through this once. Exactly one string field had escaped: `intent`, a plain `str`, while
+every sibling was bounded.
+
+Bounding it changed the response size by three bytes.
+
+    intent, unbounded  -> HTTP 422, 100146 bytes
+    intent, max 128    -> HTTP 422, 100149 bytes
+
+Because FastAPI's default validation error carries the offending `input` verbatim. The
+bound decides what is *accepted*; the rejection is what carries the value back. Checked
+across the other fields and it is systemic — `variant` bounded at 8192, `spacer` at 512,
+`cell_context` at 128, all four answering a 100 KB value with a 100 KB error.
+
+So the fix belongs on the handler, where it covers every field on every model and the ones
+not written yet: trim the echoed `input`, keep `loc`/`msg`/`type` because that is what
+makes a 422 actionable, and leave short values alone so a caller still sees their own typo.
+100 KB responses become about 360 bytes.
+
+The mutation run then caught the test for that last property. `MAX_ECHOED_INPUT = 2` left
+every test green, because the "short value is still shown" test sent a *misspelled intent*
+— which is well under the length bound, so the model accepts it and the domain rejects it
+on a different path that never reaches the truncation at all. The test was exercising a
+route it did not name. Rewritten against the helper directly; both it and the list-trimming
+case now fail when the trimming changes.
+
+**Lesson: a bound is not a budget. Four separate length limits were all correct, all
+enforced, and none of them constrained the thing an operator would care about, because the
+expensive path was the *rejection* rather than the acceptance. Worth asking of any limit:
+what happens on the branch where it fires.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
