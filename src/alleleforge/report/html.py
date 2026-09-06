@@ -339,7 +339,8 @@ def render_html(
         body.append("<p class='muted'>No candidates were produced for this variant.</p>")
     body.append(
         "<p class='muted'>Genomic context: load the candidate loci in a "
-        "<a href='https://jbrowse.org/jb2/'>JBrowse 2</a> instance for an "
+        "<a href='https://jbrowse.org/jb2/' target='_blank' "
+        "rel='noopener noreferrer'>JBrowse 2</a> instance for an "
         "interactive browser view (optional).</p>"
     )
     body.append(_provenance_html(report))

@@ -216,3 +216,15 @@ user clicks (`<a href>`) is navigation, not a load, and is permitted.
 #### Scenario: A CDN font or script is added
 - **WHEN** an asset references a stylesheet, script, or font from another origin
 - **THEN** the check fails, naming the asset and the target
+
+### Requirement: The embedded report runs with no privileges
+
+The frontend SHALL embed a rendered report in a sandboxed frame that denies
+`allow-scripts`, `allow-same-origin` and `allow-forms`. The report is HTML assembled
+from user-supplied strings; without a sandbox an escaping bug in the renderer is an
+application compromise rather than a report defect.
+
+#### Scenario: A report is displayed
+- **WHEN** a design result is shown in the web UI
+- **THEN** the frame denies script, same-origin and form privileges, and the parent
+  page cannot read the frame's document

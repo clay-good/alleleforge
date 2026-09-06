@@ -76,3 +76,36 @@ def test_the_check_would_notice_a_cdn_script() -> None:
     # ...and a user-clickable link is still allowed.
     link = '<a href="https://github.com/clay-good/alleleforge">source</a>'
     assert not [t for p in _LOADERS for t in p.findall(link) if _is_off_origin(t)]
+
+
+def test_the_report_iframe_denies_script_form_and_same_origin() -> None:
+    """The report is server-generated HTML built from user-supplied strings.
+
+    It is escaped, and since the charts became inlined SVG it contains no script
+    element at all — but a sandbox is what makes an escaping bug in the renderer
+    unexploitable rather than merely unlikely, and the frame had none. `srcdoc` in an
+    unsandboxed frame runs with the application's own origin, which is how a report
+    defect would have become an application compromise.
+    """
+    html = (_FRONTEND / "index.html").read_text()
+    frame = re.search(r"<iframe[^>]*id=[\"']report[\"'][^>]*>", html)
+    assert frame, "the report iframe was not found — this check would be vacuous"
+
+    sandbox = re.search(r'sandbox="([^"]*)"', frame.group(0))
+    assert sandbox, f"the report iframe is not sandboxed: {frame.group(0)}"
+    tokens = set(sandbox.group(1).split())
+    # The three that would give the report the application's privileges back.
+    assert "allow-scripts" not in tokens
+    assert "allow-same-origin" not in tokens
+    assert "allow-forms" not in tokens
+
+
+def test_an_external_link_in_a_report_does_not_hand_over_the_opener() -> None:
+    """The report's one outbound link opens in a new tab, which needs `rel=noopener`."""
+    from alleleforge.report import html as report_html
+
+    source = Path(report_html.__file__).read_text()
+    for match in re.finditer(r"<a href='(https?://[^']+)'([^>]*)>", source):
+        attrs = match.group(2)
+        assert "target='_blank'" in attrs, f"{match.group(1)} should open in a new tab"
+        assert "noopener" in attrs, f"{match.group(1)} lacks rel=noopener"

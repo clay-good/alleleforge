@@ -3546,6 +3546,15 @@ acceptance.
 
 ### Security
 
+- **The report iframe is sandboxed, and its one external link no longer hands over the opener.** The frontend
+  embeds a server-generated report — HTML assembled from user-supplied strings — with `srcdoc` in a frame
+  that had no `sandbox`, so it ran with the application's own origin. It is escaped and, since the previous
+  entry, script-free; the sandbox is what makes an escaping bug in the renderer unexploitable rather than
+  merely unlikely. `allow-scripts`, `allow-same-origin` and `allow-forms` are all denied (the two popup
+  tokens keep the report's JBrowse link clickable), and that link gained `target=_blank rel="noopener
+  noreferrer"`. Verified live: the report renders, the parent can no longer read the frame, zero off-origin
+  requests.
+
 - **Every rendered report fetched a script from `cdn.plot.ly`.** The README, the deployment guide and the
   served page all promise *"no outbound network call"* and *"the served frontend loads no third-party
   scripts"*. `render_html` emitted `<script src="https://cdn.plot.ly/plotly-2.35.2.min.js">`, so a lab

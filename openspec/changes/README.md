@@ -4861,6 +4861,35 @@ than by what reaches the user. When writing a guard for a claim about "the page"
 page is assembled from — and when a docstring argues *for* the thing a headline promise forbids, that is
 not a nuance, it is two documents disagreeing where only one is read.**
 
+## Round 163 — the rest of what the page is assembled from
+
+R162's lesson said to enumerate everything the page is assembled from, so I did the enumeration properly
+this time instead of stopping at the defect I had found.
+
+The PDF writer is clean — no URI actions, no external references, nothing fetched. Recorded.
+
+The frame is not. `<iframe id="report" title="Design report" hidden>` — no `sandbox`. The report is
+server-generated HTML built from user-supplied strings (the variant, ancestry labels, chemistry names), and
+`srcdoc` in an unsandboxed frame runs with the *application's* origin. Everything in that report is escaped
+and, as of last round, it contains no script element at all — so this is not a live exploit. It is the
+difference between "an escaping bug in the renderer would be a report defect" and "an escaping bug in the
+renderer would be an application compromise", and the frame was on the wrong side of it.
+
+Sandboxed with `allow-popups allow-popups-to-escape-sandbox` — everything denied except a link opening in a
+new tab, since the report carries one external link to JBrowse. That link also gained
+`target="_blank" rel="noopener noreferrer"`, because a sandboxed popup that can reach `window.opener` gives
+back some of what the sandbox took away.
+
+Verified in the browser rather than by reading: the report renders, `contentDocument` is now `null` from the
+parent (opaque origin), and `performance.getEntriesByType('resource')` shows no off-origin request.
+
+**Lesson: two rounds in a row found the same class of thing — not a wrong computation but a wrong *context*
+for a correct one. The CDN script and the unsandboxed frame are both about where code runs and what it can
+reach, and neither is visible from any amount of reading the Python. The browser's own view (the DOM, the
+resource timeline, `contentDocument`) is the only place these show up, and it took starting the server to
+look. For a project that ships a web surface, "run it and inspect the page" is a distinct audit lens from
+"read the renderer".**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

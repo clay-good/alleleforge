@@ -72,7 +72,13 @@
           <button id="download-json" type="button">Download JSON</button>
         </section>
 
-        <iframe id="report" title="Design report" hidden></iframe>
+        <!-- Sandboxed: the report is server-generated HTML assembled from user-supplied
+             strings (the variant, ancestry labels). It needs no script, no form and no
+             same-origin access, so denying all three makes an escaping bug in the
+             renderer unexploitable rather than merely unlikely. The two popup tokens
+             keep the report's one external link (JBrowse) clickable. -->
+        <iframe id="report" title="Design report"
+                sandbox="allow-popups allow-popups-to-escape-sandbox" hidden></iframe>
       </section>
 
       <section id="panel-batch" role="tabpanel" aria-labelledby="tab-batch" hidden>
