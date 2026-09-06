@@ -1576,6 +1576,14 @@ acceptance.
 
 ### Fixed
 
+- **An edit that changes nothing reported "no candidate was examined".** Prime enumeration refuses three
+  things before it examines any protospacer — a no-op edit, an edit longer than prime editing spans, a
+  desired allele no RTT can carry — and all three fell through to the empty-tally placeholder. A user who
+  typos `chr7:3004:A>A` was told nothing about the actual problem. Each now names itself; the earlier work
+  had taught the enumeration *loop* to explain itself and left the early returns silent. (The
+  "edit too large" wording also said "replaces more reference bases", which describes only half its branch —
+  a 60-base insertion replaces one.)
+
 - **The interactive report showed the oligos as a JSON dump; both surfaces now share one block.** A
   serialized object "contains" every field, which is how the HDR donor and the prepended-G note counted as
   rendered in the HTML while being absent from the sheet a lab orders from — and it is not what a reader

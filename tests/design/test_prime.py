@@ -444,3 +444,49 @@ def test_every_prime_rejection_label_has_a_sentence() -> None:
     assert used, "no rejection labels found — this check would be vacuous"
     missing = sorted(used - set(prime.REJECTION_REASONS))
     assert not missing, f"rejection labels with no user-facing sentence: {missing}"
+
+
+def test_the_pre_loop_refusals_explain_themselves(make_reference: MakeRef) -> None:
+    """R157 taught the enumeration loop to say why; the early returns stayed silent.
+
+    Three refusals happen before any protospacer is examined — a no-op edit, an edit
+    longer than prime editing spans, a desired allele no RTT can carry — and all three
+    produced the empty-tally fallback, "no candidate was examined". A user who typos
+    `chr7:3004:A>A` was told nothing about the actual problem: they asked for an edit
+    that changes nothing.
+    """
+    from alleleforge.enumerate.prime import enumerate_prime, rejection_summary
+
+    contig = "ACGT" * 200
+    reference = make_reference({"chr1": contig})
+
+    def _reason(ref_allele: str, alt: str, at: int = 100) -> str:
+        resolved = resolve(
+            Variant(chrom="chr1", pos=at, ref=ref_allele, alt=alt, build="hg38"),
+            reference=reference,
+        )
+        tally: dict[str, int] = {}
+        assert not enumerate_prime(resolved, EditIntent.INSTALL, reference=reference, tally=tally)
+        return rejection_summary(tally)
+
+    assert "nothing to write" in _reason(contig[100], contig[100])
+    assert "longer than prime editing" in _reason(contig[100], contig[100] + "A" * 60)
+    # None of them falls back to the "nothing was examined" placeholder.
+    for reason in (
+        _reason(contig[100], contig[100]),
+        _reason(contig[100], contig[100] + "A" * 60),
+    ):
+        assert reason != "no candidate was examined"
+
+
+def test_the_edit_too_large_reason_covers_an_insertion(make_reference: MakeRef) -> None:
+    """The branch trips on a long reference span *or* a long desired allele.
+
+    Its first wording said "replaces more reference bases", which describes only half
+    of it — a 60-base insertion replaces one.
+    """
+    from alleleforge.enumerate.prime import REJECTION_REASONS
+
+    text = REJECTION_REASONS["edit-too-large"]
+    assert "reference span or the desired allele" in text
+    assert "replaces more reference bases" not in text

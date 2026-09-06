@@ -181,6 +181,24 @@ def _select_nicking_guide(
 #: nothing and not whether to try the other strand, a different PAM, or another
 #: chemistry entirely. These distinguish the cases that have different remedies.
 REJECTION_REASONS: dict[str, str] = {
+    # The three refusals that happen *before* any protospacer is examined. R157 taught
+    # the enumeration loop to explain itself and left these silent, so a user who asked
+    # for an edit that changes nothing — or one longer than prime editing can write —
+    # got "no candidate was examined", which is true and useless.
+    "no-op-edit": (
+        "the requested edit does not change the sequence (the reference and desired "
+        "alleles are identical), so there is nothing to write"
+    ),
+    # "longer", not "replaces more reference bases": the branch trips on a long
+    # reference span *or* a long desired allele, so an insertion of 60 bases lands here
+    # too and the narrower wording described it wrongly.
+    "edit-too-large": (
+        "the edit is longer than prime editing can practically span, on the reference "
+        "span or the desired allele"
+    ),
+    "allele-too-long-to-template": (
+        "the desired allele is longer than any RTT in range can carry alongside its 3' homology"
+    ),
     "no-pam": "no PAM match at this offset",
     "ambiguous": "the protospacer or PAM spans an assembly gap (N)",
     "pol3-terminator": "the spacer contains TTTT, which terminates Pol III transcription",
@@ -350,11 +368,14 @@ def enumerate_prime(
     var = resolved.variant
     start_allele, desired_allele = _required_alleles(resolved, intent)
     if start_allele == desired_allele:
-        return []  # nothing to write
+        note(tally, "no-op-edit")
+        return []
     if len(var.ref) > PRIME_MAX_EDIT or len(var.alt) > PRIME_MAX_EDIT:
-        return []  # beyond the practical prime-editing span
+        note(tally, "edit-too-large")
+        return []
     if len(desired_allele) > PRIME_MAX_TEMPLATED_EDIT:
-        return []  # no RTT in range can template the desired allele + 3' homology
+        note(tally, "allele-too-long-to-template")
+        return []
     ref_len = len(var.ref)
     margin = (
         spacer_length

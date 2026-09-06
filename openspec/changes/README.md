@@ -5520,6 +5520,32 @@ think it is" catch different halves of the same illusion — a green test after 
 green test after an edit that did something the assertion could not see. Neither alone is enough, and I have
 now hit each of them within a round of writing them down.**
 
+## Round 184 — the returns before the loop
+
+Rotated to the input boundary and drove the resolver through its accepted forms — SNV, insertion, deletion,
+MNV, delins, lower-case bases, an empty alt. Most behave, and two are worth recording: a lower-case reference
+allele resolves correctly, and `A>` normalises to a left-anchored `TA>T` deletion, which is the VCF
+convention and right.
+
+One does not. `chr7:3004:A>A` — an edit that changes nothing — resolves cleanly, and the design reports:
+
+    - prime: eligible but no actionable candidate enumerated — no candidate was examined
+
+That is my own empty-tally placeholder from R157, and it is useless here. The enumerator knows exactly what
+is wrong; the line that refuses it reads `if start_allele == desired_allele: return []  # nothing to write`.
+R157 taught the enumeration *loop* to explain itself and I never looked at the three returns above it. A user
+who typos a variant, or asks for a 60-base insertion prime editing cannot write, gets the placeholder rather
+than the sentence sitting in the comment beside the return.
+
+All three now name themselves. Checking them found a second, smaller thing in my own new text: the
+"edit too large" branch trips on a long reference span *or* a long desired allele, and I had written "replaces
+more reference bases", which describes an insertion of sixty bases as replacing more than one. Reworded.
+
+**Lesson: an early return is a branch with a reason, and a mechanism that explains "why nothing was found"
+has to cover the returns that happen before the search starts. I built the tally around a loop because the
+loop was where I was reading — the same mistake as putting a guard in the shell where I noticed the problem
+(R178). Both times the fix was one frame up from where I was looking.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
