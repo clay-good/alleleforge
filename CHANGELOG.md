@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **Every field on the report models must now reach a renderer.** The recurring defect here is not a wrong
+  number but a correct one nothing shows — `search_description()` dropped by the web envelope, the CFD
+  citation left in a docstring, `sources_considered` needing separate wiring. `project.md` prescribes the
+  guard ("a test that iterates `Model.model_fields` covers the fields that do not exist yet") and `Provenance`
+  and `OffTargetReport` had one; the two models a reader actually reads did not, while two fields were added
+  to `CandidateReport` in recent work with nothing to notice if either had been left unrendered. Both are
+  currently clean. A new field that no renderer mentions now fails, unless recorded with a reason.
+
 - **Each of the eight non-negotiable principles now has its evidence written down.** `test_stated_principles`
   checked three of them while reading as though it covered "the principles" — the same shape as the
   principle-8 gap it sat next to. It now parses the numbered list from `openspec/project.md` and requires

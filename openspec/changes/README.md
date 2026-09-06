@@ -4631,6 +4631,39 @@ written down, in this file, in the imperative — and the identical cap one call
 form for a hundred rounds. When a fix ends in a general rule, spend the extra five minutes grepping for the
 other places the rule already applies; the round that writes the rule is the cheapest time to apply it.**
 
+## Round 156 — running R155's rule on the rest of the codebase
+
+R155 ended on: when a fix produces a general rule, grep for the other places it already applies, because the
+round that writes the rule is the cheapest time to apply it. Ran that on the rules already in `project.md`,
+and this round is what came back — three clean bills and one missing guard.
+
+**Other truncations.** R49 and R155 fixed the candidate cap and the allele cap. The third list a reader could
+be shown a slice of is the off-target sites — and that would be the worst of the three, because a dropped
+site is a hidden hazard rather than a hidden option. It is not capped anywhere: the CLI lists every nominated
+site, and the report renders none individually. Clean.
+
+**"After adding a field to a model, grep for the model's other constructors."** I added
+`offtarget_scorer_citation` in R153 and changed `outcome_top`'s construction in R155, without doing this.
+Checked: `CandidateReport` and `DesignReport` each have exactly one production constructor, in the builder.
+The rule held by luck rather than by my following it, which is worth writing down as plainly as a defect.
+
+**The missing guard.** `project.md` also says: *"A test that iterates `Model.model_fields` instead of naming
+fields covers the fields that do not exist yet."* `Provenance` has one — it is what makes the footer's
+hand-enumeration checkable — and so does `OffTargetReport`. The two models a *reader* reads, `CandidateReport`
+and `DesignReport`, did not. Both are currently clean, including the two fields I added; but "clean because I
+checked once, by hand, after the fact" is the state every recurring defect in this log started from.
+
+Added it. Static and deliberately weak: it asserts each field is *referenced* by one of the three renderers,
+not that it is well-placed. It catches the one failure that keeps recurring — a field nothing reads — and
+carries the now-familiar documented-exception map so a genuinely internal field can be excused with a reason
+rather than silently.
+
+**Lesson: "the rule held" and "I followed the rule" are different findings, and only the second one is a
+process working. Two of this round's three clean bills were places where I had already violated the
+procedure and got away with it. A conventions file is only load-bearing if something checks it; the ones here
+that are checked (`Provenance`'s field coverage) have never been the source of a defect, and the ones that
+are advice have been the source of several.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
