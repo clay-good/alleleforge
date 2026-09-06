@@ -3891,6 +3891,35 @@ up cost two minutes; reporting it would have been wrong in public.
 `skipped` were both honest and individually documented, and their juxtaposition was the lie — nothing in
 either field's definition is wrong, and no test of either one alone would have caught it.**
 
+## Round 136 — the number a scientist pastes into a browser
+
+Following R135 into other presentations that assert something on their own. The design menu turned out to be
+well defended already — out-of-distribution candidates are ranked on their lower interval bound, and the
+rationale says outright when the top N are within the leader's own uncertainty of each other — and the
+cross-chemistry efficiency axis was made comparable in an earlier round. Negative results, recorded.
+
+Then: coordinate base. AlleleForge is uniformly **0-based half-open**, which is a fine choice and internally
+consistent — `GenomicInterval.parse` and `__str__` are exact inverses, so a locus the tool prints can be
+handed straight back to it. The defect is that this was never said anywhere a human reads.
+
+Three pieces of evidence. `grep to_one_based` across the whole tree returns **only its own definition**: the
+declared I/O-boundary converter has no callers, so no coordinate is ever converted for display. The report
+prints `cut 5530600` bare — the single number a scientist is most likely to paste into IGV, which reads the
+same digits as 1-based. And on one command line, `--pop-freqs` help says *"1-based pos as in a VCF"* while
+`--region` help says only `'chrom:start-end'`; a reader carries the stated base onto the silent neighbour.
+`chr7:100-200` searches 100 bases from offset 100. A browser shows 101 for that string.
+
+The fix is labelling, not a semantic change — changing the convention would break the parse/print inverse and
+the BED interop, and 0-based half-open is right. Reports state it once in the footer, beside the reference
+build the coordinates are against, so it covers every locus in the document rather than repeating beside each
+number. `--region` states it and names the contrast with the 1-based options. `docs/data.md` grew the two
+human boundaries alongside the file-format ingest table it already had.
+
+**Lesson: a convention that is uniform, correct, and documented in the source can still be a defect at the
+boundary, because the reader's default is not the code's default. The tell here was cheap and mechanical —
+an exported converter for a boundary, with zero callers, means the boundary is not being crossed. Grep for
+unused conversion helpers; each one marks a place where two conventions meet and nobody arbitrated.**
+
 ## Round 135 — the rank column was the claim
 
 Straight application of R134's lesson: sweep for numbers presented together that were computed over

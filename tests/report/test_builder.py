@@ -315,3 +315,43 @@ def test_a_complete_outcome_table_says_nothing(ancestry_menu: RankedMenu) -> Non
     candidate = report.candidates[0]
     assert candidate.n_outcome_alleles == len(candidate.outcome_top)
     assert "predicted alleles (" not in render_html(report)
+
+
+def test_a_report_says_which_coordinate_base_its_loci_are_in(prime_menu: RankedMenu) -> None:
+    """A printed cut site is the number a reader pastes into a genome browser.
+
+    AlleleForge is uniformly 0-based half-open — in at `--region`, out at every
+    printed locus — and no user-facing surface said so. IGV, UCSC and samtools all
+    read `chr7:100-200` as 1-based inclusive, so the same digits name a different
+    base there, and the declared egress converter (`GenomicInterval.to_one_based`)
+    had no callers anywhere in the tree. The convention is fine; its silence was not.
+    """
+    from alleleforge.report.builder import COORDINATE_NOTE, provenance_lines
+    from alleleforge.report.html import render_html
+    from alleleforge.types.provenance import Provenance
+
+    prov = Provenance(
+        alleleforge_version="9.9.9",
+        reference_build="hg38",
+        seed=7,
+        timestamp=datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC),
+    )
+    assert COORDINATE_NOTE in provenance_lines(prov)
+    assert "0-based half-open" in COORDINATE_NOTE
+    # ...and it reaches the rendered page, not just the helper.
+    assert "0-based half-open" in render_html(build_report(prime_menu))
+
+
+def test_the_region_option_states_its_coordinate_base() -> None:
+    """`--variant` said "1-based pos as in a VCF"; `--region` said nothing.
+
+    Two loci options on one command line, in two different coordinate systems, with
+    only one of them labelled — a reader carries the stated base onto the silent one.
+    """
+    from typer.testing import CliRunner
+
+    from alleleforge.cli.main import app
+
+    help_text = CliRunner().invoke(app, ["design", "--help"]).output
+    assert "1-based" in help_text  # --variant / --pop-freqs, as before
+    assert "0-based half-open" in help_text  # --region, which said nothing

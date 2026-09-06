@@ -383,6 +383,16 @@ def visible_candidates(
 #: :func:`provenance_lines` and its coverage test read this, so adding a field to
 #: :class:`~alleleforge.types.provenance.Provenance` forces a choice between rendering
 #: it and naming it here.
+#: How every genomic coordinate in a report is to be read. AlleleForge is uniformly
+#: 0-based half-open (BED-style) — in at ``--region``, out at every printed locus — so
+#: a locus the tool prints can be handed straight back to it. That is *not* how a
+#: genome browser reads the same string, which is the whole reason to say so.
+COORDINATE_NOTE = (
+    "coordinates 0-based half-open (BED-style); a genome browser reads the "
+    "same locus as 1-based inclusive"
+)
+
+
 PROVENANCE_FOOTER_OMITTED: dict[str, str] = {
     # Already rendered in full above the footer: the intent, weights and the settings
     # that scoped the run each appear beside the results they qualify.
@@ -408,6 +418,13 @@ def provenance_lines(provenance: Provenance | None) -> list[str]:
     lines = [
         f"AlleleForge {provenance.alleleforge_version}",
         f"reference build {provenance.reference_build}",
+        # Every locus in this document — cut sites, nicks, off-target intervals — is
+        # in AlleleForge's internal convention, and nothing said which one that was. A
+        # bare cut coordinate is the number a reader pastes into a browser, and IGV,
+        # UCSC and samtools all read a locus as 1-based inclusive; the same digits mean
+        # a different base there. State it once, next to the build the coordinates are
+        # against, rather than beside every number.
+        COORDINATE_NOTE,
         f"seed {provenance.seed}",
         f"generated {provenance.timestamp.isoformat()}",
     ]

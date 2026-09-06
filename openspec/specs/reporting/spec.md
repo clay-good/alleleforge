@@ -306,3 +306,15 @@ looking.
 #### Scenario: A panel that reached only some items
 - **WHEN** items in one cohort were screened against different sources
 - **THEN** their rows differ in the recorded sources rather than appearing identical
+
+### Requirement: A report states the coordinate base of its loci
+
+Every rendered report SHALL state, once, the coordinate convention its loci are in.
+AlleleForge is uniformly 0-based half-open at both human boundaries — a typed
+`--region` locus in, every printed locus out — and a bare coordinate is read by a
+genome browser as 1-based inclusive, so the same digits name a different base.
+
+#### Scenario: A printed cut site
+- **WHEN** a report renders a candidate's cut site, nick site, or off-target interval
+- **THEN** the report footer states that coordinates are 0-based half-open and that a
+  genome browser reads the same locus as 1-based inclusive

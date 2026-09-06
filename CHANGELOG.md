@@ -10,6 +10,15 @@ acceptance.
 
 ### Fixed
 
+- **No user-facing surface said which coordinate base its loci were in.** AlleleForge is uniformly 0-based
+  half-open (BED-style), in at `--region` and out at every printed locus — but the report printed a bare cut
+  site, `--region`'s help said only `'chrom:start-end'`, and `GenomicInterval.to_one_based()`, the declared
+  egress converter, had no callers anywhere. Meanwhile `--variant` and `--pop-freqs` on the *same command
+  line* explicitly documented 1-based VCF positions, so a reader carried that base onto the silent option.
+  `chr7:100-200` searches 100 bases from offset 100; a genome browser shows 101 for the same string. Every
+  rendered report now states the convention in its footer, `--region`'s help states it and contrasts it with
+  the 1-based options, and `docs/data.md` covers both human boundaries. The convention is unchanged.
+
 - **The leaderboard ranked scores that were never comparable.** `rankings()` put every entry for a task
   into one 1-2-3 column regardless of the frozen split it was measured on, the corpus (real vs the bundled
   synthetic stand-in), or even the metric — so a model scoring 0.91 on the synthetic fixture printed as

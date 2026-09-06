@@ -80,6 +80,20 @@ coordinates at the boundary:
 | GENCODE GTF | 1-based inclusive | `[start − 1, end)` |
 | ENCODE bedGraph | 0-based half-open | unchanged |
 
+The two **human** boundaries follow the same convention, and it is worth stating
+plainly because the tool is uniformly BED-style while most genomics interfaces are not:
+
+| Boundary | Meaning |
+|---|---|
+| `--region chrom:start-end`, `--regions-bed` | 0-based half-open. `chr7:100-200` is **100 bases** starting at offset 100 — not the 101 a genome browser would show for the same string. |
+| Every locus a report prints (cut site, nick site, off-target interval) | 0-based half-open, so a printed locus can be handed straight back to `--region`. |
+
+`--variant` and `--pop-freqs` are the exception, and say so in their own help: they
+take **1-based** positions, because that is what a VCF record holds.
+
+Every rendered report states the convention in its footer. A caller converting a
+locus for display elsewhere can use `GenomicInterval.to_one_based()`.
+
 Contig names are reconciled so an NCBI-style source (`2`, `MT`) and a UCSC-style hg38
 reference (`chr2`, `chrM`) align: parsers prefix bare names to the `chr…` form (mapping the
 mitochondrion to `chrM`, not `chrMT`), and every cross-source lookup compares contigs

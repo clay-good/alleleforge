@@ -545,9 +545,11 @@ def design(
             "--region",
             help=(
                 "Restrict the off-target search to this locus, 'chrom:start-end' "
-                "(repeatable). A BED file works too: --regions-bed. Whole-genome "
-                "search over a real reference is slow in pure Python, so scoping to a "
-                "gene panel is usually what makes a run practical."
+                "— 0-based half-open, as in a BED file, NOT the 1-based form a "
+                "genome browser shows (unlike --variant and --pop-freqs, which take "
+                "1-based VCF positions). A BED file works too: --regions-bed. "
+                "Whole-genome search over a real reference is slow in pure Python, so "
+                "scoping to a gene panel is usually what makes a run practical."
             ),
         ),
     ] = None,
@@ -923,9 +925,11 @@ def batch(
             "--region",
             help=(
                 "Restrict the off-target search to this locus, 'chrom:start-end' "
-                "(repeatable). A BED file works too: --regions-bed. Whole-genome "
-                "search over a real reference is slow in pure Python, so scoping to a "
-                "gene panel is usually what makes a run practical."
+                "— 0-based half-open, as in a BED file, NOT the 1-based form a "
+                "genome browser shows (unlike --variant and --pop-freqs, which take "
+                "1-based VCF positions). A BED file works too: --regions-bed. "
+                "Whole-genome search over a real reference is slow in pure Python, so "
+                "scoping to a gene panel is usually what makes a run practical."
             ),
         ),
     ] = None,
@@ -1195,9 +1199,11 @@ def offtarget(
             "--region",
             help=(
                 "Restrict the off-target search to this locus, 'chrom:start-end' "
-                "(repeatable). A BED file works too: --regions-bed. Whole-genome "
-                "search over a real reference is slow in pure Python, so scoping to a "
-                "gene panel is usually what makes a run practical."
+                "— 0-based half-open, as in a BED file, NOT the 1-based form a "
+                "genome browser shows (unlike --variant and --pop-freqs, which take "
+                "1-based VCF positions). A BED file works too: --regions-bed. "
+                "Whole-genome search over a real reference is slow in pure Python, so "
+                "scoping to a gene panel is usually what makes a run practical."
             ),
         ),
     ] = None,
