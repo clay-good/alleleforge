@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 
 from alleleforge.data.gnomad import GnomadDB, PopulationFrequency
 from alleleforge.data.haplotypes import Haplotype
@@ -703,3 +703,41 @@ def test_the_searchable_count_does_not_depend_on_a_dependency_default() -> None:
     assert _resolved_base_count("") == 0
     # Ambiguity codes are unsearchable in either case.
     assert _resolved_base_count("ryswkm" + "RYSWKM") == 0
+
+
+def test_a_one_shot_patient_iterable_is_not_consumed_twice(make_reference: MakeRef) -> None:
+    """`patient_vcf` is typed `Iterable` and was read twice, losing the second pass.
+
+    The two passes are the region-coverage count and the enumeration that actually
+    personalizes the search. With a generator the *second* one got nothing — so the
+    count reported that patient data had been used while none of it was, which is the
+    inverted, silent failure this project keeps looking for. Haplotypes were already
+    materialized; this was the sibling that was not.
+    """
+    reference = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
+    variant = Variant(chrom="chr2", pos=len(PAD) + 2, ref=SPACER[2], alt="C", build="hg38")
+
+    class _OneShot:
+        """Iterable exactly once, like a generator, and counts the attempts."""
+
+        def __init__(self, items: list[Variant]) -> None:
+            self.passes = 0
+            self._iterator = iter(items)
+
+        def __iter__(self) -> Iterator[Variant]:
+            self.passes += 1
+            return self._iterator
+
+    one_shot = _OneShot([variant])
+    report = search(SPACER, NGG, reference=reference, patient_vcf=one_shot)
+    assert one_shot.passes == 1
+    assert report.sources_considered == {"patient-vcf": 1}
+
+    # A re-iterable caller is unaffected: the engine copies internally, and the
+    # provenance carrier the CLI passes (`_PatientVariants`, a list subclass with a
+    # `dataset_version` attribute) is the caller's own object throughout.
+    reusable = [variant]
+    first = search(SPACER, NGG, reference=reference, patient_vcf=reusable)
+    second = search(SPACER, NGG, reference=reference, patient_vcf=reusable)
+    assert first.sources_considered == second.sources_considered == {"patient-vcf": 1}
+    assert len(reusable) == 1

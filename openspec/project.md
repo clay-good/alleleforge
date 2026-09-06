@@ -86,6 +86,14 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
   overlay, grep for the other ones first. The older implementation has usually already
   paid for the lesson, and its docstring is where the lesson is written down.
 
+- **Adding a second reader to an `Iterable` parameter is an interface change.** The
+  signature does not move, but `Iterable` is a promise the caller may keep with a
+  generator, and every consumer after the first breaks it. R128: a coverage count added
+  beside the existing enumeration silently consumed the caller's patient VCF, so the
+  count reported the data was used while the personalization got an exhausted iterator.
+  Materialize at the top of the function — and if a sibling argument already is, that is
+  the convention telling you why.
+
 - **A label about a scan costs per call; a scan costs per genome.** `search()` runs once
   per *candidate* (a prime menu has hundreds), so anything O(dataset) added inside it for
   reporting purposes is O(dataset x candidates) in production and invisible in tests,

@@ -3677,6 +3677,34 @@ correct.
 is a test waiting to be written. The code guards the case; nothing guards the code. And a clean sweep is a
 result — write it down, so the next pass spends its time somewhere new.**
 
+## Round 128 — reading the same input twice
+
+R126 audited my recent changes for cost. This round audited them for *aliasing*, and found one.
+
+`search(patient_vcf=...)` is typed `Iterable[Variant]`. Two rounds' worth of additions ago I gave it a
+second consumer — the region-coverage count — beside the one that was already there, the enumeration that
+personalizes the search. A list survives that. A generator does not: the second pass gets an exhausted
+iterator.
+
+Which pass loses matters. The count runs first and reports `patient-vcf: 1`; the personalization runs second
+and does nothing. So the failure mode is the one this project keeps hunting — **the label says the safety
+data was used and the work did not happen** — and it is invisible, because a patient VCF that contributes no
+sites is indistinguishable from one that contributes none.
+
+Haplotypes were already materialized at the top of `search` (`haplotype_list = list(haplotypes)`). The
+pattern was there; the new consumer did not follow it.
+
+Two turns on the fix itself, both from mutation runs. My first version passed a `Sequence` through
+uncopied, justified by preserving the attribute `_PatientVariants` carries — and nothing could tell the
+difference, because the *caller* keeps its own object either way, so the justification was empty. Checking
+the cost instead: 470 copies of a 10,000-variant list total 10 ms. One branch is worth more than that, so
+the special case is gone.
+
+**Lesson: adding a second reader to a parameter is an interface change even when the signature does not
+move. `Iterable` is a promise the caller can keep with a generator, and every consumer after the first
+breaks it. When a function grows a new use of an existing argument, check the argument's *type*, not just
+its value — and if a sibling argument is already materialized, that is the convention telling you why.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

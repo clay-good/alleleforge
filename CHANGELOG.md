@@ -8,6 +8,15 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A one-shot `patient_vcf` iterable lost its personalization silently.** `search()` reads that parameter
+  twice — once to count how much of it covers the searched region, once to enumerate the personalized sites
+  — and it is typed `Iterable`. Given a generator, the **second** pass got nothing: the pass that actually
+  personalizes the search. The count from the first pass then reported `patient-vcf: 1`, asserting that
+  patient data had been used while none of it had. Haplotypes were already materialized at the top of the
+  function; this was the sibling that was not. Introduced when the coverage counting was added.
+
 ### Added
 
 - **The "config file is honored" contract now has a test.** `_load_config` warns on an *unknown* key, which

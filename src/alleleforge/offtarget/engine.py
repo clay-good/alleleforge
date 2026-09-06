@@ -311,6 +311,22 @@ def search(
         An :class:`OffTargetReport`, sorted by descending score and
         ancestry-stratified by default.
     """
+    # Materialize a one-shot patient iterable. `search` reads it twice — once to count
+    # how much of it covers the searched region, once to enumerate the personalized
+    # sites — and the parameter is typed `Iterable`, so a generator lost the *second*
+    # pass: the pass that actually personalizes the search. The failure is silent and
+    # inverted, because the count from the first pass then reports that patient data
+    # was used while none of it was. Haplotypes were already materialized this way;
+    # this is the sibling that was not.
+    #
+    # Copied unconditionally. An `isinstance(..., Sequence)` pass-through was the first
+    # version, justified by preserving the attribute `_PatientVariants` carries — but
+    # the caller keeps its own object either way, so that justification was empty, and
+    # the mutation run showed nothing could tell the two apart. On cost it does not earn
+    # its keep either: 470 copies of a 10,000-variant list is 10 ms in total. One branch
+    # is worth more than a saved microsecond.
+    if patient_vcf is not None:
+        patient_vcf = list(patient_vcf)
     sp = _spacer_str(spacer)
     # An ambiguous spacer position cannot be scored. The CFD matrix has no entry for
     # it, so the aligner treats it as a mismatch and the site scores toward 0 — which
