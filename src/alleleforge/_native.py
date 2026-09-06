@@ -1,7 +1,7 @@
 """Bridge to the optional Rust extension :mod:`aforge_native`.
 
 The performance-critical kernels (FM-index off-target search, k-mer hashing,
-haplotype walking) live in the PyO3 crate under ``rust/`` and are built with
+haplotype walking, bulged alignment) live in the PyO3 crate under ``rust/`` and are built with
 maturin. They are *optional*: AlleleForge imports cleanly without them and
 exposes :data:`NATIVE_AVAILABLE` so callers (and tests) can branch on it. This
 keeps the pure-Python install path and CI reliable while still proving the

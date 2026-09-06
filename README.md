@@ -125,7 +125,7 @@ flowchart TB
         MZ["Model zoo<br/>(ckpt hashing)"]
         CT["Core types and schemas"]
     end
-    RUST["Rust / PyO3 — aforge_native: BWT off-target search · k-mer hashing · haplotype walking"]
+    RUST["Rust / PyO3 — aforge_native: BWT off-target search · k-mer hashing · haplotype walking · bulged alignment"]
 
     I --> O --> D --> F
     OT -.calls.-> RUST
@@ -276,17 +276,19 @@ pip install -e ".[core,genome,variant,cli,ml,dev]"
 ### Native acceleration (optional)
 
 The performance kernels live in a PyO3 crate (`aforge_native`) built with
-[maturin](https://github.com/PyO3/maturin). **All three spec kernels are implemented**, each behind a
-correct pure-Python fallback and a byte-identical parity test, and each wired into its hot path:
+[maturin](https://github.com/PyO3/maturin). **All three spec kernels are implemented**, plus a fourth
+(`align`) that profiling identified as the scan's remaining hot spot — each behind a correct
+pure-Python fallback and a byte-identical parity test, and each wired into its hot path:
 
 | Kernel | What it does | Hot path | Parity test | Speedup |
 |---|---|---|---|:---:|
 | `bwt` | FM-index `build`/`count`/`locate`/`pam_sites` | reference scan (PAM seed-and-extend) | [`test_native.py`](tests/genome/test_native.py) | genome-scale |
 | `kmer` | exact length-`k` seed positions | seed prefilter (high-stringency scans) | [`test_kmer.py`](tests/offtarget/test_kmer.py) | ~5–7x lookup; scan-level ~1x today |
 | `haplotype` | apply a haplotype's variant set to a window | haplotype walk (stage 3 materialization) | [`test_haplotype_kernel.py`](tests/offtarget/test_haplotype_kernel.py) | ~4x |
+| `align` | best single-base removal within a mismatch budget | the scan's innermost alignment (two calls per PAM anchor) | [`test_native_align_parity.py`](tests/offtarget/test_native_align_parity.py) | ~43% off a whole scan |
 
 `FMIndex.build(prefer_native=True)` transparently uses the Rust index when the crate is present; the
-k-mer and haplotype dispatchers do the same. AlleleForge imports and runs cleanly **without** the crate
+k-mer, haplotype and alignment dispatchers do the same. AlleleForge imports and runs cleanly **without** the crate
 (pure-Python mode); build it for the genome-scale path:
 
 ```bash

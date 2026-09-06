@@ -5,12 +5,14 @@
 //! kernels (`bwt`): `fm_build`, `fm_count`, `fm_locate`, and a `NativeFmIndex`
 //! object whose `count` / `locate` / `pam_sites` results are byte-identical to the
 //! pure-Python fallback in `alleleforge.genome.index` (pinned by a parity test).
-//! The `kmer` (off-target seeding) and `haplotype` (haplotype-walk
-//! materialization) kernels build on this same fallback-plus-parity pattern.
+//! The `kmer` (off-target seeding), `haplotype` (haplotype-walk materialization)
+//! and `align` (the scan's innermost bulged alignment) kernels build on this same
+//! fallback-plus-parity pattern.
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
+mod align;
 mod bwt;
 mod haplotype;
 mod kmer;
@@ -137,6 +139,16 @@ fn fm_suffix_array(text: &str) -> Vec<usize> {
     sais::suffix_array(&data)
 }
 
+/// Bulged alignment: best single-base removal from `longer` aligning it to `shorter`.
+#[pyfunction]
+fn align_best_with_removed_base(
+    longer: &str,
+    shorter: &str,
+    max_mm: usize,
+) -> Option<(usize, String)> {
+    align::best_with_removed_base(longer, shorter, max_mm)
+}
+
 /// Off-target seeding: reference offsets sharing an exact k-mer with `spacer`.
 #[pyfunction]
 fn kmer_seed_positions(sequence: &str, spacer: &str, k: usize) -> Vec<usize> {
@@ -164,6 +176,7 @@ fn aforge_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fm_count, m)?)?;
     m.add_function(wrap_pyfunction!(fm_locate, m)?)?;
     m.add_function(wrap_pyfunction!(fm_suffix_array, m)?)?;
+    m.add_function(wrap_pyfunction!(align_best_with_removed_base, m)?)?;
     m.add_function(wrap_pyfunction!(kmer_seed_positions, m)?)?;
     m.add_function(wrap_pyfunction!(haplotype_apply_variants, m)?)?;
     m.add_class::<NativeFmIndex>()?;

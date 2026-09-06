@@ -22,6 +22,7 @@ from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
 
+from alleleforge import _native
 from alleleforge.offtarget._kmer import covered_prefix, seed_length, seed_positions
 from alleleforge.types.guide import PAM
 from alleleforge.types.offtarget import SiteOrigin
@@ -171,7 +172,9 @@ def _best_ungapped(spacer: str, window: str, max_mm: int) -> int | None:
     return mm
 
 
-def _best_with_removed_base(longer: str, shorter: str, max_mm: int) -> tuple[int, str] | None:
+def _python_best_with_removed_base(
+    longer: str, shorter: str, max_mm: int
+) -> tuple[int, str] | None:
     """Best ``(mismatches, reduced_longer)`` over removing one base from ``longer``.
 
     ``longer`` is one base longer than ``shorter``; each base is removed in turn
@@ -189,6 +192,14 @@ def _best_with_removed_base(longer: str, shorter: str, max_mm: int) -> tuple[int
     function of the off-target scan: it runs twice for every PAM-positive anchor
     in the search space.
     """
+    # Not a single-base bulge, so there is no removal that makes the two comparable.
+    # Unreachable from the scan, which slices the window to exactly `n + 1` -- but
+    # without it this returned a *wrong alignment* rather than an error for an input two
+    # bases longer (`("ACGTAC", "ACGT")` gave `(0, "ACGTC")`), and raised `IndexError`
+    # for the rest. The native kernel refuses both, and this is what makes the two paths
+    # byte-identical everywhere rather than only where the caller happens to be correct.
+    if len(longer) != len(shorter) + 1:
+        return None
     n = len(shorter)
     # prefix[r]: mismatches over the first r positions, which removing r leaves
     # intact. It only grows, so once it passes the budget no larger r can qualify
@@ -225,6 +236,39 @@ def _best_with_removed_base(longer: str, shorter: str, max_mm: int) -> tuple[int
     if best_r < 0:
         return None
     return (best_mm, longer[:best_r] + longer[best_r + 1 :])
+
+
+def native_align_available() -> bool:
+    """Return ``True`` if the native crate exposes the bulged-alignment kernel."""
+    ext = getattr(_native, "_ext", None)
+    return (
+        _native.NATIVE_AVAILABLE
+        and ext is not None
+        and hasattr(ext, "align_best_with_removed_base")
+    )
+
+
+#: Resolved once at import. This is called twice per PAM-positive anchor -- a million
+#: times over 2 Mb -- so the availability check itself has to stay out of the loop.
+_NATIVE_REMOVED_BASE = (
+    _native._ext.align_best_with_removed_base  # type: ignore[attr-defined]
+    if native_align_available()
+    else None
+)
+
+
+def _best_with_removed_base(longer: str, shorter: str, max_mm: int) -> tuple[int, str] | None:
+    """Best ``(mismatches, reduced_longer)`` over removing one base from ``longer``.
+
+    Dispatches to the Rust kernel when it is built and to
+    :func:`_python_best_with_removed_base` otherwise. The two are pinned byte-identical
+    by a parity test, so an unbuilt crate changes the *speed* of a scan and not its
+    results -- the contract the FM-index and k-mer kernels already keep.
+    """
+    if _NATIVE_REMOVED_BASE is not None:  # pragma: no cover - native not built in CI
+        result: tuple[int, str] | None = _NATIVE_REMOVED_BASE(longer, shorter, max_mm)
+        return result
+    return _python_best_with_removed_base(longer, shorter, max_mm)
 
 
 def _evaluate(
