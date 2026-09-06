@@ -126,7 +126,8 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
         lines += _wrap(f"off-target sites: {c.n_offtarget_sites}{spec}", indent="    ")
     if c.n_offtarget_sites is not None and (c.offtarget_scorer or c.offtarget_matrix):
         basis = " / ".join(p for p in (c.offtarget_scorer, c.offtarget_matrix) if p)
-        lines += _wrap(f"scoring basis: {basis}", indent="      ")
+        cite = f" — {c.offtarget_scorer_citation}" if c.offtarget_scorer_citation else ""
+        lines += _wrap(f"scoring basis: {basis}{cite}", indent="      ")
     if c.offtarget_search is not None:
         lines += _wrap(f"search: {c.offtarget_search}", indent="      ")
     for flag, reason in caveats(c.flags):

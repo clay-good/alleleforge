@@ -4518,6 +4518,48 @@ it fails. All four guards here were right; the defect was that there were four. 
 non-negotiable, find the single place that negotiates it — and if there is no such place, that is the
 finding.**
 
+## Round 153 — the citation that stayed in the docstring
+
+R152's lesson pointed at the other non-negotiable principles: for each, find the single place that enforces
+it. Most hold. Principle 2 (no bare floats) has `BareFloatError` and `ensure_prediction`; principle 5 has
+`scripts/reproduce.py`; principle 7 is `make ci`. Principle 8 — *cite everything: every dataset, model, and
+scoring function carries a citation and a version, in code and in output provenance* — has a test I wrote in
+an earlier round covering datasets and model cards.
+
+It covers two of the three nouns. **Scoring function** was not checked, and does not hold.
+
+The citations are there — `offtarget/scoring.py`'s module docstring names Hsu et al., *Nat Biotechnol* 2013
+and Doench et al., *Nat Biotechnol* 2016, with a note that the CFD matrix was cross-verified against CRISPOR
+and CRISPRitz. They are in code, as the principle asks. They are not in the output. A real report carries:
+
+    offtarget_scorer: 'CFD'   offtarget_matrix: 'doench-2016-cfd'
+
+which encodes the paper in a slug and cites nobody, while the same report's provenance lists three heuristic
+models each with a full citation, because those come from registry cards and a card requires one. The
+off-target score is the number a reviewer is most likely to ask the provenance of, and it was the single
+attribution that did not travel with the result.
+
+Added the citations as data keyed by `ScoreMethod`, surfaced on the report, both renders, and the flat export
+(schema 3 → 4). Two things went wrong, and both are the point of the round:
+
+**My first version returned `None` for every real report.** I keyed the lookup on the `ScoreMethod` enum
+(`"cfd"`), and an `OffTargetReport` stores the scorer's *display name* (`"CFD"`). So the citation existed, in
+a dict, that nothing could reach — the exact failure the change was written to fix, reproduced inside the
+fix. It was caught by the one line in the new test that exists for this: `assert cited, "no candidate carried
+a scorer citation — the check would be vacuous"`. Without that guard the test passes on an empty list. The
+lookup now resolves display names off the scorer classes themselves, so renaming one cannot break the link.
+
+**I reverted my own work with `git checkout`.** `project.md` has carried a rule against exactly this since
+R96. I used it to undo a mutation on `html.py` and silently lost the renderer edit I had made minutes before.
+The only reason it surfaced is that the full suite ran afterwards and a test that had just passed in
+isolation failed. The rule now records that it has happened twice, and adds the tell: *a test that passes
+alone and fails in the full run right after a mutation loop — suspect the restore, not the test.*
+
+**Lesson: a principle with three nouns needs three checks. The test for principle 8 read as complete —
+"datasets and models, cited and versioned" — and stopped one noun short of what the principle says, in a
+place no one would look because the test's name promised coverage. When a stated rule enumerates, make the
+test enumerate from the *rule*, not from the implementations you happen to think of.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

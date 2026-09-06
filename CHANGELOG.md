@@ -1364,6 +1364,8 @@ acceptance.
 
 ### Changed
 
+- **Flat export schema 3 → 4:** adds an `offtarget_scorer_citation` column.
+
 - **The reproducibility gate now says what drifted.** `scripts/reproduce.py` is a blocking `make ci` job, and
   on failure it printed the golden hash, the current hash, and nothing else — leaving a developer to bisect
   by hand for a difference the script was holding both sides of. The golden manifest now stores the
@@ -1496,6 +1498,14 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+
+- **The off-target score, the project's differentiator, travelled without its citation.** Principle 8 is
+  "cite everything … in code **and in output provenance**". Datasets and model cards were covered and tested;
+  scoring functions were not. A report named its scorer `CFD` and its weights `doench-2016-cfd` and carried
+  no reference — the published citations for CFD (Doench 2016) and MIT (Hsu 2013) lived only in a module
+  docstring — while the heuristic efficiency and outcome models each shipped one through their registry
+  cards. The off-target number is the one a reviewer is most likely to ask the provenance of. Reports, the
+  HTML and PDF renders, and the flat export now carry `offtarget_scorer_citation`.
 
 - **"CI stays weight-free" was a convention, not a mechanism.** It is a non-negotiable design principle, and
   the `real_weights` marker's own description claimed the marker enforced it ("opt-in, skipped in CI") — but

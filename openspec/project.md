@@ -127,7 +127,12 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
   file to HEAD, taking every deliberate edit in the round with it. Copy the file aside
   (`cp f /tmp/f.bak`) before mutating and restore from the copy — which is what the
   source-code mutation checks already do; the prose ones drifted from that habit and
-  cost a round's README edits.
+  cost a round's README edits. **This has now happened twice** (R96, R153): the second
+  time it silently reverted a renderer edit made minutes earlier, and the only reason
+  it was caught is that the full suite ran afterwards and one test that had just passed
+  in isolation failed. `cp` before *every* mutation, without exception — and when a
+  test passes alone and fails in the full run right after a mutation loop, suspect the
+  restore before suspecting the test.
 
 - **Never reconstruct a shared model field by field.** Adding a field to a pydantic
   model is only half the change: every place that rebuilds one by listing its fields

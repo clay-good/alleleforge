@@ -355,3 +355,18 @@ def test_the_region_option_states_its_coordinate_base() -> None:
     help_text = CliRunner().invoke(app, ["design", "--help"]).output
     assert "1-based" in help_text  # --variant / --pop-freqs, as before
     assert "0-based half-open" in help_text  # --region, which said nothing
+
+
+def test_the_scorer_citation_reaches_a_rendered_report(prime_menu: RankedMenu) -> None:
+    """A citation in a dict nothing renders is the defect this principle describes."""
+    from alleleforge.report.builder import build_report
+    from alleleforge.report.html import render_html
+    from alleleforge.report.pdf import render_pdf
+
+    report = build_report(prime_menu)
+    cited = [c for c in report.candidates if c.offtarget_scorer_citation]
+    assert cited, "no candidate carried a scorer citation — the check would be vacuous"
+
+    needle = "Doench et al., Nat Biotechnol 2016"
+    assert needle in render_html(report)
+    assert needle in render_pdf(report).decode("latin-1", errors="ignore")

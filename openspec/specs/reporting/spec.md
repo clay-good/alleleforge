@@ -318,3 +318,15 @@ genome browser as 1-based inclusive, so the same digits name a different base.
 - **WHEN** a report renders a candidate's cut site, nick site, or off-target interval
 - **THEN** the report footer states that coordinates are 0-based half-open and that a
   genome browser reads the same locus as 1-based inclusive
+
+### Requirement: A scoring function is cited in the output, not only in the source
+
+Every specificity scorer the engine can be configured with SHALL carry the published
+method it implements, and that citation SHALL appear in the rendered report and the
+flat export alongside the scorer name. "Cite everything" covers datasets, models
+**and scoring functions**, and a citation that lives only in a module docstring does
+not travel with the result a lab shares.
+
+#### Scenario: A report scored with the published CFD matrix
+- **WHEN** a candidate's off-target sites were scored by CFD
+- **THEN** the report names the scorer, the weight source, and Doench et al. 2016

@@ -32,6 +32,54 @@ from typing import Protocol, runtime_checkable
 
 from alleleforge.types.offtarget import ScoreMethod
 
+#: The published method each specificity scorer implements. Principle 8 is "cite
+#: everything … in code and in output provenance", and these citations lived only in
+#: this module's docstring: a report named its scorer `CFD` and its weights
+#: `doench-2016-cfd` and carried no reference, while the registry-backed efficiency and
+#: outcome models each shipped one. The off-target score is the number a reviewer is
+#: most likely to ask the provenance of, and it was the one attribution that did not
+#: travel with the result.
+SCORER_CITATIONS: dict[ScoreMethod, str] = {
+    ScoreMethod.CFD: (
+        "Doench et al., Nat Biotechnol 2016 (CFD; published matrix vendored and "
+        "cross-verified against CRISPOR and CRISPRitz)"
+    ),
+    ScoreMethod.MIT: (
+        "Hsu et al., Nat Biotechnol 2013 (MIT specificity score; published "
+        "position-weight table, exact implementation)"
+    ),
+    ScoreMethod.CFD_CAS12A: (
+        "Cas12a analog of Doench et al., Nat Biotechnol 2016 — same multiplicative "
+        "structure with a PAM-proximal 5' seed and a TTTV PAM model; no Cas12a-specific "
+        "published matrix exists, so this is labelled an analog, not a published score"
+    ),
+}
+
+
+def scorer_citation(scorer: ScoreMethod | str) -> str | None:
+    """Return the published method ``scorer`` implements, or ``None`` if unknown.
+
+    Accepts either a :class:`ScoreMethod` value (``"cfd"``) or a scorer's **display
+    name** (``"CFD"``, ``"CFD-Cas12a"``), because an :class:`OffTargetReport` records
+    the display name — the first version of this looked up the enum only and silently
+    returned ``None`` for every real report, which is exactly the "citation exists in a
+    dict nothing reads" failure it was written to fix. The display names are read off
+    the scorer classes rather than restated, so renaming one cannot break the link.
+
+    ``None`` rather than a placeholder: an uncited scorer must read as uncited, not as
+    one whose citation happens to be missing text.
+    """
+    label = str(scorer)
+    try:
+        return SCORER_CITATIONS.get(ScoreMethod(label.lower()))
+    except ValueError:
+        pass
+    for cls in (CfdScorer, MitScorer, Cas12aCfdScorer):
+        if cls.name.lower() == label.lower():
+            return SCORER_CITATIONS.get(cls.method)
+    return None
+
+
 #: Hsu 2013 position weights for a 20-nt spacer, 5'->3' (index 0 = PAM-distal,
 #: index 19 = PAM-proximal). Larger weight => a mismatch there hurts more.
 MIT_WEIGHTS: tuple[float, ...] = (

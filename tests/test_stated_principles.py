@@ -61,3 +61,34 @@ def test_the_principles_do_not_claim_population_awareness_by_default() -> None:
         )
     # ...and the honest form is present, so this cannot be satisfied by deleting the claim.
     assert "reference-only" in lowered
+
+
+def test_every_scoring_function_is_cited_in_the_output() -> None:
+    """Principle 8's third clause: "in code **and in output provenance**".
+
+    Datasets and models were covered; scoring functions were not. The published
+    references for CFD and MIT lived in `offtarget/scoring.py`'s module docstring, and
+    a report named its scorer `CFD` with weights `doench-2016-cfd` and carried no
+    reference at all — while the heuristic efficiency and outcome models each shipped
+    one through their registry cards. The off-target score is the number a reviewer is
+    most likely to ask the provenance of, and it was the one attribution that did not
+    travel with the result.
+    """
+    from alleleforge.offtarget.scoring import SCORER_CITATIONS, scorer_citation
+    from alleleforge.types.offtarget import ScoreMethod
+
+    # Every scorer the engine can be configured with, not just the ones we remembered.
+    for method in ScoreMethod:
+        assert scorer_citation(method), f"scoring method {method.value} has no citation"
+    assert set(SCORER_CITATIONS) == set(ScoreMethod)
+
+    # ...and by the display name an OffTargetReport actually records, which is what
+    # the first version of this got wrong: it resolved the enum only, so every real
+    # report looked uncited.
+    from alleleforge.offtarget.scoring import Cas12aCfdScorer, CfdScorer, MitScorer
+
+    for cls in (CfdScorer, MitScorer, Cas12aCfdScorer):
+        assert scorer_citation(cls.name), f"scorer display name {cls.name!r} resolves to nothing"
+
+    # An unknown scorer reads as uncited rather than as a citation-shaped placeholder.
+    assert scorer_citation("not-a-scorer") is None

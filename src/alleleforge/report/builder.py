@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
+from alleleforge.offtarget.scoring import scorer_citation
 from alleleforge.report.oligos import (
     PegRNAOligos,
     SgRnaOligos,
@@ -210,6 +211,11 @@ class CandidateReport(BaseModel):
         offtarget_matrix: Identity of the weight source the scorer used (published
             CFD versus the labeled approximation), so a reader can tell the scoring
             basis without inspecting the code.
+        offtarget_scorer_citation: The published method the scorer implements. Named
+            in the output because "cite everything … in code and in output provenance"
+            is a stated principle, and the off-target score — the number a reviewer is
+            most likely to ask the provenance of — was the one attribution that lived
+            only in a module docstring.
         offtarget_search: One-line statement of the budgets and cut-offs the search
             ran under. ``n_offtarget_sites`` and ``offtarget_specificity`` are both
             conditional on them — the same guide yields two sites at a 0.20 CFD
@@ -240,6 +246,7 @@ class CandidateReport(BaseModel):
     offtarget_specificity: float | None
     offtarget_by_ancestry: tuple[AncestryOffTarget, ...]
     offtarget_scorer: str | None = None
+    offtarget_scorer_citation: str | None = None
     offtarget_matrix: str | None = None
     offtarget_search: str | None = None
     oligos: SgRnaOligos | PegRNAOligos | None
@@ -308,12 +315,16 @@ def _candidate_report(
     specificity: float | None = None
     ancestry_rows: tuple[AncestryOffTarget, ...] = ()
     offtarget_scorer: str | None = None
+    offtarget_scorer_citation: str | None = None
     offtarget_matrix: str | None = None
     offtarget_search: str | None = None
     if candidate.offtarget is not None:
         n_sites = candidate.offtarget.n_sites
         specificity = candidate.offtarget.specificity_score()
         offtarget_scorer = candidate.offtarget.scorer
+        offtarget_scorer_citation = (
+            scorer_citation(offtarget_scorer) if offtarget_scorer is not None else None
+        )
         offtarget_search = candidate.offtarget.search_description()
         # The *effective* matrix the reported sites were scored by, reconciled from
         # the per-site fallbacks — so an all-bulge/off-length table is not labeled
@@ -341,6 +352,7 @@ def _candidate_report(
         offtarget_specificity=specificity,
         offtarget_by_ancestry=ancestry_rows,
         offtarget_scorer=offtarget_scorer,
+        offtarget_scorer_citation=offtarget_scorer_citation,
         offtarget_matrix=offtarget_matrix,
         offtarget_search=offtarget_search,
         oligos=oligos,

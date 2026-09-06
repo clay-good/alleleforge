@@ -18,7 +18,7 @@ from alleleforge.types.candidate import RankedMenu
 
 #: Schema version for the flat TSV/Parquet candidate export. Bump when a column is
 #: added, removed, or reinterpreted so a downstream consumer can detect the drift.
-EXPORT_SCHEMA_VERSION = 3
+EXPORT_SCHEMA_VERSION = 4
 
 #: The flat TSV column order (one row per candidate). ``schema_version`` leads so a
 #: reader can branch on the format before touching any other column.
@@ -43,6 +43,7 @@ TSV_COLUMNS = (
     "offtarget_specificity",
     "offtarget_scorer",
     "offtarget_matrix",
+    "offtarget_scorer_citation",
     "offtarget_search",
     "worst_ancestry",
     "worst_ancestry_score",
@@ -90,6 +91,7 @@ def _row(candidate: Any) -> dict[str, Any]:
         ),
         "offtarget_scorer": candidate.offtarget_scorer,
         "offtarget_matrix": candidate.offtarget_matrix,
+        "offtarget_scorer_citation": candidate.offtarget_scorer_citation,
         "offtarget_search": candidate.offtarget_search,
         "worst_ancestry": None if worst is None else worst.ancestry,
         "worst_ancestry_score": None if worst is None else round(worst.worst_score, 4),

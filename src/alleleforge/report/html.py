@@ -205,7 +205,10 @@ def _candidate_html(c: CandidateReport) -> str:
         parts.append(f"<p class='muted'>{c.n_offtarget_sites} nominated site(s){spec}.</p>")
     if c.n_offtarget_sites is not None and (c.offtarget_scorer or c.offtarget_matrix):
         basis = " / ".join(p for p in (c.offtarget_scorer, c.offtarget_matrix) if p)
-        parts.append(f"<p class='muted'>off-target scoring basis: {_esc(basis)}.</p>")
+        # The published method, on the same line as the scorer's name: a reader
+        # checking whose CFD this is should not have to open the source to find out.
+        cite = f" — {c.offtarget_scorer_citation}" if c.offtarget_scorer_citation else ""
+        parts.append(f"<p class='muted'>off-target scoring basis: {_esc(basis)}{_esc(cite)}.</p>")
     if c.offtarget_search is not None:
         parts.append(f"<p class='muted'>off-target search: {_esc(c.offtarget_search)}.</p>")
     # Hazards first and on their own, before the flat flag list: a `close-nick` printed
