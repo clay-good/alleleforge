@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **One check over every artifact the tool writes.** Four rounds running found the same missing
+  document-level context one artifact over, each missed because the existing check is keyed to a *type*.
+  `test_every_artifact_says_what_it_is` enumerates the writers instead: the design HTML/PDF/TSV/JSON, the
+  cohort summary, the off-target payload and both leaderboard renders are produced through their real CLI
+  paths and asserted to say what they are. Two artifacts are exempt with recorded reasons — the signed
+  benchmark result (adding a prose field would invalidate every previously signed result's signature) and a
+  cohort's per-item menu JSON (a library type, with the context beside it in the summary and manifest).
+
 - **The CRISPR-Bench leaderboard says what it is.** The artifact most likely to be published, linked and
   quoted marked its synthetic splits — the fact it most needs — and carried no research-use statement, no
   version and no generation time. Both renders (and the empty board, the one most likely to be published

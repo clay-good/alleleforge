@@ -7529,6 +7529,51 @@ disclaimer into a new surface, read it aloud against that surface — the senten
 made it worth writing is usually the sentence that does not travel.**
 
 
+## Round 231 — enumerating the artifacts instead of guessing at the next one
+
+Four rounds running had found the same defect one artifact over: the cohort summary
+TSV, the standalone off-target payload, the browser's cohort table, the leaderboard.
+Each was missed because the check that would have caught it is keyed to a *type* —
+`DesignReport` renders — and none of them is that type. Guessing at a fifth is not a
+method, so this round listed every `write_text`/`write_bytes` in `src/` and worked the
+list.
+
+Seven user-facing writers. Five are covered. Two are exempt, and both exemptions are
+decisions rather than gaps:
+
+* **the signed benchmark result JSON** carries `dataset_is_synthetic` beside the
+  score, and `verify_signature` hashes the *whole model* — so adding a prose field
+  would invalidate the signature of every previously signed result and make
+  `leaderboard` report an untampered file as "edited after signing". The right trade
+  is to leave it alone, and the terminal keeps the stronger sentence ("this number
+  measures the contract, not the model — it is not a benchmark result").
+* **a cohort's per-item menu JSON** is a serialized `RankedMenu`, the library's own
+  type rather than a rendered artifact, and the run that wrote it puts the context in
+  the summary TSV and the manifest header beside it.
+
+`test_every_artifact_says_what_it_is` produces all five through their real CLI paths
+and asserts the clause; `EXEMPT` holds the other two with the reason, and a guard
+requires each reason to be long enough to be a reason. **Nothing new was found** — the
+check confirms four rounds of work rather than extending it, which is what a
+consolidation round should look like, and it was mutation-checked (removing the
+leaderboard's context fails exactly the two leaderboard cases) so its silence means
+something.
+
+One thing went wrong, and ruff caught it: I asserted on a hardcoded
+`"not a medical device"` rather than tying it to `RESEARCH_USE_CORE`. That is the
+needle trap from R219 in a file whose entire purpose is to be the durable check — a
+reworded disclaimer would have left twelve green tests matching a string nothing
+produces. The needle is still a short literal, because the PDF wraps its content
+stream and a longer one fails there for an unrelated reason, but a test now pins that
+it is a substring of the constant.
+
+**Lesson: when the same bug appears four times in adjacent places, stop finding the
+fifth and enumerate the population. The list is nearly always short — seven here — and
+the two entries that turn out not to belong are worth more than the one you would have
+found by guessing, because writing down why they are exempt is what stops a later round
+"fixing" them.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
