@@ -10,9 +10,9 @@ meaningful exit codes. The library is the source of truth; the CLI is a shell.
 
 ### Requirement: A stable subcommand surface with meaningful exit codes
 
-The CLI SHALL expose `resolve`, `design`, `batch`, `offtarget`, and the `data` and `bench`
-sub-apps, and SHALL use distinct exit codes: `0` success, `2` usage, `3` missing data,
-`4` unavailable dependency.
+The CLI SHALL expose `resolve`, `design`, `batch`, `offtarget`, `verify`, `lift`, and the
+`data` and `bench` sub-apps, and SHALL use distinct exit codes: `0` success, `2` usage,
+`3` missing data, `4` unavailable dependency.
 
 #### Scenario: Missing dependency
 - **WHEN** `batch` is given a VCF but the VCF backend is not installed
@@ -21,6 +21,27 @@ sub-apps, and SHALL use distinct exit codes: `0` success, `2` usage, `3` missing
 #### Scenario: Usage error
 - **WHEN** a variant fails to resolve
 - **THEN** stderr shows the error and it exits with the usage code (2)
+
+### Requirement: A remedy for a build mismatch
+
+`resolve` SHALL refuse a record whose native assembly disagrees with the requested build,
+rather than relabelling coordinates that would then designate a different locus. Because a
+refusal that names an operation the tool does not offer is not actionable, the CLI SHALL
+provide `lift`, converting loci between assemblies through a caller-supplied UCSC chain
+file, which is never downloaded.
+
+`lift` SHALL print `input<TAB>output` per locus, in order, in the same `chrom:start-end`
+form `--region` accepts, so its output pipes back in. An unmappable locus SHALL print
+`UNMAPPED` rather than being dropped — a shorter list is a smaller search — and the
+command SHALL exit non-zero when any locus is unmappable.
+
+#### Scenario: A locus that lifts
+- **WHEN** `lift chr1:100-200 --chain hg19ToHg38.over.chain --from hg19 --to hg38` maps
+- **THEN** it prints the input and the lifted locus separated by a tab, and exits 0
+
+#### Scenario: A locus that does not lift
+- **WHEN** a locus has no mapping in the chain file
+- **THEN** it prints `UNMAPPED` for that locus and exits non-zero
 
 ### Requirement: Reproducible, machine-readable runs
 

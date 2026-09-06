@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **The capability specs are checked against the shipped CLI.** `openspec/specs/` holds nineteen
+  specifications — the requirements a change folds into when it ships — and no test in the suite read them.
+  `aforge lift` shipped with a CLI test, a README row and a docs entry and appeared in none of them, while
+  the CLI spec's own subcommand requirement enumerated five commands for a tool that ships eight. The `lift`
+  requirement is now written (and was checked against the real command, including `UNMAPPED` and its non-zero
+  exit), and a new check runs both directions: a command the specs name must exist, and a command that exists
+  must be named. The exit codes the requirement lists are compared to the `ExitCode` enum.
+
 - **The design principles agree with themselves.** `openspec/project.md` — the file the tests call the source
   of truth — still stated *"Population-aware by default. Off-target search covers population variation and
   stratifies by ancestry"*, the overclaim the README and docs had already been corrected for; the guard

@@ -7914,6 +7914,48 @@ pointed *at* it. Ask what reads the canonical document, and expect the answer to
 "the other documents' authors, once".**
 
 
+## Round 240 — nineteen specifications nobody read
+
+R239 asked what points *at* a canonical document. Counting, across the repository's
+authoritative files:
+
+    SPEC.md              read by 1 test
+    SPEC_V2.md           read by 2
+    openspec/project.md  read by 1
+    openspec/specs/      read by 0
+
+Nineteen capability specifications — the requirements a change folds into when it ships,
+per this very file: *"When a change ships, fold its deltas into `specs/` and archive the
+folder"* — and not one test in the suite touched them.
+
+`aforge lift` is what that cost. It shipped with a CLI test, a README row and a docs
+entry, and appears in none of the nineteen. Worse, the CLI spec has a requirement whose
+whole job is to enumerate the command surface, and it named five commands for a tool
+that ships eight:
+
+    The CLI SHALL expose `resolve`, `design`, `batch`, `offtarget`, and the `data` and
+    `bench` sub-apps…
+
+`verify` was mentioned elsewhere in the specs; `lift` was mentioned nowhere. A reader
+trusting the enumeration got a smaller tool than the one installed, and a process that
+folds deltas in by hand had quietly not folded one in.
+
+The requirement is written now — refusing a build mismatch is only actionable because
+`lift` exists, so the two belong in one requirement — and checked against the real
+command before being committed, including that an unmappable locus prints `UNMAPPED`
+and exits non-zero.
+
+The check runs both directions, as for the README and the docs pages before it: a
+command the specs name must exist, and a command that exists must be named. The second
+is the one that catches a shipped-but-unspecified feature. The exit codes the
+requirement names are compared to the `ExitCode` enum rather than trusted.
+
+**Lesson: "the requirements" is the document least likely to be wrong and least likely
+to be checked, and those are the same property. A spec is prose about code that no
+compiler reads; the only thing that keeps it true is a test that treats it as an
+assertion — and the more authority a document has, the more the absence of one costs.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
