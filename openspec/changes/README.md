@@ -7993,6 +7993,55 @@ yet — and a preventive check has one obligation a corrective one does not: it 
 mutation-verified, because nothing else has ever demonstrated that it works.**
 
 
+## Round 242 — an hour spent disproving a bug, and the reason it took an hour
+
+The docs-and-specs vein was mined out — four clean probes in a row — so this round went
+back to running the product on inputs shaped like real genomics: a 6.6 kb contig with a
+segmental duplication, an assembly gap, a homopolymer and a CAG repeat.
+
+Most of it is right, and worth recording so it is not re-probed. A guide whose locus is
+duplicated 3 kb away is found at the duplicate with `mm=0, score=1.0` and the
+specificity is correctly halved to 0.500. The N gap is disclosed ("only 92% of the 6,630
+requested bases were searchable"). A guide inside the CAG repeat returns 25 sites at
+specificity 0.130 rather than flooding or hiding, and labels its scores
+`effective doench-2016-seed-tolerance-approximation` because the published matrix does
+not cover off-register hits.
+
+Then the repeat scan printed this, and I spent an hour on it:
+
+    spacer CAGCAGCAGCAGCAGCAGCA / PAM NGG: 25 site(s) … specificity 0.130
+      chr7:3537-3558(+)  pam=CAG  mm=2  score=0.2593  reference
+
+`CAG` does not match `NGG`. A CAG repeat contains no `GG` at all — I confirmed the only
+NGG in the region starts 90 bases past the repeat. I checked the PAM matcher (correct),
+the plus-strand scan (gates on `pam.matches`), the brute-force path (zero hits), the
+FM-index path (zero hits), the seeded path (zero hits), and both the Python and Rust
+evaluation kernels (identical). Then I instrumented `search()` and found it:
+
+    scan_sequence(chrom=chr7, spacer=…, pam=NRG) -> 26 hits
+
+**`search()` broadens `NGG` to `NRG` on purpose**, so a low-stringency `NAG` site — which
+SpCas9 does cut, at reduced efficiency — is found rather than missed. It is in
+`openspec/specs/offtarget-nomination/spec.md`, and `low_stringency_pam` says why on the
+line that does it. **Not a bug. I was wrong.**
+
+The finding is why it took an hour. The header says `PAM NGG`, twenty-four of the rows
+say `pam=CAG`, and **no surface anywhere reconciles them**. The search description lists
+every other condition the numbers rest on — bases searched, mismatch and bulge budgets,
+both reporting cut-offs, the MAF floor, the searchable fraction — and omitted this one.
+It is load-bearing here: 24 of the 25 sites are NAG, so a specificity of 0.130 is almost
+entirely produced by low-stringency PAMs. Read as NGG sites they are over-weighted; read
+as a bug they are dismissed. Both readings were available; neither was true.
+
+The description now says so, and only when the scan really did broaden. An existing
+guard caught my first draft for using an em dash: that string reaches the PDF, whose
+WinAnsi font has no glyph for it, and would have printed "?".
+
+**Lesson: when a competent reader spends an hour concluding your correct output is
+wrong, the output is missing a sentence. My investigation was not wasted effort around
+the finding — it *was* the finding, and its length was the measurement.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

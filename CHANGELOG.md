@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **The off-target report says when it broadened the PAM.** `search()` widens SpCas9's `NGG` to `NRG` so
+  low-stringency `NAG` sites — which SpCas9 cuts, less efficiently — are nominated rather than missed. That is
+  deliberate and specified, and no surface said it: a report headed `PAM NGG` listed sites reading `pam=CAG`
+  with nothing reconciling them, while the search description enumerated every *other* condition the numbers
+  rest on. It is load-bearing — over a CAG repeat, 24 of 25 sites are NAG, so the specificity is almost
+  entirely produced by low-stringency PAMs — and both available readings (real NGG hits, or a bug) were
+  wrong. `OffTargetReport.scanned_pam` records it and the description states it, only when the scan really
+  did broaden.
+
 - **The identifiers the capability specs name are checked against the code.** Across 4,400 lines of spec
   there are 467 backticked tokens — CLI flags, class names, enum members — and nothing verified that any of
   them still named something real. All of them do today, so this is preventive and mutation-verified: renaming

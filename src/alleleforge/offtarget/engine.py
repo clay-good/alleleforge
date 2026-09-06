@@ -673,6 +673,7 @@ def search(
         resolved_bases=resolved_bases,
         sources_considered=sources_considered,
         ambiguous_spacer_positions=ambiguous_spacer_positions,
+        scanned_pam=scan_pam.pattern,
         unbacked_populations=unbacked,
         available_populations=tuple(sorted(backed)),
         # Only when an ancestry source was actually supplied: on a reference-only

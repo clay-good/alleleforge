@@ -127,6 +127,13 @@ class OffTargetReport(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     spacer: str
+    #: The PAM pattern the scan actually anchored on. `search()` broadens SpCas9's
+    #: `NGG` to `NRG` so a low-stringency `NAG` off-target — which SpCas9 does cut, at
+    #: reduced efficiency — is found rather than missed. That is deliberate and
+    #: specified, and nothing said it: a report headed `PAM NGG` listed sites reading
+    #: `pam=CAG`, with no surface reconciling the two. `None` when the scan used the
+    #: requested pattern unchanged, so the note marks a real difference.
+    scanned_pam: str | None = None
     pam: str
     sites: tuple[OffTargetSite, ...] = ()
     mismatch_threshold: int = 4
@@ -237,6 +244,12 @@ class OffTargetReport(BaseModel):
                 f"; the spacer is ambiguous at position(s) {listed}, which cannot be "
                 "scored — those positions count as mismatches, pushing scores DOWN, so "
                 "a low score here is not evidence of safety"
+            )
+        if self.scanned_pam and self.scanned_pam != self.pam:
+            coverage += (
+                f"; the PAM was broadened from {self.pam} to {self.scanned_pam} for the "
+                "scan, so low-stringency sites (e.g. NAG for SpCas9) are nominated too: "
+                "they are cut less efficiently, and each site's own PAM is on its row"
             )
         if self.unbacked_populations:
             coverage += (

@@ -694,6 +694,18 @@
           "title": "Rna Bulge Budget",
           "type": "integer"
         },
+        "scanned_pam": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scanned Pam"
+        },
         "score_matrix": {
           "anyOf": [
             {
