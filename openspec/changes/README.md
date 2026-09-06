@@ -6574,6 +6574,50 @@ writing a second implementation of something (the pysam differential, R205's nai
 comparison, this one); it is a more reliable instrument than reading the code.**
 
 
+## Round 209 — the command that could not read its own output
+
+`aforge design --out X` writes the result to `X` and a `X.provenance.json` sidecar
+holding the run's `Provenance` block. `aforge verify` is the command that, in its own
+words, turns provenance from a record into a checkable contract. Handing it that sidecar
+printed:
+
+    error: not a valid result JSON: 1 validation error for RankedMenu
+    candidates
+      Field required
+
+It only ever parsed a full `RankedMenu`. That is not a cosmetic gap in a niche path: for
+`--format tsv`, `html` and `pdf` — three of the four output formats — the sidecar is the
+*only* machine-readable provenance the run leaves behind, so the contract was
+unreachable for every one of them. And the error pointed at the wrong thing. Nothing is
+wrong with the sidecar; the file named in the message is the file the tool just wrote.
+
+The fix is small because every check `verify` performs reads `prov` and nothing else —
+completeness, and the `--cache-dir` re-hash of pinned checkpoints and datasets. The menu
+was only ever an envelope. `verify` now tries `RankedMenu` and falls back to `Provenance`,
+and the two paths reach a byte-identical `--json` report on the same run, which is the
+property the test pins rather than "it exits 0". Widening the input must not widen it to
+anything, so a file that is neither shape is still `USAGE` and now names both shapes; a
+menu whose `provenance` is `null` is still `UNAVAILABLE`, not mistaken for a bare block.
+
+This is the memory's own query — *audit the honesty mechanisms* — run against the one
+surface that had not been pointed at itself. It was found by running the product, not by
+reading it: the tsv run was a spot-check of an output format, and `verify` on the sidecar
+was the next thing a user would obviously type.
+
+A process note worth more than the fix. The first patch applied cleanly and the tests
+still failed with the *old* error text. The venv here is an editable install of the main
+checkout, not of this worktree, so `pytest` had been importing the unmodified package all
+along — including the baseline suite run. `PYTHONPATH=$PWD/src` fixed it. R206 recorded
+"verify the patch, not just the test's reaction to it"; this is the same lesson from the
+other side. There the patch had not applied and the test passed. Here the patch applied
+and the test failed. Both times the thing being tested was not the thing being edited,
+and both times the tell was a result that did not move when it should have.
+
+**Lesson: a green suite in a worktree proves nothing until you have confirmed which copy
+of the source the interpreter is importing. `pip install -e` pins a path, and a worktree
+is a different path.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -10,6 +10,16 @@ acceptance.
 
 ### Added
 
+- **`aforge verify` reads the provenance sidecar `aforge design` writes.** `design --out X` leaves a
+  `X.provenance.json` block beside the result; `verify` — the command that turns provenance from a record into
+  a checkable contract — parsed only a full `RankedMenu` and rejected that sidecar with a pydantic error about
+  a missing `candidates` field. For `--format tsv`, `html` and `pdf` the sidecar is the *only* machine-readable
+  provenance a run produces, so the contract was out of reach of three of the four output formats, and the
+  error named the wrong file. Every check `verify` performs reads the provenance block and nothing else, so it
+  now accepts either shape and reaches a byte-identical `--json` report from both. A file that is neither is
+  still a usage error and now names both accepted shapes; a result whose `provenance` is `null` is still
+  reported as unverifiable rather than mistaken for a bare block.
+
 - **A fourth native kernel: the scan's innermost bulged alignment.** `_best_with_removed_base` was 57% of the
   off-target scan's self time after the cheaper Python wins — a million calls over 2 Mb, two per PAM-positive
   anchor — and the previous round measured three Python variants that all bought the reject path with the

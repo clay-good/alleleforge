@@ -1635,7 +1635,13 @@ def offtarget(
 @app.command()
 def verify(
     result: Annotated[
-        Path, typer.Argument(help="A result JSON (ranked menu) with a provenance block.")
+        Path,
+        typer.Argument(
+            help=(
+                "A result JSON (ranked menu) with a provenance block, or the bare "
+                "'.provenance.json' sidecar `design --out` writes beside it."
+            )
+        ),
     ],
     cache_dir: Annotated[
         Path | None,
@@ -1650,26 +1656,38 @@ def verify(
     config snapshot; with ``--cache-dir`` it re-hashes each pinned model checkpoint
     *and pinned dataset* found there against the hash recorded in provenance. Exits
     non-zero on incomplete provenance or an artifact hash mismatch.
+
+    Takes either shape `design` produces: the full result JSON, or the bare
+    `<out>.provenance.json` sidecar written beside it. For `--format tsv`, `html` and
+    `pdf` the sidecar is the only machine-readable provenance a run leaves behind, so
+    refusing it would put this contract out of reach of three of the four formats.
     """
     from alleleforge.data.registry import DEFAULT_REGISTRY
     from alleleforge.types.candidate import RankedMenu
     from alleleforge.types.prediction import trusted_deserialization_context
+    from alleleforge.types.provenance import Provenance
 
     if not result.is_file():
         _echo_err(f"error: result file not found: {result}")
         raise typer.Exit(ExitCode.MISSING_DATA)
+    text = result.read_text()
+    # This is AlleleForge's own prior `aforge design` output, so re-read it through
+    # the trusted context: a calibrated efficiency/bystander prediction keeps its
+    # `calibrated=True` instead of being silently coerced to False on load.
+    context = trusted_deserialization_context()
+    prov: Provenance | None
     try:
-        # This is AlleleForge's own prior `af design` output, so re-read it through
-        # the trusted context: a calibrated efficiency/bystander prediction keeps its
-        # `calibrated=True` instead of being silently coerced to False on load.
-        menu = RankedMenu.model_validate_json(
-            result.read_text(), context=trusted_deserialization_context()
-        )
-    except ValueError as exc:
-        _echo_err(f"error: not a valid result JSON: {exc}")
-        raise typer.Exit(ExitCode.USAGE) from exc
-
-    prov = menu.provenance
+        prov = RankedMenu.model_validate_json(text, context=context).provenance
+    except ValueError as menu_exc:
+        try:
+            prov = Provenance.model_validate_json(text, context=context)
+        except ValueError:
+            # Report the menu error, not the sidecar one: a file that is neither is far
+            # more often a malformed result than a malformed provenance block.
+            _echo_err(
+                f"error: not a valid result JSON, and not a provenance sidecar either: {menu_exc}"
+            )
+            raise typer.Exit(ExitCode.USAGE) from menu_exc
     if prov is None:
         _echo_err("error: result carries no provenance block; it is not verifiable")
         raise typer.Exit(ExitCode.UNAVAILABLE)
