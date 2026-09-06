@@ -8904,6 +8904,36 @@ same question asked of it — what makes this fail when the product grows? Two r
 the stale text was the sentence that had been most carefully written.**
 
 
+## Round 270 — a capability made unreachable by prose
+
+Third round of reading the docs against the product, and the sharpest one. The web API
+page's endpoint table:
+
+    | `GET /api/bench` | CRISPR-Bench (`501` until Phase 14). |
+
+Phase 14 shipped. The endpoint returns 200 with all five tasks, their kind, chemistry,
+dataset and metric battery. Anyone reading the documentation to find out what this service
+offers would not call it.
+
+That is worth naming precisely: a working capability that the documentation says does not
+work is, for every user who trusts the documentation, indistinguishable from one that was
+never built. This session has spent twenty rounds on capabilities unreachable from a
+*shell*; this is the same failure through a different medium, and cheaper to cause.
+
+Two more stale paragraphs on the same page, both about things this session changed: the
+health row (which now reports every loaded data source and why a configured one failed),
+and "A reference genome is supplied by the deployment", which was true of one source when
+written and is now true of four — with the reason the fourth stays out.
+
+The guard reads the table and calls every endpoint whose row claims a not-implemented
+status, failing if it works. One-directional on purpose: documenting something as available
+when it 501s is a different bug, and the endpoint tests already catch it.
+
+**Lesson: "not yet implemented" in docs is a claim with an expiry date and no alarm on it.
+Anything a doc says the product cannot do is worth executing — the cheapest way to make a
+feature unreachable is to keep saying it is not there.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

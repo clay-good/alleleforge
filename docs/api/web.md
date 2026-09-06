@@ -33,7 +33,7 @@ auto-generated at `/openapi.json`.
 
 | Method & path | Purpose |
 |---|---|
-| `GET /api/health` | Liveness + whether a reference is loaded + the disclaimer. |
+| `GET /api/health` | Liveness, the disclaimer, and which data sources this deployment loaded: the reference, the population sites, the haplotype panel, and the accessibility track names a request may choose from — plus `source_errors`, the reason a *configured* source failed to load, so a broken mount is not reported as a deliberate absence. |
 | `POST /api/resolve` | Normalize any input form to a canonical variant. |
 | `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf`. |
 | `POST /api/jobs/design` | Submit an async design job (`202`, returns a job id). |
@@ -41,15 +41,22 @@ auto-generated at `/openapi.json`.
 | `POST /api/batch` | Cohort design over a variant list; per-item summaries and provenance, a failed item isolated rather than failing the run. |
 | `POST /api/offtarget` | Standalone population-aware off-target search, including the `scorer` choice (`cfd` / `mit` / `cfd-cas12a`) so a Cas12a run is labelled as the unvalidated approximation rather than as the published matrix. |
 | `GET /api/data` / `GET /api/data/{name}` | Inspect the dataset registry. |
-| `GET /api/bench` | CRISPR-Bench (`501` until Phase 14). |
+| `GET /api/bench` | List the CRISPR-Bench tasks with their kind, chemistry, dataset and metric battery. |
 | `GET /` | The served single-page frontend. |
 
 Every request model forbids unknown fields, so a misspelled or unsupported parameter is a
 `422` naming it rather than a `200` describing a different run than the one asked for.
 
-A reference genome is supplied by the deployment (`create_app(reference=...)` or
-`ALLELEFORGE_REFERENCE_FASTA`); endpoints that need it return `503` until one is
-configured, so the service starts cleanly without it.
+The data a run reads is supplied by the deployment, never by the request: a
+client-supplied filesystem path would be a server-side file-read primitive. The reference
+genome (`create_app(reference=...)` or `ALLELEFORGE_REFERENCE_FASTA`) gates the endpoints
+that need it with a `503` until it is configured, so the service starts cleanly without
+one. The population sites (`ALLELEFORGE_GNOMAD_TSV`), the phased-haplotype panel
+(`ALLELEFORGE_HAPLOTYPES`) and the accessibility tracks (`ALLELEFORGE_ENCODE_TRACKS`) are
+optional in the same way: without them a scan is reference-only whatever ancestry labels a
+request carries, which is why `GET /api/health` reports what is loaded. A personal genotype
+is the one input that stays out — it is the caller's data rather than the operator's, so
+server-side configuration is the wrong shape for it.
 
 ## Example
 

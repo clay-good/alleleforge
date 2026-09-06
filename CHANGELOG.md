@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **The web API docs no longer call a working endpoint unimplemented.** The endpoint table said
+  "`GET /api/bench` | CRISPR-Bench (`501` until Phase 14)"; Phase 14 shipped and the endpoint returns all
+  five tasks with their kind, chemistry, dataset and metric battery. A reader following the docs would not
+  call it — a capability made unreachable by prose rather than by code, which is the same outcome as not
+  having built it. The health row and the deployment-configuration paragraph are current too, and a test
+  now fails if any endpoint the docs describe as not-implemented actually works.
+
 - **The README explains all three off-target summary numbers.** It described the worst case and the
   aggregate specificity, and said specificity "surfaces on every output surface that summarizes
   off-target" — then `expected_burden` was added to those same surfaces and the paragraph was not
