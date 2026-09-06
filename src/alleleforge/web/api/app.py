@@ -162,6 +162,24 @@ def _load_haplotypes_from_env() -> Any:
         return ()
 
 
+def _load_encode_tracks_from_env() -> Any | None:
+    """Load accessibility tracks from ``ALLELEFORGE_ENCODE_TRACKS`` if set.
+
+    The file is operator-configured like the other data sources; *which* track to read is
+    per-request, because one bedGraph can hold several cell types and the choice belongs
+    to the caller. Without the file the chromatin adjustment is unreachable over HTTP.
+    """
+    path = os.environ.get("ALLELEFORGE_ENCODE_TRACKS")
+    if not path:
+        return None
+    try:
+        from alleleforge.data.annotations import EncodeTracks
+
+        return EncodeTracks.from_bedgraph(Path(path))
+    except (OSError, ValueError, ImportError):
+        return None
+
+
 def _require_reference(request: Request) -> Any:
     """Return the configured reference genome, or raise ``503``."""
     reference = request.app.state.reference
@@ -186,6 +204,37 @@ def _resolve(request: Request, variant: str, build: str) -> Any:
         return resolve_variant(variant, build=build, reference=reference)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _chromatin_tracks(request: Request, track: str | None) -> Any | None:
+    """Return the configured tracks when a valid track name was asked for, or raise 422.
+
+    The CLI checks the name where it is supplied, because an unknown one used to raise
+    inside the chemistry, be caught as a decline reason, and produce an empty menu with
+    exit 0. The same mistake over HTTP deserves the same answer, and a `422` a client can
+    act on has to carry the vocabulary — there is no `--help` on the other end.
+    """
+    if track is None:
+        return None
+    tracks = request.app.state.encode_tracks
+    if tracks is None:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "chromatin_track was requested but this deployment has no accessibility "
+                "tracks configured, so the adjustment cannot run"
+            ),
+        )
+    available = tuple(tracks.tracks)
+    if track not in available:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"unknown chromatin_track {track!r}; this deployment has: "
+                f"{', '.join(available) or 'none'}"
+            ),
+        )
+    return tracks
 
 
 def _design_options(
@@ -254,6 +303,7 @@ def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
 
     resolved = _resolve(request, req.variant, "hg38")
     settings: Settings = request.app.state.settings
+    tracks = _chromatin_tracks(request, req.chromatin_track)
     menu = run_design(
         resolved,
         reference=reference,
@@ -266,6 +316,8 @@ def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
         # labels were asked for, and the report says so.
         gnomad=request.app.state.gnomad,
         haplotypes=request.app.state.haplotypes,
+        encode_tracks=tracks,
+        chromatin_track=req.chromatin_track,
         offtarget_regions=_regions(req.offtarget_regions),
         cell_context=req.cell_context,
         run_offtarget=req.run_offtarget,
@@ -340,6 +392,7 @@ def create_app(
     reference: Any | None = None,
     gnomad: Any | None = None,
     haplotypes: Any | None = None,
+    encode_tracks: Any | None = None,
     settings: Settings | None = None,
     api_token: str | None = None,
 ) -> FastAPI:
@@ -356,6 +409,10 @@ def create_app(
             ``ALLELEFORGE_HAPLOTYPES`` when that is set. Without it the haplotype-aware
             pass — the one that finds a site existing only on a co-inherited combination
             of alleles — never runs for an API caller.
+        encode_tracks: Pre-loaded accessibility tracks for the ePRIDICT-style
+            open-chromatin adjustment. If ``None``, loaded from
+            ``ALLELEFORGE_ENCODE_TRACKS`` when set. Which track a run reads is chosen
+            per request, since one bedGraph can hold several cell types.
         settings: Settings to thread into provenance (default: ``Settings.load()``,
             resolving the user config file + env with the standard precedence).
         api_token: When set, every ``/api/*`` request (except ``/api/health``)
@@ -388,6 +445,9 @@ def create_app(
     app.state.reference = reference if reference is not None else _load_reference_from_env()
     app.state.gnomad = gnomad if gnomad is not None else _load_gnomad_from_env()
     app.state.haplotypes = haplotypes if haplotypes is not None else _load_haplotypes_from_env()
+    app.state.encode_tracks = (
+        encode_tracks if encode_tracks is not None else _load_encode_tracks_from_env()
+    )
     # Resolve through Settings.load() so the web interface honors the user config file
     # (~/.config/alleleforge/config.toml) with the same precedence as the CLI and library
     # — the provenance-reproducibility spec requires the config file to apply to web runs,
@@ -440,6 +500,11 @@ def create_app(
             reference_loaded=app.state.reference is not None,
             gnomad_loaded=app.state.gnomad is not None,
             haplotypes_loaded=bool(app.state.haplotypes),
+            # The names, not a flag: a client picks one per request and has no other way
+            # to discover what this deployment's bedGraph contains.
+            chromatin_tracks=(
+                tuple(app.state.encode_tracks.tracks) if app.state.encode_tracks is not None else ()
+            ),
             # The core sentence only. A liveness probe has no candidates below it and
             # nominates no off-target site, and `RESEARCH_USE_CORE` exists because "a
             # caveat that does not describe the thing it is attached to is noise".
@@ -525,6 +590,10 @@ def create_app(
         reference = _require_reference(request)
         intent, chemistries, weights = _design_options(req.intent, req.chemistries, req.weights)
         settings: Settings = request.app.state.settings
+        # The same configured sources the single-variant endpoint uses. Wiring them there
+        # and not here would leave a cohort run reference-only while an identical
+        # one-variant request was population-aware — the difference invisible in both
+        # results except to a reader who compared the search descriptions.
         report = design_many(
             req.variants,
             reference=reference,
@@ -532,6 +601,10 @@ def create_app(
             chemistries=chemistries,
             weights=weights,
             populations=req.populations,
+            gnomad=request.app.state.gnomad,
+            haplotypes=request.app.state.haplotypes,
+            encode_tracks=_chromatin_tracks(request, req.chromatin_track),
+            chromatin_track=req.chromatin_track,
             run_offtarget=req.run_offtarget,
             max_candidates_per_chemistry=req.max_per_chemistry,
             offtarget_regions=_regions(req.offtarget_regions),

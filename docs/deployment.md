@@ -149,6 +149,7 @@ that nothing reads fails the suite, because an ignored setting is silent.
 | Reference FASTA (web) | `ALLELEFORGE_REFERENCE_FASTA` | _none (503 until set)_ |
 | Population sites TSV (web) | `ALLELEFORGE_GNOMAD_TSV` | _none (every scan reference-only)_ |
 | Haplotype panel TSV (web) | `ALLELEFORGE_HAPLOTYPES` | _none (no haplotype-aware pass)_ |
+| Accessibility tracks (web) | `ALLELEFORGE_ENCODE_TRACKS` | _none (no chromatin adjustment)_ |
 | Global seed | `ALLELEFORGE_SEED` | `20240501` |
 | Predictive-interval level | `ALLELEFORGE_INTERVAL_LEVEL` | `0.80` |
 | Off-target MAF threshold | `ALLELEFORGE_MAF_THRESHOLD` | `0.001` |

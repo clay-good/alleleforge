@@ -170,6 +170,15 @@ class DesignRequest(BaseModel):
         min_length=len(OBJECTIVES),
         max_length=len(OBJECTIVES),
     )
+    chromatin_track: str | None = Field(
+        default=None,
+        description=(
+            "Which of the deployment's accessibility tracks to read for the "
+            "ePRIDICT-style open-chromatin efficiency adjustment (prime editing). The "
+            "names are listed by `GET /api/health`; the tracks file itself is configured "
+            "by the operator."
+        ),
+    )
     max_per_chemistry: int | None = Field(
         default=None, ge=1, description="Cap candidates kept per chemistry."
     )
@@ -215,6 +224,13 @@ class BatchRequest(BaseModel):
         description=f"Ranking weights [{', '.join(OBJECTIVES)}], in that order.",
         min_length=len(OBJECTIVES),
         max_length=len(OBJECTIVES),
+    )
+    chromatin_track: str | None = Field(
+        default=None,
+        description=(
+            "Which of the deployment's accessibility tracks to read for the "
+            "open-chromatin efficiency adjustment; names are listed by `GET /api/health`."
+        ),
     )
     max_per_chemistry: int | None = Field(
         default=None, ge=1, description="Cap candidates kept per chemistry."
@@ -526,6 +542,10 @@ class HealthResponse(BaseModel):
     #: alleles is not nominated — and, like the population source, a client cannot supply
     #: one.
     haplotypes_loaded: bool = False
+    #: The accessibility tracks this deployment can read, by name. A client chooses one
+    #: per request via `chromatin_track` and has no other way to learn what the
+    #: operator's bedGraph contains.
+    chromatin_tracks: tuple[str, ...] = ()
     disclaimer: str
 
 

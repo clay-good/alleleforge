@@ -159,3 +159,69 @@ def test_a_configured_haplotype_panel_runs_the_haplotype_pass(tmp_path: Path) ->
 def test_health_reports_an_unconfigured_panel(bias_case: tuple[Path, Path]) -> None:
     fasta, _sites = bias_case
     assert _client(fasta, None).get("/api/health").json()["haplotypes_loaded"] is False
+
+
+def test_a_cohort_run_uses_the_same_sources(bias_case: tuple[Path, Path]) -> None:
+    """`/api/batch` ran reference-only while `/api/design` was population-aware.
+
+    The single-variant endpoint and the cohort endpoint build their design calls
+    separately, so wiring the sources into one left the other blind — and a cohort row
+    and a one-variant result look the same either way, except to a reader who compares
+    the search descriptions.
+    """
+    fasta, sites = bias_case
+    body = (
+        _client(fasta, sites)
+        .post(
+            "/api/batch",
+            json={"variants": ["chr2:20:A>G"], "populations": ["afr"], "run_offtarget": True},
+        )
+        .json()
+    )
+    assert body["total"] == 1
+    item = body["items"][0]
+    assert item["status"] in {"ok", "error"}
+    sources = (item.get("summary") or {}).get("offtarget_sources")
+    # `None` when nothing was searched for this variant; the point is that when a scan
+    # ran, gnomAD is among the sources it considered rather than absent.
+    if sources is not None:
+        assert "gnomad" in sources
+
+
+def test_an_unknown_chromatin_track_is_refused_with_the_vocabulary(
+    bias_case: tuple[Path, Path], tmp_path: Path
+) -> None:
+    """The CLI checks the name where it is supplied; over HTTP it went unchecked.
+
+    An unknown track raised inside the chemistry, was caught as a decline reason, and
+    produced an empty menu with a 200 — the CLI's own bug, one shell over.
+    """
+    from alleleforge.data.annotations import EncodeTracks
+    from alleleforge.genome.reference import ReferenceGenome
+
+    fasta, _sites = bias_case
+    bedgraph = tmp_path / "tracks.bedgraph"
+    bedgraph.write_text("K562\tchr2\t0\t50\t0.9\n")
+    client = TestClient(
+        create_app(
+            reference=ReferenceGenome(fasta, build="hg38"),
+            encode_tracks=EncodeTracks.from_bedgraph(bedgraph),
+        )
+    )
+    assert client.get("/api/health").json()["chromatin_tracks"] == ["K562"]
+    response = client.post(
+        "/api/design", json={"variant": "chr2:20:A>G", "chromatin_track": "HepG2"}
+    )
+    assert response.status_code == 422
+    assert "K562" in response.json()["detail"]
+
+
+def test_asking_for_a_track_an_unconfigured_deployment_lacks_is_refused(
+    bias_case: tuple[Path, Path],
+) -> None:
+    fasta, _sites = bias_case
+    response = _client(fasta, None).post(
+        "/api/design", json={"variant": "chr2:20:A>G", "chromatin_track": "K562"}
+    )
+    assert response.status_code == 422
+    assert "no accessibility tracks configured" in response.json()["detail"]

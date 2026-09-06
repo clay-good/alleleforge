@@ -10,6 +10,13 @@ acceptance.
 
 ### Added
 
+- **The chromatin adjustment is reachable over HTTP, and `/api/batch` uses every configured source.** The
+  accessibility tracks are operator-configured (`ALLELEFORGE_ENCODE_TRACKS`) while the track *name* is
+  per-request, since one bedGraph holds several cell types; `GET /api/health` lists the names a client can
+  choose from, and an unknown one is a 422 carrying the vocabulary rather than the CLI's old failure mode
+  (an empty menu and a success status). The cohort endpoint builds its design call separately from the
+  single-variant one and was still running reference-only after the sources were wired into the latter — a
+  cohort row and a one-variant result look identical either way.
 - **The haplotype-aware pass is reachable over HTTP too.** The population source's sibling, wired the same
   way (`create_app(haplotypes=...)` or `ALLELEFORGE_HAPLOTYPES`) and reported the same way
   (`haplotypes_loaded` on `/api/health`). It finds a site that exists only on a co-inherited combination of

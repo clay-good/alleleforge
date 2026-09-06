@@ -8733,6 +8733,31 @@ finding, and leaving it turns a completed fix into a half-completed one that rea
 done.**
 
 
+## Round 264 — finishing the shell, and finding the half-wired endpoint
+
+Continuing R262/R263: what else can the CLI reach that the web cannot? The accessibility
+tracks for the open-chromatin efficiency adjustment. Operator-configured file
+(`ALLELEFORGE_ENCODE_TRACKS`), per-request track *name* — one bedGraph holds several cell
+types and the choice is the caller's — so `GET /api/health` now lists the names, which a
+client has no other way to discover.
+
+The refusal is the CLI's, ported. An unknown track name used to raise inside the
+chemistry, be caught as a decline reason, and produce an empty menu with exit 0; the CLI
+checks the name where it is supplied and lists what the file contains. Over HTTP the same
+mistake produced an empty menu with a **200**. It is a 422 carrying the vocabulary now.
+
+Then the finding I did not go looking for: `/api/batch` builds its `design_many` call
+separately from the single-variant endpoint's `design` call, so after R262 and R263 wired
+the sources into the latter, a **cohort** run over HTTP was still reference-only. Two
+requests for the same variant, one through `/api/design` and one through `/api/batch`,
+returned differently-searched results with nothing on either to say so. Wired, with a test.
+
+**Lesson: when two endpoints build the same call in two places, a fix to one is a fix to
+half the surface. Grep for the *callee*, not the endpoint you were editing — `design(` and
+`design_many(` are different call sites for one capability, and only one of them was in
+the diff.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
