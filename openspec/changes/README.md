@@ -3705,6 +3705,51 @@ move. `Iterable` is a promise the caller can keep with a generator, and every co
 breaks it. When a function grows a new use of an existing argument, check the argument's *type*, not just
 its value — and if a sibling argument is already materialized, that is the convention telling you why.**
 
+## Round 129 — the same bug, one layer up and worse
+
+R128 fixed a doubly-consumed `Iterable` in `search()` and ended on: when a function grows a new use of an
+existing argument, check the argument's *type*. That is a mechanical query, so I ran it — an AST sweep for
+parameters annotated `Iterable`/`Iterator` and loaded more than once. Four hits. Three were fine. The fourth
+was `design()` itself, reading `haplotypes` and `patient_vcf` four times each: once per vertical, plus
+provenance collection.
+
+```
+one-shot -> {'base_abe': {haplotypes: 1}, 'prime': {haplotypes: None}}
+```
+
+The base editor got the panel. Prime got an exhausted iterator. **One menu, two chemistries, two different
+standards of safety screening** — and the candidates are then ranked against each other on a `safety`
+objective that means something different for each. Nothing on the page distinguishes them; a reader
+comparing an ABE candidate against a pegRNA in that menu is comparing a haplotype-aware result with a
+reference-only one.
+
+That is strictly worse than R128's version, where the whole search silently lost the input. A uniform loss
+is at least uniform. This one is *selective*, and selective silence in a comparison is the failure mode that
+makes a ranking actively wrong rather than merely uninformative.
+
+Worth noting how it was caught. The reproduction reads
+`candidate.offtarget.sources_considered` — the field added in R117 to say which sources contributed to a
+report. Without it there is no observable difference between "the panel found nothing here" and "the panel
+was never read", which is precisely the distinction that field exists to make. A transparency feature paid
+for itself as a debugging tool twelve rounds later.
+
+The fix took two goes, and the suite caught the first. Materializing with a plain `list()` **stripped the
+provenance descriptor** that `HaplotypePanel` and `_PatientVariants` carry as an attribute — `_collect_
+datasets` reads it off those very objects, and the CLI's `_load_haplotypes` docstring warns about exactly
+that flattening. Two provenance tests failed and were right to. Converting only a true `Iterator` fixes the
+aliasing without touching a re-iterable carrier, and both directions are now pinned by mutation: removing
+the conversion loses the second chemistry, and converting unconditionally loses the provenance record.
+
+Which is also the answer to a question R128 left open. There I removed an `isinstance` guard as unjustified,
+having checked that the caller kept its own object. That was true *at that call site* and false one layer
+up, where `design()` rebinds the name it later hands to `_collect_datasets`. The same guard, in two places,
+is dead code in one and load-bearing in the other.
+
+**Lesson: run the mechanical sweep even when you have just fixed the instance you found by hand — the hand
+version finds one, the sweep finds the family. And the layer above is usually worse than the layer you
+fixed, because a shared resource consumed at a fan-out point fails *asymmetrically*, and asymmetric failures
+survive comparison.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

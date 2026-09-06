@@ -21,7 +21,7 @@ not.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from datetime import datetime
 
 from alleleforge._version import __version__
@@ -189,6 +189,25 @@ def design(
         hgvs=hgvs,
         effect=effect,
     )
+
+    # Materialize the one-shot safety inputs before fanning out. `design` hands each of
+    # these to up to three verticals in turn, and to `_collect_datasets` — so a caller
+    # passing a generator (both are typed `Iterable`) had it consumed by whichever
+    # chemistry ran first, and every later chemistry searched without it.
+    #
+    # The failure is worse here than at the `search` level, because it is *per
+    # chemistry*: one menu could hold haplotype-aware base-editor candidates beside
+    # reference-only pegRNAs, screened differently, presented identically, ranked
+    # against each other on a safety axis they did not share.
+    # Only a true *iterator* is copied. `list()` unconditionally would strip the
+    # provenance descriptor that `HaplotypePanel` and `_PatientVariants` carry as an
+    # attribute — `_collect_datasets` reads it off these very objects, and the CLI's
+    # `_load_haplotypes` docstring warns about exactly that flattening. A re-iterable
+    # object is already safe to hand to three verticals; a generator is not.
+    if isinstance(haplotypes, Iterator):
+        haplotypes = list(haplotypes)
+    if isinstance(patient_vcf, Iterator):
+        patient_vcf = list(patient_vcf)
 
     requested = set(chemistries) if chemistries is not None else None
     decisions = route(resolved, intent)

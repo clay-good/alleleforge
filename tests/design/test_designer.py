@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import random
 from collections.abc import Callable
 
 import pytest
 
+from alleleforge.data.haplotypes import Haplotype
 from alleleforge.design.designer import design
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.model_zoo.registry import ModelCard, default_registry
@@ -706,3 +708,62 @@ def test_every_vertical_flags_an_unsearched_off_target_axis(
         assert ("offtarget-not-searched" in candidate.flags) is (candidate.offtarget is None)
     if not run_offtarget:
         assert all("offtarget-not-searched" in c.flags for c in menu.candidates)
+
+
+def test_a_one_shot_safety_input_reaches_every_chemistry(make_reference: MakeRef) -> None:
+    """`design` fans out to three verticals; a generator reached only the first.
+
+    `haplotypes` and `patient_vcf` are typed `Iterable`, and `design` hands each of
+    them to every eligible chemistry in turn. A caller passing a generator had it
+    consumed by whichever ran first, so one menu could hold haplotype-aware
+    base-editor candidates beside reference-only pegRNAs — screened differently,
+    presented identically, and ranked against each other on a safety axis they did not
+    share.
+    """
+    # A pseudo-random contig, seeded here so it is deterministic: a repeating one gives
+    # the base editor a window but leaves prime with no PAM, and the whole point is a
+    # menu holding two chemistries.
+    rng = random.Random(3)
+    bases = [rng.choice("ACGT") for _ in range(2000)]
+    bases[500:520] = list("TTTTTATTTTTTTTTTTTTT")
+    bases[520:523] = list("TGG")
+    sequence = "".join(bases)
+    ref = make_reference({"chr2": sequence})
+    panel = [
+        Haplotype(
+            hap_id="H1",
+            interval=GenomicInterval(chrom="chr2", start=480, end=560, strand=Strand.PLUS),
+            variants=(Variant(chrom="chr2", pos=510, ref=sequence[510], alt="C"),),
+            frequencies={"afr": 0.2},
+            source="1000g",
+        )
+    ]
+    patient = [Variant(chrom="chr2", pos=511, ref=sequence[511], alt="G", build="hg38")]
+
+    def _seen(
+        haplotypes: object, patient_vcf: object
+    ) -> dict[str, set[tuple[int | None, int | None]]]:
+        menu = design(
+            "chr2:506:A>G",
+            intent=EditIntent.INSTALL,
+            reference=ref,
+            haplotypes=haplotypes,  # type: ignore[arg-type]
+            patient_vcf=patient_vcf,  # type: ignore[arg-type]
+            populations=("afr",),
+        )
+        out: dict[str, set[tuple[int | None, int | None]]] = {}
+        for candidate in menu.candidates:
+            if candidate.offtarget is not None:
+                considered = candidate.offtarget.sources_considered
+                out.setdefault(candidate.chemistry.value, set()).add(
+                    (considered.get("haplotypes"), considered.get("patient-vcf"))
+                )
+        return out
+
+    from_lists = _seen(list(panel), list(patient))
+    assert len(from_lists) > 1, "fixture routed to one chemistry — the check would be vacuous"
+
+    # The point: a one-shot iterable produces the same per-chemistry picture.
+    assert _seen(iter(panel), iter(patient)) == from_lists
+    # ...and every chemistry actually saw both sources, rather than all seeing neither.
+    assert all(seen == {(1, 1)} for seen in from_lists.values()), from_lists

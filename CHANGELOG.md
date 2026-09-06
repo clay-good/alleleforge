@@ -10,6 +10,20 @@ acceptance.
 
 ### Fixed
 
+- **A one-shot safety input reached only the first chemistry in a menu.** `design()` hands `haplotypes` and
+  `patient_vcf` — both typed `Iterable` — to every eligible vertical in turn. A caller passing a generator
+  had it consumed by whichever chemistry ran first, so a single menu could hold **haplotype-aware
+  base-editor candidates beside reference-only pegRNAs**: screened differently, presented identically, and
+  ranked against each other on a safety axis they did not share. Both are now materialized once before the
+  fan-out.
+
+  This is the same defect as the previous fix, one layer up and worse, because there the whole search lost
+  the input and here only *some chemistries* do — which is invisible in a menu that shows every candidate
+  the same way. It was found by a mechanical sweep for `Iterable` parameters read more than once, and it was
+  *detectable* only because `sources_considered` records per-report which sources contributed.
+
+### Fixed
+
 - **A one-shot `patient_vcf` iterable lost its personalization silently.** `search()` reads that parameter
   twice — once to count how much of it covers the searched region, once to enumerate the personalized sites
   — and it is typed `Iterable`. Given a generator, the **second** pass got nothing: the pass that actually

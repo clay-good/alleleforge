@@ -237,3 +237,15 @@ number the project has no basis for, and a fabricated weight is worse than a lab
 - **WHEN** candidates are produced with the off-target search disabled
 - **THEN** each carries the not-searched flag, and its safety score is presented as
   unmeasured rather than as a clean result
+
+### Requirement: Every chemistry in a menu is screened against the same inputs
+
+Candidates from different chemistries are ranked against each other on a shared safety
+objective, so that objective must mean the same thing for all of them. A safety input
+supplied to the designer SHALL reach every eligible chemistry — a one-shot iterable
+consumed by whichever vertical runs first would leave later chemistries screened against
+less, and the resulting menu presents both alike.
+
+#### Scenario: A generator of haplotypes
+- **WHEN** a re-iterable and a one-shot form of the same panel are supplied
+- **THEN** every chemistry's report records the same contribution from it
