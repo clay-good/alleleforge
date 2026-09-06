@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **Two live code paths that no test ran are now covered.** The PEP 562 lazy re-export in `alleleforge.genome`
+  — the whole point of which is that `from alleleforge.genome import ReferenceGenome` keeps working without
+  importing `pyfaidx` at package import — was exercised nowhere, so a typo in the deferred-name tuple would
+  have surfaced at a user's first attribute access. And `population-offtarget`, the flag saying a
+  candidate's off-targets exist only on population alleles, was emitted by a line the suite never reached.
+  Both behave correctly; neither had anything watching them.
+
 - **A misconfigured data source is distinguishable from an absent one.** Each optional source recorded why
   it failed to load, and only the reference's reason was ever read. So
   `ALLELEFORGE_GNOMAD_TSV=/data/typo.tsv` and configuring nothing at all both returned `gnomad_loaded:

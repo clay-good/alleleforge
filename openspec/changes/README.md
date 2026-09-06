@@ -8815,6 +8815,35 @@ just wrote are the branches you did not think about — and a branch that only a
 variable nothing reads is uncovered because it does nothing, which is the finding.**
 
 
+## Round 267 — the rest of the coverage report
+
+R266 used the coverage report to find dead code. The same report, read for *live* code
+nothing runs, gave two more:
+
+`alleleforge/genome/__init__.py` 57%, the missing lines being the entire PEP 562
+`__getattr__`. The deferral exists so that importing the package does not pull in
+`pyfaidx`, and so that `from alleleforge.genome import ReferenceGenome` — the documented
+import — still works. Every test reaches those names through
+`alleleforge.genome.reference`, the eager path. The feature was live in production and run
+by nothing: a typo in `_LAZY_FROM_REFERENCE`, or a name moved out of `reference.py`, would
+have surfaced at a user's first attribute access. It is also another pair of hand-written
+lists of the same names (`_LAZY_FROM_REFERENCE` and `__all__`), now checked against each
+other.
+
+`design/offtarget_flags.py:50`, the line emitting `population-offtarget` — the flag that
+tells a reader their guide's off-targets are not in everyone's genome. The suite covered
+the unsearched case and the clean case and never a report containing a population site. In
+a session largely about population-awareness, the flag *for* it had no test.
+
+Neither was broken. Both are pinned now, including the case where a site is both
+high-scoring and population-specific, since the two flags are independent and only their
+conjunction says "dangerous, and not for everyone".
+
+**Lesson: coverage answers two different questions and the second is the interesting one.
+"Which lines are untested?" is a chore. "Which *live* paths does no test exercise?" finds
+the features that work today because nobody has touched them yet.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
