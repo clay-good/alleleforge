@@ -33,6 +33,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from threading import local
 from typing import Any
+from uuid import uuid4
 
 from alleleforge._version import __version__
 from alleleforge.config import get_settings
@@ -473,7 +474,14 @@ def _atomic_write_text(path: Path, text: str) -> None:
     crash) sees a truncated file; ``os.replace`` of a fully-written temp file is
     atomic on POSIX and Windows, so a per-item report is never observed partial.
     """
-    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    # Unique per call, not per process. `_atomic_write_text` runs inside `_design_one`,
+    # which runs in a worker thread, so a pid-scoped name is shared by every thread --
+    # and two items with the same id (a variant repeated in a VCF, which is ordinary)
+    # resolve to the same output path and therefore the same temp path. Both threads
+    # then write one file and both rename it: the second `os.replace` raises
+    # FileNotFoundError, which the cohort records as "unexpected ... (likely a defect)",
+    # and the surviving bytes are whatever the interleaving left.
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.{uuid4().hex}.tmp")
     # Pin UTF-8: the payload is `model_dump_json()`, which preserves non-ASCII
     # (a gene name / rationale like "β-globin"), but a bare `write_text` encodes
     # with the platform locale — crashing under a non-UTF-8 locale (C/POSIX) and

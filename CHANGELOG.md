@@ -1628,6 +1628,16 @@ acceptance.
 
 ### Fixed
 
+- **Two cohort workers writing the same output file shared one temp file.** `_atomic_write_text` named its
+  temp file `<path>.<pid>.tmp` — unique per *process*, while the function runs inside `_design_one`, which runs
+  in a worker thread. Two items with the same id resolve to the same output path and therefore the same temp
+  path, and a variant repeated in a VCF is ordinary while `--max-workers` is on `aforge batch`. Both threads
+  write one file and both rename it: the first `os.replace` moves the temp away and the second raises
+  `FileNotFoundError`, which the cohort records as "unexpected FileNotFoundError (likely a defect)" against an
+  item whose data was fine; other interleavings leave the two payloads mixed in the export the module calls
+  lossless. The temp name is now unique per call. The atomicity itself was never wrong — temp file plus
+  `os.replace` is right, and so is the encoding pin above it; the *name* was wrong.
+
 - **A cohort re-run skipped the items that had failed, and reported a clean, empty run.** Resume skipped any
   item the manifest mentioned — including the ones recorded with `status: "error"`. A cohort of 10,000 that
   finished with 200 failures skipped all 10,000 on the next run, reporting `total=0, failed=0` and **exiting

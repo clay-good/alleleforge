@@ -6023,6 +6023,54 @@ conflating them. Any skip-list built from a log of *events* needs to filter on t
 of a record — and the direction of the mistake was, again, the one that looks like success.**
 
 
+## Round 196 — unique per process, shared per thread
+
+R195 found that a truncated manifest line comes from an interrupted append. The obvious neighbour: an
+interrupted append is one way to get a torn write, and *concurrency* is the other. `design_many` takes
+`max_workers`, and `aforge batch` exposes it.
+
+The manifest itself is clean, and deliberately so — `_record` is called from the main thread inside the
+`wait()` loop, so worker threads only compute and every append is serialized by construction. A negative
+result, and a design decision worth noticing rather than re-deriving.
+
+The per-item menu write was not. `_atomic_write_text` is careful in every respect but one:
+
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+
+Unique per *process*. It runs inside `_design_one`, which runs in a worker thread, so every thread in a
+parallel cohort shares that name — and two items with the same id resolve to the same output path and
+therefore the same temp path. A variant repeated in a VCF is ordinary.
+
+Both threads write one file and both rename it. Measured with two threads released from a barrier onto the
+same path:
+
+    FileNotFoundError: ... 'item.json.65108.tmp' -> 'item.json'
+
+The first `os.replace` moves the shared temp away; the second finds nothing. In a cohort that lands in the
+`except Exception` branch and is recorded as "unexpected FileNotFoundError (likely a defect)" — against an
+item whose data was perfectly fine. Other interleavings leave the two payloads mixed in one file, in the
+export the module docstring calls lossless.
+
+The fix is the name, not the mechanism: temp-file-plus-`os.replace` is correct, the UTF-8 pin above it is
+correct, and the comment explaining why a plain `write_text` is unsafe is correct. Everything about that
+function had been thought through except which scope the uniquifier needed.
+
+Worth saying plainly: only one of the four new tests fails against the old name. The content-corruption case
+is genuinely timing-dependent and cannot be pinned deterministically; the crash can, so the crash is the
+detector and the other three are guards on properties that must hold once it is fixed.
+
+The sweep for the shape came back clean, and pointedly so. `cache.py` writes its temp files with
+`f"{os.getpid()}.{uuid.uuid4().hex}"` — the correct scope, with a concurrency test beside it — and
+`cas_offinder_adapter.py` uses `NamedTemporaryFile`, unique by construction. `cohort.py` was the only
+instance, and it was written as though the one two directories away did not exist.
+
+**Lesson: `os.getpid()` in a temp-file name reads as "make this unique", and it is — at the wrong scope. When
+code moves under a thread pool, every process-scoped identifier in it silently becomes shared, and nothing at
+the call site says so. The sweep found no second instance but did find that the right pattern already existed
+elsewhere in the tree: the defect was not ignorance of the rule, it was a second implementation of something
+already solved. That is worth checking for first, and it is cheaper than the audit that finds it later.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
