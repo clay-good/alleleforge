@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **The identifiers the capability specs name are checked against the code.** Across 4,400 lines of spec
+  there are 467 backticked tokens — CLI flags, class names, enum members — and nothing verified that any of
+  them still named something real. All of them do today, so this is preventive and mutation-verified: renaming
+  a cited enum member in a spec fails it. The resolver understands enum members (`ZERO_BASED_HALF_OPEN`,
+  `NOT_PROVIDED`, `PATHOGENIC`), which are most of what a requirement cites and none of which is a
+  module-level name, and an exemption list covers tokens that look like code and are not — DNA motifs, VCF
+  column values, and the browser APIs the web spec names to promise the frontend avoids them.
+
 - **The capability specs are checked against the shipped CLI.** `openspec/specs/` holds nineteen
   specifications — the requirements a change folds into when it ships — and no test in the suite read them.
   `aforge lift` shipped with a CLI test, a README row and a docs entry and appeared in none of them, while

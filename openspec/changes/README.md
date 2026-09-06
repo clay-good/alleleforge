@@ -7956,6 +7956,43 @@ compiler reads; the only thing that keeps it true is a test that treats it as an
 assertion — and the more authority a document has, the more the absence of one costs.**
 
 
+## Round 241 — the specs' identifiers, and three clean sweeps
+
+R240 made the capability specs readable as assertions for the first time. This round
+asks what else they assert. Structurally they are in good order: 249 requirements, 468
+scenarios, 592 SHALLs, and **every requirement has at least one scenario** — a set of
+documents that has been maintained, not accumulated.
+
+Referentially, three sweeps, all clean:
+
+* the 13 CLI flags they name all exist (`--help` is click's own, which my first walker
+  missed and reported);
+* they name **no** `alleleforge.…` module paths at all — the specs describe behaviour,
+  not structure, which is the right register for a requirement;
+* every class and enum member they cite resolves.
+
+So the check added here is preventive, which makes mutation-verifying it the whole job.
+Renaming `ZERO_BASED_HALF_OPEN` in a spec fails it; restoring passes.
+
+Two bugs in my own check, both instructive, both caught before commit. `dir(__builtins__)`
+inside a module yields the builtins *dict's* methods rather than the builtins, so the
+first run reported `ValueError`, `KeyError` and `RuntimeError` as undefined — a checker
+that accuses the standard library of not existing gets deleted, not fixed. And I wrote
+the exemption list from memory: it excused `NGN` and `TTTV`, which no spec mentions, and
+missed `PASS` and `UNMAPPED`, which they do. The staleness guard I had written for that
+list caught my own guesses on its first run, which is the argument for writing one.
+
+The resolver understands enum members deliberately. `ZERO_BASED_HALF_OPEN`,
+`NOT_PROVIDED`, `PATHOGENIC` and `MODIFIER` are most of what a spec cites, and none is a
+module-level name — a `dir(module)`-only version reports four false positives
+immediately.
+
+**Lesson: a round whose sweeps come back clean should ship the sweep, not a finding. The
+value is the same either way — the difference is only whether the drift has happened
+yet — and a preventive check has one obligation a corrective one does not: it must be
+mutation-verified, because nothing else has ever demonstrated that it works.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
