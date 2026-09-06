@@ -4481,6 +4481,43 @@ at all. The socket test looked fine and my first attempt to break it succeeded �
 weak, but because I broke the wrong thing. Mutate at the point the *claim* is about, not the point that is
 easiest to reach.**
 
+## Round 152 — four correct guards and no mechanism
+
+R151's lesson — mutate at the point the claim is about — turned into a sweep of the safety gates. Three clean
+bills, each verified by breaking the gate and watching the suite:
+
+* **Consent.** `artifact_download_permitted` forced to `True`: **7** failures, across all three registries and
+  the config. Nothing downloads without the caller's say-so, and that is enforced.
+* **Checksums.** All three `_verify_sha256` comparisons neutered: **8** failures, including the
+  re-verify-on-cache-read path. An unverifiable artifact really is refused.
+* **Split leakage.** The train/val/test disjointness check disabled: caught, by a direct test.
+
+The fourth claim did not survive. `openspec/project.md` lists "CI stays weight-free" as a *non-negotiable
+design principle*, and the marker documents itself as doing it — `"real_weights: tests that require
+downloading real model weights (opt-in, skipped in CI)"`. CI runs a bare `pytest`. There is no
+`-m "not real_weights"` anywhere, and no conftest hook. What actually keeps real weights out of CI is that
+each of the four marked tests opens with its own hand-written skip:
+
+```python
+if importlib.util.find_spec("lightgbm") is None or ...:
+    pytest.skip("cas9-rs3 extra not installed")
+```
+
+Four guards, all correct, written four times. The fifth `real_weights` test — added by someone reading a
+marker whose description says the marker handles this — downloads real model weights in a CI job.
+
+The root conftest now skips both opt-in markers unless their environment variable is set. `native` is
+deliberately excluded: it has a dedicated CI job selecting it with `-m native`, which this would silently
+turn into a no-op — the sort of collateral a centralizing change invites. Pinned with a throwaway suite run
+under the real conftest, asserting both halves, because an opt-in that cannot be opted into is just a
+deletion. Marker descriptions updated to name the variable rather than to describe a behaviour they do not
+implement.
+
+**Lesson: "documented, correct, and repeated by hand at every site" is the state a policy is in just before
+it fails. All four guards here were right; the defect was that there were four. When a principle is called
+non-negotiable, find the single place that negotiates it — and if there is no such place, that is the
+finding.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

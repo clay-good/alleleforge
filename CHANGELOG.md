@@ -1497,6 +1497,15 @@ acceptance.
 
 ### Fixed
 
+- **"CI stays weight-free" was a convention, not a mechanism.** It is a non-negotiable design principle, and
+  the `real_weights` marker's own description claimed the marker enforced it ("opt-in, skipped in CI") — but
+  CI runs a bare `pytest` with no `-m "not real_weights"`, and what actually kept the weights out was that
+  each of the four such tests opened with its own hand-written `pytest.skip`. Four correct guards and no
+  mechanism: a fifth that forgot would download real model weights in a CI job. The root `conftest.py` now
+  skips `real_weights` and `live_integration` tests unless their opt-in variable is set, so the marker
+  descriptions are true. CI behaviour is unchanged; `native` is deliberately untouched, since it has its own
+  job selecting it with `-m native`.
+
 - **`pip install "alleleforge[cli]"` then `aforge design` ended in a traceback.** That is a documented
   install — the deployment guide lists the CLI and the genome stack as separate rows — so the first command
   a new user runs raised `ModuleNotFoundError: No module named 'pyfaidx'`. The CLI defers its heavy imports,
