@@ -3,7 +3,11 @@
 #   docker compose up --build
 #   open http://localhost:8000
 #
-# Place your reference FASTA at ./data/reference.fa (and its .fai if present).
+# Place your reference FASTA at ./data/reference.fa **and its .fai index**.
+# The index is required, not optional: the data volume is mounted read-only
+# below, so the container cannot create one, and without it the app starts
+# with no genome and every design request answers 503 saying so. Build it once
+# on the host:  samtools faidx ./data/reference.fa
 # Everything runs locally: no telemetry, no external sequence transmission. The
 # async job worker is in-process (the default single-user deployment), so a
 # separate worker service is not needed; a multi-user deployment can add one

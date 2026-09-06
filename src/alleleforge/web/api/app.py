@@ -73,14 +73,29 @@ class DesignFormat(StrEnum):
     pdf = "pdf"
 
 
+#: Why the configured reference could not be opened, for `_require_reference` to
+#: relay. `create_app()` runs at module scope, so raising here takes the whole
+#: process down at import — `uvicorn alleleforge.web.api.app:app`, the command in
+#: the deployment guide and the Dockerfile, exits with a traceback and the container
+#: never starts. A service that answers "no genome, here is why" is strictly better
+#: than one that will not boot, and the documented no-reference path already exists.
+_REFERENCE_LOAD_ERROR: str | None = None
+
+
 def _load_reference_from_env() -> Any | None:
     """Load a reference genome from ``ALLELEFORGE_REFERENCE_FASTA`` if set."""
+    global _REFERENCE_LOAD_ERROR
+    _REFERENCE_LOAD_ERROR = None
     path = os.environ.get("ALLELEFORGE_REFERENCE_FASTA")
     if not path:
         return None
     from alleleforge.genome.reference import ReferenceGenome
 
-    return ReferenceGenome(Path(path), build="hg38")
+    try:
+        return ReferenceGenome(Path(path), build="hg38")
+    except OSError as exc:
+        _REFERENCE_LOAD_ERROR = str(exc)
+        return None
 
 
 def _require_reference(request: Request) -> Any:
@@ -89,7 +104,8 @@ def _require_reference(request: Request) -> Any:
     if reference is None:
         raise HTTPException(
             status_code=503,
-            detail=(
+            detail=_REFERENCE_LOAD_ERROR
+            or (
                 "No reference genome configured. Pass reference= to create_app() "
                 "or set ALLELEFORGE_REFERENCE_FASTA."
             ),

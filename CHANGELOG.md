@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **The shipped Docker deployment starts without a pre-built `.fai`.** Opening a reference writes
+  `<fasta>.fai` beside it when none exists; the bundled `docker-compose.yml` mounts the reference read-only
+  (correctly) while calling the index optional (wrongly). Without one, `uvicorn alleleforge.web.api.app:app`
+  — the command in the deployment guide and the Dockerfile — **died at import**, because `create_app()` runs
+  at module scope; the CLI relayed pyfaidx's advice about a Python API it already passes; and nothing named
+  the remedy. `ReferenceIndexError` now names the missing index, why it cannot be created and the
+  `samtools faidx` that fixes it; the web loader catches it so the service starts and answers `503` with that
+  text; and the compose header and deployment guide say the index is required on a read-only mount.
+
 - **A corrupt FM-index cache is refused instead of answering "no occurrences".** The cache directory is named
   for the sequence hash, so a wrong *directory* was impossible and a corrupt *file inside the right one* was
   never checked: a truncated `bwt.bin` loaded silently and reported zero hits — which renders as

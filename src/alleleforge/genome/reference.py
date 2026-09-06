@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 from pyfaidx import Fasta
 
 from alleleforge.config import artifact_download_permitted, get_settings
-from alleleforge.errors import ChecksumError, ConsentError
+from alleleforge.errors import ChecksumError, ConsentError, ReferenceIndexError
 from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import (
     CoordinateSystem,
@@ -214,7 +214,26 @@ class ReferenceGenome:
         self.path = Path(path)
         self.build = build
         self.dataset_version = dataset_version
-        self._fasta = Fasta(str(self.path), sequence_always_upper=True, rebuild=False)
+        try:
+            self._fasta = Fasta(str(self.path), sequence_always_upper=True, rebuild=False)
+        except OSError as exc:
+            # pyfaidx writes `<fasta>.fai` beside the FASTA when none exists. With a
+            # read-only reference directory — which this project's own compose file
+            # mounts, and which is good practice — it cannot, and says "Please use
+            # Fasta(rebuild=False), Faidx(rebuild=False) or faidx --no-rebuild": advice
+            # about a Python API the caller is not using, and which this line already
+            # passes. The situation is legitimate; the remedy is one command away, and
+            # nothing said it.
+            index = self.path.with_name(self.path.name + ".fai")
+            if index.exists():
+                raise
+            raise ReferenceIndexError(
+                f"reference {self.path} has no index at {index}, and one cannot be "
+                f"created because {self.path.parent} is not writable (a read-only "
+                "reference mount, for example). Build the index once where the "
+                f"directory is writable — `samtools faidx {self.path}` — and ship it "
+                "alongside the FASTA."
+            ) from exc
         self._lock = threading.Lock()  # pyfaidx Fasta is not thread-safe; serialize reads
 
     @classmethod

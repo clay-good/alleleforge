@@ -37,6 +37,19 @@ aforge design chr2:71:A>C --reference-fasta /data/hg38.fa --intent install
 export ALLELEFORGE_REFERENCE_FASTA=/data/hg38.fa
 ```
 
+!!! warning "The `.fai` index is required on a read-only mount"
+    Opening a reference writes `<fasta>.fai` beside it when none exists. The bundled
+    `docker-compose.yml` mounts the reference read-only — which is the right default —
+    so the container cannot create one. Build it once on the host:
+
+    ```bash
+    samtools faidx ./data/reference.fa
+    ```
+
+    Without it the service still starts and every design request answers `503` naming
+    the missing index and this remedy, rather than the process dying at import.
+
+
 The genome layer auto-recommends T2T-CHM13 for segmentally-duplicated, centromeric,
 or otherwise hg38-difficult loci; mm39 is the mouse baseline. Builds are
 consent-gated and checksum-verified on download — an unverifiable artifact is

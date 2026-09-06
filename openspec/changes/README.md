@@ -7625,6 +7625,53 @@ check is too expensive to run always, ask what the metadata already records that
 cheap enough to check every time.**
 
 
+## Round 233 — the shipped deployment could not start
+
+Two sweeps first, both clean and both worth recording so they are not repeated. Every
+verification-shaped method in `src/` now has a caller (the one exception,
+`assert_native_matches_python`, is a test helper). And every native dispatcher —
+`apply_variants`, `seed_positions`, the alignment and evaluation kernels — passes the
+same parameters to both branches; `fm_build`, fixed last round, was the only one that
+did not.
+
+Then, from `SECURITY.md`'s own in-scope list ("write outside the cache directory"):
+opening a reference writes `<fasta>.fai` beside it when none exists. Ordinary, and
+impossible on a read-only directory — which is exactly what this project's own
+`docker-compose.yml` mounts:
+
+    volumes:
+      - ./data:/data:ro          # reference genome (read-only)
+
+while its header says to place the FASTA there "(and its .fai **if present**)". With a
+read-only mount the index is not optional. Without one, the documented deployment
+failed three ways:
+
+* `uvicorn alleleforge.web.api.app:app` — the command in the deployment guide *and*
+  the Dockerfile — **died at import**, because `app = create_app()` runs at module
+  scope. Not a 503: a pyfaidx traceback and a container that never starts.
+* the CLI relayed pyfaidx's words — *"Please use Fasta(rebuild=False),
+  Faidx(rebuild=False) or faidx --no-rebuild"* — advice about a Python API the user is
+  not calling, and which `ReferenceGenome` already passes on the line that failed.
+* nothing named the actual remedy, which is one `samtools faidx` away.
+
+All three are fixed: a `ReferenceIndexError` naming the missing index, why it cannot be
+created, and the command that makes it; the web loader catching it so the service
+starts and answers `503` with that same text; and the compose header and deployment
+guide saying the index is required rather than optional.
+
+The web change is the one to weigh. A service that will not boot gives an operator a
+traceback in a container log; a service that boots and says "no genome, here is why"
+gives them the sentence they need in the response they were already reading. The
+no-reference path already existed and was already documented — the failure was arriving
+before it could answer.
+
+**Lesson: read your own deployment files as a user with none of your context. The bug
+was visible in two lines of `docker-compose.yml` sitting eight lines apart — an index
+described as optional, and a mount that makes it mandatory — and no test could have
+found it, because both lines are correct in isolation and the contradiction is only
+between them.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

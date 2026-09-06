@@ -21,7 +21,12 @@ changes is that they now refer to one class each, and ``isinstance`` says so.
 
 from __future__ import annotations
 
-__all__ = ["ChecksumError", "ConsentError", "MissingDependencyError"]
+__all__ = [
+    "ChecksumError",
+    "ConsentError",
+    "MissingDependencyError",
+    "ReferenceIndexError",
+]
 
 
 class ConsentError(RuntimeError):
@@ -41,4 +46,19 @@ class MissingDependencyError(RuntimeError):
     second that way — it was catching bare `RuntimeError` for both, which reported a
     genuine defect in a vertical with the same word ("skipped") as a chemistry that
     simply did not apply.
+    """
+
+
+class ReferenceIndexError(OSError):
+    """Raised when a reference FASTA has no ``.fai`` and one cannot be created.
+
+    Opening a reference writes ``<fasta>.fai`` beside it when none exists — a file
+    the caller did not name. That is ordinary when the directory is writable and
+    impossible when it is not, which is the case this project's own
+    `docker-compose.yml` creates by mounting the reference read-only.
+
+    An `OSError` subclass so existing handlers that catch `OSError` around a
+    reference open keep working, and a *named* type so the actionable message
+    (`samtools faidx <path>`) can be raised in place of pyfaidx's advice about a
+    Python API the caller is not using.
     """
