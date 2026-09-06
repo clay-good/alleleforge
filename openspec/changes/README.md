@@ -6227,6 +6227,64 @@ the test and the bug are about the same thing, and a docstring asserting the con
 worth nothing next to a mutation that demonstrates it.**
 
 
+## Round 201 — the round where the tests were already better than I was
+
+Continuing R200's query into the ranking, the product's core output. `--max-per-chemistry`
+caps how many candidates each chemistry keeps, and the cap is applied after the composite
+sort, so it should return a *prefix* of the uncapped ranking.
+
+The first thing found was a gap that was not one. `test_cap_is_per_chemistry` counts the
+survivors and never checks *which* survived — a cap keeping the worse candidate of each
+chemistry passes it. That looked like the R199 shape exactly. It is not, because
+`test_cap_keeps_composite_best_not_local_proxy_best` sits fifteen lines above it and
+proves the property with a sharper fixture than the one I wrote: a candidate that tops the
+local efficiency proxy while being dangerous and dirty, against the composite winner. My
+addition was redundant, so it was deleted rather than left as noise.
+
+The prefix property is genuinely distinct and worth pinning — "the top three" must mean
+the first three of "all of them", not three of them. And the test I wrote for it was
+vacuous in the now-familiar way: the fixture listed candidates in descending efficiency,
+so capping *before* the sort keeps exactly the same ones and the test passes either way.
+Mutating the ranker (moving the sort after the cap) fired the pre-existing test and not
+mine. Scrambling the fixture order made it load-bearing; it now fires too.
+
+That is three rounds running where a new test failed to detect the defect it was written
+for, each caught only by mutating. The pattern in all three is the same and worth naming
+precisely: **the fixture was built from the happy path**. Three distinct item ids where
+the bug needs two identical ones (R200); one vertical where the bug is per-vertical
+(R191); already-sorted input where the bug is a sort-order swap (here). Building a fixture
+from what the code does, rather than from what the bug needs, produces a test that agrees
+with the code by construction.
+
+Then the gate failed on a test written *last* round, which had passed three times in
+isolation: `KeyError: unknown contig 'chr2'` from three of four items in a parallel
+cohort. Reproduced at 3 failures in 15 isolated runs.
+
+Not a bad test — a real race, and one the tree already knew about. `design_many`'s
+docstring states the precondition plainly: the FASTA "must already carry its `.fai`
+index, so the concurrent first-opens read it rather than racing to build it", with the
+remedy in parentheses. The CLI honors it (`_load_reference` opens the reference before
+handing out the factory) and the older cohort fixture honors it by pre-building the
+sidecar, with a comment calling it "the factory contract". My fixture did not, so the
+workers raced, and pyfaidx reported a half-written index as a missing contig.
+
+The remedy the docstring asks every caller for is one line, so `design_many` now does it
+itself: open the factory once before starting the pool. Measured: 2 failures in 20 runs
+without it, 0 in 20 with. The older fixture's manual pre-build was then removed — it had
+become the workaround for a contract that no longer exists, and leaving it would mean no
+test exercises the path a caller actually takes with a fresh FASTA.
+
+**Lesson: a documented precondition whose violation is a *race* is a bad trade. It fails
+non-deterministically, only under parallelism, and here it reported `unknown contig` —
+naming the one thing that was not wrong. When the docstring's own remedy is a single line
+the library could run itself, the precondition should not exist. And the second lesson,
+cheaper: when an audit finds a gap, look fifteen lines up before filling it. Two of this
+round's findings dissolved on contact with tests that were already there and better, one
+survived only after a mutation showed the first version of it was worth nothing, and the
+real defect arrived from a direction nobody was auditing — a flaky test I had written
+myself the round before.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

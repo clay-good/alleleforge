@@ -264,6 +264,53 @@ def test_cap_is_per_chemistry() -> None:
     assert kept_chems.count(Chemistry.PRIME) == 1
 
 
+def test_the_cap_keeps_the_best_of_each_chemistry_not_just_one() -> None:
+    """Counting the survivors does not say which survived.
+
+    The check above passes just as well if the cap keeps the *worse* candidate of each
+    chemistry -- a user asking for the top one per chemistry would get an arbitrary one,
+    in the primary output, with the count looking exactly right. The two efficiencies
+    here are far apart precisely so "which one" is unambiguous.
+    """
+    cands = [
+        _cand(Chemistry.CAS9_NUCLEASE, eff=0.9),
+        _cand(Chemistry.CAS9_NUCLEASE, eff=0.5),
+        _cand(Chemistry.PRIME, eff=0.8),
+        _cand(Chemistry.PRIME, eff=0.4),
+    ]
+
+    kept = rank_candidates(cands, max_per_chemistry=1).candidates
+
+    by_chemistry = {c.chemistry: c.efficiency.value for c in kept if c.efficiency}
+    assert by_chemistry[Chemistry.CAS9_NUCLEASE] == 0.9
+    assert by_chemistry[Chemistry.PRIME] == 0.8
+
+
+def test_the_cap_returns_a_prefix_of_the_uncapped_ranking() -> None:
+    """Capping shows fewer candidates, never different ones or a different order.
+
+    Stated as a prefix rather than as a set, because the order *is* the product: the
+    ranking is what the menu asserts, and a cap that reordered the survivors would make
+    "the top three" mean something other than the first three of "all of them".
+    """
+    # Deliberately not in ranked order. Listed descending, this fixture cannot tell a
+    # cap applied *before* the sort from one applied after -- both keep the same
+    # candidates -- and the first version of this test was written that way and
+    # caught nothing.
+    cands = [_cand(Chemistry.PRIME, eff=e) for e in (0.45, 0.9, 0.3, 0.75, 0.6)]
+
+    uncapped = [c.efficiency.value for c in rank_candidates(cands).candidates if c.efficiency]
+    assert len(uncapped) == 5, "the fixture must produce every candidate"
+
+    for cap in (1, 2, 3, 4, 5):
+        capped = [
+            c.efficiency.value
+            for c in rank_candidates(cands, max_per_chemistry=cap).candidates
+            if c.efficiency
+        ]
+        assert capped == uncapped[:cap], f"cap={cap} is not a prefix: {capped} vs {uncapped}"
+
+
 def test_pareto_front_excludes_dominated() -> None:
     best = _cand(Chemistry.PRIME, eff=0.9, p_intended=0.9, offscore=0.0)
     dominated = _cand(Chemistry.PRIME, eff=0.4, p_intended=0.4, offscore=0.5)

@@ -43,10 +43,11 @@ def reference(tmp_path: Path) -> ReferenceGenome:
 def ref_factory(tmp_path: Path) -> Callable[[], ReferenceGenome]:
     fasta = tmp_path / "cohort_factory.fa"
     _write_fasta(fasta)
-    # Pre-build the pyfaidx .fai sidecar so the parallel workers' concurrent opens
-    # read an existing index rather than racing to create it (the factory contract:
-    # references must be safely openable concurrently — i.e. pre-indexed).
-    ReferenceGenome(fasta, build="hg38").close()
+    # Deliberately *not* pre-building the .fai sidecar. That used to be this fixture's
+    # job -- "the factory contract: references must be safely openable concurrently,
+    # i.e. pre-indexed" -- and `design_many` now opens the factory once itself before
+    # starting the pool, so the precondition is gone. Leaving the workaround here would
+    # mean no test exercises the path a caller actually takes with a fresh FASTA.
     return lambda: ReferenceGenome(fasta, build="hg38")
 
 

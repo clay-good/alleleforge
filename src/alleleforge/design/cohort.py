@@ -258,10 +258,9 @@ def design_many(
         reference_factory: A zero-arg factory returning a *fresh* reference per
             worker thread; **required** for ``max_workers > 1`` because a
             :class:`ReferenceGenome` (a pyfaidx handle) is not thread-safe to
-            share. The FASTA it opens must already carry its ``.fai`` index, so
-            the concurrent first-opens read it rather than racing to build it
-            (open the reference once before the parallel run, or ship the
-            ``.fai`` alongside the FASTA).
+            share. It is called once up front, before any worker starts, so a
+            FASTA with no ``.fai`` yet has one by the time the concurrent opens
+            happen rather than racing to build it.
         intent: The edit intent applied to every variant.
         manifest_path: JSONL run manifest to append to; enables resume.
         resume: Skip items already recorded in ``manifest_path``.
@@ -285,6 +284,15 @@ def design_many(
     """
     if max_workers > 1 and reference_factory is None:
         raise ValueError("parallel cohort runs (max_workers > 1) require a reference_factory")
+    if max_workers > 1 and reference_factory is not None:
+        # Open once here so the `.fai` exists before any worker opens the FASTA. The
+        # docstring above asks the caller to do this, and both callers in this tree do
+        # -- but a documented precondition whose violation is a *race* is a bad trade:
+        # it fails non-deterministically, only under parallelism, and reports
+        # `KeyError: unknown contig 'chr2'`, which names the one thing that is not
+        # wrong. The contig is there; the index was mid-write when a second thread read
+        # it. One extra open makes the precondition unnecessary rather than documented.
+        reference_factory().close()
     if reference is None and reference_factory is None:
         raise ValueError("design_many needs a reference or a reference_factory")
     # `design_kwargs` is forwarded verbatim to every item — and, with `max_workers > 1`,

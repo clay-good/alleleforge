@@ -10,6 +10,12 @@ acceptance.
 
 ### Added
 
+- **Capping the menu is pinned as returning a prefix of the full ranking.** `--max-per-chemistry` is applied
+  after the composite sort, so "the top three" means the first three of "all of them" rather than three of
+  them. That the cap keeps the *best* of each chemistry was already covered; that it keeps them *in order* was
+  not. The fixture lists candidates out of ranked order deliberately — sorted, it cannot distinguish a cap
+  applied before the sort from one applied after.
+
 - **Two documented "this must not matter" claims are now checked.** `--render-candidates` caps the drawing,
   not the data: the CLI help, the web request model and a handler comment all say the JSON and TSV exports are
   never capped, and nothing checked it. A prime design yields ~90 candidates; a leak would have written three
@@ -1652,6 +1658,16 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+
+- **A parallel cohort over a FASTA with no `.fai` yet raced to build it, and failed items with the wrong
+  error.** `design_many` documented the precondition — the FASTA "must already carry its `.fai` index, so the
+  concurrent first-opens read it rather than racing to build it" — and both callers in this tree honored it.
+  A caller who does not gets `KeyError: unknown contig 'chr2'` on some items, some of the time: the contig is
+  there, the index was mid-write when a second thread read it. Measured at 2 failures in 20 runs on a
+  four-item cohort. The remedy the docstring asked the caller for is one line, so `design_many` now does it —
+  it opens the factory once before starting the pool — and the precondition is gone rather than documented. A
+  documented precondition whose violation is a race is a bad trade: non-deterministic, parallel-only, and it
+  reports the one thing that is not wrong.
 
 - **`lift_interval`'s docstring described the algorithm it had been changed to stop using.** It said the method
   "lifts the first and last bases independently and rebuilds the span". The code lifts *every* base, and the
