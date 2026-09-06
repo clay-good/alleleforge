@@ -4450,6 +4450,37 @@ imports the package in a clean interpreter and asserts none of nineteen optional
 of them are installed and importable — the assertion has to be about `sys.modules` in a fresh interpreter,
 not about behaviour. When a promise is about what is *absent*, the test has to be about absence too.**
 
+## Round 151 — the two absence claims
+
+R150's lesson: a promise about what is *absent* needs a test about absence. This project makes two such
+promises, both about privacy, both stated in the README, the deployment guide, and the served page itself.
+
+**"No outbound network call during a design request."** This one is tested, and I wanted to know whether the
+test works rather than that it exists. It patches `socket.socket.connect` and asserts nothing connected —
+which is the right shape. My first mutation did not fire: I injected a connection into `create_app`, which
+runs at fixture setup, before the patch is installed. Moving it into the design handler — inside the request,
+which is what the claim is actually about — failed the test immediately. The project's most load-bearing
+privacy guarantee is genuinely enforced. A negative result I am glad to have checked rather than assumed.
+
+**"The served frontend loads no third-party scripts."** This one was not tested at all. It holds today —
+every `src`, every `<link href>`, all four `fetch` calls are same-origin relative paths — and it is one CDN
+font from being false. The failure would be silent, invisible in review to anyone not thinking about it, and
+the harm is specific: a lab opens this page while pasting patient variants into it, and a third-party request
+leaks the fact and timing of every visit before it leaks anything worse.
+
+The guard scans the served assets for off-origin targets in the positions a browser fetches *on its own* —
+`src`, `srcset`, `<link href>`, CSS `url()` and `@import`, `fetch`, `XHR.open`, `WebSocket`, `Worker`. An
+`<a href="https://…">` is explicitly allowed: a link the user clicks is navigation, not a load, and a rule
+that forbade it would be wrong in a way that invites someone to weaken the whole check later. Mutation-checked
+against an injected CDN script tag, a Google Fonts stylesheet, an analytics `fetch`, and a CSS `@import` —
+all four caught.
+
+**Lesson: for an absence claim, "there is a test" and "the test would catch it" are much further apart than
+usual, because such a test passes in exactly the same way whether it is watching the right thing or nothing
+at all. The socket test looked fine and my first attempt to break it succeeded — not because the test was
+weak, but because I broke the wrong thing. Mutate at the point the *claim* is about, not the point that is
+easiest to reach.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

@@ -204,3 +204,15 @@ is absent on every path an operator is told to use — while appearing to be set
   token argument
 - **THEN** an `/api/*` request without a matching `X-API-Token` header is rejected
   with 401, and `/api/health` stays reachable for liveness probes
+
+### Requirement: The served frontend loads nothing off-origin
+
+The bundled frontend SHALL reference no third-party origin in any position the browser
+fetches on its own — `src`, `srcset`, `<link href>`, CSS `url()`/`@import`, `fetch`,
+`XMLHttpRequest`, `WebSocket`, or `Worker`. The page is opened while pasting patient
+variants; a third-party request leaks the fact and timing of every visit. A link the
+user clicks (`<a href>`) is navigation, not a load, and is permitted.
+
+#### Scenario: A CDN font or script is added
+- **WHEN** an asset references a stylesheet, script, or font from another origin
+- **THEN** the check fails, naming the asset and the target

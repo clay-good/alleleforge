@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **The frontend's "loads no third-party scripts" promise is now enforced.** The README, the deployment guide
+  and the page itself all state it, and it is a privacy claim about a page a lab opens while pasting patient
+  variants into it — a CDN font leaks the fact and timing of every visit, and a third-party script leaks
+  whatever it likes. The claim holds today (every `src`, `<link href>` and `fetch` is a same-origin relative
+  path) and was one `<script src="https://…">` from being false with nothing to notice. A scan now rejects
+  any off-origin target in a position the browser fetches on its own; an `<a href>` the *user* clicks is
+  still allowed, since a link is not a load. Verified against injected CDN script, stylesheet, `fetch`, and
+  CSS `@import` references.
+
 - **The "deliberately minimal core" claim is now a test.** `pip install alleleforge` really does pull eight
   transitive dependencies, none of them numpy, and `import alleleforge` really is ~85 ms — but nothing checked
   it, and a single top-level `import numpy` added anywhere in the `__init__` chain would break the core
