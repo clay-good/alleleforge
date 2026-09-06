@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **The README's benchmark walkthrough is executed by the suite.** Four commands presented as the way to
+  use CRISPR-Bench — list, score, write a signed result, render a model-card-gated board — proofread by
+  existing guards (real flags, real symbols) and run start to finish by none. A renamed subcommand, or a
+  leaderboard that rejected the result `bench run` had just written, would have survived review of the
+  most-read file in the repo. The commands are now parsed out of the README and run in sequence, with the
+  final glob expanded against the files the earlier steps actually produced.
+
 - **The build-mismatch remedy is pinned end to end.** `resolve` refuses a record whose native assembly
   disagrees with the requested build and names `aforge lift ... --chain ... --from ... --to ...`; `lift`
   documents that its output is "in the same locus form `design --region` accepts, so the result pipes

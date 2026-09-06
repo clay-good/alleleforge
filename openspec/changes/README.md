@@ -9198,6 +9198,37 @@ Run the whole chain — refusal, remedy, and the step the remedy was for — bec
 is owned by a different module and tested by a different file.**
 
 
+## Round 280 — running the README
+
+R279 ran a workflow the docs describe across three commands. The obvious next target is the
+document a new user actually starts from. The README has eight shell blocks; six need
+external data (a genome FASTA, a cohort VCF, Docker), and one is self-contained:
+
+    aforge bench list
+    aforge bench run cas9-efficiency
+    aforge bench run pe-efficiency --out result.json
+    aforge bench leaderboard *.json --format html --out board.html
+
+Ran all four verbatim in a scratch directory. Every one works, the honesty machinery holds
+up — the run prints "dataset 'rs3-validation' is the bundled SYNTHETIC stand-in ... This
+number measures the contract, not the model" — and the rendered board carries its
+disclaimers, marks the split synthetic, and lists the submission.
+
+So no defect, and the round is the test, because of what the existing guards do *not* do.
+The repo checks that documented snippets name real flags and import real symbols. Neither
+runs a block as a sequence, and the interesting failure is a chain failure: the last command
+consumes the file the third one wrote. A leaderboard that rejected `bench run`'s own output
+would pass every existing check.
+
+The test parses the commands out of the README rather than restating them, so it fails when
+the README drifts as well as when the chain breaks; renaming `bench run` to `bench score` in
+the README turns it red.
+
+**Lesson: "the docs name real things" and "the docs work" are different tests, and only the
+second one runs the sequence. Where one documented command consumes another's output, the
+document is a program — execute it.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
