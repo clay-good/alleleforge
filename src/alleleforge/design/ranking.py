@@ -116,9 +116,14 @@ def _safety(candidate: DesignCandidate) -> tuple[float, str | None]:
     """Return ``(safety, worst_ancestry)`` from the off-target report.
 
     Safety is ``1 - score`` of the worst-affected ancestry when the report
-    carries ancestry annotation, else of the global worst site. A candidate
-    with no off-target report (search skipped) is treated as fully safe but
-    flagged elsewhere; that absence is surfaced in the candidate's flags.
+    carries ancestry annotation, else of the global worst site.
+
+    A candidate with no off-target report scores a full 1.0 — the reassuring extreme
+    for an axis nobody measured. Changing that would mean choosing a penalty for an
+    unmeasured axis, which is a policy this project has no basis for; instead every
+    vertical flags such a candidate ``offtarget-not-searched``, which is classified as
+    a caveat and rendered as one. The docstring here previously claimed the absence was
+    "surfaced in the candidate's flags" and no vertical did so.
     """
     report = candidate.offtarget
     if report is None:

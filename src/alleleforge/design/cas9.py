@@ -134,6 +134,10 @@ def _flags(
         flags.append("outcome-is-nhej-spectrum")
     # Pol III transcription caveats: a property of the spacer as a transcribed reagent,
     # not of the chemistry, so every vertical applies the same check.
+    if offreport is None:
+        # Same reason as the prime vertical: `_safety` returns 1.0 with no report, so
+        # the composite awards a full safety score for an axis that was not examined.
+        flags.append("offtarget-not-searched")
     flags += spacer_quality_flags(str(guide.spacer.sequence))
     return tuple(flags)
 

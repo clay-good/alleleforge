@@ -434,3 +434,26 @@ def test_the_menu_rationale_carries_the_caveat_only_when_it_applies() -> None:
     assert len(lone.candidates) == 1
     assert "The top 1 candidates" not in lone.rationale
     assert "not resolved by the evidence" not in lone.rationale
+
+
+def test_an_unsearched_safety_axis_is_flagged_not_silently_perfect() -> None:
+    """`_safety` returns 1.0 with no off-target report — the reassuring extreme.
+
+    Its docstring justified that by saying the absence "is surfaced in the candidate's
+    flags". No vertical did so, so a candidate nobody screened carried `safe 1.00`
+    into the composite with nothing anywhere saying the number was unearned. The
+    ranking arithmetic is deliberately unchanged — penalising an unmeasured axis needs
+    a policy this project has no basis for — but the label is now honest.
+    """
+    from alleleforge.design.ranking import _safety
+    from alleleforge.report.builder import CAVEAT_FLAGS
+
+    unsearched = DesignCandidate(
+        chemistry=Chemistry.CAS9_NUCLEASE, guide=_guide(), efficiency=_eff(0.5)
+    )
+    assert unsearched.offtarget is None
+    assert _safety(unsearched) == (1.0, None)  # still the maximum...
+    # ...and the flag that says so is classified as a hazard, so every render lifts it
+    # out of the flat flag list.
+    assert "offtarget-not-searched" in CAVEAT_FLAGS
+    assert "safety score is the maximum by default" in CAVEAT_FLAGS["offtarget-not-searched"]

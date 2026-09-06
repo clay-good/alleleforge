@@ -76,6 +76,11 @@ CAVEAT_FLAGS: dict[str, str] = {
         "this strategy, not the intended correction, which is the minority product"
     ),
     "bystander-present": ("editable bystander bases sit in the window alongside the target"),
+    "offtarget-not-searched": (
+        "no off-target search was run for this candidate, so its safety score is the "
+        "maximum by default rather than by measurement — nothing here says the guide "
+        "is specific"
+    ),
     "population-offtarget": (
         "at least one nominated off-target site exists only on a population allele, not "
         "in the reference"

@@ -48,6 +48,8 @@ def _flags(
     # Pol III transcription caveats: a property of the spacer as a transcribed reagent,
     # not of the chemistry. They were prime-only, so a base-editor sgRNA with 5% GC came
     # back top-ranked and `recommended` with no caveat at all.
+    if offreport is None:
+        flags.append("offtarget-not-searched")
     flags += spacer_quality_flags(str(window.spacer.sequence))
     return tuple(flags)
 

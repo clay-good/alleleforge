@@ -221,3 +221,19 @@ not be presented as a finding it is not.
 #### Scenario: A single candidate
 - **WHEN** the menu holds one candidate
 - **THEN** no note is added — there is no ordering to qualify
+
+### Requirement: An unmeasured safety axis is labelled, not silently maximal
+
+A candidate with no off-target report scores the maximum on safety, because there is
+nothing to subtract. That is the reassuring extreme for an axis nobody examined, and it
+enters the weighted composite exactly as an earned score would.
+
+Every vertical SHALL flag such a candidate, and the flag SHALL be classified as a hazard
+so that every render presents it apart from descriptive annotations. The ranking
+arithmetic SHALL NOT be altered to penalise the absence: choosing a penalty is choosing a
+number the project has no basis for, and a fabricated weight is worse than a labelled one.
+
+#### Scenario: A design run without an off-target search
+- **WHEN** candidates are produced with the off-target search disabled
+- **THEN** each carries the not-searched flag, and its safety score is presented as
+  unmeasured rather than as a clean result

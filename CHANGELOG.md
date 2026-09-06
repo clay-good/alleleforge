@@ -8,6 +8,19 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A candidate whose off-target search never ran scored a perfect safety mark, with nothing saying so.**
+  `_safety` returns `1.0` when there is no off-target report — the reassuring extreme for an axis nobody
+  measured — and its docstring justified that by saying the absence "is surfaced in the candidate's flags".
+  No vertical did so. A candidate carried `safe 1.00` into the composite, weighted 0.30, purely for not
+  having been screened. All three verticals now flag `offtarget-not-searched`, classified as a hazard so
+  every render lifts it out of the flat flag list, and the docstring says what is actually true.
+
+  The ranking arithmetic is deliberately unchanged: penalising an unmeasured axis means choosing how much,
+  which is a policy this project has no basis for. The number stays and the label stops implying it was
+  earned.
+
 ### Added
 
 - **An ambiguous spacer position now says that it biases the safety score downward.** A non-ACGT base in a

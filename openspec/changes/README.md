@@ -3548,6 +3548,38 @@ natural implementation and, for a score where low means safe, it is a bug that o
 over-confidence. For every default that stands in for a missing measurement, ask whether it reads as good
 news, and if it does, say what it actually is.**
 
+## Round 124 — the safety score nobody earned
+
+R123's rule — when a value cannot be computed, check which way the fallback leans — swept across the
+codebase's zero-defaults. Most are fine; `p_intended` defaulting to `0.0`, for instance, leans *pessimistic*
+for a maximised objective, which is the safe way round.
+
+One did not. `_safety` returns `1.0` when a candidate has no off-target report:
+
+```
+score 0.690 [eff 0.45 [0.30, 0.60], clean 0.71, safe 1.00, simple 0.40]
+```
+
+A perfect safety mark, weighted 0.30 in the composite, awarded for *not having been screened*.
+
+The function knew. Its docstring read: "A candidate with no off-target report (search skipped) is treated as
+fully safe but flagged elsewhere; that absence is surfaced in the candidate's flags." I checked. No vertical
+emitted any such flag. The justification was written, plausible, and false — and because it was written, it
+would have stopped the next reader from checking, which is what it did to several of my own earlier passes
+over this file.
+
+**Shipped:** `offtarget-not-searched` from all three verticals, classified as a hazard so every render lifts
+it out of the flat list, and a docstring that says what is true. The arithmetic is unchanged on purpose:
+penalising an unmeasured axis means choosing *how much*, and there is no basis for a number here.
+
+The test needed three fixtures. My first version routed only to prime, and the mutation run showed the cas9
+and base-editor checks were untested — a check in one vertical leaving two silently reassuring is how most
+of the gaps in this audit began, so the test now drives all three.
+
+**Lesson: a docstring that explains why something unsafe-looking is safe is a claim, and it is the least
+tested kind of claim in a codebase. It reads as evidence the question was considered, which is precisely why
+nobody re-asks it. When a comment says "this is handled elsewhere", go and look at elsewhere.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -123,6 +123,11 @@ def _flags(
     twice now a novel construction slipped past exactly that check.
     """
     flags: list[str] = []
+    # An unsearched safety axis scores 1.00 in the composite — the reassuring extreme
+    # for something nobody measured. The ranking cannot fix that without inventing a
+    # policy, so the candidate says plainly that the number is unearned.
+    if not run_offtarget:
+        flags.append("offtarget-not-searched")
     if chromatin_adjusted:
         flags.append("chromatin-adjusted")
     if pegrna.is_epegrna:

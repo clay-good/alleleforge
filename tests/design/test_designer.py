@@ -663,3 +663,46 @@ def test_a_non_canonical_transcript_says_so(make_reference: MakeRef) -> None:
     )
     assert menu.rationale is not None
     assert "(not the canonical transcript)" in menu.rationale
+
+
+def _prime_case() -> tuple[str, str, EditIntent]:
+    contig = list("AT" * 70)
+    contig[63:66] = list("TGG")
+    contig[58:61] = list("CCA")
+    return "".join(contig), "chr2:71:A>C", EditIntent.INSTALL
+
+
+def _base_editor_case() -> tuple[str, str, EditIntent]:
+    contig = list("ACGT" * 125 + "TTTTTATTTTTTTTTTTTTT" + "TGG" + "ACGT" * 125)
+    return "".join(contig), "chr2:506:A>G", EditIntent.INSTALL
+
+
+def _nuclease_case() -> tuple[str, str, EditIntent]:
+    contig = "T" * 15 + "ACGTAACGTTACGTAACGTT" + "TGG" + "T" * 15
+    return contig, "chr2:25:T>A", EditIntent.KNOCK_OUT
+
+
+@pytest.mark.parametrize("run_offtarget", [False, True])
+@pytest.mark.parametrize(
+    "case", [_prime_case, _base_editor_case, _nuclease_case], ids=["prime", "base", "nuclease"]
+)
+def test_every_vertical_flags_an_unsearched_off_target_axis(
+    make_reference: MakeRef,
+    run_offtarget: bool,
+    case: Callable[[], tuple[str, str, EditIntent]],
+) -> None:
+    """All three verticals, or the honesty depends on which chemistry you routed to.
+
+    `_safety` returns a full 1.0 with no off-target report, so a candidate nobody
+    screened carries `safe 1.00` into the composite. Each vertical has to say so
+    itself — a check in one of them leaves the other two silently reassuring, which is
+    how most of the gaps in this audit began.
+    """
+    contig, variant, intent = case()
+    ref = make_reference({"chr2": contig})
+    menu = design(variant, intent=intent, reference=ref, run_offtarget=run_offtarget)
+    assert menu.candidates, "fixture produced no candidates"
+    for candidate in menu.candidates:
+        assert ("offtarget-not-searched" in candidate.flags) is (candidate.offtarget is None)
+    if not run_offtarget:
+        assert all("offtarget-not-searched" in c.flags for c in menu.candidates)
