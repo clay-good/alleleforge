@@ -7173,6 +7173,63 @@ test named "never shows a bare estimate" is a claim about a table; check it agai
 every column, not the one in the commit that added it.**
 
 
+## Round 223 — a per-base Python loop over a whole contig
+
+Profiling a 2 Mb scan after the R208 native kernel, the largest single remaining cost
+was not in the search at all:
+
+    0.272s cumulative   {built-in method builtins.all}   1 call
+    0.160s              <genexpr> at _search.py:449      2,000,001 calls
+
+`_sanitize` folds every base outside `ACGTN` to `N` so the linear scan and the
+FM-index path agree about what a window holds. It did so with
+`all(b in _INDEX_ALPHABET for b in seq)` and a comprehension — one pass of interpreter
+overhead per character of a reference, once per sequence per `search()`, uncached,
+and `search()` runs once per candidate in a design.
+
+`str.translate` does both halves in C. The detection deletes every in-alphabet base
+and asks whether anything is left. The substitution then **derives its table from the
+strays themselves**, which is the part worth keeping: a character absent from the
+table is by construction in the alphabet, so `str.translate` leaving it alone is
+exactly right, and there is no fixed 256-entry table to get wrong on a non-ASCII byte.
+
+Measured on the function, over its real inputs:
+
+    2 Mb   old 59.8ms   new  3.3ms    +94.5%
+    20 Mb  old 775.4ms  new 35.2ms    +95.5%   (linear, as expected)
+
+Unlike R207, there is no distribution to trade against: clean +92%, one stray base in
+2 Mb +94%, a synthetic 44%-IUPAC sequence +78%. The first draft used
+`re.sub(r"[^ACGTN]", "N", seq)` for the rebuild and was **7% slower** on that last
+case; deriving the table is what removed the trade rather than relocating it.
+
+**What I am not claiming.** The end-to-end 2 Mb scan does not visibly move: 1.098s
+before, 1.090s after, against run-to-run noise of ±7% on this machine. A 56 ms saving
+is real and directly measured at the function, and it is below the resolution of the
+harness that would have to see it. The case for shipping it is the scaling, not a
+stopwatch on a toy contig — 740 ms per 20 Mb call, per candidate, per contig.
+
+Two process notes, both mine.
+
+I ran `git checkout -- src/alleleforge/offtarget/_search.py` to undo a deliberate
+mutation and **deleted the round's optimization**, which is the exact trap this log
+recorded in R96 and my own notes warn about in one line. Knowing a trap by name is not
+the same as having a habit that avoids it. The patch was re-applied from the text I
+still had; had it been hand-edited it would have been gone.
+
+And the mutation itself was ill-posed. I widened `_INDEX_ALPHABET` expecting the check
+on the deletion table to fail — but the table is *derived from* that constant, so both
+sides moved together and the check was tautological. A guard on two things that cannot
+disagree tests nothing. The check now constructs a mismatched table directly, and its
+docstring says plainly that it exists for the future edit which replaces the derivation
+with a written-out literal.
+
+**Lesson: when an optimization removes a hazard by construction, the test for that
+hazard has to be rewritten, not kept. I wrote a guard against divergence and then made
+divergence impossible in the same patch, which left a test that passes for a reason
+unrelated to the one in its name — the most expensive kind, because it will be trusted.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

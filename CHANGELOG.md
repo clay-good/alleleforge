@@ -10,6 +10,18 @@ acceptance.
 
 ### Added
 
+- **Folding a contig to the index alphabet runs in C, not per base in Python.** `_sanitize` maps every base
+  outside `ACGTN` to `N` so the linear scan and the FM-index path agree about what a window holds; it did so
+  with `all(b in _INDEX_ALPHABET for b in seq)` plus a comprehension — one pass of interpreter overhead per
+  character of a reference, once per sequence per `search()`, uncached, with `search()` running per candidate.
+  Two `str.translate` calls replace it: **2 Mb 59.8ms -> 3.3ms (+94.5%), 20 Mb 775ms -> 35ms**. The
+  substitution derives its table from the offending characters themselves, which keeps it faster on every
+  input distribution (clean +92%, one stray base +94%, a synthetic 44%-IUPAC sequence +78%) rather than
+  trading the clean path against the dirty one, and cannot mishandle a non-ASCII byte the way a fixed
+  256-entry table would. Equivalence is pinned by property tests against the previous implementation. The
+  end-to-end 2 Mb scan does not visibly move — 56ms is below this harness's ±7% noise — so the case is the
+  scaling, not a stopwatch on a toy contig.
+
 - **The browser cohort table shows specificity and the off-target basis, not a bare worst-case score.** The
   column beside the one an earlier round fixed for bare efficiency estimates rendered `worst off-target 0.000`
   alone — the most reassuring number the system can produce. The batch response also carries
