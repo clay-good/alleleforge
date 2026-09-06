@@ -1576,6 +1576,13 @@ acceptance.
 
 ### Fixed
 
+- **The printable order sheet did not say that the cloned guide differs from the scored spacer.** U6
+  transcription needs a 5' G, so the lentiGuide scheme prepends one when the spacer lacks it — the duplex a
+  lab orders encodes a **21-nt** guide while every efficiency and off-target number on the page describes the
+  20-nt spacer. The oligo record carries `g_added` and the HTML buries it in a JSON dump of that record; the
+  PDF's formatted block, which is the sheet someone actually orders from, omitted it. It now names the added
+  G, both lengths, and the spacer the scores belong to.
+
 - **`chromatin_track` without `encode_tracks` ran to completion and recorded a provenance entry that was not
   true.** The track name selects a track from the supplied ENCODE tracks; supplying only the name produced a
   normal menu, wrote `chromatin_track: 'DNase'` into the provenance config snapshot as though the run were

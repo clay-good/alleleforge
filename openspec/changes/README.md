@@ -5440,6 +5440,33 @@ enumerating rather than by stumbling. The enumeration also produced a clean bill
 recorded — the dataset lookup — which is worth as much, because it is the difference between "I checked" and
 "I happened not to trip over it".**
 
+## Round 181 — the sequence someone orders
+
+Rotating to the highest-stakes output in the product: `report/oligos.py` produces the actual DNA a lab buys.
+
+The construction is correct, and I checked it by hand rather than by reading — three spacers through
+`sgrna_oligos`, overhangs stripped, bottom strand compared against the reverse complement of the top core.
+`CACC`/`AAAC` per lentiGuide, the duplex anneals, the citation is on the scheme. No defect.
+
+What the check surfaced is what happens *around* it. For a spacer not beginning with G the scheme prepends
+one, because U6 needs it — so the ordered duplex encodes **21 nt** while every number on the page was
+computed for the 20-nt spacer. The project knows: `SgRnaOligos.g_added` records it, and `no-5prime-g` is
+deliberately classified descriptive rather than a caveat, with the comment "the cloning scheme prepends the
+U6-start G automatically". That reasoning is sound.
+
+But the fact travels unevenly. The HTML dumps the whole oligo record as JSON, so `g_added: true` is in there
+somewhere. The PDF formats the block by hand — `top`, `bottom`, the prep note — and omitted it. The PDF is
+the printable leave-behind; its own docstring says it "must carry the exact oligos to order… not just point
+at the electronic report". It carried the exact oligos and not the one sentence explaining why they are
+longer than the guide that was scored.
+
+The note now names the prepend, both lengths, and the spacer the numbers belong to.
+
+**Lesson: a hand-formatted view and a serialize-everything view drift, and the hand-formatted one is usually
+the one people read. The HTML "renders" `g_added` only in the sense that a JSON blob contains it — which
+satisfies a field-coverage check and no reader. When two surfaces render the same object by different
+mechanisms, the field-by-field one is where a fact goes missing.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

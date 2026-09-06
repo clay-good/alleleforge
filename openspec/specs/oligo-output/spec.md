@@ -170,3 +170,14 @@ schemes.
 #### Scenario: A caller's own vector
 - **WHEN** oligos are built for a scheme whose enzyme is not in the table
 - **THEN** the order carries a warning that the insert was not screened
+
+### Requirement: The order sheet states when the cloned guide differs from the spacer
+
+When a cloning scheme modifies the spacer — prepending a 5' G for U6 transcription —
+the printable report SHALL say so, naming the cloned length and the spacer the reported
+scores describe. The oligos are ordered from that page, and every efficiency and
+off-target number on it was computed for the unmodified spacer.
+
+#### Scenario: A spacer that does not begin with G
+- **WHEN** the scheme prepends a G
+- **THEN** the order sheet names the prepend, the cloned length, and the scored spacer

@@ -92,3 +92,35 @@ def test_pdf_includes_ranking_rationale(ancestry_menu: RankedMenu) -> None:
     # the HTML and JSON surfaces — it explains why a candidate ranks where it does.
     pdf = render_pdf(build_report(ancestry_menu))
     assert b"synthetic ancestry fixture" in pdf
+
+
+def test_the_order_sheet_says_when_a_g_was_prepended(prime_menu: RankedMenu) -> None:
+    """The PDF is the sheet someone orders from, and the ordered guide is not the
+    spacer that was scored.
+
+    U6 transcription needs a 5' G, so the lentiGuide scheme prepends one — the cloned
+    guide is 21 nt while every efficiency and off-target number on the page describes
+    the 20-nt spacer. The oligo record carries `g_added`, the HTML buries it in a JSON
+    dump of that record, and the PDF's formatted block omitted it entirely.
+    """
+    from alleleforge.report.oligos import sgrna_oligos
+    from alleleforge.report.pdf import _oligo_lines
+
+    # A spacer that does not begin with G, so the scheme adds one.
+    oligos = sgrna_oligos("TTTAAACGTTTTTTTTTTTT")
+    assert oligos.g_added, "this spacer must trigger the prepend for the check to mean anything"
+
+    text = " ".join(_oligo_lines(oligos))
+    assert "prepended" in text
+    assert "21 nt" in text  # the cloned length
+    assert "20-nt spacer" in text  # ...and the scored one
+
+
+def test_no_note_when_the_spacer_already_starts_with_g() -> None:
+    """The note must not appear where nothing was changed."""
+    from alleleforge.report.oligos import sgrna_oligos
+    from alleleforge.report.pdf import _oligo_lines
+
+    oligos = sgrna_oligos("GACCCCCTCCACCCCGCCTC")
+    assert not oligos.g_added
+    assert "prepended" not in " ".join(_oligo_lines(oligos))

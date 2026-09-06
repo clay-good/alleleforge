@@ -52,6 +52,18 @@ def _oligo_lines(oligos: SgRnaOligos | PegRNAOligos) -> list[str]:
     if isinstance(oligos, SgRnaOligos):
         lines += _wrap(f"top    5'-{oligos.top}-3'", indent="      ")
         lines += _wrap(f"bottom 5'-{oligos.bottom}-3'", indent="      ")
+        if oligos.g_added:
+            # The ordered reagent is not the spacer that was scored. U6 needs a 5' G,
+            # so the scheme prepends one — every efficiency and off-target number on
+            # this page describes the 20-nt spacer, and the duplex below encodes 21 nt.
+            # The HTML buries this in a JSON dump of the oligo record; the PDF is the
+            # sheet someone orders from, and it said nothing.
+            lines += _wrap(
+                f"note: a 5' G was prepended for U6 transcription, so the cloned guide "
+                f"is {len(oligos.spacer) + 1} nt; the scores above are for the "
+                f"{len(oligos.spacer)}-nt spacer {oligos.spacer}",
+                indent="      ",
+            )
     else:
         lines += _wrap(f"spacer top    5'-{oligos.spacer_top}-3'", indent="      ")
         lines += _wrap(f"spacer bottom 5'-{oligos.spacer_bottom}-3'", indent="      ")
