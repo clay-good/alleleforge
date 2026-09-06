@@ -6448,6 +6448,47 @@ technique to find it was already written in the docstring of the adjacent functi
 vein runs dry, change the instrument before concluding the mine is empty.**
 
 
+## Round 206 — the next hot spot, and a table that had to be guarded
+
+Re-profiling after R205 moved the leader board. `_best_with_removed_base` is now the
+largest self-time (1.70s of a 3.0s scan, a million calls) — it is already carefully
+optimized, with a documented two-pass prefix/suffix decomposition, so it is left alone
+for now. The cheap win was one line below it in the profile:
+
+    4,000,002 calls   types/sequence.py:142(<genexpr>)
+
+A dict lookup per base, building whole-contig reverse complements. `str.translate` does
+the same thing in C: **96% faster, 27x**, verified identical on plain ACGT and on the full
+IUPAC alphabet.
+
+The interesting part is why it needed a test rather than just a benchmark. `translate`
+leaves an *unmapped* character unchanged, where `_COMPLEMENT[base]` raised `KeyError`. So
+the substitution is equivalent only while every base a `DNASequence` can hold has an entry
+in the table — and the consequence of that ceasing to be true is not an exception, it is a
+reverse complement with an uncomplemented base in it. Silent, and wrong in a sequence
+someone orders.
+
+The two sets are equal today (`ACGTRYSWKMBDHVN`, both). `test_every_validated_base_has_a_complement`
+is what keeps them equal, and the mutation for it is the real one: adding `U` to
+`IUPAC_ALPHABET` and nothing else fails the suite instead of silently passing uracil
+through. This is R199's shape used deliberately rather than found by accident — the
+optimization has a precondition, so the precondition gets the test.
+
+Across R205 and R206 a default 2 Mb scan went 2.62s -> 1.90s, 27%, golden unchanged.
+
+Also, a process note. The first attempt at this patch did not apply — the anchor placed
+the translate table *above* the dict it is built from — and the verification I ran
+afterwards passed anyway, because it compared the new implementation against the naive
+one and both were the old code. `git diff --stat` was empty and I nearly missed it. The
+project's rule "verify the mutation, not just the test's reaction to it" has a twin:
+verify the *patch*, not just the test's reaction to it.
+
+**Lesson: an optimization that replaces a raising lookup with a forgiving one has bought
+speed with a silent failure mode. That trade is usually right and always worth naming: the
+question is not "is it faster" but "what did the old code refuse to do that the new code
+will do quietly", and that answer is the test.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

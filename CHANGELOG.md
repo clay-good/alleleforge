@@ -1517,6 +1517,15 @@ acceptance.
 
 ### Changed
 
+- **Complementing a sequence uses `str.translate` instead of a per-base dict lookup.** The off-target scan
+  takes whole-contig reverse complements, and the generator behind them ran **four million times** on a 2 Mb
+  reference — the third-largest cost in a profile. 96% faster (27×) in isolation, on both plain ACGT and the
+  full IUPAC alphabet. `translate` leaves an *unmapped* character unchanged where the dict lookup raised, so
+  this is equivalent only while every base a `DNASequence` accepts has a complement entry; the two sets are
+  equal, and a test now holds them equal, because the failure mode of adding a base to one and not the other
+  is a wrong sequence rather than an error. Together with the early-exit above, a default 2 Mb scan went from
+  **2.62 s to 1.90 s (-27%)** on the same machine, with the reproducibility golden unchanged.
+
 - **The innermost comparison of the off-target scan stops once the mismatch budget is blown.**
   `_best_ungapped` priced all twenty positions with a `sum()` over a generator and then compared against the
   budget — about half a million calls over 2 Mb, and 10.5M generator iterations, the largest single cost in a

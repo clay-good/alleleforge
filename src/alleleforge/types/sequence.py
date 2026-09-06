@@ -40,6 +40,18 @@ _COMPLEMENT = {
     "N": "N",
 }
 
+#: `str.translate` form of :data:`_COMPLEMENT`, for the whole-contig complements the
+#: off-target scan takes: the dict lookup per base ran its generator four million times
+#: on a 2 Mb reference, the third-largest cost in a profile of the scan.
+#:
+#: `translate` leaves an *unmapped* character unchanged where `_COMPLEMENT[base]` would
+#: raise, so this is equivalent only while every base a `DNASequence` can hold has an
+#: entry here. It does -- the two sets are equal, not merely overlapping -- and
+#: `test_every_validated_base_has_a_complement` is what keeps them so, because the
+#: failure mode of adding a base to one and not the other is a silent passthrough rather
+#: than an error.
+_COMPLEMENT_TABLE = str.maketrans(_COMPLEMENT)
+
 #: For each IUPAC code, the concrete bases it can match. Drives PAM matching.
 IUPAC_EXPAND = {
     "A": frozenset("A"),
@@ -131,7 +143,7 @@ class DNASequence(BaseModel):
 
     def complement(self) -> DNASequence:
         """Return the ambiguity-aware base complement (same 5'->3' order)."""
-        return DNASequence("".join(_COMPLEMENT[base] for base in self.sequence))
+        return DNASequence(self.sequence.translate(_COMPLEMENT_TABLE))
 
     def reverse_complement(self) -> DNASequence:
         """Return the ambiguity-aware reverse complement.
@@ -139,7 +151,7 @@ class DNASequence(BaseModel):
         This is an involution: ``s.reverse_complement().reverse_complement()``
         equals ``s`` for any valid sequence.
         """
-        return DNASequence("".join(_COMPLEMENT[base] for base in reversed(self.sequence)))
+        return DNASequence(self.sequence.translate(_COMPLEMENT_TABLE)[::-1])
 
     def gc_content(self) -> float:
         """Return the fraction of G/C bases (counting the strong code ``S``), ``0.0`` for empty."""

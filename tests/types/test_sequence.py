@@ -168,3 +168,40 @@ def test_parse_rejects_a_malformed_locus(text: str) -> None:
     quietly restores the number the exclusion existed to correct."""
     with pytest.raises(ValueError):
         GenomicInterval.parse(text)
+
+
+def test_every_validated_base_has_a_complement() -> None:
+    """The equality `str.translate` relies on, asserted rather than assumed.
+
+    `complement`/`reverse_complement` translate through a table built from
+    `_COMPLEMENT`. `str.translate` leaves an *unmapped* character unchanged where the
+    old dict lookup raised `KeyError`, so a base that a `DNASequence` accepts but the
+    table lacks would pass through uncomplemented -- silently, and in a reverse
+    complement that is a wrong sequence, not an error.
+
+    The two sets are equal today. This is what makes adding a base to one and not the
+    other a failing test rather than a silent miscomputation.
+    """
+    from alleleforge.types.sequence import _COMPLEMENT, IUPAC_ALPHABET
+
+    assert set(_COMPLEMENT) == set(IUPAC_ALPHABET), {
+        "validated but uncomplementable": sorted(set(IUPAC_ALPHABET) - set(_COMPLEMENT)),
+        "complementable but not valid": sorted(set(_COMPLEMENT) - set(IUPAC_ALPHABET)),
+    }
+
+
+def test_complementing_matches_a_per_base_lookup_over_every_base() -> None:
+    """Differential against the definition the translate table replaced."""
+    from alleleforge.types.sequence import _COMPLEMENT, IUPAC_ALPHABET
+
+    every = "".join(sorted(IUPAC_ALPHABET))
+    seq = DNASequence(every * 3)
+
+    assert str(seq.complement()) == "".join(_COMPLEMENT[b] for b in str(seq))
+    assert str(seq.reverse_complement()) == "".join(_COMPLEMENT[b] for b in reversed(str(seq)))
+
+
+def test_the_complement_of_an_empty_sequence_is_empty() -> None:
+    """`translate` and `[::-1]` both have to survive the degenerate case."""
+    assert str(DNASequence("").reverse_complement()) == ""
+    assert str(DNASequence("").complement()) == ""
