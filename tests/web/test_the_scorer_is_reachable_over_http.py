@@ -109,3 +109,17 @@ def test_the_env_var_fixture_is_really_in_effect(client: TestClient) -> None:
     """Guard the guard: without a reference every check above would be a 503."""
     assert os.environ.get("ALLELEFORGE_REFERENCE_FASTA")
     assert client.get("/api/health").json()["reference_loaded"] is True
+
+
+def test_the_offtarget_response_identifies_the_genome(client: TestClient) -> None:
+    """The same document-level context the CLI's `--json` carries, over HTTP.
+
+    A build label is a name the *deployment* chose; the client cannot see the FASTA
+    the server opened, which makes this the surface where naming it matters most.
+    """
+    body = client.post("/api/offtarget", json={"spacer": SPACER}).json()
+    assert body["reference"]["contigs"] == 1
+    assert len(body["reference"]["sha256"]) == 64
+    assert "length" in body["reference"]["pins"]
+    assert body["coordinate_system"] == "0-based-half-open"
+    assert "not a medical device" in body["disclaimer"]

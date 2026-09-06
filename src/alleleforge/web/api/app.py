@@ -461,7 +461,13 @@ def create_app(
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-        return OffTargetResponse.from_report(report, on_target_excluded=locus is not None)
+        from alleleforge.design.designer import _reference_snapshot
+
+        return OffTargetResponse.from_report(
+            report,
+            on_target_excluded=locus is not None,
+            reference=_reference_snapshot(reference),
+        )
 
     @app.get("/api/data", response_model=DataListResponse)
     async def data_list() -> DataListResponse:

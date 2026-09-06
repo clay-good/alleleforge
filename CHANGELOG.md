@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **A standalone off-target result says which genome it searched.** `aforge offtarget --json` and
+  `POST /api/offtarget` carried extensive per-search honesty (`on_target_excluded`, `searched_bases`,
+  `effective_matrix`, the ancestry stratification) and no document-level context at all: no reference
+  identity, no coordinate convention, no disclaimer. Two scans over different FASTAs give different
+  specificities and produced indistinguishable payloads, and the `locus` strings are 0-based half-open with
+  nothing saying so. Both shells now carry `reference` (the shape descriptor), `coordinate_system` and
+  `disclaimer`; the CLI prints one line under the search description rather than repeating it per site. The
+  HTTP surface is where this matters most — a client cannot see the FASTA the server opened.
+
 - **The cohort summary TSV carries its caveats, and the run records which genome it screened against.**
   `aforge batch --summary-tsv` — the file a whole-cohort run is read through, one row per patient — carried no
   disclaimer, no coordinate convention, no reference identity and no seed. It now leads with the same `#` note

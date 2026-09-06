@@ -1701,6 +1701,13 @@ def offtarget(
         _echo_err(f"error: {exc}")
         raise typer.Exit(ExitCode.USAGE) from exc
 
+    from alleleforge.design.designer import _reference_snapshot
+    from alleleforge.report.builder import (
+        COORDINATE_NOTE,
+        COORDINATE_SYSTEM,
+        RESEARCH_USE_DISCLAIMER,
+    )
+
     sites = [
         {
             "locus": str(s.locus),
@@ -1741,6 +1748,15 @@ def offtarget(
             "resolved_bases": report.resolved_bases,
             "maf_threshold": report.maf_threshold,
         },
+        # The document-level context. Every number above is conditional on which
+        # genome was searched, and `reference_build` alone is a label the caller
+        # chose: two FASTAs both called hg38 give different specificities. The
+        # `locus` strings below are 0-based half-open, which a genome browser reads
+        # as 1-based inclusive.
+        "reference_build": state.reference_build,
+        "reference": _reference_snapshot(reference),
+        "coordinate_system": COORDINATE_SYSTEM,
+        "disclaimer": RESEARCH_USE_DISCLAIMER,
         "on_target_excluded": locus is not None,
         "worst_score": round(report.worst_score(), 4),
         "specificity": round(report.specificity_score(), 4),
@@ -1777,6 +1793,10 @@ def offtarget(
         # Every number on the line above is conditional on the budgets and cut-offs,
         # so print them under it rather than leaving "3 site(s)" to be read as absolute.
         f"  search: {report.search_description()}",
+        # ...and on the genome, which the build label alone does not identify. Once,
+        # under the search line, rather than repeated on every site row.
+        f"  reference build {state.reference_build}"
+        f"{_shape_suffix(_reference_snapshot(reference))}; {COORDINATE_NOTE}",
     ]
     for s in sites:
         mit = f"  mit={s['mit_score']}" if s["mit_score"] is not None else ""

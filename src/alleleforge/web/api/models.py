@@ -9,10 +9,11 @@ validate the library. FastAPI generates the OpenAPI spec from these.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from alleleforge.report.builder import COORDINATE_SYSTEM, RESEARCH_USE_DISCLAIMER
 from alleleforge.types.offtarget import OffTargetReport
 from alleleforge.types.sequence import GenomicInterval, Strand
 
@@ -398,9 +399,35 @@ class OffTargetResponse(BaseModel):
         ),
     )
 
+    reference: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "The genome that was searched: build label, contig and base counts, and a "
+            "hash of the canonicalized `name:length` list. Every number here is "
+            "conditional on it, and a build label alone is a name the deployment chose "
+            "— two FASTAs both called hg38 give different specificities. `pins` states "
+            "what the digest covers (contig names and lengths, not the bases)."
+        ),
+    )
+    coordinate_system: str = Field(
+        default=COORDINATE_SYSTEM,
+        description=(
+            "The convention every `locus` in the embedded report is in. A genome "
+            "browser reads the same digits as 1-based inclusive."
+        ),
+    )
+    disclaimer: str = Field(
+        default=RESEARCH_USE_DISCLAIMER,
+        description="The research-use disclaimer, as on every other AlleleForge artifact.",
+    )
+
     @classmethod
     def from_report(
-        cls, report: OffTargetReport, *, on_target_excluded: bool = False
+        cls,
+        report: OffTargetReport,
+        *,
+        on_target_excluded: bool = False,
+        reference: dict[str, Any] | None = None,
     ) -> OffTargetResponse:
         """Build the envelope from a report, computing its aggregate summary."""
         return cls(
@@ -412,6 +439,7 @@ class OffTargetResponse(BaseModel):
             search_description=report.search_description(),
             ancestry_stratification=report.ancestry_stratification(),
             effective_matrix=report.effective_matrix(),
+            reference=reference,
         )
 
 

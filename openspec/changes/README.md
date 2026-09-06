@@ -7099,6 +7099,43 @@ on a class, the next question is which artifacts do the same job without being t
 class — and here the answer was the one with a row per patient.**
 
 
+## Round 221 — the differentiator's own artifact was contextless
+
+R220's lesson gave the query directly: a guard keyed on a class misses whatever does
+the same job without being that class. `aforge offtarget --json` is not a
+`DesignReport` and not a cohort summary, so neither check had ever looked at it.
+
+    not a medical device   offtarget.json:.
+    coordinate convention  offtarget.json:.
+    reference identity     offtarget.json:.
+
+Its *per-search* honesty is among the best in the codebase — `on_target_excluded`,
+`searched_bases`, `resolved_bases`, `effective_matrix`, the ancestry stratification,
+each added by an earlier round for a good reason. What it never had was
+document-level context: a consumer holding the file knew every budget and cut-off and
+not which genome produced the numbers. Two scans over two different FASTAs give
+different specificities and, before this, indistinguishable payloads. Its `locus`
+strings are 0-based half-open and nothing said so.
+
+That this artifact is for **population-aware off-target nomination** — the capability
+the project exists for — while being the last one with no provenance at all is the
+part worth sitting with. Rounds attend to what they are already looking at, and this
+file had been looked at often, always one field at a time.
+
+Both shells now carry it. The CLI prints one line under the search description rather
+than repeating it per site row, and the `--json` payload and `/api/offtarget` response
+carry `reference`, `coordinate_system` and `disclaimer`. The HTTP surface is where it
+matters most: the client cannot see the FASTA the server opened, so a build label
+there is a name chosen by someone else entirely.
+
+**Lesson: "per-item honesty" and "document honesty" are different properties and the
+first does not accumulate into the second. This payload had eight carefully-added
+qualifiers on its numbers and no statement of what the numbers were about. When a
+surface has been improved many times in small pieces, ask what a reader needs that is
+true of the whole file — that is precisely the fact no single small improvement was
+ever about.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
