@@ -55,6 +55,13 @@ class AncestryOffTarget(BaseModel):
 #: synthesize); the candidate's own hazards did not, so they are separated here.
 #:
 #: Separated, not filtered: `CandidateReport.flags` still carries the complete list.
+#:
+#: Scope: these are **candidate** flags. An oligo hazard — an internal cloning-enzyme
+#: site, an unscreenable enzyme, a donor too long to synthesize — travels on
+#: `SgRnaOligos.warnings`, which every render already prints as its own prominent line.
+#: Two entries used to be listed here that only ever appear there, and nothing noticed
+#: because the guard below scans for a local named `flags` and the oligo builder happens
+#: to use that name for a different list.
 CAVEAT_FLAGS: dict[str, str] = {
     "ood": (
         "the efficiency prediction is out of distribution for this model — it is ranked "
@@ -90,10 +97,6 @@ CAVEAT_FLAGS: dict[str, str] = {
     ),
     "recommend-reference": (
         "this locus is ambiguous in the current build; the named assembly resolves it"
-    ),
-    "internal-": (
-        "the reagent contains an internal site for the cloning enzyme, which will cut "
-        "the insert — this scheme cannot be used as-is"
     ),
 }
 

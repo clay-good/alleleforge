@@ -8,6 +8,21 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A cloning scheme whose enzyme cannot be screened reported a clean insert.** The Type IIS site table
+  covers the three shipped schemes, and `_screen_enzyme_site` returned *no warnings* for anything else —
+  indistinguishable from a screened, clean insert. `VectorScheme` is public, so a caller cloning into their
+  own vector with a different enzyme got silence on a cloning-lethal hazard, which reads as a pass. It now
+  emits `enzyme-not-screened:<enzyme>`, and a test asserts every shipped scheme is screenable so the flag
+  never fires on the project's own schemes.
+
+- **Two oligo warnings were filed as candidate caveats.** `internal-<enzyme>-site` and the new
+  `enzyme-not-screened` travel on `SgRnaOligos.warnings`, which every render already prints as its own
+  prominent line; they never appear in `candidate.flags`, so classifying them there did nothing. The
+  classification guard could not tell, because it scanned for a local named `flags` and the oligo builder
+  uses that name for a different list. Its scan is now limited to the modules that build candidate flags.
+
 ### Added
 
 - **Seven public names are now re-exported from their packages.** `alleleforge.design` did not export

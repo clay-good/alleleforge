@@ -3834,6 +3834,33 @@ judgment, and the second catches a cross-reference left pointing at a renamed fu
 module in sixty-five defining `__all__` is not sixty-four omissions — it is a different convention, and the
 "fix" would have been a large, confident, wrong change. Look at the ratio before writing the sweep.**
 
+## Round 133 — the screen that passed by not looking
+
+Back to running the product: what does a bench user actually order? The oligo payload, and the Golden-Gate
+screening behind it, which turns out to be careful work — it checks both strands *and* both junction seams,
+because a recognition site can be reconstituted across the overhang/insert boundary.
+
+Then the edge: `_screen_enzyme_site` returns `()` for an enzyme not in its table. Docstring and all — "no
+site to screen against". Every shipped scheme is covered, so this never fires in practice. But
+`VectorScheme` is a public, exported type, and a caller cloning into their own vector with a different Type
+IIS enzyme received an empty warnings list for an insert nobody looked at. On a cloning-lethal hazard,
+silence is a pass. It now says `enzyme-not-screened`.
+
+The better finding came from the mutation run. Un-classifying the new flag changed nothing — and chasing
+that turned up something about my own machinery. The R98 guard finds candidate flags by scanning for
+`flags.append(...)` in the source. `report/oligos.py` fills a local *also called* `flags` with oligo
+warnings, a different channel rendered separately. So the guard had been treating oligo warnings as
+candidate flags, and `internal-<enzyme>-site` had sat in `CAVEAT_FLAGS` since R98 as a classification that
+could never match anything, with the guard's own "every classified flag must be emitted" half satisfied by
+the wrong list.
+
+Both misfiled entries are gone, and the guard now scans only `design/`, where candidate flags are built.
+
+**Lesson: a guard that matches on a *name* matches on a coincidence. `flags` is an obvious name for any list
+of short strings, and two unrelated channels chose it — so the check silently spanned both and validated
+one against the other. When a static check keys on an identifier rather than a type or a call graph, pin
+down its scope explicitly, because the language will not.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

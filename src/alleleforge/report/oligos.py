@@ -48,11 +48,16 @@ def _screen_enzyme_site(insert: str, enzyme: str, *, label: str) -> tuple[str, .
     insert an enzyme would see. Each hit yields an ``internal-<enzyme>-site`` flag
     naming the component and the 0-based position, so a cloning-lethal insert is
     surfaced prominently rather than shipping as a clean, round-trip-valid oligo.
-    Returns an empty tuple for an unsupported enzyme (no site to screen against).
+
+    An enzyme this table does not know cannot be screened, and used to return no
+    flags — which is indistinguishable from a clean insert. Every shipped scheme is
+    covered, but `VectorScheme` is public: a caller cloning into their own vector with
+    a different Type IIS enzyme got silence where the answer is "not checked". It now
+    says so.
     """
     site = TYPE_IIS_SITES.get(enzyme)
     if site is None:
-        return ()
+        return (f"enzyme-not-screened:{enzyme}:{label}",)
     seq = insert.upper()
     flags: list[str] = []
     for strand, motif in (("+", site), ("-", revcomp(site))):

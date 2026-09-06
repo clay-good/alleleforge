@@ -27,7 +27,10 @@ def _emitted_flag_prefixes() -> set[str]:
     tomorrow appears here without anyone remembering to update a test.
     """
     prefixes: set[str] = set()
-    for path in _SRC.rglob("*.py"):
+    # Only where *candidate* flags are built. `report/oligos.py` fills a local also
+    # called `flags` with oligo warnings — a different channel, rendered separately —
+    # and scanning it made two oligo warnings look like classified candidate flags.
+    for path in sorted((_SRC / "design").rglob("*.py")):
         text = path.read_text()
         calls = re.findall(r"flags\.append\((.*?)\)\n", text, re.S)
         # `flags.append(...)` is not the only way a flag is attached. The base-editor
@@ -80,9 +83,9 @@ def test_a_hazard_is_separated_from_decoration() -> None:
 
 
 def test_a_valued_flag_matches_on_its_prefix() -> None:
-    """`gc-out-of-band:0.25` and `internal-BsaI-site:x:+@3` carry their value."""
+    """`gc-out-of-band:0.25` carries its value; a bare flag beside it is unaffected."""
     assert [f for f, _ in caveats(("gc-out-of-band:0.25",))] == ["gc-out-of-band:0.25"]
-    assert [f for f, _ in caveats(("internal-BsaI-site:a:+@3",))] == ["internal-BsaI-site:a:+@3"]
+    assert [f for f, _ in caveats(("nick-distance:+8nt", "close-nick"))] == ["close-nick"]
     # A prefix must not match a longer, different flag name.
     assert caveats(("clean-something-else",)) == ()
 

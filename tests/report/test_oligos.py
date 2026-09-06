@@ -438,3 +438,36 @@ def test_the_motif_sequences_are_distinct() -> None:
     """Two motifs that produced the same oligo would make the choice meaningless."""
     non_empty = {m: s for m, s in MOTIF_SEQUENCES.items() if s}
     assert len(set(non_empty.values())) == len(non_empty)
+
+
+def test_an_unscreenable_enzyme_says_so_rather_than_reporting_clean() -> None:
+    """No warnings from an unknown enzyme is indistinguishable from a clean insert.
+
+    Every shipped scheme's enzyme is in the Type IIS table, but `VectorScheme` is
+    public: a caller cloning into their own vector with a different enzyme got an
+    empty warning list for an insert nobody screened. Silence on a cloning-lethal
+    hazard reads as a pass.
+    """
+    from alleleforge.report.oligos import TYPE_IIS_SITES, VectorScheme, sgrna_oligos
+
+    custom = VectorScheme(
+        name="my-vector",
+        enzyme="Esp3I",
+        top_overhang="CACC",
+        bottom_overhang="AAAC",
+        prepend_g=True,
+    )
+    assert custom.enzyme not in TYPE_IIS_SITES
+    unscreened = sgrna_oligos("CGTCTCACGTACGTACGTA", scheme=custom)
+    assert any(w.startswith("enzyme-not-screened:Esp3I") for w in unscreened.warnings)
+
+    # A known enzyme on a clean insert stays silent, or the flag means nothing.
+    assert sgrna_oligos("ACGTACGTACGTACGTACGT", scheme=LENTIGUIDE_BSMBI).warnings == ()
+
+
+def test_every_shipped_scheme_can_actually_be_screened() -> None:
+    """The table has to cover what the project ships, or the flag above fires on us."""
+    from alleleforge.report.oligos import TYPE_IIS_SITES
+
+    for scheme in (LENTIGUIDE_BSMBI, PX330_BBSI, PEGRNA_GG_BSAI):
+        assert scheme.enzyme in TYPE_IIS_SITES, scheme.name

@@ -155,3 +155,18 @@ bases are written into the genome permanently.
 #### Scenario: Ambiguous donor
 - **WHEN** a donor contains an ambiguous base
 - **THEN** building its order raises rather than emitting an unsynthesizable oligo
+
+### Requirement: An insert that could not be screened says so
+
+The Type IIS site table cannot cover an enzyme it does not know, and `VectorScheme` is
+public — a caller may clone into their own vector. Returning no warnings for such a
+scheme is indistinguishable from a screened, clean insert, and on a cloning-lethal hazard
+silence reads as a pass. An unscreenable enzyme SHALL produce an explicit warning saying
+the insert was not checked.
+
+Every scheme the project ships SHALL be screenable, so that warning never fires on its own
+schemes.
+
+#### Scenario: A caller's own vector
+- **WHEN** oligos are built for a scheme whose enzyme is not in the table
+- **THEN** the order carries a warning that the insert was not screened
