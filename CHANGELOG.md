@@ -2036,6 +2036,13 @@ acceptance.
 
 ### Fixed
 
+- **The documented ensemble size and interval level are pinned to the code.** `N=5` and `80% interval` are
+  restated in six and seven places — the README, the concepts page, the preprint, and the bundled
+  `cas9-efficiency-ensemble` **model card** (both as prose and as `metrics.ensemble_size`). Nothing tied any
+  of them to `DEFAULT_ENSEMBLE_SIZE` / `DEFAULT_INTERVAL_LEVEL`, so changing one constant would have quietly
+  falsified a model card and a preprint with a green suite. A model card that describes an ensemble the code
+  no longer runs is worse than no card, because it looks like disclosure.
+
 - **The frequency-weighted off-target burden reaches a reader.** `expected_burden()` weights each site by
   the probability a genome carries it, so a 0.1%-MAF population hit and a universal reference hit of the same
   raw score — indistinguishable in the frequency-blind `worst_score` and `specificity` — are weighted a

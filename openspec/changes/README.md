@@ -8280,6 +8280,30 @@ SHALL expose X" was true of the class and false of every artifact the report pro
 read each requirement as a claim about what a reader receives, and check it there.**
 
 
+## Round 250 — a small one: the model card's numbers were prose
+
+A short round, and worth recording as such. `DEFAULT_ENSEMBLE_SIZE` and
+`DEFAULT_INTERVAL_LEVEL` are the shipped configuration. They are restated as `N=5` in six
+places and `80% interval` in seven, including `docs/paper/preprint.md` and the bundled
+`cas9-efficiency-ensemble` model card — which states the size twice, once as prose for a
+person and once as `metrics.ensemble_size: 5.0` for a machine. Nothing tied any of them to
+the constants, or to each other.
+
+Everything agrees today. The exposure is that changing one constant falsifies a model card
+and a preprint with a fully green suite, and a model card describing an ensemble the code
+no longer runs is worse than no card: it looks like disclosure. Verified by mutation —
+setting the constants to 7 and 0.90 turns both guards red.
+
+Two things I checked and found already sound, worth noting so a later round does not redo
+them: the card's load-bearing sentence (heads unfitted, so `method=HEURISTIC`) is pinned by
+a real behavioural test over a weight-bearing backbone, and both human renders already
+print the interval level beside every interval rather than leaving a bare `[0.32, 0.71]`.
+
+**Lesson: a number that appears in a model card, a preprint, or a README is a claim about
+the build, and belongs to the same class as an assertion in code. Ask of each: what makes
+this red when the constant moves?**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
