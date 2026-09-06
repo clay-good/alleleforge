@@ -1563,6 +1563,19 @@ acceptance.
 
 ### Fixed
 
+- **A guide with a perfect-match off-target elsewhere in the genome carried no caveat.** The number was
+  always there — a report prints `off-target sites: 2 (specificity 0.376)` — but the CAVEATS block, which is
+  what a reader scans for *what should worry me*, listed spacer GC and bystander bases and said nothing about
+  a nominated site scoring **1.000**. The only off-target caveats were "not searched" and "population
+  specific"; a searched candidate with a plausible cut somewhere else got a lower ranking score and no label.
+  It still comes back `recommended` when it is the only candidate, which is when the caveat matters most.
+  Candidates now carry `offtarget-high:<score>` above a stated triage band, with the score in the flag so a
+  reader judges rather than trusting the band.
+
+  The three verticals had also drifted: cas9 and the base editor flagged `population-offtarget` and prime did
+  not — because prime's flag builder was passed a *boolean* rather than the report, so the information never
+  reached it. All three now derive these from one shared helper, pinned by a test.
+
 - **The CLI reported a defect as a missing package.** Two handlers caught `RuntimeError` to mean "an optional
   dependency is absent" — one for the patient-VCF reader, one around the whole cohort run — so a genuine bug
   in the reader or in `design_many` was reported as an installation problem, telling the user to install

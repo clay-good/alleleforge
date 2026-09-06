@@ -18,6 +18,7 @@ from typing import Protocol
 from alleleforge.data.annotations import EncodeTracks
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
+from alleleforge.design.offtarget_flags import offtarget_flags
 from alleleforge.design.spacer_quality import spacer_quality_flags
 from alleleforge.enumerate.prime import NGG_PAM, enumerate_prime
 from alleleforge.genome.reference import ReferenceGenome
@@ -111,7 +112,7 @@ CLOSE_NICK_NT = 30
 def _flags(
     pegrna: PegRNA,
     efficiency: Prediction[float],
-    run_offtarget: bool,
+    offreport: OffTargetReport | None,
     *,
     chromatin_adjusted: bool = False,
 ) -> tuple[str, ...]:
@@ -126,8 +127,10 @@ def _flags(
     # An unsearched safety axis scores 1.00 in the composite — the reassuring extreme
     # for something nobody measured. The ranking cannot fix that without inventing a
     # policy, so the candidate says plainly that the number is unearned.
-    if not run_offtarget:
-        flags.append("offtarget-not-searched")
+    # Shared with the other two verticals: whether a search ran, whether any nominated
+    # site is high-scoring, and whether population variation contributed. Prime was the
+    # only chemistry never to flag a population off-target, which its siblings did.
+    flags += offtarget_flags(offreport)
     if chromatin_adjusted:
         flags.append("chromatin-adjusted")
     if pegrna.is_epegrna:
@@ -147,7 +150,7 @@ def _flags(
     written = pegrna.templated_edit_length
     if written != 1:
         flags.append(f"templated-edit:{written}nt")
-    if ng is not None and run_offtarget:
+    if ng is not None and offreport is not None:
         flags.append("both-nicks-searched")
     if not efficiency.in_distribution:
         flags.append("ood")
@@ -324,14 +327,19 @@ def design_prime(
             who=scorer.name,
         )
         outcome = predictor.predict(pegrna)
+        # Bound once: the flags and the candidate must describe the same report, and
+        # `_flags` previously received only a boolean — which is why prime was the one
+        # chemistry that never flagged a population off-target. The information had
+        # never reached the flag builder.
+        peg_offtarget = offtarget_for(pegrna)
         candidate = DesignCandidate(
             chemistry=Chemistry.PRIME,
             pegrna=pegrna,
             efficiency=efficiency,
             outcome=outcome.outcome,
-            offtarget=offtarget_for(pegrna),
+            offtarget=peg_offtarget,
             flags=_flags(
-                pegrna, efficiency, run_offtarget, chromatin_adjusted=bool(chromatin_note)
+                pegrna, efficiency, peg_offtarget, chromatin_adjusted=bool(chromatin_note)
             ),
             rationale=(
                 f"pegRNA on {pegrna.placement.strand.value if pegrna.placement else '?'} strand, "

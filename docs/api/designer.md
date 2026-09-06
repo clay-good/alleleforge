@@ -79,3 +79,10 @@ Pol III transcription caveats, shared by every chemistry — they are properties
 spacer as a transcribed reagent, not of the chemistry holding it.
 
 ::: alleleforge.design.spacer_quality
+
+## Shared candidate caveats
+
+Off-target caveats are a property of the spacer against the genome, not of the
+chemistry carrying it, so every vertical derives them from one helper.
+
+::: alleleforge.design.offtarget_flags

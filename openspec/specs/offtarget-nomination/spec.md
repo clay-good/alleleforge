@@ -284,3 +284,16 @@ fraction of. A search over zero bases SHALL state that plainly beside its number
 #### Scenario: A truncated reference
 - **WHEN** the reference holds a contig with no sequence
 - **THEN** the report says no sequence was searched, rather than presenting a clean result
+
+### Requirement: A high-scoring off-target raises a caveat
+
+A candidate whose off-target search nominated a site at or above the triage band SHALL
+carry a caveat naming the score, on every chemistry. The ranking already consumes the
+score — the safety objective falls toward zero — but ranking is a comparison, so the
+sole candidate for a variant is still recommended, and a reader scanning for hazards
+sees only the caveats block.
+
+#### Scenario: A perfect-match site elsewhere in the genome
+- **WHEN** a nominated off-target scores at or above the band
+- **THEN** the candidate carries `offtarget-high:<score>` and the report renders it as
+  a caveat, whichever chemistry produced the guide

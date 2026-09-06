@@ -16,6 +16,7 @@ from typing import Protocol
 
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
+from alleleforge.design.offtarget_flags import offtarget_flags
 from alleleforge.design.spacer_quality import spacer_quality_flags
 from alleleforge.enumerate.cas9 import (
     NGG_PAM,
@@ -116,8 +117,6 @@ def _flags(
         flags.append(f"relaxed-pam:{guide.pam.pattern}")
     if not efficiency.in_distribution:
         flags.append("ood")
-    if offreport is not None and offreport.population_sites:
-        flags.append("population-offtarget")
     if precise:
         # A precise nuclease candidate is only a complete reagent with its repair
         # template. Say which of the three states it is in, rather than let a bare
@@ -134,10 +133,10 @@ def _flags(
         flags.append("outcome-is-nhej-spectrum")
     # Pol III transcription caveats: a property of the spacer as a transcribed reagent,
     # not of the chemistry, so every vertical applies the same check.
-    if offreport is None:
-        # Same reason as the prime vertical: `_safety` returns 1.0 with no report, so
-        # the composite awards a full safety score for an axis that was not examined.
-        flags.append("offtarget-not-searched")
+    # `_safety` returns 1.0 with no report, so the composite awards a full safety score
+    # for an axis nobody examined — and a *searched* candidate with a high-scoring site
+    # had no caveat at all, only a lower number. Both come from one shared helper now.
+    flags += offtarget_flags(offreport)
     flags += spacer_quality_flags(str(guide.spacer.sequence))
     return tuple(flags)
 

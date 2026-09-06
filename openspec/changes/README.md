@@ -5124,6 +5124,42 @@ caught R169's miss on the day it happened.
 round found them by accident, while narrowing something that depended on the sweep being finished. When a
 change has the form "convert every X to Y", the commit is not done until a check enumerates X.**
 
+## Round 171 — reading the leave-behind
+
+The PDF is the artifact that travels: printed, mailed, stapled to a protocol. I had checked it for external
+references (R163) and never actually read one. So I rendered one and read it.
+
+Most of it is good, and this session is visible in it — R157's prime diagnosis, R153's scorer citation,
+R155's intended allele shown at p=0.048 marked `(intended)`, R136's coordinate note in the provenance
+footer. Then the ranking line:
+
+    ABE8e sgRNA on + strand; P(exact)=0.05 … [eff 0.20 [0.05, 0.35], clean 0.05, safe 0.00, simple 0.90]
+
+**`safe 0.00`** — on a candidate the same page marks `recommended` and `Pareto-optimal`. The safety objective
+is at its floor, and the caveats printed above it are about spacer GC content and bystander bases. Nothing on
+the page says why safety is zero. The reason is two lines up: `off-target sites: 2 (specificity 0.376)`, one
+of them scoring **1.000** — a perfect match elsewhere in the genome.
+
+The only off-target caveats were `offtarget-not-searched` and `population-offtarget`. There was **no flag for
+a high-scoring site**. A guide whose search ran and found a plausible cut somewhere else got a lower ranking
+number and no label — and the ranking is a comparison, so when it is the only candidate it is still returned
+`recommended`, with the hazard visible only to a reader who knows that `safe 0.00` and `specificity 0.376`
+are the same fact.
+
+Checking the siblings found the second half. cas9 and the base editor emit `population-offtarget`; prime does
+not — and the reason is not an oversight in a list, it is that prime's `_flags` receives a **boolean**
+`run_offtarget` rather than the report. The information never reached the flag builder, so no amount of
+reading that function would show what was missing.
+
+One shared helper now, used by all three, with the score carried in the flag so the reader judges rather than
+trusting the band. The R98 guard caught me immediately for adding a hazard flag with no caveat text behind
+it, which is the check working as intended.
+
+**Lesson: a number at its floor is a claim, and nobody reads it as one. `safe 0.00` was correct, derived
+correctly, printed honestly, and consumed correctly by the ranking — and it still failed to warn anyone,
+because a reader scans the section headed CAVEAT. When a value is at the extreme of its range, ask whether
+anything says so in the register a reader is actually reading.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
