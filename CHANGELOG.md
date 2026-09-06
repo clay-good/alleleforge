@@ -1517,6 +1517,17 @@ acceptance.
 
 ### Changed
 
+- **The innermost comparison of the off-target scan stops once the mismatch budget is blown.**
+  `_best_ungapped` priced all twenty positions with a `sum()` over a generator and then compared against the
+  budget — about half a million calls over 2 Mb, and 10.5M generator iterations, the largest single cost in a
+  profile of the scan. Stopping early is exactly equivalent, since an over-budget alignment is discarded and
+  its true count never read; on random sequence a 4-mismatch budget is blown after about six positions.
+  Measured **60% faster in isolation** at the default budget (51% at 6), and **10–16% off a whole scan**
+  depending on the bulge configuration. Results are byte-identical — the reproducibility golden is unchanged —
+  and a randomized differential against the naive full-count definition now pins that. The same reasoning was
+  already written out in `_best_with_removed_base` directly below it, which stops its prefix pass on the same
+  condition; this function had simply never been given it.
+
 - **`aforge batch` exits non-zero when any item failed.** Per-item isolation is the feature — every item runs,
   the manifest stays complete, one bad variant does not abandon the other four hundred — but reporting
   *success* for a run that failed items is not part of it. A 500-item run where 200 errored exited 0, so a

@@ -6396,6 +6396,58 @@ expensive path was the *rejection* rather than the acceptance. Worth asking of a
 what happens on the branch where it fires.**
 
 
+## Round 205 — profiling, after concluding there was nothing left
+
+The previous round ended by reporting that the audit's yield had fallen and that
+everything else was blocked outside the repo. Both halves were true and the conclusion
+drawn from them was wrong: "this query family is exhausted" is not "there is no work".
+Two veins had been dismissed without being looked at.
+
+The docs one came back clean, and pleasantly. `docs/` does not mention the PAM fallbacks,
+the search extent or the render cap — but it is deliberately thin, with the README as the
+reference, so a missing mention is not a defect. What matters is whether it says anything
+*false*, and the one place it makes a behavioural promise —
+
+    an off-target report ... labelled reference-only when you do not [supply a source],
+    because an empty ancestry breakdown means *not measured*, not *clean*
+
+— was **false until R190** and is true now. The documentation was ahead of the code and
+the code caught up.
+
+The performance vein was real. Profiling a 2 Mb scan:
+
+    501,262 calls  _best_ungapped
+    10,526,502     the genexpr inside its sum()      <- largest single cost
+
+`_best_ungapped` priced all twenty positions and then compared against the budget. Its
+immediate neighbour, `_best_with_removed_base`, already stops its prefix pass the moment
+the budget is blown, and explains in its docstring why that is safe and why it matters
+("on a random window that is after a handful of bases"). The technique was known, written
+down, and sitting ten lines below the function that did not use it.
+
+Measuring it honestly took longer than fixing it, and the first three attempts disagreed:
+
+    cross-process, min-of-5      ungapped +16%   default +10%
+    interleaved in one process   ungapped +40%   default +12%
+    isolated microbenchmark      +60% at max_mm=4, +51% at max_mm=6
+
+The 40% was contaminated — the same "old" implementation timed 6.5s there and 1.5s
+across processes — so it was discarded rather than reported. What is defensible: the
+function is about 60% faster at the default budget, and a whole scan is 10-16% faster
+depending on bulge configuration, because the function is one part of the work. The
+project's own note warns that cross-run timings are not baselines; this round is the case
+that warning was written for.
+
+The reproducibility golden is unchanged, which is the real proof of equivalence, and a
+randomized differential against the naive full-count definition now pins it.
+
+**Lesson: "the yield of my current method has fallen" is a statement about the method. I
+had been running one query family for eighteen rounds and mistook its exhaustion for the
+absence of work — while a 60% win sat in the innermost loop of the hot path, and the
+technique to find it was already written in the docstring of the adjacent function. When a
+vein runs dry, change the instrument before concluding the mine is empty.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

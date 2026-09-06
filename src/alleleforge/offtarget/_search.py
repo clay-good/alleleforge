@@ -162,8 +162,13 @@ def _reindex_alt_hits(
 
 def _best_ungapped(spacer: str, window: str, max_mm: int) -> int | None:
     """Return the mismatch count of an equal-length alignment, or ``None``."""
-    mm = sum(a != b for a, b in zip(spacer, window, strict=True))
-    return mm if mm <= max_mm else None
+    mm = 0
+    for a, b in zip(spacer, window, strict=True):
+        if a != b:
+            mm += 1
+            if mm > max_mm:
+                return None
+    return mm
 
 
 def _best_with_removed_base(longer: str, shorter: str, max_mm: int) -> tuple[int, str] | None:
