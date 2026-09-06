@@ -131,3 +131,27 @@ def test_a_percent_scaled_frequency_column_is_refused() -> None:
     assert PopulationFrequency(
         chrom="chr2", pos=1, ref="A", alt="G", overall_af=1.0, populations={"afr": 1.0}
     )
+
+
+def test_available_populations_is_computed_once() -> None:
+    """It is a full scan of the database and `search()` asks once per candidate.
+
+    Measured over 200,000 records the scan costs ~49 ms, so a 470-candidate prime
+    menu paid about 23 seconds for a label — and a real per-chromosome gnomAD file is
+    an order of magnitude larger again. The database is immutable once constructed, so
+    the answer is cached; this pins that rather than the timing, which is
+    machine-dependent.
+    """
+    db = GnomadDB(
+        [
+            PopulationFrequency(
+                chrom="chr1", pos=i, ref="A", alt="G", overall_af=0.05, populations={"afr": 0.1}
+            )
+            for i in range(50)
+        ]
+    )
+    first = db.available_populations
+    assert first == frozenset({"afr"})
+    # Identity, not equality: a recomputed frozenset would be equal but not the same
+    # object, so this fails if the cache is removed.
+    assert db.available_populations is first

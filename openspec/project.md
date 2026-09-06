@@ -86,6 +86,13 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
   overlay, grep for the other ones first. The older implementation has usually already
   paid for the lesson, and its docstring is where the lesson is written down.
 
+- **A label about a scan costs per call; a scan costs per genome.** `search()` runs once
+  per *candidate* (a prime menu has hundreds), so anything O(dataset) added inside it for
+  reporting purposes is O(dataset x candidates) in production and invisible in tests,
+  where every fixture is tiny. Two such regressions shipped before being measured (R126:
+  23 s and 19% of a search). Before adding an explanation to a function, ask how often
+  the function runs, and measure at the size of the real input.
+
 - **When deleting an "unreachable" branch, ask whose invariant makes it unreachable.**
   A mutation run showing "no test can distinguish this" proves the branch is unreachable
   *given current behaviour*, which is only a guarantee when the behaviour is ours. In

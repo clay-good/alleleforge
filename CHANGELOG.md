@@ -10,6 +10,19 @@ acceptance.
 
 ### Fixed
 
+- **Two performance regressions in the safety-labelling work of recent changes, both in `search()` — which
+  runs once per *candidate*, so a 470-candidate prime menu multiplies them by 470.**
+
+  `GnomadDB.available_populations` scanned the entire database on every call. Measured over 200,000 records
+  that is 49 ms, so one design paid **~23 seconds** for a label, and a real per-chromosome gnomAD file is an
+  order of magnitude larger again. It is now computed once — the database is immutable after construction.
+
+  The haplotype and patient-VCF coverage counts re-derived the canonical contig for every
+  (entry, region) pair. On a 2,000-haplotype panel that was **19% of an entire search**; indexing the regions
+  by contig once brings it to 4% (333 ms → 292 ms against a 280 ms baseline).
+
+### Fixed
+
 - **The searchable-base count allocated a full copy of every scanned region.** It upper-cased each region
   before counting; on a whole chromosome that is a **~250 MB transient** on top of the sequence already
   held, in a path whose design is explicitly bounded-memory. Measured on a 20 Mb region: the copy costs

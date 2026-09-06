@@ -18,6 +18,7 @@ population variants with **MAF ≥ 0.001** in any queried population.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Iterable, Sequence
 
 from alleleforge.data.gnomad import GnomadDB
@@ -458,28 +459,26 @@ def search(
     # the fact, so "did this source cover the search?" is asked here against the same
     # regions. Same three states as gnomAD above: a panel supplied for another locus
     # yields 0 and must not read like a panel that had nothing to say.
-    if haplotype_list:
-        sources_considered["haplotypes"] = sum(
-            1
-            for hap in haplotype_list
-            if any(
-                any(
-                    canonical_contig(v.chrom) == canonical_contig(r.chrom)
-                    and r.start <= v.pos < r.end
-                    for r in search_regions
-                )
-                for v in hap.variants
+    if haplotype_list or patient_vcf is not None:
+        # Index the regions by canonical contig once. The obvious nested-any version
+        # re-derives `canonical_contig` for every (entry, region) pair, which on a
+        # 2,000-haplotype panel cost ~19% of a whole search — and `search()` runs once
+        # per candidate, so a 470-candidate menu paid ~25 s for a label.
+        spans: dict[str, list[tuple[int, int]]] = defaultdict(list)
+        for region in search_regions:
+            spans[canonical_contig(region.chrom)].append((region.start, region.end))
+
+        def _covered(chrom: str, pos: int) -> bool:
+            return any(lo <= pos < hi for lo, hi in spans.get(canonical_contig(chrom), ()))
+
+        if haplotype_list:
+            sources_considered["haplotypes"] = sum(
+                1 for hap in haplotype_list if any(_covered(v.chrom, v.pos) for v in hap.variants)
             )
-        )
-    if patient_vcf is not None:
-        sources_considered["patient-vcf"] = sum(
-            1
-            for v in patient_vcf
-            if any(
-                canonical_contig(v.chrom) == canonical_contig(r.chrom) and r.start <= v.pos < r.end
-                for r in search_regions
+        if patient_vcf is not None:
+            sources_considered["patient-vcf"] = sum(
+                1 for v in patient_vcf if _covered(v.chrom, v.pos)
             )
-        )
     tagged.extend(
         enumerate_haplotype_sites(
             sp,

@@ -14,6 +14,7 @@ the gnomAD VCF), normalized to 0-based on read.
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Sequence
+from functools import cached_property
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -142,7 +143,7 @@ class GnomadDB:
                 populations=pops,
             )
 
-    @property
+    @cached_property
     def available_populations(self) -> frozenset[str]:
         """Return every ancestry label any record in this source carries.
 
@@ -150,6 +151,12 @@ class GnomadDB:
         an ancestry the source has no column for silently contributes nothing, while
         provenance records it among the populations considered — so the report asserts
         an ancestry was examined when no data for it exists.
+
+        Cached: this is a full scan of the database, and ``search()`` asks for it once
+        per call — which is once per *candidate* in a design. Measured over 200,000
+        records it costs 49 ms, so a 470-candidate prime menu paid 23 seconds for a
+        label, and a real per-chromosome gnomAD file is an order of magnitude larger.
+        The database is immutable once constructed, so one computation is enough.
         """
         return frozenset(
             pop for recs in self._by_chrom.values() for rec in recs for pop in rec.populations

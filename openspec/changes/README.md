@@ -3618,6 +3618,34 @@ is now legacy nobody is looking at, and I had added a quarter-gigabyte allocatio
 measuring. And when deleting an "unreachable" branch, ask *whose* invariant makes it unreachable. Deleting
 defensive code is right when the guarantee is local and wrong when it belongs to a dependency.**
 
+## Round 126 — the cost of being careful
+
+R125 ended on "audit your own recent changes for cost", having found a 250 MB allocation I added ten rounds
+earlier. Run properly over rounds 84–125, that query found two more, both worse.
+
+The last dozen rounds have added a lot of *labelling* to `search()` — which sources covered the region,
+which ancestries are backed, how many bases were searchable. Every one of those is cheap in isolation. But
+`search()` runs **once per candidate**, and a realistic prime menu has 470 candidates. Anything O(database)
+inside it is O(database × candidates) in practice.
+
+`GnomadDB.available_populations`, added six rounds ago to name unbacked ancestries, scans every record on
+every call. Over 200,000 records that is 49 ms; times 470 candidates, **23 seconds added to one design** —
+and a per-chromosome gnomAD file is an order of magnitude bigger. For a label. It is now computed once; the
+database is immutable after construction, so there was never a reason to recompute.
+
+The haplotype and patient coverage counts, added nine rounds ago, re-derived `canonical_contig` for every
+(entry, region) pair. On a 2,000-haplotype panel that is 19% of an entire search. Indexing the regions by
+contig once takes it to 4%.
+
+Neither was visible in the test suite, because every fixture is small. Both were visible in one minute of
+measurement with a realistic-sized input.
+
+**Lesson: honesty features have a cost profile of their own, and it is the opposite of the code they
+annotate. A scan is written to run once per genome; a *label* about that scan gets written wherever the
+answer is needed, which is per call — and per call means per candidate. When adding an explanation to a
+function, ask how often the function runs, not how expensive the explanation looks. And measure at the size
+of the real input: a fixture with ten records makes an O(n) scan indistinguishable from a constant.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
