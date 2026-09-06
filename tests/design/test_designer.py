@@ -972,3 +972,64 @@ def test_a_chromatin_track_without_tracks_is_refused(make_reference: MakeRef) ->
     menu = design("chr2:26:A>G", reference=ref, intent=EditIntent.INSTALL)
     assert menu.provenance is not None
     assert menu.provenance.config_snapshot.get("chromatin_track") is None
+
+
+def test_declined_chemistries_are_explained_even_when_others_succeed(
+    make_reference: MakeRef,
+) -> None:
+    """The reasons were computed either way and shown only when nothing was eligible.
+
+    "base_abe=no" is least actionable precisely for the reader who needed a base
+    editor — someone avoiding a double-strand break, who now sees a prime candidate and
+    no statement of why the chemistry they wanted declined.
+    """
+    ref = _abe_ref(make_reference)
+    menu = design("chr2:26:A>G", reference=ref, intent=EditIntent.INSTALL)
+
+    assert menu.candidates, "this fixture must produce candidates for the check to bite"
+    rationale = menu.rationale or ""
+    assert "Why the other chemistries declined:" in rationale
+    # Every chemistry the routing said "no" to is named with its reason.
+    routed_no = [
+        part.split("=")[0]
+        for part in rationale.splitlines()[0].removeprefix("Routing: ").rstrip(".").split(", ")
+        if part.endswith("=no")
+    ]
+    assert routed_no, "the fixture routes every chemistry in; pick another"
+    for chemistry in routed_no:
+        assert f"- {chemistry}:" in rationale, f"{chemistry} declined with no reason given"
+
+
+def test_the_all_declined_headline_is_kept(make_reference: MakeRef) -> None:
+    """When nothing is eligible the stronger sentence still leads."""
+    contig = "A" * 40 + "ACACACACACACACACACAC" * 5 + "A" * 40
+    ref = make_reference({"chr1": contig})
+    menu = design(f"chr1:61:{contig[60]}>T", reference=ref, intent=EditIntent.INSTALL)
+
+    rationale = menu.rationale or ""
+    if "Eligible and run: none" in rationale:
+        assert "No chemistry can make this edit." in rationale
+
+
+def test_a_declined_line_is_trimmed_when_a_menu_exists() -> None:
+    """A paragraph per declined chemistry in every report buries the candidates.
+
+    The SpCas9 routing rationale runs to 540 characters. Beside a real menu the reader
+    wants to know *whether* to look further, not to read the full case; when nothing is
+    eligible that text is the entire content and is kept whole.
+    """
+    from alleleforge.design.designer import _first_sentence
+
+    long_text = (
+        "An SpCas9 double-strand break yields frameshifting indels. For a precise edit "
+        "the break needs an HDR donor and is strictly worse than the break-free routes."
+    )
+    assert (
+        _first_sentence(long_text) == "An SpCas9 double-strand break yields frameshifting indels."
+    )
+    # A single-sentence rationale survives whole, trailing period and all.
+    assert (
+        _first_sentence("Eligible only for a transition SNV.")
+        == "Eligible only for a transition SNV."
+    )
+    assert _first_sentence("  no terminal period  ") == "no terminal period"

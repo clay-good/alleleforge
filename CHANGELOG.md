@@ -1576,6 +1576,14 @@ acceptance.
 
 ### Fixed
 
+- **A declined chemistry gave no reason unless *every* chemistry declined.** The routing rationales were
+  computed either way and shown only for an empty menu. `base_abe=no` is least actionable precisely for the
+  reader who needed a base editor — someone avoiding a double-strand break, who sees a prime candidate and no
+  statement of why the chemistry they wanted was unavailable. Declines are now always explained. Beside a
+  real menu the first sentence only: the SpCas9 rationale runs to 540 characters, and a paragraph per
+  declined chemistry in every report buries the candidates; where nothing is eligible that text is the whole
+  content and is kept whole.
+
 - **An edit that changes nothing reported "no candidate was examined".** Prime enumeration refuses three
   things before it examines any protospacer — a no-op edit, an edit longer than prime editing spans, a
   desired allele no RTT can carry — and all three fell through to the empty-tally placeholder. A user who

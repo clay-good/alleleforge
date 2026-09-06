@@ -696,6 +696,23 @@ def _clinical_notes(resolved: ResolvedVariant, intent: EditIntent) -> list[str]:
     return notes
 
 
+def _first_sentence(text: str) -> str:
+    """Return ``text`` up to its first sentence end, or the whole of a short one.
+
+    Used for the declined-chemistry lines that appear beside a non-empty menu. The
+    routing rationales are written as full explanations — the SpCas9 one is a
+    paragraph — and repeating that for every chemistry in every report drowns the
+    candidates. The opening sentence carries the chemistry's role, which is what a
+    reader asking "why not that one?" needs before deciding to look further.
+    """
+    stripped = text.strip()
+    for end in (". ", ".\n"):
+        head, sep, _ = stripped.partition(end)
+        if sep:
+            return head + "."
+    return stripped
+
+
 def _menu_rationale(
     decisions: list[ChemistryDecision],
     eligible: list[Chemistry],
@@ -709,13 +726,24 @@ def _menu_rationale(
         f"Routing: {routed}.",
         f"Eligible and run: {eligible_str}.",
     ]
-    if not eligible:
-        # An empty menu is the one case where the yes/no summary tells the reader
-        # nothing they can act on. The per-rule rationales already exist and
-        # explain exactly which biological or budget constraint each chemistry hit;
-        # surface them here rather than leave a blank menu unexplained.
-        lines.append("No chemistry can make this edit. Why each declined:")
-        lines += [f"- {d.chemistry.value}: {d.rationale}" for d in decisions]
+    declined = [d for d in decisions if d.chemistry not in eligible]
+    if declined:
+        # Always, not only when the menu is empty. The rationales are computed either
+        # way and explain exactly which biological or budget constraint each chemistry
+        # hit — and "base_abe=no" is least actionable precisely for the reader who
+        # needed a base editor: someone avoiding a double-strand break, who now sees a
+        # prime candidate and no statement of why the chemistry they wanted declined.
+        # Full rationales when nothing is eligible — there the menu is empty and this
+        # *is* the content. When something did succeed, the first sentence only: the
+        # cas9 rationale runs to 540 characters, and a paragraph per declined chemistry
+        # in every report buries the result the reader came for. The first sentence is
+        # the one that names the chemistry's role and why it is or is not the route.
+        if not eligible:
+            lines.append("No chemistry can make this edit. Why each declined:")
+            lines += [f"- {d.chemistry.value}: {d.rationale}" for d in declined]
+        else:
+            lines.append("Why the other chemistries declined:")
+            lines += [f"- {d.chemistry.value}: {_first_sentence(d.rationale)}" for d in declined]
     lines += [f"- {note}" for note in notes]
     lines.append(ranking_rationale)
     return "\n".join(lines)

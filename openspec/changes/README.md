@@ -5546,6 +5546,33 @@ has to cover the returns that happen before the search starts. I built the tally
 loop was where I was reading — the same mistake as putting a guard in the shell where I noticed the problem
 (R178). Both times the fix was one frame up from where I was looking.**
 
+## Round 185 — the roads not taken
+
+Swept the sibling enumerators for R184's silent early returns, immediately rather than a round later. cas9
+has none — its scan returns whatever it finds. The base editor has one (`variant_class is not SNV`), and it
+is unreachable from the design path because routing already excludes base editors for a non-SNV, with a
+reason. Clean bill, and the check that produced it surfaced something one level up.
+
+Routing prints `base_abe=no, base_cbe=no, prime=yes` and — when at least one chemistry *is* eligible — stops
+there. The per-chemistry rationales exist; they were shown only for an empty menu, on the reasoning that
+"an empty menu is the one case where the yes/no summary tells the reader nothing they can act on". That
+reasoning is half right. `base_abe=no` is least actionable precisely for the reader who *needed* a base
+editor — someone avoiding a double-strand break — who now has a prime candidate and no statement of why the
+chemistry they wanted declined.
+
+Making it always-on immediately showed why it had not been: the SpCas9 rationale is **540 characters**, a
+full paragraph on why HDR is a last resort, and repeating it in every report drowns the result. The
+reproducibility gate caught the change and printed the new rationale in full, which is how I saw the size of
+it rather than discovering it later in a rendered report.
+
+So: first sentence beside a real menu, full text where nothing is eligible and that text is the content.
+162 characters instead of 540, and the eligibility clause survives.
+
+**Lesson: I nearly reverted this outright when the first version made every report worse — and "the
+information is valuable but this presentation is not" is a third option that is easy to skip past under a
+binary framing. The gate showing me the *actual new output* is what made the middle path visible; without
+it I would have shipped the paragraph or dropped the feature.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
