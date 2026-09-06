@@ -348,3 +348,97 @@ def test_the_synthetic_flag_is_part_of_the_scientific_claim(fixed_ts: datetime) 
 
     as_real = {**body, "dataset_is_synthetic": False}
     assert reproducibility_digest(body) != reproducibility_digest(as_real)
+
+
+def _resigned(base: BenchmarkResult, **updates: object) -> BenchmarkResult:
+    """Return ``base`` with ``updates`` applied and a freshly valid signature.
+
+    A submission arrives as a signed JSON record from an outside lab; the signature
+    is a content hash, so any submitter can produce a well-formed result for any
+    split, metric, or corpus. This builds one the way an external submitter would.
+    """
+    from alleleforge.benchmark._canon import content_hash
+
+    body = base.model_dump(mode="json")
+    body.update(updates)
+    body.pop("signature", None)
+    return BenchmarkResult(**body, signature=content_hash(body))
+
+
+def _board_with(entries: list[tuple[str, BenchmarkResult]], ts: datetime) -> Leaderboard:
+    """Return a board holding one single-result submission per (submitter, result)."""
+    board = Leaderboard()
+    for name, result in entries:
+        model = ModelInfo(name=name, version="1", license="MIT", citation="cite")
+        board.add(
+            Submission(
+                submitter=name,
+                model=model,
+                results=(_resigned(result, model=model.model_dump(mode="json")),),
+                submitted_at=ts,
+            )
+        )
+    return board
+
+
+def test_a_rank_never_crosses_a_comparison_group(fixed_ts: datetime) -> None:
+    """The board printed one 1-2-3 column over three incomparable populations.
+
+    Every *cell* was honest and labelled — the split version was shown, the synthetic
+    stand-in was marked. The **rank** was the lie: a model scoring 0.91 on the
+    synthetic fixture was printed as rank 1 above a model scoring 0.42 on a real
+    corpus, and a third measured on a different frozen split sat between them. No
+    field was wrong; their juxtaposition asserted an ordering nothing measured.
+    """
+    base = _baseline_result("cas9-efficiency", fixed_ts)
+    board = _board_with(
+        [
+            ("HonestLab", _resigned(base, primary_value=0.42, dataset_is_synthetic=False)),
+            ("SynthCo", _resigned(base, primary_value=0.91, dataset_is_synthetic=True)),
+            (
+                "SplitTwo",
+                _resigned(base, primary_value=0.77, dataset_is_synthetic=False, split_version="v2"),
+            ),
+        ],
+        fixed_ts,
+    )
+
+    groups = board.comparison_groups("cas9-efficiency")
+    assert len(groups) == 3  # three populations, three rankings
+    assert all(len(ranked) == 1 for _, ranked in groups)
+    # Real corpora lead; the synthetic stand-in is last.
+    assert [g.synthetic for g, _ in groups] == [False, False, True]
+
+    md = board.render_markdown()
+    # Each row is rank 1 *of its own group* — nobody is ranked above anybody else.
+    for value in ("0.4200", "0.7700", "0.9100"):
+        line = next(ln for ln in md.splitlines() if value in ln)
+        assert line.startswith("| 1 |"), line
+    assert "not comparable across groups" in md
+    assert "not comparable across groups" in board.render_html()
+
+
+def test_scores_on_different_metrics_are_not_ranked_against_each_other(
+    fixed_ts: datetime,
+) -> None:
+    """A submitted result names its own primary metric, and the board trusted the first.
+
+    Sort direction and the score column's header both came from ``entries[0]``, so a
+    submission carrying a different metric for the same task was sorted by another
+    metric's direction and printed under another metric's name.
+    """
+    base = _baseline_result("cas9-efficiency", fixed_ts)
+    board = _board_with(
+        [
+            ("Ranker", _resigned(base, primary_metric="spearman", primary_value=0.30)),
+            ("Classifier", _resigned(base, primary_metric="auroc", primary_value=0.95)),
+        ],
+        fixed_ts,
+    )
+
+    groups = board.comparison_groups("cas9-efficiency")
+    assert {g.primary_metric for g, _ in groups} == {"spearman", "auroc"}
+    md = board.render_markdown()
+    # Each metric heads its own table rather than one column labelled with the other.
+    assert "| Rank | Model | Submitter | spearman ↑ |" in md
+    assert "| Rank | Model | Submitter | auroc ↑ |" in md

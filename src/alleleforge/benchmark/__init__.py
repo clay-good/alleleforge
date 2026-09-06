@@ -23,6 +23,7 @@ from __future__ import annotations
 from alleleforge.benchmark.baseline import BaselineScorer, build_baseline
 from alleleforge.benchmark.datasets import BenchmarkDataset, load_dataset
 from alleleforge.benchmark.leaderboard import (
+    ComparisonGroup,
     Leaderboard,
     Submission,
     SubmissionError,
@@ -49,6 +50,7 @@ __all__ = [
     "BenchmarkResult",
     "Example",
     "GeneralizationGap",
+    "ComparisonGroup",
     "Leaderboard",
     "ModelInfo",
     "Split",

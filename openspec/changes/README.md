@@ -3891,6 +3891,40 @@ up cost two minutes; reporting it would have been wrong in public.
 `skipped` were both honest and individually documented, and their juxtaposition was the lie — nothing in
 either field's definition is wrong, and no test of either one alone would have caught it.**
 
+## Round 135 — the rank column was the claim
+
+Straight application of R134's lesson: sweep for numbers presented together that were computed over
+different populations. The candidate pairs in the benchmark result all checked out — `n_test` and
+`n_out_of_distribution` really do range over the same scored examples, and the regression ECE's
+count-weighted average has no reachable path where an undefined level dilutes the denominator (the guard
+is defensive; groups are built by appending, so none is empty). Recorded as negative results.
+
+The leaderboard was a different story, and it is not a *field* that mixes populations — it is the **rank**.
+
+`rankings()` sorted every entry for a task into one 1-2-3 column regardless of which frozen split it was
+measured on, which corpus, or even which metric. Built the board and looked at it: a model scoring 0.91 on
+the bundled *synthetic* fixture printed as **rank 1**, above a model scoring 0.42 on a real corpus, with a
+third measured on a different split sitting between them. Every cell was honest. The split version was in
+its column, the synthetic row carried its `**(synthetic)**` mark. The ordering was the lie, and the module's
+own docstring said ranking synthetic against real is "the one thing a leaderboard must not do silently" —
+the fix that had been applied was a *label*, and a label does not stop a rank.
+
+Two further consequences of the same root: sort direction and the score column's header both came from
+`entries[0]`, so a submission naming a different primary metric for the same task was sorted by another
+metric's direction and printed under another metric's name. A submission is externally supplied and
+self-hashed, so that is reachable from untrusted input, not hypothetical.
+
+Introduced `ComparisonGroup` — `(primary_metric, split_version, dataset_is_synthetic)`, the population a
+score was measured over and the unit a rank is valid within. `comparison_groups(task)` ranks within each and
+orders groups real-corpus-first; `rankings()` concatenates them and says in its docstring that position is a
+rank only within a group. Both renderers emit one captioned table per group with the count restarting at 1,
+and a task spanning more than one gets an explicit "not comparable across groups" note.
+
+**Lesson: an aggregate can be a claim even when it is not a number. Every cell on that board was labelled
+and correct, and the labels were added precisely to stop this — but the rank is an assertion of its own, and
+no amount of annotating the rows retracts it. When a fix is "we now show X," ask what the surrounding
+presentation still asserts on its own.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

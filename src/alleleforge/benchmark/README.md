@@ -102,8 +102,10 @@ print(board.render_markdown())
   Spaces / Polaris compatible, displaying each entry's accuracy metric,
   calibration (ECE), and split version.
 - **External submissions:** accepted with a model card; results must verify their
-  signatures. The split version is shown next to every score so cross-version
-  comparisons are never silently mixed.
+  signatures. Ranks never cross a **comparison group** — the
+  `(primary_metric, split_version, dataset_is_synthetic)` triple a score was
+  measured under — so the board renders one table per group and a cross-split or
+  synthetic-vs-real ordering is never asserted.
 - **Lab outreach:** seed the board with the reference baseline and AlleleForge's
   own scorers, then invite the groups behind the source datasets to submit their
   models against the frozen cross-context splits.

@@ -10,6 +10,16 @@ acceptance.
 
 ### Fixed
 
+- **The leaderboard ranked scores that were never comparable.** `rankings()` put every entry for a task
+  into one 1-2-3 column regardless of the frozen split it was measured on, the corpus (real vs the bundled
+  synthetic stand-in), or even the metric — so a model scoring 0.91 on the synthetic fixture printed as
+  **rank 1** above a model scoring 0.42 on a real corpus. Each cell was honest and labelled; the ordering
+  was not. Ranks now hold only within a `ComparisonGroup` —
+  `(primary_metric, split_version, dataset_is_synthetic)` — and both renderers emit one captioned, separately
+  ranked table per group, with a "not comparable across groups" note when a task spans several. This also
+  fixes sort direction and the score column's header, which were both taken from the first entry and so
+  could sort one submission's metric by another's direction.
+
 - **A resumed cohort's counts described two different populations and could not be added.** `skipped` was
   `len(done)` — the size of the *manifest file*, not the number of requested items already recorded — while
   `total` counted only what this run processed. Reusing a manifest across a narrower variant list therefore

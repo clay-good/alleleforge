@@ -176,6 +176,28 @@ deterministic tie-breaks.
 - **WHEN** a submission omits a license
 - **THEN** it is rejected before any entry is created
 
+### Requirement: A rank never crosses a comparison group
+
+A leaderboard rank SHALL be computed only within a comparison group — the
+`(primary_metric, split_version, dataset_is_synthetic)` triple a score was measured
+under. Entries from different groups SHALL NOT be interleaved in one ordering, and a
+rendered board SHALL present one ranked table per group, labelled with the group, plus
+a note when a task spans more than one.
+
+Labelling a row is not enough: showing the split version and a `(synthetic)` mark
+beside a score leaves the rank column itself asserting an ordering across populations
+that nothing measured.
+
+#### Scenario: A synthetic score above a real one
+- **WHEN** one model scores 0.91 on the synthetic stand-in and another 0.42 on a real
+  corpus, for the same task
+- **THEN** each is rank 1 of its own group, and neither is ranked above the other
+
+#### Scenario: Two metrics for one task
+- **WHEN** two submissions for a task name different primary metrics
+- **THEN** each metric heads its own table, sorted by its own direction, rather than
+  one column labelled with the first submission's metric
+
 ### Requirement: The generalization gap is orientation-corrected
 
 The reported generalization gap SHALL be orientation-corrected so a positive value always
