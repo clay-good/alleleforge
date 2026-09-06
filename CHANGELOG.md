@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **The audit log is navigable again, and pinned.** `openspec/changes/README.md` ran ascending for rounds
+  1–134 and then **descending** for 135–145, because each of those rounds prepended its entry ahead of the
+  previous one — the log read chronologically and then reversed. Two round numbers (50, 71) had shipped work
+  and were cited by later entries but had no section at all; both are now written from their commits and
+  labeled as reconstructions. Round 117 turns out to be a skipped *number*, not lost work — R116's entry
+  covers it — and that is now recorded where a reader following the citation looks. Tests pin ascending order
+  and that every number in the range resolves to an entry or to a documented, still-accurate skip.
+
 - **The changelog was an append-only log, not a changelog.** `[Unreleased]` had grown **77** change-type
   headings — 36 separate `### Fixed`, 32 `### Added` — because every change prepended its own instead of
   merging into the existing one, and nothing checked it. Consolidated to one section per type in Keep a

@@ -1344,6 +1344,25 @@ destroyed the two the whole Pareto-front feature exists to surface. When adding 
 what the tail is *for* — if some other feature's promise lives there, the cap must be defined in terms of
 that promise, not in terms of N.**
 
+## Round 50 — the cap that only the library could lift
+
+*Entry reconstructed in R146 from commit `d0a0510`; the original was never written, and later rounds cite
+this number (see "the render cap added in R49/R50 was library-only"). Content is from the commit message,
+not from recall.*
+
+R49's Pareto-aware render cap was library-only: `render_html` and `render_pdf` took `max_candidates` and
+neither the CLI nor the web API exposed it — so a user who wanted the full 720-candidate page had no way to
+ask for it, only the JSON/TSV exports, which are a different artifact.
+
+`aforge design --render-candidates N` and the API's `render_candidates` field now set it, with `0` spelling
+"draw them all" (a command line has no natural way to write `None`, and a zero-candidate render is not
+something anyone wants). Tests on both surfaces pin that the cap changes the rendered page and never the
+lossless export — the property a display cap must not violate.
+
+Both shells in one change, deliberately: the off-target labeling fix reached the CLI five rounds before the
+web API and was only found still-wrong there by driving it. The two are thin shells over one library, so a
+gap in how one exposes a capability almost always exists in the other.
+
 ## Round 51 — driving the actual CLI found the hole (2 fixes; 1 gap declared, not hidden)
 
 Ran the real `aforge design` on the ΔF508-shaped deletion — the whole session's work visible end to end
@@ -1930,6 +1949,29 @@ then check each member. Three of four were already covered, by three *different*
 test, a CI job, content hashing), which is why no single search would have found the gap. The question that
 finds it is about the artifact's nature ("is this generated and committed?"), not about the guard's
 shape.**
+
+## Round 71 — the intent nothing tested
+
+*Entry reconstructed in R146 from commit `d88ce8b`; the original was never written, and R72 opens by citing
+this number. Content is from the commit message, not from recall.*
+
+`EditIntent.REVERT` is offered by the CLI (`--intent revert`), appears in five places in the library, and had
+one mention in the whole test suite — an incidental line grouping it with `CORRECT`.
+
+All five are independent `intent in (CORRECT, REVERT)` checks: routing, the cas9/base/prime enumerators, and
+the HDR donor. Nothing centralizes the equivalence. A sixth branch added later that forgot `REVERT` would not
+error — it would fall through to the `INSTALL` behavior and write the alternate allele where the user asked
+for the reference. A wrong reagent from a one-word omission, on a path with no coverage.
+
+`EditIntent` now documents all four intents and why `REVERT` exists (mechanically identical to `CORRECT`; it
+distinguishes *why* the edit is being made, in provenance). Eight tests pin the equivalence at every layer,
+each paired with an assertion that `CORRECT` and `INSTALL` genuinely differ at that locus, so the equivalence
+cannot pass vacuously. The first draft used a locus where `enumerate_cas9` returned `[]` for every intent, so
+the equivalence passed on `[] == []`; only the paired "must differ" clause caught it.
+
+**Lesson: coverage measures whether code *ran*, never whether each public option was exercised. Ask which
+public options nothing tests.** *(This lesson is quoted by R72, which generalizes it across every enum in
+the library; the wording here is reconstructed from that citation and the commit.)*
 
 ## Round 72 — running R71's query across every enum in the library
 
@@ -3359,6 +3401,11 @@ missing one, because absence prompts a question and presence closes it. Check co
 
 ## Round 118 — the third sibling
 
+*Numbering note (added in R146): there is no Round 117. The work this entry and R121 attribute to "R117" —
+`sources_considered`, and the "which siblings did I just skip?" habit — is logged under **Round 116**, whose
+entry covers both of that round's commits. The number was skipped, not the work.*
+
+
 R117 ended on a habit worth keeping: after fixing something, ask *which siblings did I just skip?* Two
 rounds ago that question turned a gnomAD-only coverage check into one covering haplotype panels and patient
 VCFs. Asked again, one supplied input still had no coverage check: the **chromatin track**.
@@ -3891,197 +3938,132 @@ up cost two minutes; reporting it would have been wrong in public.
 `skipped` were both honest and individually documented, and their juxtaposition was the lie — nothing in
 either field's definition is wrong, and no test of either one alone would have caught it.**
 
-## Round 145 — the document I had been damaging
+## Round 135 — the rank column was the claim
 
-Went looking for my own deferrals, per R144. The standing one — `Prediction.calibrated` coerced to `False` on
-an untrusted reload — is a deliberate anti-forgery design, pinned in both directions by its own tests, and
-re-confirmed as contained. That is a decision, not an abandoned check; left alone.
+Straight application of R134's lesson: sweep for numbers presented together that were computed over
+different populations. The candidate pairs in the benchmark result all checked out — `n_test` and
+`n_out_of_distribution` really do range over the same scored examples, and the regression ECE's
+count-weighted average has no reachable path where an undefined level dilutes the denominator (the guard
+is defensive; groups are built by appending, so none is empty). Recorded as negative results.
 
-What I found instead was a document I had been actively making worse for sixty rounds. `## [Unreleased]` held
-**77** change-type headings: 36 separate `### Fixed`, 32 `### Added`, 7 `### Changed`, 2 `### Security`. Keep
-a Changelog gives each release one section per type; every round of this session prepended a fresh heading
-rather than merging into the existing one, which is a small, invisible-per-commit choice that compounds into a
-document where *"what was fixed"* cannot be read in one place — the only question a changelog exists to
-answer. A human had already been asked to clean up the thirteen that predated me. I had turned thirteen into
-seventy-seven.
+The leaderboard was a different story, and it is not a *field* that mixes populations — it is the **rank**.
 
-Consolidated to four sections, in the documented order, with all 300 bullets preserved verbatim — verified by
-diffing the sorted bullet sets before and after, which is the check that makes a mechanical rewrite of a
-hand-written document safe to do at all. Then pinned it, because the reason it drifted is that nothing looked.
+`rankings()` sorted every entry for a task into one 1-2-3 column regardless of which frozen split it was
+measured on, which corpus, or even which metric. Built the board and looked at it: a model scoring 0.91 on
+the bundled *synthetic* fixture printed as **rank 1**, above a model scoring 0.42 on a real corpus, with a
+third measured on a different split sitting between them. Every cell was honest. The split version was in
+its column, the synthetic row carried its `**(synthetic)**` mark. The ordering was the lie, and the module's
+own docstring said ranking synthetic against real is "the one thing a leaderboard must not do silently" —
+the fix that had been applied was a *label*, and a label does not stop a rank.
 
-**Lesson: I have spent sixty rounds auditing the product and never once audited my own output. Every round
-edits the changelog, the round log, and the specs, and those edits get exactly the review that unreviewed
-work gets. Worth adding to the rotation: run the audit on the artifacts the audit produces. The tell here was
-cheap — one `grep -c '^### '` — and the defect was mine, growing by one every round, while I looked for other
-people's.**
+Two further consequences of the same root: sort direction and the score column's header both came from
+`entries[0]`, so a submission naming a different primary metric for the same task was sorted by another
+metric's direction and printed under another metric's name. A submission is externally supplied and
+self-hashed, so that is reachable from untrusted input, not hypothetical.
 
-## Round 144 — the checker I threw away was the one that was broken
+Introduced `ComparisonGroup` — `(primary_metric, split_version, dataset_is_synthetic)`, the population a
+score was measured over and the unit a rank is valid within. `comparison_groups(task)` ranks within each and
+orders groups real-corpus-first; `rankings()` concatenates them and says in its docstring that position is a
+rank only within a group. Both renderers emit one captioned table per group with the count restarting at 1,
+and a task spanning more than one gets an explicit "not comparable across groups" note.
 
-R143 ended on "when a guard lives in a convenience wrapper, check what the docs tell people to run instead."
-The general form: every copy-pasteable command in the prose is a promise, and nothing checked them.
+**Lesson: an aggregate can be a claim even when it is not a number. Every cell on that board was labelled
+and correct, and the labels were added precisely to stop this — but the rank is an assertion of its own, and
+no amount of annotating the rows retracts it. When a fix is "we now show X," ask what the surrounding
+presentation still asserts on its own.**
 
-I had tried this before. In R138 I extracted the `--flags` named in string literals, compared them against a
-click walk of the CLI, got a page of obvious false positives (`--region` "not a CLI option"), concluded the
-traversal was broken rather than the app, and dropped it. That was the right call on the evidence and I never
-found out why. It is this:
+## Round 136 — the number a scientist pastes into a browser
 
-    >>> c = typer.main.get_command(app)
-    >>> isinstance(c, click.Group)
-    False
-    >>> sorted(c.commands)
-    ['batch', 'bench', 'data', 'design', 'lift', 'offtarget', 'resolve', 'verify']
+Following R135 into other presentations that assert something on their own. The design menu turned out to be
+well defended already — out-of-distribution candidates are ranked on their lower interval bound, and the
+rationale says outright when the top N are within the leader's own uncertainty of each other — and the
+cross-chemistry efficiency axis was made comparable in an earlier round. Negative results, recorded.
 
-A `TyperGroup` is not an instance of the `click.Group` visible from here, so an isinstance-gated walk finds
-no subcommands and reports the root callback's five options as the entire CLI. Walking on
-`hasattr(cmd, "commands")` gives the real tree.
+Then: coordinate base. AlleleForge is uniformly **0-based half-open**, which is a fine choice and internally
+consistent — `GenomicInterval.parse` and `__str__` are exact inverses, so a locus the tool prints can be
+handed straight back to it. The defect is that this was never said anywhere a human reads.
 
-With that fixed the check runs, and all 25 documented commands resolve — every subcommand real, every flag
-accepted. A clean negative, which is the outcome I expected and wanted; the value is in it staying that way,
-so it is now a test rather than a one-off script, sitting beside the existing command-appears-in-the-docs
-check as its converse. Mutation-checked by renaming one flag in the README.
+Three pieces of evidence. `grep to_one_based` across the whole tree returns **only its own definition**: the
+declared I/O-boundary converter has no callers, so no coordinate is ever converted for display. The report
+prints `cut 5530600` bare — the single number a scientist is most likely to paste into IGV, which reads the
+same digits as 1-based. And on one command line, `--pop-freqs` help says *"1-based pos as in a VCF"* while
+`--region` help says only `'chrom:start-end'`; a reader carries the stated base onto the silent neighbour.
+`chr7:100-200` searches 100 bases from offset 100. A browser shows 101 for that string.
 
-**Lesson: an audit that produces implausible results has two suspects, and I recorded the right verdict
-("inconclusive, not a clean bill") without going back for the cause. Six rounds later the same question came
-up and the tool was still broken. When a check is abandoned as untrustworthy, the finding is that the check
-is broken — which is a bug with an owner, not a dead end. Fix it or delete it; leaving it "inconclusive"
-means the next person pays the same cost.**
+The fix is labelling, not a semantic change — changing the convention would break the parse/print inverse and
+the BED interop, and 0-based half-open is right. Reports state it once in the footer, beside the reference
+build the coordinates are against, so it covers every locus in the document rather than repeating beside each
+number. `--region` states it and names the contrast with the 1-based options. `docs/data.md` grew the two
+human boundaries alongside the file-format ingest table it already had.
 
-## Round 143 — the token nothing read
+**Lesson: a convention that is uniform, correct, and documented in the source can still be a defect at the
+boundary, because the reader's default is not the code's default. The tell here was cheap and mechanical —
+an exported converter for a boundary, with zero callers, means the boundary is not being crossed. Grep for
+unused conversion helpers; each one marks a place where two conventions meet and nobody arbitrated.**
 
-Three negative results first, and they are worth recording because they are places I expected to find
-something. Every `bool = False` default in the tree is fail-safe in the conservative direction
-(`allow_network`, `calibrated`, `synthetic`), and `OffTargetResponse.from_report`'s `on_target_excluded`
-default is passed correctly by its one caller. `RankingWeights` rejects non-finite, negative, and all-zero
-weights, so a user cannot pass `--weights 0 0 0 0` and get an arbitrary order presented as a ranking. And
-diffing the HTML and PDF renderers by the fields each reads returns the empty set in both directions — they
-are genuinely in step.
+## Round 137 — an instruction the tool would not carry out
 
-Then, the missing SECURITY.md. This repository ships a web API with an auth token, downloads pinned
-artifacts, and accepts signed JSON submissions from strangers; it had no stated way to report a vulnerability
-privately. Writing that file honestly meant reading the actual posture rather than describing a generic one —
-and reading it is what found the round's real defect.
+R136's tell, run as a sweep: for every `to_*`/`from_*`/`normalize*`/`canonical*`/`convert*` in the tree,
+count callers in `src` versus `tests`. Four came back defined-but-called-only-by-tests. `from_gtf` and
+`from_build` are library entry points a user is meant to call, so that is the expected shape. `to_one_based`
+was R136. The fourth was `Liftover.from_chain_file` — and pulling on it, **nothing in the entire library
+constructs a `Liftover` at all**.
 
-`resolve_serve_token` refuses a non-loopback bind without a token. Good. It is called by `serve()`. And the
-deployment guide's flagship command is:
+Which matters because of where the subject comes up. `resolve` refuses a database record whose native
+assembly disagrees with the requested build, and it is right to: relabeling a GRCh37 coordinate as hg38
+designs a guide at the wrong place in the genome, and the check was deliberately written to reconcile rather
+than overwrite. Its error message ends *"lift the coordinates to hg38 before resolving rather than relabeling
+them."* The liftover is implemented, tested against real chain files, correct, and fails closed on a split
+interval — and reachable only by writing Python. The README advertises liftover in the genome layer,
+`pyliftover` is a declared dependency, and the CLI offered no way to do it. A hard stop whose stated remedy
+the tool declines to perform is a dead end for the person it stops.
 
-    uvicorn alleleforge.web.api.app:app --host 0.0.0.0 --port 8000
+Added `aforge lift`. It takes loci in exactly the form `--region` accepts and prints them in the same form,
+so its output pipes straight back in — the parse/print inverse makes that exact, which is the payoff of the
+uniform convention R136 documented. An unmappable locus prints `UNMAPPED` and the run exits non-zero rather
+than the locus disappearing from the list: this repo's standing rule is that a smaller search reports fewer
+off-targets and reads as safer. The resolver's error now names the command.
 
-as is the Dockerfile's `CMD`. Both bind the module-level `app`; neither goes anywhere near `serve()`. So the
-guard does not run on the documented path — which I expected, and which is only half of it. `create_app` did
-not read the environment either. Checked it directly:
+**Lesson: a "0 callers in src" converter was R136's tell for an unarbitrated boundary; here the same tell
+found an unreachable *capability*. Worth pairing with a second query — grep the error messages for
+imperatives ("lift the coordinates", "run X first", "pass --y") and check the tool can actually do each
+thing it tells the user to do. An instruction is a promise.**
 
-    ALLELEFORGE_API_TOKEN=s3cret → POST /api/resolve with no header → 200
+## Round 138 — the same result, told differently on two surfaces
 
-An operator who publishes the port and sets the variable, exactly as the variable's name invites, gets a
-fully open API. The security control is not weak on that path; it is absent, and it looks present.
+Started on R137's paired query — check the tool can do what its error messages instruct — and it came back
+clean. Every `alleleforge[extra]` named in a message is a real extra, and each one actually contains the
+package the message promises (`polars` in `core`, `cyvcf2` and `pyliftover` in `genome`, `lightgbm`/`sglearn`
+in `cas9-rs3`). A mechanical check of `--flag` names against the live click tree I could not get to traverse
+Typer's subcommands correctly; rather than trust a broken checker I dropped it. Recorded as inconclusive, not
+as a clean bill.
 
-`create_app` now defaults `api_token` from the environment, so the variable works everywhere and
-`resolve_serve_token` keeps its distinct job of *requiring* one before a public bind. The guide binds
-loopback by default and documents the token form for anything else; compose maps `127.0.0.1:8000:8000`
-instead of every host interface. Then SECURITY.md, describing the posture as it now actually is.
+So: surface parity instead. The CLI and the web API answer the same question; do they answer it as honestly?
 
-**Lesson: writing the honest version of a document is an audit. I set out to record what the security
-controls are and could not do it without checking each one on the path users are actually sent down — which
-is a different path from the one the control was written against. Two of the last three rounds found a
-mechanism that exists and does not run; this one found the entry point that skips it. When a guard lives in a
-convenience wrapper, check what the docs tell people to run instead of that wrapper.**
+`OffTargetResponse` says, in its own docstring, that it exists to give a client *"the same summary the*
+`aforge offtarget` *CLI surfaces."* It projects `n_sites`, `worst_score`, `specificity_score`,
+`ancestry_stratification`, `effective_matrix` — every method that returns a **number**. The one method that
+returns **prose**, `search_description()`, it did not project, and grep confirms only two callers in the tree:
+the CLI and the design report builder.
 
-## Round 142 — the gate was built, tested, and never opened
+Constructed the case that matters and printed both:
 
-Closed R141's sweep first: every exception name in the tree is now defined exactly once. Then took the
-"implemented but nothing switches it on" tell — which has now found something in three consecutive rounds
-(R136 `to_one_based`, R137 `Liftover`, R141's unreachable `except`) — and pointed it at on-disk state.
+    CLI says   : up to 4 mismatches, 1 DNA / 1 RNA bulges; … NO SEQUENCE WAS SEARCHED — the reference or
+                 region scope yielded no bases, so this is not a clean result, it is an empty one
+    API returns: {"n_sites": 0, "worst_score": 0.0, "specificity": 1.0, …}
 
-`ContentAddressedCache` has a genuinely careful integrity design: a checksum sidecar per entry, re-verified
-on read, a *missing* sidecar treated as corruption rather than downgraded to an unverified read, and the
-sidecar published before the payload so a concurrent reader never sees a payload without one. Someone thought
-hard about this. It is gated on `verify=`, which defaults to `False`.
+Same report object. One surface refuses to let the reader mistake an empty run for a clean one; the other
+hands over the three most reassuring numbers in the system with nothing attached. The raw fields are all in
+the embedded report and a client could in principle reassemble the sentence — no client will, which is the
+whole reason the sentence exists.
 
-The library constructs exactly one cache — `PersistentEmbeddingCache` — and it took the default. So
-`verify=True` occurs only in `tests/test_cache.py`. Every one of those careful behaviours has run in CI and
-never once in the product.
+One field, `search_description`, populated in `from_report`.
 
-The default is defensible in general and wrong for this cache specifically. A corrupted embedding does not
-raise; it deserializes into a plausible vector, which becomes an efficiency score, which is the number a
-guide is ranked on — a wrong answer with no error, the failure class this project keeps finding. And the cost
-is a SHA-256 over a few kilobytes, weighed against the transformer forward pass the cache exists to skip.
-
-One migration detail worth stating, because turning a gate on is not free. A missing sidecar is *deliberately*
-an integrity failure and not a miss — otherwise `rm *.sum` defeats the gate. So flipping the flag would have
-turned a user's warm cache from an earlier release into hard errors on data that is perfectly valid. The
-namespace now carries a `v2` segment: old entries are simply never looked up. Inert, not fatal.
-
-**Lesson: a safety mechanism with a flag has two implementations — the code, and the set of call sites that
-pass the flag. Reviewing the first and never enumerating the second is how a well-tested gate ends up never
-running. When a check is opt-in, the audit question is not "is it correct" but "who opted in", and the answer
-here was: only its tests.**
-
-## Round 141 — one name, seven classes
-
-R140's lesson sent me through the other gates asking whether each keeps the losing side. They all do, and
-better than I expected: `Split.verify` names the leaking fold *and an example id*; the FM-index integrity
-check prints expected and reconstructed digests; `aforge verify` accumulates a `problems` list rather than
-failing on the first. Nothing to fix. Recorded.
-
-What the sweep did surface was next to those checks rather than inside them. Three modules each define their
-own `ChecksumError`; four define their own `ConsentError`. Not aliases — seven distinct classes, exported
-under two names from four public packages:
-
-    >>> from alleleforge.genome import ChecksumError as G
-    >>> from alleleforge.data import ChecksumError as D
-    >>> G is D
-    False
-    >>> try: raise D("dataset checksum mismatch for gnomad.vcf")
-    ... except G: ...
-    alleleforge.data.registry.ChecksumError: dataset checksum mismatch for gnomad.vcf
-
-A caller who guards a design run with the one they happened to import catches a third of the artifact-gate
-surface and the rest escapes as an unrelated-looking `RuntimeError`. There is no visible edge to this: the
-name is identical, the base class is identical, the docstrings are near-identical, and the scorers' own
-docstrings say *"ConsentError / LicenseError / ChecksumError: From the weight gate"* as though each named one
-type. Checked the four `ConsentError` docstrings before unifying — "download", "fetch", "network fetch" — one
-policy in four wordings, not four policies.
-
-`alleleforge/errors.py` now holds one class each; every module re-exports the names, so no import breaks and
-`isinstance` agrees. Rewiring the re-exports made `mypy --strict` complain that a package cannot re-export an
-imported name implicitly — which pushed the `__init__` files to import from the canonical module directly,
-the better shape anyway.
-
-**Lesson: duplication is usually a tidiness complaint, and this one is not — a duplicated *exception* is a
-duplicated `except`, and the failure mode is that a correct-looking handler silently declines to run. Worth a
-standing check: for every exception name defined more than once in a tree, confirm the copies are genuinely
-different failures. Same name plus same base class plus same meaning is a bug with no symptom until the day
-it matters.**
-
-## Round 140 — a gate that could fail but not explain
-
-Continuing R139's boundary question onto the design side. There is no `agrees_with` there; the equivalent is
-`scripts/reproduce.py`, which re-derives a canonical menu twice (asserting determinism) and diffs a
-canonicalized digest against a committed golden. It is a blocking `make ci` job.
-
-Read what it excludes: `_VOLATILE_KEYS = {alleleforge_version, config_snapshot}`. The config snapshot is
-dropped wholesale, but `seed` also lives at the top level of provenance and is *not* dropped, and any setting
-that changes a result changes the candidates it is hashed over — so the exclusion is sound. Negative result.
-
-The defect is in what happens when it fails. Induced a drift and read the output:
-
-    REPRODUCIBILITY DRIFT
-      golden : 0000000000000000000000000000000000000000000000000000000000000000
-      current: 15c7255c68273cb36314a333f7e19dec3b25754bd0388c93063f5d90e45ad87f
-
-That is the whole report. A blocking gate tells a developer that something moved and refuses to say what,
-while holding both bodies in memory at the moment it prints. The golden stored `{sha256, n_candidates}`, so
-the information was not on disk either — even `git log` on the manifest shows only a changed hash, and a
-reviewer looking at a reproducibility change sees one opaque line.
-
-The canonical body is 8 KB and 200 lines. Committing it makes the golden a readable artifact where drift
-shows up as an ordinary diff in review, and lets the gate walk the two bodies and name the leaves:
-`candidates[0].efficiency: 0.5 -> 0.7`, truncated after 25. Also gave the script its first tests — it is the
-mechanism the project's central reproducibility claim rests on and it had none.
-
-**Lesson: a check that can only say yes or no is half a check. Whenever a gate compares two artifacts, ask
-whether it keeps the losing side around long enough to explain itself — and whether the committed reference
-is something a human can read in review, or only a hash that changes for reasons no diff will show.**
+**Lesson: when the same result is delivered on two surfaces, the qualifications travel worse than the
+numbers. A number is a field and gets projected mechanically; a caveat is usually a method or a rendering
+step, and it is dropped by exactly the code whose job is to be equivalent. Diff surfaces by what they omit,
+not by what they carry — and treat "gives the same summary as X" in a docstring as a claim to test, since
+this one was written by someone who had just enumerated the numeric methods and stopped.**
 
 ## Round 139 — the denominator was covered and the numerator was not
 
@@ -4124,132 +4106,232 @@ boundary that matters — signed/unsigned, scientific/volatile, shown/hidden. R1
 ranging over different populations; this is the same pair split by a different axis. A denominator inside the
 integrity envelope and a numerator outside it is a guarantee that covers half a fraction.**
 
-## Round 138 — the same result, told differently on two surfaces
+## Round 140 — a gate that could fail but not explain
 
-Started on R137's paired query — check the tool can do what its error messages instruct — and it came back
-clean. Every `alleleforge[extra]` named in a message is a real extra, and each one actually contains the
-package the message promises (`polars` in `core`, `cyvcf2` and `pyliftover` in `genome`, `lightgbm`/`sglearn`
-in `cas9-rs3`). A mechanical check of `--flag` names against the live click tree I could not get to traverse
-Typer's subcommands correctly; rather than trust a broken checker I dropped it. Recorded as inconclusive, not
-as a clean bill.
+Continuing R139's boundary question onto the design side. There is no `agrees_with` there; the equivalent is
+`scripts/reproduce.py`, which re-derives a canonical menu twice (asserting determinism) and diffs a
+canonicalized digest against a committed golden. It is a blocking `make ci` job.
 
-So: surface parity instead. The CLI and the web API answer the same question; do they answer it as honestly?
+Read what it excludes: `_VOLATILE_KEYS = {alleleforge_version, config_snapshot}`. The config snapshot is
+dropped wholesale, but `seed` also lives at the top level of provenance and is *not* dropped, and any setting
+that changes a result changes the candidates it is hashed over — so the exclusion is sound. Negative result.
 
-`OffTargetResponse` says, in its own docstring, that it exists to give a client *"the same summary the*
-`aforge offtarget` *CLI surfaces."* It projects `n_sites`, `worst_score`, `specificity_score`,
-`ancestry_stratification`, `effective_matrix` — every method that returns a **number**. The one method that
-returns **prose**, `search_description()`, it did not project, and grep confirms only two callers in the tree:
-the CLI and the design report builder.
+The defect is in what happens when it fails. Induced a drift and read the output:
 
-Constructed the case that matters and printed both:
+    REPRODUCIBILITY DRIFT
+      golden : 0000000000000000000000000000000000000000000000000000000000000000
+      current: 15c7255c68273cb36314a333f7e19dec3b25754bd0388c93063f5d90e45ad87f
 
-    CLI says   : up to 4 mismatches, 1 DNA / 1 RNA bulges; … NO SEQUENCE WAS SEARCHED — the reference or
-                 region scope yielded no bases, so this is not a clean result, it is an empty one
-    API returns: {"n_sites": 0, "worst_score": 0.0, "specificity": 1.0, …}
+That is the whole report. A blocking gate tells a developer that something moved and refuses to say what,
+while holding both bodies in memory at the moment it prints. The golden stored `{sha256, n_candidates}`, so
+the information was not on disk either — even `git log` on the manifest shows only a changed hash, and a
+reviewer looking at a reproducibility change sees one opaque line.
 
-Same report object. One surface refuses to let the reader mistake an empty run for a clean one; the other
-hands over the three most reassuring numbers in the system with nothing attached. The raw fields are all in
-the embedded report and a client could in principle reassemble the sentence — no client will, which is the
-whole reason the sentence exists.
+The canonical body is 8 KB and 200 lines. Committing it makes the golden a readable artifact where drift
+shows up as an ordinary diff in review, and lets the gate walk the two bodies and name the leaves:
+`candidates[0].efficiency: 0.5 -> 0.7`, truncated after 25. Also gave the script its first tests — it is the
+mechanism the project's central reproducibility claim rests on and it had none.
 
-One field, `search_description`, populated in `from_report`.
+**Lesson: a check that can only say yes or no is half a check. Whenever a gate compares two artifacts, ask
+whether it keeps the losing side around long enough to explain itself — and whether the committed reference
+is something a human can read in review, or only a hash that changes for reasons no diff will show.**
 
-**Lesson: when the same result is delivered on two surfaces, the qualifications travel worse than the
-numbers. A number is a field and gets projected mechanically; a caveat is usually a method or a rendering
-step, and it is dropped by exactly the code whose job is to be equivalent. Diff surfaces by what they omit,
-not by what they carry — and treat "gives the same summary as X" in a docstring as a claim to test, since
-this one was written by someone who had just enumerated the numeric methods and stopped.**
+## Round 141 — one name, seven classes
 
-## Round 137 — an instruction the tool would not carry out
+R140's lesson sent me through the other gates asking whether each keeps the losing side. They all do, and
+better than I expected: `Split.verify` names the leaking fold *and an example id*; the FM-index integrity
+check prints expected and reconstructed digests; `aforge verify` accumulates a `problems` list rather than
+failing on the first. Nothing to fix. Recorded.
 
-R136's tell, run as a sweep: for every `to_*`/`from_*`/`normalize*`/`canonical*`/`convert*` in the tree,
-count callers in `src` versus `tests`. Four came back defined-but-called-only-by-tests. `from_gtf` and
-`from_build` are library entry points a user is meant to call, so that is the expected shape. `to_one_based`
-was R136. The fourth was `Liftover.from_chain_file` — and pulling on it, **nothing in the entire library
-constructs a `Liftover` at all**.
+What the sweep did surface was next to those checks rather than inside them. Three modules each define their
+own `ChecksumError`; four define their own `ConsentError`. Not aliases — seven distinct classes, exported
+under two names from four public packages:
 
-Which matters because of where the subject comes up. `resolve` refuses a database record whose native
-assembly disagrees with the requested build, and it is right to: relabeling a GRCh37 coordinate as hg38
-designs a guide at the wrong place in the genome, and the check was deliberately written to reconcile rather
-than overwrite. Its error message ends *"lift the coordinates to hg38 before resolving rather than relabeling
-them."* The liftover is implemented, tested against real chain files, correct, and fails closed on a split
-interval — and reachable only by writing Python. The README advertises liftover in the genome layer,
-`pyliftover` is a declared dependency, and the CLI offered no way to do it. A hard stop whose stated remedy
-the tool declines to perform is a dead end for the person it stops.
+    >>> from alleleforge.genome import ChecksumError as G
+    >>> from alleleforge.data import ChecksumError as D
+    >>> G is D
+    False
+    >>> try: raise D("dataset checksum mismatch for gnomad.vcf")
+    ... except G: ...
+    alleleforge.data.registry.ChecksumError: dataset checksum mismatch for gnomad.vcf
 
-Added `aforge lift`. It takes loci in exactly the form `--region` accepts and prints them in the same form,
-so its output pipes straight back in — the parse/print inverse makes that exact, which is the payoff of the
-uniform convention R136 documented. An unmappable locus prints `UNMAPPED` and the run exits non-zero rather
-than the locus disappearing from the list: this repo's standing rule is that a smaller search reports fewer
-off-targets and reads as safer. The resolver's error now names the command.
+A caller who guards a design run with the one they happened to import catches a third of the artifact-gate
+surface and the rest escapes as an unrelated-looking `RuntimeError`. There is no visible edge to this: the
+name is identical, the base class is identical, the docstrings are near-identical, and the scorers' own
+docstrings say *"ConsentError / LicenseError / ChecksumError: From the weight gate"* as though each named one
+type. Checked the four `ConsentError` docstrings before unifying — "download", "fetch", "network fetch" — one
+policy in four wordings, not four policies.
 
-**Lesson: a "0 callers in src" converter was R136's tell for an unarbitrated boundary; here the same tell
-found an unreachable *capability*. Worth pairing with a second query — grep the error messages for
-imperatives ("lift the coordinates", "run X first", "pass --y") and check the tool can actually do each
-thing it tells the user to do. An instruction is a promise.**
+`alleleforge/errors.py` now holds one class each; every module re-exports the names, so no import breaks and
+`isinstance` agrees. Rewiring the re-exports made `mypy --strict` complain that a package cannot re-export an
+imported name implicitly — which pushed the `__init__` files to import from the canonical module directly,
+the better shape anyway.
 
-## Round 136 — the number a scientist pastes into a browser
+**Lesson: duplication is usually a tidiness complaint, and this one is not — a duplicated *exception* is a
+duplicated `except`, and the failure mode is that a correct-looking handler silently declines to run. Worth a
+standing check: for every exception name defined more than once in a tree, confirm the copies are genuinely
+different failures. Same name plus same base class plus same meaning is a bug with no symptom until the day
+it matters.**
 
-Following R135 into other presentations that assert something on their own. The design menu turned out to be
-well defended already — out-of-distribution candidates are ranked on their lower interval bound, and the
-rationale says outright when the top N are within the leader's own uncertainty of each other — and the
-cross-chemistry efficiency axis was made comparable in an earlier round. Negative results, recorded.
+## Round 142 — the gate was built, tested, and never opened
 
-Then: coordinate base. AlleleForge is uniformly **0-based half-open**, which is a fine choice and internally
-consistent — `GenomicInterval.parse` and `__str__` are exact inverses, so a locus the tool prints can be
-handed straight back to it. The defect is that this was never said anywhere a human reads.
+Closed R141's sweep first: every exception name in the tree is now defined exactly once. Then took the
+"implemented but nothing switches it on" tell — which has now found something in three consecutive rounds
+(R136 `to_one_based`, R137 `Liftover`, R141's unreachable `except`) — and pointed it at on-disk state.
 
-Three pieces of evidence. `grep to_one_based` across the whole tree returns **only its own definition**: the
-declared I/O-boundary converter has no callers, so no coordinate is ever converted for display. The report
-prints `cut 5530600` bare — the single number a scientist is most likely to paste into IGV, which reads the
-same digits as 1-based. And on one command line, `--pop-freqs` help says *"1-based pos as in a VCF"* while
-`--region` help says only `'chrom:start-end'`; a reader carries the stated base onto the silent neighbour.
-`chr7:100-200` searches 100 bases from offset 100. A browser shows 101 for that string.
+`ContentAddressedCache` has a genuinely careful integrity design: a checksum sidecar per entry, re-verified
+on read, a *missing* sidecar treated as corruption rather than downgraded to an unverified read, and the
+sidecar published before the payload so a concurrent reader never sees a payload without one. Someone thought
+hard about this. It is gated on `verify=`, which defaults to `False`.
 
-The fix is labelling, not a semantic change — changing the convention would break the parse/print inverse and
-the BED interop, and 0-based half-open is right. Reports state it once in the footer, beside the reference
-build the coordinates are against, so it covers every locus in the document rather than repeating beside each
-number. `--region` states it and names the contrast with the 1-based options. `docs/data.md` grew the two
-human boundaries alongside the file-format ingest table it already had.
+The library constructs exactly one cache — `PersistentEmbeddingCache` — and it took the default. So
+`verify=True` occurs only in `tests/test_cache.py`. Every one of those careful behaviours has run in CI and
+never once in the product.
 
-**Lesson: a convention that is uniform, correct, and documented in the source can still be a defect at the
-boundary, because the reader's default is not the code's default. The tell here was cheap and mechanical —
-an exported converter for a boundary, with zero callers, means the boundary is not being crossed. Grep for
-unused conversion helpers; each one marks a place where two conventions meet and nobody arbitrated.**
+The default is defensible in general and wrong for this cache specifically. A corrupted embedding does not
+raise; it deserializes into a plausible vector, which becomes an efficiency score, which is the number a
+guide is ranked on — a wrong answer with no error, the failure class this project keeps finding. And the cost
+is a SHA-256 over a few kilobytes, weighed against the transformer forward pass the cache exists to skip.
 
-## Round 135 — the rank column was the claim
+One migration detail worth stating, because turning a gate on is not free. A missing sidecar is *deliberately*
+an integrity failure and not a miss — otherwise `rm *.sum` defeats the gate. So flipping the flag would have
+turned a user's warm cache from an earlier release into hard errors on data that is perfectly valid. The
+namespace now carries a `v2` segment: old entries are simply never looked up. Inert, not fatal.
 
-Straight application of R134's lesson: sweep for numbers presented together that were computed over
-different populations. The candidate pairs in the benchmark result all checked out — `n_test` and
-`n_out_of_distribution` really do range over the same scored examples, and the regression ECE's
-count-weighted average has no reachable path where an undefined level dilutes the denominator (the guard
-is defensive; groups are built by appending, so none is empty). Recorded as negative results.
+**Lesson: a safety mechanism with a flag has two implementations — the code, and the set of call sites that
+pass the flag. Reviewing the first and never enumerating the second is how a well-tested gate ends up never
+running. When a check is opt-in, the audit question is not "is it correct" but "who opted in", and the answer
+here was: only its tests.**
 
-The leaderboard was a different story, and it is not a *field* that mixes populations — it is the **rank**.
+## Round 143 — the token nothing read
 
-`rankings()` sorted every entry for a task into one 1-2-3 column regardless of which frozen split it was
-measured on, which corpus, or even which metric. Built the board and looked at it: a model scoring 0.91 on
-the bundled *synthetic* fixture printed as **rank 1**, above a model scoring 0.42 on a real corpus, with a
-third measured on a different split sitting between them. Every cell was honest. The split version was in
-its column, the synthetic row carried its `**(synthetic)**` mark. The ordering was the lie, and the module's
-own docstring said ranking synthetic against real is "the one thing a leaderboard must not do silently" —
-the fix that had been applied was a *label*, and a label does not stop a rank.
+Three negative results first, and they are worth recording because they are places I expected to find
+something. Every `bool = False` default in the tree is fail-safe in the conservative direction
+(`allow_network`, `calibrated`, `synthetic`), and `OffTargetResponse.from_report`'s `on_target_excluded`
+default is passed correctly by its one caller. `RankingWeights` rejects non-finite, negative, and all-zero
+weights, so a user cannot pass `--weights 0 0 0 0` and get an arbitrary order presented as a ranking. And
+diffing the HTML and PDF renderers by the fields each reads returns the empty set in both directions — they
+are genuinely in step.
 
-Two further consequences of the same root: sort direction and the score column's header both came from
-`entries[0]`, so a submission naming a different primary metric for the same task was sorted by another
-metric's direction and printed under another metric's name. A submission is externally supplied and
-self-hashed, so that is reachable from untrusted input, not hypothetical.
+Then, the missing SECURITY.md. This repository ships a web API with an auth token, downloads pinned
+artifacts, and accepts signed JSON submissions from strangers; it had no stated way to report a vulnerability
+privately. Writing that file honestly meant reading the actual posture rather than describing a generic one —
+and reading it is what found the round's real defect.
 
-Introduced `ComparisonGroup` — `(primary_metric, split_version, dataset_is_synthetic)`, the population a
-score was measured over and the unit a rank is valid within. `comparison_groups(task)` ranks within each and
-orders groups real-corpus-first; `rankings()` concatenates them and says in its docstring that position is a
-rank only within a group. Both renderers emit one captioned table per group with the count restarting at 1,
-and a task spanning more than one gets an explicit "not comparable across groups" note.
+`resolve_serve_token` refuses a non-loopback bind without a token. Good. It is called by `serve()`. And the
+deployment guide's flagship command is:
 
-**Lesson: an aggregate can be a claim even when it is not a number. Every cell on that board was labelled
-and correct, and the labels were added precisely to stop this — but the rank is an assertion of its own, and
-no amount of annotating the rows retracts it. When a fix is "we now show X," ask what the surrounding
-presentation still asserts on its own.**
+    uvicorn alleleforge.web.api.app:app --host 0.0.0.0 --port 8000
+
+as is the Dockerfile's `CMD`. Both bind the module-level `app`; neither goes anywhere near `serve()`. So the
+guard does not run on the documented path — which I expected, and which is only half of it. `create_app` did
+not read the environment either. Checked it directly:
+
+    ALLELEFORGE_API_TOKEN=s3cret → POST /api/resolve with no header → 200
+
+An operator who publishes the port and sets the variable, exactly as the variable's name invites, gets a
+fully open API. The security control is not weak on that path; it is absent, and it looks present.
+
+`create_app` now defaults `api_token` from the environment, so the variable works everywhere and
+`resolve_serve_token` keeps its distinct job of *requiring* one before a public bind. The guide binds
+loopback by default and documents the token form for anything else; compose maps `127.0.0.1:8000:8000`
+instead of every host interface. Then SECURITY.md, describing the posture as it now actually is.
+
+**Lesson: writing the honest version of a document is an audit. I set out to record what the security
+controls are and could not do it without checking each one on the path users are actually sent down — which
+is a different path from the one the control was written against. Two of the last three rounds found a
+mechanism that exists and does not run; this one found the entry point that skips it. When a guard lives in a
+convenience wrapper, check what the docs tell people to run instead of that wrapper.**
+
+## Round 144 — the checker I threw away was the one that was broken
+
+R143 ended on "when a guard lives in a convenience wrapper, check what the docs tell people to run instead."
+The general form: every copy-pasteable command in the prose is a promise, and nothing checked them.
+
+I had tried this before. In R138 I extracted the `--flags` named in string literals, compared them against a
+click walk of the CLI, got a page of obvious false positives (`--region` "not a CLI option"), concluded the
+traversal was broken rather than the app, and dropped it. That was the right call on the evidence and I never
+found out why. It is this:
+
+    >>> c = typer.main.get_command(app)
+    >>> isinstance(c, click.Group)
+    False
+    >>> sorted(c.commands)
+    ['batch', 'bench', 'data', 'design', 'lift', 'offtarget', 'resolve', 'verify']
+
+A `TyperGroup` is not an instance of the `click.Group` visible from here, so an isinstance-gated walk finds
+no subcommands and reports the root callback's five options as the entire CLI. Walking on
+`hasattr(cmd, "commands")` gives the real tree.
+
+With that fixed the check runs, and all 25 documented commands resolve — every subcommand real, every flag
+accepted. A clean negative, which is the outcome I expected and wanted; the value is in it staying that way,
+so it is now a test rather than a one-off script, sitting beside the existing command-appears-in-the-docs
+check as its converse. Mutation-checked by renaming one flag in the README.
+
+**Lesson: an audit that produces implausible results has two suspects, and I recorded the right verdict
+("inconclusive, not a clean bill") without going back for the cause. Six rounds later the same question came
+up and the tool was still broken. When a check is abandoned as untrustworthy, the finding is that the check
+is broken — which is a bug with an owner, not a dead end. Fix it or delete it; leaving it "inconclusive"
+means the next person pays the same cost.**
+
+## Round 145 — the document I had been damaging
+
+Went looking for my own deferrals, per R144. The standing one — `Prediction.calibrated` coerced to `False` on
+an untrusted reload — is a deliberate anti-forgery design, pinned in both directions by its own tests, and
+re-confirmed as contained. That is a decision, not an abandoned check; left alone.
+
+What I found instead was a document I had been actively making worse for sixty rounds. `## [Unreleased]` held
+**77** change-type headings: 36 separate `### Fixed`, 32 `### Added`, 7 `### Changed`, 2 `### Security`. Keep
+a Changelog gives each release one section per type; every round of this session prepended a fresh heading
+rather than merging into the existing one, which is a small, invisible-per-commit choice that compounds into a
+document where *"what was fixed"* cannot be read in one place — the only question a changelog exists to
+answer. A human had already been asked to clean up the thirteen that predated me. I had turned thirteen into
+seventy-seven.
+
+Consolidated to four sections, in the documented order, with all 300 bullets preserved verbatim — verified by
+diffing the sorted bullet sets before and after, which is the check that makes a mechanical rewrite of a
+hand-written document safe to do at all. Then pinned it, because the reason it drifted is that nothing looked.
+
+**Lesson: I have spent sixty rounds auditing the product and never once audited my own output. Every round
+edits the changelog, the round log, and the specs, and those edits get exactly the review that unreviewed
+work gets. Worth adding to the rotation: run the audit on the artifacts the audit produces. The tell here was
+cheap — one `grep -c '^### '` — and the defect was mine, growing by one every round, while I looked for other
+people's.**
+
+## Round 146 — the log ran backwards
+
+R145 ended on "run the audit on the artifacts the audit produces." Ran it on this file, and it is worse than
+the changelog was.
+
+Three findings, all mine, none of them subtle once looked at:
+
+**The order reverses.** Rounds 1–134 ascend; 135–145 descend. Eleven rounds ago I started prepending each new
+entry ahead of the previous one instead of appending, and never once read the file top-to-bottom to notice
+that the audit history now runs forwards for 134 rounds and then backwards. Repaired by sorting the sections;
+verified as a pure reordering by diffing the sorted line multiset before and after, which is the check that
+makes a mechanical rewrite of a hand-written document safe to attempt.
+
+**Two rounds have no entry.** 50 and 71 shipped real work — the render cap exposed on both shells, and the
+`REVERT` intent that the CLI offered and one incidental test line mentioned — and later rounds cite both by
+number. Written now from their commit messages and labeled as reconstructions, because I do not recall them
+and should not pretend to.
+
+**One gap is not a gap.** 117 looked like a third missing entry. It is not: R116's entry covers both of that
+round's commits, including the generalization from gnomAD to haplotype panels and patient VCFs, and its
+lesson is the one R118 and R121 attribute to "R117". The number was skipped; the work is logged. Checking
+that before writing a reconstruction is the difference between repairing a record and inventing one — the
+reconstruction would have been plausible, sourced from a real commit, and false.
+
+All three pinned: ascending order, and every number in the range resolving to an entry or to a skip recorded
+with its reason (with a guard that the allowance cannot outlive the gap).
+
+**Lesson: R145 said to audit my own artifacts and I treated that as one round's finding rather than a
+standing query. The first application found a second document with two defects worse than the first's. The
+general shape: a document edited a little by every unit of work, and read in full by none of them, degrades
+in ways no individual diff shows — the changelog's 77 headings and this file's reversal were both invisible
+per commit and obvious in one `grep`. Also: "missing entry" and "skipped number" look identical from the
+gap, and only one of them is repaired by writing something.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
