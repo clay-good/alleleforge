@@ -2056,6 +2056,14 @@ acceptance.
 
 ### Fixed
 
+- **The documented scientific defaults are pinned to the code.** The off-target budgets and reporting
+  thresholds (`CFD >= 0.20 or MIT >= 0.10`, `<= 4 mismatches`) and the pegRNA geometry (`PBS 8-17 nt`,
+  `RTT 7-34 nt`) are restated fourteen times across the README's feature and parameter tables, its
+  architecture diagram, the prime API page and the population concepts page — agreeing by hand and checked
+  nowhere. A reader takes those numbers as the tool's operating envelope; they are what a scientific claim
+  rests on. Every documented occurrence is now compared against `search()`'s signature and
+  `PBS_RANGE`/`RTT_RANGE`.
+
 - **The documented exit codes are pinned to the enum.** They are written out four times — `ExitCode`, the
   CLI spec, the `docs/api/cli.md` table and a README sentence — and only the spec copy was checked against
   the code. Exit codes are the part of a CLI that scripts branch on, so a fifth code or a renumbering would

@@ -9047,6 +9047,34 @@ evidence someone already learned this lesson — go and count the copies. The ex
 one check is the strongest available signal that the others are missing.**
 
 
+## Round 275 — the numbers a scientific claim rests on
+
+R274's lesson said to count the copies whenever a guard pins one. The exit codes were the
+cheap instance. The expensive one is the tuning defaults.
+
+`search()`'s signature is the authority for the off-target budgets and reporting
+thresholds; `PBS_RANGE` and `RTT_RANGE` for the pegRNA geometry. Between the README's
+feature table, its parameter table, its architecture diagram, `docs/api/prime.md` and
+`docs/concepts/population.md`, those numbers appear fourteen times:
+
+    report CFD >= 0.20 or MIT >= 0.10        (4 places)
+    <= 4 mismatches, <= 1 DNA + 1 RNA bulge  (3 places)
+    PBS 8-17 nt, RTT 7-34 nt                 (3 places each)
+
+All correct today, by hand. And unlike an exit code, these are what a reader takes as the
+tool's *operating envelope* — the numbers under a claim like "nominated at CFD >= 0.20", the
+ones a methods section would copy. A default moving while five documents kept the old value
+is a scientific-integrity failure, not a documentation nit.
+
+The guard asserts that *every* documented occurrence matches, not that the number appears
+somewhere: a stale second copy is the failure mode, so one correct occurrence proves
+nothing. Changing `PBS_RANGE` to `(9, 17)` turns it red.
+
+**Lesson: rank duplicated facts by what a reader would do with them. The same drift is a
+nuisance in an exit code, an inconvenience in a schema version, and a false claim in a
+parameter a scientist would cite.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
