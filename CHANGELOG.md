@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **A failed design job reports what the synchronous call reports.** `POST /api/design` with an unparseable
+  variant answers `422 {"detail": "unrecognized variant input: ..."}`; the identical request through
+  `POST /api/jobs/design` recorded `HTTPException: 422: unrecognized variant input: ...` — the framework's
+  exception class and an HTTP status glued to the front of the one sentence a caller can act on, in the
+  field whose whole job is carrying that sentence. Exceptions without a `detail` keep their type name,
+  which is a real clue when the message alone is opaque.
+
 - **The browser UI says what the deployment can actually search.** Its status line reported one bit —
   `reference loaded` or not — while the Populations box invited ancestry labels whose usefulness depends
   entirely on operator configuration a browser user cannot see or supply. It now reports the loaded

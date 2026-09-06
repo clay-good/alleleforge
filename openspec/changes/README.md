@@ -8962,6 +8962,35 @@ rots exactly like a doc — with less chance of being read. When a limitation is
 the code comments for it, not just the docs.**
 
 
+## Round 272 — running the async path, and one false alarm
+
+Exercised the job flow: submit, poll, read. Two things came out of it, and the first is the
+one worth recording.
+
+Under `TestClient`, a submitted design job sat in `running` through fifty seconds of
+polling while the same design synchronously takes under a second. That looks exactly like a
+hung worker. It is not: a synchronous poll loop in the portal thread starves the executor,
+and the same job against a real `uvicorn` finished in two seconds with `state: done`,
+`progress: 1.0` and a result. Checked before reporting, per the standing lesson about
+proving a bug in the real setting — and worth writing down that the *failing* job resolved
+promptly even in the artifact case, which is the detail that makes the hang look real.
+
+The genuine finding was in that failing job. The same bad variant:
+
+    POST /api/design       -> 422 {"detail": "unrecognized variant input: 'chr2:1050:Z>Q'"}
+    POST /api/jobs/design  -> error: "HTTPException: 422: unrecognized variant input: ..."
+
+The framework's exception class and an HTTP status, glued to the front of the one sentence
+a caller can act on, in the field whose entire purpose is carrying that sentence. A status
+code describes the shape of a *response*; a job record is not one, and by the time a client
+reads `error` the 422 that never happened is noise. Exceptions carrying no `detail` keep
+their type name, which is a genuine clue when the message alone is opaque.
+
+**Lesson: when the same failure can arrive by two routes, compare the two strings. Async
+error paths are written once, tested for "did it fail", and never read side by side with
+the synchronous one they are supposed to match.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

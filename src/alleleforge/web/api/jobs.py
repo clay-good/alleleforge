@@ -149,7 +149,16 @@ class JobManager:
                 record.error = f"job exceeded the {self._max_job_seconds}s time limit"
                 record.state = JobState.ERROR
             except Exception as exc:  # noqa: BLE001 - report any failure to the client
-                record.error = f"{type(exc).__name__}: {exc}"
+                # The same failure, submitted synchronously, comes back as a clean
+                # `{"detail": "unrecognized variant input: ..."}`. Through a job it read
+                # `HTTPException: 422: unrecognized variant input: ...` — the framework's
+                # class name and an HTTP status glued to the front of the one sentence a
+                # caller can act on, in a field whose whole job is carrying that sentence.
+                # The status is already the shape of the *response*; it does not belong
+                # inside the reason. Any other exception keeps its type, which is a real
+                # clue when the message alone is opaque.
+                detail = getattr(exc, "detail", None)
+                record.error = str(detail) if detail else f"{type(exc).__name__}: {exc}"
                 record.state = JobState.ERROR
             finally:
                 # This record is now terminal; free its slot and reclaim any backlog.
