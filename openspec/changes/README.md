@@ -4731,6 +4731,34 @@ every test passes, and one of the changes is simply absent. `git status` at the 
 bookkeeping — it is the only thing that notices a step that never ran. Compare the files you *intended* to
 touch against the files that changed.**
 
+## Round 159 — 0 candidates or 190, depending on a flag nobody could reach
+
+Finishing R158's sweep. The Cas9 enumerator turned out not to have the same shape: its scan uses positive
+`if pam.matches(...)` conditions rather than `continue` guards, so there is no list of distinct rejection
+reasons to tally. Forcing the pattern there would have been a refactor of a hot loop for a single reason.
+Recorded as a negative — and then the sweep found something better one level up.
+
+`enumerate_cas9` falls back to **SpCas9-NG** (`NG`) and **SpRY** (`NRN`/`NYN`) when no `NGG` guide is
+actionable. Both are published, widely used PAM-flexible variants; both are implemented and tested here;
+`design_cas9` exposes both as parameters. `design()` — the unified entry point behind the CLI, the web API
+and the cohort path — passes neither and accepts neither. So the capability was reachable only by calling the
+lower-level vertical directly from Python, which is R137's shape exactly.
+
+The size of it, at a locus with no NGG in range:
+
+    default          → 0 candidates, "eligible but no actionable candidate enumerated"
+    --allow-ng --allow-spry → 190 candidates
+
+A scientist reading the first line concludes Cas9 cannot touch their locus. The tool knew otherwise and did
+not say. Both flags now reach the CLI, off by default — an NG guide is a different reagent with different
+specificity, so it is offered rather than assumed — and an empty Cas9 vertical names the variants it did not
+try, which is the form its structure supports.
+
+**Lesson: "the sibling does not have this defect" can be the wrong conclusion drawn from the right
+observation. Cas9 genuinely lacks the multi-reason structure the other two had, and I nearly stopped there —
+the actual defect was one frame up, in what the unified entry point declines to forward. When a sweep clears
+a sibling, check the layer that calls it before closing the question.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

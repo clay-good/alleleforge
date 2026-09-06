@@ -823,3 +823,51 @@ def test_an_empty_base_editor_vertical_explains_itself_in_the_menu(
         note = empty_notes[0]
         assert " — " in note, f"empty base-editor vertical gave no reason: {note}"
         assert any(text in note for text in REJECTION_REASONS.values())
+
+
+#: A locus with no NGG anywhere: every 3-mer is drawn from A and T.
+_NO_NGG_CONTIG = "AATTAATTAATTAATTAATT" * 20
+
+
+def test_cas9_says_which_pam_variants_it_did_not_try(make_reference: MakeRef) -> None:
+    """ "No actionable candidate" hid two published PAM-flexible options.
+
+    `enumerate_cas9` falls back to SpCas9-NG (`NG`) and SpRY (`NRN`/`NYN`) when no
+    `NGG` guide is actionable, and both default to off — so the common outcome, no NGG
+    in range, was reported as "nothing found" while the tool held two widely used
+    alternatives it did not mention. At this locus enabling them turns 0 candidates
+    into 190.
+    """
+    ref = make_reference({"chr1": _NO_NGG_CONTIG})
+    variant = f"chr1:101:{_NO_NGG_CONTIG[100]}>C"
+
+    menu = design(variant, reference=ref, intent=EditIntent.KNOCK_OUT)
+    note = next(
+        line for line in (menu.rationale or "").splitlines() if line.startswith("- cas9_nuclease:")
+    )
+    assert "no actionable candidate" in note
+    assert "NG (SpCas9-NG)" in note and "SpRY" in note
+    assert "were not enabled" in note
+
+
+def test_the_pam_fallbacks_are_reachable_from_design(make_reference: MakeRef) -> None:
+    """They were implemented, tested, and reachable only by calling design_cas9 directly.
+
+    `design()` is what the CLI, the web API and the cohort path all use; none of them
+    could ask for a PAM-flexible guide.
+    """
+    ref = make_reference({"chr1": _NO_NGG_CONTIG})
+    variant = f"chr1:101:{_NO_NGG_CONTIG[100]}>C"
+
+    assert not design(variant, reference=ref, intent=EditIntent.KNOCK_OUT).candidates
+    relaxed = design(
+        variant, reference=ref, intent=EditIntent.KNOCK_OUT, allow_ng=True, allow_spry=True
+    )
+    assert relaxed.candidates, "the fallback produced nothing; the check is vacuous"
+    # ...and the note reflects what was actually tried.
+    note = next(
+        line
+        for line in (relaxed.rationale or "").splitlines()
+        if line.startswith("- cas9_nuclease:")
+    )
+    assert "no actionable candidate" not in note

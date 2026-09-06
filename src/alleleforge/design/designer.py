@@ -128,6 +128,8 @@ def design(
     base_outcome_predictor: BaseOutcomePredictor | None = None,
     prime_efficiency_scorer: PrimeEfficiencyScorer | None = None,
     prime_outcome_predictor: PrimeOutcomePredictor | None = None,
+    allow_ng: bool = False,
+    allow_spry: bool = False,
 ) -> RankedMenu:
     """Design a ranked, multi-chemistry editing menu for a variant.
 
@@ -167,6 +169,11 @@ def design(
         prime_outcome_predictor: Override the prime byproduct predictor; default is
             the geometry baseline.
         run_offtarget: Run the off-target engine for every candidate.
+        allow_ng: Fall back to SpCas9-NG (NG) guides when no NGG guide is
+            actionable. Off by default: an NG guide is a different reagent with
+            different specificity, so it is offered rather than assumed.
+        allow_spry: Fall back to SpRY (NRN/NYN) guides when neither NGG
+            nor NG yields one. Off by default, for the same reason.
         max_candidates_per_chemistry: Cap candidates kept from each chemistry.
         build: Reference build the input is expressed in.
         clinvar: ClinVar DB (needed for accession inputs).
@@ -298,8 +305,11 @@ def design(
                     populations=populations,
                     run_offtarget=run_offtarget,
                     max_candidates=None,  # cap deferred to the composite ranker
+                    allow_ng=allow_ng,
+                    allow_spry=allow_spry,
                 ),
                 notes,
+                empty_reason=lambda: _cas9_empty_reason(allow_ng, allow_spry),
             )
         )
 
@@ -379,6 +389,31 @@ _EXPECTED_DESIGN_FAILURES: tuple[type[Exception], ...] = (
     ImportError,
     OSError,
 )
+
+
+def _cas9_empty_reason(allow_ng: bool, allow_spry: bool) -> str:
+    """Explain an empty Cas9 vertical, naming the PAM variants not tried.
+
+    The enumerator can fall back to SpCas9-NG (`NG`) and SpRY (`NRN`/`NYN`) when no
+    `NGG` guide is actionable, and both default to off — so the common outcome is "no
+    NGG in range" reported as "nothing found", while the tool holds two published,
+    widely used PAM-flexible options it did not mention. Naming them is the difference
+    between a dead end and a next step.
+    """
+    tried = ["NGG"]
+    if allow_ng:
+        tried.append("NG (SpCas9-NG)")
+    if allow_spry:
+        tried.append("NRN/NYN (SpRY)")
+    untried = [
+        name
+        for enabled, name in ((allow_ng, "NG (SpCas9-NG)"), (allow_spry, "NRN/NYN (SpRY)"))
+        if not enabled
+    ]
+    reason = f"no actionable protospacer with a {' or '.join(tried)} PAM near the edit"
+    if untried:
+        reason += f"; the PAM-flexible variants {', '.join(untried)} were not enabled"
+    return reason
 
 
 def _run_chemistry(

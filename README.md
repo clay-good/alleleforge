@@ -1081,7 +1081,7 @@ flowchart LR
 | Command | Purpose |
 |---|---|
 | `aforge resolve <input>` | Normalize any input form; show the canonical variant + class. |
-| `aforge design <input>` | Variant → ranked, multi-chemistry menu rendered to JSON/TSV/HTML/PDF. |
+| `aforge design <input>` | Variant → ranked, multi-chemistry menu rendered to JSON/TSV/HTML/PDF. `--allow-ng` / `--allow-spry` offer the SpCas9-NG and SpRY PAM-flexible fallbacks when no NGG guide is actionable. |
 | `aforge lift <locus>… --chain <file> --from <build> --to <build>` | Lift loci to another assembly, in the same locus form `--region` accepts. An unmappable locus prints `UNMAPPED` and exits non-zero rather than being dropped. |
 | `aforge batch <vcf\|list>` | Cohort design over a VCF (cyvcf2 fast path) or variant list — streaming, resumable, failure-isolated. |
 | `aforge offtarget <spacer>` | Standalone population/haplotype-aware off-target search. |

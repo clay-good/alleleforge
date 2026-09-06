@@ -1751,3 +1751,28 @@ def test_the_dependency_message_names_the_extra_that_fixes_it(
     with pytest.raises(typer.Exit):
         _missing_dependency(ImportError(name="somethingelse"))
     assert "pip install somethingelse" in capsys.readouterr().err
+
+
+def test_allow_ng_is_reachable_from_the_cli(runner: CliRunner, tmp_path: Path) -> None:
+    """The PAM fallbacks existed in the library and no shell could ask for them."""
+    contig = "AATTAATTAATTAATTAATT" * 20
+    fasta = tmp_path / "ref.fa"
+    fasta.write_text(">chr1\n" + contig + "\n")
+    args = [
+        "design",
+        f"chr1:101:{contig[100]}>C",
+        "--reference-fasta",
+        str(fasta),
+        "--intent",
+        "knock_out",
+        "--no-offtarget",
+        "--json",
+    ]
+
+    without = runner.invoke(app, args)
+    assert without.exit_code == 0, without.output
+    assert '"candidates": []' in without.output.replace("\n", "").replace("  ", "")
+
+    with_ng = runner.invoke(app, [*args, "--allow-ng", "--allow-spry"])
+    assert with_ng.exit_code == 0, with_ng.output
+    assert json.loads(with_ng.output)["candidates"], "the flags changed nothing"

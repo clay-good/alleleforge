@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **`--allow-ng` and `--allow-spry`: the PAM-flexible fallbacks are reachable at last.** `enumerate_cas9`
+  falls back to SpCas9-NG (`NG`) and SpRY (`NRN`/`NYN`) when no `NGG` guide is actionable, and `design_cas9`
+  exposed both — but `design()`, which the CLI, the web API and the cohort path all use, did not, so no shell
+  could ask for them. At a locus with no NGG in range the default run produces **0 candidates** and enabling
+  both produces **190**. Off by default, deliberately: an NG guide is a different reagent with different
+  specificity, so it is offered rather than assumed. An empty Cas9 vertical now also names the variants it
+  did not try, which is the difference between a dead end and a next step.
+
 - **Every field on the report models must now reach a renderer.** The recurring defect here is not a wrong
   number but a correct one nothing shows — `search_description()` dropped by the web envelope, the CFD
   citation left in a docstring, `sources_considered` needing separate wiring. `project.md` prescribes the

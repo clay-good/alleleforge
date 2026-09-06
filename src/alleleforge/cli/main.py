@@ -650,6 +650,23 @@ def design(
     no_offtarget: Annotated[
         bool, typer.Option("--no-offtarget", help="Skip the off-target search.")
     ] = False,
+    allow_ng: Annotated[
+        bool,
+        typer.Option(
+            "--allow-ng",
+            help="Fall back to SpCas9-NG (NG PAM) guides when no NGG guide is "
+            "actionable. Off by default: an NG guide is a different reagent with "
+            "different specificity, so it is offered rather than assumed.",
+        ),
+    ] = False,
+    allow_spry: Annotated[
+        bool,
+        typer.Option(
+            "--allow-spry",
+            help="Fall back to SpRY (NRN/NYN PAM) guides when neither NGG nor NG "
+            "yields one. Off by default, for the same reason as --allow-ng.",
+        ),
+    ] = False,
     trained_efficiency: Annotated[
         bool,
         typer.Option(
@@ -808,6 +825,8 @@ def design(
             cas9_efficiency_scorer=cas9_scorer,
             cas9_outcome_predictor=cas9_outcome,
             base_outcome_predictor=base_outcome,
+            allow_ng=allow_ng,
+            allow_spry=allow_spry,
         )
     except ValueError as exc:
         _echo_err(f"error: {exc}")

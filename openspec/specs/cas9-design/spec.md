@@ -176,3 +176,15 @@ off-target, and SHALL surface `relaxed-pam` and `ood` as flags.
 #### Scenario: Out-of-distribution guide
 - **WHEN** a guide's efficiency input is out of distribution
 - **THEN** the candidate carries an `ood` flag
+
+### Requirement: The PAM-flexible fallbacks are reachable from every surface
+
+The SpCas9-NG and SpRY fallbacks SHALL be selectable through the unified `design()`
+entry point and the CLI, not only through the Cas9 vertical's own function. They stay
+off by default — a PAM-flexible guide is a different reagent with different
+specificity — and an empty Cas9 vertical SHALL name the variants it did not try.
+
+#### Scenario: No NGG protospacer near the edit
+- **WHEN** no `NGG` guide is actionable and the fallbacks are not enabled
+- **THEN** the rationale says so and names SpCas9-NG and SpRY as not enabled, rather
+  than reporting only that nothing was found
