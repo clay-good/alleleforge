@@ -133,7 +133,7 @@ def _design_options(
     intent_str: str, chemistries_in: list[str] | None, weights_in: list[float] | None
 ) -> tuple[Any, Any, Any]:
     """Parse the shared design knobs (intent/chemistries/weights), or raise ``422``."""
-    from alleleforge.design.ranking import DEFAULT_WEIGHTS, RankingWeights
+    from alleleforge.design.ranking import DEFAULT_WEIGHTS, OBJECTIVES, RankingWeights
     from alleleforge.types.edit import Chemistry, EditIntent
 
     # A `422` a client cannot act on is worse than the CLI's equivalent: there is no
@@ -165,9 +165,8 @@ def _design_options(
         chemistries = [Chemistry(c) for c in chemistries_in]
     weights = DEFAULT_WEIGHTS
     if weights_in is not None:
-        e, c, s, p = weights_in
         try:
-            weights = RankingWeights(efficiency=e, cleanliness=c, safety=s, simplicity=p)
+            weights = RankingWeights(**dict(zip(OBJECTIVES, weights_in, strict=True)))
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=f"invalid ranking weights: {exc}") from exc
     return intent, chemistries, weights

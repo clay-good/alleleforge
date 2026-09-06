@@ -8148,6 +8148,33 @@ neither was written for. Agreement on the known cases hides that one fails close
 other fails silent, and the silent one is always the surface a reader trusts.**
 
 
+## Round 246 — the same query, one module over
+
+R245's query again: two places answering one question. `design.ranking.OBJECTIVES` names
+the four ranking axes, and three shells spelled that list themselves —
+
+    cli/main.py      _WEIGHT_AXES = ("efficiency", "cleanliness", "safety", "simplicity")
+    web/api/models   min_length=4, max_length=4  (x2, with the names in the description)
+    web/api/app.py   e, c, s, p = weights_in
+
+They agree. The exposure is not disagreement about the four objectives that exist; it is
+what happens to the fifth. It would be unreachable from every shell at once — and not
+quietly: the CLI refuses a weights table naming it ("must name exactly [the four]"), and
+the API rejects the five-element vector as too long. A shell that contradicts the library
+about what the library can do is worse than a shell that merely lags it.
+
+All three derive from `OBJECTIVES` now. Verified by mutation, both directions: adding a
+fifth objective to the tuple *and* to `RankingWeights` makes every shell accept five
+weights and the OpenAPI schema resize itself, with no shell edit; adding it to the tuple
+alone fails loudly at import. The remaining pair that cannot derive — `OBJECTIVES` is a
+hand-written tuple of the dataclass's field names, reached by `getattr` — is pinned by a
+test, because a renamed field would otherwise surface as an `AttributeError` at call time.
+
+**Lesson: a duplicated list is not a bug about today's entries; it is a bug about
+tomorrow's. Ask what the copy does with the entry the original gains, and check whether it
+merely ignores it or actively refuses it.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

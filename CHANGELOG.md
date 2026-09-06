@@ -2036,6 +2036,12 @@ acceptance.
 
 ### Fixed
 
+- **Every shell spells the ranking objectives from the ranker.** `design.ranking.OBJECTIVES` names the four
+  axes; the CLI held its own copy, and the web API held two more — a hardcoded `min_length=4`/`max_length=4`
+  and a positional `e, c, s, p = weights_in` unpack. Four spellings of one fact, which agreed only about the
+  objectives that exist. A fifth would have been unreachable from every shell at once, with the CLI refusing
+  the very table naming it and the API rejecting the vector as too long. The shells derive from `OBJECTIVES`
+  now, and a test pins the one pair that cannot derive — the tuple against `RankingWeights`'s fields.
 - **The leaderboard no longer guesses which direction a metric ranks.** Two tables in the same package
   answered "does higher win?" by opposite defaults: `runner.HIGHER_IS_BETTER` raises on a metric it does not
   know, while `leaderboard.LOWER_IS_BETTER` was a hand-written denylist, so anything outside `{kl, ece}` was

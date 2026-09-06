@@ -13,6 +13,7 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from alleleforge.design.ranking import OBJECTIVES
 from alleleforge.report.builder import COORDINATE_SYSTEM, RESEARCH_USE_DISCLAIMER
 from alleleforge.types.offtarget import OffTargetReport
 from alleleforge.types.sequence import GenomicInterval, Strand
@@ -150,9 +151,9 @@ class DesignRequest(BaseModel):
     )
     weights: list[float] | None = Field(
         default=None,
-        description="Ranking weights [efficiency, cleanliness, safety, simplicity].",
-        min_length=4,
-        max_length=4,
+        description=f"Ranking weights [{', '.join(OBJECTIVES)}], in that order.",
+        min_length=len(OBJECTIVES),
+        max_length=len(OBJECTIVES),
     )
     max_per_chemistry: int | None = Field(
         default=None, ge=1, description="Cap candidates kept per chemistry."
@@ -196,9 +197,9 @@ class BatchRequest(BaseModel):
     )
     weights: list[float] | None = Field(
         default=None,
-        description="Ranking weights [efficiency, cleanliness, safety, simplicity].",
-        min_length=4,
-        max_length=4,
+        description=f"Ranking weights [{', '.join(OBJECTIVES)}], in that order.",
+        min_length=len(OBJECTIVES),
+        max_length=len(OBJECTIVES),
     )
     max_per_chemistry: int | None = Field(
         default=None, ge=1, description="Cap candidates kept per chemistry."

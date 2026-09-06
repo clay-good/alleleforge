@@ -306,10 +306,6 @@ def _known(values: Iterable[Any]) -> str:
     return ", ".join(sorted(str(getattr(v, "value", v)) for v in values))
 
 
-#: The ranking axes, in the order the `--weights` string spells them.
-_WEIGHT_AXES = ("efficiency", "cleanliness", "safety", "simplicity")
-
-
 def _parse_weights(spec: Any) -> Any:
     """Parse a weights specification from the CLI or a run-config TOML.
 
@@ -326,39 +322,43 @@ def _parse_weights(spec: Any) -> Any:
     Returns:
         The parsed :class:`RankingWeights`.
     """
-    from alleleforge.design.ranking import DEFAULT_WEIGHTS, RankingWeights
+    # The axes come from the ranker rather than a copy here: a shell that spells the
+    # objective list itself cannot reach a new objective the ranker gains, and would
+    # refuse the very table naming it.
+    from alleleforge.design.ranking import DEFAULT_WEIGHTS, OBJECTIVES, RankingWeights
 
     if spec is None:
         return DEFAULT_WEIGHTS
-    expected = "'efficiency,cleanliness,safety,simplicity', a 4-element array, or a table"
+    expected = f"'{','.join(OBJECTIVES)}', a {len(OBJECTIVES)}-element array, or a table"
     if isinstance(spec, str):
         values: Any = spec.split(",")
     elif isinstance(spec, Mapping):
-        unknown = sorted(set(spec) - set(_WEIGHT_AXES))
-        missing = sorted(set(_WEIGHT_AXES) - set(spec))
+        unknown = sorted(set(spec) - set(OBJECTIVES))
+        missing = sorted(set(OBJECTIVES) - set(spec))
         if unknown or missing:
             _echo_err(
-                f"error: weights table must name exactly {list(_WEIGHT_AXES)}"
+                f"error: weights table must name exactly {list(OBJECTIVES)}"
                 + (f"; unexpected {unknown}" if unknown else "")
                 + (f"; missing {missing}" if missing else "")
             )
             raise typer.Exit(ExitCode.USAGE)
-        values = [spec[axis] for axis in _WEIGHT_AXES]
+        values = [spec[axis] for axis in OBJECTIVES]
     elif isinstance(spec, Sequence):
         values = list(spec)
     else:
         _echo_err(f"error: weights must be {expected}, not {type(spec).__name__}")
         raise typer.Exit(ExitCode.USAGE)
-    if len(values) != 4:
+    if len(values) != len(OBJECTIVES):
         _echo_err(f"error: weights expects {expected}")
         raise typer.Exit(ExitCode.USAGE)
     try:
-        eff, clean, safe, simple = (float(v) for v in values)
         # RankingWeights rejects non-finite / negative / all-zero weights; surface
         # those as a clean usage error rather than an uncaught traceback.
-        return RankingWeights(efficiency=eff, cleanliness=clean, safety=safe, simplicity=simple)
+        return RankingWeights(
+            **{axis: float(v) for axis, v in zip(OBJECTIVES, values, strict=True)}
+        )
     except (TypeError, ValueError) as exc:
-        _echo_err(f"error: weights must be four non-negative numbers: {exc}")
+        _echo_err(f"error: weights must be {len(OBJECTIVES)} non-negative numbers: {exc}")
         raise typer.Exit(ExitCode.USAGE) from exc
 
 
