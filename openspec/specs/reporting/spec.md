@@ -342,3 +342,16 @@ answering "will I get what I asked for".
 #### Scenario: The intended edit is a low-probability outcome
 - **WHEN** the intended allele ranks below the display cap
 - **THEN** it is shown anyway, marked intended, and counted in the shown mass
+
+### Requirement: A reagent whose likeliest outcome is not the requested edit says so
+
+A candidate SHALL carry a caveat when an intended allele exists and some other allele
+is more likely, on every chemistry, naming `P(intended)`. This is a comparison the
+predicted distribution already makes, not a threshold: no defensible cutoff separates
+an acceptable `P(intended)` from an unacceptable one, and the fact a reader needs is
+that something else will happen more often than what they asked for.
+
+#### Scenario: A bystander-only edit is the modal outcome
+- **WHEN** the highest-probability allele is not the intended one
+- **THEN** the candidate carries `intended-not-modal:<P(intended)>` and the report
+  renders it as a caveat

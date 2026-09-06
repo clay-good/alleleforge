@@ -17,6 +17,7 @@ from typing import Protocol
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.design.offtarget_flags import offtarget_flags
+from alleleforge.design.outcome_flags import outcome_flags
 from alleleforge.design.spacer_quality import spacer_quality_flags
 from alleleforge.enumerate.cas9 import (
     NGG_PAM,
@@ -108,6 +109,7 @@ def _flags(
     efficiency: Prediction[float],
     offreport: OffTargetReport | None,
     donor: HDRDonor | None,
+    outcome: EditOutcome | None,
     *,
     precise: bool,
 ) -> tuple[str, ...]:
@@ -137,6 +139,7 @@ def _flags(
     # for an axis nobody examined — and a *searched* candidate with a high-scoring site
     # had no caveat at all, only a lower number. Both come from one shared helper now.
     flags += offtarget_flags(offreport)
+    flags += outcome_flags(outcome)
     flags += spacer_quality_flags(str(guide.spacer.sequence))
     return tuple(flags)
 
@@ -281,7 +284,7 @@ def design_cas9(
                 efficiency=efficiency,
                 outcome=outcome,
                 offtarget=offreport,
-                flags=_flags(guide, efficiency, offreport, donor, precise=precise),
+                flags=_flags(guide, efficiency, offreport, donor, outcome, precise=precise),
                 rationale=_rationale(guide, efficiency, donor, precise=precise),
             )
         )

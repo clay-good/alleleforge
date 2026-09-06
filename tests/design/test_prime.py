@@ -327,7 +327,7 @@ def test_the_pe3_nick_distance_is_shown_not_just_computed(make_reference: MakeRe
     )
     #  now takes the off-target report itself, not a boolean: passing only a
     # flag is why prime never surfaced a population off-target.
-    flags = _flags(distant, pe3[0].efficiency, None)
+    flags = _flags(distant, pe3[0].efficiency, None, None)
     assert "nick-distance:+62nt" in flags
     assert "close-nick" not in flags
 

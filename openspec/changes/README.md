@@ -5160,6 +5160,36 @@ correctly, printed honestly, and consumed correctly by the ranking — and it st
 because a reader scans the section headed CAVEAT. When a value is at the extreme of its range, ask whether
 anything says so in the register a reader is actually reading.**
 
+## Round 172 — the other number at its floor
+
+R171's lesson: when a value sits at the extreme of its range, ask whether anything says so in the register a
+reader is actually reading. The same PDF has a second one, on the line above the off-target hazard:
+
+    P(intended) = 0.05
+
+Of everything this reagent produces, 5% is the edit that was asked for. It is the number the whole design
+exists to serve, and it had no caveat at *any* value.
+
+Getting this right meant not inventing a threshold. "Low `P(intended)`" needs a cutoff nobody can defend —
+0.05 is disastrous for a therapeutic and unremarkable for a screen. But the data already makes a comparison
+that needs no cutoff: **is the single most likely outcome the requested edit?** In this report it is not —
+`A6G` at 0.288 is a bystander-only edit and the requested `A4G` is seventh at 0.048. That is a fact about the
+reagent, not a judgement about how small a probability is too small, and it is the one a bench scientist
+needs before ordering oligos. The flag carries `P(intended)` so the reader sizes the gap themselves.
+
+The wiring repeated R171's root cause exactly, which is why it is worth recording twice. Neither `_flags` in
+cas9 nor in prime received the outcome — same as neither receiving the off-target report last round. A flag
+cannot be forgotten from a list it was never able to compute, and reading the flag builder shows nothing
+missing; the absence is in the *signature*. Two rounds, two hazards, one shape.
+
+Also worth noting: my first test fixtures were rejected by `EditOutcome`, which validates that its allele
+probabilities sum to ~1.0. The model defended its own contract against a sloppy test of mine.
+
+**Lesson: when a caveat needs a threshold, look for a comparison instead. A threshold is a number someone has
+to defend and everyone has to trust; a comparison — "X is more likely than Y" — is derived from the data and
+survives disagreement about what counts as bad. The two hazards this round and last both turned out to have
+one available, and only one of them needed a band at all.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

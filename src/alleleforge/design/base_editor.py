@@ -15,6 +15,7 @@ from typing import Protocol
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.design.offtarget_flags import offtarget_flags
+from alleleforge.design.outcome_flags import outcome_flags
 from alleleforge.design.spacer_quality import spacer_quality_flags
 from alleleforge.enumerate.base_editor import BASE_EDITORS, BaseEditor, enumerate_base_edits
 from alleleforge.genome.reference import ReferenceGenome
@@ -48,6 +49,7 @@ def _flags(
     # not of the chemistry. They were prime-only, so a base-editor sgRNA with 5% GC came
     # back top-ranked and `recommended` with no caveat at all.
     flags += offtarget_flags(offreport)
+    flags += outcome_flags(outcome.outcome)
     flags += spacer_quality_flags(str(window.spacer.sequence))
     return tuple(flags)
 

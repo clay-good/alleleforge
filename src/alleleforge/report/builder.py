@@ -84,6 +84,10 @@ CAVEAT_FLAGS: dict[str, str] = {
         "this strategy, not the intended correction, which is the minority product"
     ),
     "bystander-present": ("editable bystander bases sit in the window alongside the target"),
+    "intended-not-modal": (
+        "the single most likely outcome of this reagent is not the requested edit — "
+        "the flag carries P(intended), and the outcome table shows what beats it"
+    ),
     "offtarget-high": (
         "a nominated off-target site scores at or above the triage band — this guide "
         "has a plausible cut elsewhere in the genome and that site is the first thing "

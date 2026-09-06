@@ -1563,6 +1563,13 @@ acceptance.
 
 ### Fixed
 
+- **`P(intended)` had no caveat at any value.** It is the number a reader is actually deciding on — of
+  everything this reagent produces, how much is the edit that was asked for — and a real report printed
+  `P(intended) = 0.05` beside an outcome table whose most likely row was a bystander-only edit at 0.288, with
+  the CAVEATS block silent. Candidates now carry `intended-not-modal:<p>` when the single most likely outcome
+  is not the requested edit. Deliberately **not** a threshold: "low" needs a number nobody can defend, while
+  "something else is more likely than what you asked for" is a comparison the data already makes.
+
 - **A guide with a perfect-match off-target elsewhere in the genome carried no caveat.** The number was
   always there — a report prints `off-target sites: 2 (specificity 0.376)` — but the CAVEATS block, which is
   what a reader scans for *what should worry me*, listed spacer GC and bystander bases and said nothing about

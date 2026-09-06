@@ -86,3 +86,5 @@ Off-target caveats are a property of the spacer against the genome, not of the
 chemistry carrying it, so every vertical derives them from one helper.
 
 ::: alleleforge.design.offtarget_flags
+
+::: alleleforge.design.outcome_flags

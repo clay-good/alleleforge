@@ -19,6 +19,7 @@ from alleleforge.data.annotations import EncodeTracks
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.design.offtarget_flags import offtarget_flags
+from alleleforge.design.outcome_flags import outcome_flags
 from alleleforge.design.spacer_quality import spacer_quality_flags
 from alleleforge.enumerate.prime import NGG_PAM, enumerate_prime
 from alleleforge.genome.reference import ReferenceGenome
@@ -28,7 +29,7 @@ from alleleforge.scoring.base import ensure_prediction
 from alleleforge.scoring.prime_efficiency import PridictScorer
 from alleleforge.scoring.prime_outcome import PrimeOutcomePredictor
 from alleleforge.types.candidate import DesignCandidate
-from alleleforge.types.edit import Chemistry, EditIntent
+from alleleforge.types.edit import Chemistry, EditIntent, EditOutcome
 from alleleforge.types.guide import PAM, PegRNA, Spacer
 from alleleforge.types.offtarget import OffTargetReport, OffTargetSite
 from alleleforge.types.prediction import Prediction
@@ -113,6 +114,7 @@ def _flags(
     pegrna: PegRNA,
     efficiency: Prediction[float],
     offreport: OffTargetReport | None,
+    outcome: EditOutcome | None,
     *,
     chromatin_adjusted: bool = False,
 ) -> tuple[str, ...]:
@@ -131,6 +133,7 @@ def _flags(
     # site is high-scoring, and whether population variation contributed. Prime was the
     # only chemistry never to flag a population off-target, which its siblings did.
     flags += offtarget_flags(offreport)
+    flags += outcome_flags(outcome)
     if chromatin_adjusted:
         flags.append("chromatin-adjusted")
     if pegrna.is_epegrna:
@@ -339,7 +342,11 @@ def design_prime(
             outcome=outcome.outcome,
             offtarget=peg_offtarget,
             flags=_flags(
-                pegrna, efficiency, peg_offtarget, chromatin_adjusted=bool(chromatin_note)
+                pegrna,
+                efficiency,
+                peg_offtarget,
+                outcome.outcome,
+                chromatin_adjusted=bool(chromatin_note),
             ),
             rationale=(
                 f"pegRNA on {pegrna.placement.strand.value if pegrna.placement else '?'} strand, "
