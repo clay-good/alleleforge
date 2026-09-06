@@ -9165,6 +9165,39 @@ enumerates the population from the code. The fixes were all correct; what was mi
 the thing that makes the fourth instance impossible to introduce.**
 
 
+## Round 279 — following the remedy across three commands
+
+R261 fixed a refusal that named no way out. The complement: a refusal that *does* name a
+way out, followed all the way through.
+
+`resolve` refuses a record whose native assembly disagrees with the requested build —
+relabeling a coordinate designs a guide at the wrong place in the genome — and says:
+
+    lift the coordinates to 'hg38' ... `aforge lift <locus> --chain <file> --from hg19
+    --to hg38`
+
+and `lift` says its output is "in the same locus form `design --region` accepts, so the
+result pipes straight back in". Three commands, two claims, and nothing had run the chain
+end to end. So I did, with the repo's own chain fixture:
+
+    $ aforge lift chr1:10-60 --chain forward.chain --from hg19 --to hg38
+    chr1:10-60(+)    chrA:210-260(+)
+    $ aforge offtarget ACGT... --region 'chrA:210-260(+)'    -> exit 0
+
+Both claims hold. The round is the test, because a remedy whose output the next step
+rejects is the same dead end as no remedy, and that failure would only ever be found by a
+user in the middle of a build mismatch — the worst moment to discover the escape hatch is
+shaped wrong.
+
+Pinned alongside: an unmappable locus prints `UNMAPPED` and exits non-zero. Dropping it
+would silently shrink the search, and a smaller search finds fewer off-targets, which reads
+as a cleaner guide.
+
+**Lesson: a refusal that names a next command is a promise about a workflow, not a string.
+Run the whole chain — refusal, remedy, and the step the remedy was for — because each link
+is owned by a different module and tested by a different file.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

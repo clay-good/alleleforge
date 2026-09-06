@@ -52,6 +52,18 @@ did — the build label is supplied by the caller and reads the same either way.
 - **THEN** the output names the genome — build, contig and base counts, and shape digest
   — and states that the REF allele was verified against it
 
+### Requirement: A named remedy's output feeds the step that needs it
+
+Where one command's refusal names another command, the named command's output SHALL be
+accepted verbatim by the step the caller was heading for. `lift` prints
+`input<TAB>output` in the locus form `--region` takes, so a lifted locus pipes straight
+back in; a remedy whose output the next step rejects is the same dead end as no remedy.
+
+#### Scenario: Lifting and searching
+- **WHEN** a locus is lifted through a chain file and the printed target locus is passed
+  to `--region`
+- **THEN** the search accepts it unmodified
+
 ### Requirement: A remedy for a build mismatch
 
 `resolve` SHALL refuse a record whose native assembly disagrees with the requested build,

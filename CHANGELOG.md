@@ -2056,6 +2056,14 @@ acceptance.
 
 ### Fixed
 
+- **The build-mismatch remedy is pinned end to end.** `resolve` refuses a record whose native assembly
+  disagrees with the requested build and names `aforge lift ... --chain ... --from ... --to ...`; `lift`
+  documents that its output is "in the same locus form `design --region` accepts, so the result pipes
+  straight back in". Two claims across three commands, run by nothing. Now tested: the flags in the refusal
+  exist, a real chain file maps a locus, the printed locus is accepted verbatim by `--region`, and an
+  unmappable locus prints `UNMAPPED` with a non-zero exit rather than being dropped — a silently shorter
+  list is a smaller search, which reads as a cleaner guide.
+
 - **An unmeasured off-target axis is pinned never to render as a number.** `0.0` in a worst-case column and
   `1.0` in a specificity column are the *reassuring* values, and this project has shipped that confusion
   once already (`worst_offtarget: 0.0` for a candidate with no report). The guard derives the field list
