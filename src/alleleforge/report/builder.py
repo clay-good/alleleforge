@@ -28,6 +28,12 @@ from alleleforge.types.provenance import Provenance
 from alleleforge.types.sequence import GenomicInterval
 
 #: The research-use disclaimer that leads every rendered report.
+#: The machine-readable spelling of the coordinate convention, carried as
+#: :attr:`DesignReport.coordinate_system` so a JSON consumer does not have to parse
+#: the :data:`COORDINATE_NOTE` sentence the prose renders print. One convention, two
+#: encodings; `test_the_two_spellings_agree` keeps them saying the same thing.
+COORDINATE_SYSTEM = "0-based-half-open"
+
 RESEARCH_USE_DISCLAIMER = (
     "AlleleForge is a research tool. It is not a medical device and does not "
     "provide medical advice. The candidates below are ranked, explicitly "
@@ -319,12 +325,18 @@ class DesignReport(BaseModel):
             gracefully when one chemistry fails, records exactly what happened here,
             and every renderer would otherwise drop it.
         provenance: The menu's provenance block (ends every render).
+        coordinate_system: The convention every locus in this document is in. The
+            prose renders say this in the footer; the JSON export said it nowhere,
+            so a pipeline reading `locus` as `chr2:43-63` had no way to know a
+            genome browser reads the same digits as 1-based inclusive. It is a
+            field rather than a sentence because the consumer here is a machine.
     """
 
     model_config = ConfigDict(frozen=True)
 
     title: str
     disclaimer: str
+    coordinate_system: str = COORDINATE_SYSTEM
     variant: str | None
     intent: str | None
     weights: dict[str, float]

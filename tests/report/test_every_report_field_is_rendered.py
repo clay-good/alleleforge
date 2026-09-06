@@ -32,7 +32,15 @@ _RENDERERS = ("html.py", "pdf.py", "export.py")
 
 #: Fields that legitimately reach no renderer, each with the reason. A field may only
 #: be here with an explanation, so this cannot become a place to hide a dropped field.
-_NOT_RENDERED: dict[str, str] = {}
+_NOT_RENDERED: dict[str, str] = {
+    "coordinate_system": (
+        "the machine-readable spelling of a fact the prose renders already state in "
+        "words (COORDINATE_NOTE, in the footer). It exists for the JSON export, which "
+        "serializes every field wholesale and so never names this one; both come from "
+        "COORDINATE_SYSTEM, and test_every_surface_states_the_same_facts checks the "
+        "convention reaches all four surfaces"
+    ),
+}
 
 
 def _renderer_sources() -> dict[str, str]:

@@ -7010,6 +7010,55 @@ ago. The durable version of the check is a table of fact x surface, which is wha
 top of this entry is.**
 
 
+## Round 219 — making the previous round's lesson a test
+
+R218 ended by saying the durable form of "which renderer is missing this?" is a table
+of fact x surface. Writing that table found the remaining hole on the first run:
+
+    fact                 html    tsv   json    pdf
+    disclaimer              Y      Y      Y      Y
+    coordinates             Y      Y      .      Y
+    reference identity      Y      Y      Y      Y
+    build / seed / models   Y      Y      Y      Y
+
+`report_to_json` — the machine-readable export a pipeline consumes — states **no
+coordinate convention at all**. Its `locus` is a formatted string
+(`chr2:43-63 (+), nick 60`), and the `Provenance` model it embeds has no coordinate
+note, because that note lives in `provenance_lines()`, a render helper the JSON never
+calls. Every locus in the document is 0-based half-open; a genome browser reads the
+same digits as 1-based inclusive, which is the whole reason the note exists.
+
+`DesignReport.coordinate_system` is now a field rather than a sentence, because the
+consumer of this surface is a machine and making it grep prose for the convention is
+the same mistake in a smaller font. It reaches `/api/design` for free.
+
+The table also corrected two things I had measured wrong before writing it down. The
+PDF looked like it was missing the reference shape; it was not — the text is there and
+merely wrapped across a line, so the needle has to be short. And the "reference
+identity" fact has two encodings — eight hex characters in the prose renders, the whole
+hash in the JSON — so the check keys off the run's own digest rather than a literal.
+**A fact x surface table is only as good as its needles, and a needle tuned on one
+surface will libel another.**
+
+The omission list is the mechanism that makes this last: a render that legitimately
+should not carry a fact has to say so, with a reason, in `OMITTED`. It is empty today.
+
+Two more of the project's own guards then caught the fix, which is the third time in
+this stretch. `test_every_report_field_is_rendered` refused a `DesignReport` field no
+renderer reads — true, because the JSON serializes every field wholesale and names
+none of them — so the omission is recorded with its reason, and `COORDINATE_SYSTEM` is
+now the single constant the slug and the prose sentence both come from, with a test
+that they still agree. And `test_committed_schemas_match_the_code` required the
+exported JSON Schema to be regenerated, which is how a new public field reaches the
+documented contract rather than only the code.
+
+**Lesson: when a round ends by naming the general form of its bug, write that form as
+a test in the next round or the naming was decoration. The check took twenty minutes
+and found a real gap before it had ever run in anger — which is the argument for it,
+because the gap it found had survived every round that looked at the JSON export
+directly.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **Every render of a report is checked to state the same whole-document facts.** A `fact x surface` table
+  (disclaimer, coordinate convention, reference identity, build, seed, models across HTML/TSV/JSON/PDF) is now
+  a test with an explicit, reasoned omission list, so a fact added to one render cannot quietly skip the
+  others. Writing it found the last gap: `report_to_json` stated **no coordinate convention at all** — its
+  `locus` is a formatted string and the embedded `Provenance` has no coordinate note, because that note lives
+  in a render helper the JSON never calls. `DesignReport.coordinate_system` (`"0-based-half-open"`) is now a
+  field rather than a sentence, since the consumer of that surface is a machine; it reaches `/api/design` too.
+
 - **A malformed gnomAD sites file is refused with the line and the reason.** `--gnomad` was the one
   user-supplied format whose parse errors escaped as a bare traceback (`KeyError: 'af'` on a row with its
   trailing columns lost, because `zip(..., strict=False)` truncates silently and `_load_gnomad` catches only
