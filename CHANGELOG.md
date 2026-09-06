@@ -10,6 +10,16 @@ acceptance.
 
 ### Added
 
+- **`pip install "alleleforge[web]"` can actually serve.** The extra was `fastapi`, `uvicorn`, `httpx` — no
+  FASTA reader — so the documented three-line quickstart died at import on
+  `uvicorn alleleforge.web.api.app:app`, because `create_app()` runs at module scope and reads
+  `ALLELEFORGE_REFERENCE_FASTA`. The Dockerfile already compensated by adding `pyfaidx` by hand, with a
+  comment explaining that the API needs only the light reader and not the heavy pysam/cyvcf2/mappy chain;
+  that reasoning now lives in the extra, the image no longer re-adds it, and a test pins that it does not
+  come back. The web app's reference loader also catches `ImportError` alongside `OSError`, so an
+  environment that cannot supply a reader leaves a running service with a recorded reason rather than a
+  traceback in a container log.
+
 - **`aforge bench` explains a missing optional dependency instead of tracebacking.** On a
   `pip install "alleleforge[cli]"` — a documented install — `design`, `batch` and `offtarget` all report
   *"needs the optional dependency pyfaidx … pip install 'alleleforge[genome]'"* and exit 4; all four `bench`

@@ -89,11 +89,16 @@ def _load_reference_from_env() -> Any | None:
     path = os.environ.get("ALLELEFORGE_REFERENCE_FASTA")
     if not path:
         return None
-    from alleleforge.genome.reference import ReferenceGenome
-
     try:
+        from alleleforge.genome.reference import ReferenceGenome
+
         return ReferenceGenome(Path(path), build="hg38")
-    except OSError as exc:
+    except (OSError, ImportError) as exc:
+        # `ImportError` as well as `OSError`: "the operator's environment is not what
+        # the app needs" is one situation with two exception types. A missing `.fai`
+        # on a read-only mount raises the first; a `pip install "alleleforge[web]"`
+        # without a FASTA reader raised the second, and only the first was caught —
+        # so that install died at import instead of starting and saying why.
         _REFERENCE_LOAD_ERROR = str(exc)
         return None
 

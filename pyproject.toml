@@ -71,6 +71,14 @@ web = [
     "fastapi>=0.110",
     "uvicorn>=0.29",
     "httpx>=0.27",
+    # The API serves designs, so it must be able to open the reference it is given.
+    # Only the light FASTA reader, deliberately not the whole `genome` extra: the
+    # heavy pysam/cyvcf2/mappy chain is for VCF and alignment work the web surface
+    # does not do. Without this, the documented `pip install "alleleforge[web]"` +
+    # `uvicorn alleleforge.web.api.app:app` died at import as soon as
+    # ALLELEFORGE_REFERENCE_FASTA was set, and the Dockerfile compensated by adding
+    # pyfaidx by hand.
+    "pyfaidx>=0.8",
 ]
 docs = [
     "mkdocs-material>=9.5",

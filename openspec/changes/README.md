@@ -7752,6 +7752,49 @@ none of them can see is what a documented partial install actually does — and 
 the environment of every person who has not read the repository.**
 
 
+## Round 236 — the same question of the next documented install
+
+R235 installed `[cli]` and found `aforge bench` tracebacking. There are eight extras; the
+one the docs give a three-line quickstart for is `[web]`:
+
+    pip install "alleleforge[web]"
+    export ALLELEFORGE_REFERENCE_FASTA=/path/to/hg38.fa
+    uvicorn alleleforge.web.api.app:app --port 8000
+
+    ModuleNotFoundError: No module named 'pyfaidx'
+
+`web` was `fastapi`, `uvicorn`, `httpx` — no FASTA reader — and `app = create_app()`
+runs at module scope, so the third line died at import as soon as the second line had
+been followed.
+
+**The Dockerfile already knew.** It installs `".[core,variant,cli,web]"` *plus*
+`"pyfaidx>=0.8"`, with a comment explaining that the API needs only the light FASTA
+reader and not the heavy pysam/cyvcf2/mappy chain. That reasoning is right, and it was
+being applied in the image instead of in the extra — so `pip install
+"alleleforge[web]"` worked in exactly one place and nowhere else. The reader moved into
+the extra, carrying the comment, and the image stopped compensating. A test pins that
+the Dockerfile does not re-add it, because a compensation that comes back is how the
+two drift apart again.
+
+The second half corrects a fix from three rounds ago. R233 made an unreadable reference
+fail gracefully — the service starts and reports the reason instead of dying at import —
+and caught `OSError`. A missing dependency raises `ImportError`, so the graceful path
+covered the read-only-mount case and not this one. "The operator's environment is not
+what the app needs" is one situation with two exception types, and I had written the
+catch for the instance in front of me rather than the class.
+
+The test needed narrowing, honestly. With no FASTA reader the *design* stack cannot
+import either, so a `/api/design` request in that state fails on its own imports and
+never reaches the 503 — a real property of an install with no genome layer, and not what
+the catch is for. What it buys is that `create_app()` returns, so the operator gets a
+running service and a recorded reason. The assertion says that and no more.
+
+**Lesson: a workaround in one deployment artifact is a bug report about another. The
+Dockerfile's extra `pyfaidx` was three years of "we know, we handle it" written down in
+the wrong file — the place where a compensation lives tells you where the defect is, and
+it is never where the compensation is.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
