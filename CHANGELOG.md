@@ -8,6 +8,18 @@ acceptance.
 
 ## [Unreleased]
 
+### Added
+
+- **The "config file is honored" contract now has a test.** `_load_config` warns on an *unknown* key, which
+  means a key inside the whitelist gets no warning — so a whitelisted key that no command reads would be
+  accepted silently and do nothing, and the user's run would differ from the one their config describes. The
+  comment beside the run-param handling names that exact failure; nothing checked it. Two tests now do: every
+  whitelisted key is read somewhere in the CLI, and a config-only run produces the same candidates,
+  rationale and provenance snapshot as the equivalent flags.
+
+  All ten keys are honored today, `populations` included — a negative result worth recording, since it is
+  the safety-relevant one.
+
 ### Fixed
 
 - **Two performance regressions in the safety-labelling work of recent changes, both in `search()` — which

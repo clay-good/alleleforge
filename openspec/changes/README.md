@@ -3646,6 +3646,37 @@ answer is needed, which is per call — and per call means per candidate. When a
 function, ask how often the function runs, not how expensive the explanation looks. And measure at the size
 of the real input: a fixture with ten records makes an O(n) scan indistinguishable from a constant.**
 
+## Round 127 — three clean sweeps and a guard
+
+Three queries this round, and the first three came back empty. Worth recording, because "I looked and it
+holds" is the result that stops the next pass wasting time:
+
+- The off-target **cache key** covers everything the newer report fields depend on. The fields added over
+  the last dozen rounds derive from the spacer, the reference and the regions — all in the key — or from
+  sources that make a search cache-ineligible anyway.
+- Every **"handled elsewhere"** comment (R124's query) holds: the SVG colour validator really is called on
+  every attribute-bound value; the API's `on_target` really is model-validated.
+- Every **whitelisted config key** is honored. `populations` — the one I most expected to be dropped — is
+  read.
+
+What the third query left behind is worth keeping: the check itself. `_load_config` warns on an *unknown*
+key, so a key inside the whitelist gets no warning, and a whitelisted key nothing reads would be accepted
+silently and do nothing. The comment beside the run-param handling names that failure precisely. Nothing
+tested it, and the contract is exactly the kind that decays when an option is added.
+
+Two tests now hold it: every whitelisted key is read somewhere in the CLI source, and — the half that
+matters — a config-only run produces the same candidates, rationale and provenance snapshot as the
+equivalent flags.
+
+The first version of the static check reported `run_offtarget` as unread. It is honored, by subscript, in a
+helper whose docstring says so; my regex only recognized `cfg.get`. **A guard narrower than the code it
+guards accuses working code, which is worse than not guarding** — and I nearly "fixed" a function that was
+correct.
+
+**Lesson: when a comment describes a failure mode in order to explain why some code exists, that description
+is a test waiting to be written. The code guards the case; nothing guards the code. And a clean sweep is a
+result — write it down, so the next pass spends its time somewhere new.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

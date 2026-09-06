@@ -198,3 +198,17 @@ them:
 #### Scenario: An optional dependency absent
 - **WHEN** reading a VCF requires an extra that is not installed
 - **THEN** the command exits unavailable and states how to install it
+
+### Requirement: Every whitelisted config key is honored
+
+The config loader warns on an unknown key, so a key inside the whitelist produces no
+warning at all. A whitelisted key that no command reads would therefore be accepted
+silently and do nothing, and the run would differ from the one the config describes.
+
+Every key the loader accepts SHALL be read by the commands, and a run configured
+entirely from a file SHALL produce the same result as the equivalent command-line flags.
+
+#### Scenario: A run driven from a config file
+- **WHEN** a design is run with its options in a config file rather than as flags
+- **THEN** the candidates, the rationale and the provenance snapshot match the
+  flag-driven run
