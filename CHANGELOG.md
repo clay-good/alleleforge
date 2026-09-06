@@ -1659,6 +1659,17 @@ acceptance.
 
 ### Fixed
 
+- **A cohort was silently smaller than the VCF it came from.** `iter_vcf` drops three kinds of row, all of
+  them correctly — none names a designable substitution: a soft-filtered call (`FILTER` is not PASS, skipped
+  by default), a row whose REF is symbolic, and a symbolic ALT (`<DEL>`, `<DUP>`, a breakend, the `*`
+  spanning-deletion allele). A real VCF carries all three routinely. Six rows in a synthetic example yielded
+  two design requests and the run reported success, with nothing anywhere connecting the two numbers. The
+  batch summary now carries an `ingest:` line naming the count per reason — and stays silent when nothing was
+  dropped, since a caveat that fires always is a caveat nobody reads. The counts are also in the `--json`
+  payload. Deliberately counted as **drops** rather than rows: a multi-allelic row can lose one ALT and keep
+  another, and "N of M rows yielded nothing" would be false for exactly the row a reader most needs to know
+  about — the one that came through incomplete.
+
 - **A parallel cohort over a FASTA with no `.fai` yet raced to build it, and failed items with the wrong
   error.** `design_many` documented the precondition — the FASTA "must already carry its `.fai` index, so the
   concurrent first-opens read it rather than racing to build it" — and both callers in this tree honored it.

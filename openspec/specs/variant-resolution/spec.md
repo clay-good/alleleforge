@@ -225,3 +225,20 @@ record simply asserts nothing.
 #### Scenario: Coordinate-only record
 - **WHEN** the database supplies only the variant
 - **THEN** resolution succeeds and no assertion is recorded
+
+### Requirement: A VCF row that yields no design request is accounted for
+
+Reading a cohort from a VCF SHALL report how many rows were seen, how many design
+requests they produced, and how many were dropped for each reason. Dropping a
+soft-filtered call, a symbolic REF, or a symbolic ALT is correct — none of them names a
+designable substitution — but a real VCF carries all three, so without the accounting the
+cohort is smaller than the file and the run still reports success.
+
+The count SHALL be of drops rather than of rows: a multi-allelic row can lose one ALT and
+keep another, and describing that row as having yielded nothing is false about the one
+case a reader most needs to see. Where nothing was dropped, nothing SHALL be said.
+
+#### Scenario: A cohort VCF carrying a filtered call and a structural variant
+- **WHEN** a batch run reads a VCF whose rows include a soft-filtered call and a `<DEL>`
+- **THEN** the run states how many rows yielded how many requests, and names each
+  reason for the difference

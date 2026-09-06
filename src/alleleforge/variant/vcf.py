@@ -28,6 +28,7 @@ Three decisions keep this honest and CI-testable:
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Iterator
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
@@ -56,23 +57,89 @@ class VcfVariantLike(Protocol):
     FILTER: str | None
 
 
+@dataclass
+class VcfIngestCounts:
+    """What a VCF stream contained, and what never became a design request.
+
+    `_split_record` drops three kinds of row and used to drop them silently: a
+    soft-filtered call, a row whose REF is symbolic, and a symbolic ALT (``<DEL>``,
+    ``<DUP>``, a breakend, the ``*`` spanning-deletion allele). All three are correct to
+    drop -- none names a designable substitution -- and a real VCF contains all three
+    routinely, so a cohort silently shrinks between the file and the run. The direction
+    is the usual one: fewer variants is a shorter list, a faster run, and no complaint.
+
+    Filled as the stream is consumed, so the totals are final once the cohort is done.
+
+    Attributes:
+        rows: VCF rows seen.
+        records: Design requests yielded (one per concrete ALT; a multi-allelic row
+            yields several, so this is not bounded by ``rows``).
+        skipped: Reason to number of **rows or ALTs** dropped for it.
+    """
+
+    rows: int = 0
+    records: int = 0
+    skipped: dict[str, int] = field(default_factory=dict)
+
+    def note(self, reason: str) -> None:
+        """Record one drop for ``reason``."""
+        self.skipped[reason] = self.skipped.get(reason, 0) + 1
+
+    @property
+    def total_skipped(self) -> int:
+        """Return how many rows/ALTs were dropped, for any reason."""
+        return sum(self.skipped.values())
+
+    def summary(self) -> str:
+        """Return a one-line account, or an empty string when nothing was dropped."""
+        if not self.skipped:
+            return ""
+        detail = ", ".join(f"{n} {reason}" for reason, n in sorted(self.skipped.items()))
+        # Counted as drops, not as rows. A multi-allelic row can lose one ALT and keep
+        # another, so "N of M rows yielded nothing" would be false for exactly the row
+        # a reader most needs to know about -- the one that came through incomplete.
+        return (
+            f"{self.rows} VCF row(s) yielded {self.records} design request(s); "
+            f"{self.total_skipped} drop(s): {detail}. The cohort is that much smaller "
+            "than the file it came from"
+        )
+
+
+#: Why a row or ALT never became a design request.
+SKIP_NOT_PASS = "soft-filtered (FILTER is not PASS)"
+SKIP_SYMBOLIC_REF = "symbolic or non-ACGTN REF"
+SKIP_SYMBOLIC_ALT = "symbolic ALT (<DEL>/<DUP>/breakend/*)"
+
+
 def _is_concrete(allele: str) -> bool:
     """Return whether ``allele`` is a designable ACGTN sequence (not symbolic)."""
     a = allele.upper()
     return a not in _NON_CONCRETE and not a.startswith("<") and set(a) <= set("ACGTN")
 
 
-def _split_record(record: VcfVariantLike, *, pass_only: bool) -> Iterator[VcfRecord]:
+def _split_record(
+    record: VcfVariantLike, *, pass_only: bool, counts: VcfIngestCounts | None = None
+) -> Iterator[VcfRecord]:
     """Yield one :class:`VcfRecord` per concrete ALT of one VCF row."""
+    if counts is not None:
+        counts.rows += 1
     if pass_only and record.FILTER is not None:
+        if counts is not None:
+            counts.note(SKIP_NOT_PASS)
         return
     ref = record.REF
     if not _is_concrete(ref):
+        if counts is not None:
+            counts.note(SKIP_SYMBOLIC_REF)
         return
     rsid = record.ID if (record.ID and record.ID != ".") else None
     for alt in record.ALT:
         if not _is_concrete(alt):
+            if counts is not None:
+                counts.note(SKIP_SYMBOLIC_ALT)
             continue
+        if counts is not None:
+            counts.records += 1
         yield VcfRecord(chrom=record.CHROM, pos=record.POS, ref=ref, alt=alt, rsid=rsid)
 
 
@@ -98,6 +165,7 @@ def iter_vcf(
     *,
     pass_only: bool = True,
     opener: Callable[[str], Iterable[VcfVariantLike]] | None = None,
+    counts: VcfIngestCounts | None = None,
 ) -> Iterator[VcfRecord]:
     """Stream a VCF as :class:`VcfRecord`s, one per concrete ALT allele.
 
@@ -114,6 +182,11 @@ def iter_vcf(
             default — a cohort run should not design against soft-filtered calls).
         opener: Override the path opener (defaults to ``cyvcf2.VCF``); used to test
             the path branch without the native library.
+        counts: Filled in as the stream is consumed with how many rows were seen and
+            how many were dropped, by reason. Every drop here is correct — none of
+            those rows names a designable substitution — but a real VCF contains all
+            three kinds routinely, so without this the cohort is silently smaller than
+            the file it came from.
 
     Yields:
         One :class:`VcfRecord` per concrete ALT allele, multi-allelic rows split.
@@ -128,4 +201,4 @@ def iter_vcf(
     else:
         records = source
     for record in records:
-        yield from _split_record(record, pass_only=pass_only)
+        yield from _split_record(record, pass_only=pass_only, counts=counts)

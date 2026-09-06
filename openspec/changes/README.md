@@ -6285,6 +6285,45 @@ real defect arrived from a direction nobody was auditing — a flaky test I had 
 myself the round before.**
 
 
+## Round 202 — the cohort that was smaller than the file
+
+The ingest boundary, on the reasoning that a dropped input is a shorter list and a
+shorter list never complains. `iter_vcf` drops three kinds of row and dropped all three
+without a word:
+
+    6 VCF rows in -> 2 design requests out
+
+    chr1:100 A>G          kept
+    chr1:200 A>G  LowQual dropped   (soft-filtered, the default)
+    chr1:300 N><DEL>      dropped   (symbolic ALT)
+    chr1:400 A>[<DUP>,T]  kept T    (one ALT dropped, one kept)
+    chr1:500 A>*          dropped   (spanning-deletion star allele)
+    chr1:600 A>G[chr2:900[ dropped  (breakend)
+
+Every one of those drops is right — none names a designable substitution, and a guide
+designer has nothing to say about a breakend. What was wrong is that a real VCF carries
+all three routinely, so `aforge batch cohort.vcf` designs over a cohort smaller than the
+file, reports success, and leaves the two numbers unconnected. The user who notices has
+to diff a line count against `total`.
+
+Counted now, by reason, with the line printed only when something was actually dropped.
+The reasons stay separate because their remedies differ: a soft-filtered call may want
+`pass_only=False`, a structural variant wants a different tool entirely.
+
+The interesting case is `chr1:400`, and it is what settled the wording. It is neither a
+clean row nor a lost one — it came through **incomplete**. A summary reading "N of M rows
+yielded nothing" is false about precisely the row a reader most needs to see, so the count
+is of drops rather than of rows. The first version of the summary line said the row thing,
+and produced "5 of 6 VCF rows yielded no design request" for the example above, which is
+wrong twice over: four rows yielded nothing, and the fifth drop was an ALT.
+
+**Lesson: I wrote a misleading summary line inside a round whose subject was misleading
+summary lines, and caught it only by printing it and reading it. The rule that keeps
+holding across this whole log is not "think harder about the wording" — it is *run the
+thing and look at the output*, which has now caught more defects than reading the code
+has, including several of my own from the same hour.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

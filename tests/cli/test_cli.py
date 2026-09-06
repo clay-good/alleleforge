@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -1899,3 +1900,73 @@ def test_a_partially_failed_cohort_exits_non_zero(runner: CliRunner, tmp_path: P
     manifest = (tmp_path / "m.jsonl").read_text()
     assert "chr2:26:A>G" in manifest
     assert '"status": "ok"' in manifest
+
+
+def test_a_batch_over_a_vcf_reports_what_the_ingest_dropped(
+    runner: CliRunner, cohort_fasta: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The cohort is smaller than the file, and the run says so rather than just succeeding.
+
+    A real VCF carries soft-filtered calls and structural variants; neither names a
+    designable substitution, so dropping them is right. Doing it silently means the run
+    reports success over a cohort nobody said had shrunk.
+
+    Driven through `iter_vcf`'s documented opener seam so the test does not need cyvcf2.
+    """
+    import alleleforge.variant.vcf as vcf_module
+
+    @dataclass
+    class _Row:
+        CHROM: str
+        POS: int
+        REF: str
+        ALT: list[str]
+        FILTER: str | None = None
+        ID: str | None = None
+
+    rows = [
+        _Row("chr2", 26, "A", ["G"]),  # designable
+        _Row("chr2", 26, "A", ["G"], FILTER="LowQual"),  # soft-filtered
+        _Row("chr2", 26, "A", ["<DEL>"]),  # structural
+    ]
+    monkeypatch.setattr(vcf_module, "_open_cyvcf2", lambda _path: rows)
+
+    vcf = tmp_path / "cohort.vcf"
+    vcf.write_text("##fileformat=VCFv4.2\n")
+    result = runner.invoke(
+        app,
+        ["batch", str(vcf), "--reference-fasta", str(cohort_fasta), "--intent", "install"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "ingest:" in result.output
+    assert "3 VCF row(s) yielded 1 design request(s)" in result.output
+    assert "smaller than the file" in result.output
+
+
+def test_a_batch_over_a_clean_vcf_says_nothing_about_the_ingest(
+    runner: CliRunner, cohort_fasta: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Guard the guard: the line must track real drops, not appear on every run."""
+    import alleleforge.variant.vcf as vcf_module
+
+    @dataclass
+    class _Row:
+        CHROM: str
+        POS: int
+        REF: str
+        ALT: list[str]
+        FILTER: str | None = None
+        ID: str | None = None
+
+    monkeypatch.setattr(vcf_module, "_open_cyvcf2", lambda _path: [_Row("chr2", 26, "A", ["G"])])
+
+    vcf = tmp_path / "clean.vcf"
+    vcf.write_text("##fileformat=VCFv4.2\n")
+    result = runner.invoke(
+        app,
+        ["batch", str(vcf), "--reference-fasta", str(cohort_fasta), "--intent", "install"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "ingest:" not in result.output

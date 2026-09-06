@@ -1213,10 +1213,17 @@ def batch(
     # applied instead of being silently ignored.
     settings = Settings.load(config_file=config, seed=state.seed)
 
+    ingest: Any = None
     if _is_vcf_path(inputs):
-        from alleleforge.variant import iter_vcf
+        from alleleforge.variant.vcf import VcfIngestCounts, iter_vcf
 
-        variants: Any = iter_vcf(inputs)
+        # A real VCF routinely carries soft-filtered calls and structural variants, and
+        # none of them names a designable substitution. Dropping them is right; doing it
+        # without a word means the cohort is quietly smaller than the file and the run
+        # still reports success. Filled as the stream is consumed, so it is complete by
+        # the time the summary below is printed.
+        ingest = VcfIngestCounts()
+        variants: Any = iter_vcf(inputs, counts=ingest)
     else:
         variants = _read_variant_list(inputs)
 
@@ -1304,6 +1311,13 @@ def batch(
             "succeeded": report.succeeded,
             "failed": report.failed,
             "skipped": report.skipped,
+            "ingest": None
+            if ingest is None
+            else {
+                "rows": ingest.rows,
+                "records": ingest.records,
+                "skipped": ingest.skipped,
+            },
             "items": rows,
         }
         typer.echo(json.dumps(payload, indent=2, default=str))
@@ -1319,6 +1333,8 @@ def batch(
         f"{report.skipped} already done (resume)"
     )
     lines = [header]
+    if ingest is not None and ingest.summary():
+        lines.append(f"  ingest: {ingest.summary()}")
     for r in rows:
         if r["status"] == "ok":
             eff = r["best_efficiency"]
