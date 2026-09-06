@@ -98,6 +98,13 @@ class ResolveResponse(BaseModel):
     #: position inside `variant`. A genome browser reads the same digits as 1-based
     #: inclusive. Every other locus-bearing surface states it; this one did not.
     coordinate_system: str = COORDINATE_SYSTEM
+    #: Whether a reference genome was available to check this normalization. Without one,
+    #: the REF allele is not verified and the variant is not left-aligned — and the
+    #: response was otherwise byte-identical to a verified one.
+    reference_checked: bool = False
+    #: The genome that checked it, when one did. `build` is only a label: two FASTAs both
+    #: called hg38 are not the same genome.
+    reference: dict[str, Any] | None = None
     reference_recommendation: str | None = None
     #: Why a different build is recommended — the ambiguous regions the locus overlaps.
     #: The build name on its own does not say that alignment here is ambiguous, which is

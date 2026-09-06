@@ -8605,6 +8605,44 @@ places that use it is a checklist, and the gap is likelier at the surface people
 when they are already confused.**
 
 
+## Round 260 — the strongest finding of the stretch, from the weakest question
+
+Still on `resolve`. The question was small: does it name the genome it used, the way the
+off-target surfaces do? So I diffed two runs of the same variant, one with
+`--reference-fasta` and one without:
+
+    {"build": "hg38", "changes_the_sequence": true, "coordinate_system": ..., "source":
+     "coordinates", "variant": "chr2:1005:G>A", "variant_class": "snv", "working_interval":
+     "chr2:905-1106(+)"}
+
+Byte-identical. Which matters because the two runs did not do the same work. Without a
+reference, `resolve` performs neither left-alignment nor REF-allele validation:
+
+    $ aforge resolve 'chr2:1006:T>A' --json          # the genome has a G here
+    {"variant": "chr2:1005:T>A", "variant_class": "snv", ...}          exit 0
+
+    $ aforge resolve 'chr2:1006:T>A' --reference-fasta ref.fa
+    error: reference mismatch at chr2:1005: asserted ref 'T' but reference has 'G'
+    (wrong build?)
+
+Same input, opposite epistemic status, and for a *correct* variant the artifacts were
+indistinguishable. "We did not look" rendered exactly as "we looked and it was fine" — the
+class this repo has found more often than any other — on the command documented as the
+debugging aid, the thing you run when you are unsure whether your input means what you
+think. `build` does not rescue it: it is a label the caller supplied and reads `hg38`
+whether or not a FASTA was ever opened.
+
+Every form now carries `reference_checked`, and when one did check, the genome's identity
+(contigs, bases, shape digest). The human render either names the genome and says the REF
+allele was verified against it, or warns that it was not and names the flag that would.
+The test asserts the two runs *differ*, not what either says.
+
+**Lesson: diffing two runs that differ in one input is a cheap, high-yield probe — I ran
+it to answer a cosmetic question about provenance and it exposed a verification gap. When
+an optional input changes what the tool *checks*, its absence is a fact about the result,
+not a fact about the invocation.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

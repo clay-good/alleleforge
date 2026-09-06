@@ -2036,6 +2036,15 @@ acceptance.
 
 ### Fixed
 
+- **`resolve` says whether a genome checked its answer.** Without a reference it performs neither
+  left-alignment nor REF-allele validation, so `chr2:1006:T>A` where the genome has a `G` came back as a
+  clean normalized SNV with exit 0 — while the same input with `--reference-fasta` is refused by name
+  ("asserted ref 'T' but reference has 'G' (wrong build?)"). For a correct variant the two payloads were
+  **byte-identical**: nothing in the artifact said whether the normalization had been checked at all, on the
+  command whose whole job is telling a caller what their input means. Every form now carries
+  `reference_checked` and, when one checked it, the genome's identity — `build` is a caller-supplied label
+  that reads `hg38` whether or not any FASTA was opened.
+
 - **`resolve` states the coordinate convention its loci are in.** It prints a normalized variant position
   and a working interval, and said nothing about 0-based half-open versus the 1-based inclusive form a
   genome browser shows — the off-by-one this project keeps a named constant for. The report footer, the

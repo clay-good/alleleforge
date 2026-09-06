@@ -372,6 +372,8 @@ def create_app(
     @app.post("/api/resolve", response_model=ResolveResponse)
     async def resolve_endpoint(req: ResolveRequest, request: Request) -> ResolveResponse:
         """Normalize any input form to a canonical variant."""
+        from alleleforge.design.designer import _reference_snapshot
+
         resolved = _resolve(request, req.variant, req.build)
         v = resolved.variant
         rec = resolved.reference_recommendation
@@ -382,6 +384,12 @@ def create_app(
             build=v.build,
             source=resolved.source,
             working_interval=str(resolved.working_interval),
+            reference_checked=request.app.state.reference is not None,
+            reference=(
+                _reference_snapshot(request.app.state.reference)
+                if request.app.state.reference is not None
+                else None
+            ),
             reference_recommendation=rec.recommended_build if rec is not None else None,
             reference_recommendation_reason=rec.reason if rec is not None else None,
         )

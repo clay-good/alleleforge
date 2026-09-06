@@ -219,6 +219,7 @@ def resolve(
     as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Normalize any input form to a canonical variant (debugging aid)."""
+    from alleleforge.design.designer import _reference_snapshot
     from alleleforge.report.builder import COORDINATE_NOTE, COORDINATE_SYSTEM
     from alleleforge.variant.resolver import resolve as resolve_variant
 
@@ -254,6 +255,15 @@ def resolve(
         # say so; `resolve`, whose entire job is telling a caller what their input means,
         # printed loci and stated no convention.
         "coordinate_system": COORDINATE_SYSTEM,
+        # Whether this normalization was checked against a genome. Without a reference,
+        # `resolve` skips left-alignment *and* REF-allele validation, so
+        # `chr2:1006:T>A` where the genome has a G comes back as a clean, normalized
+        # SNV and exits 0 — while the same input with `--reference-fasta` is refused
+        # by name ("asserted ref 'T' but reference has 'G' (wrong build?)"). The two
+        # payloads were byte-identical: an unchecked variant and a verified one were
+        # indistinguishable in the artifact.
+        "reference_checked": reference is not None,
+        "reference": _reference_snapshot(reference) if reference is not None else None,
         "reference_recommendation": (
             resolved.reference_recommendation.recommended_build
             if resolved.reference_recommendation is not None
@@ -281,10 +291,17 @@ def resolve(
         if resolved.reference_recommendation is not None
         else ""
     )
+    checked = (
+        f"\nreference build {v.build}{_shape_suffix(_reference_snapshot(reference))}"
+        " — the REF allele was verified against it and the variant left-aligned"
+        if reference is not None
+        else "\nNOTE: no reference supplied, so the REF allele was NOT checked against a"
+        " genome and the variant was NOT left-aligned; pass --reference-fasta to verify it"
+    )
     human = (
         f"{v}  [{v.variant_class.value}, build {v.build}, from {resolved.source}]\n"
         f"working interval: {resolved.working_interval}\n"
-        f"{COORDINATE_NOTE}{note}{recommendation}"
+        f"{COORDINATE_NOTE}{checked}{note}{recommendation}"
     )
     _emit(payload, as_json=as_json, human=human)
 

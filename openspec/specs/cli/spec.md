@@ -34,6 +34,24 @@ means.
 - **WHEN** `aforge resolve` prints a normalized variant and its working interval
 - **THEN** both forms of the output state the coordinate convention
 
+### Requirement: A normalization says whether a genome checked it
+
+Without a reference, `resolve` performs neither left-alignment nor REF-allele validation:
+an asserted allele that contradicts the genome is normalized and returned with a success
+exit, while the same input against a reference is refused by name. Every form of the
+output SHALL therefore record whether a reference checked it, and name the genome that
+did — the build label is supplied by the caller and reads the same either way.
+
+#### Scenario: No reference available
+- **WHEN** `resolve` runs with no reference genome
+- **THEN** the output states that the REF allele was not checked and the variant not
+  left-aligned, and names the flag that would check it
+
+#### Scenario: A reference available
+- **WHEN** a reference is supplied or configured
+- **THEN** the output names the genome — build, contig and base counts, and shape digest
+  — and states that the REF allele was verified against it
+
 ### Requirement: A remedy for a build mismatch
 
 `resolve` SHALL refuse a record whose native assembly disagrees with the requested build,
