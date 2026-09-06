@@ -212,3 +212,18 @@ entirely from a file SHALL produce the same result as the equivalent command-lin
 - **WHEN** a design is run with its options in a config file rather than as flags
 - **THEN** the candidates, the rationale and the provenance snapshot match the
   flag-driven run
+
+### Requirement: A cohort's counts range over the same population
+
+A run summary states how many items were processed, succeeded, failed and skipped. These
+appear together and are read together, so they SHALL all count *this run's requested
+items* — a skipped count taken from the manifest file describes a different population,
+and the two cannot be added even though their presentation invites it.
+
+The processed and skipped counts SHALL sum to the number of items requested, and the
+human summary SHALL state that requested total rather than leading with the processed
+count, which is zero for a resume with nothing outstanding.
+
+#### Scenario: A manifest reused with a narrower list
+- **WHEN** a run requests fewer items than the manifest records
+- **THEN** the skipped count reflects only the requested items already recorded

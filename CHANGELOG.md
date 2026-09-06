@@ -10,6 +10,19 @@ acceptance.
 
 ### Fixed
 
+- **A resumed cohort's counts described two different populations and could not be added.** `skipped` was
+  `len(done)` — the size of the *manifest file*, not the number of requested items already recorded — while
+  `total` counted only what this run processed. Reusing a manifest across a narrower variant list therefore
+  reported `total: 0, skipped: 5` for a **two-item** request. `skipped` now counts requests, so
+  `total + skipped` is the number asked for, and the CLI header says it: *"cohort: 4 requested — 2 designed
+  (2 ok, 0 failed), 2 already done (resume)"*, instead of leading with "0 item(s)" on a resume that had
+  nothing left to do.
+
+  Verified in passing that resume itself is sound: an interrupted run picks up exactly the outstanding
+  items, produces the same results as an uninterrupted one, and leaves a complete manifest.
+
+### Fixed
+
 - **A cloning scheme whose enzyme cannot be screened reported a clean insert.** The Type IIS site table
   covers the three shipped schemes, and `_screen_enzyme_site` returned *no warnings* for anything else —
   indistinguishable from a screened, clean insert. `VectorScheme` is public, so a caller cloning into their

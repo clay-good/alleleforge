@@ -1126,9 +1126,14 @@ def batch(
         typer.echo(json.dumps(payload, indent=2, default=str))
         return
 
+    # `total` counts what this run *processed*; a resumed run skips the rest. Stating
+    # the requested count first stops "0 item(s)" from being the headline for a resume
+    # that had nothing left to do — the two numbers now visibly add up.
+    requested = report.total + report.skipped
     header = (
-        f"cohort: {report.total} item(s) — {report.succeeded} ok, "
-        f"{report.failed} failed, {report.skipped} skipped (resume)"
+        f"cohort: {requested} requested — {report.total} designed "
+        f"({report.succeeded} ok, {report.failed} failed), "
+        f"{report.skipped} already done (resume)"
     )
     lines = [header]
     for r in rows:

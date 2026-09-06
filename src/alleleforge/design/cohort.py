@@ -85,7 +85,9 @@ class CohortRunReport:
         total: Items seen this run (excludes those skipped by resume).
         succeeded: Items designed without error.
         failed: Items that raised (captured, not fatal).
-        skipped: Items skipped because the manifest already recorded them.
+        skipped: Items **from this run's input** that the manifest already recorded.
+            Not the manifest's size: reusing a manifest across a narrower variant list
+            would otherwise report every previously-done item as skipped now.
         items: Per-item results — empty when an ``on_result`` consumer was given
             (streaming mode keeps the run ``O(1)`` in cohort size).
         provenance: Run-level provenance (version, seed, reference build, intent).
@@ -306,7 +308,22 @@ def design_many(
             _atomic_write_text(out_dir / f"{_safe_name(iid)}.json", menu.model_dump_json())
         return CohortItemResult(iid, "ok", _summarize(menu), None)
 
-    pending = (item for item in variants if id_of(item) not in done)
+    # Count the *requests* this run skipped, not the manifest's size. `len(done)` is a
+    # property of the manifest file, so reusing one across a narrower variant list
+    # reported "5 skipped" for a two-item request — and with `total` counting only what
+    # ran, the summary's numbers described two different populations and could not be
+    # added together. Counted here as the stream is consumed, so a lazy input stays lazy.
+    skipped_requests = 0
+
+    def _pending() -> Iterator[CohortInput]:
+        nonlocal skipped_requests
+        for item in variants:
+            if id_of(item) in done:
+                skipped_requests += 1
+                continue
+            yield item
+
+    pending = _pending()
     results: list[CohortItemResult] = []
     counts = {"ok": 0, "error": 0}
 
@@ -330,7 +347,7 @@ def design_many(
         total=counts["ok"] + counts["error"],
         succeeded=counts["ok"],
         failed=counts["error"],
-        skipped=len(done),
+        skipped=skipped_requests,
         items=tuple(results),
         provenance=provenance,
         manifest_path=str(manifest) if manifest is not None else None,

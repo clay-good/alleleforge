@@ -460,3 +460,43 @@ def test_a_generator_safety_input_reaches_every_cohort_item(reference: Reference
 
     _run(_generator())
     assert drained == ["read"]
+
+
+def test_skipped_counts_requests_not_the_manifest(
+    reference: ReferenceGenome, tmp_path: Path
+) -> None:
+    """`skipped` was `len(done)` — a property of the file, not of this run.
+
+    Reusing a manifest across a narrower variant list therefore reported every
+    previously-done item as skipped now, while `total` counted only what ran. The two
+    numbers described different populations and could not be added, so a resumed run
+    could report "0 items, 5 skipped" for a two-item request.
+    """
+    manifest = tmp_path / "run.jsonl"
+
+    first = design_many(
+        [OK_1, OK_2, NEW_ITEM],
+        reference=reference,
+        intent=EditIntent.INSTALL,
+        manifest_path=manifest,
+    )
+    assert first.total == 3 and first.skipped == 0
+
+    # A later run asking for only one already-done item plus nothing new.
+    resumed = design_many(
+        [OK_1], reference=reference, intent=EditIntent.INSTALL, manifest_path=manifest
+    )
+    assert resumed.skipped == 1, "counted the manifest, not the requests"
+    assert resumed.total == 0
+    # The invariant that makes the two numbers addable: they cover the same population.
+    assert resumed.total + resumed.skipped == 1
+
+    # And a genuine resume of the original list.
+    again = design_many(
+        [OK_1, OK_2, NEW_ITEM],
+        reference=reference,
+        intent=EditIntent.INSTALL,
+        manifest_path=manifest,
+    )
+    assert again.total + again.skipped == 3
+    assert again.skipped == 3  # all three already recorded

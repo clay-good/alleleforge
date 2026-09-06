@@ -360,7 +360,9 @@ def test_batch_variant_list_human(runner: CliRunner, cohort_fasta: Path, tmp_pat
         ["batch", str(listing), "--reference-fasta", str(cohort_fasta), "--intent", "install"],
     )
     assert result.exit_code == 0
-    assert "2 item(s)" in result.output and "1 ok" in result.output and "1 failed" in result.output
+    assert (
+        "2 requested" in result.output and "1 ok" in result.output and "1 failed" in result.output
+    )
     assert "base_abe" in result.output
 
 

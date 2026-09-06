@@ -3861,6 +3861,36 @@ of short strings, and two unrelated channels chose it — so the check silently 
 one against the other. When a static check keys on an identifier rather than a type or a call graph, pin
 down its scope explicitly, because the language will not.**
 
+## Round 134 — counting two different things
+
+First, the roadmap, since I had not consulted it this session: R0–R5 are all "in progress" and all blocked
+on things outside the repository — real model weights, real benchmark corpora, pinned artifact hashes that
+require real downloads. Two I could check rather than assume: the whole-genome FM-index (R4) really does
+have SA-IS in the native kernel *and* an O(n log²n) prefix-doubling fallback in Python, and the external-tool
+adapters (R3) are all present with recorded-fixture tests. Nothing there to do.
+
+So: run a path I have not run. The cohort **resume** — stateful, and the kind of thing that quietly diverges.
+
+Resume itself is sound. An interrupted run picks up exactly the outstanding items, produces results
+identical to an uninterrupted run, and leaves a complete manifest. Worth recording as a negative result.
+
+The reporting was not. `skipped` was `len(done)` — the size of the manifest file — while `total` counted
+what this run processed. Two numbers about two different populations, printed side by side and inviting
+addition. Reusing a manifest with a narrower variant list produced `total: 0, skipped: 5` for a two-item
+request, and the human line led with **"cohort: 0 item(s)"** for a resume that had nothing left to do.
+
+`skipped` now counts *requests*, computed lazily as the input stream is consumed so a lazy input stays lazy,
+and the header states the requested count so the numbers visibly add up.
+
+A note on the investigation. I briefly believed I had found a much worse bug — a brand-new variant not
+designed at all on a resume. It was my own test artifact: an earlier invocation had failed at its *output
+parsing* step, long after the design had run and appended to the manifest. Checking that before writing it
+up cost two minutes; reporting it would have been wrong in public.
+
+**Lesson: when two counts appear in one summary, check they range over the same population. `total` and
+`skipped` were both honest and individually documented, and their juxtaposition was the lie — nothing in
+either field's definition is wrong, and no test of either one alone would have caught it.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
