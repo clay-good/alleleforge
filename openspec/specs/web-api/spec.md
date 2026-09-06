@@ -27,6 +27,14 @@ breakdown reads as "no risk found" rather than "nothing was searched".
 - **THEN** `gnomad_loaded` is false and the search description states that nothing was
   measured, without naming a flag that belongs to a different shell
 
+The haplotype panel is the population source's sibling and SHALL be configurable the same
+way (`create_app(haplotypes=...)` or `ALLELEFORGE_HAPLOTYPES`), and reported the same way,
+since wiring one ancestry source and not the other leaves the capability half-reachable.
+
+#### Scenario: A configured haplotype panel
+- **WHEN** a panel is configured
+- **THEN** the haplotype-aware pass runs for API callers and `haplotypes_loaded` is true
+
 ### Requirement: A schema-validated endpoint surface
 
 The service SHALL expose health, resolve, design, async design jobs, batch, off-target,

@@ -133,6 +133,35 @@ def _load_gnomad_from_env() -> Any | None:
         return None
 
 
+#: As `_GNOMAD_LOAD_ERROR`, for the haplotype panel.
+_HAPLOTYPES_LOAD_ERROR: str | None = None
+
+
+def _load_haplotypes_from_env() -> Any:
+    """Load a phased-haplotype panel from ``ALLELEFORGE_HAPLOTYPES`` if set.
+
+    The sibling of the population source. The CLI names both in one breath — "no
+    population alleles were searched ... pass --gnomad or --haplotypes" — and wiring only
+    the first into the web shell would leave exactly the asymmetry that produced these
+    findings: one ancestry source reachable over HTTP and the other not.
+
+    Returns the *panel*, not its haplotypes: the panel carries the provenance descriptor,
+    and flattening it strips the record of which data made the run haplotype-aware.
+    """
+    global _HAPLOTYPES_LOAD_ERROR
+    _HAPLOTYPES_LOAD_ERROR = None
+    path = os.environ.get("ALLELEFORGE_HAPLOTYPES")
+    if not path:
+        return ()
+    try:
+        from alleleforge.data.haplotypes import HaplotypePanel
+
+        return HaplotypePanel.from_tsv(Path(path), source=path)
+    except (OSError, ValueError, KeyError, ImportError) as exc:
+        _HAPLOTYPES_LOAD_ERROR = str(exc)
+        return ()
+
+
 def _require_reference(request: Request) -> Any:
     """Return the configured reference genome, or raise ``503``."""
     reference = request.app.state.reference
@@ -236,6 +265,7 @@ def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
         # something over HTTP. Without it the scan is reference-only whatever ancestry
         # labels were asked for, and the report says so.
         gnomad=request.app.state.gnomad,
+        haplotypes=request.app.state.haplotypes,
         offtarget_regions=_regions(req.offtarget_regions),
         cell_context=req.cell_context,
         run_offtarget=req.run_offtarget,
@@ -309,6 +339,7 @@ def create_app(
     *,
     reference: Any | None = None,
     gnomad: Any | None = None,
+    haplotypes: Any | None = None,
     settings: Settings | None = None,
     api_token: str | None = None,
 ) -> FastAPI:
@@ -321,6 +352,10 @@ def create_app(
             loaded from ``ALLELEFORGE_GNOMAD_TSV`` when that is set. Without it every
             scan this API runs is reference-only, whatever `populations` a request asks
             for — the capability was unreachable over HTTP entirely.
+        haplotypes: A pre-loaded phased-haplotype panel. If ``None``, one is loaded from
+            ``ALLELEFORGE_HAPLOTYPES`` when that is set. Without it the haplotype-aware
+            pass — the one that finds a site existing only on a co-inherited combination
+            of alleles — never runs for an API caller.
         settings: Settings to thread into provenance (default: ``Settings.load()``,
             resolving the user config file + env with the standard precedence).
         api_token: When set, every ``/api/*`` request (except ``/api/health``)
@@ -352,6 +387,7 @@ def create_app(
     )
     app.state.reference = reference if reference is not None else _load_reference_from_env()
     app.state.gnomad = gnomad if gnomad is not None else _load_gnomad_from_env()
+    app.state.haplotypes = haplotypes if haplotypes is not None else _load_haplotypes_from_env()
     # Resolve through Settings.load() so the web interface honors the user config file
     # (~/.config/alleleforge/config.toml) with the same precedence as the CLI and library
     # — the provenance-reproducibility spec requires the config file to apply to web runs,
@@ -403,6 +439,7 @@ def create_app(
             version=__version__,
             reference_loaded=app.state.reference is not None,
             gnomad_loaded=app.state.gnomad is not None,
+            haplotypes_loaded=bool(app.state.haplotypes),
             # The core sentence only. A liveness probe has no candidates below it and
             # nominates no off-target site, and `RESEARCH_USE_CORE` exists because "a
             # caveat that does not describe the thing it is attached to is noise".
@@ -551,6 +588,7 @@ def create_app(
                 maf=req.maf,
                 populations=req.populations,
                 gnomad=request.app.state.gnomad,
+                haplotypes=request.app.state.haplotypes,
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc

@@ -123,3 +123,39 @@ def test_the_report_does_not_tell_an_api_client_to_pass_a_cli_flag(
     )
     assert "--gnomad" not in body["search_description"]
     assert "population allele-frequency source" in body["search_description"]
+
+
+def test_a_configured_haplotype_panel_runs_the_haplotype_pass(tmp_path: Path) -> None:
+    """The population source's sibling: wiring one and not the other is the asymmetry.
+
+    The CLI names both in one breath ("pass --gnomad or --haplotypes"), and the
+    haplotype-aware pass finds a site that exists only on a *co-inherited combination*
+    of alleles — something no single-variant source can nominate.
+    """
+    from alleleforge.data.haplotypes import HaplotypePanel
+    from alleleforge.genome.reference import ReferenceGenome
+
+    fasta = tmp_path / "hap.fa"
+    fasta.write_text(">chr2\n" + "T" * 10 + SPACER + "CGT" + "T" * 10 + "\n")
+    panel_tsv = tmp_path / "panel.tsv"
+    panel_tsv.write_text(
+        "#hap_id\tchrom\tstart\tend\tpopulation\tfrequency\tvariants\n"
+        "H1\tchr2\t0\t50\tafr\t0.2\tchr2:32:T>G\n"
+    )
+    client = TestClient(
+        create_app(
+            reference=ReferenceGenome(fasta, build="hg38"),
+            haplotypes=HaplotypePanel.from_tsv(panel_tsv, source=str(panel_tsv)),
+        )
+    )
+    assert client.get("/api/health").json()["haplotypes_loaded"] is True
+    body = client.post(
+        "/api/offtarget", json={"spacer": SPACER, "pam": "NGG", "populations": ["afr"]}
+    ).json()
+    assert body["n_sites"] == 1, "the haplotype pass nominated nothing"
+    assert body["report"]["sites"][0]["origin"] == "population"
+
+
+def test_health_reports_an_unconfigured_panel(bias_case: tuple[Path, Path]) -> None:
+    fasta, _sites = bias_case
+    assert _client(fasta, None).get("/api/health").json()["haplotypes_loaded"] is False

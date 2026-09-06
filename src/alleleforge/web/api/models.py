@@ -521,6 +521,11 @@ class HealthResponse(BaseModel):
     #: this deployment runs is reference-only, whatever ancestry labels a request asks
     #: for — a client cannot supply the source and had no way to find that out.
     gnomad_loaded: bool = False
+    #: Whether a phased-haplotype panel is configured. Without one the haplotype-aware
+    #: pass never runs, so a site that exists only on a co-inherited combination of
+    #: alleles is not nominated — and, like the population source, a client cannot supply
+    #: one.
+    haplotypes_loaded: bool = False
     disclaimer: str
 
 

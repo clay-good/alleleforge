@@ -10,6 +10,11 @@ acceptance.
 
 ### Added
 
+- **The haplotype-aware pass is reachable over HTTP too.** The population source's sibling, wired the same
+  way (`create_app(haplotypes=...)` or `ALLELEFORGE_HAPLOTYPES`) and reported the same way
+  (`haplotypes_loaded` on `/api/health`). It finds a site that exists only on a co-inherited combination of
+  alleles — something no single-variant source can nominate — and wiring one ancestry source without the
+  other would have left the capability half-reachable.
 - **The population-aware off-target search is reachable over HTTP.** `OffTargetRequest` accepted
   `populations` and `maf` but no population source, `create_app` took none, and no environment variable
   supplied one — so every API scan was reference-only whatever ancestry labels a client asked for, and every

@@ -8707,6 +8707,32 @@ thing at all. Follow the remedy: if you cannot carry it out from the surface the
 reaches, the capability is missing, not the wording.**
 
 
+## Round 263 — the sibling, wired before it could become the next finding
+
+R262 gave the web shell a population allele-frequency source. The CLI names two ancestry
+sources in one breath — "no population alleles were searched ... pass --gnomad or
+--haplotypes" — so stopping at the first would have left exactly the shape R253 found in
+`spacer_quality.py`: a unification that absorbed two of three checks and looked finished
+from every angle except the one that matters.
+
+`ALLELEFORGE_HAPLOTYPES` / `create_app(haplotypes=...)`, reported as `haplotypes_loaded`
+beside `gnomad_loaded`. The haplotype pass finds a site that exists only on a co-inherited
+*combination* of alleles, which no single-variant source can nominate, so it is not a
+duplicate of what R262 added — it is the other half of what "population-aware" means here.
+
+Two things the fixture taught me, recorded because they cost time: the panel TSV's schema
+is `hap_id chrom start end population frequency variants` (one row per
+haplotype-population pair), not per-ancestry columns, and the `variants` field is
+0-based while the gnomAD sites TSV is 1-based. Both are as documented; I had assumed
+symmetry between the two file formats and got a silently empty result rather than an
+error, which is its own small lesson about fixtures.
+
+**Lesson: when a fix lands for one member of a pair the codebase itself names together,
+finish the pair in the same round. The second one is not a new finding — it is the same
+finding, and leaving it turns a completed fix into a half-completed one that reads as
+done.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
