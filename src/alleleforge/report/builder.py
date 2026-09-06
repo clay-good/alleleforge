@@ -488,6 +488,12 @@ CONFIG_SNAPSHOT_ROUTES: dict[str, str] = {
         "refused outright without encode_tracks; noted in the rationale when it covers "
         "no candidate locus; the `chromatin-adjusted` flag when it applies"
     ),
+    "reference": (
+        "the footer's reference line — the genome's shape (contigs, bases, and a hash "
+        "of the contig names and lengths) beside the build label, because the label "
+        "is only a name and two different FASTAs carrying it produce different "
+        "off-target verdicts"
+    ),
     "settings": (
         "the resolved values appear where they took effect — seed and reference build "
         "in the footer, interval_level on every prediction, maf_threshold in the search "
@@ -500,6 +506,34 @@ CONFIG_SNAPSHOT_ROUTES: dict[str, str] = {
 PROVENANCE_FOOTER_OMITTED: dict[str, str] = {
     "config_snapshot": "each key is rendered where it took effect (see CONFIG_SNAPSHOT_ROUTES)",
 }
+
+
+def _reference_shape(provenance: Provenance) -> str:
+    """Return the parenthesized shape of the reference genome, or an empty string.
+
+    ``reference_build`` is a *label*: it stays ``"hg38"`` whatever FASTA was opened,
+    so two runs over two different genomes printed the same footer while their
+    off-target verdicts differed twofold. The snapshot's descriptor is what tells
+    them apart, and it states its own extent rather than reading as a full checksum
+    of the sequence.
+
+    Args:
+        provenance: The menu's provenance block.
+
+    Returns:
+        A string like `` (1 contig, 140 bases, shape 379efc3d — pins contig names and
+        lengths, not the bases)``, or `""` when no descriptor was recorded.
+    """
+    shape = provenance.config_snapshot.get("reference")
+    if not isinstance(shape, dict):
+        return ""
+    contigs, bases = shape.get("contigs"), shape.get("bases")
+    digest = str(shape.get("sha256", ""))[:8]
+    plural = "" if contigs == 1 else "s"
+    return (
+        f" ({contigs} contig{plural}, {bases:,} bases, shape {digest} — pins "
+        f"{shape.get('pins', 'an unstated extent')})"
+    )
 
 
 def provenance_lines(provenance: Provenance | None) -> list[str]:
@@ -519,7 +553,7 @@ def provenance_lines(provenance: Provenance | None) -> list[str]:
         return []
     lines = [
         f"AlleleForge {provenance.alleleforge_version}",
-        f"reference build {provenance.reference_build}",
+        f"reference build {provenance.reference_build}{_reference_shape(provenance)}",
         # Every locus in this document — cut sites, nicks, off-target intervals — is
         # in AlleleForge's internal convention, and nothing said which one that was. A
         # bare cut coordinate is the number a reader pastes into a browser, and IGV,

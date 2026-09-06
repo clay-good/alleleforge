@@ -92,8 +92,10 @@ than conventional.
   — a combination is `calibrated` only if every input was, and `in_distribution`
   only if every input was.
 - **Embedded provenance.** Every result carries a provenance block recording the
-  inputs, config, seed, dataset and model checkpoints (by content hash), and
-  software version, so a result is reproducible and auditable from its own record.
+  inputs, config, seed, dataset and model checkpoints (by content hash), a
+  shape descriptor for the reference genome searched, and the software version, so a
+  result is reproducible and auditable from its own record. Each digest states its own
+  extent: the reference descriptor pins contig names and lengths, not bases.
 
 ### 2.2 Genome and variant front end
 

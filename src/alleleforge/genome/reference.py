@@ -277,6 +277,15 @@ class ReferenceGenome:
         """Return the contig names available in this reference."""
         return tuple(self._fasta.keys())
 
+    def contig_lengths(self) -> dict[str, int]:
+        """Return each contig's length, read from the FASTA index.
+
+        `pyfaidx` holds the lengths in the ``.fai``, so this is O(contigs) and does
+        not touch the sequence — a reference's shape can be described without
+        reading three gigabytes of it.
+        """
+        return {name: len(self._fasta[name]) for name in self._fasta.keys()}
+
     @property
     def naming_style(self) -> str:
         """Return this reference's contig-naming style (``"ucsc"``/``"ensembl"``)."""

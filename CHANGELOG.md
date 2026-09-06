@@ -10,6 +10,17 @@ acceptance.
 
 ### Added
 
+- **Provenance identifies the reference genome, not just its label.** Two designs over two different
+  reference FASTAs produced byte-identical provenance while their safety verdicts differed twofold
+  (specificity 0.879 vs 0.468), and `aforge verify` called both complete: the block recorded
+  `reference_build`, a label that stays `hg38` whatever FASTA is opened, and `_collect_datasets` names the
+  reference only for a registry-resolved build, never for the `--reference-fasta` path everyone uses.
+  `config_snapshot.reference` now carries build, contig count, base count and a hash of the canonicalized
+  `name:length` list, read from the `.fai` so the cost is O(contigs) — exposed as
+  `ReferenceGenome.contig_lengths()`. It pins the reference's *shape*, and says so in the record and in the
+  report footer (`pins contig names and lengths, not the bases`), because two FASTAs with the same contigs
+  and lengths are indistinguishable to it and a digest that overclaims its reach is worse than none.
+
 - **A run-config TOML can be written as TOML.** `weights` and `populations` are whitelisted config keys —
   so `--config` accepted them without a typo warning — and both were then handed to a parser that only knew
   the CLI's comma-separated string, crashing with `AttributeError: 'list' object has no attribute 'split'` on

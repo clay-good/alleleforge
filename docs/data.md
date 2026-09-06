@@ -36,6 +36,15 @@ Access returns the cached path together with a `DatasetVersion`, which is
 embedded in every result's provenance block so an analysis can be traced back to
 the exact release it used.
 
+A reference supplied as a plain FASTA has no release to name, so provenance
+describes it instead: `config_snapshot.reference` records the build label, the contig
+and base counts, and a hash of the canonicalized `name:length` list. It pins the
+reference's **shape**, read from the `.fai` index so the cost does not scale with the
+FASTA, and its `pins` field says so out loud — two references with the same contig
+names and lengths and different bases are indistinguishable to it. Without this a
+design over one genome and a design over another carried byte-identical provenance
+while their off-target verdicts differed twofold.
+
 [src]: https://github.com/clay-good/alleleforge/blob/main/src/alleleforge/data/registry.py
 
 ## Pinned datasets

@@ -127,3 +127,29 @@ def test_the_resolved_settings_reach_the_page(reference: ReferenceGenome) -> Non
     assert f"seed {settings['seed']}" in page
     assert f"reference build {settings['reference']}" in page
     assert f"{settings['interval_level']:.0%} interval" in page
+
+
+def test_the_reference_genome_is_identified_not_just_labelled(
+    reference: ReferenceGenome, tmp_path: Path
+) -> None:
+    """Two genomes under the same build label must not print the same footer.
+
+    `reference_build` is a name the caller chooses; the FASTA is what was searched.
+    Both pages below say "reference build hg38" and their off-target verdicts differ,
+    so the build label alone cannot be the route.
+    """
+    seq = list("AT" * 70)
+    seq[63:66] = list("TGG")
+    seq[55:58] = list("CCA")
+    other_path = tmp_path / "two.fa"
+    # The same locus plus a decoy copy of the protospacer: a different genome.
+    other_path.write_text(
+        ">chr2\n" + "".join(seq) + "TATATATATATACCAATATA" + "TGG" + "T" * 20 + "\n"
+    )
+    other = ReferenceGenome(other_path, build="hg38")
+
+    page, other_page = _page(reference), _page(other)
+    assert "reference build hg38 (1 contig, 140 bases, shape " in page
+    assert "reference build hg38 (1 contig, 183 bases, shape " in other_page
+    # And the extent is stated, so the hash is not read as a checksum of the bases.
+    assert "pins contig names and lengths, not the bases" in page

@@ -399,6 +399,12 @@ def design(
             # two results are indistinguishable — "0 off-targets" would read the
             # same whether every contig or a 100 bp window was examined.
             "offtarget_regions": _regions_snapshot(offtarget_regions),
+            # The genome searched is the largest single determinant of an
+            # off-target result, and `reference_build` is only a *label* — it
+            # stays "hg38" whatever FASTA was opened. Two runs over two different
+            # references were otherwise byte-identical in provenance while their
+            # specificity differed twofold.
+            "reference": _reference_snapshot(reference),
             "cell_context": cell_context,
             "chromatin_track": chromatin_track,
             # The full resolved settings (minus volatile paths) so the run is
@@ -579,6 +585,38 @@ def _regions_snapshot(
         "n": len(canonical),
         "bases": sum(r.end - r.start for r in regions),
         "sha256": content_hash(canonical),
+    }
+
+
+def _reference_snapshot(reference: ReferenceGenome) -> dict[str, object]:
+    """Describe the reference genome a run searched, for the provenance snapshot.
+
+    A registry-resolved build already lands in ``datasets`` with its pinned hash,
+    but the ordinary path — a local FASTA handed to ``--reference-fasta`` — carries
+    no descriptor, so provenance named no genome at all. This mirrors
+    :func:`_regions_snapshot`: a compact record rather than the input itself.
+
+    What it pins is the reference's *shape* — contig names and lengths, read from
+    the index, so the cost is O(contigs) rather than the size of the FASTA. Two
+    references with the same contigs and lengths and different bases are
+    indistinguishable to it, and ``pins`` says so, because a digest that overclaims
+    its own reach is worse than one that does not exist.
+
+    Args:
+        reference: The opened reference genome.
+
+    Returns:
+        The build label, contig and base counts, a content hash of the
+        canonicalized ``name:length`` list, and a statement of the extent.
+    """
+    lengths = reference.contig_lengths()
+    canonical = sorted(f"{name}:{length}" for name, length in lengths.items())
+    return {
+        "build": reference.build,
+        "contigs": len(lengths),
+        "bases": sum(lengths.values()),
+        "sha256": content_hash(canonical),
+        "pins": "contig names and lengths, not the bases",
     }
 
 

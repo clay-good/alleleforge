@@ -6775,6 +6775,59 @@ the config file's own native type is a case the parser must handle — the flag'
 form is the special case, not the general one.**
 
 
+## Round 214 — two genomes, one provenance
+
+Continuing R213's round trip, the question became what provenance actually pins. Two
+designs, same variant, same flags, two different reference FASTAs:
+
+    a.fa   0 off-target sites   specificity 0.879
+    b.fa   1 off-target site    specificity 0.468
+
+    provenance identical: True
+
+Byte for byte, timestamp aside. And `aforge verify` called both "provenance is complete
+and consistent". The block recorded `reference_build: "hg38"` — a *label*, which stays
+`hg38` whatever FASTA is handed to `--reference-fasta`. `_collect_datasets` does record
+the reference, but only when it carries a `DatasetVersion`, which a registry-resolved
+build has and a local FASTA does not. The ordinary, documented way to supply a genome
+left the genome unnamed, and the reference is the single largest determinant of an
+off-target result.
+
+`config_snapshot.reference` now records a descriptor in the shape `offtarget_regions`
+already established: build label, contig count, base count, and a content hash of the
+canonicalized `name:length` list, read from the `.fai` so the cost is O(contigs) rather
+than the size of the FASTA. `ReferenceGenome.contig_lengths()` is the new public
+accessor for that.
+
+What it deliberately does not do is hash the bases. Hashing three gigabytes per run is
+not a thing this tool can do on every design, so the descriptor pins the reference's
+*shape*, and two FASTAs with identical contig names and lengths and different bases are
+indistinguishable to it. That limit is in the record itself — `"pins": "contig names and
+lengths, not the bases"` — and in the rendered footer, because a digest that quietly
+overclaims its own reach is precisely the failure this project spends its time
+preventing. A weaker pin that says what it is beats a stronger-sounding one that does
+not.
+
+**The project caught this change before the suite finished.**
+`test_config_snapshot_reaches_a_reader` failed with "config_snapshot keys with no route
+to a reader: ['reference']". Recording a fact is not showing it, the footer's omission
+list is only allowed to skip `config_snapshot` because every key is rendered where it
+takes effect, and adding a key without a route would have quietly widened that
+exemption. The footer now reads:
+
+    reference build hg38 (1 contig, 140 bases, shape 379efc3d — pins contig names and
+    lengths, not the bases)
+
+That guard was written in an earlier round for exactly this, and it is the first time in
+this log that an existing mechanism, rather than a new query, found the round's mistake.
+
+**Lesson: an identifier that the caller chooses is not an identity. `reference_build`
+looked like provenance for four hundred kilobytes of README because it is a real field
+holding a real value — but nothing in the system ever checked it against the bytes it
+named, so it recorded an intention. When auditing a provenance block, do not ask what it
+contains; ask which two runs it can tell apart, and construct the pair.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
