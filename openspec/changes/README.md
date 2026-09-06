@@ -6153,6 +6153,44 @@ measurement that killed the performance hypothesis took two minutes and stopped 
 solving nothing.**
 
 
+## Round 199 — the number you cannot improve by looking away
+
+First, the project's own answer to "what is left": `scripts/release_readiness.py` reports 1 of 5 v1.0 criteria
+met and every open one blocked outside this repository — real checkpoint hashes, real benchmark corpora, a DOI
+minted on the first tagged release. There is no unblocked release work to pick up, which is why the audit
+continues rather than a feature.
+
+`viz/svg.py` came back clean, and interestingly so. Colors are the one caller-controlled value that reaches an
+SVG *attribute*, where the text-node escaper does not apply, and the module says so in a comment naming the
+R12 injection class — then validates them in `__post_init__` on both dataclasses that carry one. Every other
+attribute interpolation is numeric or a constant. A defended surface, with the defense wired.
+
+The finding was an invariant that held and was not pinned. `specificity_score` is
+`1 / (1 + Σ reported + subthreshold_score_sum)`, and the tail term exists so the reporting cut-off decides
+what is shown rather than what is counted. Measured across the range:
+
+    cfd_threshold  n_sites   Σ shown   subthr tail   specificity
+              0.0        5    3.6143        0.0000      0.216718
+              0.5        4    3.2125        0.4018      0.216718
+              1.0        1    1.0000        2.6143      0.216718
+
+Exactly invariant, with the tail absorbing exactly what leaves. Every piece of that was unit-tested — the
+formula includes the tail, merging two nick reports sums it, the engine produces a non-zero one — and the
+property those pieces exist to produce was not tested anywhere.
+
+Worth pinning because the failure has a direction and a very short path to it. Drop the tail from the formula
+and raising `--cfd-threshold` makes the aggregate safety number go *up*: a guide is made to look more specific
+by asking to be shown less, using a flag on every command. So the property is pinned twice — as the equality
+that actually holds, and separately as the inequality that showing less must never score better. Both
+mutations (removing the tail; halving it) are caught by the inequality, which is the one that would still
+mean something if the tail ever became approximate.
+
+**Lesson: unit-testing every ingredient of an invariant is not testing the invariant. Each of the three
+existing tests was correct and none of them would have noticed the property disappearing, because each
+checked a term rather than the relationship between them. When a formula has a part whose whole purpose is to
+make some other quantity *not* matter, the test to write is the one that varies that quantity.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

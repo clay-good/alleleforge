@@ -10,6 +10,17 @@ acceptance.
 
 ### Added
 
+- **The specificity score is pinned as independent of the display filter.** `specificity_score` is
+  `1 / (1 + Σ reported + subthreshold_score_sum)`, and the second term exists so the reporting cut-off decides
+  what is *shown* and not what is *counted*. Measured across the whole range on a reference carrying four
+  graded near-matches: the displayed site count falls from 5 to 1 while the score stays at 0.216718 to six
+  decimals, the tail absorbing exactly what leaves. The pieces were unit-tested — the formula includes the
+  tail, merging two nick reports sums it, the engine produces a non-zero one — and the property they exist to
+  produce was not. Its failure has a direction: without it, raising `--cfd-threshold` would drop sites out of
+  the sum and the aggregate safety number would go **up**, so a guide could be made to look more specific by
+  asking to be shown less. Pinned as an equality across thresholds and, separately, as the inequality that
+  showing less must never score better.
+
 - **`aforge lift`'s documented promises are now checked.** Its help says the output "pipes straight back in"
   to `--region`, that an unmappable locus prints `UNMAPPED` rather than being dropped ("a shorter list is a
   smaller search"), and that the run exits non-zero. All three held and none were tested; the two commands sit

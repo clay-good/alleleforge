@@ -201,3 +201,14 @@ budget must fail up front rather than partway through with a message about the s
 - **WHEN** a user selects the MIT scorer without disabling bulges
 - **THEN** the run is refused before searching, naming `--dna-bulges 0 --rna-bulges 0`
   and the CFD alternative
+
+### Requirement: The aggregate specificity does not depend on the reporting threshold
+
+The aggregate specificity score SHALL be computed over the full nominated in-budget set,
+so that changing which sites are *displayed* does not change the number. Tightening the
+reporting cut-off SHALL never raise it. Otherwise the single-number safety summary is
+improvable by asking to be shown less, which is a setting every caller can reach.
+
+#### Scenario: The same guide at several reporting thresholds
+- **WHEN** a search is repeated across reporting thresholds spanning the score range
+- **THEN** the displayed site count falls while the specificity score is unchanged
