@@ -2036,6 +2036,10 @@ acceptance.
 
 ### Fixed
 
+- **A reference-only cohort row still reads differently from an unsearched one.** Blanking empty
+  collections in the cohort TSV (above) would have collapsed `offtarget_sources` `{}` — a search ran, no
+  optional source was supplied — into the empty cell that means no search happened at all. It now renders
+  `reference-only`, which is what the CLI already calls that state.
 - **The cohort TSV is readable without a Python parser.** `_batch_tsv` passed every value through `str()`,
   so the file a pipeline reads carried `['pol3-terminator', 'gc-out-of-band:0.20']` in a tab-separated cell,
   `{}` for an empty mapping, and `0.44999999999999996` for a rounded interval bound. `report/export.py` —

@@ -1194,10 +1194,26 @@ def _batch_tsv(rows: list[dict[str, Any]], provenance: Any | None = None) -> str
         f"intent {run.get('intent')}",
         f"started {run.get('started_at')}",
     ]
+
+    def _sources(value: Any) -> Any:
+        """Keep "searched, reference-only" distinct from "not searched".
+
+        `sources_considered` names the *optional* safety sources — gnomAD, a haplotype
+        panel, a patient VCF. `None` means no off-target report exists at all; `{}` means
+        one does and no optional source was supplied. Rendering an empty mapping as an
+        empty cell collapsed those into one string, on the axis where "we did not look"
+        must never look like "we looked and found nothing".
+        """
+        if isinstance(value, Mapping) and not value:
+            return "reference-only"
+        return value
+
     lines = [f"# {_cell(note)}" for note in notes if note]
     lines.append("\t".join(cols))
     for r in rows:
-        lines.append("\t".join(_cell(r[c]) for c in cols))
+        lines.append(
+            "\t".join(_cell(_sources(r[c]) if c == "offtarget_sources" else r[c]) for c in cols)
+        )
     return "\n".join(lines) + "\n"
 
 

@@ -8514,6 +8514,34 @@ each. The conventions that matter — rounding, list joining, the empty value �
 invisible in the code and obvious side by side.**
 
 
+## Round 257 — the fix that erased a distinction
+
+R256 made empty collections render as empty cells, which is right for `best_caveats` and
+wrong for exactly one column. `offtarget_sources` names the *optional* safety sources:
+gnomAD, a haplotype panel, a patient VCF. `None` means no off-target report exists at all.
+`{}` means one does, and none of those was supplied — a reference-only scan.
+
+Before R256 those rendered as `` and `{}`: ugly, and distinguishable. After R256 both were
+``. I had taken the repo's most-repeated defect class — "we did not look" made
+indistinguishable from "we looked and found nothing" — and introduced a fresh instance of
+it while cleaning up formatting.
+
+Caught by re-reading a real file after the change rather than the diff. Two runs of the
+same cohort, one with the search and one with `--no-offtarget`, and the column that should
+have separated them did not. `{}` now renders `reference-only`, the phrase the CLI already
+uses for that state, and the test asserts the two runs differ rather than asserting either
+string.
+
+The pair `worst_offtarget` / `best_specificity` did still separate the two rows, so this
+was a redundancy loss rather than a total one — which is exactly why it would have survived
+review: every individual assertion still passed and no single number was wrong.
+
+**Lesson: a formatting change is a semantics change whenever the format was carrying a
+distinction. Before collapsing any representation — empty to blank, list to string, float
+to fixed precision — enumerate the values that map to the new one and check no two of them
+meant different things.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

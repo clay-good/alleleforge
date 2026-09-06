@@ -56,10 +56,25 @@ def test_a_list_is_delimited_not_a_python_literal() -> None:
 
 
 def test_an_empty_collection_is_an_empty_cell() -> None:
-    """`{}` and `[]` are values a consumer has to special-case; blank is not."""
-    cells = _cells(_batch_tsv([_row(offtarget_sources={}, best_caveats=[])]))
-    assert cells["offtarget_sources"] == ""
+    """`[]` is a value a consumer has to special-case; blank is not."""
+    cells = _cells(_batch_tsv([_row(best_caveats=[])]))
     assert cells["best_caveats"] == ""
+
+
+def test_a_searched_row_never_looks_like_an_unsearched_one() -> None:
+    """The one column where blanking an empty collection would lose a fact.
+
+    `offtarget_sources` names the *optional* safety sources. `None` means no off-target
+    report exists; `{}` means one does and no optional source was supplied. Rendering
+    both as an empty cell would collapse "we did not look" into "we looked and there was
+    nothing to add" — on the axis where that confusion is the dangerous one. Caught by
+    re-reading a real file after the rendering change that introduced it.
+    """
+    searched = _cells(_batch_tsv([_row(offtarget_sources={}, worst_offtarget=0.0)]))
+    unsearched = _cells(_batch_tsv([_row(offtarget_sources=None, worst_offtarget=None)]))
+    assert searched["offtarget_sources"] == "reference-only"
+    assert unsearched["offtarget_sources"] == ""
+    assert searched["offtarget_sources"] != unsearched["offtarget_sources"]
 
 
 def test_a_populated_mapping_is_readable() -> None:
