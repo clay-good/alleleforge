@@ -7281,6 +7281,46 @@ and note that the answer is usually the inputs whose handling was never decided,
 is exactly the set a port exists to surface.**
 
 
+## Round 225 — the same site, two names, depending on an unrelated flag
+
+Running the two commands I had never run — `resolve` and `lift` — turned up something
+in neither. `aforge resolve 2:71:A>C` prints `2:70:A>C`, keeping the caller's bare
+contig. That is defensible on its own; what it leads to is not:
+
+    aforge offtarget ... --reference-fasta decoy.fa
+      chr2:43-63(+)   chr2:140-160(+)
+
+    aforge offtarget ... --reference-fasta decoy.fa --region 2:0-183
+      2:43-63(+)      2:140-160(+)
+
+Same guide, same genome, same two sites. Unscoped, the contigs come from the reference
+and carry its spelling; scoped, they carry whatever was typed. **The identity of a
+reported site depended on a scoping flag**, so two runs over one genome produce site
+lists that do not join, diff or deduplicate.
+
+Nothing was mis-searched — `canonical_contig` reconciles the styles, which is why both
+runs find both sites. What was wrong was the name written down afterwards.
+
+Fixing only the scope would have made it worse. The candidate locus comes from the
+*variant*, so a `2:71:A>C` input against a `chr2` genome would then have produced a
+candidate at `2:43-63` beside off-target sites at `chr2:…` — one document, one contig,
+two names. Both boundaries are fixed together: regions are renamed where they meet the
+reference in `search()`, and a variant is renamed in `resolve()` when a reference is
+supplied.
+
+The rename is always **toward the supplied genome**, which is what makes it safe rather
+than opinionated: a bare-named FASTA produces bare-named output, so an Ensembl-space
+user is never handed `chr` prefixes they did not ask for. `resolve` without a reference
+renames nothing, because there is no genome to be named after. An unknown contig is
+still refused rather than quietly renamed onto a different sequence.
+
+**Lesson: reconciliation and naming are different problems, and solving the first hides
+the second. `canonical_contig` made every lookup work regardless of spelling, which is
+exactly why nothing ever failed and nobody asked which spelling came out the other end.
+When a system accepts several spellings of an identifier, ask what it *emits* — the
+answer is usually "whichever one it happened to be holding".**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

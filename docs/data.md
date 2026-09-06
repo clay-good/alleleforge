@@ -106,6 +106,13 @@ the table.
 Every rendered report states the convention in its footer. A caller converting a
 locus for display elsewhere can use `GenomicInterval.to_one_based()`.
 
+Every locus a run **reports** is named the way the reference it searched names it, not
+the way the caller typed it. A `2:71:A>C` input against a `chr2` genome yields `chr2:…`
+throughout; a genome whose own contigs are bare yields bare names. Reconciliation makes
+the *lookup* work either way, but the name written down has to be one that addresses the
+position in the genome that was actually searched — and before this it depended on the
+input, so scoping a scan with `--region 2:0-183` renamed the very sites it scoped.
+
 Contig names are reconciled so an NCBI-style source (`2`, `MT`) and a UCSC-style hg38
 reference (`chr2`, `chrM`) align: parsers prefix bare names to the `chr…` form (mapping the
 mitochondrion to `chrM`, not `chrMT`), and every cross-source lookup compares contigs

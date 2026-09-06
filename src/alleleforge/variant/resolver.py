@@ -29,7 +29,13 @@ from alleleforge.genome.coordinates import (
     flag_ambiguous_regions,
 )
 from alleleforge.genome.reference import ReferenceGenome
-from alleleforge.types.sequence import CoordinateSystem, DNASequence, GenomicInterval, Strand
+from alleleforge.types.sequence import (
+    CoordinateSystem,
+    DNASequence,
+    GenomicInterval,
+    Strand,
+    canonical_contig,
+)
 from alleleforge.types.variant import (
     ClinicalAssertion,
     ClinVarAccession,
@@ -433,6 +439,30 @@ def _working_interval(
     )
 
 
+def _rename_contig_to_reference(variant: Variant, reference: ReferenceGenome) -> Variant:
+    """Return ``variant`` with its contig spelled as ``reference`` spells it.
+
+    Only the name changes, and only when the reference has a contig that reconciles
+    to the same canonical form. An unknown contig is left alone so the existing
+    reference-base validation raises the error it already raises, rather than this
+    quietly renaming a variant onto the wrong sequence.
+
+    Args:
+        variant: The variant as the caller spelled it.
+        reference: The genome it is being resolved against.
+
+    Returns:
+        The variant, renamed when the reference knows the contig by another spelling.
+    """
+    canonical = canonical_contig(variant.chrom)
+    for contig in reference.contigs:
+        if canonical_contig(contig) == canonical:
+            return (
+                variant if contig == variant.chrom else variant.model_copy(update={"chrom": contig})
+            )
+    return variant
+
+
 def resolve(
     inp: ResolveInput,
     *,
@@ -486,6 +516,14 @@ def resolve(
         )
     variant = variant.model_copy(update={"build": build})
     if reference is not None:
+        # A resolved variant is a position *in this reference*, so it is named the way
+        # this reference names it. Contig-style reconciliation already makes the lookup
+        # work either way; what it did not do is settle what gets written down, so a
+        # `2:71:A>C` input against a `chr2` genome produced a candidate locus of
+        # `2:43-63` while the off-target sites found in the same genome said `chr2:…`.
+        # The rename is always toward the supplied genome: a bare-named FASTA keeps
+        # bare-named output.
+        variant = _rename_contig_to_reference(variant, reference)
         # Validate the FULL asserted ref span *before* normalization. `normalized()`
         # (applied inside `_left_align`, and in the no-reference branch below) trims a
         # shared prefix/suffix base whenever ref==alt there — so a wrong-build base in

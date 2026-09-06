@@ -10,6 +10,17 @@ acceptance.
 
 ### Added
 
+- **A reported locus is named the way the searched reference names it.** The same off-target site in the same
+  genome was called `chr2:43-63` unscoped and `2:43-63` when scoped with `--region 2:0-183`: unscoped the
+  contigs come from the reference, scoped they carried whatever the caller typed, so **the identity of a site
+  depended on an unrelated flag** and two runs over one genome produced lists that do not join or
+  deduplicate. Nothing was mis-searched — `canonical_contig` reconciles the styles — but the name written down
+  afterwards was the caller's, not the genome's. Regions are now renamed where they meet the reference in
+  `search()`, and a variant in `resolve()` when a reference is supplied, so a `2:71:A>C` input against a
+  `chr2` genome no longer yields a candidate at `2:43-63` beside off-target sites at `chr2:…`. The rename is
+  always toward the supplied genome: a bare-named FASTA yields bare-named output, `resolve` without a
+  reference renames nothing, and an unknown contig is still refused rather than renamed onto another sequence.
+
 - **A fifth native kernel: the per-anchor protospacer evaluation.** `_evaluate` runs once per PAM-positive
   anchor — 500,000 times over 2 Mb — doing the ungapped comparison in Python and crossing the FFI boundary
   twice more for the two bulge directions. `rust/src/evaluate.rs` does the whole decision, so a scan crosses

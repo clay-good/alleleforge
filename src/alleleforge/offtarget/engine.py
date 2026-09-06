@@ -282,6 +282,40 @@ def _reject_unknown_contigs(regions: Sequence[GenomicInterval], reference: Refer
             )
 
 
+def _rename_to_reference(
+    regions: Sequence[GenomicInterval], reference: ReferenceGenome
+) -> list[GenomicInterval]:
+    """Return ``regions`` with each contig renamed to the reference's own spelling.
+
+    Every coordinate this search reports describes a position *in the reference*, and
+    the only name guaranteed to address that position in that reference is the
+    reference's own. Reported sites inherit their contig from the region they were
+    found in, so without this the same site in the same genome was called
+    ``chr2:43-63`` when unscoped (contigs came from the reference) and ``2:43-63``
+    when scoped with ``--region 2:0-183`` — the identity of a result depending on an
+    unrelated scoping flag, and two runs producing site lists that do not join.
+
+    The rename is always *toward* the supplied genome, so a bare-named FASTA yields
+    bare-named output. `canonical_contig` already reconciles the styles for lookup, so
+    this changes only what is written down; `_reject_unknown_contigs` has already
+    refused anything that does not reconcile at all.
+
+    Args:
+        regions: The search scope, in whatever spelling the caller used.
+        reference: The genome being searched.
+
+    Returns:
+        The same intervals, named as the reference names them.
+    """
+    by_canonical = {canonical_contig(c): c for c in reference.contigs}
+    return [
+        region
+        if by_canonical.get(canonical_contig(region.chrom), region.chrom) == region.chrom
+        else region.model_copy(update={"chrom": by_canonical[canonical_contig(region.chrom)]})
+        for region in regions
+    ]
+
+
 def search(
     spacer: Spacer | DNASequence | str,
     pam: PAM,
@@ -407,6 +441,7 @@ def search(
     # either, because a smaller search reports fewer off-targets, the direction that
     # reads as safer and is not.
     _reject_unknown_contigs(search_regions, reference)
+    search_regions = _rename_to_reference(search_regions, reference)
     haplotype_list = list(haplotypes)
 
     # A genome_index built from a different assembly than `reference` would anchor
