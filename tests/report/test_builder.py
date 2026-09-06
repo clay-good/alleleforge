@@ -370,3 +370,56 @@ def test_the_scorer_citation_reaches_a_rendered_report(prime_menu: RankedMenu) -
     needle = "Doench et al., Nat Biotechnol 2016"
     assert needle in render_html(report)
     assert needle in render_pdf(report).decode("latin-1", errors="ignore")
+
+
+def test_the_intended_allele_survives_the_outcome_cap(prime_menu: RankedMenu) -> None:
+    """The outcome table could omit the one allele the user asked for.
+
+    `outcome_top` was the top N by probability, and a base editor with bystanders
+    routinely ranks the intended edit outside the top few. A real run: A6G at 0.288,
+    A5G;A6G at 0.192 and wildtype at 0.192 shown, with the *requested* A4G seventh of
+    eight at 0.048 — so the table that answers "what happens to my cells" contained no
+    intended row at all, and the caption said only that the rest were in the export.
+    R49 fixed the identical shape one level up, keeping Pareto-front members through
+    the candidate cap: a truncation is a claim about what does not matter.
+    """
+    from alleleforge.types.edit import AlleleOutcome, EditOutcome
+
+    candidate = prime_menu.candidates[0]
+    # An intended allele ranked last, well outside a top-2 cap.
+    outcome = EditOutcome(
+        alleles=(
+            AlleleOutcome(allele="bystander-A", probability=0.5, is_intended=False),
+            AlleleOutcome(allele="bystander-B", probability=0.3, is_intended=False),
+            AlleleOutcome(allele="wildtype", probability=0.15, is_intended=False),
+            AlleleOutcome(allele="the-requested-edit", probability=0.05, is_intended=True),
+        )
+    )
+    menu = prime_menu.model_copy(
+        update={"candidates": (candidate.model_copy(update={"outcome": outcome}),)}
+    )
+
+    report = build_report(menu, top_alleles=2)
+    shown = report.candidates[0].outcome_top
+    assert [a.allele for a in shown[:2]] == ["bystander-A", "bystander-B"]
+    assert any(a.is_intended for a in shown), "the requested edit is missing from the table"
+    assert shown[-1].allele == "the-requested-edit"
+    # The caption's arithmetic must follow the rows actually shown.
+    assert report.candidates[0].outcome_shown_mass == pytest.approx(0.5 + 0.3 + 0.05)
+
+
+def test_an_intended_allele_already_shown_is_not_duplicated(prime_menu: RankedMenu) -> None:
+    from alleleforge.types.edit import AlleleOutcome, EditOutcome
+
+    candidate = prime_menu.candidates[0]
+    outcome = EditOutcome(
+        alleles=(
+            AlleleOutcome(allele="the-requested-edit", probability=0.7, is_intended=True),
+            AlleleOutcome(allele="wildtype", probability=0.3, is_intended=False),
+        )
+    )
+    menu = prime_menu.model_copy(
+        update={"candidates": (candidate.model_copy(update={"outcome": outcome}),)}
+    )
+    shown = build_report(menu, top_alleles=2).candidates[0].outcome_top
+    assert [a.allele for a in shown] == ["the-requested-edit", "wildtype"]

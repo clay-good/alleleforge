@@ -195,7 +195,10 @@ class CandidateReport(BaseModel):
         bystander_burden: Calibrated expected bystander-edit count, for
             base-editor candidates (``None`` otherwise).
         p_intended: Summed probability of the intended allele(s), if scored.
-        outcome_top: The highest-probability outcome alleles (descending).
+        outcome_top: The highest-probability outcome alleles (descending), plus the
+            **intended** allele when it did not make the cut — it is the one row the
+            table exists to let a reader find, and a bystander-heavy base editor
+            routinely ranks it outside the top few.
         n_outcome_alleles: How many alleles the predicted distribution holds in total.
         outcome_shown_mass: The probability mass ``outcome_top`` accounts for. An NHEJ
             spectrum is a long tail — a knock-out reporting ``P(intended) = 0.87`` above
@@ -306,7 +309,21 @@ def _candidate_report(
     p_intended: float | None = None
     if candidate.outcome is not None:
         ordered = sorted(candidate.outcome.alleles, key=lambda a: a.probability, reverse=True)
-        outcome_top = tuple(ordered[:top_alleles])
+        shown = list(ordered[:top_alleles])
+        # The intended allele always survives the cap, even when it is not in the top N
+        # — the same rule that keeps Pareto-front members in the truncated candidate
+        # list, applied one level down. A base editor with bystanders routinely puts the
+        # intended edit outside the top three: a real run here showed A6G (0.288),
+        # A5G;A6G (0.192) and wildtype (0.192), with the *requested* A4G seventh of eight
+        # at 0.048. The table that answers "what happens to my cells" then contained no
+        # intended row at all, and nothing said the missing mass held the user's edit.
+        # A truncation is a claim about what does not matter; this one was wrong exactly
+        # where the product's value is.
+        if not any(a.is_intended for a in shown):
+            intended = next((a for a in ordered if a.is_intended), None)
+            if intended is not None:
+                shown.append(intended)
+        outcome_top = tuple(shown)
         n_outcome_alleles = len(ordered)
         outcome_shown_mass = sum(a.probability for a in outcome_top)
         p_intended = candidate.outcome.p_intended

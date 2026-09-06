@@ -330,3 +330,15 @@ not travel with the result a lab shares.
 #### Scenario: A report scored with the published CFD matrix
 - **WHEN** a candidate's off-target sites were scored by CFD
 - **THEN** the report names the scorer, the weight source, and Doench et al. 2016
+
+### Requirement: The intended allele is always shown
+
+A capped outcome table SHALL include the intended allele even when it falls outside the
+top N by probability, and the reported shown-mass SHALL account for the rows actually
+shown. A base editor with in-window bystanders routinely ranks the requested edit
+outside the top few, and a table that omits it answers "what will happen" without
+answering "will I get what I asked for".
+
+#### Scenario: The intended edit is a low-probability outcome
+- **WHEN** the intended allele ranks below the display cap
+- **THEN** it is shown anyway, marked intended, and counted in the shown mass

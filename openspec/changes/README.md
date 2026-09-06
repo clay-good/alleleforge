@@ -4591,6 +4591,46 @@ including the ones that cannot be checked. Then the gap is a failure rather than
 third time this session the same shape has worked: documented skips in the round log, `_SKIPPED` for cited
 rounds, and now evidence-per-principle.**
 
+## Round 155 — the row that was not there
+
+Back to the product after several rounds on process. Built a 6 kb contig with an editable ABE site and two
+deliberate near-identical decoys, ran a real population-aware design through the CLI, and read the rendered
+HTML the way a bench scientist would.
+
+Most of it holds up, and two recent rounds show their work in it: R153's citation is on the scoring-basis
+line (*"CFD / doench-2016-cfd + doench-2016-seed-tolerance-approximation — Doench et al., Nat Biotechnol
+2016"*), and R136's coordinate labelling turned my own mistake into a clear error — I passed `chr7:3003`
+meaning a 0-based offset and got *"reference mismatch at chr7:3002: asserted ref 'A' but reference has 'T'
+(wrong build?)"*, which is the 1-based `chrom:pos:ref>alt` boundary doing exactly what it should.
+
+Then the outcome table:
+
+    allele      probability   intended
+    A6G         0.288
+    A5G;A6G     0.192
+    wildtype    0.192
+    showing 3 of 8 predicted alleles (0.67 of the probability mass)
+
+Nothing in the `intended` column. The full distribution puts the requested `A4G` **seventh of eight at
+0.048** — outside the top three, so it was simply not shown. A scientist reading the table that answers
+"what will happen to my cells" sees three plausible outcomes, none of them theirs, and must notice a separate
+`P(intended) = 0.05` line elsewhere on the page to understand that their edit lives in the 33% the caption
+politely calls "the rest".
+
+This is R49's finding one level down, and R49's own lesson names it: *"a truncation is a claim about what
+does not matter, and it is wrong exactly where the product's value is concentrated. When adding any 'show the
+top N', ask what the tail is for."* R49 applied it to the candidate list, keeping Pareto-front members
+through the cap. The allele table has the same cap and the same promise living in its tail — a bystander-heavy
+base editor puts the intended edit outside the top few *routinely*, not exceptionally.
+
+The intended allele now always survives the cap, and the shown-mass arithmetic follows the rows shown. The
+table now reads `A4G | 0.048 | ✓` and `showing 4 of 8`.
+
+**Lesson: a lesson recorded against one truncation does not transfer to the others by itself. R49's rule was
+written down, in this file, in the imperative — and the identical cap one call-frame away kept its naive
+form for a hundred rounds. When a fix ends in a general rule, spend the extra five minutes grepping for the
+other places the rule already applies; the round that writes the rule is the cheapest time to apply it.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

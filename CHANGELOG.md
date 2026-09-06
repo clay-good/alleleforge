@@ -1506,6 +1506,14 @@ acceptance.
 
 ### Fixed
 
+- **The outcome table could omit the one allele the user asked for.** `outcome_top` was the top N by
+  probability, and a base editor with bystanders routinely ranks the intended edit outside the top few. A
+  real run on a three-A window showed `A6G` (0.288), `A5G;A6G` (0.192) and `wildtype` (0.192) — with the
+  **requested** `A4G` seventh of eight at 0.048. So the table that answers "what happens to my cells"
+  contained no intended row at all, and its caption said only that the rest were in the lossless export. The
+  intended allele now always survives the cap, exactly as Pareto-front members survive the candidate cap, and
+  the shown-mass arithmetic follows the rows actually shown.
+
 - **The off-target score, the project's differentiator, travelled without its citation.** Principle 8 is
   "cite everything … in code **and in output provenance**". Datasets and model cards were covered and tested;
   scoring functions were not. A report named its scorer `CFD` and its weights `doench-2016-cfd` and carried
