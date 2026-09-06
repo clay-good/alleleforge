@@ -177,3 +177,17 @@ shown. This is the triage view for users who will not open a terminal.
 - **WHEN** a cohort row's best candidate has an out-of-distribution efficiency
 - **THEN** the browser table shows the interval and marks it, rather than showing the
   estimate alone
+
+### Requirement: An API result carries the qualifications its CLI equivalent prints
+
+Where an endpoint answers the same question as a CLI command, its response SHALL carry
+the qualifying statements that command prints, not only the numbers. In particular a
+standalone off-target response SHALL carry the search description — the budgets and
+cut-offs its numbers are conditional on, the searchable fraction of the requested
+bases, any inert supplied source, and an explicit statement when no sequence was
+searched at all.
+
+#### Scenario: A search that covered nothing
+- **WHEN** the reference or region scope yields no searchable bases
+- **THEN** the response reports zero sites *and* states that no sequence was searched,
+  so an empty run cannot be read as a clean one

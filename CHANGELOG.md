@@ -8,6 +8,17 @@ acceptance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The web API returned a spotless-looking off-target result for a search that ran on nothing.**
+  `OffTargetResponse` exists, by its own docstring, to give a client "the same summary the `aforge offtarget`
+  CLI surfaces" — and it projected every *numeric* method on the report (`n_sites`, `worst_score`,
+  `specificity_score`, `ancestry_stratification`, `effective_matrix`) while omitting the one *prose* method.
+  The CLI prints the aggregates and then `search: …` beneath them; that line is what says the scan covered 1%
+  of the requested bases, that a supplied gnomAD file was inert, or **"NO SEQUENCE WAS SEARCHED — this is not
+  a clean result, it is an empty one."** An API client saw `n_sites: 0, specificity: 1.0` and had no way to
+  tell a clean guide from an empty run. The envelope now carries `search_description`.
+
 ### Added
 
 - **`aforge lift` — a build mismatch now has a remedy inside the tool.** `resolve` refuses a record whose

@@ -279,6 +279,12 @@ class OffTargetResponse(BaseModel):
     same summary the ``aforge offtarget`` CLI surfaces — including
     ``on_target_excluded``, without which ``specificity`` is not the same quantity
     a design report prints under that name.
+
+    Every *numeric* method was projected and the one *prose* method was not, which
+    made the envelope's own purpose false in the case that matters most: the CLI
+    prints the aggregates and then ``search: …`` under them, and that line is what
+    says a search covered 1% of what was asked for, or nothing at all. Without it a
+    client reads ``n_sites: 0, specificity: 1.0`` as a spotless guide.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -294,6 +300,15 @@ class OffTargetResponse(BaseModel):
             "Whether the spacer's own locus was excluded. When false, the guide's own "
             "perfect match is counted among the sites and the specificity is capped "
             "accordingly; supply `on_target` to drop it."
+        )
+    )
+    search_description: str = Field(
+        description=(
+            "What the search actually covered, and what it could not: the budgets and "
+            "cut-offs every number here is conditional on, the fraction of requested "
+            "bases that held searchable sequence, any supplied source that was inert, "
+            "and an explicit statement when NO sequence was searched. The CLI prints "
+            "this under the aggregates; the numbers above are not readable without it."
         )
     )
     ancestry_stratification: dict[str, float] = Field(
@@ -321,6 +336,7 @@ class OffTargetResponse(BaseModel):
             worst_score=report.worst_score(),
             specificity=report.specificity_score(),
             on_target_excluded=on_target_excluded,
+            search_description=report.search_description(),
             ancestry_stratification=report.ancestry_stratification(),
             effective_matrix=report.effective_matrix(),
         )

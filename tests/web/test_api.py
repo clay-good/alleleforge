@@ -683,3 +683,39 @@ async def test_design_offtarget_regions_are_accepted(client: httpx.AsyncClient) 
     )
     assert res.status_code == 200
     assert res.json()["candidates"]
+
+
+def test_the_offtarget_envelope_says_what_the_search_covered() -> None:
+    """The API returned a spotless-looking result for a search that ran on nothing.
+
+    `OffTargetResponse` exists to give a client "the same summary the `aforge
+    offtarget` CLI surfaces" — and it projected every *numeric* method on the report
+    (`n_sites`, `worst_score`, `specificity_score`, `ancestry_stratification`,
+    `effective_matrix`) while omitting the one *prose* method. The CLI prints the
+    aggregates and then `search: …` beneath them, and that line is what says the scan
+    covered 1% of what was asked for, or nothing at all. A client saw
+    `n_sites: 0, specificity: 1.0` and no way to tell a clean guide from an empty run.
+    """
+    from alleleforge.types.offtarget import OffTargetReport
+    from alleleforge.web.api.models import OffTargetResponse
+
+    empty = OffTargetReport(
+        spacer="GACCCCCTCCACCCCGCCTC",
+        pam="NGG",
+        sites=(),
+        mismatch_threshold=4,
+        dna_bulge_budget=1,
+        rna_bulge_budget=1,
+        cfd_threshold=0.0,
+        mit_threshold=0.0,
+        searched_bases=0,
+        resolved_bases=0,
+        reference_build="hg38",
+        scorer="cfd",
+    )
+    envelope = OffTargetResponse.from_report(empty)
+    # The reassuring numbers are all there...
+    assert (envelope.n_sites, envelope.worst_score, envelope.specificity) == (0, 0.0, 1.0)
+    # ...and so, now, is the sentence that makes them readable.
+    assert envelope.search_description == empty.search_description()
+    assert "NO SEQUENCE WAS SEARCHED" in envelope.model_dump_json()

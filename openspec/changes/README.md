@@ -3891,6 +3891,42 @@ up cost two minutes; reporting it would have been wrong in public.
 `skipped` were both honest and individually documented, and their juxtaposition was the lie — nothing in
 either field's definition is wrong, and no test of either one alone would have caught it.**
 
+## Round 138 — the same result, told differently on two surfaces
+
+Started on R137's paired query — check the tool can do what its error messages instruct — and it came back
+clean. Every `alleleforge[extra]` named in a message is a real extra, and each one actually contains the
+package the message promises (`polars` in `core`, `cyvcf2` and `pyliftover` in `genome`, `lightgbm`/`sglearn`
+in `cas9-rs3`). A mechanical check of `--flag` names against the live click tree I could not get to traverse
+Typer's subcommands correctly; rather than trust a broken checker I dropped it. Recorded as inconclusive, not
+as a clean bill.
+
+So: surface parity instead. The CLI and the web API answer the same question; do they answer it as honestly?
+
+`OffTargetResponse` says, in its own docstring, that it exists to give a client *"the same summary the*
+`aforge offtarget` *CLI surfaces."* It projects `n_sites`, `worst_score`, `specificity_score`,
+`ancestry_stratification`, `effective_matrix` — every method that returns a **number**. The one method that
+returns **prose**, `search_description()`, it did not project, and grep confirms only two callers in the tree:
+the CLI and the design report builder.
+
+Constructed the case that matters and printed both:
+
+    CLI says   : up to 4 mismatches, 1 DNA / 1 RNA bulges; … NO SEQUENCE WAS SEARCHED — the reference or
+                 region scope yielded no bases, so this is not a clean result, it is an empty one
+    API returns: {"n_sites": 0, "worst_score": 0.0, "specificity": 1.0, …}
+
+Same report object. One surface refuses to let the reader mistake an empty run for a clean one; the other
+hands over the three most reassuring numbers in the system with nothing attached. The raw fields are all in
+the embedded report and a client could in principle reassemble the sentence — no client will, which is the
+whole reason the sentence exists.
+
+One field, `search_description`, populated in `from_report`.
+
+**Lesson: when the same result is delivered on two surfaces, the qualifications travel worse than the
+numbers. A number is a field and gets projected mechanically; a caveat is usually a method or a rendering
+step, and it is dropped by exactly the code whose job is to be equivalent. Diff surfaces by what they omit,
+not by what they carry — and treat "gives the same summary as X" in a docstring as a claim to test, since
+this one was written by someone who had just enumerated the numeric methods and stopped.**
+
 ## Round 137 — an instruction the tool would not carry out
 
 R136's tell, run as a sweep: for every `to_*`/`from_*`/`normalize*`/`canonical*`/`convert*` in the tree,
