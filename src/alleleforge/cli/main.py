@@ -407,6 +407,16 @@ def _load_encode_tracks(path: Path | None, track: str | None) -> tuple[Any | Non
     The adjustment needs both a source and a track name; supplying one alone is a
     mistake that would otherwise be silently ignored, leaving the efficiency
     unadjusted while the user believes it is chromatin-aware.
+
+    A name the file does not contain is the same mistake one step further in. It
+    raised ``KeyError`` inside the chemistry, which caught it as a decline reason,
+    so a typo produced an **empty menu and exit 0** with the cause buried in a
+    rationale paragraph. The name is checked here, where it was supplied, and the
+    refusal lists what the file does contain.
+
+    The loaded tracks are pinned by content hash like every other user-supplied
+    source, because the accessibility signal moves the efficiency number and a
+    provenance block naming only the track *name* cannot tell two of them apart.
     """
     if path is None and track is None:
         return None, None
@@ -416,7 +426,22 @@ def _load_encode_tracks(path: Path | None, track: str | None) -> tuple[Any | Non
     from alleleforge.data.annotations import EncodeTracks
 
     try:
-        return EncodeTracks.from_bedgraph(path), track
+        tracks = EncodeTracks.from_bedgraph(path)
+        available = tracks.tracks
+        if not available:
+            _echo_err(
+                f"error: --encode-tracks {path} defines no tracks. Expected "
+                "tab-separated 'track chrom start end value' rows; lines beginning "
+                "'track', 'browser' or '#' are skipped as UCSC directives."
+            )
+            raise typer.Exit(ExitCode.USAGE)
+        if track not in available:
+            _echo_err(
+                f"error: --chromatin-track {track!r} is not in {path}; "
+                f"it has: {', '.join(available)}"
+            )
+            raise typer.Exit(ExitCode.USAGE)
+        return _attach_source(tracks, path, "encode-tracks"), track
     except (OSError, ValueError) as exc:
         _echo_err(f"error: could not read --encode-tracks {path}: {exc}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc

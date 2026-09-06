@@ -10,6 +10,17 @@ acceptance.
 
 ### Added
 
+- **The accessibility track is pinned in provenance, and its name is checked.** Two runs over bedGraphs
+  differing only in signal produced different efficiencies (0.484 vs 0.457) and identical provenance with an
+  empty `datasets` list: `_attach_source` pins gnomAD and the haplotype panel by content hash, and the ENCODE
+  loader was the one that never called it, so `_collect_datasets` looked for a descriptor the CLI never
+  attached. Recording `chromatin_track` — a name the caller chose — cannot tell two accessibility files apart.
+  Separately, `--chromatin-track` naming a track absent from the file raised `KeyError` inside the chemistry,
+  which caught it as a decline reason: an **empty menu and exit 0**, with the cause buried in a rationale
+  paragraph. The name is now validated where it is supplied and the refusal lists the names the file has; a
+  bedGraph that parses to no tracks at all is refused too, explaining that lines beginning `track`, `browser`
+  or `#` are skipped as UCSC directives.
+
 - **Provenance identifies the reference genome, not just its label.** Two designs over two different
   reference FASTAs produced byte-identical provenance while their safety verdicts differed twofold
   (specificity 0.879 vs 0.468), and `aforge verify` called both complete: the block recorded

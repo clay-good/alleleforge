@@ -6828,6 +6828,55 @@ named, so it recorded an intention. When auditing a provenance block, do not ask
 contains; ask which two runs it can tell apart, and construct the pair.**
 
 
+## Round 215 — the same question, asked of the other inputs
+
+R214's query was "which two runs can this record tell apart?", so it got asked of every
+user-supplied source in turn. gnomAD: pinned by content hash, clean. Haplotype panel:
+pinned, clean. Patient VCF: versioned `n=1` — a count, so two patients are
+indistinguishable — but that is a **deliberate** decision with its reasoning in the
+code beside it ("fingerprinting the file itself would put an identifier for a person's
+genotypes into a report meant to be shared"), and it is the right call. Not a finding.
+
+The ENCODE accessibility track was the one that fell through.
+
+    d1.bg (signal 0.9)  ->  efficiency 0.484
+    d2.bg (signal 0.1)  ->  efficiency 0.457
+    provenance identical: True        datasets: []
+
+`_collect_datasets` is explicitly handed `encode_tracks` alongside the haplotype panel
+and the patient variants, and `_attach_source` tags the other two. The ENCODE loader
+was the only one that never called it, so the design side was looking for a descriptor
+the CLI never attached. The snapshot recorded `chromatin_track` — a *name* — which is
+`reference_build` from the previous round, one input over: a value the caller chose,
+standing in for the data it refers to.
+
+Running the case found a second defect the query would not have. `--chromatin-track`
+naming a track absent from the file raised `KeyError` inside the chemistry, which
+caught it as a decline reason:
+
+    prime: skipped (KeyError: "unknown track 'track'; known: ()")
+    wrote w.json      EXIT=0      candidates: 0
+
+An empty menu, a success exit, and the cause buried in a rationale paragraph.
+`_load_encode_tracks` exists precisely to stop a silently-unapplied chromatin
+adjustment — its docstring says so — and it checked that the two flags were given
+together while never checking that the name resolved. **A guard covered the typo it was
+written for and not the adjacent one.** The name is now checked where it is supplied,
+and the refusal lists the names the file does contain.
+
+The way that surfaced is worth recording, because it was luck dressed as method: the
+first bedGraph fixture had a track literally named `track`, and the parser drops lines
+beginning `track`/`browser`/`#` as UCSC directives. My fixture was wrong, the run
+produced zero candidates and exit 0, and chasing *my* mistake is what exposed the
+program's. A file that parses to no tracks at all is now refused too, naming why.
+
+**Lesson: a validation function is a claim about a set of failures, and the set is
+almost always smaller than its docstring implies. `_load_encode_tracks` promised that a
+half-supplied chromatin adjustment could not be silently ignored, and delivered it for
+one of the two ways to half-supply one. When reading a guard, do not check that it does
+what it says; enumerate the ways the input can be wrong and find which ones it misses.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

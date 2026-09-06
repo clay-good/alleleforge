@@ -1103,7 +1103,11 @@ flowchart LR
 > living only in the terminal the run happened in. Scope a scan with `--region
 > chrom:start-end` (repeatable) or `--regions-bed panel.bed` — over a real reference that is usually what
 > makes a run practical. The open-chromatin efficiency adjustment takes `--encode-tracks track.bedgraph
-> --chromatin-track <name>` (both required together), and `--cell-context <line>` is what raises the
+> --chromatin-track <name>` (both required together, and the name is checked against the file — a track
+> the bedGraph does not contain is refused with the list of names it does, rather than declining every
+> chemistry into an empty menu). The bedGraph is pinned in provenance by content hash like every other
+> user-supplied source, because the accessibility signal moves the efficiency number and the track *name*
+> alone cannot tell two files apart. Separately, `--cell-context <line>` is what raises the
 > out-of-distribution flag on a **prime** efficiency prediction — the one vertical that consumes it. SpCas9
 > nuclease and base editing do not take a cell context; when one is supplied and they run, the rationale
 > names them and says their in-distribution flag describes the guide context alone, so an unqualified "in
