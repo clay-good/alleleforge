@@ -10,6 +10,20 @@ acceptance.
 
 ### Fixed
 
+- **The searchable-base count allocated a full copy of every scanned region.** It upper-cased each region
+  before counting; on a whole chromosome that is a **~250 MB transient** on top of the sequence already
+  held, in a path whose design is explicitly bounded-memory. Measured on a 20 Mb region: the copy costs
+  +20 MB peak to save ~8% of a step that is negligible beside the scan itself. It now counts both cases in
+  place. A regression introduced with the count itself, ten changes ago.
+
+  It counts **both** cases even though sequence arrives upper-cased today, because that normalization is
+  `pyfaidx`'s `sequence_always_upper=True` — a *dependency default*, not an invariant of this repository. If
+  it changed, every base of a repeat-masked genome would count as unsearchable and the report would claim a
+  real scan had covered almost nothing: the exact false alarm inverse to the one the count exists to
+  prevent.
+
+### Fixed
+
 - **A candidate whose off-target search never ran scored a perfect safety mark, with nothing saying so.**
   `_safety` returns `1.0` when there is no off-target report — the reassuring extreme for an axis nobody
   measured — and its docstring justified that by saying the absence "is surfaced in the candidate's flags".

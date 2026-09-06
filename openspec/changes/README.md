@@ -3580,6 +3580,44 @@ of the gaps in this audit began, so the test now drives all three.
 tested kind of claim in a codebase. It reads as evidence the question was considered, which is precisely why
 nobody re-asks it. When a comment says "this is handled elsewhere", go and look at elsewhere.**
 
+## Round 125 — my own regression, and an assumption underneath it
+
+R124's rule — when a comment says "handled elsewhere", go and look — swept the codebase's deferral and
+invariant claims. They held. The SVG colour validator really is called on every attribute-bound value; the
+API's `on_target` really is model-validated. A clean sweep, recorded as such rather than stretched into a
+finding.
+
+So I looked instead at what *I* had added recently, and found a cost. R115's searchable-base count does
+`seq.upper()` before counting, once per region. On a whole chromosome that allocates a ~250 MB copy on top
+of the sequence already resident — in a path the project describes as bounded-memory — to save, measured,
+about 8% of a step that is negligible beside the scan (20 Mb region: 140 ms and +20 MB, versus 151 ms and
+zero).
+
+Then the interesting part. Removing the copy, I first wrote the count as case-*sensitive*, reasoning that
+`ReferenceGenome.fetch` upper-cases anyway. The mutation run agreed: dropping the lowercase arm broke
+nothing. So I deleted it, per the discipline of not leaving branches nothing can distinguish.
+
+That was wrong, and the reason is worth writing down. The normalization does not come from `fetch` — it
+comes from `pyfaidx`, constructed with `sequence_always_upper=True`. It is a **dependency default**. "No
+test can distinguish this branch" and "this branch cannot be reached" are the same statement only when the
+invariant is *yours*. Here, a pyfaidx option change or a different FASTA backend would make every base of a
+repeat-masked genome count as unsearchable, and the report would announce that a real scan had covered
+almost nothing — the false alarm exactly inverse to the one the count exists to raise. Eight `str.count`
+passes instead of four is not a price worth arguing about against that.
+
+One more turn of the same screw. Having written the case-insensitive counter, I tested it with an inline
+`sum(lowered.count(base) for base in "ACGTacgt") == 8` — and the mutation run passed, because that test
+restates the expression rather than calling the code. Since the reference normalizes case, no end-to-end
+fixture can reach the lowercase path either. The counter is now a named function so it can actually be
+called; mutating it fails. **A test that reproduces the implementation is not a test, and an inline
+expression in a hot loop can be untestable for exactly that reason — extracting it is what makes the
+defensive branch defensible.**
+
+**Lesson: audit your own recent changes for cost, not only for correctness — a feature added ten rounds ago
+is now legacy nobody is looking at, and I had added a quarter-gigabyte allocation to the hot path without
+measuring. And when deleting an "unreachable" branch, ask *whose* invariant makes it unreachable. Deleting
+defensive code is right when the guarantee is local and wrong when it belongs to a dependency.**
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

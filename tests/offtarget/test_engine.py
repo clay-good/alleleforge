@@ -660,3 +660,46 @@ def test_an_ambiguous_spacer_position_is_named_because_it_biases_scores_low(
     # A concrete spacer says nothing, or the caveat is furniture.
     assert concrete.ambiguous_spacer_positions == ()
     assert "ambiguous at position" not in concrete.search_description()
+
+
+def test_the_searchable_count_handles_soft_masked_sequence(make_reference: MakeRef) -> None:
+    """Lowercase bases are sequence, not gaps — a repeat-masked FASTA is the normal case.
+
+    The searchable-base count avoids an `upper()` copy of the region — a ~250 MB
+    transient on a whole chromosome, in a path whose design is explicitly
+    bounded-memory — and is correct only because `ReferenceGenome.fetch` normalizes
+    case on the way out. This pins that end-to-end guarantee, which is what the count
+    relies on and which no test in the counting module can express.
+    """
+    masked = (PAD + SPACER + "TGG").lower() + PAD
+    reference = make_reference({"chr2": masked})
+    report = search(SPACER, NGG, reference=reference)
+
+    assert report.resolved_bases == report.searched_bases == len(masked)
+    assert "were searchable" not in report.search_description()
+    # ...and the scan itself still finds the site through the soft-masking.
+    assert report.n_sites == 1
+
+
+def test_the_searchable_count_does_not_depend_on_a_dependency_default() -> None:
+    """Sequence arrives upper-cased today because of a pyfaidx option, not an invariant.
+
+    `ReferenceGenome` constructs `Fasta(..., sequence_always_upper=True)`, so a
+    repeat-masked genome is normalized before the count sees it. That is a *dependency
+    default*: if it changed, every base of a soft-masked chromosome would count as
+    unsearchable and the report would claim a real scan had covered almost nothing —
+    the exact false alarm inverse to the one the count exists to prevent. The counter
+    is therefore case-insensitive, and this pins it directly rather than through a
+    reference whose normalization would mask the difference.
+    """
+    from alleleforge.offtarget.engine import _resolved_base_count
+
+    # The engine's own counter, not a copy of its expression: an inline version could
+    # only be tested by restating it, which passes whatever the engine does.
+    assert _resolved_base_count("acgtacgtNN") == 8
+    assert _resolved_base_count("ACGTACGTNN") == 8
+    assert _resolved_base_count("acgtACGT") == 8
+    assert _resolved_base_count("NNNN") == 0
+    assert _resolved_base_count("") == 0
+    # Ambiguity codes are unsearchable in either case.
+    assert _resolved_base_count("ryswkm" + "RYSWKM") == 0

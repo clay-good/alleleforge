@@ -86,6 +86,14 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
   overlay, grep for the other ones first. The older implementation has usually already
   paid for the lesson, and its docstring is where the lesson is written down.
 
+- **When deleting an "unreachable" branch, ask whose invariant makes it unreachable.**
+  A mutation run showing "no test can distinguish this" proves the branch is unreachable
+  *given current behaviour*, which is only a guarantee when the behaviour is ours. In
+  R125 the guarantee was `pyfaidx`'s `sequence_always_upper=True` — a dependency
+  default — and deleting the defensive arm would have made a repeat-masked genome
+  report as entirely unsearchable if that default ever changed. Defensive code is dead
+  when the invariant is local, and load-bearing when it is someone else's.
+
 - **Never chain `git commit --amend` behind `||` in a compound shell command.** A
   `git commit --amend ... || git add -A && git commit ...` fallback ran the *amend*,
   silently rewriting an already-pushed commit with the fallback's placeholder message

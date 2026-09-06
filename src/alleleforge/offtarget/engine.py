@@ -142,6 +142,30 @@ def _to_site(
     )
 
 
+def _resolved_base_count(sequence: str) -> int:
+    """Return how many bases of ``sequence`` are unambiguous A/C/G/T.
+
+    Counted without upper-casing first. ``sequence.upper()`` allocates a full copy of
+    the region — on a whole chromosome a ~250 MB transient on top of the sequence
+    already held, in a path whose design is explicitly bounded-memory — to save ~8% of
+    a step that is negligible beside the scan (measured on 20 Mb: +20 MB peak, 140 ms
+    vs 151 ms).
+
+    Both cases are counted even though sequence arrives upper-cased today. That
+    normalization is ``pyfaidx``'s ``sequence_always_upper=True``, a *dependency
+    default* rather than an invariant of this repository; if it changed, every base of
+    a repeat-masked genome would count as unsearchable and the report would claim a
+    real scan had covered almost nothing — the false alarm exactly inverse to the one
+    this count exists to raise. Eight ``str.count`` passes instead of four is not a
+    price worth arguing about against that.
+
+    It is a named function rather than an inline expression so it can be tested: with
+    the reference normalizing case on the way out, no end-to-end fixture can reach the
+    lowercase path.
+    """
+    return sum(sequence.count(base) for base in "ACGTacgt")
+
+
 def _is_on_target(hit: Hit, on_target: GenomicInterval | None) -> bool:
     """Return whether ``hit`` is the guide's own intended on-target locus.
 
@@ -363,8 +387,7 @@ def search(
     for region in search_regions:
         seq = str(reference.fetch(region.model_copy(update={"strand": Strand.PLUS})))
         total_bases += len(seq)
-        upper = seq.upper()
-        resolved_bases += sum(upper.count(base) for base in "ACGT")
+        resolved_bases += _resolved_base_count(seq)
         if genome_index is not None and _is_whole_contig(region, reference, genome_index):
             # Persistent memory-mapped path: reuse the prebuilt contig index
             # (built once, survives runs) rather than rebuilding it per call.
