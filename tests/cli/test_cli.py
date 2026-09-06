@@ -360,7 +360,10 @@ def test_batch_variant_list_human(runner: CliRunner, cohort_fasta: Path, tmp_pat
         app,
         ["batch", str(listing), "--reference-fasta", str(cohort_fasta), "--intent", "install"],
     )
-    assert result.exit_code == 0
+    # This listing deliberately contains a bad variant, and a run with a failed item
+    # now exits non-zero: per-item isolation means the run *completes*, not that it
+    # succeeded. The manifest and the per-item output below are unaffected.
+    assert result.exit_code == ExitCode.UNAVAILABLE
     assert (
         "2 requested" in result.output and "1 ok" in result.output and "1 failed" in result.output
     )
@@ -444,7 +447,8 @@ def test_batch_summary_tsv(runner: CliRunner, cohort_fasta: Path, tmp_path: Path
             str(out),
         ],
     )
-    assert result.exit_code == 0
+    # Contains a bad variant on purpose; a failed item now exits non-zero.
+    assert result.exit_code == ExitCode.UNAVAILABLE
     lines = out.read_text().strip().splitlines()
     header = lines[0].split("\t")
     assert header[:2] == ["item_id", "status"]
@@ -1831,3 +1835,42 @@ def test_mit_with_bulges_is_refused_before_the_scan(runner: CliRunner, tmp_path:
     assert result.exit_code == ExitCode.USAGE
     assert "undefined for bulged alignments" in result.output
     assert "--dna-bulges 0" in result.output
+
+
+def test_a_partially_failed_cohort_exits_non_zero(runner: CliRunner, tmp_path: Path) -> None:
+    """A 500-item run where 200 failed exited 0.
+
+    Per-item isolation is the feature — every item runs, the manifest stays complete,
+    one bad variant does not abandon the other four hundred — but reporting *success*
+    for a run that failed items is not part of it. A script or CI job driving this had
+    no way to tell without re-parsing the summary, while `verify`, `bench compare` and
+    `scripts/reproduce.py` all signal through the exit code.
+    """
+    contig = "T" * 20 + "TTTAAACGTTTTTTTTTTTT" + "TGG" + "T" * 20
+    fasta = tmp_path / "ref.fa"
+    fasta.write_text(">chr2\n" + contig + "\n")
+    variants = tmp_path / "vars.txt"
+    variants.write_text("chr2:26:A>G\nchr2:999999:A>G\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            str(variants),
+            "--reference-fasta",
+            str(fasta),
+            "--intent",
+            "install",
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--manifest",
+            str(tmp_path / "m.jsonl"),
+            "--no-offtarget",
+        ],
+    )
+    assert result.exit_code == ExitCode.UNAVAILABLE, result.output
+    assert "1 of 2 item(s) failed" in result.output
+    # The run still completed: the good item was designed and recorded.
+    manifest = (tmp_path / "m.jsonl").read_text()
+    assert "chr2:26:A>G" in manifest
+    assert '"status": "ok"' in manifest

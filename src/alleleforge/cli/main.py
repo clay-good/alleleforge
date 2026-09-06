@@ -934,6 +934,7 @@ def _batch_rows(report: Any) -> list[dict[str, Any]]:
                 "worst_offtarget": summary.get("worst_offtarget"),
                 "best_specificity": summary.get("best_specificity"),
                 "n_candidates": summary.get("n_candidates"),
+                "no_candidate_reason": summary.get("no_candidate_reason"),
                 "error": it.error,
             }
         )
@@ -956,6 +957,7 @@ def _batch_tsv(rows: list[dict[str, Any]]) -> str:
         "worst_offtarget",
         "best_specificity",
         "n_candidates",
+        "no_candidate_reason",
         "error",
     ]
 
@@ -1334,15 +1336,31 @@ def batch(
                 eff_str = "-"
             flagged = r["best_caveats"]
             caveat_str = f"  !{','.join(flagged)}" if flagged else ""
+            # An item that designed nothing is `ok` — nothing errored — and every
+            # other column is blank, which reads as a silent shrug in a list of five
+            # hundred. Say why, as the single-variant report does.
+            reason = r.get("no_candidate_reason")
+            why = f"  — {reason}" if not r["n_candidates"] and reason else ""
             lines.append(
                 f"  {r['item_id']}  ok  best={r['best_chemistry'] or '-'}  "
-                f"eff={eff_str}  n={r['n_candidates'] or 0}{caveat_str}"
+                f"eff={eff_str}  n={r['n_candidates'] or 0}{caveat_str}{why}"
             )
         else:
             lines.append(f"  {r['item_id']}  error  {r['error']}")
     typer.echo("\n".join(lines))
     if summary_tsv is not None:
         typer.echo(f"wrote {summary_tsv}")
+    # Per-item isolation is the feature: every item runs, the manifest is complete, and
+    # one bad variant does not abandon the other four hundred. Reporting *success* for
+    # a run that failed items is not part of that — a script or a CI job driving this
+    # had no way to tell without re-parsing the summary, while `verify`, `bench compare`
+    # and `scripts/reproduce.py` all signal failure through the exit code.
+    if report.failed:
+        _echo_err(
+            f"error: {report.failed} of {report.total} item(s) failed; "
+            "the run completed and the manifest is intact"
+        )
+        raise typer.Exit(ExitCode.UNAVAILABLE)
 
 
 @app.command()

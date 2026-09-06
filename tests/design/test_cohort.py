@@ -500,3 +500,38 @@ def test_skipped_counts_requests_not_the_manifest(
     )
     assert again.total + again.skipped == 3
     assert again.skipped == 3  # all three already recorded
+
+
+def test_an_item_with_no_candidates_records_why(tmp_path: Path) -> None:
+    """A cohort row said `ok` with every column blank and no reason.
+
+    The single-variant path explains an empty result in full — which chemistries were
+    routed out, which rejected every protospacer and for what — and the cohort summary
+    dropped all of it. A cohort is the one surface where a reader *cannot* re-run the
+    item by hand to find out: there are five hundred rows and forty say `ok, n=0`.
+    """
+    contig = "A" * 40 + "ACACACACACACACACACAC" * 5 + "A" * 40
+    fasta = tmp_path / "empty.fa"
+    fasta.write_text(f">chr1\n{contig}\n")
+    reference = ReferenceGenome(fasta, build="hg38")
+    report = design_many(
+        [f"chr1:61:{contig[60]}>G"], reference=reference, intent=EditIntent.INSTALL
+    )
+
+    (item,) = report.items
+    assert item.status == "ok"
+    assert item.summary is not None
+    assert item.summary["n_candidates"] == 0
+    reason = item.summary["no_candidate_reason"]
+    assert reason, "an item that designed nothing recorded no reason"
+    assert isinstance(reason, str) and "\n" not in reason  # survives a TSV cell
+
+
+def test_a_designed_item_records_no_decline_reason(reference: ReferenceGenome) -> None:
+    """The field is for empty results; a successful item must not carry noise."""
+    report = design_many(["chr2:26:A>G"], reference=reference, intent=EditIntent.INSTALL)
+
+    (item,) = report.items
+    assert item.summary is not None
+    if item.summary["n_candidates"]:
+        assert item.summary["no_candidate_reason"] is None

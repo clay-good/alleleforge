@@ -266,3 +266,19 @@ honoured only through a config file is invisible from `--help`.
 #### Scenario: A cohort run with a trained model
 - **WHEN** a user runs `aforge batch … --trained-efficiency`
 - **THEN** the trained scorer is used for every item, as it is for `aforge design`
+
+### Requirement: A cohort reports both completion and success
+
+A cohort run SHALL complete every item and keep its manifest intact regardless of
+per-item failures, and SHALL exit non-zero when any item failed. "The run completed"
+and "the run succeeded" are different facts, and a caller driving the command can
+observe only the exit code.
+
+A cohort item that produced no candidates SHALL record why, in its summary, its
+manifest entry and its exported row — the cohort is the one surface where a reader
+cannot re-run the item by hand to find out.
+
+#### Scenario: One item of many fails
+- **WHEN** a cohort run has at least one failed item
+- **THEN** every other item is still designed and recorded, and the command exits
+  non-zero naming how many failed

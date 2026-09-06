@@ -5026,6 +5026,36 @@ watches breaks" is not "does it watch everything the claim covers", and the seco
 R162's directory-scoped scan, and this round's `design()`-scoped parity check that left the differentiator
 unguarded. After writing a guard, state the claim in one sentence and ask what else that sentence covers.**
 
+## Round 168 — five hundred rows that say `ok`
+
+Ran the cohort path end to end and read its outputs as a user, which I had not done — R134 exercised resume,
+not the artifacts. Four variants, one deliberately bad:
+
+    chr7:3004:A>G  ok  best=base_abe  eff=0.20 [0.05,0.35]  n=1  !gc-out-of-band…
+    chr7:3010:T>A  ok  best=-  eff=-  n=0
+    chr7:9999:A>G  error  ValueError: reference mismatch …
+    exit=0
+
+Two defects, and the second is the one I nearly missed because it is an absence.
+
+**The `n=0` row says nothing.** Three rounds ago I taught the verticals to explain an empty result, and the
+single-variant report now prints the full reason — which chemistries were routed out, which rejected every
+protospacer and for what. The cohort summary keeps eleven fields about the *recommended candidate* and none
+about why there isn't one. This is the R138 pattern, and it is worse here than anywhere: a cohort is the one
+surface where a reader cannot re-run the item by hand, because there are five hundred rows and forty of them
+say `ok, n=0`. The reason now travels, flattened onto one line so it survives a TSV cell.
+
+**`exit=0` with a failed item.** Per-item isolation is a real feature and I want to keep it: the run
+completes, the manifest is whole, one bad variant does not abandon the other four hundred. But that is an
+argument about *continuing*, not about what to report at the end. A 500-item run where 200 errored exited
+successfully, so nothing driving this — a script, a CI job, a `&&` — could tell. Every sibling command in
+this repo already signals through the exit code. Two existing tests pinned the old contract on listings that
+deliberately contain a bad variant; both updated, with the reason.
+
+**Lesson: "the run completed" and "the run succeeded" are different facts, and a tool that isolates failures
+is under more obligation to distinguish them, not less. Isolation makes the failures survivable and therefore
+easy to stop reporting. Anything that continues past an error should be asked separately what it returns.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

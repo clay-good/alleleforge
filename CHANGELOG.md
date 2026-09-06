@@ -1421,6 +1421,13 @@ acceptance.
 
 ### Changed
 
+- **`aforge batch` exits non-zero when any item failed.** Per-item isolation is the feature — every item runs,
+  the manifest stays complete, one bad variant does not abandon the other four hundred — but reporting
+  *success* for a run that failed items is not part of it. A 500-item run where 200 errored exited 0, so a
+  script or CI job had no way to tell without re-parsing the summary, while `verify`, `bench compare` and
+  `scripts/reproduce.py` all signal through the exit code. The run still completes and the manifest is
+  intact; only the exit code changed.
+
 - **Flat export schema 3 → 4:** adds an `offtarget_scorer_citation` column.
 
 - **The reproducibility gate now says what drifted.** `scripts/reproduce.py` is a blocking `make ci` job, and
@@ -1555,6 +1562,13 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+
+- **A cohort item that designed nothing said `ok` and nothing else.** The single-variant path explains an
+  empty result in full — which chemistries were routed out, which rejected every protospacer and why — and
+  the cohort summary dropped all of it, leaving a row reading `ok` with every column blank. A cohort is the
+  one surface where a reader *cannot* re-run the item by hand to find out: there are five hundred rows and
+  forty of them say `ok, n=0`. The summary, the manifest and the TSV now carry `no_candidate_reason`, and the
+  human line prints it.
 
 - **Selecting the MIT scorer failed with a message about the wrong thing.** The MIT score is defined only for
   an ungapped 20-nt alignment, and a bulge changes the length — so MIT with the default bulge budget died

@@ -103,6 +103,23 @@ class CohortRunReport:
     manifest_path: str | None
 
 
+def _decline_reason(menu: RankedMenu) -> str | None:
+    """Return a one-line summary of why a menu has no candidates.
+
+    Built from the rationale's per-chemistry notes — the lines the single-variant
+    report shows under "How this menu was assembled" — flattened onto one line so it
+    survives a TSV cell. ``None`` when the menu recorded no rationale at all.
+    """
+    if not menu.rationale:
+        return None
+    notes = [
+        line.strip().removeprefix("- ").strip()
+        for line in menu.rationale.splitlines()
+        if line.strip().startswith("- ")
+    ]
+    return " | ".join(notes) if notes else None
+
+
 def _summarize(menu: RankedMenu) -> dict[str, Any]:
     """Return the compact, memory-cheap summary kept for one designed variant.
 
@@ -132,6 +149,13 @@ def _summarize(menu: RankedMenu) -> dict[str, Any]:
     )
     return {
         "n_candidates": len(menu.candidates),
+        # Why nothing was found, when nothing was. The single-variant path explains an
+        # empty result in full — which chemistries were routed out and why, which
+        # rejected every protospacer and for what reason — and the cohort dropped all
+        # of it, leaving a row that reads `ok` with every column blank. A cohort is
+        # the one surface where a reader *cannot* re-run the item by hand to find out:
+        # there are five hundred rows and forty of them say `ok, n=0`.
+        "no_candidate_reason": _decline_reason(menu) if not menu.candidates else None,
         "chemistries": sorted({c.chemistry.value for c in menu.candidates}),
         "best_chemistry": best.chemistry.value if best else None,
         # Interval and OOD flag beside the point estimate, not the point estimate alone.
