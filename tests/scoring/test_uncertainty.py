@@ -18,10 +18,11 @@ from alleleforge.scoring.uncertainty import (
     ensemble_prediction,
     evidential_prediction,
     expected_calibration_error,
+    min_calibration_size,
     quantile_prediction,
     to_prediction,
 )
-from alleleforge.types.prediction import UncertaintyMethod
+from alleleforge.types.prediction import Prediction, UncertaintyMethod
 
 # -- to_prediction ------------------------------------------------------------
 
@@ -283,3 +284,60 @@ def test_conformal_level_and_input_guards() -> None:
         ConformalCalibrator(level=1.5)
     with pytest.raises(ValueError, match="equal-length"):
         ConformalCalibrator().fit([_interval(0.5, 0.1)], [0.5, 0.6])
+
+
+def test_a_too_small_calibration_set_does_not_claim_the_requested_coverage() -> None:
+    """Three calibration points produced an interval labelled `@ 95%`.
+
+    Split conformal takes the `ceil((n+1)*level)`-th smallest normalized residual, and
+    when that rank exceeds `n` it falls back to the largest residual — correctly, it is
+    the most conservative finite scale. But the guarantee that fallback carries is
+    `n / (n + 1)`, not the level that was asked for. The code's comment said so; the
+    *prediction* said `interval_level=0.95, calibrated=True` with no notes, which is
+    unearned reassurance wearing the label of a measurement — in the module that
+    implements this project's headline claim.
+    """
+    preds = [
+        Prediction[float](value=v, interval=(v - 0.1, v + 0.1), method=UncertaintyMethod.HEURISTIC)
+        for v in (0.2, 0.5, 0.8)
+    ]
+    calibrator = ConformalCalibrator(level=0.95).fit(preds, [0.25, 0.55, 0.85])
+
+    assert calibrator.achieved_level == pytest.approx(3 / 4)
+    out = calibrator.calibrate(preds[0])
+    assert out.interval_level == pytest.approx(0.75), "the label must be the earned level"
+    assert any("too small" in note for note in out.notes), out.notes
+    assert str(min_calibration_size(0.95)) in " ".join(out.notes)
+
+
+def test_a_large_enough_calibration_set_claims_the_full_level() -> None:
+    """The correction must not make an honest calibration understate itself."""
+    n = min_calibration_size(0.95)
+    preds = [
+        Prediction[float](
+            value=0.05 * i,
+            interval=(0.05 * i - 0.1, 0.05 * i + 0.1),
+            method=UncertaintyMethod.HEURISTIC,
+        )
+        for i in range(n)
+    ]
+    calibrator = ConformalCalibrator(level=0.95).fit(preds, [0.05 * i + 0.02 for i in range(n)])
+
+    assert calibrator.achieved_level == pytest.approx(0.95)
+    out = calibrator.calibrate(preds[0])
+    assert out.interval_level == pytest.approx(0.95)
+    assert not any("too small" in note for note in out.notes)
+
+
+@pytest.mark.parametrize("level", [0.5, 0.8, 0.9, 0.95, 0.99])
+def test_the_minimum_calibration_size_is_exact(level: float) -> None:
+    """The closed form `ceil(level / (1 - level))` is wrong in binary floating point.
+
+    At the project's own default of 0.80 it evaluates to 4.000000000000001 and rounds
+    to 5, overstating the requirement by one.
+    """
+    import math
+
+    n = min_calibration_size(level)
+    assert math.ceil((n + 1) * level) <= n, "the returned size does not support the level"
+    assert n == 1 or math.ceil(n * level) > n - 1, "a smaller size would also have worked"

@@ -1571,6 +1571,18 @@ acceptance.
 
 ### Fixed
 
+- **A conformal interval claimed coverage its calibration set could not support.** Split conformal takes the
+  `ceil((n+1)·level)`-th smallest normalized residual; when that rank exceeds `n` the implementation correctly
+  falls back to the largest residual, but the guarantee that fallback carries is `n/(n+1)`, not the level
+  requested. Three calibration points and a 0.95 target produced a prediction labelled
+  `interval_level=0.95, calibrated=True` **with no notes** — while the coverage it actually guarantees is
+  0.75, and a strict 0.95 needs 19 points. The code's comment knew; the artifact did not, in the module that
+  implements this project's headline claim. Intervals are now labelled with the coverage they *earn* and
+  carry a note naming the shortfall and the required size, and `min_calibration_size(level)` is public so a
+  caller can size a set before fitting. That helper's obvious closed form
+  (`ceil(level / (1 - level))`) is wrong in binary floating point at the project's own default of 0.80 —
+  `4.000000000000001` rounds to 5 — so it is solved by the exact condition instead.
+
 - **A job's `progress` looked like a completion fraction and is not one.** It takes exactly three values —
   `0.0` queued, `0.1` running, `1.0` finished — and the status endpoint returned a bare `dict`, so it reached
   clients with no description at all and no OpenAPI schema. A client rendering it as a percentage shows 10%

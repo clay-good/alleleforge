@@ -379,6 +379,28 @@ def empirical_coverage(predictions: Sequence[Prediction[float]], truths: Sequenc
     return hits / len(predictions)
 
 
+def min_calibration_size(level: float) -> int:
+    """Return the smallest calibration set that strictly supports ``level`` coverage.
+
+    Split conformal takes the ``ceil((n+1) * level)``-th smallest normalized residual,
+    which only exists when that rank is at most ``n`` — so a 0.95 target needs 19
+    calibration points, and a 0.80 target needs 4. Below that the method still yields a
+    scale (the largest residual, the most conservative available) but the guarantee it
+    carries is ``n / (n + 1)``, not the level that was asked for.
+    """
+    if not 0.0 < level < 1.0:
+        raise ValueError(f"level must be in (0, 1); got {level}")
+    # Solved by search on the actual condition rather than the closed form
+    # `ceil(level / (1 - level))`: for level=0.80 that expression evaluates to
+    # 4.000000000000001 in binary floating point and rounds up to 5, overstating the
+    # requirement by one on the project's own default level. The condition is cheap and
+    # exact; the algebra is neither.
+    n = 1
+    while math.ceil((n + 1) * level) > n:
+        n += 1
+    return n
+
+
 class ConformalCalibrator:
     """Split-conformal recalibration of predictive intervals to a target coverage.
 
@@ -403,6 +425,20 @@ class ConformalCalibrator:
             raise ValueError(f"level must be in (0, 1); got {level}")
         self.level = level
         self._scale: float | None = None
+        #: The coverage the fitted scale actually guarantees. Equal to ``level`` when
+        #: the calibration set was large enough, and ``n / (n + 1)`` when it was not.
+        self._achieved_level: float | None = None
+
+    @property
+    def achieved_level(self) -> float:
+        """Return the coverage the fitted scale guarantees (raises if unfitted).
+
+        Below ``level`` when the calibration set was smaller than
+        :func:`min_calibration_size` requires.
+        """
+        if self._achieved_level is None:
+            raise ValueError("calibrator is not fitted")
+        return self._achieved_level
 
     @property
     def scale(self) -> float:
@@ -441,7 +477,18 @@ class ConformalCalibrator:
         # ceil((n+1)*level)-th smallest normalized residual. When that rank exceeds
         # n (too few points to strictly guarantee), fall back to the largest
         # residual — the most conservative finite scale.
-        rank = min(math.ceil((n + 1) * self.level), n)
+        rank = math.ceil((n + 1) * self.level)
+        if rank > n:
+            # Too few points for the requested level. The largest residual is the most
+            # conservative finite scale and is the right fallback — but the guarantee it
+            # carries is `n / (n + 1)`, not `level`, and a prediction that says `@ 95%`
+            # while resting on three calibration points is exactly the unearned
+            # reassurance this project exists to refuse. Record what was achieved and
+            # let `calibrate` label the interval with it.
+            rank = n
+            self._achieved_level = n / (n + 1)
+        else:
+            self._achieved_level = self.level
         self._scale = scores[rank - 1]
         return self
 
@@ -463,12 +510,25 @@ class ConformalCalibrator:
             # with. A conformal scale < 1 would otherwise present a narrow, confident
             # interval on an OOD input — the opposite of the honesty contract.
             new_half = max(new_half, half_width)
+        achieved = self.achieved_level
+        notes = prediction.notes
+        if achieved < self.level:
+            notes = (
+                *notes,
+                f"conformal calibration set was too small for {self.level:.2f} coverage "
+                f"(needs {min_calibration_size(self.level)} points); this interval "
+                f"guarantees {achieved:.2f}",
+            )
         return Prediction[float].calibrated_by(
             value=prediction.value,
             interval=(prediction.value - new_half, prediction.value + new_half),
             method=UncertaintyMethod.CONFORMAL,
-            interval_level=self.level,
+            # The level the interval *earns*, not the one that was requested. Labelling
+            # it with the request would put "@ 95%" on a band that covers 75% of the
+            # time, which the calibration ECE would then score against the wrong nominal.
+            interval_level=achieved,
             in_distribution=prediction.in_distribution,
+            notes=notes,
         )
 
 

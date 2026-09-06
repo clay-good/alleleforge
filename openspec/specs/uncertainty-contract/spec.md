@@ -372,3 +372,15 @@ An absent prediction SHALL be reported as absent, never as a value.
 #### Scenario: Nothing to summarize
 - **WHEN** a menu produced no candidate
 - **THEN** the row reports no efficiency at all rather than a zero
+
+### Requirement: A recalibrated interval claims only the coverage it earns
+
+Split-conformal recalibration SHALL label an interval with the coverage its calibration
+set supports, not the coverage requested. When the set is smaller than
+`ceil((n+1)·level) <= n` requires, the achievable guarantee is `n/(n+1)`; the interval
+SHALL carry that level and a note naming the shortfall and the size required.
+
+#### Scenario: A calibration set of three, targeting 0.95
+- **WHEN** a conformal calibrator is fitted on fewer points than the level requires
+- **THEN** its predictions report the achieved coverage and say why it is lower, rather
+  than reporting the requested level with `calibrated=True` and no qualification

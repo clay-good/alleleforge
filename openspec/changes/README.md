@@ -5288,6 +5288,42 @@ immediately. A mutation that does not mutate looks exactly like a test that does
 readings and I have now hit the wrong one twice (R151's socket patch, this). Before concluding a guard is
 weak, confirm the thing you edited is actually load-bearing for the behaviour you meant to break.**
 
+## Round 176 — the claim the project is named for
+
+R175 came back mostly clean, which the log's own history says means rotate the query. So: an area I had not
+opened at all in ninety rounds — `scoring/uncertainty.py`, where "honest uncertainty" stops being a principle
+and becomes arithmetic.
+
+The implementation is good. Split conformal is textbook-correct, the OOD path refuses to *narrow* an interval
+it is not allowed to calibrate, and the isotonic and evidential paths are careful. One branch is not:
+
+    rank = min(math.ceil((n + 1) * self.level), n)
+    # ... "too few points to strictly guarantee, fall back to the largest residual"
+
+The fallback is right — the largest residual is the most conservative finite scale. What it guarantees is
+`n/(n+1)`. Three calibration points and a 0.95 request:
+
+    interval_level=0.95   calibrated=True   notes=()
+
+That is a 75% interval labelled 95%, carrying the flag this project treats as *"the coverage was earned"*,
+with nothing said. The comment in the source knew; the artifact that leaves the process did not — and this is
+the module the whole project is named for. A strict 0.95 needs 19 points; the calibration study runs on
+single-digit synthetic sets.
+
+Intervals now carry the level they earn, plus a note naming the shortfall and the size required, and
+`min_calibration_size` is public so a caller can size a set *before* fitting rather than discovering it after.
+
+I then got the helper wrong in a way worth recording. `ceil(level / (1 - level))` is the obvious closed form
+and it is wrong in binary floating point at exactly this project's default level: `0.8 / 0.2` is
+`4.000000000000001`, which rounds to 5 and overstates the requirement. Solved by searching the actual
+condition instead — cheap, exact, and it fails the parametrised test at 0.8 and 0.9 when reverted to the
+algebra.
+
+**Lesson: a comment that acknowledges a limitation is not a disclosure — it is a note to whoever is already
+reading the source, which is nobody at the moment the number is used. Every honest sentence in that function
+was present and correct, and none of it was attached to the object that travels. Ask where a caveat *lives*,
+not whether it was written down.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
