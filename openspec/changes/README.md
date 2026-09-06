@@ -5898,6 +5898,45 @@ missing from both. The forwarding matrix came back clean; the defect was in a co
 of seeing.**
 
 
+## Round 193 — 1,400 lines of claims that nothing checked
+
+R192's lesson was to ask what a clean check was structurally incapable of seeing. Applied to myself: every
+audit this session has compared code against code. The README is 1,400 lines of specific, checkable
+assertions about behavior, and I had only ever corrected the ones I happened to trip over — the coordinate
+row in R188, and nothing systematic.
+
+Three checks, two mechanical:
+
+* **Commands.** All eight the README documents exist. Clean.
+* **Flags.** 53 distinct `--flag` strings; 51 exist. The other two rounds of "missing" were docker's
+  `--build`, ruff's `--check`, pytest's `--nbmake`/`--no-cov`, uvicorn's `--port`, maturin's `--release`,
+  mypy's `--strict`, and three markdown anchor links that look like flags. Clean, and now recorded by owner
+  so the list cannot quietly absorb a real stale flag.
+* **"Every `design()` capability is reachable from the CLI."** Verified parameter by parameter. True.
+
+The finding was the one non-mechanical claim: `--cell-context` "raises the out-of-distribution flag on
+**every** efficiency prediction". That is R192's falsehood, in the fourth place it lived. R192 corrected the
+CLI help and both web request models *in the same round that discovered it* and missed this one. Care did not
+scale to four copies of a sentence; a test does.
+
+Then the tests I wrote to prevent that had the same disease twice over:
+
+* The command check filtered candidate names against the real command list before reporting them missing —
+  so it could only ever report names that were already real. Empty by construction. It passed against a
+  README that invoked `aforge validate`, and I only found out because M3 of the mutation run did not fire.
+* The claim check searched line by line for a sentence my own edit had just re-wrapped across three lines. It
+  matched nothing and passed. Same shape as the regex-in-an-f-string from R182: a checker that silently finds
+  nothing looks exactly like a checker that finds nothing wrong.
+
+Both now assert they parsed something before asserting anything about it, and the vacuity guard is itself
+mutation-checked — breaking the parser fails the test rather than passing it.
+
+**Lesson: a test that filters before it asserts can be empty by construction, and that is invisible in a green
+run. Every extraction-based check needs a floor — "I found at least N of these" — asserted before the real
+assertion, and the floor needs its own mutation. Three of this session's checks have now failed this way; it
+is the default failure mode of writing a test *about* a document rather than about code.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

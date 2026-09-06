@@ -10,6 +10,14 @@ acceptance.
 
 ### Added
 
+- **The README's CLI claims are now checked.** 1,400 lines of specific, checkable assertions and nothing
+  checked any of them. Three guards: every command the README *invokes* exists (read from shell fences and
+  inline code, so prose and mermaid node labels are not mistaken for commands), every `--flag` it documents
+  exists on some command (with the flags belonging to docker, ruff, pytest, uvicorn, maturin and mypy listed
+  by owner), and the cell-context claim names the vertical that consumes it. Two claims were verified in
+  passing and hold: every `design()` capability really is reachable from `aforge design`, and all eight
+  documented commands exist.
+
 - **The cohort endpoint now accepts everything the single-design one does.** Checking `design()`'s parameter
   list against each shell is the query that has found the most in this project. Run against the web API it
   turned up a gap inside the API: `DesignRequest` carried four options `BatchRequest` did not, all four of
@@ -1610,6 +1618,12 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+
+- **The README repeated the cell-context overclaim that had just been corrected everywhere else.** It said
+  `--cell-context` "raises the out-of-distribution flag on **every** efficiency prediction" — true of the prime
+  vertical and of nothing else. The same sentence had been fixed in the CLI help and in both web request
+  models in the round before, and missed here, which is the argument for a check rather than more care. The
+  README now says which vertical consumes it and what the other chemistries' in-distribution flag describes.
 
 - **A cell context two of three chemistries never looked at, reported as in-distribution.** `cell_context` is
   consumed by the prime vertical alone — `design_cas9` and `design_base_editor` have no such parameter — so for

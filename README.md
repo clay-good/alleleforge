@@ -1096,11 +1096,16 @@ flowchart LR
 > `--gnomad` (population allele frequencies), `--haplotypes` (a phased common-haplotype panel) and
 > `--patient-vcf` (this genome's own variants) — all three available on `design`, `batch` and `offtarget`.
 > Asking for ancestries with none of them supplied prints a warning saying the scan was reference-only and
-> the empty ancestry breakdown means **not measured**, not clean. Scope a scan with `--region
+> the empty ancestry breakdown means **not measured**, not clean — and the report itself names them as
+> requested but not examined, so the statement survives into the HTML, the PDF and the TSV rather than
+> living only in the terminal the run happened in. Scope a scan with `--region
 > chrom:start-end` (repeatable) or `--regions-bed panel.bed` — over a real reference that is usually what
 > makes a run practical. The open-chromatin efficiency adjustment takes `--encode-tracks track.bedgraph
 > --chromatin-track <name>` (both required together), and `--cell-context <line>` is what raises the
-> out-of-distribution flag on every efficiency prediction. **Every `design()` capability is reachable from
+> out-of-distribution flag on a **prime** efficiency prediction — the one vertical that consumes it. SpCas9
+> nuclease and base editing do not take a cell context; when one is supplied and they run, the rationale
+> names them and says their in-distribution flag describes the guide context alone, so an unqualified "in
+> distribution" beside a nuclease candidate is not mistaken for a claim about the cell line. **Every `design()` capability is reachable from
 > the CLI.** On the web API the four **file-backed** inputs (`--gnomad`, `--haplotypes`, `--patient-vcf`,
 > `--encode-tracks`) are deliberately absent: a client-supplied filesystem path would be a server-side
 > file-read primitive, so that surface needs server-side configuration like the reference already has.
