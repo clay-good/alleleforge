@@ -4890,6 +4890,41 @@ resource timeline, `contentDocument`) is the only place these show up, and it to
 look. For a project that ships a web surface, "run it and inspect the page" is a distinct audit lens from
 "read the renderer".**
 
+## Round 164 — making the promise a control
+
+R162 found the report fetching a CDN script; R163 sandboxed the frame it ran in. Both are fixes to
+*instances*. The structural question is why either was possible, and the answer is in the response headers:
+
+    HTTP/1.1 200 OK
+    server: uvicorn
+    content-type: text/html; charset=utf-8
+
+That is all of them. No `Content-Security-Policy`, no `X-Content-Type-Options`, no `Referrer-Policy`, no
+frame controls. The project's promise that the frontend loads no third-party scripts was carried entirely by
+prose and by whoever last read the renderer — which is exactly how it came to be false for however long that
+Plotly tag had been there.
+
+Added a fixed header set. The clause that matters is `script-src 'self'`, with no inline and no `eval`
+allowance; inline *styles* are permitted because both the shell and the report carry a `<style>` block, and
+that is the half that does not matter. The rest is ordinary hardening: `object-src 'none'`, `base-uri 'none'`,
+`form-action 'none'`, `frame-ancestors 'none'`, `nosniff`, `no-referrer` (a local deployment's URL is not
+JBrowse's business), `X-Frame-Options: DENY`.
+
+The part worth verifying rather than assuming is that this reaches the *report*, which is injected as
+`srcdoc` rather than fetched. A `srcdoc` frame inherits its parent's policy, so it should — and it does. I
+injected `<script src="https://cdn.plot.ly/plotly-2.35.2.min.js">` into a probe frame in the running app and
+checked the browser's own network log:
+
+    read_network_requests(urlPattern="plot.ly") → No network requests recorded.
+
+So R162's defect is now impossible rather than merely fixed: reintroducing that script tag into the renderer
+produces a blocked load, not a silent third-party request.
+
+**Lesson: fixing an instance and installing the control are different pieces of work, and finishing the first
+makes the second feel done. Two rounds removed a CDN script and sandboxed a frame without either asking why
+the browser had been willing to fetch from a CDN in the first place. When a promise is enforced by "someone
+would notice", the fix is not a better reviewer — it is to move the promise somewhere that refuses.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

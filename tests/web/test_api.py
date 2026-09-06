@@ -760,3 +760,48 @@ def test_an_unset_token_leaves_the_local_api_open(monkeypatch: pytest.MonkeyPatc
         client.post("/api/resolve", json={"variant": "chr1:1:A>T", "build": "hg38"}).status_code
         == 200
     )
+
+
+def test_every_response_carries_the_security_headers() -> None:
+    """The served app sent no security headers at all.
+
+    A Content-Security-Policy is the structural form of a promise the project already
+    makes in prose — "the served frontend loads no third-party scripts" — which was
+    violated for as long as the rendered report carried a `cdn.plot.ly` script tag,
+    because nothing enforced it. Prose is not a control.
+    """
+    from fastapi.testclient import TestClient
+
+    from alleleforge.web.api.app import _SECURITY_HEADERS, create_app
+
+    client = TestClient(create_app())
+    for path in ("/", "/api/health"):
+        res = client.get(path)
+        assert res.status_code == 200, path
+        for header, value in _SECURITY_HEADERS.items():
+            assert res.headers.get(header) == value, f"{path} is missing {header}"
+
+
+def test_the_policy_admits_no_third_party_script() -> None:
+    """The specific clause that makes the previous round's defect impossible.
+
+    A `srcdoc` frame inherits its parent's policy, so this governs the embedded report
+    as well as the shell: a script tag reintroduced into the renderer is *blocked* by
+    the browser, not merely against policy. Verified live — an injected
+    `<script src="https://cdn.plot.ly/…">` produced zero network requests.
+    """
+    from alleleforge.web.api.app import _SECURITY_HEADERS
+
+    policy = _SECURITY_HEADERS["Content-Security-Policy"]
+    directives = dict(
+        (part.split(" ", 1) + [""])[:2] for part in (p.strip() for p in policy.split(";"))
+    )
+    assert directives["script-src"] == "'self'", "a third-party script would be admitted"
+    assert directives["default-src"] == "'self'"
+    assert directives["object-src"] == "'none'"
+    assert directives["frame-ancestors"] == "'none'"
+    # Inline *styles* are allowed (the shell and the report both carry a <style>
+    # block); inline scripts deliberately are not, which is the half that matters.
+    assert "unsafe-inline" in directives["style-src"]
+    assert "unsafe-inline" not in directives["script-src"]
+    assert "unsafe-eval" not in policy

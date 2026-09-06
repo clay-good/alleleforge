@@ -3546,6 +3546,17 @@ acceptance.
 
 ### Security
 
+- **The web app now sends security headers; it sent none.** A Content-Security-Policy is the structural form
+  of a promise the project already made in prose — *"the served frontend loads no third-party scripts"* —
+  which was violated for as long as the rendered report carried a `cdn.plot.ly` script tag, because nothing
+  enforced it. `script-src 'self'` with no inline or `eval` allowance, `default-src 'self'`,
+  `object-src 'none'`, `base-uri 'none'`, `form-action 'none'`, `frame-ancestors 'none'`; inline *styles* are
+  permitted because the shell and the report each carry a `<style>` block. A `srcdoc` frame inherits its
+  parent's policy, so this governs the embedded report too: verified live that an injected
+  `<script src="https://cdn.plot.ly/…">` produces **zero network requests**. Also `X-Content-Type-Options:
+  nosniff`, `Referrer-Policy: no-referrer` (a local deployment's URL is not JBrowse's business) and
+  `X-Frame-Options: DENY`.
+
 - **The report iframe is sandboxed, and its one external link no longer hands over the opener.** The frontend
   embeds a server-generated report — HTML assembled from user-supplied strings — with `srcdoc` in a frame
   that had no `sandbox`, so it ran with the application's own origin. It is escaped and, since the previous

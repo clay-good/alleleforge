@@ -176,6 +176,39 @@ def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
 _TOKEN_EXEMPT_PATHS = frozenset({"/api/health"})
 
 
+#: Response headers applied to every response. The Content-Security-Policy is the
+#: structural form of a promise the project already makes in prose — "the served
+#: frontend loads no third-party scripts" — which was violated for as long as the
+#: rendered report carried a `cdn.plot.ly` script tag, because nothing enforced it. A
+#: `srcdoc` frame inherits its parent's policy, so this governs the embedded report as
+#: well as the shell: a script tag reintroduced into the renderer is *blocked*, not
+#: merely against policy.
+#:
+#: `style-src` allows inline styles because both the shell and the report carry a
+#: `<style>` block; scripts have no such allowance, which is the half that matters.
+_SECURITY_HEADERS: dict[str, str] = {
+    "Content-Security-Policy": "; ".join(
+        (
+            "default-src 'self'",
+            "script-src 'self'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data:",
+            "connect-src 'self'",
+            "font-src 'self'",
+            "base-uri 'none'",
+            "form-action 'none'",
+            "object-src 'none'",
+            "frame-ancestors 'none'",
+        )
+    ),
+    # A JSON response mislabelled by a proxy must not be sniffed into script.
+    "X-Content-Type-Options": "nosniff",
+    # The report links out to jbrowse.org; a local deployment's URL is not their business.
+    "Referrer-Policy": "no-referrer",
+    "X-Frame-Options": "DENY",
+}
+
+
 def create_app(
     *,
     reference: Any | None = None,
@@ -223,6 +256,14 @@ def create_app(
     # not only the seed. A bare Settings() would read env vars but silently skip the file.
     app.state.settings = settings or Settings.load()
     app.state.jobs = JobManager()
+
+    @app.middleware("http")
+    async def _security_headers(request: Request, call_next: Any) -> Response:
+        """Attach the fixed security headers to every response."""
+        response: Response = await call_next(request)
+        for header, value in _SECURITY_HEADERS.items():
+            response.headers.setdefault(header, value)
+        return response
 
     if api_token:
 

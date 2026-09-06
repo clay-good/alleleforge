@@ -228,3 +228,16 @@ application compromise rather than a report defect.
 - **WHEN** a design result is shown in the web UI
 - **THEN** the frame denies script, same-origin and form privileges, and the parent
   page cannot read the frame's document
+
+### Requirement: The served app enforces a content security policy
+
+Every response SHALL carry a Content-Security-Policy whose `script-src` admits only
+`'self'` — no third-party origin, no `'unsafe-inline'`, no `'unsafe-eval'` — together
+with `nosniff`, a referrer policy, and frame controls. The project promises that the
+frontend loads no third-party scripts; a promise enforced only by review is not a
+control, and it was false for as long as the rendered report carried a CDN script tag.
+
+#### Scenario: A third-party script is reintroduced into a report
+- **WHEN** a rendered report references a script from another origin
+- **THEN** the browser blocks the load, because a `srcdoc` frame inherits the parent's
+  policy
