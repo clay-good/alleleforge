@@ -354,6 +354,7 @@ def create_app(
         return ResolveResponse(
             variant=str(v),
             variant_class=v.variant_class.value,
+            changes_the_sequence=v.ref != v.alt,
             build=v.build,
             source=resolved.source,
             working_interval=str(resolved.working_interval),

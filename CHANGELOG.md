@@ -10,6 +10,13 @@ acceptance.
 
 ### Added
 
+- **`resolve` says when a variant changes nothing.** `chr1:1000:A>A` — reference and alternate identical —
+  came back as `[snv, build hg38, from coordinates]`, because `variant_class` is computed from allele
+  *lengths*: one base against one base is an `snv` whether or not they differ. The design path already refuses
+  to build a reagent for such an input, by name and with a non-zero exit; `resolve`, the command whose job is
+  to say what an input means, was silent. Both shells now report `changes_the_sequence`. Reported rather than
+  refused — a reference call is a legitimate VCF row and `aforge batch` reads VCFs.
+
 - **`P(intended)` ships with its uncertainty, like the two numbers beside it.** A candidate carried
   `efficiency` and `bystander_burden` as `Prediction[float]` and `p_intended` — the probability the edit
   produces the allele you asked for, the number a reader is most likely to act on — as a bare float on every

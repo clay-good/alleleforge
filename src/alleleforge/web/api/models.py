@@ -82,6 +82,14 @@ class ResolveResponse(BaseModel):
 
     variant: str
     variant_class: str
+    changes_the_sequence: bool = True
+    """Whether the normalized variant differs from the reference at all.
+
+    `variant_class` is computed from the allele *lengths*, so a one-base ref and a
+    one-base alt is an `snv` whether or not they differ. A variant whose alleles are
+    equal changes nothing and no reagent can be designed for it — reported rather
+    than refused, because a reference call is a legitimate VCF row.
+    """
     build: str
     source: str
     working_interval: str

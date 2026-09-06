@@ -7445,6 +7445,49 @@ whose uncertainty had been dropped one call earlier. When a number looks unavoid
 bare, search for it upstream before concluding it has no envelope to carry.**
 
 
+## Round 229 — four probes, three clean
+
+Feeding the variant-first front end things it had not been fed. Most of it held up,
+and the clean results are the more useful half of this entry.
+
+**Large deletions (clean, and better than expected).** A 4 bp deletion routes to prime;
+at 59 bp and 199 bp prime drops out and SpCas9 + HDR is offered instead, which is the
+right escalation. The interesting number: the 199 bp candidate reports `Efficiency 0.61
+[0.19, 1.00]` — *higher* than the 59 bp one, because that is the guide's cutting
+efficiency, not the chance of achieving a 199 bp precise deletion. Read alone it would
+badly mislead. It is not alone: the render puts `P(intended) = 0.00 (derived from the
+outcome distribution; no calibrated interval)` directly beneath it, with a
+`outcome-is-nhej-spectrum` caveat and a cleanliness score of 0. That pairing only exists
+because of the previous round; it is the first time a change from this log has been
+observed doing its job on an input it was not written for.
+
+**The four intents (clean).** `correct`, `install` and `revert` all route to prime for
+an A>C transversion; `knock_out` routes to the nuclease. The reagents differ where they
+should: `install` writes the alt (`ATATAGATATCCATAT`), `correct` and `revert` write the
+reference (`ATATATATATCCATAT`). `correct` and `revert` are byte-identical — and that is
+documented, deliberate ("**Mechanically identical to CORRECT** … it exists so a run's
+provenance records *why* the edit was made") and already pinned by a test.
+
+**The one finding.** `chr1:1000:A>A` — reference and alternate identical — resolves as:
+
+    chr1:999:A>A  [snv, build hg38, from coordinates]
+
+`variant_class` is computed from allele *lengths*, so one base against one base is an
+`snv` whether or not they differ, and the `--json` payload said `snv` to a machine
+consumer too. The design path already refuses to build a reagent for this, by name and
+with a non-zero exit; `resolve` — the command whose entire job is to tell a caller what
+their input means — was the one that said nothing.
+
+Deliberately reported, not refused: a reference call is a legitimate VCF row, `aforge
+batch` reads VCFs, and refusing in the resolver would fail a cohort on rows the design
+path declines gracefully. Both shells now carry `changes_the_sequence`.
+
+**Lesson: a round with three clean probes is a result, and writing it down is what stops
+the next round re-running them. The temptation after a clean probe is to keep digging
+until something breaks, which is how a real finding gets replaced by a manufactured one.
+Record what held, name why it held, and move to a different surface.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -233,9 +233,17 @@ def resolve(
         _echo_err(f"error: {exc}")
         raise typer.Exit(ExitCode.USAGE) from exc
     v = resolved.variant
+    # `variant_class` is computed from the allele *lengths*, so a one-base ref and a
+    # one-base alt is an `snv` whether or not they differ. A variant whose alleles are
+    # equal changes nothing, and the design path already refuses to build a reagent
+    # for one — this command, whose whole job is to say what an input means, said
+    # `snv` and nothing else. Reported rather than refused: a reference call is a
+    # legitimate VCF row and `aforge batch` reads VCFs.
+    changes = v.ref != v.alt
     payload = {
         "variant": str(v),
         "variant_class": v.variant_class.value,
+        "changes_the_sequence": changes,
         "build": v.build,
         "source": resolved.source,
         "working_interval": str(resolved.working_interval),
@@ -245,9 +253,15 @@ def resolve(
             else None
         ),
     }
+    note = (
+        ""
+        if changes
+        else "\nNOTE: this does not change the sequence — the reference and alternate "
+        "alleles are identical, so there is no edit to design"
+    )
     human = (
         f"{v}  [{v.variant_class.value}, build {v.build}, from {resolved.source}]\n"
-        f"working interval: {resolved.working_interval}"
+        f"working interval: {resolved.working_interval}{note}"
     )
     _emit(payload, as_json=as_json, human=human)
 
