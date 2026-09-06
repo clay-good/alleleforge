@@ -658,7 +658,8 @@ def search(
             best[key] = site
 
     # A placement that ultimately cleared the threshold is a reported site, not tail.
-    subthreshold_sum = sum(score for key, score in subthreshold.items() if key not in best)
+    suppressed = {key: score for key, score in subthreshold.items() if key not in best}
+    subthreshold_sum = sum(suppressed.values())
     sites = tuple(sorted(best.values(), key=lambda s: s.score, reverse=True))
     report = OffTargetReport(
         spacer=sp,
@@ -684,6 +685,7 @@ def search(
         scorer=primary.name,
         score_matrix=getattr(primary, "matrix", None),
         subthreshold_score_sum=subthreshold_sum,
+        subthreshold_placements=len(suppressed),
     )
     if cache is not None and signature is not None:
         cache.put(signature, report)

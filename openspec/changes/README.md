@@ -8042,6 +8042,48 @@ wrong, the output is missing a sentence. My investigation was not wasted effort 
 the finding — it *was* the finding, and its length was the measurement.**
 
 
+## Round 243 — three numbers, and the one that mattered was unexplainable
+
+R242's question — what else does the scan do that the report never mentions? — asked of
+every field on `OffTargetReport`. All but one are stated somewhere. The exception is
+`subthreshold_score_sum`, and it is not a dead field: `specificity_score()` reads it
+directly, as `1 / (1 + Σ reported + tail)`.
+
+The tail is deliberate and right. A guide with real off-targets must not become clean
+because the caller asked to *see* fewer of them, so the aggregate ignores the display
+filter — behaviour an earlier round pinned on purpose. What it produces is a headline
+number the rows cannot account for. At the default cut-offs, summing the 25 printed
+scores gives 0.1337 where the tool reports 0.1304.
+
+Raising the cut-offs past every hit gives the sharp version:
+
+    spacer CAGCAGCAGCAGCAGCAGCA / PAM NGG: 0 site(s), worst score 0.000,
+    specificity 0.130
+
+Three numbers. Two say there is nothing to look at. The third says the guide is bad, and
+nothing on the page connects them. A reader who trusts *0 sites, worst 0.000* and skims
+the third concludes the guide is clean; a reader who notices the third concludes the
+tool is broken. Twenty-six suppressed placements contributing 6.672 to the denominator
+were the whole story and were invisible.
+
+The count is recorded alongside the mass, because the mass alone cannot be read: `0.19`
+is one near-miss or twenty faint ones, and those are different guides. The description
+now names both, says the specificity covers every nominated site rather than only the
+listed ones, and says raising the cut-off cannot improve it — which is the sentence that
+turns a number that looks like a bug into a number that means something.
+
+Two small things. The behaviour is unchanged: this is disclosure, not a correction, and
+the specificity was already right. And my first draft never used the phrase
+`sub-threshold` that its own field is named for, so the test I had written against the
+domain term failed against my own wording — the vocabulary a reader will search for is
+part of the message.
+
+**Lesson: when a surface prints several numbers, check that the worst one can be derived
+from the others. A number that is both the most important and the least reconstructible
+is where a reader's trust goes, and it is the one most likely to have an undisclosed
+term in it — here, literally, a hidden addend in the denominator.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

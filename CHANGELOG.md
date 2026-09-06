@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **The specificity says what else went into it.** `specificity_score()` is
+  `1 / (1 + Σ reported + subthreshold_score_sum)`: the tail is deliberate, so a guide does not become clean
+  because the caller asked to see fewer of its off-targets. Nothing disclosed it, so the headline number could
+  not be derived from the printed rows — and with the cut-offs raised past every hit the report read
+  `0 site(s), worst score 0.000, specificity 0.130`, three numbers of which only the unexplainable one carried
+  the risk. The description now names the suppressed tail's placement count (recorded as
+  `subthreshold_placements`, because `0.19` of mass is one near-miss or twenty faint ones) and its
+  contribution, and states that raising the cut-off cannot improve the specificity.
+
 - **The off-target report says when it broadened the PAM.** `search()` widens SpCas9's `NGG` to `NRG` so
   low-stringency `NAG` sites — which SpCas9 cuts, less efficiently — are nominated rather than missed. That is
   deliberate and specified, and no surface said it: a report headed `PAM NGG` listed sites reading `pam=CAG`

@@ -195,6 +195,9 @@ class OffTargetReport(BaseModel):
     scorer: str | None = None
     score_matrix: str | None = None
     subthreshold_score_sum: float = 0.0
+    #: How many nominated placements that tail covers. The mass alone cannot be read:
+    #: `0.19` is one near-miss or twenty faint ones, and those are different guides.
+    subthreshold_placements: int = 0
 
     def search_description(self) -> str:
         """Return a one-line statement of the extent searched, the budgets and cut-offs.
@@ -244,6 +247,21 @@ class OffTargetReport(BaseModel):
                 f"; the spacer is ambiguous at position(s) {listed}, which cannot be "
                 "scored — those positions count as mismatches, pushing scores DOWN, so "
                 "a low score here is not evidence of safety"
+            )
+        if self.subthreshold_score_sum > 0.0:
+            # `specificity_score` aggregates over every nominated site, not only the
+            # reported ones, so a guide does not become clean because the caller asked
+            # to see fewer of its off-targets. Correct, and unreadable without this:
+            # summing the printed rows gives a different number, and with the cut-offs
+            # raised past every hit the report reads "0 site(s), worst score 0.000,
+            # specificity 0.130" with nothing on the page explaining the third figure.
+            coverage += (
+                f"; a sub-threshold tail of {self.subthreshold_placements} further "
+                "in-budget placement(s) scored below the reporting cut-off and is not "
+                f"shown, contributing "
+                f"{self.subthreshold_score_sum:.3f} to the specificity denominator - so "
+                "the specificity is over every nominated site, not only the listed ones, "
+                "and raising the cut-off cannot improve it"
             )
         if self.scanned_pam and self.scanned_pam != self.pam:
             coverage += (

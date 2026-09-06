@@ -318,6 +318,11 @@
       "title": "Spacer",
       "type": "string"
     },
+    "subthreshold_placements": {
+      "default": 0,
+      "title": "Subthreshold Placements",
+      "type": "integer"
+    },
     "subthreshold_score_sum": {
       "default": 0.0,
       "title": "Subthreshold Score Sum",
