@@ -1576,6 +1576,14 @@ acceptance.
 
 ### Fixed
 
+- **`chromatin_track` without `encode_tracks` ran to completion and recorded a provenance entry that was not
+  true.** The track name selects a track from the supplied ENCODE tracks; supplying only the name produced a
+  normal menu, wrote `chromatin_track: 'DNase'` into the provenance config snapshot as though the run were
+  chromatin-aware, and then reported *"chromatin track 'DNase' was supplied but covers none of the candidate
+  loci"* — asserting a supply that never happened and sending the reader to inspect the coverage of a file
+  they do not have. The CLI refused the combination; the library, the cohort and the web API did not. Now
+  refused in `design()`.
+
 - **A region naming an unknown contig crashed the library with a bare `KeyError`.** The CLI checked this and
   said which contig, which the reference actually has, and that *"a dropped region searches less than you
   asked for"* — the library and the web API got `KeyError: "unknown contig 'chrNOPE'"` from deep inside the

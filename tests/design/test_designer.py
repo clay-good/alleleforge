@@ -949,3 +949,26 @@ def test_a_corrupt_cache_or_index_is_not_degraded_to_skipped() -> None:
     assert CacheIntegrityError not in _EXPECTED_DESIGN_FAILURES
     assert FMIndexIntegrityError not in _EXPECTED_DESIGN_FAILURES
     assert RuntimeError not in _EXPECTED_DESIGN_FAILURES
+
+
+def test_a_chromatin_track_without_tracks_is_refused(make_reference: MakeRef) -> None:
+    """It ran to completion and left a provenance record that was not true.
+
+    `chromatin_track` names a track *inside* `encode_tracks`. Supplying only the name
+    produced a normal menu, recorded `chromatin_track: 'DNase'` in the provenance
+    config snapshot as though the run were chromatin-aware, and then reported
+    *"chromatin track 'DNase' was supplied but covers none of the candidate loci"* —
+    which asserts a supply that never happened and sends the reader to inspect the
+    coverage of a track file they do not have.
+
+    The CLI refused the combination; the library, the cohort and the web API did not.
+    """
+    ref = _abe_ref(make_reference)
+
+    with pytest.raises(ValueError, match="without encode_tracks"):
+        design("chr2:26:A>G", reference=ref, intent=EditIntent.INSTALL, chromatin_track="DNase")
+
+    # Neither is the ordinary case and must still work.
+    menu = design("chr2:26:A>G", reference=ref, intent=EditIntent.INSTALL)
+    assert menu.provenance is not None
+    assert menu.provenance.config_snapshot.get("chromatin_track") is None

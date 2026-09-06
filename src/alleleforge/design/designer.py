@@ -194,6 +194,19 @@ def design(
         routing decisions, per-chemistry notes, ranking rationale, the Pareto
         front, and a full provenance block.
     """
+    # `chromatin_track` names a track *inside* `encode_tracks`; without the tracks there
+    # is nothing to name. Supplying only the name used to run to completion, record
+    # `chromatin_track` in the provenance snapshot as though the run were
+    # chromatin-aware, and then report "supplied but covers none of the candidate loci"
+    # — which asserts a supply that never happened and sends the reader to inspect a
+    # track file they do not have. The CLI refused the combination; every other caller
+    # (the library, the cohort, the web API) did not.
+    if chromatin_track is not None and encode_tracks is None:
+        raise ValueError(
+            f"chromatin_track {chromatin_track!r} was given without encode_tracks; the "
+            "track name selects a track from the supplied ENCODE tracks, so both are "
+            "required together (or pass neither for an unadjusted run)"
+        )
     cfg = settings or get_settings()
     resolved = _resolve_input(
         inp,

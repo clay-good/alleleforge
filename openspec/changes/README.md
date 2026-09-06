@@ -5409,6 +5409,37 @@ was findable the moment the first was fixed. A lesson gets one round of attentio
 After fixing an instance, run the query over the whole tree *before* moving on, because that is the only
 moment the question is fully loaded.**
 
+## Round 180 — finishing the sweep
+
+R179's lesson was to run a query over the whole tree at the moment it is fully loaded, rather than finding the
+next instance a round later. So: every rule the CLI enforces, listed, and each asked whether the library owns
+it.
+
+Most are genuinely CLI-shaped — file paths, option grammar (`--format requires --out`), enum parsing. One I
+expected to find was already fine: `DEFAULT_REGISTRY.get("nope")` raises
+`KeyError: "unknown dataset 'nope'; known: (…)"`, the full actionable message, and the CLI merely re-wraps it.
+
+One was not. `--encode-tracks` and `--chromatin-track` "must be given together" per the CLI. From the library,
+passing only the name:
+
+    design(..., chromatin_track="DNase")   # no encode_tracks
+    → 1 candidate, no adjustment applied
+    → provenance config_snapshot: {"chromatin_track": "DNase"}
+    → rationale: "chromatin track 'DNase' was supplied but covers none of the candidate loci"
+
+Three separate misstatements from one missing guard. The provenance records a chromatin-aware run that was
+not. The rationale asserts the track "was supplied" when nothing was. And it blames *coverage*, sending a
+reader to inspect a track file that does not exist — the note itself is R118's work, correct for the case it
+was written for and wrong for this one, because nothing distinguished "supplied and covers nothing" from
+"never supplied at all".
+
+Refused in `design()` now, where the cohort and the web API pass too.
+
+**Lesson: three rounds of this question produced three findings, and the third was the only one I got to by
+enumerating rather than by stumbling. The enumeration also produced a clean bill I would not otherwise have
+recorded — the dataset lookup — which is worth as much, because it is the difference between "I checked" and
+"I happened not to trip over it".**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
