@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **`scripts/release_readiness.py` measures the v1.0 criteria instead of leaving them as prose.** `SPEC_V2.md`
+  lists five conditions for cutting v1.0 and nothing checked any of them, so "how close are we" was answered
+  by reading bullet points. Four are blocked outside the repository — which is exactly why measuring is worth
+  it: it separates *blocked* from *forgotten*, and it will notice the day one stops being blocked. Current
+  state: **1/5 met**; 1 of 12 artifact-backed model cards pins a checkpoint hash (5 further cards are
+  heuristic baselines with nothing to pin, and are excluded from the denominator rather than counted as
+  failures), 0 of 5 benchmark corpora are real, and the Zenodo DOI is minted on the first tagged release. It
+  exits non-zero while any criterion is open and is now a step in `RELEASE.md`.
+
 - **`aforge batch` offers the design options it was missing.** The cohort path — the run someone leaves going
   over a whole VCF, where a trained model or a PAM-flexible fallback matters most — could not select a
   trained model or a fallback **by any means**, config file included, while `aforge design` could.

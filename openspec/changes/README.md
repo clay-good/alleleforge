@@ -4925,6 +4925,43 @@ makes the second feel done. Two rounds removed a CDN script and sandboxed a fram
 the browser had been willing to fetch from a CDN in the first place. When a promise is enforced by "someone
 would notice", the fix is not a better reviewer — it is to move the promise somewhere that refuses.**
 
+## Round 165 — measuring the thing that is blocked
+
+The README's roadmap has exactly one track marked "not started": R6, the v1.0 release criteria. Everything
+else is "in progress" and blocked on real weights, real corpora, or a posted preprint. So R6 looked like the
+only unblocked work left, and it is not — its five criteria are themselves gated on R0/R1/R2/R5.
+
+What *is* unblocked is that nothing measures them. `SPEC_V2.md` lists five conditions and the only way to
+answer "how close are we" was to read five bullet points and estimate. That is the shape R156 named: a
+checklist nothing checks. And it matters more for a blocked criterion than an unblocked one, because a
+blocked item and a forgotten item look identical from the outside for as long as nobody looks.
+
+The measurement, which I had to get right rather than merely produce:
+
+    [open] R0     1/12 model cards with a source URL pin a checkpoint hash; 1/8 datasets
+    [open] R1+R5  0/5 benchmark datasets are real corpora
+    [MET ] R2     4 test module(s) exercise the native path
+    [open] R5     the calibration study runs end to end — over synthetic inputs
+    [open] R5+R0  draft present; DOI not recorded in CITATION.cff
+
+Two honesty problems in my own first draft, both of the kind this report exists to avoid. It counted all 17
+model cards as needing a pinned hash and reported **1/17** — but five are heuristic baselines with no
+artifact to download and nothing to pin, so the honest denominator is the twelve that name a source. And its
+R2 evidence line claimed **16** native parity modules, because it grepped for the substring `native`, which
+matches any test whose prose contains the word; there are four, found by the marker. A readiness report that
+overstates its own evidence is worse than no readiness report, so both are now pinned by tests.
+
+Also pinned: the report must have one criterion per bullet in `SPEC_V2.md`, so a sixth condition added to the
+spec fails the suite until it is measured. And every unmet criterion must name what blocks it — "not met" and
+"not met because the upstream artifact has not been frozen" are different facts, and only one of them is
+anyone's to act on.
+
+**Lesson: "blocked" is a claim with a shelf life. Four of these five have been blocked for the whole session
+and are stated as blocked in the README, which is honest — but nothing would have noticed the day an upstream
+artifact was frozen or a corpus became available, because the claim lived in prose that only changes when
+someone remembers to change it. Measuring a blocked thing is not wasted work; it is how you find out it
+stopped being blocked.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement

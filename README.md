@@ -194,7 +194,7 @@ in [`SPEC_V2.md`](SPEC_V2.md)**:
 | R3 | External-tool adapters (Cas-OFFinder, VEP, HGVS) behind the registry | ◐ in progress |
 | R4 | Scale: whole-genome on-disk FM-index (SA-IS), cohort throughput, cross-run caches | ◐ in progress |
 | R5 | Validation, calibration study (ECE on real data), methods preprint | ◐ in progress |
-| R6 | v1.0 release criteria | ☐ not started |
+| R6 | v1.0 release criteria | ☐ not started — measured by `python scripts/release_readiness.py` |
 
 **Landed since v0.1.0.** R0 — Dependabot across pip/cargo/actions, a CI `pip-audit`+`cargo audit`
 job, a CycloneDX SBOM on release, and a `scripts/reproduce.py` reproducibility audit gated in CI.

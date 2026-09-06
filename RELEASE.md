@@ -14,6 +14,10 @@ wired + validated: trained Rule Set 3 and PRIDICT2.0).
       `version()` and `CITATION.cff`'s are both asserted equal in the test suite, so
       `make ci` fails if either is missed.
 - [ ] `make ci` green (lint, type, test, docs, reproduce). Native: `make native`.
+- [ ] `python scripts/release_readiness.py` — the v1.0 criteria from `SPEC_V2.md` (R6),
+      measured rather than recalled. It exits non-zero while any is open; for a `0.x`
+      release that is expected, and the point is to read *which* are open and confirm
+      each is still blocked outside the repository rather than forgotten.
 - [ ] CHANGELOG updated.
 - [ ] README claims are honest (heuristic vs trained scorers; see the prime/cas9
       sections). Confirm no overclaim of "wraps PRIDICT2/BE-Hive" beyond what's wired.
