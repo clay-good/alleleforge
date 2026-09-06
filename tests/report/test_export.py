@@ -18,6 +18,15 @@ from alleleforge.report.export import (
 from alleleforge.types.candidate import RankedMenu
 
 
+def _table(text: str) -> list[str]:
+    """Return the TSV's table lines, dropping the leading `#` note block.
+
+    The export leads with the disclaimer, provenance and coordinate convention as
+    comment lines, so the column header is the first non-comment line.
+    """
+    return [line for line in text.strip().splitlines() if not line.startswith("#")]
+
+
 def test_menu_json_validates_against_phase1_schema(prime_menu: RankedMenu) -> None:
     # The menu round-trips through its own Phase 1 pydantic schema.
     text = menu_to_json(prime_menu)
@@ -34,7 +43,7 @@ def test_report_json_is_valid_json(prime_menu: RankedMenu) -> None:
 
 def test_tsv_has_header_and_one_row_per_candidate(prime_menu: RankedMenu) -> None:
     report = build_report(prime_menu)
-    lines = report_to_tsv(report).strip().split("\n")
+    lines = _table(report_to_tsv(report))
     assert lines[0].split("\t") == list(TSV_COLUMNS)
     assert len(lines) == len(report.candidates) + 1
     # every data row has exactly the right number of columns
@@ -47,7 +56,7 @@ def test_tsv_carries_calibrated_column(prime_menu: RankedMenu) -> None:
     # machine consumer could not tell a calibrated band from a nominal heuristic one.
     # Default scorers are uncalibrated, so the column reads False (not blank).
     report = build_report(prime_menu)
-    lines = report_to_tsv(report).strip().split("\n")
+    lines = _table(report_to_tsv(report))
     header = lines[0].split("\t")
     assert "calibrated" in header
     col = header.index("calibrated")
@@ -59,7 +68,7 @@ def test_tsv_carries_calibrated_column(prime_menu: RankedMenu) -> None:
 
 def test_tsv_cells_have_no_tabs_or_newlines(prime_menu: RankedMenu) -> None:
     report = build_report(prime_menu)
-    body = report_to_tsv(report).strip().split("\n")[1:]
+    body = _table(report_to_tsv(report))[1:]
     for row in body:
         for cell in row.split("\t"):
             assert "\n" not in cell and "\r" not in cell
@@ -92,7 +101,7 @@ def test_tsv_export_carries_schema_version(prime_menu: RankedMenu) -> None:
     from alleleforge.report.export import EXPORT_SCHEMA_VERSION, report_to_tsv
 
     report = build_report(prime_menu)
-    lines = report_to_tsv(report).strip().splitlines()
+    lines = _table(report_to_tsv(report))
     assert lines[0].split("\t")[0] == "schema_version"
     # every data row carries the current export schema version in the first column
     for row in lines[1:]:
@@ -115,7 +124,7 @@ def test_the_flat_export_carries_what_makes_its_numbers_readable(
     from alleleforge.report.export import EXPORT_SCHEMA_VERSION, TSV_COLUMNS, report_to_tsv
 
     report = build_report(ancestry_menu)
-    header, first, *_ = report_to_tsv(report).splitlines()
+    header, first, *_ = _table(report_to_tsv(report))
     cells = dict(zip(header.split("\t"), first.split("\t"), strict=True))
 
     for column in (

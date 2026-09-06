@@ -6965,6 +6965,51 @@ written once and copied everywhere silently did not apply to the one that raised
 `KeyError`.**
 
 
+## Round 218 — the spreadsheet was the one surface with no caveat
+
+R217's query — "when one member of a family is unguarded, which one?" — asked of the
+renderers. Four of them serialize the same `DesignReport`:
+
+    0-based                            tsv:.  html:Y  pdf:Y  json:Y
+    reference build                    tsv:.  html:Y  pdf:Y  json:Y
+    must be experimentally validated   tsv:.  html:Y  pdf:Y  json:Y
+
+`build_report` puts `RESEARCH_USE_DISCLAIMER` on the report; `report_to_tsv` was a
+header and one row per candidate, and emitted none of it. So the format a scientist
+opens in a spreadsheet and forwards to a colleague showed efficiencies, specificities
+and genomic loci with nothing saying they are uncertain computational predictions,
+against which genome, in which coordinate convention. The README even claimed the
+convention was "stated in the report's own provenance block" for the TSV — which has no
+provenance block, and whose `.provenance.json` sidecar carries no coordinate note
+either.
+
+This is the third time the log has caught the TSV specifically. `test_the_flat_export_
+carries_what_makes_its_numbers_readable` was written for the same shape one layer up:
+"the HTML and PDF renders have carried the specificity, the scoring basis and the search
+settings since each was added; the TSV — the format something automated actually reads —
+carried none of them". Per-candidate context got fixed then; the whole-document context
+did not, because it was never anywhere in the file to fix.
+
+The notes now lead the file as `#` comment lines, which is what VCF, GTF and bedGraph
+do. The column header remains the first non-comment line, so a comment-skipping reader
+gets a byte-identical table — checked with polars rather than asserted, by parsing the
+file twice and comparing the frames.
+
+**This changes an output format, which is a user-visible decision and worth naming.** A
+reader that skips nothing now sees a different first line. Three things make it the
+right trade: the export has always led every row with `schema_version` precisely so a
+consumer can detect drift (now 6); the project is pre-1.0 and its cardinal rule is that
+no surface shows a number without its caveat; and six of its own tests assumed line 0
+was the header, which is the honest measure of the blast radius — small, and all inside
+this repo.
+
+**Lesson: "which renderer is missing this?" is a question worth asking on a schedule,
+not once. A fix lands in the render the bug was noticed in, and the family drifts again
+the next time a fact is added — this round's missing facts include one added two rounds
+ago. The durable version of the check is a table of fact x surface, which is what the
+top of this entry is.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -95,7 +95,8 @@ def test_the_locus_is_an_export_column(ancestry_menu: RankedMenu) -> None:
     """A pipeline cannot join a candidate row to anything genomic without it."""
     assert "locus" in TSV_COLUMNS
     report = build_report(ancestry_menu)
-    header, first = report_to_tsv(report).splitlines()[:2]
+    table = [ln for ln in report_to_tsv(report).splitlines() if not ln.startswith("#")]
+    header, first = table[:2]
     cells = dict(zip(header.split("\t"), first.split("\t"), strict=True))
     assert cells["locus"] == report.candidates[0].locus
 

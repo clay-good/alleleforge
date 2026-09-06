@@ -81,6 +81,27 @@ aforge bench run offtarget-classification --out offtarget.json
 aforge bench leaderboard cas9.json offtarget.json --format html --out board.html
 ```
 
+### The TSV export
+
+`--format tsv` writes the flat per-candidate table led by `#` comment lines carrying the
+research-use disclaimer, the coordinate convention, the reference genome's identity and
+the seed — the same facts the HTML and PDF footers carry, because the spreadsheet a
+result gets forwarded in should not be the one surface that shows a specificity with no
+caveat attached.
+
+```
+# AlleleForge is a research tool. It is not a medical device ...
+# reference build hg38 (1 contig, 140 bases, shape 379efc3d — pins contig names and lengths, not the bases)
+# coordinates 0-based half-open (BED-style); a genome browser reads the same locus as 1-based inclusive
+schema_version	rank	chemistry	locus	...
+```
+
+The column header is the first non-comment line, as in VCF, GTF and bedGraph, so a
+comment-skipping reader (`polars.read_csv(..., comment_prefix="#")`,
+`pandas.read_csv(..., comment="#")`, `read.delim(..., comment.char="#")`) gets exactly
+the table it got before. A reader that skips nothing sees a different first line, so
+`schema_version` — which leads every row for this purpose — is `6`.
+
 ### The run-config file
 
 `--config run.toml` carries the same knobs as the flags, so a run is described by a

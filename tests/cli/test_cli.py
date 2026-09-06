@@ -98,7 +98,9 @@ def test_design_json_stdout(runner: CliRunner, prime_fasta: Path, design_cmd: De
 def test_design_tsv_stdout(runner: CliRunner, prime_fasta: Path, design_cmd: DesignCmd) -> None:
     result = runner.invoke(app, design_cmd(prime_fasta, "tsv"))
     assert result.exit_code == 0
-    lines = result.output.strip().splitlines()
+    # The export leads with `#` note lines (disclaimer, provenance, coordinates);
+    # the table starts at the first non-comment line.
+    lines = [ln for ln in result.output.strip().splitlines() if not ln.startswith("#")]
     assert lines[0].startswith("schema_version\trank\tchemistry")
     assert len(lines) == 4  # header + 3 candidates
 

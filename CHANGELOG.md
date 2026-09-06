@@ -1621,6 +1621,18 @@ acceptance.
 
 ### Changed
 
+- **The TSV export leads with `#` note lines, and `EXPORT_SCHEMA_VERSION` is now `6`.** The HTML, PDF and
+  JSON renders of a report all carry the research-use disclaimer, the coordinate convention and the
+  provenance footer; the TSV carried none of them, so the one format a reader opens in a spreadsheet showed
+  efficiencies, specificities and genomic loci with nothing saying they are uncertain computational
+  predictions, against which genome, in which coordinate convention. (The README claimed the convention was
+  "stated in the report's own provenance block" for the TSV, which has no provenance block.) The notes lead
+  the file as comments, as in VCF, GTF and bedGraph, so the column header is still the first non-comment line
+  and a comment-skipping reader — `polars.read_csv(..., comment_prefix="#")`,
+  `pandas.read_csv(..., comment="#")`, `read.delim(..., comment.char="#")` — gets a byte-identical table,
+  which is checked by parsing the file both ways and comparing. A reader that skips nothing sees a different
+  first line, which is what the schema version leading every row exists to signal.
+
 - **Complementing a sequence uses `str.translate` instead of a per-base dict lookup.** The off-target scan
   takes whole-contig reverse complements, and the generator behind them ran **four million times** on a 2 Mb
   reference — the third-largest cost in a profile. 96% faster (27×) in isolation, on both plain ACGT and the

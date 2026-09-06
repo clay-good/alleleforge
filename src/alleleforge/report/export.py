@@ -14,12 +14,14 @@ from pathlib import Path
 from typing import Any
 
 from alleleforge.errors import MissingDependencyError
-from alleleforge.report.builder import DesignReport, caveats
+from alleleforge.report.builder import DesignReport, caveats, provenance_lines
 from alleleforge.types.candidate import RankedMenu
 
 #: Schema version for the flat TSV/Parquet candidate export. Bump when a column is
-#: added, removed, or reinterpreted so a downstream consumer can detect the drift.
-EXPORT_SCHEMA_VERSION = 5
+#: added, removed, or reinterpreted so a downstream consumer can detect the drift —
+#: and for v6, when the TSV grew its leading `#` note block, which a reader that skips
+#: no comments does see.
+EXPORT_SCHEMA_VERSION = 6
 
 #: The flat TSV column order (one row per candidate). ``schema_version`` leads so a
 #: reader can branch on the format before touching any other column.
@@ -114,9 +116,31 @@ def _cell(value: Any) -> str:
     return str(value).replace("\t", " ").replace("\r", " ").replace("\n", " ")
 
 
+def _tsv_notes(report: DesignReport) -> list[str]:
+    """Return the `#`-prefixed lines that must precede the table.
+
+    The HTML, the PDF and the JSON all carry the research-use disclaimer, the
+    coordinate convention and the provenance footer. The TSV carried none of them,
+    which left the one format a reader opens in a spreadsheet showing efficiencies,
+    specificities and genomic loci with nothing saying they are uncertain
+    computational predictions, against which genome, in which coordinate convention.
+
+    `#` is what VCF, GTF and bedGraph use, so the column header stays the first
+    non-comment line and a comment-skipping reader gets an identical table.
+
+    Args:
+        report: The report being serialized.
+
+    Returns:
+        Comment lines, each already `#`-prefixed and free of tabs and newlines.
+    """
+    notes = [report.disclaimer, *provenance_lines(report.provenance)]
+    return [f"# {_cell(note)}" for note in notes if note]
+
+
 def report_to_tsv(report: DesignReport) -> str:
-    """Serialize the report to TSV: a header plus one row per candidate."""
-    lines = ["\t".join(TSV_COLUMNS)]
+    """Serialize the report to TSV: `#` notes, a header, one row per candidate."""
+    lines = [*_tsv_notes(report), "\t".join(TSV_COLUMNS)]
     for candidate in report.candidates:
         row = _row(candidate)
         lines.append("\t".join(_cell(row[col]) for col in TSV_COLUMNS))
