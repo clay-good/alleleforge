@@ -10,6 +10,12 @@ acceptance.
 
 ### Added
 
+- **The "deliberately minimal core" claim is now a test.** `pip install alleleforge` really does pull eight
+  transitive dependencies, none of them numpy, and `import alleleforge` really is ~85 ms — but nothing checked
+  it, and a single top-level `import numpy` added anywhere in the `__init__` chain would break the core
+  install outright on a machine that has no numpy, invisibly to a CI that installs every extra. A subprocess
+  probe now asserts that importing the package loads none of the optional stacks.
+
 - **The citation metadata is now checked against the package it ships with.** `CITATION.cff` and
   `.zenodo.json` restate the version, license, title, repository URL, authors, and keywords that live
   authoritatively in `_version.py` and `pyproject.toml` — and nothing checked any of it, so the next version

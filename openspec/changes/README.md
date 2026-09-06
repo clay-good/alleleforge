@@ -4420,6 +4420,36 @@ is *obtained* — the wheel's contents, the extras' boundaries, the first comman
 — is outside what CI can see, and it is the entire experience of every user who is not me. Build it, install
 it somewhere empty, and use it.**
 
+## Round 150 — verifying a claim I could not otherwise have believed
+
+Continuing R149 across the other things the repository emits. Three verifications, one guard, no new defect —
+recorded because "I checked and it holds" is worth as much here as a fix, and because two of these are
+claims the docs make in the reader's face.
+
+**The core install is genuinely minimal.** `pip install alleleforge` into an empty venv pulls eight
+transitive packages — pydantic, pydantic-settings, PyYAML and their own deps — and no heavy stack. The
+deployment guide's claim that it is "deliberately minimal … so it imports fast" is true.
+
+One scare worth writing down: the first `import alleleforge` in that venv took **52 seconds**. It is bytecode
+compilation of the whole package on a venv where `pip` did not byte-compile at install; warm imports are
+79/84/94 ms across three runs. I nearly filed a performance defect on a measurement of the filesystem.
+
+**The Docker image is complete for what it serves.** It installs `[core,variant,cli,web]` plus `pyfaidx` and
+`pyliftover` by name rather than the whole `genome` extra, so `cyvcf2` and friends are absent — which is a
+deliberate slimming of heavy C extensions, and the VCF fast path has an explicit guard with the right
+message. The web app has no module-level genome import, so it starts without a reference and returns 503
+until one is configured, exactly as documented.
+
+The guard is on the claim most easily broken by accident. One top-level `import numpy` in any module the
+package `__init__` chain touches makes the core install fail on a clean machine, and no test in this suite
+would notice, because CI installs every extra — the same blind spot R149 walked into. A subprocess probe now
+imports the package in a clean interpreter and asserts none of nineteen optional roots got loaded.
+
+**Lesson: a property that only holds in an environment CI never constructs needs a test that constructs it.
+"No optional dependency is imported at module level" is invisible to every test in an environment where all
+of them are installed and importable — the assertion has to be about `sys.modules` in a fresh interpreter,
+not about behaviour. When a promise is about what is *absent*, the test has to be about absence too.**
+
 
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
