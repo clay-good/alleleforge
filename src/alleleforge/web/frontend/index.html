@@ -15,8 +15,8 @@
     <div class="disclaimer" role="note">
       <strong>Research use only.</strong> AlleleForge is not a medical device and does not
       provide medical advice. Off-target nominations are computational and must be
-      experimentally validated. <strong>All compute is local</strong> — no sequence data is
-      transmitted off this deployment.
+      experimentally validated. <span id="transmission"><strong>All compute is local</strong>
+      — no sequence data is transmitted off this deployment.</span>
     </div>
 
     <div class="tabs" role="tablist" aria-label="Design mode">
@@ -32,8 +32,11 @@
           <div class="field">
             <label for="variant">Variant</label>
             <input id="variant" name="variant" type="text" required
-                   placeholder="chr2:71:A&gt;C · VCV000012345 · rs1234 · NM_000518.5:c.20A&gt;T" />
-            <small>ClinVar accession, dbSNP rsID, HGVS, VCF record, or coordinates.</small>
+                   placeholder="chr2:71:A&gt;C · 2 71 . A C" />
+            <small>Coordinates (<code>chrom:pos:ref&gt;alt</code>, 1-based as in a VCF) or a
+                   VCF record. A ClinVar accession, dbSNP rsID or HGVS string needs a lookup
+                   database this deployment has no way to supply, so those are refused with
+                   a message naming the coordinate form.</small>
           </div>
 
           <div class="row">
@@ -152,8 +155,10 @@
           <div class="field">
             <label for="batch-variants">Variants (one per line)</label>
             <textarea id="batch-variants" name="variants" rows="6" required
-                      placeholder="chr2:71:A&gt;C&#10;VCV000012345&#10;rs1234"></textarea>
-            <small>Each line is any accepted input form; blank lines and <code>#</code> comments are skipped.</small>
+                      placeholder="chr2:71:A&gt;C&#10;chr7:117559590:ATCT&gt;A&#10;2 71 . A C"></textarea>
+            <small>One coordinate or VCF record per line; blank lines and <code>#</code>
+                   comments are skipped. Accessions, rsIDs and HGVS need a lookup database
+                   this deployment cannot supply, and are refused per row.</small>
           </div>
 
           <div class="row">

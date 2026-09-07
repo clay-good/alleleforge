@@ -11528,3 +11528,32 @@ Also exercised this round with nothing to fix: `aforge lift`, `aforge data list`
 **Lesson: when a round fixes a reading — not a value, but the work of interpreting one —
 look for the other command that shows the same data. The fix lives in a rendering, and
 renderings are per-command until someone shares them.**
+
+## Round 353 — opening the page found two rules it was exempt from
+
+Every CLI command had been run this session. The fourth audience had not been looked at,
+and the browser is the one surface with no `--help` to read and no signature to
+introspect, so a rule enforced on the other three can pass everywhere and still be broken
+where a human is looking. Both findings are rules the CLI is already tested against.
+
+**The example it invites you to type.** The variant placeholder read
+`chr2:71:A>C · VCV000012345 · rs1234 · NM_000518.5:c.20A>T`, captioned "ClinVar
+accession, dbSNP rsID, HGVS, VCF record, or coordinates". Three of those four forms are a
+guaranteed 422 here — the lookups are Protocols with no shipped implementation — and
+there is both a spec requirement about documented examples and a test that the CLI's own
+argument help must carry the caveat rather than listing five forms unqualified. The page
+carried none, in its most-copied string. The cohort textarea did the same. Confirmed by
+typing `VCV000012345` into the box and submitting it: the refusal that comes back is
+excellent, names the coordinate form, and should never have been reachable by copying the
+page's own example.
+
+**The promise in the banner.** "All compute is local — no sequence data is transmitted
+off this deployment" is the sentence a reader checks before pasting a patient variant.
+Round 346 made the API description conditional for exactly this reason and did not touch
+the banner, which is where a human actually reads it. The sentence is now an element the
+page rewrites from `health.vep_enabled`, naming the checkbox that causes the transmission.
+
+**Lesson: fixing a claim in the machine-readable description and not in the human-visible
+banner fixes it for the audience that can check it another way, and leaves it broken for
+the audience that cannot. When a promise appears twice, the copy a person reads is the
+one that matters most.**

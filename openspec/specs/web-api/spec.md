@@ -348,3 +348,24 @@ has no other way to account for the difference between two deployments.
 #### Scenario: A deployment with reuse enabled serving the same design twice
 - **WHEN** an identical design request is made twice against such a deployment
 - **THEN** the second is served from the store and reports what the first reported
+
+
+### Requirement: The served page keeps the promises the other shells keep
+
+The page is the only surface with no `--help` and no signature, so the rules the other
+shells are held to apply to it explicitly.
+
+Its example inputs — placeholders and captions — SHALL use forms this deployment can
+resolve, and SHALL say that an accession, an rsID or an HGVS string needs a lookup
+database it cannot supply. Listing the accepted forms without that caveat is what puts
+them in a reader's first request.
+
+The page SHALL NOT promise that no sequence data leaves the deployment when the operator
+has enabled consequence annotation. It SHALL state what this deployment does, read from
+`GET /api/health`, in the banner where a human reads it and not only in the OpenAPI
+description.
+
+#### Scenario: A deployment with consequence annotation enabled
+- **WHEN** the page loads against a deployment reporting `vep_enabled`
+- **THEN** the banner says a variant can be sent off the deployment, and names what
+  causes it

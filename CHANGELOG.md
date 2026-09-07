@@ -2569,6 +2569,7 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+- The served page no longer offers example inputs it always refuses (a ClinVar accession, an rsID and an HGVS string sat in the variant placeholder), and its banner stops promising that no sequence data leaves a deployment that has consequence annotation enabled.
 - `aforge data show` answers whether a run can use the dataset right now, the question `aforge data list` already answered. It had printed the raw descriptor — `redistributable: True`, `sha256: None` — leaving the reader to know that the first is a licence permission and the second means the registry will not even fetch it.
 - `aforge bench run` states that a number came from a synthetic stand-in in every output mode. The caveat had been printed only in the bare terminal summary, so the two readers who keep the number — `--out` and `--json` — were the two never told.
 

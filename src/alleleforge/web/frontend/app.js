@@ -118,6 +118,16 @@ async function checkHealth() {
       sources.push(`tracks: ${h.chromatin_tracks.join("/")}`);
     }
     if (h.vep_enabled) sources.push("VEP consequence (external)");
+    // The disclaimer promised that no sequence data leaves this deployment. That is the
+    // sentence a reader checks before pasting a patient variant, and enabling the VEP
+    // annotation makes it false — so the page says what this deployment actually does,
+    // the way the API description does.
+    if (h.vep_enabled) {
+      document.getElementById("transmission").innerHTML =
+        "<strong>Compute is local, but this deployment can send a variant off it</strong> " +
+        "\u2014 ticking \u201cannotate the predicted consequence\u201d sends that variant, " +
+        "chromosome, position and both alleles, to an external VEP server.";
+    }
     const errors = Object.keys(h.source_errors || {});
     const basis = sources.length ? sources.join(" · ") : "reference-only";
     const broken = errors.length ? ` · configured but unreadable: ${errors.join(", ")}` : "";
