@@ -74,6 +74,59 @@ def test_every_field_reaches_a_renderer(model: type[BaseModel], receivers: tuple
     )
 
 
+#: Candidate fields one human render may legitimately carry and the other not. Empty:
+#: the spec requires the printable leave-behind to show what the on-screen report shows,
+#: and today nothing is format-specific. Kept as a named seam so a future exception has
+#: to be written down with a reason rather than silently passing.
+_HUMAN_RENDER_EXEMPT: dict[str, str] = {}
+
+
+def _fields_referenced(source: str) -> set[str]:
+    """Return the `CandidateReport` fields a renderer's source mentions as `c.<field>`."""
+    return {
+        field for field in CandidateReport.model_fields if re.search(rf"\bc\.{field}\b", source)
+    }
+
+
+def test_the_two_human_renders_carry_the_same_fields() -> None:
+    """The spec's actual requirement, which "at least one renderer" does not check.
+
+    `Reports lead with a disclaimer and carry the full design` requires every field on
+    **every** human-readable surface, "HTML and PDF alike, so the printable leave-behind
+    is not missing a field the on-screen report shows". The existing guard passes a field
+    rendered in HTML alone — and two fields were added to the HTML render in recent work
+    with nothing to notice if the PDF had been forgotten.
+    """
+    sources = _renderer_sources()
+    html_fields = _fields_referenced(sources["html.py"])
+    pdf_fields = _fields_referenced(sources["pdf.py"])
+    assert html_fields, "the HTML renderer references no candidate field — check the regex"
+    html_only = sorted(html_fields - pdf_fields - set(_HUMAN_RENDER_EXEMPT))
+    pdf_only = sorted(pdf_fields - html_fields - set(_HUMAN_RENDER_EXEMPT))
+    assert not html_only, f"the on-screen report shows {html_only} and the printable one does not"
+    assert not pdf_only, f"the printable report shows {pdf_only} and the on-screen one does not"
+
+
+def test_the_parity_check_notices_a_field_dropped_from_one_render() -> None:
+    """What it does and does not catch, stated rather than implied.
+
+    It compares `c.<field>` references, so it fails when a whole field stops being
+    rendered on one side — verified by deleting the `offtarget_worst_matrix` clause from
+    the PDF. It does *not* see inside a field: an attribute reached through a local
+    (`e = c.efficiency; e.point_from_trained_model`) is invisible to it, and those are
+    covered by the behavioural tests that assert the rendered text instead.
+    """
+    sources = _renderer_sources()
+    without = sources["pdf.py"].replace("c.offtarget_worst_matrix", "None")
+    assert _fields_referenced(sources["html.py"]) - _fields_referenced(without)
+
+
+def test_the_human_render_exemptions_are_real_fields() -> None:
+    """A staleness guard on the seam, so it cannot excuse fields that no longer exist."""
+    unknown = sorted(set(_HUMAN_RENDER_EXEMPT) - set(CandidateReport.model_fields))
+    assert not unknown, f"exempted fields that do not exist: {unknown}"
+
+
 def test_the_check_would_notice_an_unrendered_field() -> None:
     """Guard the guard: a field name absent from every renderer must be reported."""
 

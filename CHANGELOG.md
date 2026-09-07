@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **The two human renders are checked to carry the same fields.** The spec requires every field on "every
+  human-readable surface (HTML and PDF alike), so the printable leave-behind is not missing a field the
+  on-screen report shows", and the existing guard only asked whether a field reached *at least one*
+  renderer — so a field rendered in HTML alone passed while violating the requirement. Parity held by hand;
+  it is now checked, with the seam for a format-specific exception left empty and named, and the guard's
+  own limits stated: it compares whole fields, not attributes reached through a local.
+
 - **Every prediction's notes reach a reader, from one rule instead of two lists.** `_uncovered_notes`
   existed twice — once in the HTML render, once in the PDF — and both copies named `efficiency` and
   `bystander_burden` while neither named `p_intended_prediction`, so a note on the intended-allele

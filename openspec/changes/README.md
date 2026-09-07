@@ -9446,6 +9446,35 @@ together when they were copied from each other, so finding one incomplete tells 
 about the other; check both, then delete one.**
 
 
+## Round 289 — "at least one renderer" is not what the spec says
+
+R288 came from two renderers holding one rule. So: what do the twin renderers actually
+guarantee about each other? A diff says they touch the same 25 candidate fields — parity
+holds, including the two fields added in the last three rounds.
+
+The interesting part is what was enforcing it. `test_every_report_field_is_rendered` asks
+whether each field reaches *at least one* of html/pdf/export. The spec asks for something
+stronger:
+
+    on **every** human-readable surface (HTML and PDF alike), so the printable
+    leave-behind is not missing a field the on-screen report shows
+
+A field rendered in HTML alone passes the guard and violates the requirement — and I added
+exactly such fields in R286 and R287, remembering the PDF by hand both times. This is the
+R265 shape once more: a shipped SHALL held together by diligence, adjacent to a test that
+looks like it covers it.
+
+Parity is checked now. Two smaller decisions worth recording: the exemption seam is empty
+but named, so a future format-specific field has to be written down rather than silently
+passing; and the guard's limit is stated in a test of its own — it compares whole fields,
+so an attribute reached through a local (`e = c.efficiency; e.point_from_trained_model`) is
+invisible to it and stays covered by the behavioural tests that assert rendered text.
+
+**Lesson: a guard whose name matches a requirement is not evidence that it checks the
+requirement. Read the assertion against the sentence — "reaches a renderer" and "reaches
+every renderer" differ by one word and by the entire failure mode.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
