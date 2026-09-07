@@ -2056,6 +2056,14 @@ acceptance.
 
 ### Fixed
 
+- **A cross-chemistry menu says its efficiencies are not one scale.** A real menu orders `prime 0.366`
+  against `base_abe 0.400`, and those come from different models — `pridict2-baseline` and
+  `be-dict-baseline`, both named in the provenance, neither calibrated against the other. Projecting onto
+  four shared objectives is what makes the ordering possible; it does not make the efficiency axis one
+  measurement. The leaderboard already refuses to rank across metrics and says why; the design menu, which
+  *does* rank across chemistries because a user needs one list, had no equivalent sentence. It does now,
+  only when the menu actually spans chemistries.
+
 - **The docs' two-task leaderboard is pinned to keep the tasks apart.** `docs/api/cli.md` documents scoring
   two tasks and rendering one board. A Spearman on a regression task and an AUROC on a classification task
   are not comparable, and the spec says a rank never crosses a comparison group — so a refactor that merged

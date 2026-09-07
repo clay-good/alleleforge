@@ -9257,6 +9257,35 @@ asserts. Rendering is where incomparable things get put side by side, and a tabl
 claim that its rows belong in one order.**
 
 
+## Round 282 — the table that does rank incomparable things, on purpose
+
+R281 ended on "a table is a claim that its rows belong in one order". The leaderboard
+honours that by refusing to rank across metrics and printing a note saying why. So: where
+does this project rank things that are not one measurement *deliberately*?
+
+The design menu. A real run orders
+
+    prime      0.366   (pridict2-baseline)
+    base_abe   0.400   (be-dict-baseline)
+
+in one list. Both models are named in the provenance, neither is calibrated against the
+other, and both are uncalibrated heuristics today. Ranking them together is the right call
+— a user needs one list, and `ranking.py` documents the projection onto four shared
+objectives that makes it possible. What was missing is the leaderboard's other half: the
+sentence saying what the ordering is not.
+
+The rationale now carries it when a menu spans more than one chemistry, pointing at the
+provenance so the claim is checkable rather than atmospheric, and a single-chemistry menu
+does not get it. The golden manifest is unchanged — its fixture menu is base-editor only,
+which is a small piece of luck worth noting, since a golden that had to be re-pinned would
+have hidden nothing but would have cost a round.
+
+**Lesson: a project that carefully refuses to compare incomparable things in one place has
+usually decided to compare them somewhere else, for a good reason. That deliberate place is
+where the disclosure is most load-bearing and least likely to have been written — the
+refusal felt like the hard part, so it got the words.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

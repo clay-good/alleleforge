@@ -8,6 +8,20 @@ researcher sees not just a top pick but why it won and what it trades off.
 
 ## Requirements
 
+### Requirement: A cross-chemistry ordering says what it is not
+
+Candidates from different chemistries are ordered by projecting them onto four shared
+objectives, and their efficiency numbers come from a different model per chemistry, none
+calibrated against another. When a menu spans more than one chemistry its rationale SHALL
+say so and name where the models are recorded, so a rank is read as triage rather than as
+a measured comparison between chemistries. A single-chemistry menu SHALL NOT carry the
+note.
+
+#### Scenario: A menu spanning two chemistries
+- **WHEN** the ranked menu contains candidates of more than one chemistry
+- **THEN** the rationale states that efficiency comes from a different model per
+  chemistry, that those models are not cross-calibrated, and that the ordering is triage
+
 ### Requirement: Routing selects only biologically eligible chemistries
 
 Routing SHALL evaluate a data-driven table of pure predicates and return one decision per

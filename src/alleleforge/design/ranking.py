@@ -404,13 +404,30 @@ def rank_candidates(
         if n_tied > 1
         else ""
     )
+    # A mixed menu orders `prime 0.366` against `base_abe 0.400`, and those two numbers
+    # come from different models — `pridict2-baseline` and `be-dict-baseline`, both named
+    # in the provenance, neither calibrated against the other. The projection onto four
+    # shared objectives is what makes the ordering *possible*; it does not make the
+    # efficiency axis one measurement. The leaderboard already refuses to rank across
+    # metrics and says why; this is the same statement for the surface that does rank
+    # across chemistries because a user needs one list. Only when the menu actually spans
+    # more than one chemistry: a note that always appears is not a note.
+    chemistries = {candidate.chemistry for candidate in ranked}
+    cross_chemistry_note = (
+        " Efficiency is predicted by a different model for each chemistry (named in the "
+        "provenance) and those models are not calibrated against one another, so a "
+        "cross-chemistry ordering is triage, not a measured comparison."
+        if len(chemistries) > 1
+        else ""
+    )
     rationale = (
         "Ranked by a weighted sum of four higher-is-better objectives "
         f"(efficiency {w['efficiency']:.2f}, cleanliness {w['cleanliness']:.2f}, "
         f"safety {w['safety']:.2f}, simplicity {w['simplicity']:.2f}); the safety "
         "term uses the worst-affected ancestry and the efficiency term is "
-        f"uncertainty-discounted.{ood_note} The Pareto front lists the "
-        f"{len(front)} candidate(s) not dominated on all four objectives.{tie_note}"
+        f"uncertainty-discounted.{cross_chemistry_note}{ood_note} The Pareto front "
+        f"lists the {len(front)} candidate(s) not dominated on all four "
+        f"objectives.{tie_note}"
     )
     return RankingOutcome(
         candidates=tuple(ranked),
