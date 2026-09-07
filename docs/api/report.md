@@ -42,9 +42,14 @@ written into the genome permanently.
 
 ## Machine-readable export
 
-JSON is lossless (the full report, or the underlying ranked menu validated
-against the Phase 1 schemas); TSV is one flat row per candidate; Parquet is the
-columnar batch form.
+There are two JSON forms and the difference matters. `menu_to_json` writes the ranked
+menu and is the **lossless** one: everything the design produced, including each
+candidate's full outcome spectrum and its off-target site rows (`aforge design --json`
+writes it). `report_to_json` writes the report, which is a *summary* — every candidate,
+with counts and aggregates in place of those rows — so it is complete as a serialization
+of the report and is not where to look for detail the report withheld; the renders say so
+wherever they withhold something. Both validate against the Phase 1 schemas. TSV is one
+flat row per candidate; Parquet is the columnar batch form.
 
 ::: alleleforge.report.export
 
@@ -60,8 +65,8 @@ weight the objectives differently from your defaults"*, so a candidate optimal o
 safety but 200th on the composite score is exactly the one such a reader opened the
 report for. The two renders share
 [`visible_candidates`][alleleforge.report.builder.visible_candidates] so they cannot
-drift apart on that guarantee, and the lossless exports above ignore the cap
-entirely.
+drift apart on that guarantee. No export applies this cap: every candidate is in the
+JSON, TSV and Parquet forms whatever it is set to.
 
 ::: alleleforge.report.html
 

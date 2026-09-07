@@ -21,6 +21,16 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **One account of what each export carries, instead of four.** Grepping for the *sentence* rather than
+  the bug turned up "lossless" in four more places, all describing `report_to_json`. It is the complete
+  serialization of the report and the report is a summary, so the word was true of the candidate list
+  and false of the per-allele and per-site detail — including in the note added two rounds earlier to fix
+  the same claim, which then sat on the same page as two notes saying that detail is elsewhere. The
+  ranked menu (`menu_to_json`, `aforge design --json`) is the lossless form and is now named as such in
+  the module docstring, the API reference and the two withheld-detail notes; the candidate note says the
+  narrower thing that is entirely true — the render capped, no export did. A guard rejects the word in
+  any render's prose.
+
 - **Fixed: an off-target site count with no route to the sites.** A candidate's safety section gives a
   count, a specificity, the scorer, the matrix and the search budget — and no site rows, by design, since
   the report summarises. `--format json` writes that same summary: `CandidateReport` has

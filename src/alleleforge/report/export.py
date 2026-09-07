@@ -1,8 +1,13 @@
 """Machine-readable export of a design report: JSON, TSV, and Parquet.
 
-JSON is the lossless form (the full :class:`~alleleforge.report.builder.DesignReport`,
-or the underlying :class:`~alleleforge.types.candidate.RankedMenu` validated
-against the Phase 1 schemas). TSV is the flat, one-row-per-candidate form for
+There are two JSON forms and the difference matters. :func:`menu_to_json` writes the
+:class:`~alleleforge.types.candidate.RankedMenu` and is the **lossless** one: everything
+the design produced, including each candidate's full outcome spectrum and its off-target
+site rows. :func:`report_to_json` writes the
+:class:`~alleleforge.report.builder.DesignReport`, which is a *summary* — every candidate,
+with counts and aggregates in place of those rows — so it is complete as a serialization
+of the report and is not the place to look for detail the report withheld. Both validate
+against the Phase 1 schemas. TSV is the flat, one-row-per-candidate form for
 spreadsheets and pipelines. Parquet is the columnar form for batch runs and is
 the only export with an optional dependency (``polars``), imported lazily so the
 core install never pulls it.
@@ -92,7 +97,13 @@ TSV_COLUMNS = (
 
 
 def report_to_json(report: DesignReport, *, indent: int | None = 2) -> str:
-    """Serialize the full report to JSON (lossless)."""
+    """Serialize the whole report to JSON: every field the report holds, nothing added.
+
+    Not the lossless form of a *design*. The report is a summary — a candidate's outcome
+    spectrum is truncated to `top_alleles` and its off-target sites are reduced to a
+    count — and serializing it faithfully preserves the summary, not the detail. Use
+    :func:`menu_to_json` for that; the renders say so where they withhold something.
+    """
     return report.model_dump_json(indent=indent)
 
 

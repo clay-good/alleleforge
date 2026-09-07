@@ -10291,6 +10291,37 @@ R305 fixed the one it was standing on. The phrase was the shared cause and it wa
 searchable the whole time.**
 
 
+## Round 315 — grepping for the sentence, as R314 said to
+
+R314's lesson was that when a wrong sentence is found, the thing to search for is the
+sentence. Doing that for "lossless" returned four more:
+
+    export.py:3    "JSON is the lossless form (the full DesignReport …)"
+    export.py:95   """Serialize the full report to JSON (lossless)."""
+    html.py:411    "The lossless exports carry the full set."
+    builder.py:594 "the full ranking is in the JSON export, which is lossless …"
+
+The last one is mine, written in R304 to fix the *first* instance of this claim, two
+rounds before R305 and R314 established that the report export is a summary. So the page
+ended up carrying three sentences at once: the detail is not in the report export
+(alleles), the detail is not in the report export (sites), and the report export is
+lossless.
+
+Each is defensible in isolation. `report_to_json` really does serialize every field the
+`DesignReport` holds. The word "lossless" is about the serialization; a reader takes it to
+be about the design. The fix is to stop using the word where it can be read the second way
+and to name the ranked menu, which genuinely is the lossless form, in all four places
+plus the API reference.
+
+A guard now rejects "lossless" in any render's prose, using the string-extractor R304
+built for the invented-format check — the second finding that machinery has caught.
+
+**Lesson: a fix written before the diagnosis was complete becomes part of the defect. R304
+was right about CSV and wrong about lossless, and being a *fix* is what made the sentence
+credible enough to survive two rounds that contradicted it. When a later round narrows the
+truth, re-read the sentences the earlier ones wrote.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

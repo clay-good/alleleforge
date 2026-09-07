@@ -83,11 +83,43 @@ def test_the_allowances_are_not_hiding_a_real_format() -> None:
     assert not overlap, f"these are real exports and need no allowance: {overlap}"
 
 
-def test_the_withheld_note_names_the_lossless_one_and_the_flat_ones_apart() -> None:
-    """ "Lossless" is true of the JSON alone; the flat tables cannot carry the details."""
+def test_the_withheld_note_names_the_formats_that_actually_hold_them() -> None:
+    """The claim is about the *cap*, which no export applies — not about losslessness.
+
+    An earlier version of this sentence said the JSON export was lossless. That was
+    correct about the candidate list and wrong about everything else, and it sat on the
+    same page as two notes saying the per-allele and per-site detail lives on the ranked
+    menu. What the reader needs here is narrower and entirely true: the render capped;
+    the exports did not.
+    """
     note = WITHHELD_CANDIDATES_NOTE
     assert "CSV" not in note
-    assert "JSON" in note and "lossless" in note
-    assert "TSV" in note and "Parquet" in note
-    # The claim is scoped to the JSON, not spread across all three.
-    assert note.index("lossless") < note.index("TSV"), note
+    assert "lossless" not in note, note
+    for name in ("JSON", "TSV", "Parquet"):
+        assert name in note, note
+
+
+#: Claims a render must not make about the export it can actually produce. `lossless` is
+#: true of `menu_to_json` — the ranked menu, with every allele and every off-target site
+#: row — and of nothing a render points at. It was said of "the JSON/CSV export" (which
+#: does not exist), of the withheld alleles (which are not there) and of the withheld
+#: site rows (likewise), and then once more in the sentence added to fix the first, on
+#: the same page as two notes saying the detail is somewhere else.
+_FORBIDDEN_IN_PROSE = {
+    "lossless": (
+        "the report export is a serialization of a summary; say what it carries, or "
+        "name the ranked menu"
+    ),
+}
+
+
+@pytest.mark.parametrize("module", ["html.py", "pdf.py", "builder.py"])
+def test_no_render_calls_the_report_export_lossless(module: str) -> None:
+    offenders: list[tuple[str, str]] = []
+    for text in _user_facing_strings(_REPORT / module):
+        for word in _FORBIDDEN_IN_PROSE:
+            if word in text.lower():
+                offenders.append((word, text[:100]))
+    assert not offenders, f"report/{module} says this to a reader: {offenders}. " + "; ".join(
+        _FORBIDDEN_IN_PROSE.values()
+    )

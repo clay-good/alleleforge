@@ -458,10 +458,10 @@ def _candidate_report(
         # On a mixed table the effective matrix reads "published + approximation", which
         # tells a reader both scales were used and not which one produced the number they
         # are acting on. The report carries no per-site rows by design — it summarises,
-        # and the lossless export has the sites — so the one site whose score a reader
-        # takes away, the worst, names its own matrix here. Only when they differ.
-        # ("the lossless export" here means the *ranked menu*: `report_to_json` carries
-        # this summary and no site rows. The renders say so beside the count.)
+        # and the *ranked menu* has the sites (not `report_to_json`, which serializes
+        # this summary; the renders say so beside the count) — so the one site whose
+        # score a reader takes away, the worst, names its own matrix here. Only when
+        # they differ.
         matrices = {s.score_matrix for s in candidate.offtarget.sites if s.score_matrix}
         if len(matrices) > 1:
             worst_site = max(candidate.offtarget.sites, key=lambda site: site.score)
@@ -505,7 +505,7 @@ def _candidate_report(
 #: Default cap on how many candidates a *human-facing* render draws. A prime
 #: design routinely yields several hundred — every PBS x RTT-homology x PAM
 #: combination is a distinct pegRNA — which makes a "self-contained" page or PDF
-#: run to megabytes for a tail nobody reads. The lossless exports ignore this.
+#: run to megabytes for a tail nobody reads. No export is capped by it.
 DEFAULT_RENDER_CANDIDATES = 50
 
 
@@ -587,11 +587,13 @@ NOMINATED_SITES_NOTE = (
     f"are {RANKED_MENU_SOURCE}"
 )
 
-#: Where the candidates a render withheld can actually be found. One sentence, shared
-#: by the two human renders, naming the lossless form and the complete-but-flat one
-#: separately because they answer different questions.
+#: Where the candidates a render withheld can actually be found. One sentence, shared by
+#: the two human renders. It no longer calls the report export "lossless": that word was
+#: correct about the *candidate list* and wrong about everything else, and it sat on the
+#: same page as two notes saying the per-allele and per-site detail is somewhere else.
+#: The render cap is the only cap; the exports carry every candidate.
 WITHHELD_CANDIDATES_NOTE = (
-    "the full ranking is in the JSON export, which is lossless, and as one row per "
+    "no export is capped — every candidate is in the JSON report and as one row per "
     "candidate in the TSV and Parquet tables"
 )
 

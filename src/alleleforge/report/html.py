@@ -408,8 +408,8 @@ def render_html(
         report: The report to render.
         max_candidates: How many ranked candidates to render, or ``None`` for all.
             Every Pareto-front candidate is rendered whatever the cap, and any
-            withheld count is stated on the page. The lossless exports carry the
-            full set.
+            withheld count is stated on the page. No export is capped: every
+            candidate is in the JSON, TSV and Parquet forms whatever this is set to.
 
     Returns:
         A full, self-contained HTML document (disclaimer first, provenance last)
