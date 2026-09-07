@@ -1218,19 +1218,23 @@ def test_verify_detects_tampered_checkpoint(runner: CliRunner, tmp_path: Path) -
 
 
 def test_verify_detects_tampered_dataset(runner: CliRunner, tmp_path: Path) -> None:
-    # A pinned dataset (the vendored Doench-2016 CFD matrix is the load-bearing case)
-    # is a result-determining artifact: the tamper contract covers a checkpoint *or
-    # dataset* whose bytes no longer match its hash, so verify must re-hash it too.
+    # A pinned dataset is a result-determining artifact: the tamper contract covers a
+    # checkpoint *or dataset* whose bytes no longer match its hash, so verify must
+    # re-hash it too. Exercised on a *cached* dataset here; the vendored CFD matrix is
+    # `bundled`, read from the installed package rather than the cache, and has its own
+    # tamper case in `test_a_scored_run_records_the_matrix_that_scored_it.py`.
     import hashlib
 
     from alleleforge.data.registry import DEFAULT_REGISTRY
     from alleleforge.types.provenance import DatasetVersion
 
-    payload = b'{"cfd": "matrix"}'
+    name = "gnomad"
+    assert not DEFAULT_REGISTRY.get(name).bundled, "pick a dataset that lives in the cache"
+    payload = b"#chrom\tpos\tref\talt\taf\n"
     digest = hashlib.sha256(payload).hexdigest()
-    ds = DatasetVersion(name="doench-2016-cfd", version="2016", sha256=digest)
+    ds = DatasetVersion(name=name, version=DEFAULT_REGISTRY.get(name).version, sha256=digest)
     cache = tmp_path / "cache"
-    ds_path = DEFAULT_REGISTRY.cache_path("doench-2016-cfd", cache_dir=cache)
+    ds_path = DEFAULT_REGISTRY.cache_path(name, cache_dir=cache)
     ds_path.parent.mkdir(parents=True)
     ds_path.write_bytes(payload)
     path = _menu_with_provenance(tmp_path, datasets=(ds,))
@@ -1238,7 +1242,7 @@ def test_verify_detects_tampered_dataset(runner: CliRunner, tmp_path: Path) -> N
     ok = runner.invoke(app, ["verify", str(path), "--cache-dir", str(cache)])
     assert ok.exit_code == 0 and "ok" in ok.output
 
-    ds_path.write_bytes(b"tampered-cfd-matrix")
+    ds_path.write_bytes(b"tampered")
     bad = runner.invoke(app, ["verify", str(path), "--cache-dir", str(cache)])
     assert bad.exit_code == ExitCode.UNAVAILABLE
     assert "MISMATCH" in bad.output

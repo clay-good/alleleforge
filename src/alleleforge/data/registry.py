@@ -54,6 +54,18 @@ class DatasetDescriptor(DatasetVersion):
     filename: str
     populations: tuple[str, ...] = ()
     bundled: bool = False
+    bundled_path: str | None = None
+
+    def bundled_file(self) -> Path | None:
+        """Return the shipped bytes' path inside the installed package, if any.
+
+        `bundled` said the bytes ship and nothing said *where*, so every consumer had
+        to look in the cache — which is the one place a bundled file never is. The
+        dataset whose bytes are always present was the one reported unavailable.
+        """
+        if not self.bundled or self.bundled_path is None:
+            return None
+        return Path(__file__).resolve().parent.parent / self.bundled_path
 
     def dataset_version(self) -> DatasetVersion:
         """Return the plain :class:`DatasetVersion` recorded in provenance."""
@@ -298,6 +310,7 @@ DEFAULT_REGISTRY = DatasetRegistry(
             # loaded from the package, never from the cache.
             bundled=True,
             filename="cfd_matrix.json",
+            bundled_path="offtarget/cfd_matrix.json",
         ),
     }
 )

@@ -2236,7 +2236,14 @@ def verify(
                 # No known cache layout to locate the bytes; report rather than pass.
                 checks.append({"artifact": label, "status": "unknown"})
                 continue
-            ds_path = DEFAULT_REGISTRY.cache_path(ds.name, cache_dir=cache_dir)
+            # A bundled dataset ships inside the installed package and is never in the
+            # cache, so looking there reported "not-cached" for the one dataset whose
+            # bytes are always available to hash — and it is the vendored CFD matrix,
+            # which produces every specificity number on the result being verified.
+            descriptor = DEFAULT_REGISTRY.get(ds.name)
+            ds_path = descriptor.bundled_file() or DEFAULT_REGISTRY.cache_path(
+                ds.name, cache_dir=cache_dir
+            )
             if not ds_path.is_file():
                 checks.append({"artifact": label, "status": "not-cached"})
                 continue

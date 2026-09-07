@@ -283,3 +283,31 @@ leave behind.
 #### Scenario: A bare sidecar naming no model
 - **WHEN** the file is a provenance block with no result attached
 - **THEN** `verify` accepts it, having nothing to cross-check
+
+
+### Requirement: A scored run records the weight matrix that scored it
+
+The off-target weight matrix is a registered, pinned, cited dataset, and every
+specificity a run reports comes out of it. A run whose reported sites were scored by a
+registered matrix SHALL record that matrix in `provenance.datasets`, so the footer names
+the data the numbers came from and `verify --cache-dir` can re-hash it.
+
+The matrices SHALL be read from the reported sites rather than from the scorer's
+configuration — a fixed published matrix falls back to a length-relative approximation
+per hit — and an unregistered matrix, having no pinned bytes, SHALL NOT be recorded.
+
+A **bundled** dataset ships inside the installed package and is never in the cache;
+re-hashing SHALL read it from the package, so the one dataset whose bytes are always
+present is not reported unavailable.
+
+#### Scenario: An off-target search scored with the published CFD matrix
+- **WHEN** the run's reported sites name a registered matrix
+- **THEN** provenance records it with its pinned hash and citation
+
+#### Scenario: A run with no off-target search
+- **WHEN** no search ran
+- **THEN** no matrix is recorded — nothing was consumed
+
+#### Scenario: Re-hashing a bundled dataset
+- **WHEN** `verify --cache-dir` checks a dataset marked bundled
+- **THEN** it hashes the package's copy, and a modified copy is a MISMATCH

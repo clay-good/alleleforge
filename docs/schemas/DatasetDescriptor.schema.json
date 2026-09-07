@@ -6,6 +6,18 @@
       "title": "Bundled",
       "type": "boolean"
     },
+    "bundled_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Bundled Path"
+    },
     "citation": {
       "anyOf": [
         {

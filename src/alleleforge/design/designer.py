@@ -398,6 +398,12 @@ def design(
             # depends on as much as gnomAD is; a run that used them and does not
             # name them is not re-derivable from its own provenance.
             extra=(haplotypes, patient_vcf, encode_tracks),
+            # The weight matrix every specificity number on the menu came out of. It
+            # is a registered, sha-pinned, *bundled* dataset and it was the one input
+            # a scored run never recorded: an off-target run reported `matrix
+            # doench-2016-cfd` on every candidate and `0 dataset(s)` in provenance, so
+            # `verify --cache-dir` could not re-hash the file that produced them.
+            scored_matrices=_scored_matrices(candidates),
         ),
         config_snapshot={
             "intent": intent.value,
@@ -630,12 +636,31 @@ def _reference_snapshot(reference: ReferenceGenome) -> dict[str, object]:
     }
 
 
+def _scored_matrices(candidates: Sequence[DesignCandidate]) -> frozenset[str]:
+    """Return the weight-matrix identities the candidates' reported sites were scored by.
+
+    Read off the results rather than off the scorer's configuration: a fixed published
+    matrix falls back to the length-relative approximation per hit, so what a run
+    *consumed* is what its sites say, not what it was set to.
+    """
+    used: set[str] = set()
+    for candidate in candidates:
+        report = candidate.offtarget
+        if report is None:
+            continue
+        effective = report.effective_matrix()
+        if effective:
+            used.update(part.strip() for part in effective.split("+"))
+    return frozenset(used)
+
+
 def _collect_datasets(
     reference: ReferenceGenome,
     gnomad: GnomadDB | None,
     clinvar: ClinVarLookup | None,
     *,
     extra: Sequence[object] = (),
+    scored_matrices: frozenset[str] = frozenset(),
 ) -> tuple[DatasetVersion, ...]:
     """Return the deduped dataset versions the run actually consumed.
 
@@ -655,6 +680,17 @@ def _collect_datasets(
         version = getattr(source, "dataset_version", None)
         if isinstance(version, DatasetVersion):
             seen.setdefault((version.name, version.version), version)
+    # A scoring matrix is a dataset the run read, not a model it ran: it is registered,
+    # pinned and cited like every other one. Only matrices the registry knows are
+    # recorded — the length-relative approximation is code, has no bytes to pin, and is
+    # already named per site and per candidate.
+    from alleleforge.data.registry import DEFAULT_REGISTRY
+
+    for matrix in sorted(scored_matrices):
+        if matrix not in DEFAULT_REGISTRY:
+            continue
+        version = DEFAULT_REGISTRY.get(matrix).dataset_version()
+        seen.setdefault((version.name, version.version), version)
     return tuple(seen.values())
 
 

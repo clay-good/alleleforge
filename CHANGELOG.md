@@ -21,6 +21,21 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **A scored run now records the weight matrix that scored it.** `aforge design --region ...` labelled
+  every candidate `matrix doench-2016-cfd`, with the citation, and its provenance said `0 dataset(s)`.
+  The matrix is a registered dataset with a pinned sha256 and it is the only one whose bytes actually
+  ship. So the footer that "names the datasets and tools a run consumed" named none, and — the part that
+  matters — `verify --cache-dir` re-hashes `provenance.datasets`, meaning the tamper contract did not
+  cover the file that produced every safety number on the result. The matrices are read off the reported
+  *sites*, not the scorer's configuration (a fixed published matrix falls back to the length-relative
+  approximation per hit, and that approximation is code with no bytes to pin), and a run with no search
+  records none.
+- **Fixed: `verify` reported the one always-available dataset as `not-cached`.** `bundled` said the bytes
+  ship inside the installed package and nothing said *where*, so every consumer looked in the cache — the
+  one place a bundled file never is. `DatasetDescriptor` now resolves its shipped path, `verify` hashes
+  it there, and a test pins that path equal to the one the scorer loads, since two paths to the same
+  bytes are two paths that drift.
+
 - **`aforge verify` now checks the record against the result.** Every check it ran was verifiable from
   the provenance block by itself — a version string, a config snapshot, a name and version on each entry
   that is *listed*. Nothing looked at the artifact the block is attached to, so emptying `models` (one

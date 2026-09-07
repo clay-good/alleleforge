@@ -10188,6 +10188,45 @@ contains its own subject matter, the subject matter is evidence — ask what the
 implies must be in the record, not just whether the record parses.**
 
 
+## Round 312 — the tamper contract did not cover the file it was built for
+
+R311's lesson said the artifact is evidence about what the record must contain. Run
+against the *dataset* half of the same record, on a run that actually searched:
+
+    matrix doench-2016-cfd                          on every candidate, with the citation
+    provenance: ... 2 model(s), 0 dataset(s)
+
+The vendored Doench 2016 CFD matrix is this project's authenticity centrepiece — the
+round that vendored it cross-verified all 240 weights against CRISPOR and CRISPRitz, and
+it is the default scorer. It is registered, sha-pinned, and the only dataset whose bytes
+actually ship. It was also the one input a scored run never recorded.
+
+The footer consequence is the visible one: "the provenance footer names the datasets and
+tools a run consumed" named none. The real one is that `verify --cache-dir` re-hashes
+`provenance.datasets`, so the mechanism that turns provenance from a record into a
+checkable claim did not cover the file that produced every specificity on the result.
+
+Recording it exposed the next defect on the first run:
+
+    checkpoint doench-2016-cfd.2016: not-cached
+
+`bundled` said the bytes ship and nothing said *where*, so every consumer resolved the
+cache path — the one place a bundled file never is. The dataset that can always be hashed
+was the one reported unavailable. `DatasetDescriptor` now carries its shipped path, and a
+test pins it equal to the constant the scorer loads, because two paths to the same bytes
+are two paths that drift.
+
+The matrices are read off the reported *sites*, not the scorer's configuration: a fixed
+published matrix falls back to the length-relative approximation per hit, and only what
+was actually consumed belongs in the record.
+
+**Lesson: "which datasets did this run read" was answered by asking the inputs, and the
+matrix is not an input — it is a constant compiled into the scorer, so nobody thought of
+it as data. It is data: it has a version, a licence, a citation and a hash, and every
+number on the page is a function of it. Ask what the OUTPUT depends on, not what the
+caller passed in.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
