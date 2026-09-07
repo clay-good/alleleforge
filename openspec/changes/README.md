@@ -9286,6 +9286,34 @@ where the disclosure is most load-bearing and least likely to have been written 
 refusal felt like the hard part, so it got the words.**
 
 
+## Round 283 — the same caveat, on the surface built for sorting
+
+R282 put the cross-chemistry disclosure on the ranked menu. The cohort summary is the
+same comparison with more of it: a real run's rows read
+
+    chr2:1006:G>A   base_abe   0.6000
+    chr2:1050:G>A   prime      0.3657
+    chr2:1052:G>A   base_abe   0.6000
+
+and a cohort is *triaged by sorting a column*. `best_efficiency` is the column people sort,
+so the surface whose entire purpose is ordering rows against one another was the one with
+no statement about what that ordering compares — while the single-variant page, where a
+reader sees one candidate at a time, had it. The wrong way round.
+
+The sentence is a shared constant now, used by both. Writing it twice was the obvious
+shortcut and it is how two wordings of one caveat come to exist with only one of them
+maintained — the exact shape of R258 and R273, and I had the opportunity to create it here
+one round after writing about it.
+
+It sits in the `#` note block, so a comment-skipping reader still gets a clean table, and a
+single-chemistry cohort does not carry it.
+
+**Lesson: after adding a disclosure, ask which surface makes the compared quantities
+easiest to compare. That is where it matters most, and it is rarely the surface the
+disclosure was written for — sorting a column is a stronger comparison than reading a
+page.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

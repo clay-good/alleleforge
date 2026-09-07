@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **The cohort summary qualifies the column it is sorted by.** A cohort is triaged by sorting
+  `best_efficiency`, and a real run puts `base_abe 0.6000` next to `prime 0.3657` — outputs of different,
+  mutually uncalibrated models. The single-variant menu states this in its rationale (above); the surface
+  *designed* for sorting had nothing, which is the wrong way round. The note is one shared constant rather
+  than two wordings, sits in the `#` block so a comment-skipping reader still gets a clean table, and is
+  omitted when every row's best candidate is the same chemistry.
+
 - **A cross-chemistry menu says its efficiencies are not one scale.** A real menu orders `prime 0.366`
   against `base_abe 0.400`, and those come from different models — `pridict2-baseline` and
   `be-dict-baseline`, both named in the provenance, neither calibrated against the other. Projecting onto

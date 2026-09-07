@@ -1203,6 +1203,7 @@ def _batch_tsv(rows: list[dict[str, Any]], provenance: Any | None = None) -> str
             rendered = value
         return str(rendered).replace("\t", " ").replace("\r", " ").replace("\n", " ")
 
+    from alleleforge.design.ranking import CROSS_CHEMISTRY_NOTE
     from alleleforge.report.builder import COORDINATE_NOTE, RESEARCH_USE_DISCLAIMER
 
     # `CohortRunReport.provenance` is a plain dict assembled by the cohort runner,
@@ -1219,6 +1220,13 @@ def _batch_tsv(rows: list[dict[str, Any]], provenance: Any | None = None) -> str
         f"intent {run.get('intent')}",
         f"started {run.get('started_at')}",
     ]
+    # A cohort is triaged by sorting a column, and `best_efficiency` is the column people
+    # sort. When the rows' best candidates span chemistries, that sort compares a
+    # base-editor number with a prime number — outputs of different, mutually
+    # uncalibrated models. The single-variant menu states this in its rationale; the
+    # surface built for sorting had nothing, which is the wrong way round.
+    if len({r.get("best_chemistry") for r in rows if r.get("best_chemistry")}) > 1:
+        notes.append(CROSS_CHEMISTRY_NOTE)
 
     def _sources(value: Any) -> Any:
         """Keep "searched, reference-only" distinct from "not searched".

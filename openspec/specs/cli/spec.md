@@ -308,6 +308,19 @@ entirely from a file SHALL produce the same result as the equivalent command-lin
 - **THEN** the candidates, the rationale and the provenance snapshot match the
   flag-driven run
 
+### Requirement: A cohort summary qualifies the column it is sorted by
+
+A cohort is triaged by sorting `best_efficiency`, and when the rows' best candidates span
+chemistries that sort compares outputs of different, mutually uncalibrated models. The
+summary SHALL carry the same statement the single-variant menu carries, in its `#` note
+block so a comment-skipping reader still gets a clean table, and SHALL omit it when every
+row's best candidate is the same chemistry.
+
+#### Scenario: A cohort spanning chemistries
+- **WHEN** the summary's rows name more than one `best_chemistry`
+- **THEN** the note block states that efficiency comes from a different model per
+  chemistry and the ordering is triage rather than a measured comparison
+
 ### Requirement: A cohort's counts range over the same population
 
 A run summary states how many items were processed, succeeded, failed and skipped. These

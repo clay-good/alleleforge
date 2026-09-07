@@ -36,6 +36,15 @@ from alleleforge.types.edit import Chemistry
 #: The four ranking objectives, all higher-is-better, in display order.
 OBJECTIVES = ("efficiency", "cleanliness", "safety", "simplicity")
 
+#: Said wherever candidates of different chemistries are ordered together — the ranked
+#: menu's rationale and the cohort summary, which is the surface people sort. One
+#: constant, because two wordings of one caveat drift and only one of them gets updated.
+CROSS_CHEMISTRY_NOTE = (
+    "Efficiency is predicted by a different model for each chemistry (named in the "
+    "provenance) and those models are not calibrated against one another, so a "
+    "cross-chemistry ordering is triage, not a measured comparison."
+)
+
 
 @dataclass(frozen=True)
 class RankingWeights:
@@ -413,13 +422,7 @@ def rank_candidates(
     # across chemistries because a user needs one list. Only when the menu actually spans
     # more than one chemistry: a note that always appears is not a note.
     chemistries = {candidate.chemistry for candidate in ranked}
-    cross_chemistry_note = (
-        " Efficiency is predicted by a different model for each chemistry (named in the "
-        "provenance) and those models are not calibrated against one another, so a "
-        "cross-chemistry ordering is triage, not a measured comparison."
-        if len(chemistries) > 1
-        else ""
-    )
+    cross_chemistry_note = f" {CROSS_CHEMISTRY_NOTE}" if len(chemistries) > 1 else ""
     rationale = (
         "Ranked by a weighted sum of four higher-is-better objectives "
         f"(efficiency {w['efficiency']:.2f}, cleanliness {w['cleanliness']:.2f}, "
