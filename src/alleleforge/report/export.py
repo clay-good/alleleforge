@@ -21,7 +21,7 @@ from alleleforge.types.candidate import RankedMenu
 #: added, removed, or reinterpreted so a downstream consumer can detect the drift —
 #: and for v6, when the TSV grew its leading `#` note block, which a reader that skips
 #: no comments does see.
-EXPORT_SCHEMA_VERSION = 9
+EXPORT_SCHEMA_VERSION = 10
 
 #: The flat TSV column order (one row per candidate). ``schema_version`` leads so a
 #: reader can branch on the format before touching any other column.
@@ -69,6 +69,11 @@ TSV_COLUMNS = (
     "worst_ancestry",
     "worst_ancestry_score",
     "flags",
+    # Ordering hazards found in the oligos themselves — an internal Type IIS site means
+    # the cloning enzyme cuts the insert. They reach the HTML, the PDF and the JSON, and
+    # not the table a pipeline filters on, which is the surface that places the order.
+    # Empty when oligos were not requested, like every other conditional column.
+    "oligo_warnings",
     # The hazard subset of `flags`, so a pipeline can filter on "needs attention"
     # without hard-coding which flag names are hazards — a list that grows.
     "caveats",
@@ -132,6 +137,9 @@ def _row(candidate: Any) -> dict[str, Any]:
         "worst_ancestry": None if worst is None else worst.ancestry,
         "worst_ancestry_score": None if worst is None else round(worst.worst_score, 4),
         "flags": ";".join(candidate.flags),
+        "oligo_warnings": ";".join(
+            getattr(candidate.oligos, "warnings", ()) if candidate.oligos else ()
+        ),
         "caveats": ";".join(flag for flag, _ in caveats(candidate.flags)),
         "rationale": candidate.rationale,
         "reagent": candidate.reagent,

@@ -9,6 +9,18 @@ is safety-critical.
 
 ## Requirements
 
+### Requirement: An ordering hazard reaches the machine-readable table
+
+An internal Type IIS site in an insert means the assembly enzyme cuts the construct — a
+failure discovered after the DNA is paid for. The oligo screen's warnings SHALL reach the
+flat per-candidate export a pipeline filters on, not only the human renders and the
+lossless JSON, and SHALL be empty when oligos were not requested so that "not screened" is
+never read as "screened and clean".
+
+#### Scenario: An insert containing the cloning enzyme's site
+- **WHEN** a candidate's oligos carry a screen warning
+- **THEN** it appears in the TSV row as well as the HTML, PDF and JSON
+
 ### Requirement: Every oligo set round-trips
 
 Each oligo set SHALL be reconstructable back to its inputs at construction, and reverse

@@ -9591,6 +9591,32 @@ enumeration nobody wrote — the property is already true, and what is missing i
 that keeps it true for the next author.**
 
 
+## Round 294 — the sheet was right; the table a robot reads was not
+
+Read a real cloning-oligo sheet, the artifact whose errors cost an actual DNA order. It is
+carefully built: every duplex on it reconstructs — the spacer pair, the pegRNA extension
+(with an independent RTT/PBS boundary check), and the nicking guide, each verified at
+construction rather than by a method nobody calls; the single-stranded HDR donor is
+exempt by construction and says so. Four probes, four clean.
+
+The sheet also carried a real hazard, fired by the fixture design:
+
+    WARNING: internal-BsaI-site:pegrna-extension:+@27
+
+The insert contains the site of the enzyme used to assemble it, so the enzyme cuts the
+construct. That reached the HTML, the PDF and the JSON. It did not reach the TSV — the flat
+per-candidate table a pipeline filters before placing the order. Sequences belong out of
+that table, being long; a fourteen-character hazard string does not, and the table already
+has `flags` as its hazard channel.
+
+Empty when `with_oligos` was not requested, because the screen did not run — the R278
+distinction, applied to a column added the same day.
+
+**Lesson: rank the surfaces by what acts on them. A human reading the PDF can notice a
+warning anywhere on the page; a pipeline sees only the columns it selected, so the
+machine-readable table is where an omitted hazard becomes an executed mistake.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

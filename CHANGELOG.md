@@ -2056,6 +2056,14 @@ acceptance.
 
 ### Fixed
 
+- **An ordering hazard reaches the table a pipeline filters on.** The oligo screen warns when an insert
+  contains the assembly enzyme's own site (`internal-BsaI-site:pegrna-extension:+@27`) — the enzyme cuts
+  the construct, a failure found after the DNA is paid for. It reached the HTML, the PDF and the JSON and
+  not the TSV, which is what a pipeline reads before placing an order. Sequences stay out of that table by
+  design; a short hazard string does not, and the table already carries `flags` as its per-row hazard
+  channel. Empty when oligos were not requested, so "not screened" is never read as "screened and clean".
+  TSV schema 9 → 10.
+
 - **Every figure is checked to state where its numbers came from.** `SYNTHETIC_DATA_NOTE`'s docstring makes
   the argument — a figure is the artifact most likely to be seen alone, so a caveat living beside it in the
   report does not travel with it — and all four shipped figures do state their provenance, in three forms
