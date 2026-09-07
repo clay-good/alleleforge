@@ -97,6 +97,21 @@ th { background:#f4f9f8; }
 .chart svg { display:block; width:100%; height:auto; }
 footer { margin-top:2rem; border-top:1px solid var(--line); padding-top:1rem;
          font-size:0.8rem; color: var(--muted); }
+/* Paper has no affordances. A scroll box scrolls on screen and is simply cut off by a
+   printer: measured at a 624px print column, the cloning-oligo block is 876px of
+   sequence in a 536px box, so 340px of it — the tail of every duplex — does not print.
+   That is the third way this report has managed to hand someone a truncated sequence,
+   after the PDF's right margin and its page breaks, and the same order goes wrong.
+   Sequences therefore wrap on paper, where wrapping is recoverable and clipping is not.
+   Backgrounds are dropped by default when printing, which would erase the panels that
+   separate a cloning-lethal warning from a footnote — the whole point of that styling —
+   so the two that carry meaning are marked to print. And a candidate, a figure or a
+   table split across a sheet is a reagent read half on each. */
+@media print {
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; }
+  .candidate, .chart, table, details { break-inside: avoid; }
+  .hazard, .disclaimer { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
 """.strip()
 
 

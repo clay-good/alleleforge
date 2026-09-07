@@ -549,3 +549,19 @@ Pagination SHALL lose no line and SHALL NOT over-fill a page.
 #### Scenario: A donor that would straddle a break
 - **WHEN** a wrapped sequence would begin near the foot of a page
 - **THEN** the whole run starts on the next page
+
+
+### Requirement: The HTML report survives a printer
+
+Screen affordances do not exist on paper: a horizontally scrolling box is cut off by a
+printer. When printed, a sequence block SHALL wrap rather than clip, since a wrapped
+sequence is recoverable and a clipped one is a mis-ordered reagent. A candidate, a figure
+and a table SHALL NOT be split across sheets, and the panels that distinguish a hazard
+from a footnote SHALL be printed rather than dropped with the page's backgrounds.
+
+On screen the same block SHALL keep scrolling rather than wrapping, so a copyable
+sequence stays on one line.
+
+#### Scenario: Printing a report that carries cloning oligos
+- **WHEN** the report is printed
+- **THEN** no duplex is cut off at the column edge and no candidate spans two sheets

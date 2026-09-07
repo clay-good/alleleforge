@@ -21,6 +21,16 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: printing the HTML report cut 340px off every cloning duplex.** The report had no `@media
+  print` rules at all, and the oligo block is a horizontally scrolling box — an affordance paper does not
+  have. Measured at a 624px print column, with the print rules applied and removed on the same page: 876px
+  of sequence in a 536px box, so 340px hidden on screen and 0px with the rules in place. That is the third
+  route by which this report has handed someone a truncated sequence, after the PDF's right margin and its
+  page breaks. Sequences now wrap on paper (recoverable) while still scrolling on screen (so a copyable
+  sequence stays on one line); candidates, figures and tables are kept off page seams; and the panels that
+  separate a cloning-lethal warning from a footnote are marked to print, since browsers drop backgrounds
+  by default and would otherwise undo that distinction on paper.
+
 - **Fixed: a 180-nt donor could be divided by a page break.** Pages were a blind fixed-size chunk of the
   line list. A long HDR donor wraps to three lines, and with the right amount of content above it those
   land at 46, 47 and 48 — two at the foot of one page, one at the head of the next. The person copying

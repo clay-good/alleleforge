@@ -10671,6 +10671,36 @@ of the bottom margin. After fixing a defect, restate it without the mechanism �
 looking for the other mechanisms that produce it.**
 
 
+## Round 327 — the third way to truncate the same sequence
+
+R326's lesson said to restate a defect without its mechanism and go looking for the other
+mechanisms. "The sequence a bench scientist copies is truncated" had two: the PDF's right
+margin (R324) and its page breaks (R326). The third is the HTML.
+
+R322 gave the oligo block `overflow-x: auto` so a spacer would keep its line and scroll
+rather than wrap. Correct on screen, and paper has nothing to scroll. There were no
+`@media print` rules at all. Measured at a 624px print column, with the print rules
+injected and then removed on the same page:
+
+    screen rules   876px of sequence in a 536px box   340px hidden
+    print rules    536px in 536px                       0px hidden
+
+340px is the tail of every `top`/`bottom` duplex.
+
+Two more things a printer takes away, both worth the same round. Browsers drop backgrounds
+when printing, which would have erased the panels R310 introduced to stop a cloning-lethal
+hazard reading like a footnote — undone on paper, silently. And a candidate split across
+two sheets is a reagent read half on each.
+
+Notably the screen rule stays: sequences scroll on screen and wrap on paper, because the
+right answer genuinely differs by medium. That is the whole shape of this round.
+
+**Lesson: a fix is correct *for a medium*. R322 reasoned carefully about wrapping versus
+scrolling and reasoned entirely about a screen, which is where I was looking. Any rule
+about layout has an implied "when displayed how?", and print is the medium that removes
+every affordance the reasoning quietly assumed.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
