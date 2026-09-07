@@ -437,3 +437,19 @@ those surfaces SHALL be checked rather than asserted in a docstring.
 #### Scenario: An empty interval on any surface
 - **WHEN** `chr1:100-100` arrives as a locus string, a request region or a BED row
 - **THEN** each surface refuses it and says the interval names no bases
+
+
+### Requirement: An on-target exclusion says how much it removed
+
+`--on-target` drops the guide's own protospacer from the count, which is correct. Nothing
+constrains how wide that interval may be, so an over-broad one — a gene span pasted
+instead of the protospacer, a generous liftover — excludes every nominated placement and
+reports a perfect guide.
+
+When an exclusion removed anything, the search description SHALL say how many placements
+it removed and that the count and specificity are over what remained. It SHALL say nothing
+when nothing was excluded.
+
+#### Scenario: An on-target interval spanning more than the protospacer
+- **WHEN** the exclusion removes nominated placements
+- **THEN** the description names the number removed

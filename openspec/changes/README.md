@@ -11142,6 +11142,41 @@ sweep the codebase for its other instances; that has to be a separate, deliberat
 and the most likely place to find one is whatever you built most recently.**
 
 
+## Round 342 — the sweep R341 said to make
+
+R341's lesson: a principle established on one example does not sweep for its other
+instances; that has to be a deliberate pass. So, deliberately, over every result-determining
+input this tool accepts, asking of each whether an inert or over-applied value says so.
+
+Most were already handled, and it is worth listing them because "checked, fine" and "never
+checked" look identical later: a cell context prime alone consumes, PAM fallbacks the
+nuclease alone takes, a chromatin track covering no candidate locus, ancestries with no
+source behind them, a supplied source contributing nothing in a region, a zero ranking
+weight, a per-chemistry cap that dropped candidates, a chemistry restriction, and — last
+round — a cloning vector nothing could use.
+
+One was not. `--on-target` excludes the guide's own protospacer, correctly, and nothing
+constrains the interval's width:
+
+    --on-target chr1:1000-1020   0 site(s), specificity 1.000
+    --on-target chr1:0-3000      0 site(s), specificity 1.000
+
+Byte-identical. A mistyped locus fails safe (the on-target stays counted and the guide
+looks worse); an over-broad one fails the other way, and the plausible mistake is
+over-broad — a gene span instead of a 20-mer, a liftover that returned a generous
+interval.
+
+`OffTargetReport` now carries `on_target_excluded_placements`, and the search description
+states it, which means it reaches every machine surface at once — the payoff for R338
+having put the description on all three.
+
+**Lesson: an exclusion is an input like any other, and it was the one I nearly skipped
+because it is *correct*. Dropping the on-target from an off-target count is not a
+questionable behaviour; the question is not whether an input is right but whether its
+effect is visible, and a correct mechanism applied to a wrong argument produces the most
+convincing wrong answer available.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

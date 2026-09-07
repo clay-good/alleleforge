@@ -199,6 +199,14 @@ class OffTargetReport(BaseModel):
     #: `0.19` is one near-miss or twenty faint ones, and those are different guides.
     subthreshold_placements: int = 0
 
+    #: How many nominated placements the on-target exclusion removed. Every other route
+    #: to "0 sites, specificity 1.000" on this report explains itself — an unsearchable
+    #: scope, a sub-threshold tail, a source contributing nothing — and this one did not.
+    #: An `--on-target` interval wider than the protospacer (a gene span, an over-generous
+    #: liftover) excludes more than the guide's own site, and the result is indistinguishable
+    #: from a guide that has no off-targets at all.
+    on_target_excluded_placements: int = 0
+
     def search_description(self) -> str:
         """Return a one-line statement of the extent searched, the budgets and cut-offs.
 
@@ -247,6 +255,13 @@ class OffTargetReport(BaseModel):
                 f"; the spacer is ambiguous at position(s) {listed}, which cannot be "
                 "scored — those positions count as mismatches, pushing scores DOWN, so "
                 "a low score here is not evidence of safety"
+            )
+        if self.on_target_excluded_placements:
+            coverage += (
+                f"; {self.on_target_excluded_placements} nominated placement(s) were "
+                "excluded as the guide's own locus, so the count and specificity above "
+                "are over what remained — an on-target interval wider than the "
+                "protospacer excludes more than the intended site"
             )
         if self.subthreshold_score_sum > 0.0:
             # `specificity_score` aggregates over every nominated site, not only the

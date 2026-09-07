@@ -21,6 +21,17 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **An on-target exclusion now says how much it removed.** `--on-target` drops the guide's own
+  protospacer from the count, correctly — and nothing constrained how wide that interval may be, so
+  `--on-target chr1:0-3000` excluded every nominated placement and reported `0 site(s), specificity
+  1.000`, byte-identical to the same guide excluded precisely. The realistic mistake is a gene span
+  pasted instead of the 20-nt protospacer, or a liftover that returned a generous interval, and the
+  result is a guide that looks perfect. Every other route to that number on this report explains itself
+  — an unsearchable scope, a hidden sub-threshold tail, a source that contributed nothing — while this
+  one said `on_target_excluded: true` and no count. `OffTargetReport` now carries
+  `on_target_excluded_placements` and the search description states it, so it reaches every machine
+  surface; nothing is said when nothing was excluded. Export schemas regenerated.
+
 - **A cloning vector no candidate could use now says so.** `--vector-scheme px330-bbsi` on an all-prime
   menu is inert: an sgRNA acceptor has no pegRNA 3'-extension overhangs, so every candidate stays on the
   pegRNA acceptor — deliberate, since failing the whole report would be worse. The consequence is that a

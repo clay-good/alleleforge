@@ -675,6 +675,11 @@
           "title": "Mit Threshold",
           "type": "number"
         },
+        "on_target_excluded_placements": {
+          "default": 0,
+          "title": "On Target Excluded Placements",
+          "type": "integer"
+        },
         "pam": {
           "title": "Pam",
           "type": "string"

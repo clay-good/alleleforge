@@ -649,10 +649,14 @@ def search(
     # near-threshold tail cannot report the same specificity as a clean one.
     best: dict[tuple[str, int, int, Strand], OffTargetSite] = {}
     subthreshold: dict[tuple[str, int, int, Strand], float] = {}
+    on_target_excluded: set[tuple[str, int, int, Strand]] = set()
     for hit, prov in tagged:
         if _is_on_target(hit, on_target):
             # The guide's own protospacer: the intended target, not an off-target.
-            # Excluded from both the reported sites and the sub-threshold tail.
+            # Excluded from both the reported sites and the sub-threshold tail — and
+            # counted, because an exclusion that removed forty placements reports the
+            # same "0 sites, specificity 1.000" as a guide that had none.
+            on_target_excluded.add((hit.chrom, hit.start, hit.end, hit.strand))
             continue
         cfd, mit = _scores(hit, primary)
         key = (hit.chrom, hit.start, hit.end, hit.strand)
@@ -693,6 +697,7 @@ def search(
         score_matrix=getattr(primary, "matrix", None),
         subthreshold_score_sum=subthreshold_sum,
         subthreshold_placements=len(suppressed),
+        on_target_excluded_placements=len(on_target_excluded),
     )
     if cache is not None and signature is not None:
         cache.put(signature, report)
