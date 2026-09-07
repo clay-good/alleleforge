@@ -427,9 +427,16 @@ def search(
     # and any future web caller still hit the deep failure; it belongs here, where
     # every caller passes.
     if primary.method is ScoreMethod.MIT and (dna_bulges or rna_bulges):
+        # Both spellings, because this check was deliberately moved out of the CLI so
+        # every caller would hit it — and `dna_bulges=0` is a Python keyword argument,
+        # which is not something `aforge offtarget --scorer mit` can be given. The
+        # default bulge budget is non-zero, so this refusal is what a caller meets the
+        # first time they choose this scorer; a remedy they have to translate is half a
+        # remedy.
         raise ValueError(
-            "the MIT score is undefined for bulged alignments; set dna_bulges=0 and "
-            "rna_bulges=0, or use the CFD scorer, which scores bulged hits"
+            "the MIT score is undefined for bulged alignments; set both bulge budgets to "
+            "zero (`--dna-bulges 0 --rna-bulges 0` on the command line, `dna_bulges=0, "
+            "rna_bulges=0` from Python), or use the CFD scorer, which scores bulged hits"
         )
     scan_pam = low_stringency_pam(pam)
     search_regions = list(regions) if regions is not None else _contig_regions(reference)

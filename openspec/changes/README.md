@@ -10895,6 +10895,42 @@ view. A feature list is a promise made by whichever surface displays it — read
 user of *that* surface, and try every entry.**
 
 
+## Round 334 — trying every entry in every list
+
+R333's lesson said a feature list is a promise made by whichever surface displays it, and
+to try every entry. Done literally: all five `aforge bench list` tasks run; all eight
+commands work; every `--format` writes; every `--intent` and `--chemistry` designs. Then
+the three scorers `aforge offtarget --scorer` advertises:
+
+    cfd         2 site(s), specificity 0.333
+    cfd-cas12a  1 site(s), specificity 0.909
+    mit         error: … set dna_bulges=0 and rna_bulges=0, or use the CFD scorer
+
+The refusal is correct — the MIT score really is undefined for a bulged alignment — and
+the remedy is a Python keyword argument, offered to someone who typed a command. It is
+also the *first* thing a caller meets on choosing that scorer, since the default bulge
+budget is non-zero.
+
+The comment above that check explains it was moved out of the CLI into the engine so that
+the library, the cohort and any future web caller would all hit it. That reasoning is
+right, and it is exactly why the Python-only spelling is wrong: the message now reaches
+surfaces that cannot speak it.
+
+Sweeping for the class found seven `keyword=` remedies; six are library-only (`consent=True`
+on a dataset fetch is unreachable from a CLI with no `data fetch` command, and the FM-index
+`rebuild=True` is a library-only path). One was reachable, and it is fixed.
+
+The guard runs each CLI-reachable refusal, strips backticked code — a message may quote
+the Python spelling beside the shell one, which is the fix — checks nothing of the form
+`keyword=value` survives, and then *runs the remedy it names*. A remedy nobody tried is a
+guess.
+
+**Lesson: "the check belongs in the library so every caller hits it" and "the message
+should name what this caller can do" pull in opposite directions, and the first is usually
+argued for while the second is quietly lost. Moving a check up a layer widens its audience;
+the message has to widen with it.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

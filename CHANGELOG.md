@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: `aforge offtarget --scorer mit` refused with a Python keyword as the remedy.** One of the
+  three advertised scorers fails on the default bulge budget — correctly, since the MIT score is
+  undefined for bulged alignments — and the message said "set dna_bulges=0 and rna_bulges=0", which is
+  not something a command line can be given. Worse than it looks: that refusal is what a caller meets the
+  *first* time they choose that scorer, and the check was deliberately moved out of the CLI into the
+  engine so every caller would reach it, which makes a Python-only spelling reach further. It now names
+  both spellings, and a guard runs each CLI-reachable refusal, checks it offers no bare `keyword=value`
+  outside quoted code, and runs the remedy it names to confirm it works.
+
 - **Fixed: the flagship CLI example in the README could not run.** `aforge design VCV000012345
   --reference-fasta hg38.fa …` answers `error: resolving a ClinVar accession requires a clinvar=
   database`. `ClinVarLookup` and `DbSnpLookup` are Protocols with no shipped implementation, the CLI has

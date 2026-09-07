@@ -232,3 +232,18 @@ improvable by asking to be shown less, which is a setting every caller can reach
 #### Scenario: The same guide at several reporting thresholds
 - **WHEN** a search is repeated across reporting thresholds spanning the score range
 - **THEN** the displayed site count falls while the specificity score is unchanged
+
+
+### Requirement: A refusal is written in the caller's vocabulary
+
+A refusal names the remedy, and a remedy the caller cannot express is half of one. A
+message raised in the library and reachable from a shell SHALL name the shell's spelling;
+it may name the Python one as well, quoted as code.
+
+The MIT scorer is the case that matters: the default bulge budget is non-zero, so its
+refusal is what a caller meets the *first* time they pick that scorer, and the check lives
+in the engine precisely so every caller reaches it.
+
+#### Scenario: Choosing the MIT scorer from the command line
+- **WHEN** `aforge offtarget --scorer mit` is run with the default bulge budget
+- **THEN** the refusal names `--dna-bulges 0 --rna-bulges 0`, and that command succeeds
