@@ -116,7 +116,11 @@ candidate, with every row/column delimiter — tabs, carriage returns, and line 
 stripped from cells so a user-influenced value (an ancestry label, a candidate flag)
 cannot smuggle a row or column break; Parquet SHALL import its backend lazily and raise a
 clear directive error if it is absent. Every export SHALL carry a schema version so a
-downstream consumer can detect a field addition or reordering.
+downstream consumer can detect a field addition or reordering. Every flat export SHALL
+also carry the report's disclaimer and provenance in whatever channel its format
+provides — comment lines for TSV, file metadata for Parquet — because the flat table is
+the surface a result is forwarded in, and a specificity with no caveat attached is the
+one thing the human renders never ship.
 
 #### Scenario: Export schema version
 - **WHEN** a TSV or Parquet export is produced
@@ -132,6 +136,13 @@ downstream consumer can detect a field addition or reordering.
   ancestry label or flag carrying `\r`)
 - **THEN** the delimiter is replaced so the row stays a single physical line that a
   standard CSV/TSV reader parses to the fixed column count
+
+#### Scenario: Both flat formats state the same provenance
+- **WHEN** the same report is written as TSV and as Parquet
+- **THEN** the disclaimer, reference build and coordinate convention appear in both —
+  as `#` comment lines in the TSV and as file-level key/value metadata in the Parquet —
+  drawn from one source, so two tables of identical numbers cannot disagree about which
+  genome they are against
 
 #### Scenario: Missing Parquet backend
 - **WHEN** Parquet export runs without its backend installed

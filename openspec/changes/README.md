@@ -9617,6 +9617,39 @@ warning anywhere on the page; a pipeline sees only the columns it selected, so t
 machine-readable table is where an omitted hazard becomes an executed mistake.**
 
 
+## Round 295 — the batch format had no place to put the caveat
+
+R294's lesson said to rank the surfaces by what acts on them. Applied to the flat export
+itself, the ranking had one more step in it: TSV is what a person opens in a spreadsheet,
+and Parquet is what a *batch* job reads. They hold identical columns.
+
+The TSV grew its `#` note block in schema v6 for a stated reason — the HTML, the PDF and
+the JSON all carry the research-use disclaimer, the reference build and the coordinate
+convention, and the flat table carried none of them, showing specificities and genomic
+loci with nothing attached saying what they are. Parquet was never given that block. Not
+because anyone decided against it: Parquet has no comment lines, so there was no obvious
+place to put it, and the question stopped there.
+
+Parquet does have a place — file-level key/value metadata — and it now carries the same
+notes under `disclaimer` and `provenance_1..n`. Both writers read one function, and the
+test that matters is the reverse direction: everything the TSV says must appear in the
+Parquet. Two independently assembled lists are two lists that drift, and the drift here
+would ship as two tables of identical numbers disagreeing about which genome they are
+against.
+
+Two things were checked rather than assumed. The guard fails on the pre-fix writer (both
+halves red), so it is pinning the fix and not the fixture. And the `polars>=1.30` floor is
+a measured value, not a guess: 1.13, 1.15, 1.20, 1.25, 1.27, 1.29 were each installed and
+their `write_parquet` signature read; 1.30 is the first that accepts `metadata=`, and a
+round-trip on exactly that version was run.
+
+**Lesson: "there is no channel for it in this format" is a claim about the format, and it
+expires. The note block was absent from Parquet because comment lines do not exist there —
+which was true and never revisited, while the format's actual metadata slot sat unused.
+When a surface is missing a fact every sibling carries, ask what that format offers
+instead of what the sibling used.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

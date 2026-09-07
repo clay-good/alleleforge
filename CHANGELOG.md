@@ -10,6 +10,17 @@ acceptance.
 
 ### Added
 
+- **The Parquet export states its own provenance.** The flat table grew a leading `#` note block in
+  schema v6 so the one surface a result gets forwarded in would not show efficiencies, specificities and
+  genomic loci with nothing saying they are uncertain predictions, against which genome, in which
+  coordinate convention. Parquet holds the same columns and is the format a *batch* consumer reads, and it
+  carried none of those notes — it has no comment lines. It now carries them where Parquet puts them, as
+  file-level key/value metadata (`disclaimer`, `provenance_1..n`, read with
+  `polars.read_parquet_metadata`). Both writers draw from one source and a test pins the reverse direction,
+  so two tables of identical numbers cannot disagree about which genome they are against. Export schema
+  version 10 → 11; the optional `polars` floor rises to 1.30, the first release whose Parquet writer accepts
+  file metadata.
+
 - **The chromatin adjustment is reachable over HTTP, and `/api/batch` uses every configured source.** The
   accessibility tracks are operator-configured (`ALLELEFORGE_ENCODE_TRACKS`) while the track *name* is
   per-request, since one bedGraph holds several cell types; `GET /api/health` lists the names a client can

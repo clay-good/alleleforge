@@ -20,8 +20,9 @@ from alleleforge.types.candidate import RankedMenu
 #: Schema version for the flat TSV/Parquet candidate export. Bump when a column is
 #: added, removed, or reinterpreted so a downstream consumer can detect the drift —
 #: and for v6, when the TSV grew its leading `#` note block, which a reader that skips
-#: no comments does see.
-EXPORT_SCHEMA_VERSION = 10
+#: no comments does see; and for v11, when Parquet grew the same notes as file-level
+#: key/value metadata.
+EXPORT_SCHEMA_VERSION = 11
 
 #: The flat TSV column order (one row per candidate). ``schema_version`` leads so a
 #: reader can branch on the format before touching any other column.
@@ -165,14 +166,38 @@ def _tsv_notes(report: DesignReport) -> list[str]:
     `#` is what VCF, GTF and bedGraph use, so the column header stays the first
     non-comment line and a comment-skipping reader gets an identical table.
 
+    The lines come from :func:`_export_notes`, shared with the Parquet writer, so the
+    two flat formats cannot state different provenance for the same table.
+
     Args:
         report: The report being serialized.
 
     Returns:
         Comment lines, each already `#`-prefixed and free of tabs and newlines.
     """
-    notes = [report.disclaimer, *provenance_lines(report.provenance)]
-    return [f"# {_cell(note)}" for note in notes if note]
+    return [f"# {note}" for note in _export_notes(report).values()]
+
+
+def _export_notes(report: DesignReport) -> dict[str, str]:
+    """Return the notes that must accompany the flat table, as key/value pairs.
+
+    The TSV carries these as `#` comment lines; Parquet carries them as file-level
+    key/value metadata. Same facts, one source, because the two formats hold the same
+    columns and a fact stated in one of them is not stated in the other.
+
+    Args:
+        report: The report being serialized.
+
+    Returns:
+        `disclaimer`, plus `provenance_1..n` in the order the renders print them.
+    """
+    notes: dict[str, str] = {}
+    if report.disclaimer:
+        notes["disclaimer"] = _cell(report.disclaimer)
+    for index, line in enumerate(provenance_lines(report.provenance), start=1):
+        if line:
+            notes[f"provenance_{index}"] = _cell(line)
+    return notes
 
 
 def report_to_tsv(report: DesignReport) -> str:
@@ -206,5 +231,5 @@ def report_to_parquet(report: DesignReport, path: str | Path) -> Path:
     rows = [_row(c) for c in report.candidates]
     frame = pl.DataFrame(rows) if rows else pl.DataFrame({col: [] for col in TSV_COLUMNS})
     out = Path(path)
-    frame.write_parquet(out)
+    frame.write_parquet(out, metadata=_export_notes(report))
     return out

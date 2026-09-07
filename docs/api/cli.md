@@ -100,7 +100,14 @@ The column header is the first non-comment line, as in VCF, GTF and bedGraph, so
 comment-skipping reader (`polars.read_csv(..., comment_prefix="#")`,
 `pandas.read_csv(..., comment="#")`, `read.delim(..., comment.char="#")`) gets exactly
 the table it got before. A reader that skips nothing sees a different first line, so
-`schema_version` — which leads every row for this purpose — is `10`.
+`schema_version` — which leads every row for this purpose — is `11`.
+
+Parquet has no comment lines, so it carries the same notes as file-level key/value
+metadata under `disclaimer` and `provenance_1..n` — read them with
+`polars.read_parquet_metadata(path)`. The columns are identical to the TSV's; the notes
+come from the same source, so the two formats cannot state different provenance for the
+same table. (This needs `polars>=1.30`, the first release whose Parquet writer accepts
+file metadata.)
 
 ### The run-config file
 
