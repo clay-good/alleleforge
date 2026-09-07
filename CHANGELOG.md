@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **`aforge offtarget --json` now carries the search description.** A BED panel of zero-length intervals
+  restricts a scan to nothing, and the tool catches it: the human line reads "NO SEQUENCE WAS SEARCHED —
+  … this is not a clean result, it is an empty one". Two of the three machine surfaces carried that
+  sentence — the design report's JSON in `offtarget_search`, the web response in `search_description` —
+  and the CLI's own payload carried `searched_bases: 0` and no sentence. Its comment says exactly why
+  that number is there, so the inputs to the inference shipped and the inference did not, on the surface
+  most likely to be scripted against. The sentence now sits beside the structured budgets, and one guard
+  covers all three surfaces.
+
 - **`POST /api/batch?format=tsv` serves the per-patient table.** The summary having moved into the
   library, the cohort endpoint can now return the same file `aforge batch --summary-tsv` writes — one
   row per person with the disclaimer, the coordinate convention, the reference identity and the seed —

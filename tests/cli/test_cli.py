@@ -736,7 +736,12 @@ def test_offtarget_states_the_settings_its_site_count_depends_on(
     # number beside it is conditional on it -- a panel scan and a genome-wide scan
     # report different specificities -- and `searched_bases: 0` is the value that makes
     # "0 sites, specificity 1.000" mean nothing at all.
-    assert payload["search"] == {
+    # `description` is checked separately: it is a sentence, and pinning it here would
+    # make every wording change fail a test about *keys*. The exact-equality intent is
+    # preserved by comparing the block minus that one field, so a silently dropped key
+    # still fails, and by asserting the key is present.
+    assert "description" in payload["search"], sorted(payload["search"])
+    assert {k: v for k, v in payload["search"].items() if k != "description"} == {
         "mismatch_threshold": 3,
         "dna_bulge_budget": 0,
         "rna_bulge_budget": 0,
@@ -746,6 +751,9 @@ def test_offtarget_states_the_settings_its_site_count_depends_on(
         "resolved_bases": 63,
         "maf_threshold": None,
     }
+    # The sentence must describe *this* run, not a default one — the numbers above are
+    # what it is derived from, so a stale description is a contradiction on one payload.
+    assert "up to 3 mismatches, 0 DNA / 0 RNA bulges" in payload["search"]["description"]
     # ...and the defaults are reported as the defaults, not as whatever was last used.
     default = json.loads(runner.invoke(app, [*args, "--json"]).output)["search"]
     assert default != payload["search"]

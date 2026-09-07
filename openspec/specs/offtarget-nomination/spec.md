@@ -393,3 +393,20 @@ render supplies.
 #### Scenario: The description on a surface with no site rows
 - **WHEN** the design report renders the search description
 - **THEN** no clause refers to a row, a listing, or anything the page does not draw
+
+
+### Requirement: Every machine surface carries the search description
+
+A search's numbers are conditional on its extent and budgets, and the description is the
+sentence that says so — including "NO SEQUENCE WAS SEARCHED … this is not a clean result,
+it is an empty one" when the scope resolved to nothing.
+
+Every machine-readable surface reporting a search SHALL carry that description, not only
+the fields it is derived from. Supplying the inputs to an inference and withholding the
+inference leaves the surface most likely to be scripted against reporting
+`specificity: 1.0` with nothing that says why it means nothing.
+
+#### Scenario: A scan restricted to zero bases
+- **WHEN** a region scope resolves to no bases
+- **THEN** the CLI JSON, the web response and the design report each carry a description
+  saying nothing was searched

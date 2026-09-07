@@ -1826,6 +1826,13 @@ def offtarget(
             "searched_bases": report.searched_bases,
             "resolved_bases": report.resolved_bases,
             "maf_threshold": report.maf_threshold,
+            # ...and the sentence those numbers support, which this surface alone was
+            # withholding. The human line says "NO SEQUENCE WAS SEARCHED — this is not a
+            # clean result, it is an empty one"; the design report's JSON carries the
+            # same sentence in `offtarget_search`, and so does the web response in
+            # `search_description`. Here a consumer got the inputs to that inference and
+            # not the inference, on the surface most likely to be scripted against.
+            "description": report.search_description(),
         },
         # The document-level context. Every number above is conditional on which
         # genome was searched, and `reference_build` alone is a label the caller

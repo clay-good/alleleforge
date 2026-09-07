@@ -11025,6 +11025,39 @@ the two — with the changelog entry making the full argument. The half-done sta
 hardest to see from inside the round that argued for it.**
 
 
+## Round 338 — the inputs to the inference, without the inference
+
+Following R336's question — what does a shell do that its siblings cannot — into the
+region loaders. BED parsing is written inline in `cli/main.py`, so a Python caller
+re-derives the header skipping and the 0-based half-open convention themselves. Probing
+what a malformed panel does turned up something better.
+
+A BED of zero-length intervals (`chr2  100  100`) restricts a scan to nothing:
+
+    0 site(s), worst score 0.000, specificity 1.000
+
+The tool catches it. The next line says "NO SEQUENCE WAS SEARCHED — the reference or
+region scope yielded no bases, so this is not a clean result, it is an empty one", and the
+command exits non-zero. Someone thought about this carefully.
+
+Then the three machine surfaces. The design report's JSON carries that sentence in
+`offtarget_search`. The web response carries it in `search_description`. `aforge offtarget
+--json` carried `searched_bases: 0` and no sentence — and its own comment explains why the
+number is there: "`searched_bases: 0` is the one value that makes '0 sites, specificity
+1.000' mean nothing at all." The reasoning was written down and the conclusion was left
+for the consumer to reach.
+
+Two things the guard had to accommodate, both of them existing decisions that turned out
+to be right: the empty search exits non-zero *and* still prints its payload, and the
+existing test compares the `search` block by exact equality on purpose, to catch a
+silently dropped key. That intent is preserved — the comparison excludes only the new
+sentence, which is asserted separately.
+
+**Lesson: a comment explaining why a value matters is a signal that the surface knows the
+inference and is not making it. This one described, precisely, the reasoning a consumer
+would have to repeat — which is the moment to ask why the consumer is repeating it.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
