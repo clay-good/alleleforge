@@ -29,6 +29,12 @@ Global options (before the subcommand): `--seed`, `--reference`, `--cache-dir`,
 `--verbose/-v`, `--version/-V`. Every command takes `--json` for machine-readable
 output.
 
+**stdout is a data stream.** Status messages — including every `wrote <path>`
+confirmation — go to stderr, so `aforge design ... --out report.json --json > menu.json`
+yields a file a parser accepts. On `design`, `--json` prints the *ranked menu*, which is
+the only surface carrying each candidate's full outcome spectrum: `--format json` writes
+the report, whose per-candidate allele list is the same handful the HTML and PDF show.
+
 ## Exit codes
 
 Distinct, meaningful exit codes make the CLI scriptable:

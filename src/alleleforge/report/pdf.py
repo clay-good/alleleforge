@@ -15,6 +15,7 @@ import textwrap
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
     VARIANT_POSITION_NOTE,
+    WITHHELD_ALLELES_NOTE,
     WITHHELD_CANDIDATES_NOTE,
     CandidateReport,
     DesignReport,
@@ -160,7 +161,8 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
     if c.n_outcome_alleles > len(c.outcome_top):
         lines += _wrap(
             f"showing {len(c.outcome_top)} of {c.n_outcome_alleles} predicted alleles "
-            f"({c.outcome_shown_mass:.2f} of the probability mass)",
+            f"({c.outcome_shown_mass:.2f} of the probability mass); "
+            f"{WITHHELD_ALLELES_NOTE}",
             indent="      ",
         )
     burden = (

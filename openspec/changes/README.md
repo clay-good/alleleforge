@@ -9951,6 +9951,47 @@ constantly — because reading prose for truth is not something a person does at
 they read code. Make the claim a constant, then check the constant mechanically.**
 
 
+## Round 305 — the pointer and the pipe were both broken, and both had a test
+
+Same query as R304, next sentence down:
+
+    showing 3 of 65 predicted alleles (0.15 of the probability mass);
+    the rest are in the lossless export.
+
+`--format json` writes `report_to_json`, which serializes the `DesignReport` — and the
+report's `outcome_top` is the *same three*. The other 62 are on the `RankedMenu`, one
+level up, reachable as `menu_to_json` or `aforge design --json`.
+
+Following that pointer found the second defect. `--json` prints the menu to stdout, and
+so did the `wrote <path>` confirmation, so
+
+    aforge design ... --out report.json --json > menu.json
+
+produced a file starting with a status line. Every other message this CLI emits about
+what it is doing already goes to stderr; this one did not.
+
+Both defects had a test sitting on top of them.
+
+    menu_json = result.output.split("\n", 1)[1]  # drop the "wrote ..." status line
+
+That line is the defect, written down, in a passing test. And after the fix it *still*
+passed — `result.output` is click's mixed stream, so the status line is still first in
+it. The guards now read `result.stdout`, and a written format with no `--json` is
+asserted to leave stdout empty.
+
+Two smaller things learned in passing, both recorded in the tests that hit them. The PDF
+writer encodes an em dash as `0x97`, which is an em dash in cp1252 and an unprintable
+control byte in latin-1, so a test decoding its own output has to pick the right one. And
+a PDF assertion should reassemble the `(...) Tj` runs rather than match a fragment,
+because a hard-wrapped sentence matches nothing and a fragment passes on a paraphrase.
+
+**Lesson: a workaround in a test is a defect with a comment on it. `# drop the "wrote ..."
+status line` describes broken behavior in the imperative voice of a fixture, and it had
+been read many times without being read. Grep the test suite for the words that mean "I
+worked around this" — drop, strip, skip, ignore, split(...)[1], the first line — and ask
+of each whether it is shaping data or apologizing for it.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

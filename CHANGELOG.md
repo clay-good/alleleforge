@@ -21,6 +21,21 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: `--json` produced a stream no parser accepts.** `aforge design --out report.json --json >
+  menu.json` wrote the `wrote <path>` confirmation and the ranked-menu JSON to the same stream. The test
+  covering that path documented the defect instead of failing on it — it dropped the first line before
+  parsing — and it kept passing after the fix because `result.output` is click's *mixed* stream, not
+  stdout. Every `wrote <path>` line now goes to stderr, where every other status message in this CLI
+  already goes, and the guards assert on `result.stdout`.
+
+- **Fixed: the withheld alleles were not in "the lossless export".** A Cas9 spectrum routinely has 65
+  alleles; the renders show three and used to say the rest were in the lossless export. `--format json`
+  writes `report_to_json`, whose `outcome_top` is the same three — a reader chasing the other 62 opened
+  the file and found the page again. The full spectrum lives one level up, on the `RankedMenu`
+  (`menu_to_json`, `aforge design --json`), and both renders now say so. The PDF said the count and
+  nothing about where the rest went; it says both now. Pinned as a fact about the data rather than a
+  string match, so if either export's truncation changes the note fails.
+
 - **Fixed: a render told readers to look in an export that does not exist.** Both render caps ended
   "the remaining N are in the lossless JSON/CSV export" — wrong twice. There is no CSV export (the
   formats are JSON, TSV, Parquet, HTML, PDF), and "lossless" is true of the JSON alone: the flat tables

@@ -25,6 +25,7 @@ from collections.abc import Sequence
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
     VARIANT_POSITION_NOTE,
+    WITHHELD_ALLELES_NOTE,
     WITHHELD_CANDIDATES_NOTE,
     CandidateReport,
     DesignReport,
@@ -271,7 +272,7 @@ def _candidate_html(c: CandidateReport) -> str:
             parts.append(
                 f"<p class='muted'>showing {len(c.outcome_top)} of {c.n_outcome_alleles} "
                 f"predicted alleles ({c.outcome_shown_mass:.2f} of the probability mass); "
-                "the rest are in the lossless export.</p>"
+                f"{_esc(WITHHELD_ALLELES_NOTE)}.</p>"
             )
     spec = (
         f"; specificity {c.offtarget_specificity:.3f}"

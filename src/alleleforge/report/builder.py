@@ -561,6 +561,16 @@ COORDINATE_NOTE = (
 #: cannot answer the question.
 EXPORT_FORMAT_NAMES: tuple[str, ...] = ("JSON", "TSV", "Parquet", "HTML", "PDF")
 
+#: Where the *alleles* a render withheld can actually be found. Not "the lossless
+#: export", which is what both renders used to say: `report_to_json` — the file
+#: `--format json` writes — carries the same truncated `outcome_top` the page shows, so
+#: a reader chasing the other 62 alleles of a 65-allele spectrum opened the export and
+#: found the same three. The full spectrum lives on the ranked menu, one level up.
+WITHHELD_ALLELES_NOTE = (
+    "the full spectrum is on the ranked menu, not in the report export — "
+    "`aforge design --json` writes it, and `menu_to_json` returns it"
+)
+
 #: Where the candidates a render withheld can actually be found. One sentence, shared
 #: by the two human renders, naming the lossless form and the complete-but-flat one
 #: separately because they answer different questions.

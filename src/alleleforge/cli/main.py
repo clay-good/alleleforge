@@ -99,6 +99,14 @@ _EXTRA_FOR_MODULE: dict[str, str] = {
 }
 
 
+#: Every "wrote <path>" confirmation goes to **stderr**, not stdout. It is a status
+#: message about a side effect, and stdout is a data stream: `aforge design --out x.json
+#: --json > menu.json` used to interleave the line with the ranked-menu JSON and produce
+#: a file no parser accepts. The test that covered that path documented the defect
+#: instead of failing on it — it dropped the first line before parsing. Same reason
+#: every diagnostic here already uses `_echo_err`.
+
+
 def _missing_dependency(exc: ImportError) -> NoReturn:
     """Turn an optional-dependency ImportError into an actionable message.
 
@@ -1081,7 +1089,7 @@ def design(
             _echo_err(f"error: {exc}")
             raise typer.Exit(ExitCode.UNAVAILABLE) from exc
         sidecar = _write_provenance_sidecar(out, menu)
-        typer.echo(f"wrote {out}" + (f" and {sidecar}" if sidecar else ""))
+        _echo_err(f"wrote {out}" + (f" and {sidecar}" if sidecar else ""))
         if as_json:
             typer.echo(menu.model_dump_json(indent=2))
         return
@@ -1098,7 +1106,7 @@ def design(
     if out is not None:
         out.write_bytes(rendered)
         sidecar = _write_provenance_sidecar(out, menu)
-        typer.echo(f"wrote {out}" + (f" and {sidecar}" if sidecar else ""))
+        _echo_err(f"wrote {out}" + (f" and {sidecar}" if sidecar else ""))
     elif fmt in (OutputFormat.json, OutputFormat.tsv):
         typer.echo(rendered.decode())
     else:
@@ -1716,7 +1724,7 @@ def batch(
             lines.append(f"  {r['item_id']}  error  {r['error']}")
     typer.echo("\n".join(lines))
     if summary_tsv is not None:
-        typer.echo(f"wrote {summary_tsv}")
+        _echo_err(f"wrote {summary_tsv}")
     # Per-item isolation is the feature: every item runs, the manifest is complete, and
     # one bad variant does not abandon the other four hundred. Reporting *success* for
     # a run that failed items is not part of that — a script or a CI job driving this
@@ -2503,7 +2511,7 @@ def bench_run(
 
     if out is not None:
         out.write_text(result.model_dump_json(indent=2), encoding="utf-8")
-        typer.echo(f"wrote {out}")
+        _echo_err(f"wrote {out}")
     if as_json:
         typer.echo(result.model_dump_json(indent=2))
     elif out is None:
@@ -2679,7 +2687,7 @@ def bench_leaderboard(
     rendered = board.render_html() if fmt is LeaderboardFormat.html else board.render_markdown()
     if out is not None:
         out.write_text(rendered, encoding="utf-8")
-        typer.echo(f"wrote {out}")
+        _echo_err(f"wrote {out}")
     else:
         typer.echo(rendered)
 

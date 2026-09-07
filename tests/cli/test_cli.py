@@ -339,9 +339,12 @@ def test_design_json_output_is_phase1_schema_valid(
         ],
     )
     assert result.exit_code == 0
-    # with --out set, the trailing --json prints the menu, schema-valid (Phase 1).
-    menu_json = result.output.split("\n", 1)[1]  # drop the "wrote ..." status line
-    menu = RankedMenu.model_validate_json(menu_json)
+    # With --out set, the trailing --json prints the menu to **stdout**, schema-valid
+    # (Phase 1). Parsed from `result.stdout`, not `result.output`: the latter is the
+    # mixed stream, and this test used to drop its first line to skip the "wrote ..."
+    # status message — a workaround that documented the defect (a `--json` stream no
+    # parser accepts) instead of failing on it. The status line is on stderr now.
+    menu = RankedMenu.model_validate_json(result.stdout)
     assert menu.candidates
 
 
