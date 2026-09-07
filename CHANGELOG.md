@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: `chr1:100-100` was a usage error and the same interval in a BED file was accepted.**
+  `GenomicInterval.parse` refuses an interval naming no bases and says why it exists — "shared by every
+  surface that accepts a locus from a user, so the CLI and the web API cannot drift into accepting
+  different spellings". The BED reader was written inline in `cli/main.py` and constructed intervals
+  directly, so it never reached that check: one command, one restriction, two answers — and a scope of
+  zero bases reports every guide as perfectly specific. BED reading moves to
+  `alleleforge.genome.read_bed_intervals`, both spellings go through one function, and a malformed row
+  is refused by line number (a panel file is long, and "invalid literal for int()" is not a location).
+
 - **`aforge offtarget --json` now carries the search description.** A BED panel of zero-length intervals
   restricts a scan to nothing, and the tool catches it: the human line reads "NO SEQUENCE WAS SEARCHED —
   … this is not a clean result, it is an empty one". Two of the three machine surfaces carried that

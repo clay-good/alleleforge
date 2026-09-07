@@ -47,7 +47,7 @@ from alleleforge.design.cohort_summary import cohort_rows as _batch_rows
 from alleleforge.design.cohort_summary import cohort_to_tsv as _batch_tsv
 from alleleforge.errors import MissingDependencyError
 from alleleforge.types.provenance import DatasetVersion
-from alleleforge.types.sequence import GenomicInterval, Strand
+from alleleforge.types.sequence import GenomicInterval
 from alleleforge.types.variant import Variant
 
 
@@ -602,32 +602,21 @@ def _validate_regions(regions: list[GenomicInterval] | None, reference: Any) -> 
 def _load_regions(regions: list[str] | None, bed: Path | None) -> list[GenomicInterval] | None:
     """Merge ``--region`` loci and a ``--regions-bed`` file into one restriction list.
 
-    ``None`` means "search everything", which is what the engine defaults to — so an
-    empty result here must stay ``None`` rather than becoming an empty list, which
-    would restrict the search to nothing and report a spotless guide.
+    The parsing is the library's: a locus string and a BED row are two spellings of the
+    same restriction and must be accepted or refused identically. They were not — the
+    inline BED reader built intervals directly and so took an empty one that
+    ``--region`` rejects by name.
     """
-    out: list[GenomicInterval] = []
-    for text in regions or ():
-        try:
-            out.append(GenomicInterval.parse(text))
-        except ValueError as exc:
-            _echo_err(f"error: {exc}")
-            raise typer.Exit(ExitCode.USAGE) from exc
-    if bed is not None:
-        try:
-            for line in bed.read_text().splitlines():
-                if not line.strip() or line.startswith(("#", "track", "browser")):
-                    continue
-                cols = line.split()
-                out.append(
-                    GenomicInterval(
-                        chrom=cols[0], start=int(cols[1]), end=int(cols[2]), strand=Strand.PLUS
-                    )
-                )
-        except (OSError, IndexError, ValueError) as exc:
-            _echo_err(f"error: could not read --regions-bed {bed}: {exc}")
-            raise typer.Exit(ExitCode.MISSING_DATA) from exc
-    return out or None
+    from alleleforge.genome.bed import merge_region_arguments
+
+    try:
+        return merge_region_arguments(regions, bed)
+    except ValueError as exc:
+        _echo_err(f"error: {exc}")
+        raise typer.Exit(ExitCode.USAGE) from exc
+    except OSError as exc:
+        _echo_err(f"error: could not read --regions-bed {bed}: {exc}")
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
 
 
 def _load_haplotypes(path: Path | None) -> Iterable[Haplotype]:

@@ -11058,6 +11058,37 @@ inference and is not making it. This one described, precisely, the reasoning a c
 would have to repeat — which is the moment to ask why the consumer is repeating it.**
 
 
+## Round 339 — one restriction, two spellings, two answers
+
+R338 noticed BED parsing written inline in `cli/main.py` and went after something else.
+Coming back to it, the inline reader turned out to disagree with its own sibling:
+
+    --region chr1:100-100          error: locus 'chr1:100-100' is empty (100 <= 100)
+    --regions-bed  (chr1 100 100)  0 site(s), specificity 1.000
+
+`GenomicInterval.parse` makes that refusal, and its docstring says exactly why it exists:
+"shared by every surface that accepts a locus from a user, so the CLI and the web API
+cannot drift into accepting different spellings." The BED reader built intervals directly
+and never reached it. Two spellings of one restriction, on one command, and the one that
+skipped the check is the one that comes from a file — where a stray row is least likely to
+be noticed and a scope of zero bases reports every guide as clean.
+
+The reader moves to `alleleforge.genome.read_bed_intervals`, so a Python caller scoping to
+a gene panel gets the conventions rather than re-deriving them, and a malformed row is
+refused by line number.
+
+Closing that route cost something worth recording: a zero-length BED was the shortest way
+to produce an empty scan, and two tests from the previous round used it. The honesty
+mechanism they were checking is still there — an all-N reference now reports "only 0% of
+the 400 requested bases were searchable" — so they moved to that route rather than being
+weakened.
+
+**Lesson: a shared validator only validates the callers that go through it, and the one
+that does not is invisible precisely because the rule is written down and enforced
+elsewhere. When a check's docstring says "shared by every surface", enumerate the surfaces
+and confirm each one actually calls it.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

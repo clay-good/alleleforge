@@ -410,3 +410,18 @@ inference leaves the surface most likely to be scripted against reporting
 - **WHEN** a region scope resolves to no bases
 - **THEN** the CLI JSON, the web response and the design report each carry a description
   saying nothing was searched
+
+
+### Requirement: The two spellings of a region agree
+
+`--region chrom:start-end` and a row of `--regions-bed` are two spellings of one
+restriction on one command. They SHALL be accepted and refused identically, through one
+library function, and that function SHALL be available to a Python caller rather than
+written inside a shell.
+
+An interval naming no bases SHALL be refused in either spelling: a region list of empty
+intervals restricts a search to nothing and reports every guide as perfectly specific.
+
+#### Scenario: An interval naming no bases
+- **WHEN** it arrives as `chr1:100-100` or as the BED row `chr1  100  100`
+- **THEN** both are a usage error, and the BED one names the line number

@@ -36,10 +36,15 @@ def fasta(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def empty_panel(tmp_path: Path) -> Path:
-    """A BED whose intervals have zero length: a scan restricted to nothing."""
-    path = tmp_path / "empty.bed"
-    path.write_text("chr2\t100\t100\nchr2\t500\t500\n")
+def unsearchable(tmp_path: Path) -> Path:
+    """A reference of pure ambiguity codes: every base requested, none searchable.
+
+    A BED of zero-length intervals used to be the shortest route to an empty scan; it is
+    a usage error now, since a locus string naming no bases always was. This is the
+    remaining honest case — the scan runs, resolves nothing, and says so.
+    """
+    path = tmp_path / "alln.fa"
+    path.write_text(">chr2\n" + "N" * 400 + "\n")
     return path
 
 
@@ -57,19 +62,18 @@ def _cli_json(fasta: Path, *extra: str, expect_exit: int = 0) -> dict:
     return json.loads(result.stdout)
 
 
-def test_the_empty_scan_still_reports_a_perfect_specificity(fasta: Path, empty_panel: Path) -> None:
+def test_the_unsearchable_scan_still_reports_a_perfect_specificity(unsearchable: Path) -> None:
     """The premise: the number on its own is reassuring and meaningless."""
-    payload = _cli_json(fasta, "--regions-bed", str(empty_panel), expect_exit=3)
+    payload = _cli_json(unsearchable)
     assert payload["specificity"] == 1.0
     assert payload["n_sites"] == 0
-    assert payload["search"]["searched_bases"] == 0
+    assert payload["search"]["resolved_bases"] == 0
 
 
-def test_the_cli_json_says_nothing_was_searched(fasta: Path, empty_panel: Path) -> None:
-    payload = _cli_json(fasta, "--regions-bed", str(empty_panel), expect_exit=3)
-    description = payload["search"]["description"]
-    assert "NO SEQUENCE WAS SEARCHED" in description, description
-    assert "not a clean result" in description
+def test_the_cli_json_says_nothing_was_searchable(unsearchable: Path) -> None:
+    description = _cli_json(unsearchable)["search"]["description"]
+    assert "0% of the 400 requested bases were searchable" in description, description
+    assert "assembly gaps, ambiguity codes" in description
 
 
 def test_the_cli_json_keeps_the_structured_budgets_too(fasta: Path) -> None:

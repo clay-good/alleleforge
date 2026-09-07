@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from alleleforge.errors import ChecksumError, ConsentError
+from alleleforge.genome.bed import BED_HEADER_PREFIXES, read_bed_intervals
 from alleleforge.genome.coordinates import (
     DEFAULT_RECOMMENDED_BUILD,
     HG38_DIFFICULT_REGIONS,
@@ -63,6 +64,8 @@ def __getattr__(name: str) -> object:
 
 
 __all__ = [
+    "BED_HEADER_PREFIXES",
+    "read_bed_intervals",
     "BUILTIN_BUILDS",
     "DEFAULT_RECOMMENDED_BUILD",
     "HG38_DIFFICULT_REGIONS",
