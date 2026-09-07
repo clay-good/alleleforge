@@ -453,3 +453,25 @@ than the body it sits among.
 - **WHEN** the HTML report renders that candidate
 - **THEN** the caveat and the warning are set apart, and the pagination and flag notes
   remain de-emphasized
+
+
+### Requirement: A summarised count says where its detail is
+
+The report summarises: it carries counts, aggregates and the settings behind them, not
+per-site or per-allele rows. Every count whose rows the report withholds SHALL name the
+export that holds them, and that export is the **ranked menu**, not the report export —
+`report_to_json` serializes the same summary the page shows.
+
+The off-target site count is the case that matters most: a safety number a reader acts on
+and, without the rows, cannot check.
+
+A note SHALL appear only where there is something to point at — no sites nominated, no
+note.
+
+#### Scenario: A candidate with nominated off-target sites
+- **WHEN** a render states the site count
+- **THEN** it names the ranked menu as where the site rows are
+
+#### Scenario: A candidate with no nominated sites
+- **WHEN** the count is zero or the search did not run
+- **THEN** no such note is rendered

@@ -460,6 +460,8 @@ def _candidate_report(
         # are acting on. The report carries no per-site rows by design — it summarises,
         # and the lossless export has the sites — so the one site whose score a reader
         # takes away, the worst, names its own matrix here. Only when they differ.
+        # ("the lossless export" here means the *ranked menu*: `report_to_json` carries
+        # this summary and no site rows. The renders say so beside the count.)
         matrices = {s.score_matrix for s in candidate.offtarget.sites if s.score_matrix}
         if len(matrices) > 1:
             worst_site = max(candidate.offtarget.sites, key=lambda site: site.score)
@@ -566,9 +568,23 @@ EXPORT_FORMAT_NAMES: tuple[str, ...] = ("JSON", "TSV", "Parquet", "HTML", "PDF")
 #: `--format json` writes — carries the same truncated `outcome_top` the page shows, so
 #: a reader chasing the other 62 alleles of a 65-allele spectrum opened the export and
 #: found the same three. The full spectrum lives on the ranked menu, one level up.
-WITHHELD_ALLELES_NOTE = (
-    "the full spectrum is on the ranked menu, not in the report export — "
-    "`aforge design --json` writes it, and `menu_to_json` returns it"
+#: Where the per-item detail a report *summarises* actually lives. The report is a
+#: summary by design; `report_to_json` serializes that summary, so "the lossless export"
+#: is the ranked menu one level up and not the file `--format json` writes.
+RANKED_MENU_SOURCE = (
+    "on the ranked menu, not in the report export — `aforge design --json` writes it, "
+    "and `menu_to_json` returns it"
+)
+
+WITHHELD_ALLELES_NOTE = f"the full spectrum is {RANKED_MENU_SOURCE}"
+
+#: A count of nominated off-target sites is the number a reader acts on and the one they
+#: cannot check: the report carries no site rows, and said nothing about where they are.
+#: For a safety artifact that is the wrong thing to leave implicit — "2 nominated
+#: site(s)" is not actionable without knowing which two.
+NOMINATED_SITES_NOTE = (
+    f"the site rows — locus, PAM, mismatch and bulge counts, per-site score and matrix — "
+    f"are {RANKED_MENU_SOURCE}"
 )
 
 #: Where the candidates a render withheld can actually be found. One sentence, shared

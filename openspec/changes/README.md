@@ -10261,6 +10261,36 @@ The vertical really did enumerate 23. Whenever a number and the thing it describ
 produced by different passes, ask what happens between them.**
 
 
+## Round 314 — the same sentence, on the number that matters most
+
+R305 found "the rest are in the lossless export" pointing at a file that carried the same
+three alleles. The same words were in a comment three hundred lines away, about the other
+thing the report summarises:
+
+    # The report carries no per-site rows by design — it summarises,
+    # and the lossless export has the sites
+
+`report_to_json` serializes the `DesignReport`. `CandidateReport` has
+`n_offtarget_sites` and no `sites`. The rows are on the ranked menu, one level up, exactly
+as the alleles were.
+
+The difference from R305 is what the number is for. An allele spectrum is context; a site
+count is the safety verdict. `2 nominated site(s), specificity 0.53` is the line a reader
+acts on, and the report gave them no way to find out which two — not the loci, not the
+mismatch counts, not which of them was scored by the fallback matrix. The whole design of
+this report is to avoid asking a reader to take a number on faith, and this was the number
+it asked hardest about.
+
+Both notes now share one constant naming the destination, so they cannot drift into
+pointing at different places. The site note renders only where sites exist; a line that
+fires on every candidate including the clean ones is a line nobody reads.
+
+**Lesson: when a wrong sentence is found, grep for the *sentence*, not for the bug.
+"lossless export" appeared twice, in two files, about two different withheld things, and
+R305 fixed the one it was standing on. The phrase was the shared cause and it was
+searchable the whole time.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

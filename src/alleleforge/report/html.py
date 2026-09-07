@@ -24,6 +24,7 @@ from collections.abc import Sequence
 
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
+    NOMINATED_SITES_NOTE,
     VARIANT_POSITION_NOTE,
     WITHHELD_ALLELES_NOTE,
     WITHHELD_CANDIDATES_NOTE,
@@ -307,6 +308,9 @@ def _candidate_html(c: CandidateReport) -> str:
         )
     elif c.n_offtarget_sites is not None:
         parts.append(f"<p class='muted'>{c.n_offtarget_sites} nominated site(s){spec}.</p>")
+    if c.n_offtarget_sites:
+        # Only when there are sites: with none nominated there is nothing to go and read.
+        parts.append(f"<p class='muted'>{_esc(NOMINATED_SITES_NOTE)}.</p>")
     if c.n_offtarget_sites is not None and (c.offtarget_scorer or c.offtarget_matrix):
         basis = " / ".join(p for p in (c.offtarget_scorer, c.offtarget_matrix) if p)
         # The published method, on the same line as the scorer's name: a reader

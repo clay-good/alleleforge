@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: an off-target site count with no route to the sites.** A candidate's safety section gives a
+  count, a specificity, the scorer, the matrix and the search budget — and no site rows, by design, since
+  the report summarises. `--format json` writes that same summary: `CandidateReport` has
+  `n_offtarget_sites` and no `sites`. A comment beside the code said "the lossless export has the sites",
+  which is true of the ranked menu one level up and not of the file a reader opens. For a safety artifact
+  that is the wrong thing to leave implicit — "2 nominated site(s)" is a number acted on and not
+  checkable — so both renders now name where the rows are, sharing one constant with the allele note that
+  was fixed the same way. Only where sites exist: nothing nominated, nothing to point at.
+
 - **Fixed: a capped menu reported the count it discarded.** `--max-per-chemistry 2` produced a result
   with two candidates whose rationale said `cas9_nuclease: 23 candidate(s)`. The run notes are written by
   each vertical as it finishes, so they report what was *enumerated*; the cap runs afterwards, during

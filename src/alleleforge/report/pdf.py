@@ -14,6 +14,7 @@ import textwrap
 
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
+    NOMINATED_SITES_NOTE,
     VARIANT_POSITION_NOTE,
     WITHHELD_ALLELES_NOTE,
     WITHHELD_CANDIDATES_NOTE,
@@ -190,6 +191,8 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
             lines += _wrap(f"{r.ancestry}: worst score {r.worst_score:.3f}", indent="      ")
     elif c.n_offtarget_sites is not None:
         lines += _wrap(f"off-target sites: {c.n_offtarget_sites}{spec}", indent="    ")
+    if c.n_offtarget_sites:
+        lines += _wrap(NOMINATED_SITES_NOTE, indent="      ")
     if c.n_offtarget_sites is not None and (c.offtarget_scorer or c.offtarget_matrix):
         basis = " / ".join(p for p in (c.offtarget_scorer, c.offtarget_matrix) if p)
         cite = f" — {c.offtarget_scorer_citation}" if c.offtarget_scorer_citation else ""
