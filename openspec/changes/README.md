@@ -9314,6 +9314,33 @@ disclosure was written for — sorting a column is a stronger comparison than re
 page.**
 
 
+## Round 284 — two scales in one sorted list, one level down
+
+R283 said: after adding a disclosure, ask which surface makes the compared quantities
+easiest to compare. Applying it *within* one artifact rather than across artifacts found
+the next instance immediately.
+
+The published CFD matrix is defined for a 20-nt ungapped alignment, so a bulge-collapsed or
+off-length hit is scored by a length-relative approximation instead — the fallback is per
+*hit*, not per report. A real bulged scan:
+
+    matrices in report: ['doench-2016-cfd', 'doench-2016-seed-tolerance-approximation']
+
+`effective_matrix()` exists for exactly this and reports both, joined. What it cannot do is
+say which row is which — and the rows print in score order, so a published `0.50` sits next
+to an approximated `0.60` with nothing distinguishing them. The reader is doing the
+comparison the sort invites, across two scales, with the disclosure one level too coarse.
+
+The per-site `score_matrix` has been in the JSON since it was added. Machines could tell;
+people could not. Rows now name their matrix when the report is mixed, and stay clean when
+it is not — the header already names the single matrix, and repeating it on every row is
+noise.
+
+**Lesson: a report-level label about a per-item property is a summary, and a summary of a
+mixed set is exactly where the per-item truth goes missing. If a field exists per row,
+check whether the human surface shows it per row or only in aggregate.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

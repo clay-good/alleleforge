@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **A mixed-matrix off-target table says which scale each row used.** The published CFD matrix is defined
+  for a 20-nt ungapped alignment, so a bulged or off-length hit falls back to the length-relative
+  approximation *per site* — one report, two scales, rows printed in score order. `effective_matrix()`
+  named both but could not say which row was which, so a published `0.50` and an approximated `0.60` sat
+  adjacent with nothing to tell them apart. The JSON has carried `score_matrix` per site all along; the
+  human form now does too, and only when the report is genuinely mixed.
+
 - **The cohort summary qualifies the column it is sorted by.** A cohort is triaged by sorting
   `best_efficiency`, and a real run puts `base_abe 0.6000` next to `prime 0.3657` — outputs of different,
   mutually uncalibrated models. The single-variant menu states this in its rationale (above); the surface

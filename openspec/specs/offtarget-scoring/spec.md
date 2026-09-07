@@ -147,6 +147,18 @@ approximation as the site's matrix, so a non-20-nt score is never labeled publis
 - **THEN** the site is still nominated and its recorded matrix is the approximation, not
   `doench-2016-cfd`
 
+### Requirement: A mixed-matrix table says which scale each row used
+
+A published matrix falls back to the length-relative approximation per hit, so one report
+can hold two scales and its rows are printed in score order. The report-level effective
+matrix names both but cannot say which row is which. When the reported sites do not share
+one matrix, every row SHALL name the matrix that produced its score; when they do share
+one, the rows SHALL NOT repeat what the header already states.
+
+#### Scenario: A bulged scan mixing scales
+- **WHEN** a report's sites were scored by more than one matrix
+- **THEN** each row names its own matrix, alongside the report-level reconciliation
+
 ### Requirement: A frequency-aware aggregate accompanies the worst-case
 
 The report SHALL expose a frequency-aware `expected_burden` — the sum of each site's score

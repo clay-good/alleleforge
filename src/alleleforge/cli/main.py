@@ -1946,6 +1946,15 @@ def offtarget(
             f"{a} {v:.3f}" for a, v in sorted(strata.items(), key=lambda kv: (-kv[1], kv[0]))
         )
         human_lines.append(f"  worst off-target score by ancestry: {worst_by}")
+    # A published matrix falls back to the length-relative approximation per hit, so one
+    # report can mix two scales. `effective_matrix()` says both were used — it cannot say
+    # *which row is which*, and the rows are printed in score order, so a reader compares
+    # a published 0.50 against an approximated 0.60 with nothing to distinguish them. The
+    # JSON has carried `score_matrix` per site all along; the human form had not. Only
+    # when the report is actually mixed: on a homogeneous table the header line already
+    # names the one matrix, and repeating it on every row is noise.
+    matrices = {s.score_matrix for s in report.sites if s.score_matrix is not None}
+    mixed_matrices = len(matrices) > 1
     for site, s in zip(report.sites, sites, strict=True):
         mit = f"  mit={s['mit_score']}" if s["mit_score"] is not None else ""
         # The PAM belongs on the row: an NGG and a low-stringency NAG site carry very
@@ -1964,8 +1973,9 @@ def offtarget(
             carried = f"  carried at {site.frequency:.3g}" + (
                 f" ({breakdown})" if breakdown else ""
             )
+        matrix = f"  matrix={site.score_matrix}" if mixed_matrices and site.score_matrix else ""
         human_lines.append(
-            f"  {s['locus']}{pam}  mm={s['mismatches']}  score={s['score']}{mit}  "
+            f"  {s['locus']}{pam}  mm={s['mismatches']}  score={s['score']}{mit}{matrix}  "
             f"{s['origin']}{' ' + str(s['causal_allele']) if s['causal_allele'] else ''}"
             f"{carried}"
         )
