@@ -102,12 +102,16 @@ comment-skipping reader (`polars.read_csv(..., comment_prefix="#")`,
 the table it got before. A reader that skips nothing sees a different first line, so
 `schema_version` — which leads every row for this purpose — is `11`.
 
+`--format parquet --out menu.parquet` writes the same table for a batch consumer.
 Parquet has no comment lines, so it carries the same notes as file-level key/value
 metadata under `disclaimer` and `provenance_1..n` — read them with
-`polars.read_parquet_metadata(path)`. The columns are identical to the TSV's; the notes
+`polars.read_parquet_metadata(path)`. The columns are identical to the TSV's, in the
+same order (a positional reader gets the same column from either file), and the notes
 come from the same source, so the two formats cannot state different provenance for the
 same table. (This needs `polars>=1.30`, the first release whose Parquet writer accepts
-file metadata.)
+file metadata; without it the command exits `4` naming the extra to install.) Like
+`html` and `pdf` it requires `--out` — the metadata belongs to the file — and it leaves
+the same `.provenance.json` sidecar beside it.
 
 ### The run-config file
 

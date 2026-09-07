@@ -35,7 +35,7 @@ auto-generated at `/openapi.json`.
 |---|---|
 | `GET /api/health` | Liveness, the disclaimer, and which data sources this deployment loaded: the reference, the population sites, the haplotype panel, and the accessibility track names a request may choose from — plus `source_errors`, the reason a *configured* source failed to load, so a broken mount is not reported as a deliberate absence. |
 | `POST /api/resolve` | Normalize any input form to a canonical variant. |
-| `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf`. |
+| `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf\|tsv\|parquet` — the same set `aforge design --format` offers. |
 | `POST /api/jobs/design` | Submit an async design job (`202`, returns a job id). |
 | `GET /api/jobs/{job_id}` | Poll an async job: `state` (`pending` → `running` → `done` / `error`, an enum in the schema so a generated client can switch on it), a three-valued `progress`, and the result or the failure reason. |
 | `POST /api/batch` | Cohort design over a variant list; per-item summaries and provenance, a failed item isolated rather than failing the run. |
@@ -69,7 +69,25 @@ curl -s -X POST localhost:8000/api/design \
 curl -s -X POST 'localhost:8000/api/design?format=html' \
   -H 'content-type: application/json' \
   -d '{"variant":"chr2:71:A>C","intent":"install"}' > report.html
+
+# the flat per-candidate table a pipeline filters, over HTTP
+curl -s -X POST 'localhost:8000/api/design?format=tsv' \
+  -H 'content-type: application/json' \
+  -d '{"variant":"chr2:71:A>C","intent":"install"}' > menu.tsv
 ```
+
+### The two flat tables
+
+`?format=tsv` and `?format=parquet` return the same columns in the same order — the
+surface a pipeline acts on, which until now could not be obtained over HTTP at all.
+Both carry the research-use disclaimer, the reference build and the coordinate
+convention the JSON body carries: the TSV in leading `#` comment lines (skip them with
+`comment_prefix="#"`), the Parquet in file-level key/value metadata under `disclaimer`
+and `provenance_1..n` (`polars.read_parquet_metadata`). A table of specificities and
+genomic loci with nothing saying what they are is the state those notes exist to end.
+
+The Parquet writer is the optional `polars` dependency. A deployment without it answers
+with a status naming the extra to install rather than a generic server error.
 
 ## The frontend
 

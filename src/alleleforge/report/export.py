@@ -229,7 +229,14 @@ def report_to_parquet(report: DesignReport, path: str | Path) -> Path:
             "Parquet export requires the optional 'polars' dependency (install alleleforge[core])"
         ) from exc
     rows = [_row(c) for c in report.candidates]
+    # Projected onto TSV_COLUMNS, not left in `_row`'s dict order: the two orders had
+    # already drifted apart by one adjacent swap, so `frame[:, 17]` was
+    # `offtarget_expected_burden` in the Parquet and `offtarget_specificity` in the
+    # TSV — two numbers on unrelated scales, in the pair of tables documented as
+    # holding identical columns. It also makes the empty frame (built from the same
+    # constant) and the populated one agree by construction rather than by luck.
     frame = pl.DataFrame(rows) if rows else pl.DataFrame({col: [] for col in TSV_COLUMNS})
+    frame = frame.select(TSV_COLUMNS)
     out = Path(path)
     frame.write_parquet(out, metadata=_export_notes(report))
     return out

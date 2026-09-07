@@ -304,3 +304,24 @@ def test_the_report_allowances_are_real_parameters() -> None:
     known = _report_parameters()
     stale = sorted((set(_REPORT_NOT_IN_CLI) | set(_REPORT_NOT_IN_WEB)) - known)
     assert not stale, f"allowances recorded for parameters build_report() no longer takes: {stale}"
+
+
+def test_the_two_shells_offer_the_same_output_formats() -> None:
+    """A format one shell can produce and the other cannot is a shell-only capability.
+
+    `--format` offered `tsv` and the web `?format=` did not, so the audience that
+    cannot open an HTML page — a pipeline — had nothing to read over HTTP; and
+    `parquet` existed in neither, having been reachable from Python alone while the
+    CLI reference documented it.
+    """
+    from alleleforge.cli.main import OutputFormat
+    from alleleforge.web.api.app import DesignFormat
+
+    cli = {member.value for member in OutputFormat}
+    web = {member.value for member in DesignFormat}
+    assert len(cli) > 3, cli
+    assert cli == web, (
+        f"only the CLI can produce {sorted(cli - web)} and only the web API "
+        f"{sorted(web - cli)}; the same design should be obtainable in the same "
+        "formats from either shell."
+    )

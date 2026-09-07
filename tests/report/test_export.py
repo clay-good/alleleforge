@@ -93,7 +93,11 @@ def test_parquet_export(prime_menu: RankedMenu, tmp_path: Path) -> None:
     assert out.exists()
     frame = pl.read_parquet(out)
     assert frame.height == len(report.candidates)
-    assert set(TSV_COLUMNS) <= set(frame.columns)
+    # Sequence, not `set(...) <= set(...)`: the subset form is true under any
+    # permutation, which is how the Parquet's column order drifted one swap away from
+    # the TSV's while this passed. Order is pinned in full in
+    # `test_the_two_flat_tables_are_one_table.py`.
+    assert frame.columns == list(TSV_COLUMNS)
 
 
 def test_tsv_export_carries_schema_version(prime_menu: RankedMenu) -> None:

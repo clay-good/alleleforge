@@ -458,6 +458,19 @@ def _load_config(path: Path | None) -> dict[str, Any]:
     return cfg
 
 
+def _write_provenance_sidecar(out: Path, menu: Any) -> Path | None:
+    """Write the ``.provenance.json`` sidecar beside ``out``, or return ``None``.
+
+    Every written artifact gets one, so the sidecar cannot depend on which format was
+    asked for — which is what happened when a new format took its own write path.
+    """
+    if menu.provenance is None:
+        return None
+    sidecar = out.with_suffix(out.suffix + ".provenance.json")
+    sidecar.write_text(menu.provenance.model_dump_json(indent=2), encoding="utf-8")
+    return sidecar
+
+
 class OutputFormat(StrEnum):
     """Design output formats."""
 
@@ -465,6 +478,7 @@ class OutputFormat(StrEnum):
     tsv = "tsv"
     html = "html"
     pdf = "pdf"
+    parquet = "parquet"
 
 
 def _load_encode_tracks(path: Path | None, track: str | None) -> tuple[Any | None, str | None]:
@@ -918,7 +932,7 @@ def design(
         from alleleforge.config import Settings
         from alleleforge.design.designer import design as run_design
         from alleleforge.report.builder import DEFAULT_RENDER_CANDIDATES, build_report
-        from alleleforge.report.export import report_to_json, report_to_tsv
+        from alleleforge.report.export import report_to_json, report_to_parquet, report_to_tsv
         from alleleforge.report.html import render_html
         from alleleforge.report.oligos import scheme_by_name
         from alleleforge.report.pdf import render_pdf
@@ -1053,6 +1067,25 @@ def design(
     # `--render-candidates 0` means "draw them all"; typer has no natural way to
     # spell `None` on the command line, and 0 candidates is not a render anyone wants.
     cap = DEFAULT_RENDER_CANDIDATES if render_candidates is None else (render_candidates or None)
+    # Parquet is written by its own writer rather than rendered to bytes: the notes
+    # the TSV carries in `#` comment lines live in Parquet's file-level key/value
+    # metadata, which only exists on the file. It therefore requires --out, like the
+    # other two formats no terminal can usefully receive.
+    if fmt is OutputFormat.parquet:
+        if out is None:
+            _echo_err("error: --format parquet requires --out")
+            raise typer.Exit(ExitCode.USAGE)
+        try:
+            report_to_parquet(report, out)
+        except MissingDependencyError as exc:
+            _echo_err(f"error: {exc}")
+            raise typer.Exit(ExitCode.UNAVAILABLE) from exc
+        sidecar = _write_provenance_sidecar(out, menu)
+        typer.echo(f"wrote {out}" + (f" and {sidecar}" if sidecar else ""))
+        if as_json:
+            typer.echo(menu.model_dump_json(indent=2))
+        return
+
     if fmt is OutputFormat.json:
         rendered: bytes = report_to_json(report).encode()
     elif fmt is OutputFormat.tsv:
@@ -1064,10 +1097,8 @@ def design(
 
     if out is not None:
         out.write_bytes(rendered)
-        sidecar = out.with_suffix(out.suffix + ".provenance.json")
-        if menu.provenance is not None:
-            sidecar.write_text(menu.provenance.model_dump_json(indent=2), encoding="utf-8")
-        typer.echo(f"wrote {out}" + (f" and {sidecar}" if menu.provenance else ""))
+        sidecar = _write_provenance_sidecar(out, menu)
+        typer.echo(f"wrote {out}" + (f" and {sidecar}" if sidecar else ""))
     elif fmt in (OutputFormat.json, OutputFormat.tsv):
         typer.echo(rendered.decode())
     else:

@@ -10,6 +10,24 @@ acceptance.
 
 ### Added
 
+- **The flat table a pipeline reads is now obtainable from both shells.** `report_to_parquet` was
+  reachable from Python alone — so the round that gave Parquet its disclaimer, reference build and
+  coordinate convention improved a file no shell could produce, while `docs/api/cli.md` documented it under
+  `--format`. And the web API offered `json|html|pdf` only, leaving the one audience that cannot open an
+  HTML page with nothing to read over HTTP. `aforge design --format parquet --out menu.parquet` now writes
+  it (requiring `--out`, since the notes live in the file's metadata, and leaving the same
+  `.provenance.json` sidecar every other format does; exit `4` naming the extra when `polars` is absent),
+  and `POST /api/design?format=` accepts the same five formats the CLI does, pinned equal by a test.
+
+- **Fixed: the TSV and the Parquet disagreed about column order.** They are documented as the same table.
+  The TSV projects each row onto `TSV_COLUMNS`; the Parquet writer handed polars a list of dicts and took
+  whatever order `_row` built, which had drifted by one adjacent swap — `offtarget_specificity` and
+  `offtarget_expected_burden`, two numbers on unrelated scales, at the same index in the two files. A
+  positional reader (`frame[:, 17]`, `df[[18]]`) silently read the wrong one. The guard that existed asked
+  `set(TSV_COLUMNS) <= set(frame.columns)`, true under any permutation; both halves are now pinned as
+  sequences, and the empty-table branch — built from the constant, so already ordered differently from a
+  populated file written by the same function — agrees with the populated one by construction.
+
 - **The cloning vector is now the caller's to name, and the ordering-hazard screen follows it.** Every
   insert is screened for a copy of its scheme's Type IIS recognition site — the classic Golden-Gate
   failure, where the enzyme that assembles the construct also cuts it and the clone silently dies. That

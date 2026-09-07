@@ -9691,6 +9691,45 @@ parity query against every entry point that produces an artifact, not just the o
 computes.**
 
 
+## Round 297 — two rounds improving a file no shell could write
+
+R296's lesson said to run the parity query against every entry point that produces an
+artifact. Run against the export writers, it answered immediately: `report_to_parquet`
+was reachable from Python alone. R295 had spent a whole round giving Parquet the
+disclaimer, the reference build and the coordinate convention its TSV sibling carries —
+on the argument that Parquet is what a *batch* job reads — and `docs/api/cli.md`
+documented it under `--format`, down to the metadata keys and the `polars>=1.30` floor.
+`--format` accepted `json|tsv|html|pdf`.
+
+The web shell was worse and in the same direction: `?format=` offered `json|html|pdf`.
+Not just Parquet — no TSV either. The audience the flat table exists for, the one that
+cannot open an HTML page, was the one audience the HTTP shell had nothing for. Both
+shells now offer the same five, and a test pins the two enums equal rather than trusting
+the next format to be copied across.
+
+Writing the test that reads the Parquet back turned up the second defect. The two tables
+are documented as identical, and the TSV projects each row onto `TSV_COLUMNS` while the
+Parquet writer handed polars a list of dicts and took `_row`'s own order. They had
+drifted by one adjacent swap:
+
+    index 17      TSV: offtarget_specificity        Parquet: offtarget_expected_burden
+    index 18      TSV: offtarget_expected_burden    Parquet: offtarget_specificity
+
+A named-column reader never notices; a positional one reads a specificity where the
+sibling file holds an expected burden, two numbers on unrelated scales. The guard that
+existed asked `set(TSV_COLUMNS) <= set(frame.columns)` — a subset of a *set*, true under
+every permutation and also true if Parquet grew extra columns. The empty-table branch was
+built from the constant, so an empty Parquet and a populated one from the same function
+already had different column orders.
+
+**Lesson: an assertion's *shape* is a claim about what can go wrong, and `set(a) <=
+set(b)` claims that order cannot. Two tables documented as one table are compared as
+sequences or not compared at all. More generally: the round that makes an artifact
+trustworthy and the round that makes it reachable are different rounds, and doing the
+first without the second is invisible from inside the module — the export writer is
+completely correct and completely unreachable at the same time.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -20,6 +20,7 @@ Two invariants from the specification:
 from __future__ import annotations
 
 import os
+import tempfile
 from collections.abc import Iterable
 from enum import StrEnum
 from pathlib import Path
@@ -33,6 +34,7 @@ from fastapi.staticfiles import StaticFiles
 
 from alleleforge._version import __version__
 from alleleforge.config import Settings
+from alleleforge.errors import MissingDependencyError
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
     RESEARCH_USE_CORE,
@@ -40,6 +42,7 @@ from alleleforge.report.builder import (
     DesignReport,
     build_report,
 )
+from alleleforge.report.export import report_to_parquet, report_to_tsv
 from alleleforge.report.html import render_html
 from alleleforge.report.oligos import scheme_by_name
 from alleleforge.report.pdf import render_pdf
@@ -68,11 +71,36 @@ _FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
 
 class DesignFormat(StrEnum):
-    """Renderings the design endpoint can return."""
+    """Renderings the design endpoint can return.
+
+    The same set `aforge design --format` offers. The two flat tables are the surface a
+    *pipeline* reads, and they were CLI-only (Parquet, Python-only) — so the one
+    audience that cannot open an HTML page was the one the HTTP shell had nothing for.
+    """
 
     json = "json"
     html = "html"
     pdf = "pdf"
+    tsv = "tsv"
+    parquet = "parquet"
+
+
+def _report_parquet_bytes(report: DesignReport) -> bytes:
+    """Return the Parquet export as bytes.
+
+    The writer takes a path because Parquet's file-level key/value metadata — where
+    the notes the TSV carries as `#` comment lines live — belongs to the file. Over
+    HTTP there is no path, so one is borrowed and removed; the alternative is a body
+    without the disclaimer, provenance and coordinate convention, which is the whole
+    reason those notes were put there.
+    """
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            return Path(report_to_parquet(report, Path(tmp) / "design.parquet")).read_bytes()
+    except MissingDependencyError as exc:
+        # 501, not 500: the deployment did not install the optional writer. The
+        # message already names the extra to install, and a client can act on it.
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
 
 
 #: Why the configured reference could not be opened, for `_require_reference` to
@@ -565,7 +593,7 @@ def create_app(
         request: Request,
         fmt: Annotated[DesignFormat, Query(alias="format")] = DesignFormat.json,
     ) -> DesignReport | Response:
-        """Design a ranked, multi-chemistry menu (JSON, HTML, or PDF)."""
+        """Design a ranked, multi-chemistry menu (JSON, HTML, PDF, TSV, or Parquet)."""
         report = _design_to_report(request, req)
         # 0 means "draw them all"; the JSON body is never capped either way.
         cap = (
@@ -577,6 +605,16 @@ def create_app(
             return HTMLResponse(render_html(report, max_candidates=cap))
         if fmt is DesignFormat.pdf:
             return Response(render_pdf(report, max_candidates=cap), media_type="application/pdf")
+        if fmt is DesignFormat.tsv:
+            # `text/tab-separated-values`, charset declared: the `#` note block carries
+            # a reference-genome description that may hold a non-ASCII gene name.
+            return Response(
+                report_to_tsv(report), media_type="text/tab-separated-values; charset=utf-8"
+            )
+        if fmt is DesignFormat.parquet:
+            return Response(
+                _report_parquet_bytes(report), media_type="application/vnd.apache.parquet"
+            )
         return report
 
     @app.post("/api/jobs/design", response_model=JobSubmitResponse, status_code=202)
