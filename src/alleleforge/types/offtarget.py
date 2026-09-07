@@ -257,17 +257,18 @@ class OffTargetReport(BaseModel):
             # specificity 0.130" with nothing on the page explaining the third figure.
             coverage += (
                 f"; a sub-threshold tail of {self.subthreshold_placements} further "
-                "in-budget placement(s) scored below the reporting cut-off and is not "
-                f"shown, contributing "
+                "in-budget placement(s) scored below the reporting cut-off and is "
+                "therefore not among the nominated sites, contributing "
                 f"{self.subthreshold_score_sum:.3f} to the specificity denominator - so "
-                "the specificity is over every nominated site, not only the listed ones, "
-                "and raising the cut-off cannot improve it"
+                "the specificity is over every nominated site, not only the reported "
+                "ones, and raising the cut-off cannot improve it"
             )
         if self.scanned_pam and self.scanned_pam != self.pam:
             coverage += (
                 f"; the PAM was broadened from {self.pam} to {self.scanned_pam} for the "
                 "scan, so low-stringency sites (e.g. NAG for SpCas9) are nominated too: "
-                "they are cut less efficiently, and each site's own PAM is on its row"
+                "they are cut less efficiently, and each site records the PAM it was "
+                "actually found with"
             )
         if self.unbacked_populations:
             coverage += (

@@ -380,3 +380,16 @@ reference practical, and the artifact claims a scope that was never applied.
 - **WHEN** a design run is scoped to a 50-base region on a 140-base reference
 - **THEN** every candidate's report shows 50 bases searched, whichever chemistry
   produced it, and the provenance snapshot agrees
+
+
+### Requirement: A shared description describes data, not a layout
+
+The search description is composed once and rendered by surfaces that differ in what they
+draw: `aforge offtarget` prints a row per nominated site, the design report prints none.
+It SHALL therefore describe the data — what a site records, what is or is not among the
+nominated sites — and SHALL NOT refer to rows, listings or anything else a particular
+render supplies.
+
+#### Scenario: The description on a surface with no site rows
+- **WHEN** the design report renders the search description
+- **THEN** no clause refers to a row, a listing, or anything the page does not draw

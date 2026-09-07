@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: the search description pointed at rows one of its two readers does not draw.** It is composed
+  once by the engine and rendered both by `aforge offtarget`, which prints a row per nominated site, and
+  by the design report, which prints none. Two clauses were written for the first reader and shipped to
+  both: "each site's own PAM is on its row", and a sub-threshold tail that "is not shown". On the report
+  a reader checking the PAM of a low-stringency hit was sent to a table nobody rendered, and "not shown"
+  contrasted a hidden tail with a visible list that was also absent. Both now describe the data — a site
+  records the PAM it was found with; a sub-threshold placement is not among the nominated sites — which
+  is true on both surfaces and loses nothing on the one with rows.
+
 - **Fixed: the ranking rationale described two mechanisms whether or not either had run.** It said "the
   safety term uses the worst-affected ancestry and the efficiency term is uncertainty-discounted"
   unconditionally. Both are conditional in the code: `_safety` takes the worst-affected ancestry only

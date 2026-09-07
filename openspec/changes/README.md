@@ -10457,6 +10457,39 @@ their own mechanism and inherited the rest. Read long sentences one clause at a 
 against the code that produces each clause.**
 
 
+## Round 320 — a sentence written for one reader, shipped to two
+
+R319 said to read long sentences one clause at a time against the code behind each clause.
+The off-target search description is the longest sentence this tool emits, and its clauses
+turn out to have two different subjects: most describe the search, and two describe a
+*page*.
+
+    …and each site's own PAM is on its row
+    …scored below the reporting cut-off and is not shown
+
+`SearchDescription` is composed once by the engine. `aforge offtarget` prints a row per
+site, so both clauses are true there. The design report prints no site rows at all — R314
+established that and added a note saying where they are — so on the report, "its row" is a
+row that does not exist, and "not shown" draws a contrast with a visible list that is
+equally absent. A reader wanting to check the PAM of a nominated low-stringency hit is sent
+to a table nobody rendered.
+
+Neither clause needed the layout. A site records the PAM it was found with; a sub-threshold
+placement is not among the nominated sites. Both facts are what the reader wanted, both are
+true on either surface, and the second is clearer for it — it now explains *why* the
+specificity does not match the visible rows instead of asserting that some are hidden.
+
+The guard is a word list — "on its row", "is not shown", "the listed ones" — checked
+against the string constants of the module that composes the description. Prose about
+layout is the one kind that cannot be shared, and it is recognizable by vocabulary.
+
+**Lesson: text composed in a data type and rendered by several surfaces inherits the
+assumptions of whichever surface it was written against. The clauses were added by someone
+looking at the command that prints rows, which was the right place to be looking and the
+wrong place to stop. When a string is built somewhere other than where it is displayed,
+list its displays.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
