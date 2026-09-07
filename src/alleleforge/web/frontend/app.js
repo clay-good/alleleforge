@@ -268,4 +268,9 @@ document
 document
   .getElementById("download-json")
   .addEventListener("click", () => download("json", "alleleforge-report.json", "application/json"));
+document
+  .getElementById("download-tsv")
+  .addEventListener("click", () =>
+    download("tsv", "alleleforge-menu.tsv", "text/tab-separated-values"),
+  );
 checkHealth();

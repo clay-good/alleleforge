@@ -10,6 +10,13 @@ acceptance.
 
 ### Added
 
+- **The served page can hand a user the flat table.** Its export buttons were *Download PDF* and
+  *Download JSON* — a printable document and a nested object — so the one format a bench scientist opens
+  in a spreadsheet had to be produced from another shell, which for a browser user means not at all. A
+  *Download TSV* button now sits beside them, and a test pins the two properties that matter: every
+  `?format=` the page requests is one the API accepts (a mismatch fails only at runtime, in the browser),
+  and each one actually returns a body.
+
 - **The flat table now names the enzyme that cleared each insert.** `oligo_warnings` is the ordering
   hazard a pipeline filters on before placing a DNA order, and it became interpretable only against a fact
   the table did not carry the moment the cloning vector became the caller's to choose: an empty cell means

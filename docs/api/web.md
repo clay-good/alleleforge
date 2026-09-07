@@ -97,6 +97,8 @@ inside the Python wheel and is exercised end to end by the API tests. It
 implements the journey — variant entry (all input forms) → ranked candidate menu
 with inlined-SVG efficiency intervals and outcome distributions → an
 ancestry-stratified off-target view → oligo/report export — by posting to
-`/api/design?format=html` and embedding the returned report. A production
+`/api/design?format=html` and embedding the returned report. Its download buttons offer
+PDF, JSON and TSV: the flat table is what a bench scientist opens in a spreadsheet, and
+the page previously offered only a printable document and a nested object. A production
 Next.js + JBrowse 2 frontend can replace it behind the same API without backend
 changes.

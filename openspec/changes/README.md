@@ -9755,6 +9755,27 @@ every block — which is exactly why it was easy to miss. After adding a paramet
 which existing columns just changed meaning, not which ones changed value.**
 
 
+## Round 299 — the shell with no command line
+
+R297 added the flat table to the HTTP API and counted two shells. There are three. The
+served page is a shell too — it is the only one a bench scientist without a terminal ever
+uses — and its export buttons were *Download PDF* and *Download JSON*: a printable
+document and a nested object. The format that opens in a spreadsheet was reachable from
+the API the page was already talking to, and the page did not ask for it.
+
+A *Download TSV* button, and the durable half is the test. It does not assert a label; it
+reads the `?format=` values `app.js` actually requests and requires each to be a format
+`DesignFormat` accepts, then calls each one. A page requesting a format the API dropped
+fails in the browser and nowhere else — no import breaks, no route 404s, the button
+simply does nothing.
+
+**Lesson: "both shells" was wrong twice in three rounds, in the same direction each time
+— the shell that got forgotten was the one furthest from the library. Enumerate the
+audiences, not the modules: Python, terminal, HTTP client, browser. The browser one has
+no `--help` to grep and no signature to introspect, so a parity check there has to read
+what the page requests at runtime.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

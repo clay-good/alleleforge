@@ -70,6 +70,11 @@
         <section id="actions" class="actions" hidden>
           <button id="download-pdf" type="button">Download PDF</button>
           <button id="download-json" type="button">Download JSON</button>
+          <!-- The flat per-candidate table: the surface a spreadsheet or a pipeline
+               reads. The page offered only a printable document and a nested JSON
+               object, so the one format a bench scientist opens in Excel — and the one
+               a pipeline filters — had to be produced by another shell. -->
+          <button id="download-tsv" type="button">Download TSV</button>
         </section>
 
         <!-- Sandboxed: the report is server-generated HTML assembled from user-supplied
