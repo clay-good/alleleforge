@@ -373,8 +373,11 @@ description.
 
 ### Requirement: The page can take away every rendering it can produce
 
-Every rendering `/api/design?format=` serves SHALL be downloadable from the served page,
-or recorded with the reason it is not. The HTML rendering in particular SHALL be
+Every rendering `/api/design?format=` serves SHALL be downloadable from the served page's
+single-variant panel, and every rendering `/api/batch?format=` serves SHALL be
+downloadable from its cohort panel — or recorded with the reason it is not. The two
+panels are checked separately, because they offer different renderings from different
+rows and a gap in one is invisible in the other. The HTML rendering in particular SHALL be
 downloadable, because the page embeds it in a fixed-height sandboxed frame that cannot
 resize itself: a reader sees a fraction of a report that is routinely tens of thousands
 of pixels tall.

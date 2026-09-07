@@ -11612,3 +11612,32 @@ subresource. Serving from a fresh port settled it.
 **Lesson: adding one item to a row is a layout change, and the width where it shows is
 not the width you are developing at. The row had been marginally broken for a long time,
 which is what made the regression easy to add and easy to miss.**
+
+## Round 356 — the same gap in the other panel, including in last round's guard
+
+Running the cohort tab rather than reading it. It behaves well: per-row failure
+isolation, a results table with caveats, and honest errors — the ClinVar refusal comes
+back per row and names the coordinate form. One thing was missing. `/api/batch?format=`
+serves JSON and TSV, and the panel offered JSON.
+
+The TSV is the flat per-patient table a pipeline reads, and the single-variant panel
+gained its own TSV button in a round whose reasoning is still in the comment beside it:
+the format a bench scientist opens in Excel should not require another shell. A cohort
+*is* a table, so the argument is stronger on this panel, and this panel is the one that
+never got it — the third time this session that a fix reached one of two places.
+
+Round 354's guard did not catch it, because that guard checks `DesignFormat` against the
+single-variant panel's download calls and the cohort panel downloads a different enum
+from a different row. A guard written against one of two panels is a guard against half
+the defect. It now checks both, and additionally that every cohort button has a listener,
+since the cohort row builds its JSON locally and could grow a button that silently does
+nothing.
+
+The TSV is fetched from the endpoint rather than assembled in the browser. The columns
+and their order are shared, and a second implementation in JavaScript is precisely how
+two tables of the same numbers come to disagree about their columns — a defect this
+project has had once already.
+
+**Lesson: after fixing a gap, ask where the same gap could hide from the guard you just
+wrote. Twice now the answer was "the sibling panel", and the guard's own scope was the
+thing that hid it.**

@@ -180,7 +180,8 @@ const batchResults = document.getElementById("batch-results");
 const batchActions = document.getElementById("batch-actions");
 const batchSubmit = document.getElementById("batch-submit");
 
-let lastBatch = null; // the last batch response, for the download button.
+let lastBatch = null; // the last batch response, for the JSON download.
+let lastBatchRequest = null; // the body that produced it, for renderings the server makes.
 
 function readBatchForm() {
   const variants = document
@@ -292,6 +293,7 @@ async function runBatch(event) {
       return;
     }
     lastBatch = await res.json();
+    lastBatchRequest = body;
     renderBatch(lastBatch);
     batchActions.hidden = false;
     batchStatus.textContent =
@@ -321,11 +323,39 @@ function downloadBatch() {
   URL.revokeObjectURL(url);
 }
 
+async function downloadBatchTsv() {
+  if (!lastBatchRequest) {
+    batchStatus.textContent = "Run a cohort first — there is nothing to download yet.";
+    batchStatus.classList.add("error");
+    return;
+  }
+  // Asked of the endpoint rather than assembled here: the column set and its order are
+  // the shared ones, and a second implementation in the browser is exactly how two
+  // tables of the same numbers come to disagree about their columns.
+  const res = await fetch("/api/batch?format=tsv", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(lastBatchRequest),
+  });
+  if (!res.ok) {
+    batchStatus.textContent = `Download failed: ${res.status}`;
+    batchStatus.classList.add("error");
+    return;
+  }
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "alleleforge-cohort.tsv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 form.addEventListener("submit", design);
 batchForm.addEventListener("submit", runBatch);
 document.getElementById("tab-single").addEventListener("click", () => showTab("single"));
 document.getElementById("tab-batch").addEventListener("click", () => showTab("batch"));
 document.getElementById("batch-download-json").addEventListener("click", downloadBatch);
+document.getElementById("batch-download-tsv").addEventListener("click", downloadBatchTsv);
 document
   .getElementById("download-pdf")
   .addEventListener("click", () => download("pdf", "alleleforge-report.pdf", "application/pdf"));
