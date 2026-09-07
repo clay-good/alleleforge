@@ -21,6 +21,14 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Removed a stray file named `G` from the repository root.** One line of captured stderr — `error:
+  unrecognized variant input: 'chr1:144500000:A'` — from a shell redirection typo during an earlier
+  round, swept in by a `git add -A` and shipped in every clone since. Nothing was going to notice: it
+  broke no test, imported nowhere, and a one-character filename is the least conspicuous thing in a
+  listing next to `CHANGELOG.md`. The root now has an explicit inventory — every tracked file named with
+  what a repository root has it for — so a stray is a failing test and a genuinely new root file is a
+  decision.
+
 - **An on-target exclusion now says how much it removed.** `--on-target` drops the guide's own
   protospacer from the count, correctly — and nothing constrained how wide that interval may be, so
   `--on-target chr1:0-3000` excluded every nominated placement and reported `0 site(s), specificity

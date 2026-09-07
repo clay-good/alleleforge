@@ -11177,6 +11177,37 @@ effect is visible, and a correct mechanism applied to a wrong argument produces 
 convincing wrong answer available.**
 
 
+## Round 343 — the file I saw in the first minute and looked past
+
+The very first command of this whole run was `ls`, and its output contained:
+
+    CHANGELOG.md  CITATION.cff  CODE_OF_CONDUCT.md  CONTRIBUTING.md  Dockerfile  G  LICENSE …
+
+Forty-seven rounds later, `G` is one line of captured stderr:
+
+    error: unrecognized variant input: 'chr1:144500000:A'
+
+A `2>G` instead of `2>&1`, during the round that added the reference-build recommendation,
+swept in by a `git add -A`. It has been in every clone since.
+
+Nothing was ever going to catch it. It breaks no test, is imported nowhere, contains no
+Python for a linter to read, and a single-character filename is the least conspicuous
+thing in a directory listing. The root is the one place where a stray is simultaneously
+most visible to a reader and least visible to any check — a reader's eye slides over it,
+and no tool is pointed there.
+
+So the root gets an inventory: every tracked file named, with what a repository root has
+it for. A stray is now a failing test, and a genuinely new root file has to be a decision.
+I also checked the forty-seven rounds of `git add -A` I have run in this session; they
+added nothing stray.
+
+**Lesson: I read that listing, was orienting toward "find the next chunk of work", and
+filtered `G` out as noise on the way to the interesting files. Anomalies encountered while
+looking for something else are the ones that survive longest, because every future look is
+also a look for something else. Write them down when they appear, even mid-task —
+especially mid-task.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
