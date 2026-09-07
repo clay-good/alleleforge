@@ -31,7 +31,7 @@ from alleleforge.report.builder import (
     visible_candidates,
 )
 from alleleforge.report.pdf import oligo_lines
-from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE
+from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE, Prediction
 from alleleforge.viz.svg import Series, bar_chart
 
 #: Series colors for the grouped off-target chart, cycled per candidate. Fixed and
@@ -153,6 +153,21 @@ def _uncovered_notes(c: CandidateReport) -> list[str]:
     return list(dict.fromkeys(notes))
 
 
+def _untrained(prediction: Prediction[float]) -> str:
+    """Say when a point estimate did not come from a trained model.
+
+    `calibrated=False` qualifies the *interval*; nothing qualified the *point*. The
+    bundled Cas9 ensemble's model card carries this as its load-bearing sentence — "the
+    heads are an unfitted pseudo-random scaffold: the point estimate is not a trained
+    activity prediction" — and `point_from_trained_model` records it per prediction. It
+    reached no human surface, so a report printed `Efficiency 0.60` in exactly the
+    typography a trained model's estimate would get.
+    """
+    if prediction.point_from_trained_model:
+        return ""
+    return f" <em>({prediction.method.value} point estimate — not from a trained model)</em>"
+
+
 def _candidate_html(c: CandidateReport) -> str:
     """Render one candidate block."""
     badge = '<span class="badge">Pareto</span>' if c.on_pareto_front else ""
@@ -169,7 +184,8 @@ def _candidate_html(c: CandidateReport) -> str:
         cal = "" if e.calibrated else " <em>(nominal — coverage not measured)</em>"
         parts.append(
             f"<p>Efficiency <strong>{e.value:.2f}</strong> "
-            f"[{e.interval[0]:.2f}, {e.interval[1]:.2f}] @ {e.interval_level:.0%}{cal}{ood}</p>"
+            f"[{e.interval[0]:.2f}, {e.interval[1]:.2f}] @ {e.interval_level:.0%}"
+            f"{cal}{_untrained(e)}{ood}</p>"
         )
     if c.bystander_burden is not None:
         b = c.bystander_burden
@@ -199,7 +215,7 @@ def _candidate_html(c: CandidateReport) -> str:
             parts.append(
                 f"<p>P(intended) = <strong>{prediction.value:.2f}</strong> "
                 f"[{prediction.interval[0]:.2f}, {prediction.interval[1]:.2f}] "
-                f"@ {prediction.interval_level:.0%}{cal}{ood}</p>"
+                f"@ {prediction.interval_level:.0%}{cal}{_untrained(prediction)}{ood}</p>"
             )
     if c.outcome_top:
         rows = "".join(

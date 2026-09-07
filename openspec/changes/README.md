@@ -9394,6 +9394,31 @@ handed. The CLI is where the developer looks; the report is what gets attached t
 and a fix that lands only where you were already looking has reached the smaller audience.**
 
 
+## Round 287 — the parenthetical was about the band, not the number
+
+R285's lesson — omitting a field asserts it — applied to the efficiency line, which is the
+number a reader takes away from a report:
+
+    Efficiency 0.60 [0.45, 0.75] @ 80% (nominal — coverage not measured)
+
+That caveat is about the *interval*. The point estimate came from an unfitted pseudo-random
+scaffold, and the project knows: the bundled model card's load-bearing sentence is "the
+heads are an unfitted pseudo-random scaffold: the point estimate is not a trained activity
+prediction (method=HEURISTIC)", `Prediction.point_from_trained_model` records it per
+prediction, and a behavioural test asserts the scorer sets it. Every layer had the fact and
+the last one dropped it, so `0.60` was rendered in exactly the typography a trained model's
+estimate would get.
+
+Both renders now say `(heuristic point estimate — not from a trained model)` beside the
+number, for efficiency and P(intended) alike, and a trained estimate stays unadorned so the
+mark means something. Two parentheticals sit side by side and they are two different claims:
+one about the band's coverage, one about the number's provenance.
+
+**Lesson: when a value carries several honesty flags, check that each one has a surface.
+`calibrated` had one and `point_from_trained_model` did not, and the presence of the first
+made the line *look* qualified — a partial disclosure reads as a complete one.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -2056,6 +2056,14 @@ acceptance.
 
 ### Fixed
 
+- **An untrained point estimate says so on the report.** A candidate read
+  `Efficiency 0.60 [0.45, 0.75] @ 80% (nominal — coverage not measured)` — a parenthetical about the
+  *band*, while the number itself came from an unfitted pseudo-random scaffold. The bundled model card
+  carries that as its load-bearing sentence and `point_from_trained_model` records it per prediction; it
+  reached no human surface, so the estimate was rendered in exactly the typography a trained model's would
+  get. Both renders now mark it, naming the method, for efficiency and P(intended) alike — and leave a
+  trained estimate unadorned.
+
 - **A mixed-matrix report names the matrix behind its headline number.** The report carries no per-site
   rows by design — it summarises, and the lossless export has the sites — so on a mixed table its effective
   matrix reads `published + approximation`, telling a reader both scales were used and not which produced

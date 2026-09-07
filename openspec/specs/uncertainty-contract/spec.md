@@ -11,6 +11,20 @@ enforceable in the type system.
 
 ## Requirements
 
+### Requirement: An untrained point estimate says so on every human render
+
+`calibrated=False` qualifies an interval's coverage; it says nothing about where the point
+estimate came from. `point_from_trained_model` records that per prediction. Every
+human-readable render SHALL mark a point estimate that did not come from a trained model,
+naming the method, and SHALL leave a trained estimate unadorned so the mark means
+something when it appears.
+
+#### Scenario: A heuristic scaffold's estimate
+- **WHEN** a candidate's efficiency or P(intended) carries
+  `point_from_trained_model=False`
+- **THEN** the HTML and PDF renders say so beside the number, distinctly from the
+  interval's coverage caveat
+
 ### Requirement: Predictions are never bare floats
 
 Every numeric efficiency or outcome value the system returns SHALL be wrapped in a

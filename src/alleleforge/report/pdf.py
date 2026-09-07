@@ -118,9 +118,16 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
         e = c.efficiency
         ood = "" if e.in_distribution else "  (OUT-OF-DISTRIBUTION)"
         cal = "" if e.calibrated else "  (nominal - coverage not measured)"
+        # The point estimate's own provenance, not the interval's: `calibrated=False`
+        # qualifies the band, `point_from_trained_model=False` qualifies the number.
+        untrained = (
+            ""
+            if e.point_from_trained_model
+            else f"  ({e.method.value} point estimate - not from a trained model)"
+        )
         lines += _wrap(
             f"efficiency {e.value:.2f} [{e.interval[0]:.2f}, {e.interval[1]:.2f}] "
-            f"@ {e.interval_level:.0%}{cal}{ood}",
+            f"@ {e.interval_level:.0%}{cal}{untrained}{ood}",
             indent="    ",
         )
     if c.bystander_burden is not None:
@@ -143,11 +150,16 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
             )
         else:
             cal = "" if prediction.calibrated else " (nominal - coverage not measured)"
+            untrained = (
+                ""
+                if prediction.point_from_trained_model
+                else f" ({prediction.method.value} point estimate - not from a trained model)"
+            )
             ood = "" if prediction.in_distribution else " (out of distribution)"
             lines += _wrap(
                 f"P(intended) = {prediction.value:.2f} "
                 f"[{prediction.interval[0]:.2f}, {prediction.interval[1]:.2f}] "
-                f"@ {prediction.interval_level:.0%}{cal}{ood}",
+                f"@ {prediction.interval_level:.0%}{cal}{untrained}{ood}",
                 indent="    ",
             )
     for a in c.outcome_top:
