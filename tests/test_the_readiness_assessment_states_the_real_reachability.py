@@ -21,6 +21,7 @@ import re
 from pathlib import Path
 
 from alleleforge.design.designer import design
+from alleleforge.variant.resolver import resolve
 
 _ROOT = Path(__file__).resolve().parents[1]
 _CLI = _ROOT / "src" / "alleleforge" / "cli" / "main.py"
@@ -29,22 +30,38 @@ _HEADING = "### `design()` parameters no CLI command supplies"
 
 
 def _supplied_by_the_cli() -> set[str]:
-    """Parameters of ``design()`` that some CLI command passes, positionally or by name."""
+    """Parameters of ``design()`` that some CLI command supplies, positionally or by name.
+
+    Two call sites count, not one. Several of ``design()``'s inputs are read only
+    during resolution, and the CLI resolves the variant itself before handing
+    ``design()`` the result — so ``resolve_variant(..., effect=...)`` is exactly as
+    much "the user reached it from the command line" as passing it to ``design()``
+    would be. Counting only the ``design()`` call site called `--vep` unreachable on
+    the day it shipped.
+    """
     source = _CLI.read_text(encoding="utf-8")
-    assert "from alleleforge.design.designer import design as run_design" in source, (
-        "the CLI no longer imports design() as run_design; this test would silently "
-        "find no call sites and pass vacuously"
-    )
+    for imported in (
+        "from alleleforge.design.designer import design as run_design",
+        "from alleleforge.variant.resolver import resolve as resolve_variant",
+    ):
+        assert imported in source, (
+            f"the CLI no longer contains {imported!r}; this test would silently find "
+            "fewer call sites and pass vacuously"
+        )
     order = list(inspect.signature(design).parameters)
+    resolve_order = list(inspect.signature(resolve).parameters)
     supplied: set[str] = set()
     calls = 0
     for node in ast.walk(ast.parse(source)):
-        if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "run_design":
-            calls += 1
-            supplied |= set(order[: len(node.args)])
-            supplied |= {kw.arg for kw in node.keywords if kw.arg}
-    assert calls, "found no run_design(...) call sites in the CLI"
-    return supplied
+        name = getattr(node.func, "id", None) if isinstance(node, ast.Call) else None
+        if name not in ("run_design", "resolve_variant"):
+            continue
+        calls += 1
+        positional = order if name == "run_design" else resolve_order
+        supplied |= set(positional[: len(node.args)])
+        supplied |= {kw.arg for kw in node.keywords if kw.arg}
+    assert calls, "found no run_design(...) or resolve_variant(...) call sites in the CLI"
+    return supplied & set(order)
 
 
 def _named_in_the_table() -> set[str]:

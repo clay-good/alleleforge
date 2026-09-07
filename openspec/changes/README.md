@@ -11250,3 +11250,44 @@ binds it is the rule that is actually true.
 needs a test, and the guarded claim in it survived while its unguarded neighbour
 rotted in two days. When a file's purpose is to be current, derive its claims from
 the code or expect to be lying by the next round.**
+
+## Round 345 — the gap the last round's table surfaced, and why it existed
+
+Round 344 made the readiness assessment list, from the code, every `design()` input no
+CLI command supplies. One entry was a real gap: `effect`, the variant-consequence
+annotator. A library caller gets the predicted consequence on the menu *and* the
+caution that an intent to correct targets a variant of modifier impact — "confirm this
+is the change you mean to make". No command-line user could get either.
+
+The reason it was unreachable is the better half of this round. `design()` takes
+`clinvar`, `dbsnp`, `hgvs` and `effect` and forwards them to `resolve()` — but when the
+input is already a `ResolvedVariant`, resolution is skipped and all four go nowhere,
+silently. The CLI resolves variants itself. So a `--vep` written the obvious way —
+`run_design(resolved, effect=predictor)` — would have type-checked, run, exited 0, and
+annotated nothing, and the resulting menu would have been byte-identical to one whose
+predictor found nothing to say. That is the recurring headline class: a real input
+inert on its consumed axis with a green suite. `design()` now refuses that call, naming
+the arguments that could not take and the call where they do.
+
+`--vep` is then wired where each command actually resolves. The flag is the consent:
+what the predictor's gate protects is *outbound* — the variant, possibly from a patient
+VCF, going to a third-party public server — so the help names Ensembl at the prompt,
+and `aforge resolve` prints `consequence_checked` beside `consequence` so a null cannot
+be misread as "VEP looked and found nothing", the same shape as `reference_checked`.
+
+Round 344's own guard then failed to notice: it counted only what the CLI passes to
+`design()`, so it called `--vep` unreachable on the day it shipped. Both call sites —
+`run_design(...)` and the CLI's own `resolve_variant(...)` — are the same pipeline, and
+both now count. Third time in two rounds that a false positive here meant the rule was
+stated wrong rather than needing an exception.
+
+Deliberately not done: the web API has no `--vep`. Its rule for anything reaching
+outside the process is server-side configuration, and "may this deployment disclose a
+client's variant to Ensembl" is a deployment's decision, not a request parameter. That
+belongs with the gnomAD/haplotype env vars, not in a request body, and is left for a
+round that can do it that way.
+
+**Lesson: a capability audit finds the gap; asking *why* the gap survived finds the
+defect. `effect` was unreachable because `design()` silently dropped it — so the flag
+anyone might have added would have shipped green and annotated nothing, and the audit
+would have closed the item.**

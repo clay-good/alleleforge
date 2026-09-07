@@ -302,3 +302,33 @@ nobody without a next step.
 #### Scenario: A source assembly disagreeing with the requested build
 - **WHEN** a variant's native assembly does not match the build asked for
 - **THEN** the refusal names a remedy for the command line, for Python, and for HTTP
+
+
+### Requirement: A resolver backend that cannot take is refused, not dropped
+
+`design()` accepts the four resolver backends — `clinvar`, `dbsnp`, `hgvs`, `effect` —
+and forwards them to the resolver. When it is handed an input that is already a
+`ResolvedVariant`, resolution is skipped and those backends are consulted by nothing.
+Passing one on that path SHALL raise, naming the arguments that could not take and the
+call where they do. It SHALL NOT be accepted silently: a menu built with an `effect`
+predictor that was never consulted is indistinguishable from one whose predictor found
+nothing worth saying, and the difference is a caution the user does not see.
+
+#### Scenario: An effect predictor passed alongside a resolved variant
+- **WHEN** `design(resolved_variant, effect=predictor)` is called
+- **THEN** it raises, names `effect`, and points at `resolve()`
+
+### Requirement: The predicted consequence is reachable from the command line
+
+The molecular consequence annotates a menu and raises the caution that an intent to
+correct targets a variant of modifier impact. It SHALL be reachable from `aforge
+resolve`, `aforge design` and `aforge batch`, wired where each command resolves.
+
+Because the predictor sends the variant — a chromosome, a position and both alleles,
+possibly from a patient VCF — to a third-party public server, the flag SHALL be opt-in
+and its help SHALL name the recipient. A surface that reports the consequence SHALL also
+report whether it was asked for, so that its absence cannot be read as a measurement.
+
+#### Scenario: Resolving without the flag
+- **WHEN** `aforge resolve <variant> --json` is run without `--vep`
+- **THEN** `consequence` is null and `consequence_checked` is `false`

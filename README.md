@@ -1127,10 +1127,10 @@ flowchart LR
 
 | Command | Purpose |
 |---|---|
-| `aforge resolve <input>` | Normalize any input form; show the canonical variant + class. |
-| `aforge design <input>` | Variant → ranked, multi-chemistry menu rendered to JSON/TSV/Parquet/HTML/PDF (`--format`; TSV and Parquet are one table in two encodings, same columns in the same order, each carrying the disclaimer, reference build and coordinate convention). `--allow-ng` / `--allow-spry` offer the SpCas9-NG and SpRY PAM-flexible fallbacks when no NGG guide is actionable; `--trained-efficiency` / `--trained-outcome` / `--trained-base-outcome` / `--trained-prime` swap in the consent-gated trained models. |
+| `aforge resolve <input>` | Normalize any input form; show the canonical variant + class. `--vep` adds the predicted molecular consequence (opt-in: it sends the variant to Ensembl's public VEP API). |
+| `aforge design <input>` | Variant → ranked, multi-chemistry menu rendered to JSON/TSV/Parquet/HTML/PDF (`--format`; TSV and Parquet are one table in two encodings, same columns in the same order, each carrying the disclaimer, reference build and coordinate convention). `--allow-ng` / `--allow-spry` offer the SpCas9-NG and SpRY PAM-flexible fallbacks when no NGG guide is actionable; `--trained-efficiency` / `--trained-outcome` / `--trained-base-outcome` / `--trained-prime` swap in the consent-gated trained models; `--vep` annotates the menu with the variant's predicted consequence (opt-in: it sends the variant to Ensembl's public VEP API). |
 | `aforge lift <locus>… --chain <file> --from <build> --to <build>` | Lift loci to another assembly, in the same locus form `--region` accepts. An unmappable locus prints `UNMAPPED` and exits non-zero rather than being dropped. |
-| `aforge batch <vcf\|list>` | Cohort design over a VCF (cyvcf2 fast path) or variant list — streaming, resumable, failure-isolated. |
+| `aforge batch <vcf\|list>` | Cohort design over a VCF (cyvcf2 fast path) or variant list — streaming, resumable, failure-isolated. `--vep` annotates each item's consequence (opt-in: it sends every variant to Ensembl's public VEP API). |
 | `aforge offtarget <spacer>` | Standalone population/haplotype-aware off-target search. `--scorer cfd|mit|cfd-cas12a` selects the specificity scorer. |
 
 > [!IMPORTANT]

@@ -254,6 +254,7 @@ def resolve(
     reference_fasta: Annotated[
         Path | None, typer.Option(help="Reference FASTA for left-alignment + ref validation.")
     ] = None,
+    vep: Annotated[bool, typer.Option("--vep", help=_VEP_HELP)] = False,
     as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Normalize any input form to a canonical variant (debugging aid)."""
@@ -272,7 +273,12 @@ def resolve(
         else None
     )
     try:
-        resolved = resolve_variant(variant, build=state.reference_build, reference=reference)
+        resolved = resolve_variant(
+            variant,
+            build=state.reference_build,
+            reference=reference,
+            effect=_effect_predictor(vep),
+        )
     except ValueError as exc:
         _echo_err(f"error: {exc}")
         raise typer.Exit(ExitCode.USAGE) from exc
@@ -305,6 +311,13 @@ def resolve(
         # payloads were byte-identical: an unchecked variant and a verified one were
         # indistinguishable in the artifact.
         "reference_checked": reference is not None,
+        # Stated the same way as `reference_checked`, and for the same reason: a null
+        # `consequence` without this flag means nobody asked, not that VEP looked and
+        # found the variant unremarkable.
+        "consequence_checked": vep,
+        "consequence": resolved.effect.consequence.value if resolved.effect else None,
+        "impact": resolved.effect.impact.name if resolved.effect else None,
+        "gene": resolved.effect.gene if resolved.effect else None,
         "reference": _reference_snapshot(reference) if reference is not None else None,
         "reference_recommendation": (
             resolved.reference_recommendation.recommended_build
@@ -528,6 +541,29 @@ class OutputFormat(StrEnum):
     html = "html"
     pdf = "pdf"
     parquet = "parquet"
+
+
+#: Help text shared by every command's `--vep`, so the disclosure is worded once.
+_VEP_HELP = (
+    "Annotate the variant's predicted molecular consequence with the Ensembl VEP REST "
+    "API. Opt-in because of what travels outbound: this sends the chromosome, "
+    "position and both alleles to a third-party public server, and that variant may "
+    "have come from a patient VCF. Without it the consequence is simply not measured."
+)
+
+
+def _effect_predictor(vep: bool) -> Any | None:
+    """Return a VEP effect predictor when ``--vep`` was given, else ``None``.
+
+    The flag *is* the consent: `_VEP_HELP` tells the user, at the prompt, that the
+    variant leaves the machine, which is the disclosure the predictor's own consent
+    gate exists to obtain.
+    """
+    if not vep:
+        return None
+    from alleleforge.variant.effect import VepRestPredictor
+
+    return VepRestPredictor(consent=True)
 
 
 def _load_encode_tracks(path: Path | None, track: str | None) -> tuple[Any | None, str | None]:
@@ -914,6 +950,7 @@ def design(
             "weight download).",
         ),
     ] = False,
+    vep: Annotated[bool, typer.Option("--vep", help=_VEP_HELP)] = False,
     trained_base_outcome: Annotated[
         bool,
         typer.Option(
@@ -1076,7 +1113,12 @@ def design(
 
         prime_scorer = DeepPrimeAdapter(consent=True)
     try:
-        resolved = resolve_variant(variant, build=state.reference_build, reference=reference)
+        resolved = resolve_variant(
+            variant,
+            build=state.reference_build,
+            reference=reference,
+            effect=_effect_predictor(vep),
+        )
         menu = run_design(
             resolved,
             reference=reference,
@@ -1357,6 +1399,7 @@ def batch(
             "(consent-gated weight download).",
         ),
     ] = False,
+    vep: Annotated[bool, typer.Option("--vep", help=_VEP_HELP)] = False,
     output_dir: Annotated[
         Path | None, typer.Option(help="Write each item's full menu JSON to <dir>/<item>.json.")
     ] = None,
@@ -1521,6 +1564,7 @@ def batch(
             cas9_outcome_predictor=cas9_outcome,
             base_outcome_predictor=base_outcome,
             prime_efficiency_scorer=prime_scorer,
+            effect=_effect_predictor(vep),
             settings=settings,
             **ref_kwargs,
         )

@@ -91,8 +91,33 @@ def _resolve_input(
     hgvs: HgvsAdapter | None,
     effect: EffectPredictor | None,
 ) -> ResolvedVariant:
-    """Resolve ``inp`` unless it is already a :class:`ResolvedVariant`."""
+    """Resolve ``inp`` unless it is already a :class:`ResolvedVariant`.
+
+    Raises:
+        ValueError: If ``inp`` is already resolved and any resolver backend was
+            supplied. Those four arguments are only ever read during resolution, so on
+            this path they are inert — and inert in a way that reads as an answer:
+            a menu run with an `effect` predictor that was never consulted is
+            indistinguishable from one whose predictor found nothing to say.
+    """
     if isinstance(inp, ResolvedVariant):
+        supplied = [
+            name
+            for name, value in (
+                ("clinvar", clinvar),
+                ("dbsnp", dbsnp),
+                ("hgvs", hgvs),
+                ("effect", effect),
+            )
+            if value is not None
+        ]
+        if supplied:
+            raise ValueError(
+                f"{', '.join(supplied)} cannot take effect: the input is already a "
+                "ResolvedVariant, so resolution is skipped and these backends are "
+                "never consulted. Pass them to resolve() when you resolve the "
+                "variant, or hand design() the unresolved input instead."
+            )
         return inp
     return resolve(
         inp,

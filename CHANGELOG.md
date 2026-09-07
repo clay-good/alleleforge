@@ -9,6 +9,7 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- `--vep` on `resolve`, `design` and `batch` annotates the variant's predicted molecular consequence, the last thing `design()` could do that no command-line user could reach. `design()` now refuses a resolver backend it would have silently dropped, which is why no such flag could have worked before.
 - The readiness assessment's list of what no CLI user can reach is now derived from the code instead of remembered: every entry on the old list had shipped to the command line within two days of it being written, and its verification numbers were three months stale.
 
 - **Nine capabilities the API accepted and the served page could not ask for.** `readForm()` sent five

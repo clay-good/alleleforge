@@ -24,7 +24,7 @@ not the real published models the README compares against. Build scientific subs
   to-the-byte runs, content-addressed benchmark harness, consent/license/checksum
   model-zoo gate, CLI + web + native Rust parity. All verified green:
   - `ruff` clean; `mypy --strict` clean (103 files)
-  - 2,752 tests pass, 21 skipped, **97.7% coverage** (gate 85%)
+  - 2,759 tests pass, 21 skipped, **97.7% coverage** (gate 85%)
   - `mkdocs build --strict` clean; `scripts/reproduce.py` matches golden
   - 4 example notebooks pass; native crate builds, `cargo fmt`/`clippy` clean
   - The 21 skips are all opt-in, not failures: 17 native-kernel parity tests skip
@@ -191,10 +191,34 @@ signature and requires the table below to name exactly the parameters left over.
 
 | Parameter | Why not, and whether it is a gap |
 |---|---|
-| `build` | Not a gap. `--build` exists; the CLI resolves the variant itself and passes a `ResolvedVariant`, so the build reaches the run through the input. |
 | `clinvar` | Blocked, not declined. Accession inputs need a ClinVar lookup, and the project ships the `Protocol` with no implementation. |
 | `dbsnp` | Blocked, as `clinvar`: rsID inputs need a dbSNP lookup with no shipped implementation. |
 | `hgvs` | Blocked, as `clinvar`: `c.`/`p.` inputs need an HGVS adapter with no shipped implementation. |
-| `effect` | **A real gap.** A library caller can annotate each design with the variant's predicted consequence; no command-line user can, and nothing says so at the prompt. |
 | `prime_outcome_predictor` | Not a gap today. It is an override for the prime byproduct baseline, and, as with prime *efficiency*, nothing trained ships to pass it. |
 | `timestamp` | Not a gap. It exists so tests can pin provenance; `--timestamp` would only let a user forge a run's clock. |
+
+### Addendum, same day — `effect` closed, and the table's own rule was wrong
+
+Writing the table surfaced `effect` as a real gap: a library caller could annotate a
+design with the variant's predicted consequence, and could be cautioned that they
+were correcting a variant of modifier impact, while no command-line user could reach
+either. `--vep` now closes it on `resolve`, `design` and `batch`. The flag is the
+consent, because what the predictor's gate protects is *outbound* disclosure — the
+variant, possibly from a patient VCF, going to a third-party public server — so the
+help text names the recipient at the prompt, and `aforge resolve` reports
+`consequence_checked` beside the consequence so a null cannot be read as "VEP looked
+and found nothing".
+
+The underlying reason it was unreachable is worth more than the flag. `design()`
+takes `clinvar`, `dbsnp`, `hgvs` and `effect` and forwards them to `resolve()` — but
+when it is handed an already-resolved variant, resolution is skipped and all four
+went nowhere, silently. The CLI resolves variants itself, so a `--vep` that passed
+the predictor to `design()` would have compiled, run, exited 0, and annotated
+nothing. `design()` now refuses that call by name rather than dropping it.
+
+The guard for this table also had to be corrected the same day it was written: it
+counted only what the CLI passes to `design()`, and so called `--vep` unreachable on
+the day it shipped, because the CLI supplies the predictor at its own `resolve()`
+call. Both call sites are the same pipeline and both now count. That is the third
+time in two rounds that a false positive here meant the rule was stated wrong rather
+than needing an exception.
