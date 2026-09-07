@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: on the HTML report, a cloning-lethal hazard was typeset as de-emphasis.** Measured in a
+  browser, `oligo warning: internal-BbsI-site` computed to 13.6px in grey on no background — it carried
+  `class="muted"`, and so did every neighbour: the "showing 3 of 54 alleles" pagination note, the flag
+  list, and the ligation-prep reminder. The same was true of every `caveat —` line, which is the *hazard
+  subset* of the flags and exists so that hazards do not read with the weight of `epegRNA:tevopreQ1`.
+  Hazards now use the amber the research-use panel at the top of the page already uses, at full size and
+  full ink; the routine notes stay muted. The guard pins the relationship, not the hex: a hazard may not
+  be smaller or greyer than the paragraphs it sits among.
+
 - **Fixed: the printable order sheet buried its hazards and printed half of them twice.** The oligo
   block read header, `top`, `bottom`, U6 note, `WARNING: internal-BbsI-site`, prep — so the line saying
   the assembly enzyme cuts this very insert sat *below* the two sequences a person copies into a vendor

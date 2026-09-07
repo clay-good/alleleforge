@@ -437,3 +437,19 @@ states no locus rather than naming a contig it does not have.
 - **WHEN** a report is rendered for placed pegRNA candidates
 - **THEN** each names its contig, interval and nick site, rather than describing the
   reagent with no genomic position at all
+
+
+### Requirement: A hazard is not typeset as a footnote
+
+On a human-facing render, a caveat or an ordering hazard SHALL be visually separated from
+the routine notes around it — pagination counts, flag lists, protocol reminders — and
+SHALL NOT be rendered in the class the page uses to de-emphasize. On the printable sheet
+it SHALL precede the sequences it condemns.
+
+The rule is about the relationship, not a colour: a hazard may not be smaller or greyer
+than the body it sits among.
+
+#### Scenario: A candidate with a caveat and an ordering hazard
+- **WHEN** the HTML report renders that candidate
+- **THEN** the caveat and the warning are set apart, and the pagination and flag notes
+  remain de-emphasized

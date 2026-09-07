@@ -10118,6 +10118,43 @@ R296 made the screen use the right enzyme. R298 named the enzyme in the table. N
 looked at where it landed on the page until the page was looked at.**
 
 
+## Round 310 — the other human render, measured instead of read
+
+R309 fixed the PDF's hazard placement by looking at the PDF. The same question on the
+HTML, asked of the browser rather than of the source:
+
+    oligo warning: internal-BbsI-site:sgrna:+@8   13.6px   rgb(102,102,102)   no background
+
+`class="muted"`. And so was everything around it:
+
+    showing 3 of 54 predicted alleles (0.16 of the probability mass)   muted
+    flags: offtarget-not-searched, no-5prime-g                        muted
+    oligo warning: internal-BbsI-site:sgrna:+@8                       muted
+    oligo prep: Phosphorylate the annealed oligos with T4 PNK         muted
+
+A pagination note, a flag list, a cloning-lethal hazard and a protocol reminder, all
+typeset smaller and greyer than the body text. The `<strong>` label bolds two words and
+the class greys the sentence, which is the shape of the R98 finding — present, correct,
+and weightless. The `caveat —` lines were the same, and those exist *specifically* because
+a hazard inside a comma-separated flag list reads like `epegRNA:tevopreQ1`.
+
+Hazards now use the amber the research-use panel at the top of the same page already uses.
+The guard pins the relationship rather than the hex — a hazard may not be smaller or
+greyer than what surrounds it — and the routine notes are asserted to stay muted, so the
+fix separates the two rather than promoting everything.
+
+Verified by computed style in a browser, not by screenshot: the pane would not paint the
+scrolled page, and `getComputedStyle` is the measurement anyway — a screenshot is a proxy
+for it.
+
+**Lesson: `class="muted"` is a decision about how much a reader should care, made in
+passing, in a renderer, with no test that could ever disagree. Every previous round proved
+these strings were present; the browser was the first thing to say how loud they were.
+When a project has a class named for de-emphasis, list what is in it — that list is a
+ranking of the author's attention, and things end up there by proximity rather than by
+judgment.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

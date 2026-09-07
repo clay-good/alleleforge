@@ -71,6 +71,13 @@ table { border-collapse: collapse; margin:0.5rem 0; font-size:0.88rem; }
 th, td { border:1px solid var(--line); padding:0.3rem 0.6rem; text-align:left; }
 th { background:#f4f9f8; }
 .muted { color: var(--muted); font-size:0.85rem; }
+/* A hazard is not a footnote. Caveats and ordering warnings were `.muted` — smaller
+   and greyer than body text, in the same class as "showing 3 of 54 alleles" and the
+   ligation prep reminder — so "the enzyme that assembles this cuts the insert" was
+   typeset as de-emphasis. Full size, full ink, and the same amber the research-use
+   panel at the top of the page uses, which is this report's existing warning colour. */
+.hazard { background:#fff8e6; border-left:3px solid #e8c96b; border-radius:0 4px 4px 0;
+          padding:0.4rem 0.7rem; margin:0.5rem 0; font-size:0.95rem; color: var(--ink); }
 .chart { width:100%; max-width:760px; height:320px; }
 footer { margin-top:2rem; border-top:1px solid var(--line); padding-top:1rem;
          font-size:0.8rem; color: var(--muted); }
@@ -312,13 +319,13 @@ def _candidate_html(c: CandidateReport) -> str:
     # inside a comma-separated line reads with the same weight as `epegRNA:tevopreQ1`.
     for flag, reason in caveats(c.flags):
         parts.append(
-            f"<p class='muted'><strong>caveat &mdash; {_esc(flag)}:</strong> {_esc(reason)}</p>"
+            f"<p class='hazard'><strong>caveat &mdash; {_esc(flag)}:</strong> {_esc(reason)}</p>"
         )
     if c.flags:
         parts.append("<p class='muted'>flags: " + _esc(", ".join(c.flags)) + "</p>")
     if c.oligos is not None:
         for warning in c.oligos.warnings:
-            parts.append(f"<p class='muted'><strong>oligo warning:</strong> {_esc(warning)}</p>")
+            parts.append(f"<p class='hazard'><strong>oligo warning:</strong> {_esc(warning)}</p>")
         if c.oligos.scheme.phosphorylation:
             parts.append(
                 "<p class='muted'><strong>oligo prep:</strong> "
