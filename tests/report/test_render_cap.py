@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
+    WITHHELD_CANDIDATES_NOTE,
     CandidateReport,
     DesignReport,
     visible_candidates,
@@ -67,7 +68,11 @@ def test_a_far_ranked_pareto_candidate_survives_the_cap() -> None:
 def test_the_render_states_what_it_withheld() -> None:
     html = render_html(_report(300, pareto_ranks={1}))
     assert "Showing 50 of 300 candidates" in html
-    assert "250 are in the lossless JSON/CSV export" in html
+    assert "250 are not lost" in html
+    # The sentence naming where they went is shared with the PDF and asserted whole in
+    # `test_a_render_only_points_at_formats_that_exist.py`; it used to say "the lossless
+    # JSON/CSV export", naming a format the tool does not write.
+    assert WITHHELD_CANDIDATES_NOTE in html
 
 
 def test_no_cap_note_when_nothing_is_withheld() -> None:

@@ -25,6 +25,7 @@ from collections.abc import Sequence
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
     VARIANT_POSITION_NOTE,
+    WITHHELD_CANDIDATES_NOTE,
     CandidateReport,
     DesignReport,
     caveats,
@@ -433,7 +434,7 @@ def render_html(
         body.append(
             f"<p class='muted'>Showing {len(shown)} of {len(report.candidates)} candidates: "
             f"the top {max_candidates} by rank plus every Pareto-front candidate. "
-            f"The remaining {withheld} are in the lossless JSON/CSV export.</p>"
+            f"The remaining {withheld} are not lost: {WITHHELD_CANDIDATES_NOTE}.</p>"
         )
     if shown:
         body.extend(_candidate_html(c) for c in shown)

@@ -9919,6 +9919,38 @@ string in a renderer: what would have to be true for this to be a lie, and is an
 checking?**
 
 
+## Round 304 — the export it recommends is not one it writes
+
+R303 ended with a query: of every fixed string in a renderer, what would have to be true
+for this to be a lie, and is anything checking? Run over the two human renders, the first
+answer came back immediately.
+
+    The remaining 250 are in the lossless JSON/CSV export.
+
+There is no CSV export. The formats are JSON, TSV, Parquet, HTML, PDF. And "lossless" is
+true of exactly one of them — the JSON carries the whole `DesignReport`; the flat tables
+carry one scalar row per candidate, with no allele spectrum, no oligo sequences and no
+off-target site list. So the sentence a reader follows when a candidate they want was cut
+from the page names a file that is not written, and the nearest real thing it points at
+cannot answer the question it was consulted for.
+
+Both renders now share one sentence that separates the two claims, and the durable part
+is the guard: a renderer may not name a format this tool does not write. It parses the
+string constants out of `html.py`, `pdf.py` and `builder.py` — skipping comments and
+docstrings, where discussing a format the tool lacks is legitimate ("Parquet has no
+comment lines") — and matches a deliberately over-wide list of format-shaped words, so
+the *next* invented format is caught rather than this one. Three names are allowed for a
+stated non-export reason (SVG, VCF, BED, each explaining a convention by contrast), and a
+second test refuses to let an allowance cover something that is actually an export. The
+guard was run against the old string and fails on it.
+
+**Lesson: prose in a renderer is untested code. This one had a wrong noun and a wrong
+adjective in eight words, in the sentence whose entire job is telling a reader where the
+missing data went, and it survived every round of an audit that reads these files
+constantly — because reading prose for truth is not something a person does at the speed
+they read code. Make the claim a constant, then check the constant mechanically.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

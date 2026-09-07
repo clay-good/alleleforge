@@ -552,6 +552,23 @@ COORDINATE_NOTE = (
 #: check or — when the neighbouring base happens to match — silently designs an edit one
 #: base away. The renders say so next to the variant, where the trap is, rather than
 #: relying on the footer's general note about loci.
+#: The export formats this tool actually writes, as a reader would name them. Both
+#: render caps used to send readers to "the lossless JSON/CSV export", which is wrong
+#: twice: there is no CSV export, and the flat tables are not lossless — they carry one
+#: scalar row per candidate, without the allele spectrum, the oligo sequences or the
+#: off-target site list. A reader following that sentence for a withheld candidate's
+#: details looks for a file that does not exist and, finding the TSV, reads a row that
+#: cannot answer the question.
+EXPORT_FORMAT_NAMES: tuple[str, ...] = ("JSON", "TSV", "Parquet", "HTML", "PDF")
+
+#: Where the candidates a render withheld can actually be found. One sentence, shared
+#: by the two human renders, naming the lossless form and the complete-but-flat one
+#: separately because they answer different questions.
+WITHHELD_CANDIDATES_NOTE = (
+    "the full ranking is in the JSON export, which is lossless, and as one row per "
+    "candidate in the TSV and Parquet tables"
+)
+
 VARIANT_POSITION_NOTE = (
     "the position printed above is 0-based; this tool reads `chrom:pos:ref>alt` as a "
     "1-based VCF record, so add 1 before handing this variant back to it"

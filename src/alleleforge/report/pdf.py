@@ -15,6 +15,7 @@ import textwrap
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
     VARIANT_POSITION_NOTE,
+    WITHHELD_CANDIDATES_NOTE,
     CandidateReport,
     DesignReport,
     caveats,
@@ -229,8 +230,8 @@ def _report_lines(report: DesignReport, max_candidates: int | None) -> list[str]
     if withheld:
         lines += _wrap(
             f"Showing {len(shown)} of {len(report.candidates)}: the top {max_candidates} by "
-            f"rank plus every Pareto-front candidate. The remaining {withheld} are in the "
-            f"lossless JSON/CSV export."
+            f"rank plus every Pareto-front candidate. The remaining {withheld} are not "
+            f"lost: {WITHHELD_CANDIDATES_NOTE}."
         )
         lines.append("")
     if shown:

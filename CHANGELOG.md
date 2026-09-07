@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: a render told readers to look in an export that does not exist.** Both render caps ended
+  "the remaining N are in the lossless JSON/CSV export" — wrong twice. There is no CSV export (the
+  formats are JSON, TSV, Parquet, HTML, PDF), and "lossless" is true of the JSON alone: the flat tables
+  carry one scalar row per candidate, without the allele spectrum, the oligo sequences or the off-target
+  site list. A reader chasing a withheld candidate's details looked for a file that is not written and,
+  settling for the TSV, read a row that cannot answer. One shared sentence now names the lossless form
+  and the complete-but-flat ones separately, and a new guard rejects any format name in a render's prose
+  that this tool does not write — verified to fail on the old string.
+
 - **Fixed: the report's headline chart was titled *Calibrated efficiency* on a page where nothing was
   calibrated.** Every candidate underneath it prints `(nominal — coverage not measured)` and
   `(heuristic point estimate — not from a trained model)`, because with the bundled models `calibrated`
