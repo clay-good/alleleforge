@@ -10083,6 +10083,41 @@ the single path offers" is about audiences, so it needed a check per audience, n
 module.**
 
 
+## Round 309 — reading the PDF as a PDF
+
+Twelve rounds of `strings r.pdf | grep`, and never once opening it. Rendered and read as
+a page, candidate #2's oligo block said:
+
+      cloning oligos (px330-bbsi, BbsI):
+        top    5'-CACCGCCTGAAGACTTACGCATACT-3'
+        bottom 5'-AAACAGTATGCGTAAGTCTTCAGGC-3'
+        note: a 5' G was prepended ...
+        WARNING: internal-BbsI-site:sgrna:+@8
+        prep: Phosphorylate the annealed oligos ...
+
+Everything on that block is correct and every previous round proved it was *present*. The
+warning means "the enzyme that assembles this construct also cuts it — do not order this",
+and it is the fifth line, under the two a person copies into a vendor form, in the same
+indent as the U6 note and the ligation prep. A reader who has what they came for stops.
+
+A precise nuclease candidate was worse. Its donor's hazards are promoted into the guide's
+list so one place carries everything — and the donor block printed them again, so each
+appeared twice, once as `WARNING - ` and once as `WARNING: `. One character apart, on a
+sheet whose whole purpose is a hazard scan. Two hazards, four lines, and no way to tell
+without reading both sentences to the end.
+
+Fixed together, because they are the same mistake about the same reader: hazards first,
+each once. The promotion is now prefixed `donor:`, which `SgRnaOligos.warnings` already
+claimed in its docstring and did not do — and which matters beyond the sheet, since the
+flat table's single `oligo_warnings` column has no second column to say whether a row's
+hazard is on the guide or on the donor.
+
+**Lesson: "is it present" and "is it read" are different questions, and every automated
+check this project has answers the first. R294 proved the hazard reached four surfaces.
+R296 made the screen use the right enzyme. R298 named the enzyme in the table. Nobody
+looked at where it landed on the page until the page was looked at.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

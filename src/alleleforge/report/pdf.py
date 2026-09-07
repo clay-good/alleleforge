@@ -52,6 +52,12 @@ def oligo_lines(oligos: SgRnaOligos | PegRNAOligos) -> list[str]:
     """
     scheme = oligos.scheme
     lines = _wrap(f"cloning oligos ({scheme.name}, {scheme.enzyme}):", indent="    ")
+    # Hazards first, above the sequences. This is the sheet someone orders from: they
+    # read the header, copy `top` and `bottom` into a vendor form, and stop. A warning
+    # that the assembly enzyme cuts this very insert used to sit below what they came
+    # for, between the U6 note and the ligation prep, in the same indent as both.
+    for warning in oligos.warnings:
+        lines += _wrap(f"WARNING: {warning}", indent="      ")
     if isinstance(oligos, SgRnaOligos):
         lines += _wrap(f"top    5'-{oligos.top}-3'", indent="      ")
         lines += _wrap(f"bottom 5'-{oligos.bottom}-3'", indent="      ")
@@ -87,11 +93,12 @@ def oligo_lines(oligos: SgRnaOligos | PegRNAOligos) -> list[str]:
         lines += _wrap(f"5'-{donor.sequence}-3'", indent="      ")
         if donor.note:
             lines += _wrap(f"note: {donor.note}", indent="      ")
-        for warning in donor.warnings:
-            lines += _wrap(f"WARNING - {warning}", indent="      ")
+        # The donor's own hazards are not repeated here. They are promoted into
+        # `oligos.warnings` (prefixed `donor:`) and printed once, at the top — this
+        # loop printed them a second time as `WARNING - ...`, so every donor hazard
+        # appeared twice on the sheet, differing only in punctuation, and a reader
+        # counting hazards counted four where there were two.
 
-    for warning in oligos.warnings:
-        lines += _wrap(f"WARNING: {warning}", indent="      ")
     if scheme.phosphorylation:
         lines += _wrap(f"prep: {scheme.phosphorylation}", indent="      ")
     return lines

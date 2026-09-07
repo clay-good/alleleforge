@@ -211,6 +211,10 @@ def scheme_by_name(name: str) -> VectorScheme:
         raise ValueError(f"unknown cloning scheme {name!r}; known schemes: {known}") from None
 
 
+#: Marks a hazard that belongs to the HDR donor rather than the guide insert, when the
+#: two are consolidated into one list. See `oligos_for`.
+DONOR_WARNING_PREFIX = "donor: "
+
 #: Longest single-stranded donor most vendors synthesize as one oligo (an IDT
 #: Ultramer tops out here). Past it the donor has to be ordered as a gBlock / dsDNA
 #: fragment or a plasmid instead, which is a different order and a different cost —
@@ -611,11 +615,14 @@ def oligos_for(
         # A precise nuclease candidate is ordered as a pair. Returning only the
         # guide would hand the bench half a reagent — the half that cannot make
         # the edit — so the donor rides with it, and its hazards are promoted into
-        # the same prominent warnings list.
+        # the same prominent warnings list. Prefixed on promotion: consolidated with
+        # the guide's own hazards, "is 250 nt, beyond the ~200 nt most vendors
+        # synthesize" says nothing about *which* of the two reagents is too long, and
+        # in the flat table's `oligo_warnings` column there is no other column to tell
+        # a pipeline which axis a row's hazard is on.
         donor = donor_oligo(candidate.hdr_donor)
-        return oligos.model_copy(
-            update={"donor": donor, "warnings": oligos.warnings + donor.warnings}
-        )
+        promoted = tuple(f"{DONOR_WARNING_PREFIX}{w}" for w in donor.warnings)
+        return oligos.model_copy(update={"donor": donor, "warnings": oligos.warnings + promoted})
     if candidate.base_edit_window is not None:
         return sgrna_oligos(
             str(candidate.base_edit_window.spacer.sequence),

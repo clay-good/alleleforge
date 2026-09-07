@@ -229,3 +229,24 @@ with, so the two are distinguishable on the page.
 #### Scenario: An unrecognized vector name
 - **WHEN** a caller names a scheme that is not registered
 - **THEN** the refusal lists every registered scheme name
+
+
+### Requirement: The order sheet warns above the sequence it condemns
+
+An ordering hazard means "do not order this insert". On the printable sheet it SHALL be
+printed inside its own oligo block and *above* the sequences to order, not below them: a
+reader copies the duplex into a vendor form and stops, so a warning under it is a warning
+after the decision.
+
+Each hazard SHALL appear exactly once per block. A precise nuclease candidate's donor
+hazards are consolidated into the guide's warning list and SHALL carry a prefix naming
+the donor as their subject, since neither the sheet nor the flat table's single
+`oligo_warnings` column has another way to say which of the two reagents a hazard is on.
+
+#### Scenario: An insert with an internal Type IIS site
+- **WHEN** the printable sheet renders a block whose insert trips the screen
+- **THEN** the warning appears after the block's header and before the oligos to order
+
+#### Scenario: A guide ordered with an HDR donor
+- **WHEN** both the guide and its donor carry hazards
+- **THEN** each hazard is printed once, and the donor's are marked as the donor's

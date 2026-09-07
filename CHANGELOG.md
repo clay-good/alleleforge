@@ -21,6 +21,18 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: the printable order sheet buried its hazards and printed half of them twice.** The oligo
+  block read header, `top`, `bottom`, U6 note, `WARNING: internal-BbsI-site`, prep — so the line saying
+  the assembly enzyme cuts this very insert sat *below* the two sequences a person copies into a vendor
+  form, in the same indent as the note and the ligation prep. Hazards now come first, directly under the
+  block header. And a precise nuclease candidate printed every donor hazard twice, once as `WARNING - `
+  from the donor block and once as `WARNING: ` from the consolidated list, differing by one character:
+  four hazards on the page where there were two. The donor block no longer repeats them, and the
+  promotion is prefixed `donor:` — which `SgRnaOligos.warnings` already documented and did not do —
+  because consolidated with the guide's own hazards, "is 250 nt, beyond what most vendors synthesize"
+  does not say which reagent is too long, and the flat table's `oligo_warnings` column has no other
+  column to say it either.
+
 - **The cohort panel now offers what the single-variant one does.** The round that gave the served page
   its *More options* controls gave them to one tab. `aforge batch` and `BatchRequest` are each guarded
   against falling behind their single-variant sibling — the page was not, and fell behind immediately. A
