@@ -57,6 +57,56 @@
             </div>
           </div>
 
+          <!-- Everything below is off or blank by default and changes what the run can
+               reach, not merely how it is displayed. Each was settable from the CLI and
+               the API and from nowhere in this page, which for a browser user is the
+               same as not existing. -->
+          <details class="advanced">
+            <summary>More options</summary>
+
+            <div class="row">
+              <div class="field">
+                <label for="cell-context">Cell context</label>
+                <input id="cell-context" name="cell-context" type="text"
+                       placeholder="HEK293T · K562 · HepG2" />
+                <small>Prime editing flags an efficiency prediction out-of-distribution
+                       when the context is outside the scorer's training data. Left
+                       blank, no claim is made either way.</small>
+              </div>
+              <div class="field">
+                <label for="chromatin-track">Chromatin track</label>
+                <select id="chromatin-track" name="chromatin-track">
+                  <option value="">none</option>
+                </select>
+                <small>Accessibility track for the open-chromatin efficiency
+                       adjustment. Filled from this deployment's own tracks.</small>
+              </div>
+              <div class="field">
+                <label for="vector-scheme">Cloning vector</label>
+                <select id="vector-scheme" name="vector-scheme">
+                  <option value="">lentiGuide (BsmBI) — default</option>
+                  <option value="px330-bbsi">pX330 / pSpCas9(BB) (BbsI)</option>
+                  <option value="pegrna-gg-bsai">pegRNA GG acceptor (BsaI)</option>
+                </select>
+                <small>Picks the enzyme the oligo inserts are screened against for a
+                       cloning-lethal internal site.</small>
+              </div>
+            </div>
+
+            <div class="row">
+              <label class="checkbox">
+                <input id="allow-ng" type="checkbox" /> offer SpCas9-NG (NG PAM) guides
+              </label>
+              <label class="checkbox">
+                <input id="allow-spry" type="checkbox" /> offer SpRY (NRN/NYN PAM) guides
+              </label>
+            </div>
+            <small>Off by default: a PAM-flexible nuclease is a different reagent with
+                   different specificity, so it is offered rather than assumed. Without
+                   them a locus with no NGG guide returns an empty menu and the page had
+                   no way to ask for the fallback that exists for exactly that case.</small>
+          </details>
+
           <div class="row">
             <label class="checkbox">
               <input id="offtarget" type="checkbox" checked /> run off-target search

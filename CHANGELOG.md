@@ -10,6 +10,24 @@ acceptance.
 
 ### Added
 
+- **Nine capabilities the API accepted and the served page could not ask for.** `readForm()` sent five
+  fields; `DesignRequest` has fourteen. Four of the missing ones changed what a run could *reach*:
+  `allow_ng` / `allow_spry` (without them a locus with no NGG guide returns an empty menu and the page
+  offered no remedy), `cell_context` (the input that raises the out-of-distribution flag on a prime
+  efficiency prediction), `chromatin_track` — which the status line *already named for this deployment*,
+  so the page was listing a capability it could not use — and `vector_scheme`. All four are now in a
+  *More options* panel, the track list filled from `/api/health` and disabled when the deployment has
+  none. The remaining four are recorded with reasons, and the check reads the request body the page
+  actually builds, so a field added to the API and not to the page fails in the suite rather than in
+  someone's browser.
+
+- **Fixed: the served page was unreadable in dark mode.** `styles.css` is a light design throughout and
+  set `color: #1a1a1a` on `body` without ever setting a background, so `body` inherited the user agent's
+  — near-black text on a dark ground. Every field label, every help line and the tagline were invisible,
+  and the form controls rendered dark against the white panels for want of a `color-scheme`. Found by
+  loading the page in a browser; the frontend tests read it as text, which is the right trade for a
+  build-free page and blind to exactly this. Two mechanical guards stand in for a renderer.
+
 - **The served page can hand a user the flat table.** Its export buttons were *Download PDF* and
   *Download JSON* — a printable document and a nested object — so the one format a bench scientist opens
   in a spreadsheet had to be produced from another shell, which for a browser user means not at all. A

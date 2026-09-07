@@ -15,12 +15,22 @@ let lastRequest = null; // the last design request body, for the download button
 function readForm() {
   const populations = document.getElementById("populations").value.trim();
   const max = document.getElementById("max").value;
+  const cellContext = document.getElementById("cell-context").value.trim();
+  const track = document.getElementById("chromatin-track").value;
+  const vector = document.getElementById("vector-scheme").value;
   return {
     variant: document.getElementById("variant").value.trim(),
     intent: document.getElementById("intent").value,
     populations: populations ? populations.split(",").map((p) => p.trim()) : null,
     max_per_chemistry: max ? Number(max) : null,
     run_offtarget: document.getElementById("offtarget").checked,
+    // `null`, not `""`: an empty string is a cell line named "" and a track named "",
+    // both of which the API would refuse. Blank means "not specified".
+    cell_context: cellContext || null,
+    chromatin_track: track || null,
+    vector_scheme: vector || null,
+    allow_ng: document.getElementById("allow-ng").checked,
+    allow_spry: document.getElementById("allow-spry").checked,
   };
 }
 
@@ -105,6 +115,17 @@ async function checkHealth() {
     const broken = errors.length ? ` · configured but unreadable: ${errors.join(", ")}` : "";
     document.getElementById("health").textContent =
       `AlleleForge ${h.version} · ${ref} · ${basis}${broken}`;
+    // The status line already named this deployment's tracks and the form could not
+    // select one, so the page listed a capability it could not use. The names are
+    // operator-configured, hence read from health rather than hard-coded.
+    const trackSelect = document.getElementById("chromatin-track");
+    for (const name of h.chromatin_tracks || []) {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      trackSelect.appendChild(option);
+    }
+    trackSelect.disabled = !(h.chromatin_tracks && h.chromatin_tracks.length);
   } catch {
     document.getElementById("health").textContent = "API unreachable";
   }

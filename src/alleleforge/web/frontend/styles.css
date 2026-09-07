@@ -1,4 +1,13 @@
 :root {
+  /* The palette below is a light design throughout — white tabs, a cream disclaimer
+     box, #e2e2e2 hairlines, near-black text — and the stylesheet never painted a
+     background, so `body` inherited the user agent's. In a browser set to dark that
+     put #1a1a1a text on a dark ground: every field label, every `small` help line and
+     the tagline were invisible, and the form controls rendered dark against the white
+     panels. Declaring the scheme the palette assumes, and painting the ground it
+     assumes, is what the design already meant. */
+  color-scheme: light;
+  --paper: #ffffff;
   --teal: #0a7d77;
   --ink: #1a1a1a;
   --muted: #666;
@@ -9,6 +18,7 @@
 * { box-sizing: border-box; }
 body {
   font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--paper);
   color: var(--ink);
   margin: 0 auto;
   max-width: 1000px;
@@ -58,6 +68,10 @@ input[type="text"], input[type="number"], select {
 }
 small { color: var(--muted); font-size: 0.78rem; margin-top: 0.2rem; }
 .checkbox { font-weight: 400; display: flex; align-items: center; gap: 0.4rem; }
+.advanced { margin: 0.75rem 0; border: 1px solid var(--line); border-radius: 6px; padding: 0.5rem 0.75rem; }
+.advanced > summary { font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+.advanced small { color: var(--muted); font-size: 0.75rem; }
+.advanced select:disabled { opacity: 0.6; }
 button {
   background: var(--teal);
   color: #fff;

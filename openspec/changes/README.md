@@ -9776,6 +9776,40 @@ no `--help` to grep and no signature to introspect, so a parity check there has 
 what the page requests at runtime.**
 
 
+## Round 300 — the audience with no `--help`
+
+R299 said to enumerate the audiences, not the modules, and that the browser one has no
+signature to introspect. Run against `DesignRequest`, the page sent five of fourteen
+fields. Four of the nine missing ones changed what a run could *reach*, not how it looked:
+
+* `allow_ng` / `allow_spry` — a locus with no NGG guide returns an empty menu, and the
+  page had no way to ask for the fallback that exists for exactly that case.
+* `cell_context` — the input that raises the out-of-distribution flag. R63-76 already
+  found this unreachable over HTTP and fixed the API. The page kept the gap.
+* `chromatin_track` — the status line *already printed this deployment's track names*.
+  The page was advertising a capability it could not use.
+* `vector_scheme` — four rounds old and immediately stale in the third shell.
+
+Then the browser showed something no source query would have. The page renders
+`color: #1a1a1a` on `body` and sets no background, so in a browser set to dark it was
+near-black text on a dark ground: every field label, every help line and the tagline gone.
+The stylesheet is a light design throughout — `#fff` tabs, a cream disclaimer, `#e2e2e2`
+hairlines — and had simply never painted the ground it assumes, or declared the scheme,
+so the form controls came out dark against white panels too. Shipped that way since
+Phase 13.
+
+Verified by driving it: the page was loaded, `More options` opened, a nonsense cell line
+typed in, and the resulting menu carries `in_distribution: false` and a rationale line
+saying 90 candidates were ranked on their lower interval bound instead of the point
+estimate. The capability is reachable, not merely present in the form.
+
+**Lesson: the frontend tests read the page as text, which is the right trade for a
+build-free page and structurally blind to whether it can be read. A surface whose whole
+job is to be looked at needs to be looked at at least once — the two guards added here
+(a `body` that sets a foreground sets a background; the palette's scheme is declared, not
+inherited) are stand-ins for a renderer, not a substitute for opening it.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

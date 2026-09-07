@@ -99,6 +99,15 @@ with inlined-SVG efficiency intervals and outcome distributions → an
 ancestry-stratified off-target view → oligo/report export — by posting to
 `/api/design?format=html` and embedding the returned report. Its download buttons offer
 PDF, JSON and TSV: the flat table is what a bench scientist opens in a spreadsheet, and
-the page previously offered only a printable document and a nested object. A production
+the page previously offered only a printable document and a nested object.
+
+A *More options* panel carries the request fields whose absence changed what a run could
+reach rather than how it looked: the cell context that raises the out-of-distribution
+flag, the chromatin track (filled from this deployment's own `/api/health`, disabled when
+it has none), the cloning vector whose enzyme the oligo hazard screen uses, and the
+SpCas9-NG / SpRY fallbacks — without which a locus with no NGG guide returns an empty
+menu and the page has no way to ask for the remedy. Ranking weights, chemistry filters,
+region scoping and the render cap remain API-only, each recorded with its reason in
+`tests/web/test_the_page_can_ask_for_what_the_api_accepts.py`. A production
 Next.js + JBrowse 2 frontend can replace it behind the same API without backend
 changes.
