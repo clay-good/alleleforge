@@ -165,6 +165,18 @@ that the HTML render includes.
 - **THEN** the render states that no cloning oligos are required rather than omitting the
   section silently
 
+### Requirement: A mixed-matrix report names the matrix behind its headline number
+
+A report carries no per-site rows: it summarises, and the lossless export holds the sites.
+When a candidate's off-target table mixes scoring matrices, the effective matrix names
+both and cannot say which produced the worst-case score — the number that drives the
+safety axis, the ancestry table and the triage decision. The report SHALL name the matrix
+that scored the worst site, and SHALL NOT repeat it when every site shares one matrix.
+
+#### Scenario: A mixed table
+- **WHEN** a candidate's reported sites were scored by more than one matrix
+- **THEN** every render names the matrix that produced the worst score
+
 ### Requirement: Off-target scorer and matrix provenance are shown
 
 The design report SHALL name the off-target scorer and the specificity matrix used

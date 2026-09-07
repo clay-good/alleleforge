@@ -9366,6 +9366,34 @@ they would infer, and for a count the inferred value is zero. Omitting a count i
 asserting it, so ask what each missing field is silently claiming.**
 
 
+## Round 286 — the same gap on the artifact that matters most
+
+R284 and R285 made the CLI's off-target rows legible: which matrix scored each row, and
+whether a `mm=0` row is a real 20-nt match or a bulged alignment. Then the obvious question:
+what does the *report* — the HTML/PDF/JSON artifact a collaborator is actually sent — show?
+
+Not the sites. `CandidateReport` carries the count, the aggregates, the ancestry rows, the
+scorer and the effective matrix, and no per-site rows at all. That is deliberate and
+documented: the report summarises, the lossless export has the sites. But it means the two
+previous rounds improved a surface a reader may never open, and left the primary artifact
+saying:
+
+    matrix: doench-2016-cfd + doench-2016-seed-tolerance-approximation
+
+which tells a reader both scales were used and not which one produced the number they are
+acting on — the worst-case score, which drives the safety axis, the ancestry table and the
+decision. The rest of the report is a summary by design; that one number is not a summary,
+it is a specific site's score, and it can name its own matrix.
+
+Added as `offtarget_worst_matrix`, rendered on HTML, PDF, TSV (schema 9) and JSON, present
+only when the table actually mixes. The test pins that it follows the *worst* site rather
+than the first, since ordering must not decide which matrix gets named.
+
+**Lesson: after improving a surface, ask which artifact the reader is most likely to be
+handed. The CLI is where the developer looks; the report is what gets attached to an email,
+and a fix that lands only where you were already looking has reached the smaller audience.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

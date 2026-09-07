@@ -21,7 +21,7 @@ from alleleforge.types.candidate import RankedMenu
 #: added, removed, or reinterpreted so a downstream consumer can detect the drift —
 #: and for v6, when the TSV grew its leading `#` note block, which a reader that skips
 #: no comments does see.
-EXPORT_SCHEMA_VERSION = 8
+EXPORT_SCHEMA_VERSION = 9
 
 #: The flat TSV column order (one row per candidate). ``schema_version`` leads so a
 #: reader can branch on the format before touching any other column.
@@ -61,6 +61,9 @@ TSV_COLUMNS = (
     "offtarget_expected_burden",
     "offtarget_scorer",
     "offtarget_matrix",
+    # Empty unless the table mixes matrices: which one produced the worst score, the
+    # number a reader acts on.
+    "offtarget_worst_matrix",
     "offtarget_scorer_citation",
     "offtarget_search",
     "worst_ancestry",
@@ -123,6 +126,7 @@ def _row(candidate: Any) -> dict[str, Any]:
         ),
         "offtarget_scorer": candidate.offtarget_scorer,
         "offtarget_matrix": candidate.offtarget_matrix,
+        "offtarget_worst_matrix": candidate.offtarget_worst_matrix,
         "offtarget_scorer_citation": candidate.offtarget_scorer_citation,
         "offtarget_search": candidate.offtarget_search,
         "worst_ancestry": None if worst is None else worst.ancestry,

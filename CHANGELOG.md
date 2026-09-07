@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **A mixed-matrix report names the matrix behind its headline number.** The report carries no per-site
+  rows by design — it summarises, and the lossless export has the sites — so on a mixed table its effective
+  matrix reads `published + approximation`, telling a reader both scales were used and not which produced
+  the worst-case score. That score is the number that drives the safety axis, the ancestry table and the
+  triage decision. Every render now names the matrix that scored the worst site, and stays quiet when the
+  table is homogeneous. TSV schema 8 → 9.
+
 - **A bulged off-target no longer reads as a perfect match.** Three of the five rows in a real bulged scan
   printed `mm=0` while being 21-nt or 19-nt alignments through a gap; only the interval width gave that
   away, and no reader computes it. `mm=0` is the most reassuring thing a row can say. Non-zero bulge counts

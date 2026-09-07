@@ -164,6 +164,8 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
         if c.offtarget_expected_burden is not None
         else ""
     )
+    if c.offtarget_worst_matrix is not None:
+        burden += f", worst site scored by {c.offtarget_worst_matrix}"
     spec = (
         f" (specificity {c.offtarget_specificity:.3f}{burden})"
         if c.offtarget_specificity is not None

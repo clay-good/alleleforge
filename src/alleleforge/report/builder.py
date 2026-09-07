@@ -340,6 +340,9 @@ class CandidateReport(BaseModel):
     n_offtarget_sites: int | None
     offtarget_specificity: float | None
     offtarget_expected_burden: float | None = None
+    #: The matrix that scored the *worst* site, when a report mixes matrices. The
+    #: effective matrix names both and cannot say which produced the headline number.
+    offtarget_worst_matrix: str | None = None
     offtarget_by_ancestry: tuple[AncestryOffTarget, ...]
     offtarget_scorer: str | None = None
     offtarget_scorer_citation: str | None = None
@@ -432,6 +435,7 @@ def _candidate_report(
     n_sites: int | None = None
     specificity: float | None = None
     expected_burden: float | None = None
+    worst_matrix: str | None = None
     ancestry_rows: tuple[AncestryOffTarget, ...] = ()
     offtarget_scorer: str | None = None
     offtarget_scorer_citation: str | None = None
@@ -451,6 +455,15 @@ def _candidate_report(
         # the per-site fallbacks — so an all-bulge/off-length table is not labeled
         # published CFD when every displayed score is the approximation.
         offtarget_matrix = candidate.offtarget.effective_matrix()
+        # On a mixed table the effective matrix reads "published + approximation", which
+        # tells a reader both scales were used and not which one produced the number they
+        # are acting on. The report carries no per-site rows by design — it summarises,
+        # and the lossless export has the sites — so the one site whose score a reader
+        # takes away, the worst, names its own matrix here. Only when they differ.
+        matrices = {s.score_matrix for s in candidate.offtarget.sites if s.score_matrix}
+        if len(matrices) > 1:
+            worst_site = max(candidate.offtarget.sites, key=lambda site: site.score)
+            worst_matrix = worst_site.score_matrix
         strata = candidate.offtarget.ancestry_stratification()
         ancestry_rows = tuple(
             AncestryOffTarget(ancestry=a, worst_score=s)
@@ -474,6 +487,7 @@ def _candidate_report(
         n_offtarget_sites=n_sites,
         offtarget_specificity=specificity,
         offtarget_expected_burden=expected_burden,
+        offtarget_worst_matrix=worst_matrix,
         offtarget_by_ancestry=ancestry_rows,
         offtarget_scorer=offtarget_scorer,
         offtarget_scorer_citation=offtarget_scorer_citation,

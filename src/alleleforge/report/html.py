@@ -225,6 +225,9 @@ def _candidate_html(c: CandidateReport) -> str:
     # is the unweighted score sum and adds a number without adding a fact.
     if c.offtarget_expected_burden is not None:
         spec += f"; expected burden {c.offtarget_expected_burden:.3f} (frequency-weighted)"
+    # Which matrix produced the worst score, when the table mixes two.
+    if c.offtarget_worst_matrix is not None:
+        spec += f"; worst site scored by {_esc(c.offtarget_worst_matrix)}"
 
     if c.offtarget_by_ancestry:
         rows = "".join(

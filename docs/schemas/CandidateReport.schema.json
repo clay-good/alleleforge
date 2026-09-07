@@ -541,6 +541,18 @@
       ],
       "title": "Offtarget Specificity"
     },
+    "offtarget_worst_matrix": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Offtarget Worst Matrix"
+    },
     "oligos": {
       "anyOf": [
         {
