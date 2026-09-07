@@ -111,3 +111,61 @@ def test_the_two_notes_point_at_the_same_place() -> None:
     assert RANKED_MENU_SOURCE in NOMINATED_SITES_NOTE
     assert RANKED_MENU_SOURCE in WITHHELD_ALLELES_NOTE
     assert "lossless" not in NOMINATED_SITES_NOTE
+
+
+#: What the note promises a reader will find on a site row, mapped to the field that
+#: carries it. Every entry is checked to exist, because a note that names a field the
+#: model does not have sends a reader looking for a column that was never written.
+_PROMISED_FIELDS: dict[str, str] = {
+    "locus": "locus",
+    "PAM": "pam_sequence",
+    "mismatch": "mismatches",
+    "bulge": "dna_bulges",
+    "score": "score",
+    "matrix": "score_matrix",
+    "origin": "origin",
+    "ancestries": "ancestries",
+    "frequency": "frequency",
+}
+
+
+def test_every_field_the_note_promises_exists_on_a_site() -> None:
+    from alleleforge.types.offtarget import OffTargetSite
+
+    fields = set(OffTargetSite.model_fields)
+    missing = sorted(f for f in _PROMISED_FIELDS.values() if f not in fields)
+    assert not missing, f"the note names fields `OffTargetSite` does not have: {missing}"
+
+
+def test_the_note_names_each_of_them() -> None:
+    note = NOMINATED_SITES_NOTE.lower()
+    absent = sorted(word for word in _PROMISED_FIELDS if word.lower() not in note)
+    assert not absent, (f"promised in the mapping and not in the note: {absent}", note)
+
+
+def test_the_population_aware_fields_are_named() -> None:
+    """The columns that separate a rare-variant off-target from a universal one.
+
+    The note's first version stopped at score and matrix — accurate, and silent about
+    `origin`, `ancestries` and `frequency`, which is the difference this tool exists to
+    report. An enumeration that is true and omits the important entries reads as a
+    complete description of the row.
+    """
+    note = NOMINATED_SITES_NOTE.lower()
+    for word in ("origin", "ancestries", "frequency"):
+        assert word in note, (word, NOMINATED_SITES_NOTE)
+
+
+def test_the_menu_really_carries_them(searched: tuple[object, object]) -> None:
+    """End to end: the fields the note promises are populated in the export it names."""
+    menu, _ = searched
+    payload = json.loads(menu_to_json(menu))
+    rows = [
+        site
+        for candidate in payload["candidates"]
+        if candidate.get("offtarget")
+        for site in candidate["offtarget"]["sites"]
+    ]
+    assert rows, "no site rows in the menu export"
+    for field in _PROMISED_FIELDS.values():
+        assert field in rows[0], (field, sorted(rows[0]))

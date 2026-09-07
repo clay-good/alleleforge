@@ -10828,6 +10828,36 @@ the thing in front of you and silently quantifies over its neighbours. After nar
 claim, ask what else is now in its range.**
 
 
+## Round 332 — true, and missing the point
+
+R331's lesson said that after narrowing a claim, ask what is now in its range. Applied to
+the *other* sentence I wrote in that stretch — R314's note telling a reader where the
+off-target site rows are:
+
+    the site rows — locus, PAM, mismatch and bulge counts, per-site score and matrix —
+    are on the ranked menu…
+
+Every field named exists. Checked against `OffTargetSite`, so do six more: `origin`,
+`populations`, `ancestries`, `frequency`, `causal_allele`, `mit_score`. The three that
+matter are `origin`, `ancestries` and `frequency` — whether a site is a reference site or
+one that exists only in some populations, which ones, and at what allele frequency. That
+is the difference between a universal off-target and a rare-variant one, and it is the
+whole reason this project exists.
+
+So the note listed the fields any CRISPR tool's off-target row would have and stopped
+exactly where this one becomes different. Nothing in it is false; a reader deciding
+whether the menu is worth opening learns nothing about the part they came for.
+
+The guard checks both directions now: every field the note promises must exist on the
+model and be populated in the export the note names, and the population-aware three must
+be named.
+
+**Lesson: an enumeration is a claim about a set, and a true, incomplete one reads as
+complete — the reader has no way to know a list is a sample. This one was written while
+fixing something else, quickly, from what was in front of me, and the omission fell exactly
+on the fields I was not looking at.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

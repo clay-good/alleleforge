@@ -21,6 +21,14 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **The site-rows note now names the population-aware fields.** It listed "locus, PAM, mismatch and
+  bulge counts, per-site score and matrix" — every one of which exists, and which left out `origin`,
+  `ancestries` and `frequency`: the columns that separate a rare-variant off-target from a universal one,
+  and the reason this tool exists. An accurate enumeration that omits the important entries reads as a
+  complete description of the row. The guard now checks both directions — every field the note promises
+  exists on `OffTargetSite` and is populated in the export the note names, and the population-aware ones
+  are named.
+
 - **Fixed: one page said 30 candidates are missing from the exports, and that none are.** The report has
   two caps meaning opposite things about the data. `max_candidates_per_chemistry` removes candidates
   during ranking, before the menu exists, so they are in no export — its note says so. The render cap

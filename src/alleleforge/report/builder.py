@@ -586,8 +586,15 @@ WITHHELD_ALLELES_NOTE = f"the full spectrum is {RANKED_MENU_SOURCE}"
 #: cannot check: the report carries no site rows, and said nothing about where they are.
 #: For a safety artifact that is the wrong thing to leave implicit — "2 nominated
 #: site(s)" is not actionable without knowing which two.
+#:
+#: The list names the population-aware fields too. Its first version stopped at score and
+#: matrix, which was true and left out `origin`, `ancestries` and `frequency` — the columns
+#: that separate a rare-variant off-target from a universal one, and the reason this tool
+#: exists. An accurate enumeration that omits the important entries reads as a complete
+#: description of the row.
 NOMINATED_SITES_NOTE = (
-    f"the site rows — locus, PAM, mismatch and bulge counts, per-site score and matrix — "
+    f"the site rows — locus, PAM, mismatch and bulge counts, per-site score and matrix, "
+    f"and for a population site its origin, ancestries and allele frequency — "
     f"are {RANKED_MENU_SOURCE}"
 )
 
