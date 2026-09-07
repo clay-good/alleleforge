@@ -1758,10 +1758,32 @@ def offtarget(
             )
         ),
     ] = None,
+    reuse_cache: Annotated[
+        bool,
+        typer.Option(
+            "--cache",
+            help="Reuse an identical reference scan from a previous run, and record "
+            "this one for the next. The engine consults the store only when the "
+            "result is a pure function of the reference — the default scorer and no "
+            "--gnomad/--haplotypes/--patient-vcf — so an augmented scan is always "
+            "computed fresh.",
+        ),
+    ] = False,
+    genome_index: Annotated[
+        bool,
+        typer.Option(
+            "--genome-index",
+            help="Anchor PAMs through a persistent, memory-mapped FM-index of the "
+            "reference instead of rebuilding one in memory. Identical hits (pinned by "
+            "a parity test); the first run pays to build it and every later run "
+            "memory-maps it. Worth it for a whole genome, not for a small contig.",
+        ),
+    ] = False,
     as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Run population/haplotype-aware off-target search for a spacer."""
     try:
+        from alleleforge.offtarget.cache import OffTargetCache
         from alleleforge.offtarget.engine import search
     except ImportError as exc:
         _missing_dependency(exc)
@@ -1790,12 +1812,19 @@ def offtarget(
         except ValueError as exc:
             _echo_err(f"error: {exc}")
             raise typer.Exit(ExitCode.USAGE) from exc
+    index = None
+    if genome_index:
+        from alleleforge.genome.index import GenomeIndex
+
+        index = GenomeIndex.build_genome(reference)
     try:
         report = search(
             spacer,
             PAM(pattern=pam),
             reference=reference,
             scorer=scorer_impl,
+            cache=OffTargetCache() if reuse_cache else None,
+            genome_index=index,
             on_target=locus,
             mismatches=mismatches,
             dna_bulges=dna_bulges,

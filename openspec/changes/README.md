@@ -11359,3 +11359,45 @@ method rather than the class body, because every one of these subclasses inherit
 **Lesson: when a document disagrees with itself, the top wins with readers and the
 bottom wins with authors — which is why the drift survived three months of people who
 had read the file. Check the header against the log, not the file against memory.**
+
+## Round 348 — the same sweep, on the function nobody had swept
+
+The reachability sweep that produced R63-76 and R344-346 had only ever been run on
+`design()`. `search()` takes 19 parameters and had never been checked against either
+shell. Three are unreachable from both: `use_fm_index` (no gap — `None` auto-engages the
+FM path per region), and `cache` and `genome_index`, which are.
+
+Both are ways to not repeat the expensive deterministic part of a search. The cross-run
+cache memoizes a reference-only report, content-addressed; the genome index is a
+persistent per-contig FM-index that a first run builds and every later run memory-maps.
+Both are exported, both have parity tests pinning them to identical output, and neither
+the CLI nor the web API had ever constructed one — so `aforge offtarget` rebuilt the
+scan from scratch on every invocation while a library caller paid once. That is the
+project's own top-value class, on the surface it exists to accelerate.
+
+Both are opt-in rather than default-on, deliberately. The cache's own docstring opens
+with "a wrong off-target report is a missed danger", the engine already refuses to serve
+it for any augmented search, and a silent default-on store is the wrong first move for
+that axis — a user who gets a cached report should have asked for one.
+
+Two things found by running it rather than reading it:
+
+- The guard's first draft wrote into the developer's **real** cache directory.
+  `get_settings()` is a process-wide singleton loaded once, so setting
+  `ALLELEFORGE_CACHE_DIR` in a fixture does nothing on its own; the existing idiom
+  (`monkeypatch.setattr(config, "_SETTINGS", None)`) has to come with it. The symptom
+  was a test asserting an empty store finding one entry — leakage that reads exactly
+  like the feature misbehaving.
+- The reuse test poisons the stored entry and requires the poison to be served. Without
+  that, a `--cache` that silently recomputed and rewrote would pass every
+  same-output check.
+
+Recorded, not done: `design()` and `design_many()` take neither parameter, so
+`aforge design` and `aforge batch` cannot reuse anything — and a cohort is the case the
+cache was built for. Closing it means threading both through `design()` into the three
+chemistry verticals that call `search()`, plus the cohort path, the web models and the
+frontend parity guard. That is a round, not a footnote to this one.
+
+**Lesson: a sweep is a query, not a task that gets completed. The one that found the
+project's differentiator unreachable had been run against one entry point and never
+against the other, for 280 rounds.**

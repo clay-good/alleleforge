@@ -453,3 +453,24 @@ when nothing was excluded.
 #### Scenario: An on-target interval spanning more than the protospacer
 - **WHEN** the exclusion removes nominated placements
 - **THEN** the description names the number removed
+
+
+### Requirement: Reusing an expensive scan is available to every caller, and changes nothing
+
+The reference scan is the expensive deterministic part of a search, and two mechanisms
+exist to avoid repeating it: a cross-run content-addressed report cache, and a
+persistent memory-mapped per-contig FM-index. Both SHALL be reachable from the command
+line, not from Python alone.
+
+Both SHALL be opt-in, and neither SHALL change a reported result. A run without them
+SHALL NOT write to the cross-run store. The cache SHALL be consulted only where the
+result is a pure function of the reference — the default scorer and no population,
+haplotype or patient augmentation — because those inputs are not captured by the key.
+
+#### Scenario: A second identical scan with the cache enabled
+- **WHEN** `aforge offtarget <spacer> --cache` is run twice against the same reference
+- **THEN** the second run serves the stored report and both report the same sites
+
+#### Scenario: A scan run without the flag
+- **WHEN** `aforge offtarget <spacer>` is run with no `--cache`
+- **THEN** nothing is written to the cross-run store

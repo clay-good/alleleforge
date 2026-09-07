@@ -9,6 +9,7 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- `aforge offtarget --cache` and `--genome-index` expose the two ways to avoid repeating a reference scan — a cross-run report cache and a persistent memory-mapped FM-index — which existed, were parity-tested, and could be reached only from Python.
 - The scope decision that says which trained adapters are real models and which are deliberate placeholders is now checked against the code: a supported model must implement a forward pass, an out-of-scope one must not, and a newly added adapter cannot go unclassified. One integration spec's header had claimed for three months that work its own execution log recorded as shipped was still next.
 - Consequence annotation over HTTP and in the served page, behind two keys: the operator enables it (`ALLELEFORGE_VEP`) because their server makes the outbound request, and the client asks per request (`annotate_consequence`) because the variant is theirs. `GET /api/health` reports `vep_enabled`, and a deployment that enables it stops claiming that no sequence data is transmitted externally.
 - `--vep` on `resolve`, `design` and `batch` annotates the variant's predicted molecular consequence, the last thing `design()` could do that no command-line user could reach. `design()` now refuses a resolver backend it would have silently dropped, which is why no such flag could have worked before.
