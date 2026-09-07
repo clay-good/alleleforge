@@ -9650,6 +9650,47 @@ When a surface is missing a fact every sibling carries, ask what that format off
 instead of what the sibling used.**
 
 
+## Round 296 — the screen was right about an enzyme nobody was using
+
+R294 and R295 both worked on the ordering hazard: an internal Type IIS site means the enzyme
+that assembles the construct also cuts it, and the clone silently dies. Both rounds asked
+which *surface* the warning reaches. Neither asked whether the warning is looking for the
+right sequence.
+
+It looks for the recognition site of `scheme.enzyme`, and the scheme was an argument to
+`build_report` that no shell forwarded. So every CLI run and every API call screened for
+lentiGuide's `CGTCTC`, whatever vector the user actually has. pX330 / pSpCas9(BB) — the
+other standard sgRNA protocol, Ran et al. 2013 — cuts with BbsI, `GAAGAC`. Its overhangs are
+the same `CACC`/`AAAC`, which is why this hides so well: the oligos the tool prints are
+correct to order, the report is clean, and the ligation fails at the bench.
+
+    ACCTGAAGACTTACGCATAC   lentiguide-bsmbi: ()
+                           px330-bbsi:       ('internal-BbsI-site:sgrna:+@9',)
+
+`--vector-scheme`, the `vector_scheme` request field, and the `vector_scheme` config key
+now name it, over a registry the OpenAPI enumeration is derived from rather than retyped
+beside. An sgRNA vector has no 3'-extension overhangs, so naming one leaves pegRNA
+candidates on the pegRNA acceptor instead of raising and failing the whole report; each
+candidate's block already names its own scheme, so nothing is hidden by that.
+
+Two things were learned from the guards rather than from reading. `design()` and `search()`
+each had a parity test asserting that a parameter a shell does not forward is a *decision*;
+`build_report()` — the entry point that decides what the document says — had none, which is
+exactly where `scheme` sat. Adding that third check is the durable part of this round. And
+the moment the CLI option existed, two existing cohort-parity guards went red on it, which
+is how the honest exemption got written down instead of assumed: `aforge batch` writes raw
+ranked menus and builds no oligos at all, so it has nothing to screen. That absence is real
+and is now recorded as an absence, not a parity gap.
+
+**Lesson: a check has a subject as well as a surface. Three rounds asked where the warning
+is printed; none asked what it was comparing against, because the comparison was against a
+constant that looked like a default and was actually an assumption about the reader's
+bench. When a screen is parameterized by something the tool cannot know, the parameter has
+to be askable from wherever the screen runs — and the way to find the next one is to run the
+parity query against every entry point that produces an artifact, not just the one that
+computes.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

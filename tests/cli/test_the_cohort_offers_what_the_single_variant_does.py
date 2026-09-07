@@ -29,11 +29,16 @@ from alleleforge.web.api.models import BatchRequest, DesignRequest
 
 #: `design` options a cohort legitimately lacks: they shape one rendered document
 #: (`--format`, `--out`, `--render-candidates`) or name the single input.
-_CLI_EXEMPT = {"fmt", "out", "render_candidates", "variant"}
+#: `vector_scheme` picks the Type IIS enzyme the *report's* oligo screen runs against,
+#: and the cohort path writes raw ranked menus — it builds no oligos at all, so there
+#: is nothing for a vector to screen. (Giving a cohort run cloning oligos is its own
+#: piece of work; until it has them this is an absence, not a parity gap.)
+_CLI_EXEMPT = {"fmt", "out", "render_candidates", "variant", "vector_scheme"}
 
-#: The same, for the request models: `render_candidates` shapes one render, and the two
-#: commands name their input differently (`variant` / `variants`).
-_WEB_EXEMPT = {"render_candidates", "variant"}
+#: The same, for the request models: `render_candidates` shapes one render, the two
+#: commands name their input differently (`variant` / `variants`), and `vector_scheme`
+#: has no cohort oligos to screen.
+_WEB_EXEMPT = {"render_candidates", "variant", "vector_scheme"}
 
 
 def test_every_design_option_is_offered_by_batch() -> None:

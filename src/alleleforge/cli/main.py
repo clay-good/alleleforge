@@ -419,6 +419,7 @@ _RUN_PARAM_KEYS = frozenset(
         "trained_base_outcome",
         "trained_prime",
         "cell_context",
+        "vector_scheme",
     }
 )
 
@@ -872,6 +873,22 @@ def design(
             ),
         ),
     ] = None,
+    vector_scheme: Annotated[
+        str | None,
+        typer.Option(
+            "--vector-scheme",
+            help=(
+                "The cloning vector the guide oligos are ordered for: "
+                "lentiguide-bsmbi (default, BsmBI), px330-bbsi (BbsI), or "
+                "pegrna-gg-bsai (BsaI). This picks the enzyme the inserts are "
+                "screened against for a cloning-lethal internal Type IIS site, so "
+                "naming the wrong vector reports an insert clean that your own "
+                "enzyme cuts. A pegRNA candidate keeps the pegRNA acceptor when an "
+                "sgRNA-only vector is named — an sgRNA vector cannot receive a 3' "
+                "extension — and every candidate's block names the vector it used."
+            ),
+        ),
+    ] = None,
     render_candidates: Annotated[
         int | None,
         typer.Option(
@@ -903,6 +920,7 @@ def design(
         from alleleforge.report.builder import DEFAULT_RENDER_CANDIDATES, build_report
         from alleleforge.report.export import report_to_json, report_to_tsv
         from alleleforge.report.html import render_html
+        from alleleforge.report.oligos import scheme_by_name
         from alleleforge.report.pdf import render_pdf
         from alleleforge.types.edit import Chemistry, EditIntent
         from alleleforge.variant.resolver import resolve as resolve_variant
@@ -927,6 +945,17 @@ def design(
     trained_base_outcome = trained_base_outcome or bool(cfg.get("trained_base_outcome", False))
     trained_prime = trained_prime or bool(cfg.get("trained_prime", False))
     run_offtarget = _resolve_run_offtarget(no_offtarget, cfg)
+    vector_scheme = vector_scheme or cfg.get("vector_scheme")
+
+    # Resolved before the design runs: a typo'd vector name is a usage error, and
+    # learning about it after a whole-genome off-target search would be cruel.
+    scheme = None
+    if vector_scheme:
+        try:
+            scheme = scheme_by_name(vector_scheme)
+        except ValueError as exc:
+            _echo_err(f"error: {exc}")
+            raise typer.Exit(ExitCode.USAGE) from exc
 
     try:
         edit_intent = EditIntent(intent_str)
@@ -1012,7 +1041,9 @@ def design(
         _echo_err(f"error: {exc}")
         raise typer.Exit(ExitCode.USAGE) from exc
 
-    report = build_report(menu, variant=str(resolved.variant), intent=edit_intent.value)
+    report = build_report(
+        menu, variant=str(resolved.variant), intent=edit_intent.value, scheme=scheme
+    )
     if state.verbose:
         _echo_err(
             f"{len(menu.candidates)} candidate(s); best: "

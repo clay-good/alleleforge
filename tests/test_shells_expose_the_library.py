@@ -112,6 +112,8 @@ _DESIGN_ONLY_OPTIONS: dict[str, str] = {
     "--format": "batch writes a directory of results, not one rendered document",
     "--out": "batch uses --output-dir and --manifest",
     "--render-candidates": "caps a single rendered report; batch renders none",
+    "--vector-scheme": "picks the enzyme the *report's* oligo screen uses; batch writes "
+    "raw ranked menus and builds no oligos at all, so there is nothing to screen",
 }
 
 
@@ -228,3 +230,77 @@ def test_the_search_allowances_are_real_parameters() -> None:
     known = _search_parameters()
     stale = sorted((set(_SEARCH_NOT_IN_CLI) | set(_SEARCH_NOT_IN_WEB)) - known)
     assert not stale, f"allowances recorded for parameters search() no longer takes: {stale}"
+
+
+#: Parameters of `build_report()` a shell legitimately does not expose, with the
+#: reason. The third entry point behind all three audiences, and the last one with no
+#: parity check: `design()` decides what the candidates are, `build_report()` decides
+#: what the document says about them. That is where `scheme` — which picks the Type IIS
+#: enzyme every insert is screened against, and so decides whether a pX330 user is told
+#: their insert is cloning-lethal — sat reachable from Python alone.
+_REPORT_NOT_IN_CLI: dict[str, str] = {
+    "menu": "the ranked menu the CLI just designed",
+    "variant": "the variant the CLI was invoked on",
+    "intent": "supplied by --intent",
+    "title": "cosmetic; the default names the tool, and no one has asked to retitle it",
+    "top_alleles": "not yet exposed; --render-candidates caps rows, not alleles per row",
+    "with_oligos": "always on; a report that withholds the reagents helps no one",
+}
+
+_REPORT_NOT_IN_WEB: dict[str, str] = {
+    "menu": "the ranked menu the server just designed",
+    "variant": "the request's `variant` field",
+    "intent": "the request's `intent` field",
+    "title": "cosmetic; see the CLI note",
+    "top_alleles": "not yet exposed; see the CLI note",
+    "with_oligos": "always on; see the CLI note",
+}
+
+
+def _report_parameters() -> set[str]:
+    from alleleforge.report.builder import build_report
+
+    params = {
+        name
+        for name, param in inspect.signature(build_report).parameters.items()
+        if param.kind is not param.VAR_KEYWORD
+    }
+    assert len(params) > 5, f"build_report() introspection returned {params}"
+    return params
+
+
+def _cli_report_forwards() -> set[str]:
+    source = (_ROOT / "src" / "alleleforge" / "cli" / "main.py").read_text()
+    call = re.search(r"report = build_report\(\n(?:.*\n)*?\s{4}\)", source)
+    assert call, "could not find the CLI's build_report() call — this check would be vacuous"
+    return set(re.findall(r"(\w+)=", call.group(0)))
+
+
+def test_the_cli_forwards_every_report_parameter_or_says_why() -> None:
+    missing = sorted(_report_parameters() - _cli_report_forwards() - set(_REPORT_NOT_IN_CLI))
+    assert not missing, (
+        f"build_report() accepts these and the CLI never forwards them: {missing}. Add "
+        "the option, or record it in _REPORT_NOT_IN_CLI with the reason."
+    )
+
+
+def test_the_web_api_exposes_every_report_parameter_or_says_why() -> None:
+    #: `scheme` is a named lookup over the scheme registry, so the request field is
+    #: spelled `vector_scheme` — the vector is what the user knows they have.
+    aliases = {"scheme": "vector_scheme"}
+    fields = set(DesignRequest.model_fields)
+    missing = sorted(
+        name
+        for name in _report_parameters() - set(_REPORT_NOT_IN_WEB)
+        if aliases.get(name, name) not in fields
+    )
+    assert not missing, (
+        f"build_report() accepts these and DesignRequest cannot request them: {missing}. "
+        "Add the field, or record it in _REPORT_NOT_IN_WEB with the reason."
+    )
+
+
+def test_the_report_allowances_are_real_parameters() -> None:
+    known = _report_parameters()
+    stale = sorted((set(_REPORT_NOT_IN_CLI) | set(_REPORT_NOT_IN_WEB)) - known)
+    assert not stale, f"allowances recorded for parameters build_report() no longer takes: {stale}"

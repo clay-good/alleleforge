@@ -187,6 +187,30 @@ PEGRNA_GG_BSAI = VectorScheme(
 )
 
 
+#: Every named scheme a caller may ask for, keyed by :attr:`VectorScheme.name`.
+#: The screen for a cloning-lethal internal Type IIS site runs against *this*
+#: scheme's enzyme, so a user who clones into pX330 (BbsI) and is handed the
+#: lentiGuide (BsmBI) default is told an insert is clean that their own enzyme
+#: cuts. The vector is the user's fact, not the tool's, so it has to be askable.
+VECTOR_SCHEMES: dict[str, VectorScheme] = {
+    scheme.name: scheme for scheme in (LENTIGUIDE_BSMBI, PX330_BBSI, PEGRNA_GG_BSAI)
+}
+
+
+def scheme_by_name(name: str) -> VectorScheme:
+    """Return the registered cloning scheme called ``name``.
+
+    Raises:
+        ValueError: If no scheme has that name; the message lists the ones that do,
+            because a typo'd vector otherwise silently becomes the default screen.
+    """
+    try:
+        return VECTOR_SCHEMES[name]
+    except KeyError:
+        known = ", ".join(sorted(VECTOR_SCHEMES))
+        raise ValueError(f"unknown cloning scheme {name!r}; known schemes: {known}") from None
+
+
 #: Longest single-stranded donor most vendors synthesize as one oligo (an IDT
 #: Ultramer tops out here). Past it the donor has to be ordered as a gBlock / dsDNA
 #: fragment or a plasmid instead, which is a different order and a different cost —
@@ -356,6 +380,11 @@ class PegRNAOligos(BaseModel):
             "pbs": len(self.pbs),
             "motif": len(MOTIF_SEQUENCES[self.motif]),
         }
+
+
+def _clones_pegrnas(scheme: VectorScheme) -> bool:
+    """Return whether ``scheme`` can receive a pegRNA 3' extension."""
+    return scheme.ext_top_overhang is not None and scheme.ext_bottom_overhang is not None
 
 
 def _ext_overhangs(scheme: VectorScheme) -> tuple[str, str]:
@@ -560,13 +589,19 @@ def oligos_for(
 
     Args:
         candidate: The scored design candidate.
-        scheme: Override the cloning scheme; defaults are per-chemistry.
+        scheme: Override the cloning scheme; defaults are per-chemistry. An
+            sgRNA-only scheme (no pegRNA 3'-extension overhangs) applies to the
+            sgRNA-shaped chemistries only — a pegRNA candidate keeps the pegRNA
+            acceptor, since an sgRNA vector cannot receive a 3' extension. The
+            scheme each candidate was actually built with is named on that
+            candidate's own block in every render, so the two are never confused.
 
     Returns:
         The oligo set, or ``None`` if the candidate carries no reagent.
     """
     if candidate.pegrna is not None:
-        return pegrna_oligos(candidate.pegrna, scheme=scheme or PEGRNA_GG_BSAI)
+        pegrna_scheme = scheme if scheme is not None and _clones_pegrnas(scheme) else PEGRNA_GG_BSAI
+        return pegrna_oligos(candidate.pegrna, scheme=pegrna_scheme)
     if candidate.guide is not None:
         oligos = sgrna_oligos(
             str(candidate.guide.spacer.sequence), scheme=scheme or LENTIGUIDE_BSMBI, kind="sgrna"

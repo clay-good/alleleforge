@@ -10,6 +10,26 @@ acceptance.
 
 ### Added
 
+- **The cloning vector is now the caller's to name, and the ordering-hazard screen follows it.** Every
+  insert is screened for a copy of its scheme's Type IIS recognition site — the classic Golden-Gate
+  failure, where the enzyme that assembles the construct also cuts it and the clone silently dies. That
+  screen is only as right as the scheme, and the scheme was a Python-only argument to `build_report`: the
+  CLI and the web API always screened for lentiGuide's BsmBI. pX330 / pSpCas9(BB) is the other standard
+  sgRNA protocol and cuts with **BbsI**; its overhangs are the same `CACC`/`AAAC`, so the printed oligos
+  are correct to order either way, and a spacer carrying `GAAGAC` came back clean. `aforge design
+  --vector-scheme px330-bbsi`, the `vector_scheme` request field on `POST /api/design`, and the
+  `vector_scheme` config key now select it; an unknown name is a usage error (or a 422) listing the
+  registered schemes, and the OpenAPI enumeration is derived from the registry rather than retyped beside
+  it. An sgRNA-only vector has no 3'-extension overhangs and cannot receive a pegRNA, so selecting one
+  leaves pegRNA candidates on the pegRNA acceptor instead of failing the whole report — every candidate's
+  block names the scheme it was built with. `aforge batch` is exempt with the reason recorded: the cohort
+  path writes raw ranked menus and builds no oligos at all, so it has nothing to screen.
+- **`build_report()` is now under the same shell-parity check `design()` and `search()` are.** Two entry
+  points had a test asserting that a parameter a shell does not forward is a recorded decision rather than
+  an oversight; the third — the one that decides what the *document* says — had none, which is how
+  `scheme` stayed library-only. Adding the check immediately paid: the repository's own cohort-parity
+  guards then failed on the new option and forced the exemption to be written down.
+
 - **The Parquet export states its own provenance.** The flat table grew a leading `#` note block in
   schema v6 so the one surface a result gets forwarded in would not show efficiencies, specificities and
   genomic loci with nothing saying they are uncertain predictions, against which genome, in which

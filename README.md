@@ -1040,6 +1040,19 @@ design whose oligos do not reconstruct is a cloning error caught before synthesi
 | Base-editor sgRNA | one duplex (standard sgRNA) | lentiGuide BsmBI |
 | pegRNA | spacer duplex + 3' extension (RTT + PBS + epegRNA motif) + ngRNA duplex | pegRNA GG BsaI |
 
+**The vector is yours to name, because the hazard screen follows it.** Every insert is
+screened for a copy of its scheme's Type IIS recognition site — the classic Golden-Gate
+failure, where the enzyme that assembles the construct also cuts it and the clone
+silently dies. That screen is only as right as the vector. pX330 / pSpCas9(BB), the
+other standard sgRNA protocol, cuts with **BbsI**; its overhangs are the same
+`CACC`/`AAAC`, so the oligos are correct to order either way, and a spacer carrying
+`GAAGAC` was reported clean against lentiGuide's `CGTCTC`. Name your vector with
+`--vector-scheme` (`aforge design`), the `vector_scheme` request field (`POST
+/api/design`), or `scheme=` (`build_report`): `lentiguide-bsmbi` (default),
+`px330-bbsi`, `pegrna-gg-bsai`. An sgRNA vector has no 3'-extension overhangs and so
+cannot receive a pegRNA — naming one leaves pegRNA candidates on the pegRNA acceptor
+rather than failing the report, and every candidate's block names the scheme it used.
+
 **Honest rendering.** HTML charts are **inlined SVG**, drawn by AlleleForge's own
 dependency-free renderer — so no Python plotting dependency is needed and **the page
 makes no network request at all**. They were interactive Plotly figures pulled from a

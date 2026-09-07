@@ -112,6 +112,19 @@ class ResolveResponse(BaseModel):
     reference_recommendation_reason: str | None = None
 
 
+class VectorSchemeName(StrEnum):
+    """The cloning vectors a request may name.
+
+    Spelled out rather than generated from :data:`VECTOR_SCHEMES` so mypy and the
+    OpenAPI schema can both see the members; a test pins the two lists equal, since a
+    scheme that exists and cannot be requested is the gap this enum was added to close.
+    """
+
+    LENTIGUIDE_BSMBI = "lentiguide-bsmbi"
+    PEGRNA_GG_BSAI = "pegrna-gg-bsai"
+    PX330_BBSI = "px330-bbsi"
+
+
 class DesignRequest(BaseModel):
     """A request to design a ranked, multi-chemistry editing menu."""
 
@@ -193,6 +206,17 @@ class DesignRequest(BaseModel):
     allow_spry: bool = Field(
         default=False,
         description="Offer SpRY (NRN/NYN PAM) guides when neither NGG nor NG yields one.",
+    )
+    vector_scheme: VectorSchemeName | None = Field(
+        default=None,
+        description=(
+            "The cloning vector the guide oligos are ordered for (default "
+            "lentiguide-bsmbi). This picks the Type IIS enzyme the inserts are "
+            "screened against for a cloning-lethal internal recognition site, so "
+            "naming the wrong vector reports an insert clean that your own enzyme "
+            "cuts. A pegRNA candidate keeps the pegRNA acceptor when an sgRNA-only "
+            "vector is named, and every candidate names the vector it used."
+        ),
     )
 
 

@@ -204,3 +204,28 @@ a sheet listing only the duplex hands the bench the half that cannot edit.
 - **WHEN** a candidate carries an HDR donor
 - **THEN** the printable sheet lists the donor's sequence, length, re-cut disposition
   and any ordering warnings, alongside the guide duplex
+
+### Requirement: The caller names the cloning vector
+
+The Type IIS enzyme every insert is screened against is a property of the vector the
+caller actually clones into, which the tool cannot know. The cloning scheme SHALL
+therefore be selectable from every shell that renders a report — not from Python alone
+— and an unrecognized name SHALL be refused by naming the schemes that exist.
+
+An sgRNA-only scheme defines no pegRNA 3'-extension overhangs and cannot receive a
+pegRNA. Selecting one SHALL leave pegRNA candidates on the pegRNA acceptor rather than
+failing the report, and every candidate's render SHALL name the scheme it was built
+with, so the two are distinguishable on the page.
+
+#### Scenario: A vector whose enzyme differs from the default
+- **WHEN** a report is built for a vector whose Type IIS enzyme is not the default's
+- **THEN** the inserts are screened against that vector's enzyme, and a site the
+  default's enzyme does not recognize is reported
+
+#### Scenario: An sgRNA-only vector on a pegRNA candidate
+- **WHEN** an sgRNA-only scheme is selected and a candidate carries a pegRNA
+- **THEN** the pegRNA oligos are built on the pegRNA acceptor and the render names it
+
+#### Scenario: An unrecognized vector name
+- **WHEN** a caller names a scheme that is not registered
+- **THEN** the refusal lists every registered scheme name

@@ -33,6 +33,8 @@ from alleleforge.web.api.models import BatchRequest, DesignRequest
 _DESIGN_ONLY: dict[str, str] = {
     "variant": "the cohort takes `variants`, its plural",
     "render_candidates": "caps a rendered page; the cohort returns per-item summaries",
+    "vector_scheme": "picks the Type IIS enzyme the report's oligo screen runs against; "
+    "the cohort returns per-item summaries and builds no oligos, so nothing is screened",
 }
 
 

@@ -41,6 +41,7 @@ from alleleforge.report.builder import (
     build_report,
 )
 from alleleforge.report.html import render_html
+from alleleforge.report.oligos import scheme_by_name
 from alleleforge.report.pdf import render_pdf
 from alleleforge.types.sequence import GenomicInterval
 from alleleforge.web.api.jobs import JobCapacityError, JobManager
@@ -333,7 +334,8 @@ def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
         allow_spry=req.allow_spry,
         settings=settings,
     )
-    return build_report(menu, variant=str(resolved.variant), intent=intent.value)
+    scheme = scheme_by_name(req.vector_scheme) if req.vector_scheme else None
+    return build_report(menu, variant=str(resolved.variant), intent=intent.value, scheme=scheme)
 
 
 #: Request paths that never require the API token (liveness must stay probeable).

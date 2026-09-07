@@ -33,6 +33,7 @@ from alleleforge.report.oligos import (
     LENTIGUIDE_BSMBI,
     PEGRNA_GG_BSAI,
     PX330_BBSI,
+    VECTOR_SCHEMES,
     DonorOligo,
     PegRNAOligos,
     SgRnaOligos,
@@ -40,6 +41,7 @@ from alleleforge.report.oligos import (
     donor_oligo,
     oligos_for,
     pegrna_oligos,
+    scheme_by_name,
     sgrna_oligos,
 )
 from alleleforge.report.pdf import render_pdf
@@ -50,6 +52,7 @@ __all__ = [
     "PX330_BBSI",
     "RESEARCH_USE_DISCLAIMER",
     "RESEARCH_USE_OFFTARGET",
+    "VECTOR_SCHEMES",
     "AncestryOffTarget",
     "CandidateReport",
     "DesignReport",
@@ -71,5 +74,6 @@ __all__ = [
     "report_to_json",
     "report_to_parquet",
     "report_to_tsv",
+    "scheme_by_name",
     "sgrna_oligos",
 ]
