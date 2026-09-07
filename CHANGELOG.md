@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **The variables that enable the trained models are documented.** `ALLELEFORGE_LINDEL_REPO` and
+  `ALLELEFORGE_BEDICT_REPO` are how the opt-in trained Cas9-outcome and base-edit-outcome models are
+  pointed at their checkouts — named in the CLI's refusal when `--trained-*` is passed without them, and
+  listed in no table a reader could consult. `XDG_CONFIG_HOME`, which decides where `config.toml` is looked
+  up, was likewise unlisted. The env-var guard only checked *documented → read*; it now checks the reverse,
+  because an undocumented setting is a capability nobody can turn on.
+
 - **The two human renders are checked to carry the same fields.** The spec requires every field on "every
   human-readable surface (HTML and PDF alike), so the printable leave-behind is not missing a field the
   on-screen report shows", and the existing guard only asked whether a field reached *at least one*

@@ -9475,6 +9475,37 @@ requirement. Read the assertion against the sentence — "reaches a renderer" an
 every renderer" differ by one word and by the entire failure mode.**
 
 
+## Round 290 — the other direction of a two-directional rule
+
+R289's lesson: read a guard's assertion against the requirement. `test_documented_env_vars_are_read`
+says, in `project.md`'s words, that a documented setting nothing reads should fail the
+suite. True, and checked. The sentence has a second half that nothing checked — a setting
+the code *reads* that no document lists — and it was false:
+
+    ALLELEFORGE_LINDEL_REPO
+    ALLELEFORGE_BEDICT_REPO
+    XDG_CONFIG_HOME
+
+The first two are how the opt-in **trained** models are pointed at their checkouts. The CLI
+refuses `--trained-outcome` with a message naming `$ALLELEFORGE_LINDEL_REPO`, and until now
+that message pointed at a string appearing in no table, no README, no deployment guide. The
+project documents at length that trained models are opt-in; the knob that opts in was
+undocumented. R270 was a capability made unreachable by prose saying it did not work; this
+is one made unreachable by prose not existing.
+
+`XDG_CONFIG_HOME` decides where `config.toml` is found — the file the precedence chain is
+built around — and was mentioned nowhere either.
+
+Fixing the guard also required widening its doc-side scan: it matched only
+`ALLELEFORGE_*` names, which was sufficient while the check ran one way and silently
+incomplete the moment it ran the other. The asymmetry in the *extraction* mirrored the
+asymmetry in the *assertion*.
+
+**Lesson: a rule with two directions is usually implemented in one. When you find a guard
+enforcing "every A has a B", write out "every B has an A" and run it — the second direction
+is where the unowned things live, because nobody had a reason to add them.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

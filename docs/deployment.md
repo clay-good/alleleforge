@@ -141,7 +141,11 @@ every result, so a run is re-derivable from its config plus seed. The CLI writes
 
 Every `ALLELEFORGE_*` variable below is the `Settings` field name under the
 `ALLELEFORGE_` prefix, and a check keeps this table honest: a name documented here
-that nothing reads fails the suite, because an ignored setting is silent.
+that nothing reads fails the suite, because an ignored setting is silent — and a variable the code
+reads that appears in no table fails it too, because an undocumented setting is one nobody can use.
+The last two are how the *trained* models are enabled: the CLI's `--trained-*` flags refuse with a
+message naming them, and until they were listed here that message pointed at nothing a reader could
+look up.
 
 | Setting | Env var | Default |
 |---|---|---|
@@ -155,6 +159,9 @@ that nothing reads fails the suite, because an ignored setting is silent.
 | Off-target MAF threshold | `ALLELEFORGE_MAF_THRESHOLD` | `0.001` |
 | Allow network access | `ALLELEFORGE_ALLOW_NETWORK` | `false` |
 | Cache directory | `ALLELEFORGE_CACHE_DIR`, else `XDG_CACHE_HOME` | `~/.cache/alleleforge` |
+| Config-file directory | `XDG_CONFIG_HOME` | `~/.config` (so `~/.config/alleleforge/config.toml`) |
+| Lindel checkout (opt-in trained Cas9 outcome) | `ALLELEFORGE_LINDEL_REPO` | _none — the heuristic baseline is used_ |
+| BE-DICT checkout (opt-in trained base-edit outcome) | `ALLELEFORGE_BEDICT_REPO` | _none — the heuristic baseline is used_ |
 
 ## Optional native acceleration
 

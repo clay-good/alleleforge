@@ -33,7 +33,11 @@ _ROOT = Path(__file__).resolve().parents[1]
 _DOCS = [_ROOT / "README.md", _ROOT / "SPEC.md", _ROOT / "SPEC_V2.md"] + sorted(
     (_ROOT / "docs").rglob("*.md")
 )
-_VAR = re.compile(r"ALLELEFORGE_[A-Z0-9_]+")
+#: Any environment variable name a document might list. It was `ALLELEFORGE_`-only,
+#: which was fine while the guard only ran documented -> read; checking the reverse
+#: direction compares against every name the code reads, and the code also honours
+#: the XDG base-directory variables.
+_VAR = re.compile(r"(?:ALLELEFORGE|XDG)_[A-Z0-9_]+")
 #: A literal variable name handed to `os.environ`, however it is indexed.
 _OS_ENVIRON = re.compile(r"os\.environ(?:\.get|\.setdefault)?[\[(]\s*\"([A-Z0-9_]+)\"")
 
@@ -72,6 +76,34 @@ def test_every_documented_env_var_is_read() -> None:
         "documented environment variable(s) the software never reads, so setting them "
         f"does nothing and says nothing: {stray}. Honored names: {sorted(honored)}"
     )
+
+
+#: Variables the code reads that no document needs to list, each with the reason. Empty
+#: today: every knob an operator can turn is worth writing down.
+_UNDOCUMENTED_ON_PURPOSE: dict[str, str] = {}
+
+
+def test_every_variable_the_code_reads_is_documented() -> None:
+    """The direction the guard was missing.
+
+    "Documented but unread" was checked; "read but undocumented" was not, and it failed:
+    `ALLELEFORGE_LINDEL_REPO` and `ALLELEFORGE_BEDICT_REPO` are how the *trained* models
+    are enabled, named in the CLI's refusal when `--trained-*` is passed without them,
+    and listed in no table a reader could consult. A setting nobody can find is a
+    capability nobody can turn on.
+    """
+    documented = set(_documented())
+    missing = sorted(_honored() - documented - set(_UNDOCUMENTED_ON_PURPOSE))
+    assert not missing, (
+        f"the code reads {missing} and no document lists them; an undocumented setting "
+        "is one nobody can use"
+    )
+
+
+def test_the_undocumented_allowances_are_real() -> None:
+    """A staleness guard on the seam, so it cannot excuse variables nothing reads."""
+    unknown = sorted(set(_UNDOCUMENTED_ON_PURPOSE) - _honored())
+    assert not unknown, f"allowances for variables the code does not read: {unknown}"
 
 
 @pytest.mark.parametrize(
