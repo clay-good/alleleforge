@@ -9506,6 +9506,34 @@ enforcing "every A has a B", write out "every B has an A" and run it — the sec
 is where the unowned things live, because nobody had a reason to add them.**
 
 
+## Round 291 — the same reversal, a smaller find, reported as such
+
+R290's query run against the endpoint guard, which enforces "every served route appears in
+the docs" and never asked whether everything the docs list is served. The reverse found
+exactly one discrepancy, and it is worth being precise about how small it is: both
+documents listed
+
+    GET /api/jobs/{id}          served: GET /api/jobs/{job_id}
+
+The endpoint exists. It is a path placeholder spelled two ways, invisible to any client
+that reads the OpenAPI schema. The one concrete edge: `POST /api/jobs/design` returns a
+field called `job_id`, so the documented spelling was the one that did *not* match what a
+reader has in their hand when they go looking for the polling route.
+
+Aligned, and the reverse direction is now a test — which is the actual deliverable, since
+it is what would catch a *renamed* endpoint keeping its old entry in two documents, a
+failure with real consequences. Renaming `/api/health` to `/api/status` in the docs turns
+it red.
+
+Recording this one deliberately as a near-miss rather than dressing it up. The query was
+right and the codebase was, this time, nearly clean — which is information about the
+codebase, and worth the round it took to establish.
+
+**Lesson: when a systematic query returns something trivial, the finding is that the area
+is healthy. Report the size honestly; a session that describes every result as significant
+stops being able to signal when one is.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

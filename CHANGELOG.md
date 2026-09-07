@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **A documented endpoint is checked to exist.** The endpoint guard enforced "every route is listed" and
+  not the reverse, so a renamed or removed endpoint would have kept its entry in both documents. Running
+  the other direction found one discrepancy and a small one: both listed `GET /api/jobs/{id}` while the
+  served path is `/api/jobs/{job_id}` — the endpoint exists, the placeholder was spelled two ways, and the
+  documented spelling was the one that did *not* match the `job_id` field `POST /api/jobs/design` hands
+  back. Aligned, and now checked in both directions.
+
 - **The variables that enable the trained models are documented.** `ALLELEFORGE_LINDEL_REPO` and
   `ALLELEFORGE_BEDICT_REPO` are how the opt-in trained Cas9-outcome and base-edit-outcome models are
   pointed at their checkouts — named in the CLI's refusal when `--trained-*` is passed without them, and

@@ -1197,7 +1197,7 @@ flowchart LR
 | `GET /api/health` | Liveness, disclaimer, and which data sources this deployment loaded (reference, population sites, haplotype panel, accessibility track names) — plus why a configured one failed to load |
 | `POST /api/resolve` | Normalize any input form to a canonical variant |
 | `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf` |
-| `POST /api/jobs/design` → `GET /api/jobs/{id}` | Async job submit + status/progress/result |
+| `POST /api/jobs/design` → `GET /api/jobs/{job_id}` | Async job submit + status/progress/result |
 | `POST /api/batch` | Cohort design over a variant list; per-item summaries + provenance, failures isolated |
 | `POST /api/offtarget` | Standalone population-aware off-target search — full report plus the aggregate summary (site count, worst-case, specificity) |
 | `GET /api/data` · `/api/data/{name}` | Inspect the dataset registry |

@@ -17,6 +17,7 @@ a name that goes nowhere, and a capability nobody can find.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -71,4 +72,25 @@ def test_every_api_route_is_listed(surface: Path) -> None:
     assert not missing, (
         f"{surface.relative_to(_ROOT)} presents itself as the list of endpoints and "
         f"omits: {missing}. An endpoint nobody can find is an endpoint nobody has."
+    )
+
+
+@pytest.mark.parametrize("surface", _SURFACES, ids=lambda p: p.name)
+def test_no_documented_route_is_imaginary(surface: Path) -> None:
+    """The other direction: a path a document lists that the service does not serve.
+
+    The guard enforced "every route is listed" and not "everything listed is a route", so
+    a renamed or removed endpoint would have kept its entry in both documents. Running it
+    found one discrepancy, and an honest one to describe: both listed
+    `GET /api/jobs/{id}` while the served path is `/api/jobs/{job_id}`. The endpoint
+    exists — it is a placeholder spelled two ways — but `POST /api/jobs/design` returns
+    `job_id`, so the documented spelling was the one that did *not* match the field a
+    reader has in hand. Aligned, and now checked.
+    """
+    served = {_normalize(path) for path in _api_paths()}
+    listed = set(re.findall(r"`(?:GET|POST|PUT|DELETE) (/api/[^`]+)`", surface.read_text()))
+    imaginary = sorted(path for path in listed if _normalize(path) not in served)
+    assert not imaginary, (
+        f"{surface.relative_to(_ROOT)} lists {imaginary}, which the service does not "
+        "serve; a documented endpoint that does not exist is worse than an undocumented one"
     )
