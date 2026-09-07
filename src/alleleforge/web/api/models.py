@@ -80,6 +80,17 @@ class ResolveRequest(BaseModel):
         max_length=MAX_BUILD_LEN,
         description="Reference build the input is expressed in.",
     )
+    annotate_consequence: bool = Field(
+        default=False,
+        description=(
+            "Annotate the variant's predicted molecular consequence via Ensembl VEP. "
+            "Off by default and available only where the operator has enabled it "
+            "(`ALLELEFORGE_VEP`), because it sends this variant — chromosome, position "
+            "and both alleles — to a third-party public server. `GET /api/health` says "
+            "whether this deployment offers it; a request for it where it is not "
+            "configured is a 422, not a silent omission."
+        ),
+    )
 
 
 class ResolveResponse(BaseModel):
@@ -116,6 +127,13 @@ class ResolveResponse(BaseModel):
     #: The build name on its own does not say that alignment here is ambiguous, which is
     #: the part that matters: an off-target search at such a locus under-reports.
     reference_recommendation_reason: str | None = None
+    #: Whether the consequence was asked for at all. Stated for the same reason as
+    #: `reference_checked`: a null `consequence` without it means nobody asked, not that
+    #: VEP looked and found the variant unremarkable.
+    consequence_checked: bool = False
+    consequence: str | None = None
+    impact: str | None = None
+    gene: str | None = None
 
 
 class VectorSchemeName(StrEnum):
@@ -204,6 +222,17 @@ class DesignRequest(BaseModel):
             "by the operator."
         ),
     )
+    annotate_consequence: bool = Field(
+        default=False,
+        description=(
+            "Annotate the variant's predicted molecular consequence via Ensembl VEP. "
+            "Off by default and available only where the operator has enabled it "
+            "(`ALLELEFORGE_VEP`), because it sends this variant — chromosome, position "
+            "and both alleles — to a third-party public server. `GET /api/health` says "
+            "whether this deployment offers it; a request for it where it is not "
+            "configured is a 422, not a silent omission."
+        ),
+    )
     max_per_chemistry: int | None = Field(
         default=None, ge=1, description="Cap candidates kept per chemistry."
     )
@@ -269,6 +298,16 @@ class BatchRequest(BaseModel):
         description=(
             "Which of the deployment's accessibility tracks to read for the "
             "open-chromatin efficiency adjustment; names are listed by `GET /api/health`."
+        ),
+    )
+    annotate_consequence: bool = Field(
+        default=False,
+        description=(
+            "Annotate each item's predicted molecular consequence via Ensembl VEP. "
+            "Off by default and available only where the operator has enabled it "
+            "(`ALLELEFORGE_VEP`), because it sends every variant in the cohort to a "
+            "third-party public server. `GET /api/health` says whether this deployment "
+            "offers it."
         ),
     )
     max_per_chemistry: int | None = Field(
@@ -604,6 +643,11 @@ class HealthResponse(BaseModel):
     #: per request via `chromatin_track` and has no other way to learn what the
     #: operator's bedGraph contains.
     chromatin_tracks: tuple[str, ...] = ()
+    #: Whether this deployment will annotate a variant's predicted consequence when a
+    #: request asks. It is off unless the operator enabled it, because the annotation
+    #: sends the client's variant to a third-party public server — a disclosure only
+    #: the operator can consent to on behalf of the deployment.
+    vep_enabled: bool = False
     #: Why a *configured* source is not loaded, keyed by source name; empty when every
     #: configured source loaded. Without it `gnomad_loaded: false` means either "the
     #: operator configured none" or "the operator configured one and it could not be

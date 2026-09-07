@@ -95,6 +95,17 @@
 
             <div class="row">
               <label class="checkbox">
+                <input id="annotate-consequence" type="checkbox" disabled /> annotate the
+                predicted consequence (VEP)
+              </label>
+            </div>
+            <small>Available only where the operator enabled it, and off unless you ask:
+                   it sends this variant &mdash; chromosome, position and both alleles
+                   &mdash; to an external VEP server. Greyed out means this deployment
+                   does not offer it, not that the variant is unremarkable.</small>
+
+            <div class="row">
+              <label class="checkbox">
                 <input id="allow-ng" type="checkbox" /> offer SpCas9-NG (NG PAM) guides
               </label>
               <label class="checkbox">
@@ -189,6 +200,15 @@
                 <small>Filled from this deployment's own tracks.</small>
               </div>
             </div>
+
+            <div class="row">
+              <label class="checkbox">
+                <input id="batch-annotate-consequence" type="checkbox" disabled /> annotate
+                the predicted consequence (VEP)
+              </label>
+            </div>
+            <small>Available only where the operator enabled it, and off unless you ask:
+                   it sends every variant in the cohort to an external VEP server.</small>
 
             <div class="row">
               <label class="checkbox">

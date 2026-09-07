@@ -54,7 +54,19 @@ that need it with a `503` until it is configured, so the service starts cleanly 
 one. The population sites (`ALLELEFORGE_GNOMAD_TSV`), the phased-haplotype panel
 (`ALLELEFORGE_HAPLOTYPES`) and the accessibility tracks (`ALLELEFORGE_ENCODE_TRACKS`) are
 optional in the same way: without them a scan is reference-only whatever ancestry labels a
-request carries, which is why `GET /api/health` reports what is loaded. A personal genotype
+request carries, which is why `GET /api/health` reports what is loaded.
+
+`ALLELEFORGE_VEP` is the one operator-configured capability that is not about reading a
+file. Enabling it lets a request set `annotate_consequence` and get the variant's
+predicted molecular consequence — which means this deployment sends that variant, a
+chromosome, a position and both alleles, to an external VEP server. Set it to `1` for
+Ensembl's public API, or to a base URL for a private VEP instance. It is the operator's
+decision because the outbound request is made by the operator's server; it is off per
+request because the variant is the client's. Where it is enabled, the API description
+says so instead of claiming that no sequence data leaves the machine, and a request for
+it where it is not enabled is a `422` rather than a report quietly missing the field.
+
+A personal genotype
 is the one input that stays out — it is the caller's data rather than the operator's, so
 server-side configuration is the wrong shape for it.
 

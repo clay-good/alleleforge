@@ -25,6 +25,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from pydantic import BaseModel
 
 from alleleforge.web.api.models import BatchRequest, DesignRequest
 
@@ -82,15 +83,27 @@ def test_every_control_the_page_reads_exists_in_the_markup() -> None:
         assert f'id="{element_id}"' in _INDEX, element_id
 
 
+def _body_from(builder: str, model: type[BaseModel]) -> dict[str, object]:
+    """Build a request body from the keys the page sends, valid for ``model``.
+
+    Every boolean the page sends is given ``False`` rather than ``None``, read off the
+    model instead of listed here: a boolean field added to the request and to the page
+    used to fail this check as a `bool_type` 422 on `None`, which reads like a real
+    incompatibility rather than the test needing a new line.
+    """
+    body: dict[str, object] = {}
+    for key in _fields_sent_by(builder):
+        field = model.model_fields.get(key)
+        body[key] = False if field is not None and field.annotation is bool else None
+    return body
+
+
 @pytest.mark.anyio
 async def test_the_body_the_page_builds_is_one_the_api_accepts(client: httpx.AsyncClient) -> None:
     """`DesignRequest` forbids unknown fields, so a stale key is a 422 in the browser."""
-    body = {key: None for key in _fields_sent_by_the_page()}
+    body = _body_from("readForm", DesignRequest)
     body["variant"] = "chr2:71:A>C"
     body["intent"] = "correct"
-    body["run_offtarget"] = False
-    body["allow_ng"] = False
-    body["allow_spry"] = False
     response = await client.post("/api/design", json=body)
     assert response.status_code == 200, response.text
 
@@ -163,11 +176,8 @@ def test_the_single_variant_only_allowances_are_really_single_variant_only() -> 
 async def test_the_cohort_body_the_page_builds_is_one_the_api_accepts(
     client: httpx.AsyncClient,
 ) -> None:
-    body = {key: None for key in _fields_sent_by("readBatchForm")}
+    body = _body_from("readBatchForm", BatchRequest)
     body["variants"] = ["chr2:71:A>C"]
     body["intent"] = "correct"
-    body["run_offtarget"] = False
-    body["allow_ng"] = False
-    body["allow_spry"] = False
     response = await client.post("/api/batch", json=body)
     assert response.status_code == 200, response.text

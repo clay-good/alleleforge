@@ -305,3 +305,29 @@ requires the guard that its columns match the TSV's in order.
 - **WHEN** `POST /api/batch?format=tsv` is called
 - **THEN** the response is the same table, header and `#` notes included, that
   `aforge batch --summary-tsv` writes
+
+
+### Requirement: Consequence annotation takes two keys, and neither alone
+
+The predicted molecular consequence SHALL be reachable over HTTP, and SHALL require both
+the operator enabling it (`ALLELEFORGE_VEP` or `create_app(effect=...)`) and the request
+asking for it (`annotate_consequence`). The operator's key is required because the
+outbound request is made by the operator's server; the request's key is required because
+the variant belongs to the client, so a deployment that has enabled the capability SHALL
+NOT annotate on a client's behalf.
+
+A request asking for it where it is not enabled SHALL be refused with a `422` naming
+`ALLELEFORGE_VEP`, not answered without the annotation: a client cannot otherwise tell
+"this deployment does not offer it" from "VEP found nothing notable". `GET /api/health`
+SHALL report `vep_enabled` so a client can see which it is before asking.
+
+Where it is enabled, the API description SHALL NOT claim that no sequence data is
+transmitted externally, and SHALL name the request field that causes the transmission.
+
+#### Scenario: Asking a deployment that has not enabled it
+- **WHEN** a request sets `annotate_consequence` on a deployment with no VEP configured
+- **THEN** the response is a `422` naming `ALLELEFORGE_VEP`
+
+#### Scenario: An enabled deployment serving a request that did not ask
+- **WHEN** `annotate_consequence` is absent on a deployment that has VEP enabled
+- **THEN** no variant is sent to the VEP server and the report carries no consequence

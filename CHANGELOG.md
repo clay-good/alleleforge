@@ -9,6 +9,7 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- Consequence annotation over HTTP and in the served page, behind two keys: the operator enables it (`ALLELEFORGE_VEP`) because their server makes the outbound request, and the client asks per request (`annotate_consequence`) because the variant is theirs. `GET /api/health` reports `vep_enabled`, and a deployment that enables it stops claiming that no sequence data is transmitted externally.
 - `--vep` on `resolve`, `design` and `batch` annotates the variant's predicted molecular consequence, the last thing `design()` could do that no command-line user could reach. `design()` now refuses a resolver backend it would have silently dropped, which is why no such flag could have worked before.
 - The readiness assessment's list of what no CLI user can reach is now derived from the code instead of remembered: every entry on the old list had shipped to the command line within two days of it being written, and its verification numbers were three months stale.
 

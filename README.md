@@ -1157,7 +1157,9 @@ flowchart LR
 > the **file-backed** inputs are configured by the operator, exactly as the reference already is:
 > `ALLELEFORGE_GNOMAD_TSV`, `ALLELEFORGE_HAPLOTYPES` and `ALLELEFORGE_ENCODE_TRACKS` (or the matching
 > `create_app(...)` arguments) make the population-aware search, the haplotype-aware pass and the chromatin
-> adjustment available over HTTP. `GET /api/health` reports which of them this deployment loaded, and names
+> adjustment available over HTTP. `ALLELEFORGE_VEP` is operator-configured for a different reason — enabling
+> it means this deployment discloses its clients' variants to an external VEP server — and a request then
+> opts in per call with `annotate_consequence`. `GET /api/health` reports which of them this deployment loaded, and names
 > the reason when a configured one could not be read — a client cannot supply them, so it has to be able to
 > see them. `--patient-vcf` remains absent for a different reason: a personal genotype is the *caller's*
 > data, not the operator's, so server-side configuration is the wrong shape for it and an upload path is a

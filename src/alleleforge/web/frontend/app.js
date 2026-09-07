@@ -31,6 +31,7 @@ function readForm() {
     vector_scheme: vector || null,
     allow_ng: document.getElementById("allow-ng").checked,
     allow_spry: document.getElementById("allow-spry").checked,
+    annotate_consequence: document.getElementById("annotate-consequence").checked,
   };
 }
 
@@ -116,6 +117,7 @@ async function checkHealth() {
     if (h.chromatin_tracks && h.chromatin_tracks.length) {
       sources.push(`tracks: ${h.chromatin_tracks.join("/")}`);
     }
+    if (h.vep_enabled) sources.push("VEP consequence (external)");
     const errors = Object.keys(h.source_errors || {});
     const basis = sources.length ? sources.join(" · ") : "reference-only";
     const broken = errors.length ? ` · configured but unreadable: ${errors.join(", ")}` : "";
@@ -134,6 +136,12 @@ async function checkHealth() {
         select.appendChild(option);
       }
       select.disabled = names.length === 0;
+    }
+    // Enabled only where the operator turned it on. A checkbox that looks available and
+    // silently 422s is worse than one that is visibly greyed out, and the label says
+    // which of the two a greyed box means.
+    for (const id of ["annotate-consequence", "batch-annotate-consequence"]) {
+      document.getElementById(id).disabled = !h.vep_enabled;
     }
   } catch {
     document.getElementById("health").textContent = "API unreachable";
@@ -181,6 +189,7 @@ function readBatchForm() {
     chromatin_track: track || null,
     allow_ng: document.getElementById("batch-allow-ng").checked,
     allow_spry: document.getElementById("batch-allow-spry").checked,
+    annotate_consequence: document.getElementById("batch-annotate-consequence").checked,
   };
 }
 

@@ -11291,3 +11291,41 @@ round that can do it that way.
 defect. `effect` was unreachable because `design()` silently dropped it — so the flag
 anyone might have added would have shipped green and annotated nothing, and the audit
 would have closed the item.**
+
+## Round 346 — the same capability, on a shell that cannot copy the flag
+
+Round 345 gave the command line `--vep` and deliberately left the web API out, on the
+grounds that "may this deployment disclose a client's variant to Ensembl" is a
+deployment's decision rather than a request parameter. That reasoning was right and the
+deferral was wrong: it is an argument about *how* to expose the capability, not about
+whether to, and the project's own record says an unexposed capability is the top class of
+finding. Both keys exist here, and each is required for a different reason. The operator
+enables it (`ALLELEFORGE_VEP`, or `create_app(effect=...)`) because the outbound request
+is made by the operator's server. The client asks per request (`annotate_consequence`)
+because the variant is the client's — so an enabling operator does not annotate on a
+client's behalf, and a request to a deployment that has not enabled it is a `422` naming
+the variable rather than a report quietly missing the field.
+
+Two things fell out of building it that were worth more than the wiring:
+
+- **The API's own description said "all compute is local and no sequence data is
+  transmitted externally".** That string is what an OpenAPI client reads to decide
+  whether it may send patient variants here, and enabling this would have made it false
+  while it kept being served. It now states what *this* deployment does and names the
+  request field that causes the transmission.
+- **The frontend parity guard fought back correctly, then for the wrong reason.** It
+  caught the missing checkbox — the page is the fourth audience and has no `--help` — but
+  then failed a second time because it built its probe body by setting every field to
+  `null` and hardcoding the three booleans it knew about. A new boolean read as a
+  `bool_type` 422, which looks like a real incompatibility. The booleans are now read off
+  the model.
+
+The page's checkbox is disabled unless `health.vep_enabled`, and its label says that a
+greyed box means this deployment does not offer the annotation — not that the variant is
+unremarkable. That distinction is the same one `consequence_checked` draws in the JSON
+and `reference_checked` drew before it.
+
+**Lesson: "deliberately deferred, with a reason" deserves re-reading a round later. The
+reason here was sound and answered a different question than the one that mattered — how
+to expose it, not whether — and it had been written into the record as a decision not
+to.**

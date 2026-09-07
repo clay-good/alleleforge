@@ -251,15 +251,62 @@ def _require_reference(request: Request) -> Any:
     return reference
 
 
-def _resolve(request: Request, variant: str, build: str) -> Any:
+def _effect(request: Request, annotate: bool) -> Any | None:
+    """Return the configured effect predictor when a request asked for one, or 422.
+
+    Refused rather than ignored, for the reason `chromatin_track` is: a client that
+    asked for the consequence and got a report without one cannot tell "this deployment
+    does not offer it" from "VEP looked and found nothing notable".
+    """
+    if not annotate:
+        return None
+    predictor = request.app.state.effect
+    if predictor is None:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "annotate_consequence was requested but this deployment has not enabled "
+                "consequence annotation (ALLELEFORGE_VEP), so no variant is sent to a "
+                "VEP server from here"
+            ),
+        )
+    return predictor
+
+
+def _resolve(request: Request, variant: str, build: str, *, annotate: bool = False) -> Any:
     """Resolve an input form, mapping a parse error to ``422``."""
     from alleleforge.variant.resolver import resolve as resolve_variant
 
     reference = request.app.state.reference
+    effect = _effect(request, annotate)
     try:
-        return resolve_variant(variant, build=build, reference=reference)
+        return resolve_variant(variant, build=build, reference=reference, effect=effect)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _load_effect_from_env() -> Any | None:
+    """Build a VEP effect predictor when ``ALLELEFORGE_VEP`` is set, else ``None``.
+
+    The third operator-configured capability, and the only one that sends data *out*.
+    The reference, the population source and the haplotype panel are operator-configured
+    because a client-supplied path would be a server-side file read; this one is
+    operator-configured because enabling it means this deployment will disclose its
+    clients' variants — chromosome, position, both alleles, possibly from a patient
+    VCF — to a third-party public server. A client can then ask per request, but cannot
+    turn the capability on.
+
+    Set the variable to ``1`` for Ensembl's public server, or to a base URL to point at
+    a private VEP instance (which is how a deployment gets the annotation without the
+    disclosure).
+    """
+    value = os.environ.get("ALLELEFORGE_VEP")
+    if not value:
+        return None
+    from alleleforge.variant.effect import VepRestPredictor
+
+    server = value if value.startswith("http") else "https://rest.ensembl.org"
+    return VepRestPredictor(server=server, consent=True)
 
 
 def _chromatin_tracks(request: Request, track: str | None) -> Any | None:
@@ -357,7 +404,7 @@ def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
     reference = _require_reference(request)
     intent, chemistries, weights = _design_options(req.intent, req.chemistries, req.weights)
 
-    resolved = _resolve(request, req.variant, "hg38")
+    resolved = _resolve(request, req.variant, "hg38", annotate=req.annotate_consequence)
     settings: Settings = request.app.state.settings
     tracks = _chromatin_tracks(request, req.chromatin_track)
     menu = run_design(
@@ -449,6 +496,7 @@ def create_app(
     reference: Any | None = None,
     gnomad: Any | None = None,
     haplotypes: Any | None = None,
+    effect: Any | None = None,
     encode_tracks: Any | None = None,
     settings: Settings | None = None,
     api_token: str | None = None,
@@ -462,6 +510,9 @@ def create_app(
             loaded from ``ALLELEFORGE_GNOMAD_TSV`` when that is set. Without it every
             scan this API runs is reference-only, whatever `populations` a request asks
             for — the capability was unreachable over HTTP entirely.
+        effect: A pre-loaded variant-consequence predictor. If ``None``, one is built
+            from ``ALLELEFORGE_VEP`` when that is set. Without it a request asking for
+            `annotate_consequence` is refused rather than answered without one.
         haplotypes: A pre-loaded phased-haplotype panel. If ``None``, one is loaded from
             ``ALLELEFORGE_HAPLOTYPES`` when that is set. Without it the haplotype-aware
             pass — the one that finds a site existing only on a co-inherited combination
@@ -490,13 +541,25 @@ def create_app(
     # *requiring* one before a public bind.
     if api_token is None:
         api_token = os.environ.get("ALLELEFORGE_API_TOKEN") or None
+    # Resolved before the app is built: it decides what the API description says about
+    # data leaving this machine.
+    _vep_predictor = effect if effect is not None else _load_effect_from_env()
     app = FastAPI(
         title="AlleleForge API",
         version=__version__,
+        # "No sequence data is transmitted externally" stops being true the moment an
+        # operator enables consequence annotation, and this string is what an OpenAPI
+        # client reads to decide whether it may send patient variants here. It states
+        # what this deployment does, not what the default deployment does.
         description=(
             "Variant-driven, uncertainty-aware CRISPR edit design. Research use "
             "only; all compute is local and no sequence data is transmitted "
             "externally."
+            if _vep_predictor is None
+            else "Variant-driven, uncertainty-aware CRISPR edit design. Research use "
+            "only. Compute is local, but this deployment has consequence annotation "
+            "enabled: a request setting `annotate_consequence` sends that variant to "
+            "an external VEP server."
         ),
     )
     app.state.reference = reference if reference is not None else _load_reference_from_env()
@@ -505,6 +568,7 @@ def create_app(
     app.state.encode_tracks = (
         encode_tracks if encode_tracks is not None else _load_encode_tracks_from_env()
     )
+    app.state.effect = _vep_predictor
     # Resolve through Settings.load() so the web interface honors the user config file
     # (~/.config/alleleforge/config.toml) with the same precedence as the CLI and library
     # — the provenance-reproducibility spec requires the config file to apply to web runs,
@@ -557,6 +621,7 @@ def create_app(
             reference_loaded=app.state.reference is not None,
             gnomad_loaded=app.state.gnomad is not None,
             haplotypes_loaded=bool(app.state.haplotypes),
+            vep_enabled=app.state.effect is not None,
             # The names, not a flag: a client picks one per request and has no other way
             # to discover what this deployment's bedGraph contains.
             # `_*_LOAD_ERROR` was recorded for each optional source and read by
@@ -587,8 +652,9 @@ def create_app(
         """Normalize any input form to a canonical variant."""
         from alleleforge.design.designer import _reference_snapshot
 
-        resolved = _resolve(request, req.variant, req.build)
+        resolved = _resolve(request, req.variant, req.build, annotate=req.annotate_consequence)
         v = resolved.variant
+        effect = resolved.effect
         rec = resolved.reference_recommendation
         return ResolveResponse(
             variant=str(v),
@@ -605,6 +671,10 @@ def create_app(
             ),
             reference_recommendation=rec.recommended_build if rec is not None else None,
             reference_recommendation_reason=rec.reason if rec is not None else None,
+            consequence_checked=req.annotate_consequence,
+            consequence=effect.consequence.value if effect else None,
+            impact=effect.impact.name if effect else None,
+            gene=effect.gene if effect else None,
         )
 
     @app.post("/api/design", response_model=DesignReport)
@@ -690,6 +760,7 @@ def create_app(
             haplotypes=request.app.state.haplotypes,
             encode_tracks=_chromatin_tracks(request, req.chromatin_track),
             chromatin_track=req.chromatin_track,
+            effect=_effect(request, req.annotate_consequence),
             run_offtarget=req.run_offtarget,
             max_candidates_per_chemistry=req.max_per_chemistry,
             offtarget_regions=_regions(req.offtarget_regions),
