@@ -9992,6 +9992,35 @@ worked around this" — drop, strip, skip, ignore, split(...)[1], the first line
 of each whether it is shaping data or apologizing for it.**
 
 
+## Round 306 — the guard against this exact bug could not see this exact bug
+
+R301 said: when a defect is found in one instance of a class the project has several of,
+finish the class in the same round. It then enumerated the class with
+
+    grep "body {" src/
+
+which found the report and the frontend and stopped. The leaderboard has no `body` rule,
+no stylesheet and no colours at all, so the grep passed over it — and so did the guard
+written from the same premise, which parses stylesheet *sources* and asks whether a rule
+that sets a foreground also sets a background. A page with no rules has nothing to
+inspect and was silently exempt.
+
+Opening it settled the question in one screenshot: dark grey on near-black. Declaring
+nothing is not neutral. Without a `color-scheme` the user agent keeps its default *light*
+text rules and the browser paints a dark canvas underneath, which is the worst of both.
+The board now ships the minimum CSS to be legible, in the same tokens as the report, so
+the three pages agree about what a light document is.
+
+The guard is rewritten to render the pages. It asks the document — not the CSS file —
+whether it declares its scheme and paints its ground, and it fails on the old board.
+
+**Lesson: a guard inherits the blind spot of the query that found the bug. R301's query
+was "which stylesheets set a colour", so its guard could only ever see surfaces that have
+a stylesheet, and the one that was worst off had none. Write the check against the thing
+the user experiences — the rendered page — not against the artifact the defect happened
+to live in the first two times.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

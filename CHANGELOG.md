@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: the CRISPR-Bench leaderboard page was unreadable in dark mode too, and the guard for that
+  could not see it.** The report and the frontend were fixed by painting the ground their palettes
+  assume; the board failed the same way for the opposite reason — it declared no colours at all, which
+  is not neutral: with no `color-scheme` the user agent applies its default *light* text rules while the
+  browser paints a dark canvas, so the board rendered dark grey on near-black. The guard added in the
+  previous round read *stylesheet sources*, so a page with no stylesheet was invisible to it. It now
+  renders each of the three pages and asks of the document what a reader would — does it say which
+  scheme it was drawn for, and does it paint its own ground — and is verified to fail on the old board.
+
 - **Fixed: `--json` produced a stream no parser accepts.** `aforge design --out report.json --json >
   menu.json` wrote the `wrote <path>` confirmation and the ranked-menu JSON to the same stream. The test
   covering that path documented the defect instead of failing on it — it dropped the first line before

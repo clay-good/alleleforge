@@ -1,25 +1,26 @@
-"""Two shipped HTML surfaces were unreadable in a browser set to dark mode.
+"""Every HTML page this project emits must be readable in a dark browser.
 
-Both set a near-black foreground on `body` and never set a background, so `body`
-inherited the user agent's. In dark mode that is dark ink on a dark ground:
+Three shipped surfaces were not, in two different ways.
 
-* **The served frontend.** Every field label, every `small` help line and the tagline
-  disappeared, and the form controls rendered dark against the white panels because no
-  `color-scheme` was declared either.
-* **The design report** — worse, because it is the artifact a collaborator is *sent*,
-  opened on a machine whose theme the author never sees. It rendered as a blank page.
-  Its own charts were fine: the inlined SVG paints a white rect first.
+The **served frontend** and the **design report** each set a near-black foreground on
+`body` and no background, so `body` inherited the user agent's. In dark mode that is dark
+ink on a dark ground: on the frontend every field label and help line disappeared; the
+report — the artifact a collaborator is *sent* — rendered as a blank page.
 
-Neither is a dark design half-finished. Both palettes are light throughout — white tabs,
-a cream disclaimer panel, `#e2e2e2` hairlines — and simply never painted the ground they
-assume. Nothing caught it because nothing renders these pages: the frontend tests read
-the page as text, which is the right trade for a build-free page and structurally blind
-to whether it can be read.
+The **leaderboard** failed the same way for the opposite reason: it declared no colours at
+all. That is not neutral. With no `color-scheme` the user agent applies its default
+*light* text rules while the browser paints a dark canvas underneath, so the board came
+out dark grey on near-black. The first guard here was written over stylesheet sources and
+was structurally blind to a page that has no stylesheet — it was added in the round that
+fixed two of the three, and missed the third by asking about CSS files instead of pages.
 
-The rule is mechanical and applies to every stylesheet the project ships, so the next
-surface inherits it: **a rule that sets a foreground on `body` sets a background there
-too, and the palette's scheme is declared rather than inherited.** These are stand-ins
-for a renderer, not a substitute for opening the page.
+So the check renders each page and asks of the document what a reader would: does it say
+which scheme it was drawn for, and does it paint its own ground? None of these is a dark
+design half-finished; all three palettes are light, and a distributed document that
+changes appearance with the reader's OS setting is worse than one that states what it is.
+
+These are stand-ins for a renderer, not a substitute for opening the page — all three
+defects were found by looking, and only then written down.
 """
 
 from __future__ import annotations
@@ -29,45 +30,63 @@ from pathlib import Path
 
 import pytest
 
-_ROOT = Path(__file__).resolve().parents[1]
-_SRC = _ROOT / "src" / "alleleforge"
+_SRC = Path(__file__).resolve().parents[1] / "src" / "alleleforge"
 
 
-#: Every stylesheet the project ships, as (name, css). The report's lives in a Python
-#: string, so it is read from the module that builds the page rather than a `.css` file.
-def _stylesheets() -> list[tuple[str, str]]:
-    from alleleforge.report.html import _STYLE
+def _report_page() -> str:
+    from alleleforge.report.builder import build_report
+    from alleleforge.report.html import render_html
+    from alleleforge.types.candidate import RankedMenu
 
-    return [
-        ("report/html.py:_STYLE", _STYLE),
-        (
-            "web/frontend/styles.css",
-            (_SRC / "web" / "frontend" / "styles.css").read_text(encoding="utf-8"),
-        ),
-    ]
+    empty = RankedMenu(candidates=(), pareto_front=(), rationale="", provenance=None)
+    return render_html(build_report(empty))
 
 
-def test_the_stylesheets_were_actually_found() -> None:
-    """A zero-length sheet would satisfy every check below trivially."""
-    sheets = _stylesheets()
-    assert len(sheets) == 2
-    for name, css in sheets:
-        assert "body" in css and len(css) > 200, name
+def _leaderboard_page() -> str:
+    from alleleforge.benchmark.leaderboard import Leaderboard
+
+    return Leaderboard().render_html()
 
 
-@pytest.mark.parametrize("name, css", _stylesheets(), ids=lambda v: v if isinstance(v, str) else "")
-def test_a_body_that_sets_a_colour_sets_a_background(name: str, css: str) -> None:
-    match = re.search(r"\bbody\s*\{([^}]*)\}", css)
-    assert match, f"{name}: no `body` rule — this check would be vacuous"
-    block = match.group(1)
-    assert "color:" in block, f"{name}: the `body` rule no longer sets a foreground"
-    assert "background" in block, (
-        f"{name}: `body` sets a text colour and no background, so the page renders that "
-        "text on whatever ground the browser supplies — dark, for a reader in dark mode."
+def _frontend_page() -> str:
+    """The served page plus the stylesheet it links, as a browser assembles them."""
+    frontend = _SRC / "web" / "frontend"
+    return (frontend / "index.html").read_text(encoding="utf-8") + (
+        frontend / "styles.css"
+    ).read_text(encoding="utf-8")
+
+
+#: Every HTML document this project puts in front of a human, as (name, page-source).
+_PAGES: tuple[tuple[str, str], ...] = (
+    ("design report", _report_page()),
+    ("bench leaderboard", _leaderboard_page()),
+    ("served frontend", _frontend_page()),
+)
+
+
+def test_the_pages_were_actually_rendered() -> None:
+    """An empty page would satisfy every check below trivially."""
+    for name, page in _PAGES:
+        assert "<body" in page or "body" in page, name
+        assert len(page) > 400, name
+
+
+@pytest.mark.parametrize("name, page", _PAGES, ids=[n for n, _ in _PAGES])
+def test_the_page_declares_the_scheme_it_was_drawn_for(name: str, page: str) -> None:
+    """Undeclared is not neutral: the UA pairs light text rules with a dark canvas."""
+    assert re.search(r"color-scheme\s*:\s*\w", page), (
+        f"{name} declares no colour scheme, so a browser in dark mode supplies one for "
+        "it — light text rules on a dark canvas."
     )
 
 
-@pytest.mark.parametrize("name, css", _stylesheets(), ids=lambda v: v if isinstance(v, str) else "")
-def test_the_scheme_the_palette_assumes_is_declared(name: str, css: str) -> None:
-    """Without it the user agent paints selects, checkboxes and scrollbars for the wrong one."""
-    assert re.search(r"color-scheme:\s*\w", css), f"{name}: no color-scheme declared"
+@pytest.mark.parametrize("name, page", _PAGES, ids=[n for n, _ in _PAGES])
+def test_the_page_paints_its_own_ground(name: str, page: str) -> None:
+    match = re.search(r"\bbody\s*\{([^}]*)\}", page)
+    assert match, f"{name}: no `body` rule at all, so it paints nothing"
+    block = match.group(1)
+    assert "background" in block, (
+        f"{name}: `body` sets no background, so the page renders on whatever ground the "
+        "browser supplies — dark, for a reader in dark mode."
+    )
+    assert "color:" in block, f"{name}: `body` sets a background and no foreground"

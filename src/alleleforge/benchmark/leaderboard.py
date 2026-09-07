@@ -285,6 +285,25 @@ def _rank_within(entries: list[LeaderboardEntry]) -> list[LeaderboardEntry]:
     )
 
 
+#: The board ships no design, only enough CSS to be legible. A page that declares
+#: neither a colour scheme nor a background is not neutral: the user agent supplies its
+#: default *light* text rules while the browser paints a dark canvas underneath, so the
+#: board rendered as dark grey on near-black. The two sibling surfaces were fixed by
+#: painting the ground their palettes assume; this one had no palette to assume, which
+#: is why the stylesheet-shaped guard did not see it. Kept to the same tokens as the
+#: report so the three pages agree about what a light document is.
+_STYLE = (
+    ":root{color-scheme:light}"
+    "body{background:#fff;color:#1a1a1a;"
+    "font-family:-apple-system,Segoe UI,Roboto,sans-serif;"
+    "margin:0 auto;max-width:1000px;padding:1.5rem 1.25rem 4rem;line-height:1.5}"
+    "table{border-collapse:collapse;margin:0.5rem 0;font-size:0.9rem}"
+    "th,td{border:1px solid #e2e2e2;padding:0.3rem 0.6rem;text-align:left}"
+    "th{background:#f4f9f8}"
+    "em{color:#666}"
+)
+
+
 class Leaderboard:
     """An in-memory leaderboard that ranks carded submissions per task."""
 
@@ -401,7 +420,8 @@ class Leaderboard:
         parts = [
             "<!doctype html>",
             '<html lang="en"><head><meta charset="utf-8">',
-            "<title>CRISPR-Bench Leaderboard</title></head><body>",
+            "<title>CRISPR-Bench Leaderboard</title>",
+            f"<style>{_STYLE}</style></head><body>",
             "<h1>CRISPR-Bench Leaderboard</h1>",
             *(f"<p><em>{_html_cell(note)}</em></p>" for note in _context_lines()),
         ]
