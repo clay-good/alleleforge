@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **`data list` no longer offers a fetch the registry will refuse.** The registry's second invariant is
+  that no unverifiable artifact is fetched — a download requires a pinned `sha256` — and seven of the eight
+  shipped descriptors carry none, so `resolve(..., consent=True)` raises `ChecksumError` for almost
+  everything the table lists. The refusal is the guarantee working; the table was the part that had not
+  been told, printing "supply or fetch it" uniformly. Rows now say which of the two a reader can actually
+  do, derived per descriptor.
+
 - **A documented endpoint is checked to exist.** The endpoint guard enforced "every route is listed" and
   not the reverse, so a renamed or removed endpoint would have kept its entry in both documents. Running
   the other direction found one discrepancy and a small one: both listed `GET /api/jobs/{id}` while the

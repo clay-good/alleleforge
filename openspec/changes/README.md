@@ -9534,6 +9534,35 @@ is healthy. Report the size honestly; a session that describes every result as s
 stops being able to signal when one is.**
 
 
+## Round 292 — following the remedy into the dataset registry
+
+Switched veins to the data registry and read `data list` as a user. It is careful work: it
+separates "may redistribute" (a licence permission) from presence, and closes with a note
+saying so, because the table once printed a licence fact as a presence claim.
+
+Following the remedy it *does* offer found the gap. Every unavailable row said "supply or
+**fetch** it", and the registry's own second invariant is that no unverifiable artifact is
+ever fetched — a download requires a pinned `sha256`. Seven of the eight descriptors have
+none:
+
+    ChecksumError: dataset 'gnomad' has no pinned checksum; refusing to download an
+    unverifiable artifact
+
+The refusal is right; it is the guarantee doing its job. The table was the half that had not
+been told, naming an action the tool declines to perform for the very row it printed.
+
+One false alarm, checked before it became a claim: `resolve("doench-2016-cfd")` failed with
+a checksum *mismatch*, which reads like the shipped scoring matrix being corrupt. It is not
+— the bundled file hashes exactly to the pinned value; a stale copy in my own
+`~/.cache/alleleforge` was being rejected by the hash-on-read guard, which is that guard
+working. The new test asserts the bundled bytes against the pin, so the distinction between
+"the artifact is wrong" and "your cache is stale" is now pinned rather than re-derived.
+
+**Lesson: a table that lists remedies is making a promise per row. "Supply or fetch it" was
+true of the column and false of most of the rows in it — a remedy needs to be checked
+against the row it is printed on, not against the feature in general.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

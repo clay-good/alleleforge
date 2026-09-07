@@ -2295,6 +2295,11 @@ def data_list(
             "bundled": d.bundled,
             "cached": DEFAULT_REGISTRY.cache_path(name).is_file(),
             "available": d.bundled or DEFAULT_REGISTRY.cache_path(name).is_file(),
+            # A fetch needs a pinned checksum: the registry refuses to download what it
+            # cannot verify. Seven of the eight descriptors carry no `sha256`, so
+            # "fetch it" was a remedy that raises `ChecksumError` for almost everything
+            # the table lists — the message named an action the tool declines to perform.
+            "fetchable": bool(d.sha256 and d.source_url),
         }
         for name in DEFAULT_REGISTRY.names
         for d in (DEFAULT_REGISTRY.get(name),)
@@ -2306,8 +2311,10 @@ def data_list(
             presence = "bundled in the package"
         elif r["cached"]:
             presence = "cached"
+        elif r["fetchable"]:
+            presence = "NOT AVAILABLE - supply it, or fetch it with consent"
         else:
-            presence = "NOT AVAILABLE - supply or fetch it"
+            presence = "NOT AVAILABLE - supply it (no pinned checksum, so it cannot be fetched)"
         human_rows.append(
             f"{r['name']:16s} {r['version'] or '-':14s} {r['license'] or '-':18s} "
             f"{permission:16s} {presence}"
@@ -2318,7 +2325,9 @@ def data_list(
             "",
             "'may redistribute' is a licence permission, not a statement that the data "
             "is present: almost none of it ships. Only a dataset marked bundled or "
-            "cached is usable by a run right now.",
+            "cached is usable by a run right now, and only a dataset with a pinned "
+            "checksum can be fetched at all — the registry refuses to download what it "
+            "cannot verify.",
         ]
     )
     _emit({"datasets": rows}, as_json=as_json, human=human)
