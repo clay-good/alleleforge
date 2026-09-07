@@ -58,7 +58,7 @@ aforge design chr2:71:A>C \
     --populations afr,eur,eas --format html --out report.html
 
 # Restrict chemistries and tune ranking weights (efficiency,cleanliness,safety,simplicity)
-aforge design VCV000012345 --reference-fasta hg38.fa \
+aforge design chr11:5227002:A>T --reference-fasta hg38.fa \
     --chemistry prime --weights 0.5,0.2,0.2,0.1 --json
 
 # A reproducible run from a config file (CLI flags override the file)

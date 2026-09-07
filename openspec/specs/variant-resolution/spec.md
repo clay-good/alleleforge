@@ -269,3 +269,20 @@ statement about loci does not warn anyone about the one that does not.
 - **WHEN** `aforge resolve` prints a normalized variant
 - **THEN** the line beneath it says the position is 0-based and to add 1 before handing
   it back
+
+
+### Requirement: A refusal offers a remedy the caller has
+
+Three input forms — a ClinVar accession, a dbSNP rsID and a coding/protein HGVS string —
+need a lookup database or the `hgvs` library. The lookups are Protocols with no shipped
+implementation; neither the CLI nor the web API can construct one, and the registry lists
+no fetchable release. The refusal SHALL therefore say that this surface cannot supply one
+and name the coordinate form, which every surface accepts. It SHALL NOT name a Python
+keyword argument to a caller who arrived from a command line or a request body.
+
+Every documented example on a shell SHALL use an input form that shell can resolve
+unaided; a Python example may pass a lookup, since Python can.
+
+#### Scenario: An accession on the command line
+- **WHEN** `aforge resolve VCV000012345` is run
+- **THEN** the refusal names the coordinate form and says why no shell can supply a lookup

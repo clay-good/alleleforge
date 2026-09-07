@@ -67,7 +67,13 @@ class ResolveRequest(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     variant: str = Field(
-        max_length=MAX_VARIANT_LEN, description="ClinVar / rsID / HGVS / VCF / coords input."
+        max_length=MAX_VARIANT_LEN,
+        description=(
+            "Coordinates (chrom:pos:ref>alt, 1-based as in a VCF) or a VCF record. A "
+            "ClinVar accession, a dbSNP rsID or a coding/protein HGVS string needs a "
+            "lookup database this deployment has no way to supply — the 422 says so "
+            "and names the coordinate form."
+        ),
     )
     build: str = Field(
         default="hg38",
@@ -131,7 +137,13 @@ class DesignRequest(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     variant: str = Field(
-        max_length=MAX_VARIANT_LEN, description="ClinVar / rsID / HGVS / VCF / coords input."
+        max_length=MAX_VARIANT_LEN,
+        description=(
+            "Coordinates (chrom:pos:ref>alt, 1-based as in a VCF) or a VCF record. A "
+            "ClinVar accession, a dbSNP rsID or a coding/protein HGVS string needs a "
+            "lookup database this deployment has no way to supply — the 422 says so "
+            "and names the coordinate form."
+        ),
     )
     intent: IntentStr = Field(
         default="correct", description="correct | knock_out | install | revert."

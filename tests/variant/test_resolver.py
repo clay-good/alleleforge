@@ -179,13 +179,26 @@ def test_resolve_ok_when_source_assembly_matches() -> None:
 
 
 def test_clinvar_without_db_raises() -> None:
-    with pytest.raises(ValueError, match="clinvar="):
+    # Matched on the remedy, not on `clinvar=`. That keyword was what the message used to
+    # offer, to callers arriving from `aforge resolve VCV…` or a JSON body, where no such
+    # keyword exists and neither shell can construct a lookup at all.
+    with pytest.raises(ValueError, match="chrom:pos:ref>alt"):
         resolve(ClinVarAccession(value="VCV000000012"))
 
 
 def test_rsid_without_db_raises() -> None:
-    with pytest.raises(ValueError, match="dbsnp="):
+    with pytest.raises(ValueError, match="chrom:pos:ref>alt"):
         resolve("rs334")
+
+
+def test_neither_refusal_offers_a_python_keyword_to_a_shell_caller() -> None:
+    """The remedy has to be one the caller who hit it can act on."""
+    for inp in (ClinVarAccession(value="VCV000000012"), "rs334"):
+        with pytest.raises(ValueError) as excinfo:
+            resolve(inp)
+        message = str(excinfo.value)
+        assert "clinvar=" not in message and "dbsnp=" not in message, message
+        assert "Protocol" in message, message
 
 
 # -- normalization, left-alignment, validation --------------------------------

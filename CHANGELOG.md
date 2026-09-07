@@ -21,6 +21,18 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: the flagship CLI example in the README could not run.** `aforge design VCV000012345
+  --reference-fasta hg38.fa …` answers `error: resolving a ClinVar accession requires a clinvar=
+  database`. `ClinVarLookup` and `DbSnpLookup` are Protocols with no shipped implementation, the CLI has
+  no code path that constructs one, `create_app` takes no such argument, and the registry lists no
+  fetchable ClinVar or dbSNP release — so three of the five input forms the argument help advertised
+  cannot be used from either shell, and two CLI examples plus one `curl` example used the first of them.
+  The refusal made it worse by naming `clinvar=`, a *Python keyword argument*, to a caller who arrived
+  from a command line. It now says no shell can supply a lookup and why, and names the coordinate form
+  every surface accepts; both argument helps say the same; the examples use coordinates; and a guard
+  rejects any documented shell example whose input form that shell cannot resolve unaided. The Python
+  snippets that pass `clinvar=clinvar_db` are correct and stay.
+
 - **The site-rows note now names the population-aware fields.** It listed "locus, PAM, mismatch and
   bulge counts, per-site score and matrix" — every one of which exists, and which left out `origin`,
   `ancestries` and `frequency`: the columns that separate a rare-variant off-target from a universal one,

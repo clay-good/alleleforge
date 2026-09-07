@@ -10858,6 +10858,43 @@ fixing something else, quickly, from what was in front of me, and the omission f
 on the fields I was not looking at.**
 
 
+## Round 333 — the headline example does not run
+
+R332's lesson: a true, incomplete enumeration reads as complete. The argument help
+enumerates the input forms:
+
+    ClinVar / rsID / HGVS / VCF / coords input.
+
+Five forms, no caveat. Tried from the command line, three of them fail:
+
+    $ aforge resolve VCV000012345
+    error: resolving a ClinVar accession requires a clinvar= database
+
+`ClinVarLookup` and `DbSnpLookup` are **Protocols** with no shipped implementation.
+`grep clinvar src/alleleforge/cli/main.py` returns nothing; `create_app` takes no such
+argument; the registry lists no fetchable ClinVar or dbSNP release. There is no path, on
+either shell, by which those forms can work — and the README's flagship CLI example, the
+one under the population-aware off-target explanation, is `aforge design VCV000012345`.
+So is an example in `docs/api/cli.md`, and a `curl` batch body.
+
+The refusal compounded it. `clinvar=` is a Python keyword argument, offered to someone who
+typed a command. This project's own standing rule is that a refusal names the remedy; that
+one named a remedy belonging to a different surface.
+
+Not fixed here, and worth saying: the CLI still cannot resolve an accession. Building that
+means choosing a ClinVar file format and a checksum policy for a dataset the registry
+cannot fetch — a feature, not a wiring gap, unlike the cases where `design()` already
+accepted a parameter no shell forwarded. What is fixed is the advertising: the help says
+which forms this surface cannot service, the refusal names the coordinate form, the
+examples use it, and a guard rejects any documented shell example whose form that shell
+cannot resolve unaided.
+
+**Lesson: the surface that advertises a capability and the surface that implements it are
+different files, and the enumeration in the help was written from the library's point of
+view. A feature list is a promise made by whichever surface displays it — read it as a
+user of *that* surface, and try every entry.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

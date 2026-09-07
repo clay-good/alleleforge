@@ -385,9 +385,12 @@ The same journey from the `aforge` CLI (`pip install "alleleforge[cli]"`):
 # `--gnomad` is what makes the off-target scan population-aware; `--populations` only
 # names the ancestries to stratify by, so without a sites file the scan is
 # reference-only and the ancestry breakdown comes back empty (the command says so).
-aforge design VCV000012345 --reference-fasta hg38.fa \
+aforge design chr11:5227002:A>T --reference-fasta hg38.fa \
     --intent correct --gnomad gnomad.sites.tsv.gz --populations afr,eur,eas \
     --cell-context HEK293T --format html --out report.html
+# Coordinates, because that is what this surface can resolve on its own. A ClinVar
+# accession or an rsID needs a lookup database, and neither the CLI nor the web API has
+# a way to be given one — the refusal says so and names this form.
 
 # Standalone population/haplotype-aware off-target for a spacer. Every engine knob is
 # tunable: the bulge budget, the CFD/MIT reporting thresholds, and the carrying MAF.
@@ -1236,7 +1239,7 @@ ALLELEFORGE_REFERENCE_FASTA=hg38.fa uvicorn alleleforge.web.api.app:app --port 8
 
 # Cohort design over HTTP: post a variant list, get per-item summaries + provenance
 curl -s localhost:8000/api/batch -H 'content-type: application/json' \
-    -d '{"variants": ["chr2:71:A>C", "VCV000012345"], "intent": "correct"}'
+    -d '{"variants": ["chr2:71:A>C", "chr11:5227002:A>T"], "intent": "correct"}'
 ```
 
 The async job worker is **in-process** (the default deployment is single-user and local), so no broker or

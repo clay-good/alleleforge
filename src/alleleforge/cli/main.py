@@ -234,7 +234,16 @@ def _emit(payload: dict[str, Any], *, as_json: bool, human: str) -> None:
 @app.command()
 def resolve(
     ctx: typer.Context,
-    variant: Annotated[str, typer.Argument(help="ClinVar / rsID / HGVS / VCF / coords input.")],
+    variant: Annotated[
+        str,
+        typer.Argument(
+            help="Variant to design for. Coordinates (chrom:pos:ref>alt, 1-based as in a VCF) "
+            "and a VCF record work everywhere. A ClinVar accession, a dbSNP rsID or a "
+            "coding/protein HGVS string needs a lookup database or the `hgvs` library, "
+            "which this surface has no way to supply — the refusal says so and names the "
+            "coordinate form."
+        ),
+    ],
     reference_fasta: Annotated[
         Path | None, typer.Option(help="Reference FASTA for left-alignment + ref validation.")
     ] = None,
@@ -757,7 +766,16 @@ def _load_gnomad(path: Path | None) -> GnomadDB | None:
 @app.command()
 def design(
     ctx: typer.Context,
-    variant: Annotated[str, typer.Argument(help="ClinVar / rsID / HGVS / VCF / coords input.")],
+    variant: Annotated[
+        str,
+        typer.Argument(
+            help="Variant to design for. Coordinates (chrom:pos:ref>alt, 1-based as in a VCF) "
+            "and a VCF record work everywhere. A ClinVar accession, a dbSNP rsID or a "
+            "coding/protein HGVS string needs a lookup database or the `hgvs` library, "
+            "which this surface has no way to supply — the refusal says so and names the "
+            "coordinate form."
+        ),
+    ],
     reference_fasta: Annotated[
         Path | None, typer.Option(help="Reference FASTA (required).")
     ] = None,

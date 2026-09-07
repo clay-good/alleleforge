@@ -80,6 +80,22 @@ class _ClinVarRecordLike(Protocol):
     variant: Variant
 
 
+#: What a caller can actually do about a missing accession/rsID database. The refusals
+#: used to name `clinvar=` and `dbsnp=` — the *Python keyword arguments* — to callers who
+#: had reached them from `aforge resolve VCV000012345` or a JSON request body, where no
+#: such keyword exists and neither shell has any way to supply one. `ClinVarLookup` and
+#: `DbSnpLookup` are Protocols with no shipped implementation, so the honest remedy is the
+#: coordinate form, which every surface accepts, plus what supplying a database would
+#: actually take.
+DATABASE_REMEDY = (
+    "Neither the CLI nor the web API can supply one: the lookups are Protocols with no "
+    "shipped implementation, and the registry lists no fetchable ClinVar or dbSNP "
+    "release. Give the variant as coordinates instead (chrom:pos:ref>alt, 1-based as in "
+    "a VCF), which every surface accepts — or, from Python, pass an object implementing "
+    "the lookup Protocol."
+)
+
+
 class ClinVarLookup(Protocol):
     """A ClinVar database the resolver can query by accession."""
 
@@ -269,7 +285,9 @@ def _from_clinvar(
     could not say whether it was correcting a pathogenic allele or a benign one.
     """
     if clinvar is None:
-        raise ValueError("resolving a ClinVar accession requires a clinvar= database")
+        raise ValueError(
+            f"resolving a ClinVar accession requires a ClinVar database. {DATABASE_REMEDY}"
+        )
     record = clinvar.get(accession)
     return record.variant, _clinical_assertion(record)
 
@@ -277,7 +295,7 @@ def _from_clinvar(
 def _from_dbsnp(rsid: DbSnpId, dbsnp: DbSnpLookup | None) -> Variant:
     """Look up a dbSNP rsID (requires a dbSNP DB)."""
     if dbsnp is None:
-        raise ValueError("resolving a dbSNP rsID requires a dbsnp= database")
+        raise ValueError(f"resolving a dbSNP rsID requires a dbSNP database. {DATABASE_REMEDY}")
     return dbsnp.locus(rsid)
 
 
