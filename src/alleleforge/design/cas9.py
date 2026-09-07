@@ -26,8 +26,10 @@ from alleleforge.enumerate.cas9 import (
     guide_context,
     hdr_donor,
 )
+from alleleforge.genome.index import GenomeIndex
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.model_zoo.registry import ModelCard
+from alleleforge.offtarget.cache import OffTargetCache
 from alleleforge.offtarget.engine import search as offtarget_search
 from alleleforge.scoring.base import ensure_prediction
 from alleleforge.scoring.cas9_efficiency import EnsembleEfficiencyScorer
@@ -203,6 +205,8 @@ def design_cas9(
     patient_vcf: Iterable[Variant] | None = None,
     populations: Sequence[str] | None = None,
     offtarget_regions: Sequence[GenomicInterval] | None = None,
+    offtarget_cache: OffTargetCache | None = None,
+    genome_index: GenomeIndex | None = None,
     run_offtarget: bool = True,
     max_candidates: int | None = None,
 ) -> list[DesignCandidate]:
@@ -225,6 +229,10 @@ def design_cas9(
         patient_vcf: Personal variants for off-target personalization (optional).
         populations: Ancestry labels to query/stratify.
         offtarget_regions: Restrict the off-target search (default: every contig).
+        offtarget_cache: Cross-run store for reference-only scans, passed straight
+            through to the search. A cohort re-runs the same guide against the same
+            reference constantly, which is the case it exists for.
+        genome_index: Persistent memory-mapped FM-index for the reference scan.
         run_offtarget: Run the off-target engine (set ``False`` to skip it).
         max_candidates: Cap the number of returned candidates.
 
@@ -274,6 +282,8 @@ def design_cas9(
                 patient_vcf=patient_vcf,
                 populations=populations,
                 regions=offtarget_regions,
+                cache=offtarget_cache,
+                genome_index=genome_index,
                 on_target=guide.placement,
             )
         candidates.append(

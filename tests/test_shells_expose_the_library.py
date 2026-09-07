@@ -26,7 +26,6 @@ _ROOT = Path(__file__).resolve().parents[1]
 #: Parameters of `design()` that a shell legitimately does not expose, with the reason.
 _NOT_IN_CLI: dict[str, str] = {
     "inp": "the positional variant argument",
-    "settings": "assembled by the CLI from --config, the env, and --seed",
     "timestamp": "test-only hook for a reproducible provenance stamp",
     "build": "supplied by the global --reference-build option",
     "clinvar": "the CLI resolves the variant itself before calling design()",
@@ -45,20 +44,25 @@ _NOT_IN_WEB: dict[str, str] = {
     "clinvar": "resolved server-side from the request's variant string",
     "dbsnp": "resolved server-side from the request's variant string",
     "hgvs": "resolved server-side from the request's variant string",
-    "effect": "resolved server-side from the request's variant string",
+    "effect": "asked for by the request field `annotate_consequence` and built "
+    "server-side; the predictor itself is an operator-configured object",
     # The deliberate web exclusion: a client-supplied filesystem path on a server is a
     # file-read primitive. These stay library/CLI-only by design.
     "gnomad": "file-backed input; a client-supplied path on a server reads server files",
     "haplotypes": "file-backed input; see `gnomad`",
     "patient_vcf": "file-backed input; see `gnomad`",
     "encode_tracks": "file-backed input; see `gnomad`",
-    "chromatin_track": "names a track inside a file-backed input the web API does not accept",
     "max_candidates_per_chemistry": "exposed under the request field `max_per_chemistry`",
     "cas9_efficiency_scorer": "a Python object, not expressible in JSON",
     "cas9_outcome_predictor": "a Python object, not expressible in JSON",
     "base_outcome_predictor": "a Python object, not expressible in JSON",
     "prime_efficiency_scorer": "a Python object, not expressible in JSON",
     "prime_outcome_predictor": "a Python object, not expressible in JSON",
+    # Reuse is the operator's call, not the client's: the store and the index live
+    # on the server's disk, and a client asking for either would be spending the
+    # operator's resources on its own request.
+    "offtarget_cache": "server-side resource; an operator enables reuse, not a request",
+    "genome_index": "server-side resource; see `offtarget_cache`",
 }
 
 
@@ -103,6 +107,27 @@ def test_the_recorded_exceptions_are_real_parameters() -> None:
     known = _design_parameters()
     stale = sorted((set(_NOT_IN_CLI) | set(_NOT_IN_WEB)) - known)
     assert not stale, f"exceptions recorded for parameters design() no longer takes: {stale}"
+
+
+def test_an_allowance_does_not_outlive_the_gap_it_excuses() -> None:
+    """The stronger form: an excuse for something the shell now offers is a false record.
+
+    Set subtraction hides this — an entry that is both exposed and excused changes no
+    result — so `chromatin_track` sat here reading "the web API does not accept" it for
+    every round after the web API started accepting it. This list is read by people
+    deciding what is missing, and a wrong entry sends them away from a capability that
+    exists.
+    """
+    exposed = sorted(set(_NOT_IN_WEB) & set(DesignRequest.model_fields))
+    assert not exposed, (
+        f"DesignRequest exposes {exposed}, and _NOT_IN_WEB still records a reason it "
+        "cannot. Drop the entry."
+    )
+    forwarded = sorted(set(_NOT_IN_CLI) & _cli_forwards())
+    assert not forwarded, (
+        f"the CLI forwards {forwarded}, and _NOT_IN_CLI still records a reason it does "
+        "not. Drop the entry."
+    )
 
 
 #: Options that belong to `aforge design` alone, with the reason. `batch` shapes its

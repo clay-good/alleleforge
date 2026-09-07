@@ -11401,3 +11401,35 @@ frontend parity guard. That is a round, not a footnote to this one.
 **Lesson: a sweep is a query, not a task that gets completed. The one that found the
 project's differentiator unreachable had been run against one entry point and never
 against the other, for 280 rounds.**
+
+## Round 349 — the cohort case, and an allowance list that had gone false
+
+Round 348's recorded follow-up. `OffTargetCache`'s docstring names the case it exists
+for in its second sentence — "a cohort re-runs the *same* guide against the *same*
+reference constantly" — and `aforge batch` was the one command that could not use it,
+because `design()` took neither the cache nor the persistent index and so neither
+reached the three chemistry verticals where a cohort's off-target work actually happens.
+Both are threaded through now, and `aforge design`/`aforge batch` take the same two
+flags `aforge offtarget` got. Verified by running it: a `--genome-index` design report
+is byte-identical to a cold one, timestamp aside.
+
+The provenance snapshot deliberately does not record that a scan was reused. A cached
+report and a fresh one are the same bytes by construction, so recording the difference
+would make two identical runs produce different provenance — the opposite of what the
+snapshot is for.
+
+The interesting part was the guard that caught it. `tests/test_shells_expose_the_library`
+already ran this exact sweep, better than the one Round 344 wrote, with allowance dicts
+per shell. Adding two parameters failed it correctly. Reading it then showed the
+allowances themselves had rotted: `chromatin_track` was recorded as something "the web
+API does not accept" for every round after the web API started accepting it, and
+`settings` was excused on the CLI while the CLI forwards it. Both were invisible,
+because the check subtracts allowances from the missing set — an entry that is both
+exposed *and* excused changes no result and so never fails. The list is read by people
+deciding what is missing, so a false entry sends them away from a capability that
+exists. There is now a second check: an allowance for something a shell actually offers
+is itself a failure. It found three the moment it was written, one of them pre-existing.
+
+**Lesson: an allowance dict is a claim about the code and rots like any other. Checking
+that an excuse names a real parameter is not the same as checking that the excuse is
+true, and only the second kind fails when the gap gets closed.**

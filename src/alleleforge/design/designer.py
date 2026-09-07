@@ -56,8 +56,10 @@ from alleleforge.errors import (
     ConsentError,
     MissingDependencyError,
 )
+from alleleforge.genome.index import GenomeIndex
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.model_zoo.registry import CardError, LicenseError
+from alleleforge.offtarget.cache import OffTargetCache
 from alleleforge.scoring.prime_outcome import PrimeOutcomePredictor
 from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import Chemistry, EditIntent
@@ -142,6 +144,8 @@ def design(
     gnomad: GnomadDB | None = None,
     haplotypes: Iterable[Haplotype] = (),
     offtarget_regions: Sequence[GenomicInterval] | None = None,
+    offtarget_cache: OffTargetCache | None = None,
+    genome_index: GenomeIndex | None = None,
     encode_tracks: EncodeTracks | None = None,
     chromatin_track: str | None = None,
     cell_context: str | None = None,
@@ -178,6 +182,12 @@ def design(
         offtarget_regions: Restrict the off-target search to these intervals
             (default: every contig). Scoping a whole-genome scan to a gene panel
             is usually what makes a run over a real reference practical.
+        offtarget_cache: Cross-run store of reference-only scans. The engine
+            consults it only where the result is a pure function of the reference —
+            the default scorer and no population, haplotype or patient data — so an
+            augmented run is always computed fresh.
+        genome_index: Persistent memory-mapped FM-index for the reference scan, built
+            once and reused across runs and guides. Identical hits either way.
         encode_tracks: Optional ENCODE accessibility tracks for the ePRIDICT-style
             open-chromatin efficiency adjustment (prime editing only).
         chromatin_track: Which track to read from ``encode_tracks``; both are
@@ -298,6 +308,8 @@ def design(
             haplotypes=haplotypes,
             patient_vcf=patient_vcf,
             offtarget_regions=offtarget_regions,
+            offtarget_cache=offtarget_cache,
+            genome_index=genome_index,
             populations=populations,
             run_offtarget=run_offtarget,
             max_candidates=None,  # cap deferred to the composite ranker
@@ -328,6 +340,8 @@ def design(
                     haplotypes=haplotypes,
                     patient_vcf=patient_vcf,
                     offtarget_regions=offtarget_regions,
+                    offtarget_cache=offtarget_cache,
+                    genome_index=genome_index,
                     populations=populations,
                     run_offtarget=run_offtarget,
                     max_candidates=None,  # cap deferred to the composite ranker
@@ -351,6 +365,8 @@ def design(
                     haplotypes=haplotypes,
                     patient_vcf=patient_vcf,
                     offtarget_regions=offtarget_regions,
+                    offtarget_cache=offtarget_cache,
+                    genome_index=genome_index,
                     populations=populations,
                     run_offtarget=run_offtarget,
                     max_candidates=None,  # cap deferred to the composite ranker
@@ -613,6 +629,8 @@ def _run_base_editors(
     patient_vcf: Iterable[Variant] | None,
     populations: Sequence[str] | None,
     offtarget_regions: Sequence[GenomicInterval] | None,
+    offtarget_cache: OffTargetCache | None,
+    genome_index: GenomeIndex | None,
     run_offtarget: bool,
     max_candidates: int | None,
     notes: list[str],
@@ -640,6 +658,8 @@ def _run_base_editors(
             haplotypes=haplotypes,
             patient_vcf=patient_vcf,
             offtarget_regions=offtarget_regions,
+            offtarget_cache=offtarget_cache,
+            genome_index=genome_index,
             populations=populations,
             run_offtarget=run_offtarget,
             max_candidates=max_candidates,

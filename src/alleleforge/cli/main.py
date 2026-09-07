@@ -543,6 +543,39 @@ class OutputFormat(StrEnum):
     parquet = "parquet"
 
 
+#: Shared by every command that can reuse a reference scan, so the two flags read the
+#: same everywhere they appear.
+_CACHE_HELP = (
+    "Reuse an identical reference scan from a previous run, and record this one for "
+    "the next. The engine consults the store only when the result is a pure function "
+    "of the reference — the default scorer and no --gnomad/--haplotypes/--patient-vcf "
+    "— so an augmented scan is always computed fresh."
+)
+_GENOME_INDEX_HELP = (
+    "Anchor PAMs through a persistent, memory-mapped FM-index of the reference "
+    "instead of rebuilding one in memory. Identical hits (pinned by a parity test); "
+    "the first run pays to build it and every later run memory-maps it."
+)
+
+
+def _reuse(reference: Any, *, cache: bool, index: bool) -> tuple[Any | None, Any | None]:
+    """Build the off-target cache and genome index a run asked to reuse.
+
+    Both are opt-in: a run that did not ask must neither read a store nor write one.
+    """
+    store = None
+    if cache:
+        from alleleforge.offtarget.cache import OffTargetCache
+
+        store = OffTargetCache()
+    built = None
+    if index:
+        from alleleforge.genome.index import GenomeIndex
+
+        built = GenomeIndex.build_genome(reference)
+    return store, built
+
+
 #: Help text shared by every command's `--vep`, so the disclosure is worded once.
 _VEP_HELP = (
     "Annotate the variant's predicted molecular consequence with the Ensembl VEP REST "
@@ -951,6 +984,8 @@ def design(
         ),
     ] = False,
     vep: Annotated[bool, typer.Option("--vep", help=_VEP_HELP)] = False,
+    reuse_cache: Annotated[bool, typer.Option("--cache", help=_CACHE_HELP)] = False,
+    genome_index: Annotated[bool, typer.Option("--genome-index", help=_GENOME_INDEX_HELP)] = False,
     trained_base_outcome: Annotated[
         bool,
         typer.Option(
@@ -1119,9 +1154,12 @@ def design(
             reference=reference,
             effect=_effect_predictor(vep),
         )
+        store, index = _reuse(reference, cache=reuse_cache, index=genome_index)
         menu = run_design(
             resolved,
             reference=reference,
+            offtarget_cache=store,
+            genome_index=index,
             intent=edit_intent,
             chemistries=chemistries,
             weights=weights_obj,
@@ -1400,6 +1438,8 @@ def batch(
         ),
     ] = False,
     vep: Annotated[bool, typer.Option("--vep", help=_VEP_HELP)] = False,
+    reuse_cache: Annotated[bool, typer.Option("--cache", help=_CACHE_HELP)] = False,
+    genome_index: Annotated[bool, typer.Option("--genome-index", help=_GENOME_INDEX_HELP)] = False,
     output_dir: Annotated[
         Path | None, typer.Option(help="Write each item's full menu JSON to <dir>/<item>.json.")
     ] = None,
@@ -1537,8 +1577,11 @@ def batch(
             from alleleforge.scoring.prime_efficiency import DeepPrimeAdapter
 
             prime_scorer = DeepPrimeAdapter(consent=True)
+        store, index = _reuse(reference, cache=reuse_cache, index=genome_index)
         report = design_many(
             variants,
+            offtarget_cache=store,
+            genome_index=index,
             intent=edit_intent,
             manifest_path=manifest,
             resume=not no_resume,

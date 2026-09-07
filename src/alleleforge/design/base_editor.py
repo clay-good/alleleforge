@@ -18,8 +18,10 @@ from alleleforge.design.offtarget_flags import offtarget_flags
 from alleleforge.design.outcome_flags import outcome_flags
 from alleleforge.design.spacer_quality import spacer_quality_flags
 from alleleforge.enumerate.base_editor import BASE_EDITORS, BaseEditor, enumerate_base_edits
+from alleleforge.genome.index import GenomeIndex
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.model_zoo.registry import ModelCard
+from alleleforge.offtarget.cache import OffTargetCache
 from alleleforge.offtarget.engine import search as offtarget_search
 from alleleforge.scoring.base_outcome import (
     BaseEditOutcomePredictor,
@@ -109,6 +111,8 @@ def design_base_editor(
     patient_vcf: Iterable[object] | None = None,
     populations: Sequence[str] | None = None,
     offtarget_regions: Sequence[GenomicInterval] | None = None,
+    offtarget_cache: OffTargetCache | None = None,
+    genome_index: GenomeIndex | None = None,
     run_offtarget: bool = True,
     max_candidates: int | None = None,
     tally: MutableMapping[str, int] | None = None,
@@ -126,6 +130,10 @@ def design_base_editor(
         patient_vcf: Personal variants for off-target personalization (optional).
         populations: Ancestry labels to query/stratify.
         offtarget_regions: Restrict the off-target search (default: every contig).
+        offtarget_cache: Cross-run store for reference-only scans, passed straight
+            through to the search. A cohort re-runs the same guide against the same
+            reference constantly, which is the case it exists for.
+        genome_index: Persistent memory-mapped FM-index for the reference scan.
         run_offtarget: Run the off-target engine (set ``False`` to skip it).
         tally: Optional mapping that records why each editor or protospacer was
             rejected, so a caller can explain an empty result rather than only report it.
@@ -156,6 +164,8 @@ def design_base_editor(
                 patient_vcf=patient_vcf,  # type: ignore[arg-type]  # Variant iterable
                 populations=populations,
                 regions=offtarget_regions,
+                cache=offtarget_cache,
+                genome_index=genome_index,
                 on_target=window.placement,
             )
         candidate = DesignCandidate(
