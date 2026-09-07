@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: a chart with more than ~120 candidates rendered as an empty frame.** The 2px bar inset assumed
+  a wide bar, so past that point `bar_w - 4` went negative: a 150-bar chart emitted 150 rects of width
+  `-0.6` and a 470-bar one — an ordinary large prime menu, where every PBS x RTT x PAM combination is its
+  own pegRNA — emitted 470 of width `-2.9`. A negative `width` is invalid SVG and browsers draw nothing,
+  so the efficiency figure came out as axes with no bars: no error, and nothing on the page saying the
+  picture was missing. The inset now scales with the bar and the width is floored above zero; a 470-bar
+  chart draws its whole distribution, and the guards check every count from 1 to 2,000 for a positive
+  width and for neighbours that do not overlap.
+
 - **Fixed: the report's headline chart was an unreadable smear and its caption ran off the image.**
   Measured on an ordinary 90-candidate prime menu: 90 x-axis labels at 6.9px pitch each ~44px wide, and
   95 value labels at 0.0px minimum spacing — printed on top of one another. Rotation was the only

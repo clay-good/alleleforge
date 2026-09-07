@@ -148,3 +148,43 @@ def test_wrapping_the_subtitle_does_not_push_the_plot_off_the_image() -> None:
     height = int(re.search(r'height="(\d+)"', svg).group(1))
     ys = [float(m.group(1)) for m in re.finditer(r'<line[^>]*y1="([\d.]+)"', svg)]
     assert ys and max(ys) < height, (max(ys), height)
+
+
+def _bar_rects(svg: str) -> list[tuple[float, float]]:
+    """Return the (x, width) of every bar, excluding the background rect."""
+    return [
+        (float(x), float(w))
+        for x, _y, w in re.findall(r'<rect x="([-\d.]+)" y="([\d.]+)" width="([-\d.]+)"', svg)
+    ]
+
+
+@pytest.mark.parametrize("n", [1, 2, 50, 90, 150, 300, 470, 2000])
+def test_no_bar_is_drawn_with_a_non_positive_width(n: int) -> None:
+    """A negative `width` is invalid SVG and browsers draw nothing at all.
+
+    The 2px inset assumed a wide bar, so past ~120 categories `bar_w - 4` went negative:
+    a 150-bar chart emitted 150 rects of width -0.6, and a 470-bar one — an ordinary
+    large prime menu, where every PBS x RTT x PAM combination is its own pegRNA — emitted
+    470 of width -2.9. The chart came out as an empty plot frame: no bars, no error, and
+    nothing on the page saying the picture was missing.
+    """
+    rects = _bar_rects(_chart(n))
+    assert len(rects) == n, (n, len(rects))
+    worst = min(w for _x, w in rects)
+    assert worst > 0, (n, worst)
+
+
+@pytest.mark.parametrize("n", [50, 470])
+def test_bars_do_not_overlap_each_other(n: int) -> None:
+    """Floored widths must not be bought by letting neighbours collide."""
+    rects = sorted(_bar_rects(_chart(n)))
+    for (x, w), (nx, _nw) in zip(rects, rects[1:], strict=False):
+        assert x + w <= nx + 1e-6, (n, x, w, nx)
+
+
+def test_a_wide_chart_still_insets_its_bars() -> None:
+    """The floor is for crowded charts; a roomy one keeps the gap it was designed with."""
+    rects = _bar_rects(_chart(4))
+    slot = (720 - 70 - 24) / 4
+    assert all(w < slot for _x, w in rects), rects
+    assert all(w > slot * 0.5 for _x, w in rects), rects

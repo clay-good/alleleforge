@@ -18,16 +18,16 @@
 <text x="62" y="98.0" fill="#62707d" font-size="11" text-anchor="end">0.1</text>
 <text x="18" y="202.0" fill="#62707d" font-size="12" text-anchor="middle" transform="rotate(-90 18 202.0)">Gap (held-out − in-context)</text>
 <line x1="70" y1="202.0" x2="696" y2="202.0" stroke="#1f2933" stroke-width="1"/>
-<rect x="86.1" y="202.0" width="124.3" height="0.0" fill="#d53f8c" rx="2"/>
+<rect x="86.08" y="202.0" width="124.33" height="0.0" fill="#d53f8c" rx="2"/>
 <text x="148.2" y="196.0" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">0</text>
 <text x="148.2" y="328.0" fill="#1f2933" font-size="12" text-anchor="middle">cas9-efficiency</text>
-<rect x="242.6" y="202.0" width="124.3" height="47.7" fill="#d53f8c" rx="2"/>
+<rect x="242.59" y="202.0" width="124.33" height="47.7" fill="#d53f8c" rx="2"/>
 <text x="304.8" y="263.7" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">-0.044</text>
 <text x="304.8" y="328.0" fill="#1f2933" font-size="12" text-anchor="middle">cas9-outcome</text>
-<rect x="399.1" y="178.2" width="124.3" height="23.8" fill="#d53f8c" rx="2"/>
+<rect x="399.08" y="178.2" width="124.33" height="23.8" fill="#d53f8c" rx="2"/>
 <text x="461.2" y="172.2" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">0.022</text>
 <text x="461.2" y="328.0" fill="#1f2933" font-size="12" text-anchor="middle">be-outcome</text>
-<rect x="555.6" y="202.0" width="124.3" height="0.0" fill="#d53f8c" rx="2"/>
+<rect x="555.59" y="202.0" width="124.33" height="0.0" fill="#d53f8c" rx="2"/>
 <text x="617.8" y="196.0" fill="#1f2933" font-size="11" font-weight="600" text-anchor="middle">0</text>
 <text x="617.8" y="328.0" fill="#1f2933" font-size="12" text-anchor="middle">pe-efficiency</text>
 </svg>

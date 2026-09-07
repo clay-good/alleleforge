@@ -117,3 +117,17 @@ image.
 #### Scenario: A few categories with long names
 - **WHEN** rotation alone resolves the crowding
 - **THEN** every label is drawn and nothing is said about thinning
+
+
+### Requirement: Every bar is drawn with a positive width
+
+A bar's inset SHALL scale with the bar and its width SHALL be floored above zero. A
+negative `width` is invalid SVG and a browser draws nothing, so a crowded chart renders as
+an empty plot frame with no error and nothing on the page saying the picture is missing.
+
+Bars SHALL NOT overlap each other; the floor may not be bought by letting neighbours
+collide.
+
+#### Scenario: A chart with more categories than pixels per bar
+- **WHEN** a chart is drawn with several hundred categories
+- **THEN** every bar has a positive width and none overlaps its neighbour

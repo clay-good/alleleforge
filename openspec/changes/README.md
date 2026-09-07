@@ -10556,6 +10556,37 @@ correctness is a number you did not compute — pixel pitch, overflow width, con
 unaudited by construction until something measures it.**
 
 
+## Round 323 — the chart with no bars
+
+R322's lesson: anything whose correctness is a number nobody computed is unaudited by
+construction. The obvious next number, one line below the labels I had just measured, was
+the bar width.
+
+    150 bars -> width -0.60
+    300 bars -> width -2.30
+    470 bars -> width -2.90
+
+`width="{bar_w - 4}"`. The 2px-per-side inset assumed a wide bar, and past about 120
+categories the subtraction goes negative. A negative `width` is invalid SVG — a browser
+draws nothing — so the report's headline figure, on any menu over that size, rendered as
+an axis frame with no bars at all. No error, no console warning, and nothing on the page
+saying the picture was missing. R99 found a real result in the *shape* of 470 candidates;
+for a menu that size the shape was not being drawn.
+
+The fix is arithmetic: scale the inset with the bar, floor the width above zero. Verified
+by rendering 470 bars in a browser and looking at them.
+
+This was one round after the round that measured the same chart, because R322 measured
+label geometry and stopped — the bars were assumed fine because the *count* of `<rect>`
+elements was right. Counting elements is an existence check, and R317 already said what
+those are worth.
+
+**Lesson: a rendering bug can be perfectly silent. Every layer cooperated — the data was
+right, the SVG was well-formed XML, the element count was correct, and the browser
+followed the spec by drawing nothing. Nothing in the stack is obliged to tell you a
+picture is empty; only looking at it, or computing the number that makes it empty, will.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

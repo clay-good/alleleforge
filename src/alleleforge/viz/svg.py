@@ -34,6 +34,10 @@ def _check_color(color: str) -> str:
     return color
 
 
+#: Narrowest bar this renderer will draw. Below about half a pixel a bar is invisible
+#: anyway; the floor exists so the width is never zero or negative, which is invalid SVG.
+_MIN_BAR_W = 0.5
+
 #: X-axis label rotation, in degrees, and the pitch two rotated labels need to clear each
 #: other. Rotated labels are parallel lines of text: they collide when the *perpendicular*
 #: distance between their baselines falls below a line height, and that distance is
@@ -298,8 +302,16 @@ def bar_chart(
             top = y_px(max(value, 0.0)) if value >= 0 else base_y
             bottom = base_y if value >= 0 else y_px(value)
             bar_h = max(bottom - top, 0.0)
+            # The 2px inset assumed a wide bar. Past ~120 categories `bar_w` falls under
+            # 4px and `bar_w - 4` goes negative: a 150-bar chart emitted 150 rects of
+            # width -0.6 and a 470-bar one (an ordinary large prime menu) 470 of width
+            # -2.9. A negative `width` is invalid SVG and browsers draw nothing, so the
+            # chart came out as an empty plot frame — no bars, no error, no note. The
+            # inset now scales with the bar and the result is floored above zero.
+            inset = min(2.0, bar_w * 0.2)
+            rect_w = max(bar_w - 2 * inset, _MIN_BAR_W)
             parts.append(
-                f'<rect x="{bx + 2:.1f}" y="{top:.1f}" width="{bar_w - 4:.1f}" '
+                f'<rect x="{bx + inset:.2f}" y="{top:.1f}" width="{rect_w:.2f}" '
                 f'height="{bar_h:.1f}" fill="{s.color}" rx="2"/>'
             )
             if show_values:
