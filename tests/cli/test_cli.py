@@ -71,7 +71,7 @@ def test_resolve_coords_human(runner: CliRunner) -> None:
 def test_resolve_json(runner: CliRunner) -> None:
     result = runner.invoke(app, ["resolve", "chr2:100:A>G", "--json"])
     assert result.exit_code == 0
-    data = json.loads(result.output)
+    data = json.loads(result.stdout)
     assert data["variant"] == "chr2:99:A>G"
     assert data["variant_class"] == "snv"
     assert data["source"] == "coordinates"
@@ -88,7 +88,7 @@ def test_resolve_bad_input_is_usage_error(runner: CliRunner) -> None:
 def test_design_json_stdout(runner: CliRunner, prime_fasta: Path, design_cmd: DesignCmd) -> None:
     result = runner.invoke(app, design_cmd(prime_fasta, "json"))
     assert result.exit_code == 0
-    data = json.loads(result.output)
+    data = json.loads(result.stdout)
     assert data["disclaimer"]
     assert data["intent"] == "install"
     assert len(data["candidates"]) == 3
@@ -161,7 +161,7 @@ def test_design_chemistry_filter(runner: CliRunner, prime_fasta: Path) -> None:
         ],
     )
     assert result.exit_code == 0
-    data = json.loads(result.output)
+    data = json.loads(result.stdout)
     assert {c["chemistry"] for c in data["candidates"]} <= {"prime"}
 
 
@@ -193,7 +193,7 @@ def test_design_config_toml(runner: CliRunner, prime_fasta: Path, tmp_path: Path
         ],
     )
     assert result.exit_code == 0
-    menu = json.loads(result.output)
+    menu = json.loads(result.stdout)
     assert menu["intent"] == "install"
     # max_per_chemistry from the config must actually cap the menu, not be ignored.
     per_chem: dict[str, int] = {}
@@ -432,7 +432,7 @@ def test_batch_json(runner: CliRunner, cohort_fasta: Path, tmp_path: Path) -> No
         ],
     )
     assert result.exit_code == 0
-    data = json.loads(result.output)
+    data = json.loads(result.stdout)
     assert (data["total"], data["succeeded"], data["failed"]) == (2, 2, 0)
     assert {it["item_id"] for it in data["items"]} == {OK_1, OK_2}
     assert data["provenance"]["seed"] == 20240501
@@ -481,9 +481,9 @@ def test_batch_manifest_resume(runner: CliRunner, cohort_fasta: Path, tmp_path: 
         "--json",
     ]
     first = runner.invoke(app, argv)
-    assert json.loads(first.output)["succeeded"] == 2
+    assert json.loads(first.stdout)["succeeded"] == 2
     second = runner.invoke(app, argv)
-    data = json.loads(second.output)
+    data = json.loads(second.stdout)
     assert (data["total"], data["skipped"]) == (0, 2)  # both already recorded -> skipped
 
 
@@ -609,7 +609,7 @@ def test_batch_parallel_matches_sequential(
         ],
     )
     assert result.exit_code == 0
-    data = json.loads(result.output)
+    data = json.loads(result.stdout)
     assert (data["total"], data["succeeded"], data["failed"]) == (2, 2, 0)
 
 
@@ -643,7 +643,7 @@ def test_offtarget_json(runner: CliRunner, nuclease_fasta: Path) -> None:
         ["offtarget", "ACGTAACGTTACGTAACGTT", "--reference-fasta", str(nuclease_fasta), "--json"],
     )
     assert result.exit_code == 0
-    data = json.loads(result.output)
+    data = json.loads(result.stdout)
     assert "n_sites" in data and "ancestry_stratification" in data
     assert data["spacer"] == "ACGTAACGTTACGTAACGTT"
     assert 0.0 < data["specificity"] <= 1.0  # aggregate genome-wide specificity
@@ -695,7 +695,7 @@ def test_offtarget_tuning_knobs_are_honored(runner: CliRunner, nuclease_fasta: P
         ],
     )
     assert base.exit_code == 0 and strict.exit_code == 0
-    assert json.loads(strict.output)["n_sites"] <= json.loads(base.output)["n_sites"]
+    assert json.loads(strict.stdout)["n_sites"] <= json.loads(base.stdout)["n_sites"]
 
 
 def test_offtarget_states_the_settings_its_site_count_depends_on(
@@ -730,7 +730,7 @@ def test_offtarget_states_the_settings_its_site_count_depends_on(
     assert "bases;" in human.output
     assert "sites reported at CFD >= 0.05 or MIT >= 0.01" in human.output
 
-    payload = json.loads(runner.invoke(app, [*args, *strict, "--json"]).output)
+    payload = json.loads(runner.invoke(app, [*args, *strict, "--json"]).stdout)
     # Exact equality, deliberately: a payload that silently loses a key a consumer
     # filters on is the failure this pins. The extent joined the block because every
     # number beside it is conditional on it -- a panel scan and a genome-wide scan
@@ -755,7 +755,7 @@ def test_offtarget_states_the_settings_its_site_count_depends_on(
     # what it is derived from, so a stale description is a contradiction on one payload.
     assert "up to 3 mismatches, 0 DNA / 0 RNA bulges" in payload["search"]["description"]
     # ...and the defaults are reported as the defaults, not as whatever was last used.
-    default = json.loads(runner.invoke(app, [*args, "--json"]).output)["search"]
+    default = json.loads(runner.invoke(app, [*args, "--json"]).stdout)["search"]
     assert default != payload["search"]
     assert default["dna_bulge_budget"] == 1 and default["cfd_threshold"] == 0.20
 
@@ -915,7 +915,7 @@ def test_a_region_panel_the_reference_cannot_serve_fails_clearly(
 def test_offtarget_rows_name_the_pam(runner: CliRunner, nuclease_fasta: Path) -> None:
     """An NGG row and a low-stringency NAG row looked identical on the table."""
     args = ["offtarget", "ACGTAACGTTACGTAACGTT", "--reference-fasta", str(nuclease_fasta)]
-    payload = json.loads(runner.invoke(app, [*args, "--json"]).output)
+    payload = json.loads(runner.invoke(app, [*args, "--json"]).stdout)
     assert payload["sites"], "fixture produced no sites to check"
     assert all(site["pam"] for site in payload["sites"])
 
@@ -1023,7 +1023,7 @@ def test_data_list_does_not_call_a_licence_permission_a_shipped_dataset(
     assert result.exit_code == 0
     assert "vendored" not in result.output
 
-    payload = json.loads(runner.invoke(app, ["data", "list", "--json"]).output)
+    payload = json.loads(runner.invoke(app, ["data", "list", "--json"]).stdout)
     rows = {r["name"]: r for r in payload["datasets"]}
 
     # gnomAD: permitted, and not present.
@@ -1047,14 +1047,14 @@ def test_data_list(runner: CliRunner) -> None:
 def test_data_list_json(runner: CliRunner) -> None:
     result = runner.invoke(app, ["data", "list", "--json"])
     assert result.exit_code == 0
-    names = {d["name"] for d in json.loads(result.output)["datasets"]}
+    names = {d["name"] for d in json.loads(result.stdout)["datasets"]}
     assert "gnomad" in names
 
 
 def test_data_show(runner: CliRunner) -> None:
     result = runner.invoke(app, ["data", "show", "clinvar", "--json"])
     assert result.exit_code == 0
-    assert json.loads(result.output)["name"] == "clinvar"
+    assert json.loads(result.stdout)["name"] == "clinvar"
 
 
 def test_data_show_unknown_is_missing_data(runner: CliRunner) -> None:
@@ -1183,7 +1183,7 @@ def test_verify_does_not_call_an_unrun_check_verified(runner: CliRunner, tmp_pat
     assert bare.exit_code == 0
     assert "verified" in bare.output
     assert "no artifact bytes were re-hashed" in bare.output
-    payload = json.loads(runner.invoke(app, ["verify", str(path), "--json"]).output)
+    payload = json.loads(runner.invoke(app, ["verify", str(path), "--json"]).stdout)
     assert payload["verified"] is True  # provenance really is complete
     assert payload["artifact_verification_run"] is False  # ...and nothing was hashed
     assert payload["artifacts_rehashed"] == 0
@@ -1285,7 +1285,7 @@ def test_offtarget_says_when_the_on_target_is_not_excluded(
     fasta, spacer, _ = _offtarget_fasta(tmp_path)
     result = runner.invoke(app, ["offtarget", spacer, "--reference-fasta", str(fasta), "--json"])
     assert result.exit_code == 0
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert payload["on_target_excluded"] is False
     assert payload["n_sites"] == 1  # the guide's own locus, counted
 
@@ -1300,7 +1300,7 @@ def test_offtarget_excludes_the_locus_when_given(runner: CliRunner, tmp_path: Pa
         ["offtarget", spacer, "--reference-fasta", str(fasta), "--on-target", locus, "--json"],
     )
     assert result.exit_code == 0
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert payload["on_target_excluded"] is True
     assert payload["n_sites"] == 0  # a spotless guide reads as spotless
     assert payload["specificity"] == 1.0
@@ -1429,7 +1429,7 @@ def test_cell_context_flag_drives_the_ood_flag(
         ],
     )
     assert result.exit_code == 0
-    top = json.loads(result.output)["candidates"][0]
+    top = json.loads(result.stdout)["candidates"][0]
     assert top["efficiency"]["in_distribution"] is not expect_ood
     assert ("ood" in top["flags"]) is expect_ood
 
@@ -1463,7 +1463,7 @@ def test_offtarget_is_reference_blind_without_population_data(
     fasta, _sites, spacer = bias_case
     result = runner.invoke(app, ["offtarget", spacer, "--reference-fasta", str(fasta), "--json"])
     assert result.exit_code == 0
-    assert json.loads(result.output)["n_sites"] == 0  # the blind spot
+    assert json.loads(result.stdout)["n_sites"] == 0  # the blind spot
 
 
 def test_gnomad_makes_the_cli_search_population_aware(
@@ -1491,7 +1491,7 @@ def test_gnomad_makes_the_cli_search_population_aware(
         ],
     )
     assert result.exit_code == 0
-    body = json.loads(result.output)
+    body = json.loads(result.stdout)
     assert body["n_sites"] == 1
     site = body["sites"][0]
     assert site["origin"] == "population"
@@ -1545,7 +1545,7 @@ def test_patient_vcf_personalizes_the_cli_scan(
         ],
     )
     assert result.exit_code == 0
-    body = json.loads(result.output)
+    body = json.loads(result.stdout)
     assert body["n_sites"] == 1
     assert body["sites"][0]["origin"] == "patient"
 
@@ -1574,7 +1574,7 @@ def test_haplotypes_enable_the_haplotype_aware_pass(
         ],
     )
     assert result.exit_code == 0
-    body = json.loads(result.output)
+    body = json.loads(result.stdout)
     assert body["n_sites"] == 1
     assert body["sites"][0]["causal_allele"]
 
@@ -1622,19 +1622,19 @@ def test_region_restriction_scopes_the_search(
     """
     fasta, sites, spacer = bias_case
     base = ["offtarget", spacer, "--reference-fasta", str(fasta), "--gnomad", str(sites), "--json"]
-    everywhere = json.loads(runner.invoke(app, base).output)
+    everywhere = json.loads(runner.invoke(app, base).stdout)
     assert everywhere["n_sites"] == 1
 
     # A window that excludes the site's locus (chr2:10-30) finds nothing...
-    away = json.loads(runner.invoke(app, [*base, "--region", "chr2:100-200"]).output)
+    away = json.loads(runner.invoke(app, [*base, "--region", "chr2:100-200"]).stdout)
     assert away["n_sites"] == 0
     # ...and one that contains it still does.
-    over = json.loads(runner.invoke(app, [*base, "--region", "chr2:0-43"]).output)
+    over = json.loads(runner.invoke(app, [*base, "--region", "chr2:0-43"]).stdout)
     assert over["n_sites"] == 1
 
     bed = tmp_path / "panel.bed"
     bed.write_text("# a gene panel\nchr2\t0\t43\n")
-    from_bed = json.loads(runner.invoke(app, [*base, "--regions-bed", str(bed)]).output)
+    from_bed = json.loads(runner.invoke(app, [*base, "--regions-bed", str(bed)]).stdout)
     assert from_bed["n_sites"] == 1
 
 
@@ -1682,7 +1682,7 @@ def test_supplied_sources_are_pinned_in_provenance(
         ],
     )
     assert result.exit_code == 0
-    datasets = json.loads(result.output)["provenance"]["datasets"]
+    datasets = json.loads(result.stdout)["provenance"]["datasets"]
     by_name = {d["name"]: d for d in datasets}
     assert "gnomad-sites" in by_name and "haplotype-panel" in by_name
     for name in ("gnomad-sites", "haplotype-panel"):
@@ -1720,7 +1720,7 @@ def test_the_patient_source_is_recorded_without_fingerprinting_it(
         ],
     )
     assert result.exit_code == 0
-    datasets = {d["name"]: d for d in json.loads(result.output)["provenance"]["datasets"]}
+    datasets = {d["name"]: d for d in json.loads(result.stdout)["provenance"]["datasets"]}
     assert datasets["patient-variants"]["version"] == "n=1"
     assert datasets["patient-variants"]["sha256"] is None
 
@@ -1827,7 +1827,7 @@ def test_allow_ng_is_reachable_from_the_cli(runner: CliRunner, tmp_path: Path) -
 
     with_ng = runner.invoke(app, [*args, "--allow-ng", "--allow-spry"])
     assert with_ng.exit_code == 0, with_ng.output
-    assert json.loads(with_ng.output)["candidates"], "the flags changed nothing"
+    assert json.loads(with_ng.stdout)["candidates"], "the flags changed nothing"
 
 
 def test_the_offtarget_scorer_is_selectable(runner: CliRunner, tmp_path: Path) -> None:

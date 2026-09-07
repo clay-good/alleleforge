@@ -149,6 +149,16 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
   that iterates `Model.model_fields` instead of naming fields covers the fields that do
   not exist yet.
 
+- **Decode `result.stdout`, never `result.output`.** `CliRunner`'s `output` is stdout
+  and stderr interleaved, so `json.loads(result.output)` asserts nothing about the
+  stream a pipeline reads: a command writing its data to stderr, or a sentence into the
+  middle of the data stream, passes it. It also breaks the moment a command gains a
+  message on stderr, which this project requires for every message about a side effect —
+  and the failure reads as the feature being broken rather than the test. Thirty-three
+  tests shared this before it was swept, after two rounds had each repaired the one test
+  in front of them. Reading `.output` for a substring is fine: that test wants either
+  stream.
+
 - **When two numbers are presented together, check they range over the same thing.**
   Each can be individually correct and documented while their juxtaposition is a lie,
   and no test of either one alone will catch it. R134: a cohort's `total` counted what

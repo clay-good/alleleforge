@@ -82,7 +82,7 @@ def test_the_json_payload_carries_the_extent(runner: CliRunner, tmp_path: Path) 
     """The machine-readable counterpart of the human 'over N bases' line."""
     result = runner.invoke(app, [*_args(_fasta(tmp_path, "real.fa", REAL_CONTIG)), "--json"])
     assert result.exit_code == ExitCode.OK, result.output
-    search = json.loads(result.output)["search"]
+    search = json.loads(result.stdout)["search"]
     assert search["searched_bases"] == len(REAL_CONTIG)
     assert search["resolved_bases"] == len(REAL_CONTIG)
     # ...and the population cut-off, which is None when no ancestry source applied.
@@ -93,7 +93,7 @@ def test_the_json_consumer_can_see_the_empty_search(runner: CliRunner, tmp_path:
     """A non-zero exit is only actionable if the payload says what was wrong."""
     result = runner.invoke(app, [*_args(_fasta(tmp_path, "empty.fa", "")), "--json"])
     assert result.exit_code == ExitCode.MISSING_DATA
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert payload["search"]["searched_bases"] == 0
     # The reassuring numbers are still there -- which is precisely why the zero has to be.
     assert payload["specificity"] == 1.0

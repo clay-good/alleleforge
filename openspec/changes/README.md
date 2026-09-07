@@ -11669,3 +11669,30 @@ was intended. A sweep of the other thirty-odd is its own round.
 **Lesson: an honesty flag is a property of the number, so every command that reports that
 number owes the reader the flag. Fixing it where it was noticed fixes one reader's view;
 the question to ask next is who else prints the same value.**
+
+## Round 358 — the same test bug thirty-three times
+
+Twice this session an existing test broke when a command started writing a legitimate
+note to stderr, and both times the failure looked like the feature was broken. It was the
+test: `CliRunner`'s `result.output` is stdout and stderr interleaved, and thirty-three
+tests ran `json.loads(result.output)`.
+
+That is wrong in both directions at once. It is not the assertion it looks like — a
+command that wrote its data to stderr, or a sentence into the middle of a pipeline's data
+stream, would pass it, so "the JSON output is well formed" was never checked against the
+stream a pipeline actually reads. And it breaks on correct changes, because this project's
+own convention is that every message about a side effect goes to stderr: the
+synthetic-data caveat on `bench run`, then the one on `bench compare`, each landed inside
+the JSON these tests decoded.
+
+All thirty-three now decode `result.stdout`, and all pass — so no command had been
+quietly writing its data to stderr, which was the other possible outcome and would have
+been a finding of its own. A guard forbids the pattern at the one place the difference is
+load-bearing: decoding the stream as data. Reading `.output` for a substring is left
+alone, because a test asking "did this text appear anywhere" legitimately wants either
+stream.
+
+**Lesson: when a correct change breaks a test, fix the test's premise rather than the
+line — and then count how many other tests share it. Both earlier rounds repaired the one
+test in front of them, which is how a defect gets repaired twice and stays thirty-three
+times.**

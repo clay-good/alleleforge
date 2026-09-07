@@ -29,7 +29,7 @@ def test_bench_list_human(runner: CliRunner) -> None:
 def test_bench_list_json(runner: CliRunner) -> None:
     result = runner.invoke(app, ["bench", "list", "--json"])
     assert result.exit_code == 0
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert len(payload["tasks"]) == 5
     assert all("ece" in t["metrics"] for t in payload["tasks"])
 

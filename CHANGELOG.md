@@ -2571,6 +2571,7 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+- Thirty-three CLI tests decoded `CliRunner`'s interleaved stdout+stderr as JSON. They now decode `result.stdout`, which is the stream a pipeline reads — the assertion that was meant, and the one a message on stderr cannot break.
 - `aforge bench compare` says when the results it is comparing came from synthetic stand-ins. It pronounced two of them “the same scientific result” without ever reading the flag, and its `--json` verdict now carries `synthetic_datasets` for a caller gating on `agree`.
 - The served page no longer pans sideways on a phone: the download row is a flex row that never wrapped, so it ran 4px past a 375px viewport with three buttons and 128px with four.
 - The served page no longer offers example inputs it always refuses (a ClinVar accession, an rsID and an HGVS string sat in the variant placeholder), and its banner stops promising that no sequence data leaves a deployment that has consequence annotation enabled.
