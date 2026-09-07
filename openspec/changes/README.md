@@ -9810,6 +9810,36 @@ job is to be looked at needs to be looked at at least once — the two guards ad
 inherited) are stand-ins for a renderer, not a substitute for opening it.**
 
 
+## Round 301 — the same bug, on the artifact that leaves the building
+
+R300 ended by saying a surface whose job is to be looked at must be looked at. The
+obvious next thing to look at was the artifact the tool exists to produce: an HTML design
+report, rendered and opened.
+
+It came up blank. Same defect exactly — `body` sets `color: #1a1a1a` and no background,
+so it takes the user agent's — and a strictly worse consequence than the frontend's. The
+served page is opened by someone sitting at the deployment; the report is *emailed*. It
+is read on a machine whose theme its author never sees, and it had been shipped that way
+since Phase 11. Its own charts were unaffected, which is the detail worth keeping: the
+inlined SVG renderer paints a white rect before drawing, so the figures would have been
+the only visible thing on the page.
+
+The fix is not a dark theme. Both palettes are light throughout — cream disclaimer panel,
+white-backed charts, `#e2e2e2` hairlines — and a distributed document that changes
+appearance with the reader's OS setting is worse than one that states what it is. Both
+now declare `color-scheme: light` and paint their ground.
+
+The guard was generalized in the same round rather than copied: one rule over every
+stylesheet the project ships, so the third surface inherits it. R300's frontend-only
+version was deleted, not left beside it.
+
+**Lesson: when a defect is found in one instance of a class the project has several of,
+finish the class in the same round. The frontend and the report were the same six
+characters of CSS, written twice, six phases apart — and after fixing one I still had to
+deliberately go looking at the other. "Where else does this exact shape live" is the
+cheapest query there is and it runs before the round is over, not in the next one.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

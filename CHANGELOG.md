@@ -21,6 +21,14 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: the HTML design report rendered as a blank page in dark mode.** The same defect as the served
+  frontend and a worse consequence: the report is the artifact a collaborator is *sent*, opened on a
+  machine whose theme the author never sees. `body` carried `color: #1a1a1a` and no background, so it
+  inherited the user agent's — dark ink on a dark ground. (Its charts were fine; the inlined SVG paints a
+  white rect first.) The report now declares the light scheme its palette assumes and paints its own
+  ground, and the mechanical rule — a `body` rule that sets a foreground sets a background, and the
+  scheme is declared not inherited — now covers every stylesheet the project ships.
+
 - **Fixed: the served page was unreadable in dark mode.** `styles.css` is a light design throughout and
   set `color: #1a1a1a` on `body` without ever setting a background, so `body` inherited the user agent's
   — near-black text on a dark ground. Every field label, every help line and the tagline were invisible,

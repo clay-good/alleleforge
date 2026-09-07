@@ -35,14 +35,23 @@ from alleleforge.report.pdf import oligo_lines
 from alleleforge.types.prediction import Prediction
 from alleleforge.viz.svg import Series, bar_chart
 
+#: This report is a fixed light document: a cream disclaimer panel, teal headings, and
+#: inlined SVG charts that paint their own white ground. It set `color: #1a1a1a` and no
+#: background, so `body` took the user agent's — and in a browser set to dark the whole
+#: page rendered as near-black text on a dark ground, i.e. blank. It is the artifact a
+#: collaborator is *sent*, opened on a machine whose theme the author never sees, so it
+#: declares the scheme it was drawn for rather than inheriting the reader's.
+#:
 #: Series colors for the grouped off-target chart, cycled per candidate. Fixed and
 #: ordered so a re-render of the same report is byte-identical.
 _SERIES_COLORS: tuple[str, ...] = ("#0a7d77", "#b45309", "#4f46e5", "#be123c", "#0369a1")
 
 _STYLE = """
-:root { --teal:#0a7d77; --ink:#1a1a1a; --muted:#666; --line:#e2e2e2; }
+:root { color-scheme: light;
+        --paper:#ffffff; --teal:#0a7d77; --ink:#1a1a1a; --muted:#666; --line:#e2e2e2; }
 * { box-sizing: border-box; }
-body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; color: var(--ink);
+body { font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+       background: var(--paper); color: var(--ink);
        margin: 0; padding: 0 1.5rem 4rem; line-height: 1.5; }
 header { padding: 1.5rem 0 0.5rem; }
 h1 { color: var(--teal); margin: 0 0 0.25rem; }

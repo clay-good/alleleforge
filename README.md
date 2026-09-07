@@ -1053,7 +1053,10 @@ other standard sgRNA protocol, cuts with **BbsI**; its overhangs are the same
 cannot receive a pegRNA — naming one leaves pegRNA candidates on the pegRNA acceptor
 rather than failing the report, and every candidate's block names the scheme it used.
 
-**Honest rendering.** HTML charts are **inlined SVG**, drawn by AlleleForge's own
+**Honest rendering.** The report is a fixed light document — it declares the colour
+scheme it was drawn for and paints its own background, because it is the artifact a
+collaborator is *sent* and is opened on a machine whose theme the author never sees.
+HTML charts are **inlined SVG**, drawn by AlleleForge's own
 dependency-free renderer — so no Python plotting dependency is needed and **the page
 makes no network request at all**. They were interactive Plotly figures pulled from a
 CDN, which left every report issuing a third-party request when it was opened; "no
