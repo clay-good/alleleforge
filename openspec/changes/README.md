@@ -10388,6 +10388,38 @@ produces" are different questions, and documentation drifts by picking a neighbo
 truth, not by inventing.**
 
 
+## Round 318 — a term that contributed nothing, described in detail
+
+Probing degenerate CLI inputs. The weight parser is excellent — it refuses all-zero and
+negative weights by name, normalizes `1e9,0,0,0` to `1.00`. `--weights 1,0,0,0` is
+accepted, correctly, and produces:
+
+    Ranked by a weighted sum of four higher-is-better objectives
+    (efficiency 1.00, cleanliness 0.00, safety 0.00, simplicity 0.00);
+    the safety term uses the worst-affected ancestry and …
+
+The disclosure is one decimal, inside a parenthetical, in a sentence that then spends a
+clause explaining how the safety term works — a term multiplied by zero. Everything else
+about the page is identical to a normally-weighted one, and the top candidate may be the
+least specific guide in the menu.
+
+The project already refuses this shape: `offtarget-not-searched` exists because a safety
+axis nobody measured must not be typeset like one that was. An axis measured and then
+weighted zero is the same claim with an extra step, and the reason is the same — the
+report is forwarded to someone who did not choose the weights.
+
+The note names the Pareto front as the part that still answers the question. That is a
+claim about the code, so the guard checks it rather than the sentence: the front is
+compared under default and skewed weights and must be identical. Writing that check took
+two wrong comparisons first — object identity (`rank_candidates` returns copies) and index
+(the two orderings differ) — both of which failed for reasons unrelated to the property.
+
+**Lesson: the honest disclosure and the thing being disclosed were in the same sentence,
+and the sentence was longer about the second. Length is emphasis. When a report describes
+a mechanism, check whether that mechanism was actually engaged in the run being
+described.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

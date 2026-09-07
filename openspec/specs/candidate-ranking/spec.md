@@ -284,3 +284,23 @@ them ran — its own decline reason already names the fallbacks it did not use.
 #### Scenario: A fallback enabled on a nuclease run
 - **WHEN** the nuclease vertical ran
 - **THEN** no such note is added
+
+
+### Requirement: An objective weighted zero is said out loud
+
+An objective with weight zero is one the ordering does not reflect at all, and the
+weights line alone discloses it as a decimal inside a parenthetical that goes on to
+describe how that objective's term works. A report ranked this way is forwarded to
+readers who did not choose the weights, so the rationale SHALL name the zeroed
+objectives and say that the ordering does not reflect them, and SHALL point at the Pareto
+front, which is computed on all four objectives regardless of the weights.
+
+Nothing SHALL be said when every objective carries weight.
+
+#### Scenario: Ranking with a zeroed objective
+- **WHEN** any ranking weight is zero
+- **THEN** the rationale names it and says the ordering does not reflect it
+
+#### Scenario: Ranking with all objectives weighted
+- **WHEN** every weight is positive
+- **THEN** no such note appears

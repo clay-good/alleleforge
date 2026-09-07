@@ -423,12 +423,33 @@ def rank_candidates(
     # more than one chemistry: a note that always appears is not a note.
     chemistries = {candidate.chemistry for candidate in ranked}
     cross_chemistry_note = f" {CROSS_CHEMISTRY_NOTE}" if len(chemistries) > 1 else ""
+    # An objective weighted zero is an objective the order does not reflect at all, and
+    # the only thing on the page saying so was one decimal inside a parenthetical —
+    # "safety 0.00" in a sentence that goes on to describe how the safety term works.
+    # `--weights 1,0,0,0` is a legitimate thing to ask for; a report ranked that way is
+    # also a report someone forwards, and it otherwise reads exactly like any other. The
+    # `offtarget-not-searched` caveat exists for the same reason: a thing not measured
+    # must not be presented in the typography of a thing measured.
+    # The front is genuinely unaffected: `pareto_front` dominates on the raw objective
+    # vector and never sees the weights, so it is the part of this report that still
+    # answers "what does the objective I zeroed cost me".
+    zeroed = [name for name in OBJECTIVES if w[name] == 0.0]
+    zero_note = ""
+    if zeroed:
+        listed = zeroed[0] if len(zeroed) == 1 else f"{', '.join(zeroed[:-1])} and {zeroed[-1]}"
+        one = len(zeroed) == 1
+        zero_note = (
+            f" {listed[0].upper()}{listed[1:]} {'is' if one else 'are'} weighted zero, so "
+            f"this ordering does not reflect {'it' if one else 'them'} at all — the "
+            "Pareto front below is computed on all four objectives regardless and still "
+            "does."
+        )
     rationale = (
         "Ranked by a weighted sum of four higher-is-better objectives "
         f"(efficiency {w['efficiency']:.2f}, cleanliness {w['cleanliness']:.2f}, "
         f"safety {w['safety']:.2f}, simplicity {w['simplicity']:.2f}); the safety "
         "term uses the worst-affected ancestry and the efficiency term is "
-        f"uncertainty-discounted.{cross_chemistry_note}{ood_note} The Pareto front "
+        f"uncertainty-discounted.{zero_note}{cross_chemistry_note}{ood_note} The Pareto front "
         f"lists the {len(front)} candidate(s) not dominated on all four "
         f"objectives.{tie_note}"
     )

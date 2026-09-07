@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **An objective weighted zero is now said out loud.** `--weights 1,0,0,0` is a legitimate request and
+  may put the least specific guide first. The only disclosure was `safety 0.00` inside a parenthetical —
+  in a sentence that goes on to explain how the safety term works, for a term that contributed nothing to
+  the order it describes. The rationale now names the zeroed objectives, says the ordering does not
+  reflect them, and points at the Pareto front, which is computed on all four objectives regardless of
+  the weights. Nothing is said when every objective carries weight. The guard pins the second half too:
+  if the front ever starts depending on the weights, the sentence pointing readers at it becomes false
+  and a test fails rather than the prose rotting.
+
 - **Fixed: the README's provenance example named two models no default run invokes.** The one line
   demonstrating `menu.provenance.models`, commented "every model invoked", showed `['be-dict',
   'pridict2']`. Both are real model cards — the *trained* ones. A default run records
