@@ -20,6 +20,7 @@ data and charts alike.
 from __future__ import annotations
 
 import html
+from collections.abc import Sequence
 
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
@@ -89,21 +90,67 @@ def _efficiency_figure(report: DesignReport) -> str:
     """
     categories: list[str] = []
     values: list[float] = []
+    plotted: list[Prediction[float]] = []
     for c in report.candidates:
         if c.efficiency is None:
             continue
         categories.append(f"#{c.rank} {c.chemistry.value}")
         values.append(round(c.efficiency.value, 4))
+        plotted.append(c.efficiency)
     if not categories:
         return ""
     return bar_chart(
-        title="Calibrated efficiency",
-        subtitle="point estimate; the 80% interval is printed beside each candidate",
+        title=_efficiency_title(plotted),
+        subtitle=_efficiency_subtitle(plotted),
         categories=tuple(categories),
         series=(Series(name="efficiency", values=tuple(values), color="#0a7d77"),),
         y_label="efficiency",
         y_max=1.0,
     )
+
+
+def _quantify(n: int, total: int, claim: str) -> str:
+    """Return ``claim`` scoped to how many of ``total`` bars it is true of."""
+    if n == 0:
+        return ""
+    return claim if n == total else f"{n} of {total} bars: {claim}"
+
+
+def _efficiency_title(plotted: Sequence[Prediction[float]]) -> str:
+    """Return a chart title that does not claim more than the bars support.
+
+    The title was the fixed string "Calibrated efficiency". Every candidate underneath
+    it printed "(nominal — coverage not measured)" and "(heuristic point estimate — not
+    from a trained model)", because with the bundled models nothing on the page is
+    calibrated and nothing came from a trained model. The chart is the first thing a
+    reader looks at, and it asserted the opposite of every line below it — an honesty
+    mechanism that reached the text and stopped at the figure.
+    """
+    return "Calibrated efficiency" if all(p.calibrated for p in plotted) else "Predicted efficiency"
+
+
+def _efficiency_subtitle(plotted: Sequence[Prediction[float]]) -> str:
+    """Return the chart subtitle, naming what the bars are and are not."""
+    total = len(plotted)
+    notes = [
+        "point estimate; the 80% interval is printed beside each candidate",
+        _quantify(
+            sum(1 for p in plotted if not p.calibrated),
+            total,
+            "intervals are nominal, coverage not measured",
+        ),
+        _quantify(
+            sum(1 for p in plotted if not p.point_from_trained_model),
+            total,
+            "heuristic point estimates, not from a trained model",
+        ),
+        _quantify(
+            sum(1 for p in plotted if not p.in_distribution),
+            total,
+            "out-of-distribution",
+        ),
+    ]
+    return "; ".join(n for n in notes if n)
 
 
 def _offtarget_figure(report: DesignReport) -> str:

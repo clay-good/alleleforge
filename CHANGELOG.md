@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: the report's headline chart was titled *Calibrated efficiency* on a page where nothing was
+  calibrated.** Every candidate underneath it prints `(nominal — coverage not measured)` and
+  `(heuristic point estimate — not from a trained model)`, because with the bundled models `calibrated`
+  and `point_from_trained_model` are both `False`. The chart is the first thing a reader looks at and it
+  asserted the opposite of every line below it — the honesty machinery reached the prose and stopped at
+  the figure. The title now tracks the bars (*Predicted efficiency* unless every one is calibrated) and
+  the subtitle carries the same qualifiers the text does, quantified when only some bars are affected so
+  a report mixing a trained prime scorer with the heuristic Cas9 one is not described by either extreme.
+
 - **Fixed: pasting the tool's own printed variant back into it blamed the build.** `chrom:pos:ref>alt`
   is *read* as a 1-based VCF record and *printed* with a 0-based position, both documented — but the
   printed form is syntactically the input form, so `aforge resolve chr1:1018:T>A` prints

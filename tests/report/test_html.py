@@ -40,7 +40,10 @@ def test_html_embeds_its_charts_inline(prime_menu: RankedMenu) -> None:
     """
     html = render_html(build_report(prime_menu))
     assert "<svg" in html
-    assert "Calibrated efficiency" in html
+    # The chart is present and titled. Not "Calibrated efficiency": the title tracks
+    # whether the bars actually are, and with the bundled models they are not — see
+    # `test_the_chart_does_not_outclaim_the_text_below_it.py`.
+    assert "Predicted efficiency" in html
     assert "cdn.plot.ly" not in html
 
 

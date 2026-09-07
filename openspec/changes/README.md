@@ -9884,6 +9884,41 @@ because the counterexample will be the member that was not in mind when the sent
 written.**
 
 
+## Round 303 — the figure above the caveats contradicted all of them
+
+Still reading the same rendered report. Scrolling past the header, the first thing on the
+page is a bar chart:
+
+    Calibrated efficiency
+    point estimate; the 80% interval is printed beside each candidate
+
+Every candidate below it says the opposite, and says it twice:
+
+    Efficiency 0.78 [0.66, 0.90] @ 80% (nominal — coverage not measured)
+                                       (heuristic point estimate — not from a trained model)
+
+Both are correct. `calibrated` is `False` and `point_from_trained_model` is `False` for
+everything the bundled models produce, and R-many rounds went into getting those two
+sentences onto the page. The title was a fixed string written when the chart was added
+and never revisited, and it sits *above* the text that refutes it, in the position a
+reader trusts most.
+
+The title now tracks the bars, and the subtitle carries the text's own qualifiers —
+quantified rather than blanket ("2 of 3 bars: intervals are nominal"), because a report
+mixing a trained prime scorer with the heuristic Cas9 one is misdescribed by both
+extremes. Writing the test surfaced a second thing worth knowing: `Prediction(
+calibrated=True)` is coerced to `False` on purpose, so the fixture had to go through
+`Prediction.calibrated_by`, and a calibrated *out-of-distribution* prediction is
+unconstructible by design. The guard asserts it got the state it asked for rather than
+testing the coercion by accident.
+
+**Lesson: an honesty mechanism is a per-field discipline, and a chart title is not a
+field. Every qualifier here lives on `Prediction` and is rendered by a function that
+takes a `Prediction`; the title took nothing and asserted something. Ask of every fixed
+string in a renderer: what would have to be true for this to be a lie, and is anything
+checking?**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
