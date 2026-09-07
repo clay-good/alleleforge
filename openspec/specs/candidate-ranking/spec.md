@@ -304,3 +304,25 @@ Nothing SHALL be said when every objective carries weight.
 #### Scenario: Ranking with all objectives weighted
 - **WHEN** every weight is positive
 - **THEN** no such note appears
+
+
+### Requirement: The ranking rationale describes the run it is attached to
+
+The safety term takes the worst-affected **ancestry** only when the off-target report
+carries ancestry annotation, and takes the worst nominated site otherwise. The efficiency
+term is discounted to a lower interval bound only for an out-of-distribution prediction.
+The rationale SHALL state whichever behaviour actually applied, and SHALL name the one
+that did not, so a reader can tell "did not apply" from "does not exist".
+
+Claiming the population-aware safety behaviour on a reference-only run is the overclaim
+this project exists to avoid; the off-target search description on the same page already
+says `reference-only`.
+
+#### Scenario: A reference-only run
+- **WHEN** no candidate carries ancestry annotation
+- **THEN** the rationale says the safety term used the worst nominated site, and says why
+
+#### Scenario: An all-in-distribution run
+- **WHEN** no candidate's efficiency is out of distribution
+- **THEN** the rationale says the point estimate was used, and names the discount that
+  an out-of-distribution prediction would have received

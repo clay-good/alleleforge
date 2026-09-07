@@ -444,12 +444,40 @@ def rank_candidates(
             "Pareto front below is computed on all four objectives regardless and still "
             "does."
         )
+    # Both halves of this clause describe mechanisms that are conditional, and it stated
+    # them unconditionally. `_safety` uses the worst-affected *ancestry* only when the
+    # off-target report carries ancestry annotation — without a population source it uses
+    # the worst nominated site, and the sentence claimed the population-aware behaviour on
+    # a reference-only run, which is the one overclaim this project works hardest to
+    # avoid. `_efficiency` discounts only an out-of-distribution prediction; an
+    # in-distribution one is ranked on its point estimate, so with no OOD candidate
+    # nothing was discounted. Each clause now describes what this run did.
+    safety_clause = (
+        "the safety term uses the worst-affected ancestry"
+        if any(score.worst_ancestry for score in ordered_scores)
+        else (
+            "the safety term uses the worst nominated site — no candidate here carries "
+            "ancestry annotation, so there is no per-ancestry worst to take"
+        )
+    )
+    efficiency_clause = (
+        "the efficiency term is uncertainty-discounted"
+        if n_ood
+        else (
+            "every efficiency here is in-distribution, so the efficiency term is the "
+            "point estimate (an out-of-distribution one would be discounted to its "
+            "lower interval bound)"
+        )
+    )
     rationale = (
         "Ranked by a weighted sum of four higher-is-better objectives "
         f"(efficiency {w['efficiency']:.2f}, cleanliness {w['cleanliness']:.2f}, "
-        f"safety {w['safety']:.2f}, simplicity {w['simplicity']:.2f}); the safety "
-        "term uses the worst-affected ancestry and the efficiency term is "
-        f"uncertainty-discounted.{zero_note}{cross_chemistry_note}{ood_note} The Pareto front "
+        f"safety {w['safety']:.2f}, simplicity {w['simplicity']:.2f}); "
+        # Joined with a semicolon, not "and": each clause may itself contain a dash
+        # explaining what did not happen, and "… to take and every efficiency …" reads
+        # as one run-on rather than two statements.
+        f"{safety_clause}; {efficiency_clause}."
+        f"{zero_note}{cross_chemistry_note}{ood_note} The Pareto front "
         f"lists the {len(front)} candidate(s) not dominated on all four "
         f"objectives.{tie_note}"
     )

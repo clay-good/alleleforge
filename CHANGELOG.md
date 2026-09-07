@@ -21,6 +21,16 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: the ranking rationale described two mechanisms whether or not either had run.** It said "the
+  safety term uses the worst-affected ancestry and the efficiency term is uncertainty-discounted"
+  unconditionally. Both are conditional in the code: `_safety` takes the worst-affected ancestry only
+  when the off-target report carries ancestry annotation and the worst nominated site otherwise, and
+  `_efficiency` discounts only an out-of-distribution prediction. So a reference-only run — the common
+  case, whose search description two lines away says `reference-only` in as many words — asserted the
+  population-aware behaviour this project exists to provide, and a run with no OOD candidate claimed a
+  discount nothing received. Each clause now describes what happened and names the mechanism that did
+  not apply, so "did not apply" is distinguishable from "does not exist".
+
 - **An objective weighted zero is now said out loud.** `--weights 1,0,0,0` is a legitimate request and
   may put the least specific guide first. The only disclosure was `safety 0.00` inside a parenthetical —
   in a sentence that goes on to explain how the safety term works, for a term that contributed nothing to

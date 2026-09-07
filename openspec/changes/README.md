@@ -10420,6 +10420,43 @@ a mechanism, check whether that mechanism was actually engaged in the run being
 described.**
 
 
+## Round 319 — the sentence R318 was standing on
+
+R318's lesson: when a report describes a mechanism, check whether that mechanism was
+actually engaged. Run against the sentence R318 had just edited:
+
+    the safety term uses the worst-affected ancestry and the efficiency term is
+    uncertainty-discounted
+
+`_safety` takes the worst-affected *ancestry* only when the off-target report carries
+ancestry annotation. Without a population source it takes the worst nominated site. So on
+every reference-only run — the common case — the ranking layer asserted the
+population-aware behaviour that is this project's entire differentiator, while two lines
+higher on the same page the off-target search description said `reference-only`. Two
+layers, one artifact, opposite claims, and the careful one is the one nobody would have
+doubted.
+
+`_efficiency` discounts only an out-of-distribution prediction. With none, nothing was
+discounted — and the menu already emits a separate, accurate note when there *are* OOD
+candidates, so the blanket clause was wrong and redundant at once.
+
+Each clause now describes the run, and names the mechanism that did not apply rather than
+going silent: "no candidate here carries ancestry annotation, so there is no per-ancestry
+worst to take" tells a reader something, where dropping the clause would only have removed
+a lie.
+
+Writing the guard turned up one more thing worth keeping: the OOD branch test began life
+as `pytest.skip("fixture has no out-of-distribution candidate")`, which is a branch nobody
+checks wearing the costume of a passing test. It builds the case instead — an unrecognized
+cell context puts every prime efficiency out of distribution.
+
+**Lesson: two rounds in a row found a defect in the same sentence, and the second one was
+found by the query the first one wrote. A summary sentence accumulates clauses from
+different subsystems and nobody owns it — each clause was written by someone who knew
+their own mechanism and inherited the rest. Read long sentences one clause at a time,
+against the code that produces each clause.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
