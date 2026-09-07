@@ -10642,6 +10642,35 @@ of a fixed-size SVG is indistinguishable, in a diff, from working responsive lay
 only thing that can tell them apart is a measurement at two widths.**
 
 
+## Round 326 — the same truncated donor, two rounds apart
+
+R324 fixed a sequence running off the right edge of the page. The obvious next question is
+whether it can run off the *bottom*, and it can:
+
+    pages = [lines[i : i + _LINES_PER_PAGE] for i in range(0, len(lines), _LINES_PER_PAGE)]
+
+A blind chunk, with no idea what a line is. A 180-nt donor wraps to three lines; at the
+right offset they land at 46, 47 and 48 — two at the foot of one page, one at the top of
+the next. Someone copying that donor into a vendor form has to notice it continues
+overleaf. When they do not, they order a truncated reagent, which is exactly what R324 was
+about.
+
+A sequence run that would straddle a break now moves whole to the next page. Prose still
+flows across breaks — holding it back would waste whole pages for nothing — and a run
+longer than a full page is emitted as it comes, because breaking it somewhere is
+unavoidable and the alternative is a loop.
+
+The guard runs over every padding offset that can produce the collision rather than one
+fixture, and checks the three things a paginator can get wrong at once: a lost line, an
+over-long page, a divided run. Two of those I would not have thought to assert if the
+parametrization had not made them cheap.
+
+**Lesson: a defect has a shape, and the shape has more than one instance. "The sequence a
+bench scientist copies gets truncated" was true of the right margin and, two rounds later,
+of the bottom margin. After fixing a defect, restate it without the mechanism — then go
+looking for the other mechanisms that produce it.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

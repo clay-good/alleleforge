@@ -10,6 +10,8 @@ research-use disclaimer and ends with provenance.
 
 from __future__ import annotations
 
+import re
+
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
     NOMINATED_SITES_NOTE,
@@ -165,6 +167,49 @@ def _rule(char: str) -> str:
     """Return a horizontal rule of ``char`` that fills the column and no more."""
     per = _HELVETICA_W.get(char, _DEFAULT_ADVANCE) / 1000.0 * _FONT_SIZE
     return char * int(_TEXT_W // per)
+
+
+#: A line that is nothing but nucleotides, with or without the 5'/3' markers. A long
+#: sequence is wrapped across several of these, and they must not be separated.
+_SEQUENCE_LINE = re.compile(r"\s*(?:5'-)?[ACGTN]{12,}(?:-3')?\s*$")
+
+
+def _paginate(lines: list[str]) -> list[list[str]]:
+    """Split ``lines`` into pages without breaking a wrapped sequence across two.
+
+    Pages used to be a blind fixed-size chunk. A 180-nt HDR donor wraps to three lines,
+    and with the right amount of content above it those land at 46, 47 and 48 — two at
+    the foot of one page and one at the head of the next. Someone copying that donor off
+    the printed sheet into a vendor form has to notice it continues overleaf, and the
+    failure when they do not is a truncated reagent, which is the same consequence the
+    measured line wrapping was introduced to prevent.
+
+    A run of sequence lines that would straddle a break is moved whole to the next page.
+    Nothing else is reflowed: a run longer than a page is emitted as it comes, because
+    breaking it somewhere is unavoidable and pretending otherwise would loop.
+    """
+    pages: list[list[str]] = []
+    page: list[str] = []
+    index = 0
+    while index < len(lines):
+        run = 1
+        if _SEQUENCE_LINE.match(lines[index]):
+            while index + run < len(lines) and _SEQUENCE_LINE.match(lines[index + run]):
+                run += 1
+        room = _LINES_PER_PAGE - len(page)
+        if run > room and run <= _LINES_PER_PAGE and page:
+            pages.append(page)
+            page = []
+            room = _LINES_PER_PAGE
+        take = min(run, room)
+        page.extend(lines[index : index + take])
+        index += take
+        if len(page) >= _LINES_PER_PAGE:
+            pages.append(page)
+            page = []
+    if page or not pages:
+        pages.append(page)
+    return pages
 
 
 def _wrap(text: str, *, indent: str = "") -> list[str]:
@@ -464,7 +509,7 @@ def render_pdf(
         The PDF file contents as bytes (begins ``%PDF-1.4``, ends ``%%EOF``).
     """
     lines = _report_lines(report, max_candidates)
-    pages = [lines[i : i + _LINES_PER_PAGE] for i in range(0, len(lines), _LINES_PER_PAGE)] or [[]]
+    pages = _paginate(lines)
 
     # Object numbering: 1 catalog, 2 pages, 3 font, then page/content objects.
     n_pages = len(pages)

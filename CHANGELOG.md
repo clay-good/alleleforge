@@ -21,6 +21,16 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: a 180-nt donor could be divided by a page break.** Pages were a blind fixed-size chunk of the
+  line list. A long HDR donor wraps to three lines, and with the right amount of content above it those
+  land at 46, 47 and 48 — two at the foot of one page, one at the head of the next. The person copying
+  that donor into a vendor form off the printed sheet has to notice it continues overleaf, and the
+  failure when they do not is a truncated reagent: the same consequence measured line wrapping was
+  introduced to prevent, by a different route. A sequence run that would straddle a break now moves whole
+  to the next page; prose still flows across breaks, and a run longer than a page is emitted as it comes.
+  Checked at every offset that can produce the collision, for no lost line, no over-long page and no
+  divided run.
+
 - **Fixed: the chart ignored the responsive rule written for it.** `.chart { width:100%; max-width:760px;
   height:320px; }` says the intent plainly — but the chart is an *inlined* SVG carrying its own
   `width="720" height="380"`, and those win. Measured in a browser: a 320px box around a 380px drawing,

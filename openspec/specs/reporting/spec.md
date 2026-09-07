@@ -536,3 +536,16 @@ figure.
 #### Scenario: A narrow viewport
 - **WHEN** the report is opened on a viewport narrower than the chart's intrinsic width
 - **THEN** the chart scales down and the document does not scroll sideways
+
+
+### Requirement: A sequence is not divided by a page break
+
+A wrapped nucleotide sequence SHALL be kept on one page. A run that would straddle a
+break is moved whole to the next page; prose still flows across breaks, since holding it
+back would waste pages, and a run longer than a whole page is emitted as it comes.
+
+Pagination SHALL lose no line and SHALL NOT over-fill a page.
+
+#### Scenario: A donor that would straddle a break
+- **WHEN** a wrapped sequence would begin near the foot of a page
+- **THEN** the whole run starts on the next page
