@@ -489,3 +489,15 @@ band"; it may not say "the table below".
 #### Scenario: A caveat about the outcome distribution
 - **WHEN** a nuclease candidate's outcome is the NHEJ spectrum
 - **THEN** the caveat names the distribution without saying where on the page it is
+
+
+### Requirement: No block moves the page sideways
+
+Content wider than the column SHALL be bounded by its own container. Prose — the
+rationale — SHALL wrap; a DNA block SHALL keep its lines and scroll inside its own box,
+because a spacer broken across two lines is one someone mis-copies into an order form.
+Neither SHALL cause the document to scroll horizontally.
+
+#### Scenario: A long rationale
+- **WHEN** the report renders a rationale wider than the column
+- **THEN** it wraps, and the document does not scroll sideways

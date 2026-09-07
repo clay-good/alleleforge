@@ -14,6 +14,7 @@ labels atop every bar.
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass
 
@@ -32,6 +33,20 @@ def _check_color(color: str) -> str:
         raise ValueError(f"invalid color {color!r}: expected a hex code or a CSS color name")
     return color
 
+
+#: X-axis label rotation, in degrees, and the pitch two rotated labels need to clear each
+#: other. Rotated labels are parallel lines of text: they collide when the *perpendicular*
+#: distance between their baselines falls below a line height, and that distance is
+#: `pitch * sin(theta)` — independent of how long the labels are. At -22° and a 13px line
+#: this is about 35px. Modelling it as a fraction of the upright width instead hid half
+#: the labels on a five-bar chart whose category names happen to be long, which is exactly
+#: what rotation exists to avoid.
+_ROTATION_DEG = 22.0
+_ROTATED_MIN_PITCH = 13.0 / math.sin(math.radians(_ROTATION_DEG))
+
+#: Below this group slot (px) a per-bar value label cannot avoid its neighbour, so it is
+#: not drawn. Two four-character numbers need roughly this much to sit side by side.
+_MIN_SLOT_FOR_VALUE_LABEL = 26.0
 
 #: Slate ink for axes, labels, and the frame.
 _INK = "#1f2933"
@@ -80,6 +95,46 @@ def _fmt(value: float) -> str:
 def _esc(text: str) -> str:
     """Escape text for an SVG text node."""
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+#: Line height of a wrapped subtitle line, in px.
+_SUBTITLE_LINE_H = 15
+
+#: Average glyph advance at font-size 12, for wrapping the subtitle.
+_SUBTITLE_CHAR_W = 5.7
+
+
+def _wrap_subtitle(text: str, width_px: float) -> list[str]:
+    """Return ``text`` broken into lines that fit ``width_px``.
+
+    Word-wrapped on spaces at an estimated glyph advance — the renderer has no font
+    metrics and does not need them: erring narrow leaves white space, erring wide runs
+    text off the image, which is what the unwrapped version did.
+    """
+    if not text:
+        return []
+    limit = max(20, int(width_px / _SUBTITLE_CHAR_W))
+    lines: list[str] = []
+    current = ""
+    for word in text.split(" "):
+        candidate = f"{current} {word}".strip()
+        if current and len(candidate) > limit:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _ordinal(n: int) -> str:
+    """Return ``n`` as an English ordinal (``2nd``, ``3rd``, ``11th``)."""
+    if 10 <= n % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
 
 
 def _nice_max(value: float) -> float:
@@ -143,9 +198,41 @@ def bar_chart(
     group_slot = (width - 70 - 24) / max(len(categories), 1)
     longest = max((len(c) for c in categories), default=0)
     rotate_x = longest * 6.5 > group_slot
-    pad_left, pad_right, pad_top = 70, 24, 64
+    # Rotation buys ~1/cos(22°) of horizontal room and no more. Past that the labels
+    # simply overlap: a 90-candidate menu — an ordinary prime design — gave 6.9px of
+    # slot for labels 44px wide, and the per-bar value labels landed at 0.0px spacing,
+    # printed on top of one another. That is the report's headline figure. Every other
+    # capped thing here states what it withheld, so the chart labels every k-th category
+    # and says which k, rather than drawing an unreadable smear or silently dropping
+    # bars — the bars are the distribution and they all stay.
+    needed = _ROTATED_MIN_PITCH if rotate_x else longest * 6.5
+    label_every = max(1, math.ceil(needed / group_slot)) if group_slot > 0 else 1
+    # A value printed over its neighbour is worse than no value; the number is on the
+    # candidate's own row either way.
+    show_values = group_slot >= _MIN_SLOT_FOR_VALUE_LABEL
+    pad_left, pad_right = 70, 24
     pad_bottom = 96 if rotate_x else 70
     plot_w = width - pad_left - pad_right
+
+    # A thinned axis states its own thinning, in the same line the caller's caveats are
+    # in: a reader counting bars against labels must not have to infer the ratio.
+    crowding = ""
+    if label_every > 1:
+        crowding = (
+            f"every {_ordinal(label_every)} of {len(categories)} bars is labelled "
+            "(the rest are drawn but too narrow to label)"
+        )
+    elif not show_values and len(categories) > 1:
+        crowding = f"all {len(categories)} bars are drawn; too narrow to print each value"
+    # Wrapped, and the plot moved down to make room. This line was drawn as one unwrapped
+    # `<text>`: the design report's subtitle carries the calibration and trained-model
+    # qualifiers and had already reached 243 characters — about 1,360px in a 720px chart,
+    # running 735px past the right edge and off the image. The honest caption was
+    # invisible past the first two thirds.
+    subtitle_lines = _wrap_subtitle(
+        "; ".join(part for part in (subtitle, crowding) if part), plot_w
+    )
+    pad_top = 64 + _SUBTITLE_LINE_H * max(0, len(subtitle_lines) - 1)
     plot_h = height - pad_top - pad_bottom
 
     all_values = [v for s in series for v in s.values] + [r.value for r in reference_lines]
@@ -163,9 +250,10 @@ def bar_chart(
         f'<text x="{pad_left}" y="28" fill="{_INK}" font-size="17" font-weight="700">'
         f"{_esc(title)}</text>",
     ]
-    if subtitle:
+    for i, line in enumerate(subtitle_lines):
         parts.append(
-            f'<text x="{pad_left}" y="47" fill="{_MUTED}" font-size="12">{_esc(subtitle)}</text>'
+            f'<text x="{pad_left}" y="{47 + i * _SUBTITLE_LINE_H}" fill="{_MUTED}" '
+            f'font-size="12">{_esc(line)}</text>'
         )
 
     # Horizontal gridlines + y tick labels (5 steps).
@@ -214,13 +302,17 @@ def bar_chart(
                 f'<rect x="{bx + 2:.1f}" y="{top:.1f}" width="{bar_w - 4:.1f}" '
                 f'height="{bar_h:.1f}" fill="{s.color}" rx="2"/>'
             )
-            label_y = (top - 6) if value >= 0 else (bottom + 14)
-            parts.append(
-                f'<text x="{bx + bar_w / 2:.1f}" y="{label_y:.1f}" fill="{_INK}" font-size="11" '
-                f'font-weight="600" text-anchor="middle">{_fmt(value)}{_esc(value_suffix)}</text>'
-            )
+            if show_values:
+                label_y = (top - 6) if value >= 0 else (bottom + 14)
+                parts.append(
+                    f'<text x="{bx + bar_w / 2:.1f}" y="{label_y:.1f}" fill="{_INK}" '
+                    f'font-size="11" font-weight="600" text-anchor="middle">'
+                    f"{_fmt(value)}{_esc(value_suffix)}</text>"
+                )
         cx = gx + group_w / 2
         ly = height - pad_bottom + 18
+        if gi % label_every:
+            continue
         if rotate_x:
             parts.append(
                 f'<text x="{cx:.1f}" y="{ly:.1f}" fill="{_INK}" font-size="11" text-anchor="end" '

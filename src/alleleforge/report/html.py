@@ -68,6 +68,14 @@ h1 { color: var(--teal); margin: 0 0 0.25rem; }
 .badge { display:inline-block; font-size:0.72rem; font-weight:600; padding:0.1rem 0.5rem;
          border-radius:999px; background:var(--teal); color:#fff; margin-left:0.5rem; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:0.85rem; }
+/* A `<pre>` defaults to `white-space: pre` with no overflow rule, so the rationale — one
+   long line per routing decision — laid out 5,903px wide inside a 1,217px column and
+   pushed the *document* to scroll sideways, dragging the disclaimer, the charts and every
+   candidate off-screen with it. The rationale is prose and wraps. The oligo block is DNA:
+   a spacer broken across two lines is a spacer someone mis-copies into an order form, so
+   it keeps its line and scrolls inside its own box. Neither may move the page. */
+pre { max-width: 100%; overflow-x: auto; }
+.rationale-block { white-space: pre-wrap; overflow-wrap: anywhere; }
 table { border-collapse: collapse; margin:0.5rem 0; font-size:0.88rem; }
 th, td { border:1px solid var(--line); padding:0.3rem 0.6rem; text-align:left; }
 th { background:#f4f9f8; }
@@ -395,7 +403,7 @@ def _rationale_html(report: DesignReport) -> str:
         return ""
     return (
         "<details open><summary>How this menu was assembled</summary>"
-        f"<pre class='mono'>{_esc(report.rationale)}</pre></details>"
+        f"<pre class='mono rationale-block'>{_esc(report.rationale)}</pre></details>"
     )
 
 

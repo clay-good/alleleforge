@@ -70,8 +70,10 @@ def test_the_shipped_report_does_not_call_its_numbers_calibrated(
 def test_the_subtitle_carries_the_same_qualifiers_the_text_does(
     prime_menu: RankedMenu,
 ) -> None:
-    subtitle = next(
-        t for t in _chart_text(render_html(build_report(prime_menu))) if "point estimate" in t
+    # Joined: the subtitle is word-wrapped across `<text>` lines so it stays inside the
+    # plot width, so a qualifier can straddle two of them.
+    subtitle = " ".join(
+        t for t in _chart_text(render_html(build_report(prime_menu))) if len(t) > 12
     )
     assert "coverage not measured" in subtitle
     assert "not from a trained model" in subtitle

@@ -93,3 +93,27 @@ same footing as the line: a real threshold across synthetic bars reads as a meas
 - **WHEN** a figure plots metrics computed on the bundled synthetic datasets
 - **THEN** its subtitle says so, and says the figure shows the measurement machinery
   rather than a model's performance
+
+
+### Requirement: A chart stays inside its own box and says what it thinned
+
+Every bar SHALL be drawn — the bars are the distribution. When the categories are more
+than the axis can label, the chart SHALL label every k-th and SHALL state which k, and
+SHALL omit per-bar value labels rather than stack them, since a number printed over its
+neighbour is worse than no number.
+
+Rotated labels collide by the perpendicular distance between their baselines
+(`pitch * sin(theta)`), not by their width; a width-based rule drops labels on charts
+rotation was meant to fix.
+
+The subtitle SHALL be wrapped to the plot width, with the plot moved down to make room.
+It carries the calibration and trained-model qualifiers, and an unwrapped one ran off the
+image.
+
+#### Scenario: More categories than the axis can label
+- **WHEN** a chart is drawn with more categories than fit
+- **THEN** every bar is drawn, every k-th is labelled, and the subtitle says which k
+
+#### Scenario: A few categories with long names
+- **WHEN** rotation alone resolves the crowding
+- **THEN** every label is drawn and nothing is said about thinning

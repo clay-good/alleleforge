@@ -10517,6 +10517,45 @@ the rule is stated wrong, not that it needs an exception. "Don't say below" was 
 rule; "don't point at page positions from a string that doesn't know the page" was.**
 
 
+## Round 322 — the figure, measured
+
+Nineteen rounds of reading this report's *words*. The first thing on the page is a chart,
+and it had never been measured. On an ordinary 90-candidate prime menu:
+
+    90 x-axis labels at 6.9px pitch, each ~44px wide even rotated
+    95 value labels, minimum x-spacing 0.0px — drawn at identical coordinates
+    subtitle 243 chars ~ 1,360px, in a 720px chart: 735px off the right edge
+
+Rotation was the renderer's only crowding relief. The candidate *list* is capped at 50 for
+exactly this reason and the chart never got the same thought.
+
+Every bar stays — the bars are the distribution, and R99 found a real finding in the shape
+of 470 of them. What is capped is the labelling, and the chart says which: "every 5th of 90
+bars is labelled". The values are omitted rather than stacked. The subtitle wraps and the
+plot moves down, which matters because that subtitle is where R303 put the calibration and
+trained-model qualifiers — the honest caption was invisible past its first two thirds.
+
+Then the screenshot showed something the chart work had nothing to do with. The rationale
+renders in a `<pre>`, one long line per routing decision, `white-space: pre`, no overflow
+rule: 5,903px in a 1,217px column, and `documentElement.scrollWidth` 5,927 against a 1,265
+viewport. The report's explanation section moved the *whole page* sideways to be read,
+dragging the disclaimer and every candidate off-screen. The two `<pre>` blocks want
+opposite answers — prose wraps, DNA keeps its lines and scrolls in its own box, since a
+spacer broken across two lines is one someone mis-copies into a vendor form.
+
+And regenerating the committed docs figures caught a wrong model inside the fix: I had
+treated a rotated label's footprint as a fraction of its upright width, so a five-bar
+benchmark chart with names like `offtarget-classification` started hiding every other one.
+Rotated labels are parallel lines of text; they collide by the perpendicular distance
+between baselines, `pitch * sin(theta)`, independent of length. The committed figures were
+the thing that noticed.
+
+**Lesson: the words on this page have been audited nineteen times and the picture above
+them zero, because prose can be read in a diff and geometry cannot. Anything whose
+correctness is a number you did not compute — pixel pitch, overflow width, contrast — is
+unaudited by construction until something measures it.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

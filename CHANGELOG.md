@@ -21,6 +21,23 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: the report's headline chart was an unreadable smear and its caption ran off the image.**
+  Measured on an ordinary 90-candidate prime menu: 90 x-axis labels at 6.9px pitch each ~44px wide, and
+  95 value labels at 0.0px minimum spacing — printed on top of one another. Rotation was the only
+  crowding relief the renderer had. Every bar is still drawn (the bars are the distribution); what is
+  capped is the labelling, and the chart says which — "every 5th of 90 bars is labelled" — while per-bar
+  values are omitted rather than stacked. The subtitle, 243 characters carrying the calibration and
+  trained-model qualifiers, was one unwrapped line running 735px past a 720px chart; it now wraps and the
+  plot moves down. Regenerating the committed docs figures caught a wrong model in the fix itself:
+  rotated labels collide by perpendicular baseline distance, not width, and the width rule had started
+  hiding half the task names on a five-bar chart.
+- **Fixed: the report scrolled sideways.** The rationale is one long line per routing decision in a
+  `<pre>`, which defaults to `white-space: pre` with no overflow rule: 5,903px laid out in a 1,217px
+  column, pushing the *document* to 5,927px and dragging the disclaimer, the charts and every candidate
+  off-screen. The two `<pre>` blocks want different answers and now get them — the rationale wraps; the
+  oligo block keeps its lines and scrolls inside its own box, because a spacer broken across two lines is
+  one someone mis-copies into a vendor form.
+
 - **Fixed: a caveat pointed readers down at a table both renders draw above it.** "the outcome
   distribution below is the NHEJ indel spectrum" — and `_candidate_html` and `_candidate_lines` both
   build the allele table first and the caveats afterwards, so "below" sent a reader looking past the
