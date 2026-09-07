@@ -2359,6 +2359,54 @@ def _parsed_loci(loci: list[str]) -> list[str]:
 app.add_typer(data_app)
 
 
+def _dataset_status(name: str, descriptor: Any) -> dict[str, Any]:
+    """Return what a caller can actually do with ``name`` right now.
+
+    `redistributable` is a *licence* fact — whether AlleleForge is permitted to ship
+    this — and it was once printed as "vendored", which is a *presence* claim: gnomAD
+    v4.1 is CC0, so it read as vendored while no gnomAD data ships at all. These four
+    derived fields are the presence half, and they live here rather than inside one
+    command so that both `data list` and `data show` answer the same question the same
+    way.
+
+    A fetch needs a pinned checksum: the registry refuses to download what it cannot
+    verify, and seven of the eight descriptors carry no `sha256`, so "fetch it" is a
+    remedy that raises for almost everything the registry lists.
+    """
+    from alleleforge.data.registry import DEFAULT_REGISTRY
+
+    cached = DEFAULT_REGISTRY.cache_path(name).is_file()
+    return {
+        "redistributable": descriptor.redistributable,
+        "bundled": descriptor.bundled,
+        "cached": cached,
+        "available": descriptor.bundled or cached,
+        "fetchable": bool(descriptor.sha256 and descriptor.source_url),
+    }
+
+
+def _dataset_reason(status: dict[str, Any]) -> str:
+    """Return why a dataset is or is not usable, without restating which of the two."""
+    if status["bundled"]:
+        return "bundled in the package"
+    if status["cached"]:
+        return "cached"
+    if status["fetchable"]:
+        return "supply it, or fetch it with consent"
+    return "supply it (no pinned checksum, so it cannot be fetched)"
+
+
+def _dataset_presence(status: dict[str, Any]) -> str:
+    """Return the list column: the reason, shouting first when nothing is there to use."""
+    reason = _dataset_reason(status)
+    return reason if status["available"] else f"NOT AVAILABLE - {reason}"
+
+
+def _dataset_permission(status: dict[str, Any]) -> str:
+    """Return the licence half, worded so it cannot be read as a presence claim."""
+    return "may redistribute" if status["redistributable"] else "fetch-on-consent"
+
+
 @data_app.command("list")
 def data_list(
     as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
@@ -2366,44 +2414,16 @@ def data_list(
     """List every registered dataset with its version and license."""
     from alleleforge.data.registry import DEFAULT_REGISTRY
 
-    # `redistributable` is a *licence* fact — whether AlleleForge is permitted to ship
-    # this — and the table printed it as "vendored", which is a *presence* claim. gnomAD
-    # v4.1 is CC0, so it read as "vendored" while no gnomAD data ships with the project
-    # at all. A user reasonably concludes they need no `--gnomad` file, which is the
-    # exact confusion the reference-only warning exists to prevent. Show both facts and
-    # name each for what it is.
     rows = [
-        {
-            "name": name,
-            "version": d.version,
-            "license": d.license,
-            "redistributable": d.redistributable,
-            "bundled": d.bundled,
-            "cached": DEFAULT_REGISTRY.cache_path(name).is_file(),
-            "available": d.bundled or DEFAULT_REGISTRY.cache_path(name).is_file(),
-            # A fetch needs a pinned checksum: the registry refuses to download what it
-            # cannot verify. Seven of the eight descriptors carry no `sha256`, so
-            # "fetch it" was a remedy that raises `ChecksumError` for almost everything
-            # the table lists — the message named an action the tool declines to perform.
-            "fetchable": bool(d.sha256 and d.source_url),
-        }
+        {"name": name, "version": d.version, "license": d.license, **_dataset_status(name, d)}
         for name in DEFAULT_REGISTRY.names
         for d in (DEFAULT_REGISTRY.get(name),)
     ]
     human_rows = []
     for r in rows:
-        permission = "may redistribute" if r["redistributable"] else "fetch-on-consent"
-        if r["bundled"]:
-            presence = "bundled in the package"
-        elif r["cached"]:
-            presence = "cached"
-        elif r["fetchable"]:
-            presence = "NOT AVAILABLE - supply it, or fetch it with consent"
-        else:
-            presence = "NOT AVAILABLE - supply it (no pinned checksum, so it cannot be fetched)"
         human_rows.append(
             f"{r['name']:16s} {r['version'] or '-':14s} {r['license'] or '-':18s} "
-            f"{permission:16s} {presence}"
+            f"{_dataset_permission(r):16s} {_dataset_presence(r)}"
         )
     human = "\n".join(
         [
@@ -2431,8 +2451,21 @@ def data_show(
         _echo_err(f"error: unknown dataset {name!r}; known: {DEFAULT_REGISTRY.names}")
         raise typer.Exit(ExitCode.MISSING_DATA)
     d = DEFAULT_REGISTRY.get(name)
-    payload = d.model_dump()
+    # The descriptor's own fields say what this dataset *is*; they do not say whether a
+    # run can use it, which is the question someone runs `show` on a dataset to answer.
+    # `list` grew that answer and `show` did not, so the command for one dataset printed
+    # `redistributable: True` and `sha256: None` and left the reader to know that the
+    # first is a licence permission and the second means it cannot even be fetched.
+    status = _dataset_status(name, d)
+    payload = {**d.model_dump(), **status, "presence": _dataset_presence(status)}
     human = "\n".join(f"{k}: {v}" for k, v in payload.items())
+    # One line answering the question, because the fields above answer it only to a
+    # reader who already knows that `redistributable` is a permission and that a null
+    # `sha256` means the registry will not even fetch it.
+    human += (
+        f"\n\nusable by a run right now: {'yes' if status['available'] else 'NO'} — "
+        f"{_dataset_reason(status)}. Licence: {_dataset_permission(status)}."
+    )
     _emit(payload, as_json=as_json, human=human)
 
 

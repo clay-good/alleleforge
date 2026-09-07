@@ -11497,3 +11497,34 @@ looked like a serious defect for a few minutes:
 fixed is "the reader was not told", ask which readers the branch excludes — here it
 excluded exactly the two who keep the number, which is the population the warning is
 for.**
+
+## Round 352 — the same fix, one command over, again
+
+Round 351's defect was a correction applied inside one branch. This is the same shape
+between two sibling commands, found by running the rest of the CLI.
+
+`aforge data list` carries a careful fix and the comment explaining it: `redistributable`
+is a *licence* permission, and printing it as "vendored" made gnomAD v4.1 (CC0) read as
+shipped while no gnomAD data ships at all — the exact confusion the reference-only
+warning exists to prevent. So `list` derives four presence facts and prints a plain
+sentence per row.
+
+`aforge data show` — the command you run when you care about *one* dataset — still dumped
+the descriptor: `redistributable: True`, `bundled: False`, `sha256: None`. Every fact
+needed is in there and none of the reading is done, so it answers "can a run use this?"
+only for a reader who already knows that a null checksum means the registry refuses to
+fetch it. The `--json` payload was missing the derived fields entirely, so a client
+asking about one dataset got strictly less than one asking about all of them.
+
+Both now derive those facts from one implementation, and the guard checks the agreement
+rather than the wording: for every registered dataset, what `list` reports is what `show`
+reports. It also carries a floor — exactly one dataset (the bundled CFD matrix) must come
+back usable — because "does every dataset say it is unusable?" is a check that passes
+just as well when the sentence is a constant.
+
+Also exercised this round with nothing to fix: `aforge lift`, `aforge data list`, and
+`data show`'s error path (exit 3, message on stderr, stdout clean).
+
+**Lesson: when a round fixes a reading — not a value, but the work of interpreting one —
+look for the other command that shows the same data. The fix lives in a rendering, and
+renderings are per-command until someone shares them.**

@@ -2569,6 +2569,7 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+- `aforge data show` answers whether a run can use the dataset right now, the question `aforge data list` already answered. It had printed the raw descriptor — `redistributable: True`, `sha256: None` — leaving the reader to know that the first is a licence permission and the second means the registry will not even fetch it.
 - `aforge bench run` states that a number came from a synthetic stand-in in every output mode. The caveat had been printed only in the bare terminal summary, so the two readers who keep the number — `--out` and `--json` — were the two never told.
 
 - **An ordering hazard reaches the table a pipeline filters on.** The oligo screen warns when an insert
