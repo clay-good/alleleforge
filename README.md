@@ -936,7 +936,13 @@ best = menu.best
 print(best.chemistry, best.rationale)        # includes the score breakdown
 print(menu.pareto_front)                      # trade-off-optimal candidates
 print(menu.provenance.seed)                   # reproducible to the byte
-print([m.name for m in menu.provenance.models])  # every model invoked, e.g. ['be-dict', 'pridict2']
+print([m.name for m in menu.provenance.models])
+# every model invoked. By default these are the transparent baselines — e.g.
+# ['be-dict-baseline', 'pridict2-baseline', 'prime-outcome-baseline'] — and the
+# `-baseline` suffix is load-bearing: it is how the artifact says the number did
+# not come from the published trained model. The trained ones (`be-dict`,
+# `pridict2`/`deepprime`, `rule-set-3`, `lindel`) are opt-in and appear here only
+# when you ask for them.
 ```
 
 ### Cohort-scale batch design (R4)

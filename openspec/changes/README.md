@@ -10353,6 +10353,41 @@ silences legible somewhere else — read good output next to bad output on the s
 because the good one is the specification the bad one is failing.**
 
 
+## Round 317 — the documentation, executed
+
+The README's Python snippets are checked for importable names and never run, and the
+comments beside them are claims:
+
+    print(seq.reverse_complement())   # "NRYACGT"
+    print(p.interval_level)           # 0.80 by default
+    print(p.calibrated)               # False — the flag is unforgeable
+
+All three hold, as does everything in the variant and registry blocks. Then:
+
+    print([m.name for m in menu.provenance.models])  # every model invoked,
+                                                     # e.g. ['be-dict', 'pridict2']
+
+`be-dict` and `pridict2` are registered cards, so no name-existence check would have
+objected. They are the *trained* models. A default run records `be-dict-baseline`,
+`pridict2-baseline`, `prime-outcome-baseline`.
+
+That suffix is not decoration. It is how an artifact says the number did not come from
+the published model, and it is the thing this project spends the most effort on
+elsewhere — the OOD flags, the "heuristic point estimate — not from a trained model"
+line, the model cards whose load-bearing sentence is that the heads are an unfitted
+scaffold. The one line in the README showing provenance dropped it, on the comment
+reading "every model invoked", and named two published tools as if they had run.
+
+The guard checks the class: a model name a snippet presents as example provenance output
+must be one a default run can record. The trained names remain free to appear in the
+prose, where they are described rather than shown.
+
+**Lesson: a name-exists check passes on the most misleading possible value — the real name
+of the thing you are not doing. "Is this identifier valid" and "is this what the code
+produces" are different questions, and documentation drifts by picking a neighbouring
+truth, not by inventing.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -21,6 +21,16 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: the README's provenance example named two models no default run invokes.** The one line
+  demonstrating `menu.provenance.models`, commented "every model invoked", showed `['be-dict',
+  'pridict2']`. Both are real model cards — the *trained* ones. A default run records
+  `be-dict-baseline`, `pridict2-baseline`, `prime-outcome-baseline`, and that suffix is the load-bearing
+  part of this project's stance: it is how an artifact says the number did not come from the published
+  model. The example now shows what a default run produces and says why the suffix matters, and a guard
+  rejects any snippet that presents a trained model's name as example provenance output. The
+  self-contained snippets are also executed now and their stated outputs compared — a `# → value` comment
+  is a claim and nothing was reading them (all of them were correct).
+
 - **A PAM fallback that applied to one chemistry now says so.** `--allow-ng` reads as a statement about
   the run — "fall back to SpCas9-NG guides when no NGG guide is actionable" — and is routed to the SpCas9
   nuclease vertical alone. Prime and base editing never see it, and prime's decline reason is a bare "no
