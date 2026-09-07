@@ -838,6 +838,24 @@ def build_report(
         )
         for i, candidate in enumerate(menu.candidates)
     )
+    # An input inert on the axis it was given for says so, which is the rule this report
+    # already follows for a cell context prime alone consumes and for a PAM fallback the
+    # nuclease vertical alone takes. A named vector that no candidate could use is the
+    # same shape with a sharper consequence: an sgRNA acceptor cannot receive a pegRNA
+    # 3' extension, so on an all-prime menu every insert is screened for the pegRNA
+    # acceptor's BsaI and not the caller's BbsI. Each block names the scheme it used, so
+    # the fact was derivable — by noticing a name differs from the one you typed.
+    rationale = menu.rationale
+    if scheme is not None:
+        used = {c.oligos.scheme.name for c in candidates if c.oligos is not None}
+        if used and scheme.name not in used:
+            note = (
+                f"cloning vector {scheme.name!r} was requested but no candidate could use "
+                f"it; {', '.join(sorted(used))} was used instead, so the oligo hazard "
+                f"screen ran against that scheme's enzyme, not {scheme.enzyme}"
+            )
+            rationale = f"{rationale}\n{note}" if rationale else note
+
     return DesignReport(
         title=title,
         disclaimer=RESEARCH_USE_DISCLAIMER,
@@ -845,6 +863,6 @@ def build_report(
         intent=intent,
         weights=weights,
         candidates=candidates,
-        rationale=menu.rationale,
+        rationale=rationale,
         provenance=menu.provenance,
     )

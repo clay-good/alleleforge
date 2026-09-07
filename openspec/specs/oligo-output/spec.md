@@ -250,3 +250,17 @@ the donor as their subject, since neither the sheet nor the flat table's single
 #### Scenario: A guide ordered with an HDR donor
 - **WHEN** both the guide and its donor carry hazards
 - **THEN** each hazard is printed once, and the donor's are marked as the donor's
+
+
+### Requirement: A vector no candidate could use says so
+
+An sgRNA acceptor defines no pegRNA 3'-extension overhangs, so selecting one leaves pegRNA
+candidates on the pegRNA acceptor rather than failing the report. When *no* candidate could
+use the requested vector, the report SHALL say which scheme was used instead and name the
+enzyme the hazard screen therefore did not run against.
+
+Nothing SHALL be said when the requested vector was used, or when no oligos were built.
+
+#### Scenario: An sgRNA vector on an all-prime menu
+- **WHEN** a vector is requested that no candidate can be built for
+- **THEN** the rationale names it, the scheme used instead, and the enzyme not screened

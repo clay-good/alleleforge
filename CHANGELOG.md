@@ -21,6 +21,16 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **A cloning vector no candidate could use now says so.** `--vector-scheme px330-bbsi` on an all-prime
+  menu is inert: an sgRNA acceptor has no pegRNA 3'-extension overhangs, so every candidate stays on the
+  pegRNA acceptor — deliberate, since failing the whole report would be worse. The consequence is that a
+  pX330 user's inserts were screened for **BsaI**, not their BbsI, and the only signal was a scheme name
+  they would have to notice differed from the one they typed. This report states an inert input
+  everywhere else it has one (a cell context prime alone consumes, a PAM fallback only the nuclease takes);
+  a vector is the same shape with a sharper consequence. The rationale now names the requested vector, the
+  scheme used instead, and the enzyme the screen did not run against — and says nothing when the vector
+  was used or no oligos were built.
+
 - **The empty-interval rule is now enumerated rather than claimed.** Three surfaces take an interval
   from outside the process — a locus string, a web request region, a BED row — and each refuses a
   zero-width one in its own words. They agree today; the BED reader did not until the previous round,

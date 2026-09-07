@@ -11116,6 +11116,32 @@ to consolidate — sometimes the copies are right where they are — but the set
 something a test walks, or the sentence is just a description of what was true once.**
 
 
+## Round 341 — my own feature, held to the rule I wrote for someone else's
+
+R316 established that an input inert on the axis it was given for has to say so, using
+`cell_context` — consumed by prime alone — as the precedent. Mirrored onto the feature I
+added in R296:
+
+    $ aforge design … --vector-scheme px330-bbsi     (an all-prime menu)
+    every candidate: cloning oligos (pegrna-gg-bsai, BsaI)
+
+R296 chose that fallback deliberately, and the reasoning still holds: an sgRNA acceptor
+defines no pegRNA 3'-extension overhangs, and failing the whole report would be worse than
+substituting. What it did not do is *say* so. The argument at the time was that each
+candidate's block names the scheme it used — which makes the fact derivable, by noticing
+that a name differs from the one you typed, on a page where nothing draws attention to it.
+
+The consequence is the one the vector option exists for: a pX330 user's inserts were
+screened for BsaI, and the enzyme that will actually cut their construct never looked at
+them.
+
+**Lesson: I wrote the rule in R316 and broke it in R296, twenty rounds earlier, and did
+not notice while writing the rule — because R316 was about `--allow-ng` and I was reading
+the routing code, not my own feature. A principle established on one example does not
+sweep the codebase for its other instances; that has to be a separate, deliberate pass,
+and the most likely place to find one is whatever you built most recently.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
