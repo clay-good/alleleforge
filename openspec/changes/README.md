@@ -10587,6 +10587,38 @@ followed the spec by drawing nothing. Nothing in the stack is obliged to tell yo
 picture is empty; only looking at it, or computing the number that makes it empty, will.**
 
 
+## Round 324 — 92 characters of what?
+
+The geometry vein again, on the other artifact whose correctness is a number: the PDF.
+
+    _WRAP = 92  # characters per line at 10pt Helvetica within the margins
+
+Helvetica is proportional, and the comment names the font as if that settled it. Measured
+against the real Adobe advance widths, on a 504pt column:
+
+    92 chars of lowercase prose   460pt   fits, with 44pt to spare
+    92 chars of upper-case ACGT   614pt   110pt past the margin
+
+An HDR donor is one unbroken token of A, C, G and T — among the widest glyphs in the face
+— and it is the sequence someone copies into a vendor form off the printed page. It ran off
+the paper. The `=` rule under the title overflowed by 33pt too, on page one of every report
+this tool has ever written.
+
+Wrapping is measured now. An over-wide token is broken at the last character that fits,
+because a wrapped sequence reassembles and a truncated one is a mis-ordered reagent — and
+the guard checks the reassembly at 60, 120, 180 and 240 nt rather than trusting the break.
+Two smaller things fell out: the wrap must preserve runs of spaces, or `top    5'-` stops
+aligning with `bottom 5'-` and the two sequences land in different columns; and two
+existing tests asserted PDF content as raw byte substrings, which is really an assertion
+about where the line breaks — they now reassemble the text runs.
+
+**Lesson: a comment can make a wrong constant look derived. "92 characters at 10pt
+Helvetica within the margins" reads like the output of a calculation, and 92 x 10pt is
+only correct if every glyph is 0.55em — which is true of the prose someone tested it on
+and false of the data the document exists to carry. A number with a unit in its comment
+still needs the arithmetic done.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

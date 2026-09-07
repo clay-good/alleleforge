@@ -21,6 +21,18 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: a 180-nt HDR donor ran 110pt off the right edge of the page it is printed on.** The PDF wrapped
+  at a fixed character count — `_WRAP = 92`, "characters per line at 10pt Helvetica within the margins".
+  Helvetica is proportional: 92 characters is 460pt of lowercase prose and 614pt of upper-case DNA, on a
+  504pt column. An HDR donor is a single unbroken token of the widest glyphs in the face, and it is the
+  sequence a bench scientist copies into a vendor form off the printed sheet — it was cut off at the
+  paper's edge. The `=` rule under the title overflowed by 33pt on the first page of every report ever
+  produced. Wrapping is measured now, against real Adobe Helvetica advance widths; an over-wide token is
+  broken at the last character that fits and is checked to reassemble exactly, and the section rules fill
+  the column without exceeding it. Two PDF tests that asserted on raw bytes were rewritten to reassemble
+  the text runs — a byte-substring check against a hard-wrapped document is really an assertion about
+  where the line happens to break.
+
 - **Fixed: a chart with more than ~120 candidates rendered as an empty frame.** The 2px bar inset assumed
   a wide bar, so past that point `bar_w - 4` went negative: a 150-bar chart emitted 150 rects of width
   `-0.6` and a 470-bar one — an ordinary large prime menu, where every PBS x RTT x PAM combination is its

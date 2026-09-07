@@ -10,8 +10,6 @@ research-use disclaimer and ends with provenance.
 
 from __future__ import annotations
 
-import textwrap
-
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
     NOMINATED_SITES_NOTE,
@@ -33,15 +31,178 @@ _PAGE_W, _PAGE_H = 612, 792
 _MARGIN = 54
 _FONT_SIZE = 10
 _LEADING = 14
-_WRAP = 92  # characters per line at 10pt Helvetica within the margins
+#: Nominal characters per line, kept only for the horizontal rules that separate
+#: sections. Wrapping no longer uses it: see `_wrap`.
+_WRAP = 92
 _TOP = _PAGE_H - _MARGIN
 _LINES_PER_PAGE = int((_TOP - _MARGIN) // _LEADING)
 
+#: Text column, in points.
+_TEXT_W = _PAGE_W - 2 * _MARGIN
+
+#: Adobe Helvetica advance widths, per 1000 em, for the glyphs these reports emit.
+#: Helvetica is proportional, and wrapping at a fixed *character* count assumes it is
+#: not: 92 characters is 460pt of lowercase prose and 614pt of upper-case DNA, on a
+#: 504pt column. A 180-nt HDR donor — the sequence a bench scientist copies into a
+#: vendor form — ran 110pt past the right margin, which on paper is off the page.
+_HELVETICA_W: dict[str, int] = {
+    " ": 278,
+    "!": 278,
+    '"': 355,
+    "#": 556,
+    "$": 556,
+    "%": 889,
+    "&": 667,
+    "'": 191,
+    "(": 333,
+    ")": 333,
+    "*": 389,
+    "+": 584,
+    ",": 278,
+    "-": 333,
+    ".": 278,
+    "/": 278,
+    ":": 278,
+    ";": 278,
+    "<": 584,
+    "=": 584,
+    ">": 584,
+    "?": 556,
+    "@": 1015,
+    "[": 278,
+    "\\": 278,
+    "]": 278,
+    "^": 469,
+    "_": 556,
+    "`": 333,
+    "{": 334,
+    "|": 260,
+    "}": 334,
+    "~": 584,
+    **dict.fromkeys("0123456789", 556),
+    **dict(
+        zip(
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            (
+                667,
+                667,
+                722,
+                722,
+                667,
+                611,
+                778,
+                722,
+                278,
+                500,
+                667,
+                556,
+                833,
+                722,
+                778,
+                667,
+                778,
+                722,
+                667,
+                611,
+                722,
+                667,
+                944,
+                667,
+                667,
+                611,
+            ),
+            strict=True,
+        )
+    ),
+    **dict(
+        zip(
+            "abcdefghijklmnopqrstuvwxyz",
+            (
+                556,
+                556,
+                500,
+                556,
+                556,
+                278,
+                556,
+                556,
+                222,
+                222,
+                500,
+                222,
+                833,
+                556,
+                556,
+                556,
+                556,
+                333,
+                500,
+                278,
+                556,
+                500,
+                722,
+                500,
+                500,
+                500,
+            ),
+            strict=True,
+        )
+    ),
+}
+
+#: Advance for a glyph the table does not name (an em dash, an accented letter). The
+#: mid-range default keeps an unusual character from silently widening a line.
+_DEFAULT_ADVANCE = 556
+
+
+def _text_width(text: str) -> float:
+    """Return the rendered width of ``text`` in points at :data:`_FONT_SIZE`."""
+    total = sum(_HELVETICA_W.get(ch, _DEFAULT_ADVANCE) for ch in text)
+    return total / 1000.0 * _FONT_SIZE
+
+
+def _rule(char: str) -> str:
+    """Return a horizontal rule of ``char`` that fills the column and no more."""
+    per = _HELVETICA_W.get(char, _DEFAULT_ADVANCE) / 1000.0 * _FONT_SIZE
+    return char * int(_TEXT_W // per)
+
 
 def _wrap(text: str, *, indent: str = "") -> list[str]:
-    """Wrap one logical line to the page width (preserving an indent)."""
-    wrapped = textwrap.wrap(text, width=_WRAP - len(indent)) or [""]
-    return [indent + line for line in wrapped]
+    """Wrap one logical line to the page column, measured, preserving an indent.
+
+    Measured rather than counted, because Helvetica is proportional. A single token
+    wider than the column — a 180-nt donor sequence is one token — is broken at the
+    last character that fits rather than allowed to run off the page: a truncated
+    sequence on an order sheet is worse than a wrapped one.
+    """
+    limit = _TEXT_W - _text_width(indent)
+    lines: list[str] = []
+    current = ""
+    started = False
+    for token in text.split(" "):
+        # Runs of spaces are preserved: `top    5'-…` and `bottom 5'-…` are aligned by
+        # padding, and collapsing it puts the two sequences on different columns of the
+        # sheet someone reads them off. Splitting on a single space yields empty tokens
+        # for a run, and joining them back with one space is lossless.
+        while _text_width(token) > limit:
+            cut = len(token)
+            while cut > 1 and _text_width(token[:cut]) > limit:
+                cut -= 1
+            if started:
+                lines.append(current)
+            lines.append(token[:cut])
+            current, started = "", False
+            token = token[cut:]
+        candidate = f"{current} {token}" if started else token
+        if started and _text_width(candidate) > limit:
+            lines.append(current)
+            current = token
+        else:
+            current = candidate
+        started = True
+    if current or not lines:
+        lines.append(current)
+    return [indent + line for line in lines]
 
 
 def oligo_lines(oligos: SgRnaOligos | PegRNAOligos) -> list[str]:
@@ -219,7 +380,7 @@ def _report_lines(report: DesignReport, max_candidates: int | None) -> list[str]
     """Flatten the whole report into the text lines to paginate."""
     lines: list[str] = []
     lines += _wrap(report.title)
-    lines.append("=" * _WRAP)
+    lines.append(_rule("="))
     lines += _wrap("RESEARCH USE ONLY")
     lines += _wrap(report.disclaimer)
     lines.append("")
@@ -237,7 +398,7 @@ def _report_lines(report: DesignReport, max_candidates: int | None) -> list[str]
             lines += _wrap(para)
         lines.append("")
     lines += _wrap(f"Candidates ({len(report.candidates)})")
-    lines.append("-" * _WRAP)
+    lines.append(_rule("-"))
     shown, withheld = visible_candidates(report, max_candidates)
     if withheld:
         lines += _wrap(
@@ -251,7 +412,7 @@ def _report_lines(report: DesignReport, max_candidates: int | None) -> list[str]
             lines += _candidate_lines(c)
     else:
         lines += _wrap("No candidates were produced for this variant.")
-    lines.append("-" * _WRAP)
+    lines.append(_rule("-"))
     provenance = provenance_lines(report.provenance)
     if provenance:
         lines += _wrap("PROVENANCE")

@@ -66,7 +66,10 @@ def _menu(*, trained: bool) -> RankedMenu:
 def test_an_untrained_estimate_is_marked_on_both_renders() -> None:
     report = build_report(_menu(trained=False))
     assert _MARKER in render_html(report)
-    assert _MARKER in render_pdf(report).decode("latin-1", errors="ignore")
+    # Reassembled from the text runs: the writer hard-wraps to the measured column, so
+    # a raw-bytes substring check is an assertion about where the line happens to break.
+    runs = re.findall(r"\((.*?)\) Tj", render_pdf(report).decode("cp1252", errors="ignore"))
+    assert _MARKER in " ".join(" ".join(runs).split())
 
 
 def test_a_trained_estimate_is_left_unadorned() -> None:

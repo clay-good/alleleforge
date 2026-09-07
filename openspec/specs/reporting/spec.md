@@ -501,3 +501,22 @@ Neither SHALL cause the document to scroll horizontally.
 #### Scenario: A long rationale
 - **WHEN** the report renders a rationale wider than the column
 - **THEN** it wraps, and the document does not scroll sideways
+
+
+### Requirement: The printable sheet fits the paper
+
+Line breaking in the PDF SHALL be measured against the font's advance widths, not counted
+in characters: Helvetica is proportional, and a fixed character count that suits lowercase
+prose overflows for upper-case DNA. No emitted line SHALL exceed the text column.
+
+A token wider than the column — an HDR donor is a single unbroken token — SHALL be broken
+at the last character that fits and SHALL reassemble exactly across its lines. A wrapped
+sequence is recoverable; a truncated one is a mis-ordered reagent.
+
+#### Scenario: A long HDR donor on the order sheet
+- **WHEN** the printable sheet renders a donor longer than one line
+- **THEN** every line fits the column and the sequence reassembles across them
+
+#### Scenario: A section rule
+- **WHEN** a horizontal rule is drawn
+- **THEN** it fills the column without exceeding it

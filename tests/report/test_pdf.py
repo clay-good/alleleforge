@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from alleleforge.report.builder import build_report
 from alleleforge.report.pdf import render_pdf
 from alleleforge.types.candidate import RankedMenu
@@ -63,6 +65,13 @@ def test_pdf_escape_keeps_winansi_punctuation() -> None:
     assert _escape("中文") == "??"  # CJK is unrenderable in WinAnsi -> replaced
 
 
+def _pdf_prose(pdf: bytes) -> str:
+    """Return the PDF's text with its hard wrapping undone, for prose assertions."""
+    runs = re.findall(r"\((.*?)\) Tj", pdf.decode("cp1252", errors="ignore"))
+    joined = " ".join(run.replace("\\(", "(").replace("\\)", ")") for run in runs)
+    return " ".join(joined.split())
+
+
 def test_pdf_includes_ancestry_offtarget(ancestry_menu: RankedMenu) -> None:
     pdf = render_pdf(build_report(ancestry_menu))
     assert b"afr: worst score" in pdf
@@ -79,7 +88,11 @@ def test_pdf_includes_ancestry_offtarget(ancestry_menu: RankedMenu) -> None:
     assert b"search: over 248,956,422 bases" in pdf
     assert b"sites" in pdf  # wraps after this
     assert b"PROVENANCE" in pdf
-    assert b"models: cas9-efficiency-ensemble 0.1" in pdf
+    # Reassembled from the text runs, not matched against the raw bytes: the writer
+    # hard-wraps to the measured column, so a byte-substring assertion is really an
+    # assertion about where the line happens to break. This one broke when wrapping
+    # became width-measured rather than character-counted.
+    assert "models: cas9-efficiency-ensemble 0.1" in _pdf_prose(pdf)
 
 
 def test_pdf_leave_behind_carries_oligos_and_prep_note(prime_menu: RankedMenu) -> None:
