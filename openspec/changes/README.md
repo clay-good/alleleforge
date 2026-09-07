@@ -10737,6 +10737,36 @@ this one had three entries for four situations. The missing entry was not an unu
 branches that reach a field, not the values the field is documented to take.**
 
 
+## Round 329 — four guards that held, and the one file they did not cover
+
+R328's lesson said to count the branches reaching a field rather than the values it is
+documented to take. Run over the flag vocabulary, the answer was: already guarded, in both
+directions — every emitted flag must be classified a hazard or a description, and every
+classified flag must be emitted, with the reasoning written out. The notebooks execute in
+CI, carry no committed outputs to drift, and pass their contract tests. Four probes, four
+clean.
+
+Then the first notebook, read as a reader:
+
+    ref_base = str(reference.fetch(GenomicInterval(chrom="chr2", start=70, end=71, ...)))
+    resolved = resolve(f"chr2:71:{ref_base}>C", reference=reference)
+    print("variant:", resolved.variant, ...)
+
+Offset 70, string `chr2:71`, printed back as `chr2:70`. The conversion is correct and
+explained nowhere. The fourth notebook does the same with a bare `EDIT_POS + 1`.
+
+R302 established that this is a trap with a wrong-locus outcome, and fixed it in the
+refusal message and in both renders. The notebooks are the documentation people copy, and
+they were the surface where the convention is *demonstrated* rather than described — so
+the reader most likely to substitute their own coordinate had the least to go on.
+
+**Lesson: a lesson gets applied to the surfaces that were in view when it was learned.
+R302 was found by reading a rendered report, so it was fixed in reports. The same trap had
+been sitting, unexplained, in the teaching material the whole time — and the teaching
+material is where a convention is copied rather than read. When a round establishes that
+something needs saying, list every place it is currently being *shown*.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

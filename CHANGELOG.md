@@ -21,6 +21,14 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **The example notebooks now state the coordinate convention they encode.** Both notebooks that print a
+  resolved variant had the 1-based-in / 0-based-out conversion right and unexplained — `chr2:71` for the
+  base at offset 70 in one, a bare `EDIT_POS + 1` in the other — and then printed a position one lower
+  than the string the cell above built, with nothing said. A reader who copies that printed variant
+  designs one base away: the failure `aforge resolve` now names in its refusal and both renders carry a
+  note about, absent from the file people are most likely to paste from. Pinned by the notebook-contract
+  test, over prose as well as code, since markdown is where a reader will actually meet it.
+
 - **Fixed: a failed async job reported the running progress value, forever.** `progress` is documented
   as three values — "0.0 queued, 0.1 running, 1.0 finished" — with an explicit instruction to render it
   as a state rather than a percentage. The 0.1 is assigned on entry to the run and only the success path
