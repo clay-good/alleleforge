@@ -11585,3 +11585,30 @@ columns in the same order.
 shows but whether the reader can get the rest. A constraint that is genuinely forced —
 here, the sandbox — makes the escape hatch more necessary, not less, and it is easy to
 close the question at "the constraint is justified" and never ask.**
+
+## Round 355 — measuring the page at phone width, including what the last round broke
+
+The page stacks cleanly at 375x812 and reads well, with one exception found by measuring
+rather than looking: after a design, `document.scrollWidth` was 503 against a 375px
+viewport, and the elements past the right edge were the download buttons. The row is a
+flex row that never wrapped. With three buttons it was already 4px over — present before
+this session and invisible — and Round 354's fourth button took it to 128px, which is the
+whole page panning sideways. I caused most of it, which is the reason to measure the
+surface you just changed at the width you did not change it at.
+
+`flex-wrap: wrap` on the download row, the tab strip and the footer; the form's `.row`
+already had it, and the two column-direction rules are recorded as not needing it.
+
+The guard is on the rule, not the rendering, because nothing in the suite drives a
+browser: a `display: flex` rule that lays out left-to-right must say what happens when it
+runs out of room, or be recorded with a reason. That is a rule the *next* button can
+break, which is exactly how this one broke.
+
+One measurement note worth keeping: the fix appeared not to work for three attempts. The
+served stylesheet had it and `getComputedStyle` reported `nowrap`, because the browser had
+cached `styles.css` and a query string on the *page* URL does not re-key a cached
+subresource. Serving from a fresh port settled it.
+
+**Lesson: adding one item to a row is a layout change, and the width where it shows is
+not the width you are developing at. The row had been marginally broken for a long time,
+which is what made the regression easy to add and easy to miss.**
