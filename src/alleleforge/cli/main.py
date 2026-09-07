@@ -242,7 +242,11 @@ def resolve(
 ) -> None:
     """Normalize any input form to a canonical variant (debugging aid)."""
     from alleleforge.design.designer import _reference_snapshot
-    from alleleforge.report.builder import COORDINATE_NOTE, COORDINATE_SYSTEM
+    from alleleforge.report.builder import (
+        COORDINATE_NOTE,
+        COORDINATE_SYSTEM,
+        VARIANT_POSITION_NOTE,
+    )
     from alleleforge.variant.resolver import resolve as resolve_variant
 
     state: GlobalState = ctx.obj
@@ -320,8 +324,15 @@ def resolve(
         else "\nNOTE: no reference supplied, so the REF allele was NOT checked against a"
         " genome and the variant was NOT left-aligned; pass --reference-fasta to verify it"
     )
+    # `COORDINATE_NOTE` is about loci, and the variant on the line above is the one
+    # printed locus that does not round-trip: it is read 1-based and printed 0-based.
+    # This command exists to hand a caller a normalized variant, so it is the surface
+    # most likely to have its output pasted straight back in — and the only one that
+    # said nothing. The refusal names the trap and both renders carry this sentence;
+    # the debugging aid did not.
     human = (
         f"{v}  [{v.variant_class.value}, build {v.build}, from {resolved.source}]\n"
+        f"{VARIANT_POSITION_NOTE}\n"
         f"working interval: {resolved.working_interval}\n"
         f"{COORDINATE_NOTE}{checked}{note}{recommendation}"
     )

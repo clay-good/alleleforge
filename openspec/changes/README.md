@@ -10767,6 +10767,37 @@ material is where a convention is copied rather than read. When a round establis
 something needs saying, list every place it is currently being *shown*.**
 
 
+## Round 330 — the debugging aid, last to be told
+
+R329's lesson: when a round establishes that something needs saying, list every place it
+is currently being *shown*. R302's finding — a printed variant cannot be handed back —
+had reached the refusal message, the HTML render, the PDF render and, last round, the
+notebooks. One surface left:
+
+    $ aforge resolve chr1:1018:T>A
+    chr1:1017:T>A  [snv, build hg38, from coordinates]
+    working interval: chr1:917-1118(+)
+    coordinates 0-based half-open (BED-style); …
+
+That last line is `COORDINATE_NOTE`, and it is true. It is also a statement about *loci*,
+and the interval printed above it satisfies it by round-tripping unchanged. The variant is
+the exception, and this is the command that exists to produce one — the single output in
+the whole tool most likely to be copied and pasted somewhere else. It had the general
+sentence and not the specific one.
+
+The note now sits on the line directly under the number, and the guard asserts the
+adjacency rather than mere presence: appended to the end of a paragraph about something
+else, it would pass a substring check and warn nobody.
+
+That is the fifth and, as far as I can enumerate, final surface. The trap has an entry
+everywhere a printed variant meets a human.
+
+**Lesson: a true general statement is the most effective place for a specific exception to
+hide. "Coordinates are 0-based half-open" is correct, sits right beside the number, and
+reads as complete coverage — which is precisely why nobody noticed it does not describe
+the one value on the page that behaves differently.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

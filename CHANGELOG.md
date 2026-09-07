@@ -21,6 +21,13 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **`aforge resolve` now says that its own output is not its own input.** It prints `chr1:1017:T>A` for
+  the input `chr1:1018:T>A` and said only "coordinates 0-based half-open (BED-style)" — a statement about
+  loci, which is true, and which intervals satisfy by round-tripping unchanged. The variant is the one
+  printed locus that does not, and `resolve` is the command whose entire purpose is handing a caller a
+  normalized variant, so it is the surface most likely to have its output pasted straight back in. It was
+  the last one saying nothing, after the refusal message and both renders had been given the sentence.
+
 - **The example notebooks now state the coordinate convention they encode.** Both notebooks that print a
   resolved variant had the 1-based-in / 0-based-out conversion right and unexplained — `chr2:71` for the
   base at offset 70 in one, a bare `EDIT_POS + 1` in the other — and then printed a position one lower

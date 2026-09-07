@@ -254,3 +254,18 @@ case a reader most needs to see. Where nothing was dropped, nothing SHALL be sai
 - **WHEN** a batch run reads a VCF whose rows include a soft-filtered call and a `<DEL>`
 - **THEN** the run states how many rows yielded how many requests, and names each
   reason for the difference
+
+
+### Requirement: `resolve` says its output is not its own input
+
+A variant string is read as a 1-based VCF record and printed with a 0-based position, so
+the variant this command emits is one lower than the string that produced it. `resolve`
+exists to hand a caller a normalized variant, which makes it the surface most likely to
+have its output pasted straight back in. Its human output SHALL carry the note beside the
+variant, not only the general locus-convention sentence — intervals do round-trip, and a
+statement about loci does not warn anyone about the one that does not.
+
+#### Scenario: Resolving a variant
+- **WHEN** `aforge resolve` prints a normalized variant
+- **THEN** the line beneath it says the position is 0-based and to add 1 before handing
+  it back
