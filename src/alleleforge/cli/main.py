@@ -1973,9 +1973,21 @@ def offtarget(
             carried = f"  carried at {site.frequency:.3g}" + (
                 f" ({breakdown})" if breakdown else ""
             )
+        # `mm=0` is the most reassuring thing a row can say, and a bulged alignment says
+        # it: three of the five rows in a real bulged scan read `mm=0` while being 21-nt
+        # or 19-nt alignments through a gap. Only the interval width gave it away, and no
+        # reader computes that. Shown when non-zero, so an ungapped table stays clean —
+        # and it is also what explains the neighbouring `matrix=` fallback, since the
+        # published matrix is defined only for a 20-nt ungapped alignment.
+        bulges = "".join(
+            f"  {label}={count}"
+            for label, count in (("dna", site.dna_bulges), ("rna", site.rna_bulges))
+            if count
+        )
         matrix = f"  matrix={site.score_matrix}" if mixed_matrices and site.score_matrix else ""
         human_lines.append(
-            f"  {s['locus']}{pam}  mm={s['mismatches']}  score={s['score']}{mit}{matrix}  "
+            f"  {s['locus']}{pam}  mm={s['mismatches']}{bulges}  "
+            f"score={s['score']}{mit}{matrix}  "
             f"{s['origin']}{' ' + str(s['causal_allele']) if s['causal_allele'] else ''}"
             f"{carried}"
         )

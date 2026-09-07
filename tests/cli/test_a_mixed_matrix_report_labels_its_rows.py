@@ -112,3 +112,28 @@ def test_the_header_still_reconciles_both(bulged_case: tuple[Path, str]) -> None
     fasta, spacer = bulged_case
     output = _run(fasta, spacer, "--dna-bulges", "1", "--rna-bulges", "1")
     assert "effective" in output
+
+
+def test_a_bulged_row_does_not_read_as_a_perfect_match(bulged_case: tuple[Path, str]) -> None:
+    """`mm=0` is the most reassuring thing a row can say, and a bulged hit says it.
+
+    Three of the five rows in this scan are `mm=0` alignments through a gap — 21-nt and
+    19-nt intervals, not 20-nt matches. Only the interval width gave that away, and no
+    reader computes it. The bulge counts are shown when non-zero, which is also what
+    explains the fallback matrix beside them.
+    """
+    fasta, spacer = bulged_case
+    output = _run(fasta, spacer, "--dna-bulges", "1", "--rna-bulges", "1")
+    bulged_rows = [line for line in output.splitlines() if "dna=1" in line or "rna=1" in line]
+    assert bulged_rows, "the fixture produced no bulged alignment"
+    for row in bulged_rows:
+        assert "mm=" in row, row
+    # Every bulged row is one the published matrix could not score.
+    for row in bulged_rows:
+        assert "approximation" in row, f"a bulged row was scored by the published matrix: {row}"
+
+
+def test_an_ungapped_row_says_nothing_about_bulges(bulged_case: tuple[Path, str]) -> None:
+    fasta, spacer = bulged_case
+    output = _run(fasta, spacer, "--dna-bulges", "0", "--rna-bulges", "0")
+    assert "dna=" not in output and "rna=" not in output

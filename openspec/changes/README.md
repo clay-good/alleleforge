@@ -9341,6 +9341,31 @@ mixed set is exactly where the per-item truth goes missing. If a field exists pe
 check whether the human surface shows it per row or only in aggregate.**
 
 
+## Round 285 — mm=0, four times, meaning four different things
+
+R284's query — does the human surface show a per-row field per row? — run down the rest of
+`OffTargetSite`. The answer for the bulge counts was no, and the printed table makes the
+consequence plain:
+
+    chr1:200-220(+)  pam=AGG  mm=0  score=1.0  mit=1.0  matrix=doench-2016-cfd
+    chr1:200-221(+)  pam=GGG  mm=0  score=1.0           matrix=...approximation
+    chr1:595-616(+)  pam=TGG  mm=0  score=1.0           matrix=...approximation
+    chr1:200-219(+)  pam=TAG  mm=0  score=0.2593        matrix=...approximation
+
+Four zero-mismatch rows. One is a 20-nt perfect match; the others are 21-nt and 19-nt
+alignments through a gap. `mm=0` is the most reassuring thing a row can say, and three
+rows said it about something else. The only signal was the interval width — 200-221 is 21
+bases — which no reader computes while scanning a table.
+
+Now `mm=0  dna=1`. Shown when non-zero, so an ungapped scan is untouched, and the two
+labels together tell the whole story: the bulge is *why* the published matrix could not
+score the row, which the `matrix=` label added one round earlier already hinted at.
+
+**Lesson: when a field is omitted, the reader does not see "unknown" — they see the value
+they would infer, and for a count the inferred value is zero. Omitting a count is
+asserting it, so ask what each missing field is silently claiming.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

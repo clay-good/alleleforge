@@ -2056,6 +2056,12 @@ acceptance.
 
 ### Fixed
 
+- **A bulged off-target no longer reads as a perfect match.** Three of the five rows in a real bulged scan
+  printed `mm=0` while being 21-nt or 19-nt alignments through a gap; only the interval width gave that
+  away, and no reader computes it. `mm=0` is the most reassuring thing a row can say. Non-zero bulge counts
+  now appear beside the mismatch count — which is also what explains the fallback matrix beside them, since
+  the published one is defined only for a 20-nt ungapped alignment — and an ungapped table is unchanged.
+
 - **A mixed-matrix off-target table says which scale each row used.** The published CFD matrix is defined
   for a 20-nt ungapped alignment, so a bulged or off-length hit falls back to the length-relative
   approximation *per site* — one report, two scales, rows printed in score order. `effective_matrix()`

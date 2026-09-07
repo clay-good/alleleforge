@@ -159,6 +159,14 @@ one, the rows SHALL NOT repeat what the header already states.
 - **WHEN** a report's sites were scored by more than one matrix
 - **THEN** each row names its own matrix, alongside the report-level reconciliation
 
+A row's alignment shape SHALL be legible from the row. `mm=0` is the most reassuring
+thing a row can state and a bulged alignment states it, so a non-zero bulge count SHALL
+appear beside the mismatch count; an ungapped row SHALL NOT carry one.
+
+#### Scenario: A zero-mismatch bulged hit
+- **WHEN** a site aligns with no mismatches through a DNA or RNA bulge
+- **THEN** its row shows the bulge count, so it does not read as a perfect match
+
 ### Requirement: A frequency-aware aggregate accompanies the worst-case
 
 The report SHALL expose a frequency-aware `expected_burden` — the sum of each site's score
