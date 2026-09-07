@@ -314,3 +314,51 @@ DEFAULT_REGISTRY = DatasetRegistry(
         ),
     }
 )
+
+
+def dataset_status(name: str, descriptor: DatasetDescriptor) -> dict[str, bool]:
+    """Return what a caller can actually do with ``name`` on this machine right now.
+
+    ``redistributable`` is a *licence* fact — whether AlleleForge is permitted to ship
+    this — and it was once rendered as "vendored", which is a *presence* claim: gnomAD
+    v4.1 is CC0, so it read as shipped while no gnomAD data ships at all. These four
+    derived facts are the presence half.
+
+    A fetch needs a pinned checksum, because the registry refuses to download what it
+    cannot verify, and most descriptors carry no ``sha256`` — so "fetch it" is a remedy
+    that raises for almost everything the registry lists.
+
+    It lives here rather than in one shell because four surfaces answer this question:
+    ``aforge data list``, ``aforge data show``, ``GET /api/data`` and
+    ``GET /api/data/{name}``. Each one that derived it separately got a different answer.
+    """
+    cached = DEFAULT_REGISTRY.cache_path(name).is_file()
+    return {
+        "redistributable": descriptor.redistributable,
+        "bundled": descriptor.bundled,
+        "cached": cached,
+        "available": descriptor.bundled or cached,
+        "fetchable": bool(descriptor.sha256 and descriptor.source_url),
+    }
+
+
+def dataset_reason(status: dict[str, bool]) -> str:
+    """Return why a dataset is or is not usable, without restating which of the two."""
+    if status["bundled"]:
+        return "bundled in the package"
+    if status["cached"]:
+        return "cached"
+    if status["fetchable"]:
+        return "supply it, or fetch it with consent"
+    return "supply it (no pinned checksum, so it cannot be fetched)"
+
+
+def dataset_presence(status: dict[str, bool]) -> str:
+    """Return the one-line presence answer, shouting when nothing is there to use."""
+    reason = dataset_reason(status)
+    return reason if status["available"] else f"NOT AVAILABLE - {reason}"
+
+
+def dataset_permission(status: dict[str, bool]) -> str:
+    """Return the licence half, worded so it cannot be read as a presence claim."""
+    return "may redistribute" if status["redistributable"] else "fetch-on-consent"

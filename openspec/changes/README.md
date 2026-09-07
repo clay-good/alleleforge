@@ -11696,3 +11696,26 @@ stream.
 line — and then count how many other tests share it. Both earlier rounds repaired the one
 test in front of them, which is how a defect gets repaired twice and stays thirty-three
 times.**
+
+## Round 359 — the guard from Round 352 covered two of the four surfaces
+
+Round 356's question, asked of Round 352. `aforge data list` had been taught to separate
+the licence permission from the presence facts, because printing `redistributable` alone
+made gnomAD v4.1 (CC0) read as shipped while none of it ships. Round 352 carried that to
+`aforge data show` and wrote a guard comparing the two commands.
+
+Four surfaces report the registry. `GET /api/data` returned name, version, license and
+`redistributable` and nothing else — so an HTTP client asking a deployment what data it
+has was told, of seven datasets it does not have, that AlleleForge may redistribute them.
+That is the original defect, unchanged, on the surface where it is least recoverable: a
+client cannot supply the file either, so the permission is a fact it can do nothing with.
+`GET /api/data/{name}` returned the raw descriptor, exactly as `data show` had.
+
+The derivation moved out of the CLI into `alleleforge.data.registry`, where all four read
+it, and the guard now checks all four — plus one structural check, that neither shell
+re-derives "is it cached" for itself, since that is how four surfaces came to give three
+answers.
+
+**Lesson: "the sibling command" was the right question and the wrong scope. Count the
+surfaces that answer the question, then check the guard covers that many — twice now the
+guard's own scope was what let the defect survive the round that fixed it.**

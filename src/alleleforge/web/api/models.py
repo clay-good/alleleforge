@@ -670,7 +670,19 @@ class DatasetRow(BaseModel):
     name: str
     version: str | None
     license: str | None
+    #: A *licence* fact: AlleleForge is permitted to ship this. It is not a statement
+    #: that the data is here — gnomAD v4.1 is CC0 and none of it ships — and this row
+    #: carried it alone, which is the confusion the CLI table was fixed for.
     redistributable: bool
+    #: The presence half. Whether a run on *this deployment* can use the dataset right
+    #: now, and if not, whether it could even be fetched: the registry refuses to
+    #: download what it cannot verify, and most descriptors carry no pinned checksum.
+    bundled: bool = False
+    cached: bool = False
+    available: bool = False
+    fetchable: bool = False
+    #: The same one-line answer the CLI prints, so a client need not re-derive it.
+    presence: str = ""
 
 
 class DataListResponse(BaseModel):

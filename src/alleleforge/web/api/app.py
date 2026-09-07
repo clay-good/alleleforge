@@ -905,28 +905,44 @@ def create_app(
     @app.get("/api/data", response_model=DataListResponse)
     async def data_list() -> DataListResponse:
         """List every registered dataset with its version and license."""
-        from alleleforge.data.registry import DEFAULT_REGISTRY
+        from alleleforge.data.registry import DEFAULT_REGISTRY, dataset_presence, dataset_status
 
         rows = tuple(
             DatasetRow(
                 name=name,
                 version=d.version,
                 license=d.license,
-                redistributable=d.redistributable,
+                **status,
+                presence=dataset_presence(status),
             )
             for name in DEFAULT_REGISTRY.names
             for d in (DEFAULT_REGISTRY.get(name),)
+            for status in (dataset_status(name, d),)
         )
         return DataListResponse(datasets=rows)
 
     @app.get("/api/data/{name}")
     async def data_show(name: str) -> dict[str, Any]:
-        """Show one dataset's full provenance descriptor."""
-        from alleleforge.data.registry import DEFAULT_REGISTRY
+        """Show one dataset's provenance descriptor and whether a run can use it."""
+        from alleleforge.data.registry import (
+            DEFAULT_REGISTRY,
+            dataset_presence,
+            dataset_status,
+        )
 
         if name not in DEFAULT_REGISTRY:
             raise HTTPException(status_code=404, detail=f"unknown dataset {name!r}")
-        return DEFAULT_REGISTRY.get(name).model_dump(mode="json")
+        descriptor = DEFAULT_REGISTRY.get(name)
+        # The descriptor says what the dataset *is*. Whether this deployment can use it
+        # is the question a client asks the endpoint, and it was answerable only by
+        # knowing that `redistributable` is a permission and that a null `sha256` means
+        # the registry will not even fetch it.
+        status = dataset_status(name, descriptor)
+        return {
+            **descriptor.model_dump(mode="json"),
+            **status,
+            "presence": dataset_presence(status),
+        }
 
     @app.get("/api/bench", response_model=BenchListResponse)
     async def bench() -> BenchListResponse:

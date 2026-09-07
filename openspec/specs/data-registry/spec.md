@@ -200,7 +200,7 @@ safety figure wrong by a hundredfold that looks deliberate. `0.0` and `1.0` are 
 - **THEN** it is refused with a message saying frequencies are fractions
 
 
-### Requirement: Both registry commands answer whether a run can use the data
+### Requirement: Every registry surface answers whether a run can use the data
 
 `redistributable` is a licence permission, not a statement that the data is present.
 Every command that reports a dataset SHALL report the presence facts alongside it —
@@ -209,8 +209,11 @@ a run can use it right now. `aforge data show` SHALL report everything `aforge d
 reports for the same dataset, in both the human and the `--json` rendering: a caller
 asking about one dataset must not learn less than a caller asking about all of them.
 
-The two SHALL derive those facts from one implementation, so that a correction to either
-reaches both.
+This applies to all four surfaces that report the registry — `aforge data list`,
+`aforge data show`, `GET /api/data` and `GET /api/data/{name}` — and they SHALL derive
+those facts from one implementation, so that a correction reaches every one of them. An
+HTTP client cannot supply a dataset to a deployment, so telling it only that the licence
+permits redistribution answers a question it did not ask with a fact it cannot use.
 
 #### Scenario: Showing a dataset that is licensed but absent
 - **WHEN** `aforge data show gnomad` is run and no gnomAD file is bundled or cached
