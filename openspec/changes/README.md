@@ -9840,6 +9840,50 @@ deliberately go looking at the other. "Where else does this exact shape live" is
 cheapest query there is and it runs before the round is over, not in the next one.**
 
 
+## Round 302 — the tool does not accept its own output
+
+Reading a rendered report top to bottom, as a user. The header said
+
+    variant chr1:1017:T>A
+
+and I had typed `chr1:1018:T>A` on the command line one minute earlier.
+
+Nothing is miscomputed. `chrom:pos:ref>alt` is read as a 1-based VCF record on the way in
+and printed with a 0-based position on the way out, and both halves are deliberate and
+documented — `resolve`'s JSON payload even carries a comment saying the position inside
+`variant` is 0-based. The defect is that the printed form is *syntactically the input
+form*, so the one locus this tool prints that cannot be handed straight back is the
+variant. Intervals round-trip fine; `--region` takes 0-based.
+
+Both failure modes are bad. Pasted back, the refusal said
+
+    reference mismatch at chr1:1016: ... (wrong build?)
+
+naming the one thing that was not wrong. And when the neighbouring base happens to match
+the asserted ref, nothing fails at all — the run designs an edit one base away with every
+downstream number correct for the wrong locus.
+
+The silent case cannot be detected; a valid variant is a valid variant. So this works the
+two places it can. The evidence is already in hand at the moment of the refusal — if the
+ref sits one base right, the caller pasted a printed position into a 1-based input — so
+the message now says that and hands back the working string, while a genuine mismatch
+still blames the build. And the human renders carry the note beside the variant rather
+than in the footer, because a general statement about loci does not warn anyone about
+the one string that behaves differently from the rest.
+
+Not changed, and worth stating: `Variant.__str__` still prints 0-based. Making it 1-based
+would reverse a considered, tested, documented decision and move the `variant` field in
+every export, every cohort `item_id` and every resume manifest. That is the user's call,
+not a side effect of a reading session.
+
+**Lesson: the comment above `COORDINATE_NOTE` said "a locus the tool prints can be handed
+straight back to it." It was written about intervals and quietly generalized to every
+locus, and the exception it missed is the most-pasted string the tool emits. A claim of
+the form "all X round-trip" is a claim about a set — enumerate the set and try each one,
+because the counterexample will be the member that was not in mind when the sentence was
+written.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

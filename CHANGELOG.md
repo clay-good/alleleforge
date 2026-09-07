@@ -21,6 +21,17 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: pasting the tool's own printed variant back into it blamed the build.** `chrom:pos:ref>alt`
+  is *read* as a 1-based VCF record and *printed* with a 0-based position, both documented — but the
+  printed form is syntactically the input form, so `aforge resolve chr1:1018:T>A` prints
+  `chr1:1017:T>A`, and handing that back either failed with `(wrong build?)` — the one thing that was
+  not wrong — or, when the neighbouring base happened to match, silently designed an edit one base
+  away. The refusal now checks whether the asserted ref sits one base to either side and, when it does,
+  names the convention and hands back the string that works; a genuine mismatch still blames the build.
+  The HTML and PDF renders carry the warning beside the variant, where the surprise is, rather than
+  relying on the footer's general note about loci. The comment above `COORDINATE_NOTE` claimed every
+  printed locus round-trips; it now records the one exception.
+
 - **Fixed: the HTML design report rendered as a blank page in dark mode.** The same defect as the served
   frontend and a worse consequence: the report is the artifact a collaborator is *sent*, opened on a
   machine whose theme the author never sees. `body` carried `color: #1a1a1a` and no background, so it

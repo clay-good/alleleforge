@@ -23,6 +23,7 @@ import html
 
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
+    VARIANT_POSITION_NOTE,
     CandidateReport,
     DesignReport,
     caveats,
@@ -365,7 +366,14 @@ def render_html(
         f"<style>{_STYLE}</style></head><body>",
         f"<header><h1>{_esc(report.title)}</h1>",
         f"<p class='muted'>variant <span class='mono'>{variant}</span> · "
-        f"intent {intent} · ranking weights: {_esc(weights)}</p></header>",
+        f"intent {intent} · ranking weights: {_esc(weights)}</p>",
+        # Beside the variant, not in the footer: a reader who typed a 1-based position
+        # and reads a number one lower here needs the explanation where the surprise is.
+        (
+            f"<p class='muted'>{_esc(VARIANT_POSITION_NOTE)}.</p></header>"
+            if report.variant
+            else "</header>"
+        ),
         f"<div class='disclaimer'><strong>Research use only.</strong> "
         f"{_esc(report.disclaimer)}</div>",
         _rationale_html(report),

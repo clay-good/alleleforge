@@ -390,11 +390,58 @@ def _left_align(variant: Variant, reference: ReferenceGenome) -> Variant:
     return v.model_copy(update={"ref": ref, "alt": alt, "pos": pos})
 
 
+def _ref_matches_at(variant: Variant, reference: ReferenceGenome, pos: int) -> bool:
+    """Return whether the asserted ref sits at 0-based ``pos`` in ``reference``."""
+    if pos < 0:
+        return False
+    result = reference.fetch_result(
+        GenomicInterval(
+            chrom=variant.chrom,
+            start=pos,
+            end=pos + len(variant.ref),
+            strand=Strand.PLUS,
+        )
+    )
+    return not result.padded and str(result.sequence) == variant.ref
+
+
+def _off_by_one_remedy(variant: Variant, reference: ReferenceGenome) -> str:
+    """Return the convention remedy when the ref sits one base away, else ``""``.
+
+    `chrom:pos:ref>alt` is read as a **1-based** VCF record on the way in and printed
+    with a **0-based** position on the way out, so this tool does not accept its own
+    output: `resolve` prints `chr1:1017:T>A` for the input `chr1:1018:T>A`, and pasting
+    that back lands one base left. It either fails here — previously blaming the build,
+    which is the one thing that is not wrong — or, when the neighbouring base happens to
+    match, silently designs an edit at the wrong locus.
+
+    The evidence is already in hand at the moment of the refusal: if the asserted ref
+    sits exactly one base to the right, the caller pasted a printed (0-based) position
+    into a 1-based input. One to the left is the reverse conversion.
+    """
+    if _ref_matches_at(variant, reference, variant.pos + 1):
+        return (
+            f" — the asserted ref is at {variant.chrom}:{variant.pos + 2} in 1-based "
+            f"terms, one base right. AlleleForge reads `chrom:pos:ref>alt` as a 1-based "
+            f"VCF record and prints it with a 0-based position, so its own printed "
+            f"variant is one lower than the input that produced it; try "
+            f"{variant.chrom}:{variant.pos + 2}:{variant.ref}>{variant.alt or '-'}"
+        )
+    if _ref_matches_at(variant, reference, variant.pos - 1):
+        return (
+            f" — the asserted ref is one base left; try "
+            f"{variant.chrom}:{variant.pos}:{variant.ref}>{variant.alt or '-'}"
+        )
+    return ""
+
+
 def _validate_ref(variant: Variant, reference: ReferenceGenome) -> None:
     """Raise if the variant's asserted ref disagrees with the reference.
 
     Raises:
-        ValueError: On a ref/reference mismatch (likely the wrong build).
+        ValueError: On a ref/reference mismatch. The message names an off-by-one
+            coordinate convention when that is what happened, and only blames the build
+            when the allele is nowhere near.
     """
     if not variant.ref:
         return
@@ -408,9 +455,10 @@ def _validate_ref(variant: Variant, reference: ReferenceGenome) -> None:
     )
     observed = str(result.sequence)
     if result.padded or observed != variant.ref:
+        remedy = _off_by_one_remedy(variant, reference)
         raise ValueError(
             f"reference mismatch at {variant.chrom}:{variant.pos}: asserted ref "
-            f"{variant.ref!r} but reference has {observed!r} (wrong build?)"
+            f"{variant.ref!r} but reference has {observed!r}" + (remedy or " (wrong build?)")
         )
 
 

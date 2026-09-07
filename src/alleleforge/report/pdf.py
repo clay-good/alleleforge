@@ -14,6 +14,7 @@ import textwrap
 
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
+    VARIANT_POSITION_NOTE,
     CandidateReport,
     DesignReport,
     caveats,
@@ -211,6 +212,8 @@ def _report_lines(report: DesignReport, max_candidates: int | None) -> list[str]
     lines.append("")
     variant = report.variant or "(unspecified)"
     lines += _wrap(f"Variant: {variant}    Intent: {report.intent or '(default)'}")
+    if report.variant:
+        lines += _wrap(f"({VARIANT_POSITION_NOTE})")
     if report.weights:
         weights = ", ".join(f"{k} {v:.2f}" for k, v in report.weights.items())
         lines += _wrap(f"Ranking weights: {weights}")

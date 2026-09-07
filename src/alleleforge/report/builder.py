@@ -535,11 +535,26 @@ def visible_candidates(
 #: it and naming it here.
 #: How every genomic coordinate in a report is to be read. AlleleForge is uniformly
 #: 0-based half-open (BED-style) — in at ``--region``, out at every printed locus — so
-#: a locus the tool prints can be handed straight back to it. That is *not* how a
-#: genome browser reads the same string, which is the whole reason to say so.
+#: a locus the tool prints can be handed straight back to it — with one exception,
+#: recorded in :data:`VARIANT_POSITION_NOTE` below: a *variant* string is read as a
+#: 1-based VCF record and printed 0-based, so that one does not round-trip. That is
+#: also not how a genome browser reads the same string, which is the whole reason to
+#: say so.
 COORDINATE_NOTE = (
     "coordinates 0-based half-open (BED-style); a genome browser reads the "
     "same locus as 1-based inclusive"
+)
+
+#: The one printed locus that cannot be handed straight back: a variant. Intervals go
+#: back in as `--region` unchanged, but `chrom:pos:ref>alt` is *read* as a 1-based VCF
+#: record and *printed* with a 0-based position, so the variant on this page is one
+#: lower than the string that produced it. Pasting it back either fails the reference
+#: check or — when the neighbouring base happens to match — silently designs an edit one
+#: base away. The renders say so next to the variant, where the trap is, rather than
+#: relying on the footer's general note about loci.
+VARIANT_POSITION_NOTE = (
+    "the position printed above is 0-based; this tool reads `chrom:pos:ref>alt` as a "
+    "1-based VCF record, so add 1 before handing this variant back to it"
 )
 
 
