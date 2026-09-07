@@ -10227,6 +10227,40 @@ number on the page is a function of it. Ask what the OUTPUT depends on, not what
 caller passed in.**
 
 
+## Round 313 — the rationale counted the candidates it threw away
+
+R312 said to ask what the output depends on rather than what the caller passed in. Asked
+of `config_snapshot`, which exists so a result is re-derivable, four inputs were missing —
+the chemistry restriction, the per-chemistry cap, and the two PAM fallbacks. Each decides
+what the menu *is*, so a re-run from the record returns a different result.
+
+Checking the cap found something worse than an omission:
+
+    $ aforge design ... --max-per-chemistry 2
+    Run notes:
+    - cas9_nuclease: 23 candidate(s)
+
+    "candidates": [ ...two... ]
+
+The run notes are written by each vertical as it finishes; the cap runs afterwards, in
+ranking. So the artifact asserts 23 above a table of 2, with nothing anywhere saying a cap
+ran or what it was set to.
+
+The render caps in this project are careful about exactly this — "Showing 50 of 300; the
+remaining 250 are…" — and their care does not transfer, because they withhold from a
+*page* while the export keeps everything. This cap deletes. There is no other copy, so the
+only honest remedy is to say that the number above is not the number below, name the
+setting, and say the difference is gone.
+
+A note that fires when nothing was dropped would be noise, so it does not: the cap can be
+set and say nothing.
+
+**Lesson: a count computed at one stage and printed beside a result from a later stage is
+a lie with a true premise, and it survives because both halves are individually correct.
+The vertical really did enumerate 23. Whenever a number and the thing it describes are
+produced by different passes, ask what happens between them.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

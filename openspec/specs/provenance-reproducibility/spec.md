@@ -311,3 +311,25 @@ present is not reported unavailable.
 #### Scenario: Re-hashing a bundled dataset
 - **WHEN** `verify --cache-dir` checks a dataset marked bundled
 - **THEN** it hashes the package's copy, and a modified copy is a MISMATCH
+
+
+### Requirement: A cap that removes candidates says so
+
+The per-chemistry cap drops candidates from the result and from every export of it, so
+unlike a render cap there is no other copy to point a reader at. Each vertical's run note
+reports what it *enumerated*, which is not the size of the capped menu. When a cap
+actually removes candidates the rationale SHALL say that the counts above are the
+enumerated ones, how many were dropped, and that they are not recoverable from this
+result. A cap that removes nothing SHALL say nothing.
+
+Every input that changes what the menu *is* — the chemistry restriction, the per-chemistry
+cap and the two PAM fallbacks — SHALL be recorded in `config_snapshot`, so a re-run from
+the record reproduces the result rather than a larger one.
+
+#### Scenario: A cap that drops candidates
+- **WHEN** the per-chemistry cap removes candidates from a menu
+- **THEN** the rationale names the number dropped and states they are not in the exports
+
+#### Scenario: A cap that drops nothing
+- **WHEN** the cap is above every chemistry's enumerated count
+- **THEN** the rationale says nothing about it

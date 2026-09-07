@@ -344,9 +344,23 @@ def design(
     if resolved.reference_recommendation is not None:
         candidates = [resolved.reference_recommendation.apply_to(c) for c in candidates]
 
+    enumerated = len(candidates)
     outcome = rank_candidates(
         candidates, weights=weights, max_per_chemistry=max_candidates_per_chemistry
     )
+    # The run notes above report what each vertical *enumerated*. A per-chemistry cap
+    # then drops candidates, and nothing said so: a menu of 2 carried the note
+    # "cas9_nuclease: 23 candidate(s)", which reads as a count of the menu and is a
+    # count of the pool. Unlike the render caps, this one removes them from the export
+    # too, so there is no other copy to point at — the reader has to be told the number
+    # above is not the number below, and what setting made the difference.
+    dropped = enumerated - len(outcome.candidates)
+    if dropped > 0:
+        notes.append(
+            f"--max-per-chemistry {max_candidates_per_chemistry}: the counts above are "
+            f"what each chemistry enumerated; {dropped} lower-ranked candidate(s) were "
+            "dropped and are not in this result or its exports"
+        )
     # A chromatin track can be supplied, recorded in provenance, and cover none of the
     # candidate loci — leaving every efficiency unadjusted while the run reads as
     # chromatin-aware. Say so, for the same reason an inert population source is worth
@@ -422,6 +436,13 @@ def design(
             # specificity differed twofold.
             "reference": _reference_snapshot(reference),
             "cell_context": cell_context,
+            # Result-determining inputs that were absent from the snapshot: each
+            # changes what the menu *is*, not how it is displayed, so a re-run from
+            # this record without them reproduces a different result.
+            "chemistries": [c.value for c in chemistries] if chemistries else [],
+            "max_candidates_per_chemistry": max_candidates_per_chemistry,
+            "allow_ng": allow_ng,
+            "allow_spry": allow_spry,
             "chromatin_track": chromatin_track,
             # The full resolved settings (minus volatile paths) so the run is
             # re-derivable from what actually governed it, not a subset that drifts.

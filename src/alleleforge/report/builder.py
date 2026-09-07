@@ -601,6 +601,19 @@ CONFIG_SNAPSHOT_ROUTES: dict[str, str] = {
     "run_offtarget": "the `offtarget-not-searched` flag, per candidate",
     "offtarget_regions": "the extent, in each search description ('over N bases')",
     "populations": "named in the search description when nothing backs them",
+    "chemistries": (
+        "the rationale's routing block, which names each chemistry that was eligible "
+        "but not requested"
+    ),
+    "max_candidates_per_chemistry": (
+        "a rationale note when it actually dropped something, giving the count removed "
+        "— the enumerated counts above it are not the size of the menu"
+    ),
+    "allow_ng": (
+        "the PAM on each candidate's reagent line, and the routing rationale when an "
+        "NGG guide was unavailable; a fallback guide is a visibly different reagent"
+    ),
+    "allow_spry": "see `allow_ng`",
     "chromatin_track": (
         "refused outright without encode_tracks; noted in the rationale when it covers "
         "no candidate locus; the `chromatin-adjusted` flag when it applies"

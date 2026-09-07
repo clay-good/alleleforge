@@ -21,6 +21,19 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: a capped menu reported the count it discarded.** `--max-per-chemistry 2` produced a result
+  with two candidates whose rationale said `cas9_nuclease: 23 candidate(s)`. The run notes are written by
+  each vertical as it finishes, so they report what was *enumerated*; the cap runs afterwards, during
+  ranking, and nothing said so. This is not the render cap, which keeps every candidate in the export and
+  says where they are — this one removes them from the result and every export of it, so there is no
+  other copy to point at. The rationale now names the number dropped and says they are not recoverable
+  from this result; a cap that removes nothing says nothing.
+- **`config_snapshot` now records the inputs that decide what the menu is.** The chemistry restriction,
+  the per-chemistry cap and the two PAM fallbacks were read at the top of `design()` and never written
+  down, so a re-run from the record returned a different — larger — result. Each is recorded, and each
+  is routed in `CONFIG_SNAPSHOT_ROUTES` to where a reader can actually see its effect, which is this
+  project's standing rule for that dict.
+
 - **A scored run now records the weight matrix that scored it.** `aforge design --region ...` labelled
   every candidate `matrix doench-2016-cfd`, with the citation, and its provenance said `0 dataset(s)`.
   The matrix is a registered dataset with a pinned sha256 and it is the only one whose bytes actually
