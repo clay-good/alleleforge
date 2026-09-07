@@ -124,14 +124,17 @@ async function checkHealth() {
     // The status line already named this deployment's tracks and the form could not
     // select one, so the page listed a capability it could not use. The names are
     // operator-configured, hence read from health rather than hard-coded.
-    const trackSelect = document.getElementById("chromatin-track");
-    for (const name of h.chromatin_tracks || []) {
-      const option = document.createElement("option");
-      option.value = name;
-      option.textContent = name;
-      trackSelect.appendChild(option);
+    const names = h.chromatin_tracks || [];
+    for (const id of ["chromatin-track", "batch-chromatin-track"]) {
+      const select = document.getElementById(id);
+      for (const name of names) {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      }
+      select.disabled = names.length === 0;
     }
-    trackSelect.disabled = !(h.chromatin_tracks && h.chromatin_tracks.length);
   } catch {
     document.getElementById("health").textContent = "API unreachable";
   }
@@ -166,12 +169,18 @@ function readBatchForm() {
     .filter((line) => line && !line.startsWith("#"));
   const populations = document.getElementById("batch-populations").value.trim();
   const max = document.getElementById("batch-max").value;
+  const cellContext = document.getElementById("batch-cell-context").value.trim();
+  const track = document.getElementById("batch-chromatin-track").value;
   return {
     variants,
     intent: document.getElementById("batch-intent").value,
     populations: populations ? populations.split(",").map((p) => p.trim()) : null,
     max_per_chemistry: max ? Number(max) : null,
     run_offtarget: document.getElementById("batch-offtarget").checked,
+    cell_context: cellContext || null,
+    chromatin_track: track || null,
+    allow_ng: document.getElementById("batch-allow-ng").checked,
+    allow_spry: document.getElementById("batch-allow-spry").checked,
   };
 }
 

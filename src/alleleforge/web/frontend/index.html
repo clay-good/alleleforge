@@ -166,6 +166,43 @@
             </div>
           </div>
 
+          <!-- The same panel the single-variant tab carries. A cohort is where these
+               matter most: the PAM fallbacks turn an empty row into a menu, and a run
+               left going over a whole VCF is not one a user re-runs casually to change
+               a setting they could not find. -->
+          <details class="advanced">
+            <summary>More options</summary>
+
+            <div class="row">
+              <div class="field">
+                <label for="batch-cell-context">Cell context</label>
+                <input id="batch-cell-context" name="cell-context" type="text"
+                       placeholder="HEK293T &middot; K562 &middot; HepG2" />
+                <small>Prime editing flags an efficiency prediction out-of-distribution
+                       when the context is outside the scorer's training data.</small>
+              </div>
+              <div class="field">
+                <label for="batch-chromatin-track">Chromatin track</label>
+                <select id="batch-chromatin-track" name="chromatin-track">
+                  <option value="">none</option>
+                </select>
+                <small>Filled from this deployment's own tracks.</small>
+              </div>
+            </div>
+
+            <div class="row">
+              <label class="checkbox">
+                <input id="batch-allow-ng" type="checkbox" /> offer SpCas9-NG (NG PAM) guides
+              </label>
+              <label class="checkbox">
+                <input id="batch-allow-spry" type="checkbox" /> offer SpRY (NRN/NYN PAM) guides
+              </label>
+            </div>
+            <small>Off by default: a PAM-flexible nuclease is a different reagent with
+                   different specificity. Over a cohort, a variant with no NGG guide is
+                   the row that comes back empty.</small>
+          </details>
+
           <div class="row">
             <label class="checkbox">
               <input id="batch-offtarget" type="checkbox" checked /> run off-target search

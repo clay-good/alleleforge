@@ -26,7 +26,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from alleleforge.web.api.models import DesignRequest
+from alleleforge.web.api.models import BatchRequest, DesignRequest
 
 _FRONTEND = Path(__file__).resolve().parents[2] / "src" / "alleleforge" / "web" / "frontend"
 _APP_JS = (_FRONTEND / "app.js").read_text(encoding="utf-8")
@@ -46,14 +46,17 @@ _NOT_IN_PAGE: dict[str, str] = {
 }
 
 
-def _fields_sent_by_the_page() -> set[str]:
-    """Return the request keys `readForm()` builds."""
-    match = re.search(r"function readForm\(\) \{(?:.|\n)*?\n\}", _APP_JS)
-    assert match, "could not find readForm() — this check would be vacuous"
-    body = match.group(0)
-    keys = set(re.findall(r"^\s{4}(\w+):", body, re.M))
-    assert len(keys) > 3, f"readForm() parsed as {keys}"
+def _fields_sent_by(builder: str) -> set[str]:
+    """Return the request keys the named `read*Form()` function builds."""
+    match = re.search(rf"function {builder}\(\) \{{(?:.|\n)*?\n\}}", _APP_JS)
+    assert match, f"could not find {builder}() — this check would be vacuous"
+    keys = set(re.findall(r"^\s{4}(\w+):", match.group(0), re.M))
+    assert len(keys) > 3, f"{builder}() parsed as {keys}"
     return keys
+
+
+def _fields_sent_by_the_page() -> set[str]:
+    return _fields_sent_by("readForm")
 
 
 def test_the_page_can_ask_for_every_request_field_or_says_why() -> None:
@@ -100,3 +103,71 @@ async def test_the_pam_fallbacks_actually_change_the_menu(client: httpx.AsyncCli
     relaxed = await client.post("/api/design", json={**base, "allow_ng": True, "allow_spry": True})
     assert plain.status_code == 200 and relaxed.status_code == 200
     assert len(relaxed.json()["candidates"]) >= len(plain.json()["candidates"])
+
+
+#: Controls the single-variant panel has that the cohort panel legitimately lacks, with
+#: the reason — the same shape `_DESIGN_ONLY` has for the request models.
+_SINGLE_VARIANT_ONLY: dict[str, str] = {
+    "vector_scheme": "picks the enzyme the report's oligo screen uses; the cohort "
+    "endpoint returns per-item summaries and builds no oligos, so nothing is screened",
+}
+
+#: `BatchRequest` fields the cohort panel legitimately does not offer. It inherits the
+#: single-variant panel's reasons, minus that panel's own input field.
+_NOT_IN_BATCH_PANEL: dict[str, str] = {
+    key: reason for key, reason in _NOT_IN_PAGE.items() if key in BatchRequest.model_fields
+} | {"variants": "the required textarea"}
+
+
+def test_the_cohort_panel_offers_what_the_single_variant_one_does() -> None:
+    """The project's cohort-parity requirement, applied to the surface it was missing.
+
+    `aforge batch` and `BatchRequest` are each guarded against falling behind their
+    single-variant sibling. The served page was not, and it fell behind in the round that
+    added the options: a cohort is where a PAM fallback matters most, because a variant
+    with no NGG guide is the row that comes back empty.
+    """
+    single = _fields_sent_by("readForm") - {"variant"}
+    batch = _fields_sent_by("readBatchForm") - {"variants"}
+    missing = sorted(single - batch - set(_SINGLE_VARIANT_ONLY))
+    assert not missing, (
+        f"the single-variant panel sends {missing} and the cohort panel does not; a "
+        "cohort is where these matter most."
+    )
+
+
+def test_the_cohort_panel_can_ask_for_every_batch_field_or_says_why() -> None:
+    missing = sorted(
+        set(BatchRequest.model_fields) - _fields_sent_by("readBatchForm") - set(_NOT_IN_BATCH_PANEL)
+    )
+    assert not missing, (
+        f"/api/batch accepts {missing} and the cohort panel cannot ask for them. Add the "
+        "control, or record it in _NOT_IN_BATCH_PANEL with the reason."
+    )
+
+
+def test_the_batch_allowances_are_real_fields() -> None:
+    stale = sorted(set(_NOT_IN_BATCH_PANEL) - set(BatchRequest.model_fields))
+    assert not stale, f"exceptions recorded for fields BatchRequest no longer has: {stale}"
+
+
+def test_the_single_variant_only_allowances_are_really_single_variant_only() -> None:
+    """An allowance must not excuse a field the cohort endpoint would happily accept."""
+    wrong = sorted(set(_SINGLE_VARIANT_ONLY) & set(BatchRequest.model_fields))
+    assert not wrong, f"/api/batch accepts these, so the cohort panel should offer them: {wrong}"
+    absent = sorted(set(_SINGLE_VARIANT_ONLY) - set(DesignRequest.model_fields))
+    assert not absent, f"allowances for controls the single-variant panel lacks too: {absent}"
+
+
+@pytest.mark.anyio
+async def test_the_cohort_body_the_page_builds_is_one_the_api_accepts(
+    client: httpx.AsyncClient,
+) -> None:
+    body = {key: None for key in _fields_sent_by("readBatchForm")}
+    body["variants"] = ["chr2:71:A>C"]
+    body["intent"] = "correct"
+    body["run_offtarget"] = False
+    body["allow_ng"] = False
+    body["allow_spry"] = False
+    response = await client.post("/api/batch", json=body)
+    assert response.status_code == 200, response.text

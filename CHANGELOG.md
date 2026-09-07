@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **The cohort panel now offers what the single-variant one does.** The round that gave the served page
+  its *More options* controls gave them to one tab. `aforge batch` and `BatchRequest` are each guarded
+  against falling behind their single-variant sibling — the page was not, and fell behind immediately. A
+  cohort is where these matter most: a variant with no NGG guide is the row that comes back empty, and a
+  run left going over a whole VCF is not one anyone re-runs to change a setting they could not find. The
+  cohort form now carries cell context, chromatin track (filled from `/api/health` for both tabs from one
+  place) and the two PAM fallbacks; the cloning vector stays single-variant-only with the reason
+  recorded, and the guard compares the two forms' request bodies directly.
+
 - **Fixed: the served page offered three Download buttons before anything had been designed.** The page
   hides sections with the `hidden` attribute, which works by a user-agent `[hidden] { display: none }`
   rule that *any* author rule setting `display` outranks — and `.actions { display: flex }` did. Both

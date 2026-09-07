@@ -10053,6 +10053,36 @@ read off a file; the browser's computed style was the only place either fact was
 visible.**
 
 
+## Round 308 — the parity requirement the page was not held to
+
+Opening the cohort tab, the thing R307 interrupted. Its form has four controls. The
+single-variant form next to it has nine, because R300 added five and gave them to one tab.
+
+This project has an explicit requirement that the cohort surface offers what the
+single-variant surface does, and two guards enforcing it — one over `aforge batch`'s
+signature, one over `BatchRequest`'s fields. Neither looks at the page, so the page was
+free to fall behind, and it did so in the round that widened the gap.
+
+The reason the requirement exists applies most sharply here. A PAM fallback turns an empty
+row into a menu, and over a cohort an empty row is a variant silently reported as having
+no options. A whole-VCF run is also the one nobody re-runs casually because a setting was
+not on screen.
+
+The cohort form now carries cell context, the chromatin track, and both PAM fallbacks; the
+track list is filled for both tabs from one loop over `/api/health` rather than a second
+copy. The cloning vector stays single-variant-only, with the reason written down — the
+cohort endpoint returns per-item summaries and builds no oligos, so there is nothing to
+screen — and a second guard refuses to let that allowance cover a field `/api/batch` would
+actually accept. Driven end to end in the browser: two variants, a nonsense cell line, and
+the resulting rows carry `OOD` and an `ood` caveat.
+
+**Lesson: a requirement enforced on two of three surfaces is a requirement the third
+surface will break, and it will break in the round that makes the requirement matter more.
+When adding a guard for a rule, ask what the rule is *about* — "the cohort path offers what
+the single path offers" is about audiences, so it needed a check per audience, not per
+module.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
