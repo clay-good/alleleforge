@@ -75,7 +75,13 @@ async function design(event) {
 }
 
 async function download(format, filename, mime) {
-  if (!lastRequest) return;
+  // Defence in depth behind the CSS fix: a download with nothing designed used to
+  // return silently, so a button that should not have been visible also gave no reason
+  // for doing nothing when it was pressed.
+  if (!lastRequest) {
+    setStatus("Run a design first — there is nothing to download yet.", true);
+    return;
+  }
   const res = await fetch(`/api/design?format=${format}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -268,7 +274,13 @@ async function runBatch(event) {
 }
 
 function downloadBatch() {
-  if (!lastBatch) return;
+  if (!lastBatch) {
+    // The cohort panel has its own status line; `setStatus` writes to the
+    // single-variant one, which is not even on screen when this button is.
+    batchStatus.textContent = "Run a cohort first — there is nothing to download yet.";
+    batchStatus.classList.add("error");
+    return;
+  }
   const blob = new Blob([JSON.stringify(lastBatch, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

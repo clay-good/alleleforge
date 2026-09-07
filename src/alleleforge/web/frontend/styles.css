@@ -83,6 +83,12 @@ button {
   cursor: pointer;
 }
 button:disabled { opacity: 0.5; cursor: progress; }
+/* Any class that sets `display` outranks the `hidden` attribute's user-agent rule, so
+   `.actions { display: flex }` un-hid both download bars: three Download buttons stood
+   on the page before a design had been run, and clicking one did nothing at all — the
+   handler returns early when there is no result. The page toggles visibility with
+   `el.hidden`, so `hidden` has to win over every such class, now and for the next one. */
+[hidden] { display: none !important; }
 .actions { display: flex; gap: 0.6rem; margin: 1rem 0; }
 .actions button { background: #fff; color: var(--teal); border: 1px solid var(--teal); }
 .status { margin: 1rem 0; color: var(--muted); }

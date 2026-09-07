@@ -10021,6 +10021,38 @@ the user experiences — the rendered page — not against the artifact the defe
 to live in the first two times.**
 
 
+## Round 307 — hidden, and displayed
+
+Opening the cohort tab for the first time. Before clicking anything, the single-variant
+panel already showed
+
+    [Download PDF]  [Download JSON]  [Download TSV]
+
+with no design run. Pressing one did nothing — `if (!lastRequest) return;`.
+
+    #actions   hidden: true   display: flex
+
+Both are correct. `hidden` works by a user-agent rule, `[hidden] { display: none }`, and
+any author rule that sets `display` outranks it. `.actions { display: flex }` is that
+rule. The element was hidden and displayed simultaneously, and every check the project
+has would agree with the markup that it was hidden.
+
+This is a class, not a rule: every section the page toggles with `el.hidden` is one
+`display` declaration away from the same bug, and the second one — the cohort's download
+bar — was already in the same state, saved only by living inside a panel that *is*
+correctly hidden. So the fix is the neutralizing `[hidden] { display: none !important }`,
+and behind it both handlers now say why they are doing nothing, the cohort one on the
+cohort's own status line rather than the single-variant line that is not on screen when
+that button is.
+
+**Lesson: a test that reads markup cannot see this, because the markup is right. The
+attribute was set, the JS toggled it correctly, and the rendered result was the opposite
+of all of it — a disagreement between two correct files that only exists in the cascade.
+Anything that depends on how declarations combine has to be measured on the page, not
+read off a file; the browser's computed style was the only place either fact was
+visible.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

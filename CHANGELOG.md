@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: the served page offered three Download buttons before anything had been designed.** The page
+  hides sections with the `hidden` attribute, which works by a user-agent `[hidden] { display: none }`
+  rule that *any* author rule setting `display` outranks — and `.actions { display: flex }` did. Both
+  download bars were `hidden === true` and `display: flex` at once, so the page opened offering *Download
+  PDF / JSON / TSV* for a result that did not exist, and pressing one returned in silence. The stylesheet
+  now neutralizes the collision for every element toggled that way, and both handlers say why they are
+  doing nothing (the cohort one on the cohort's own status line, not the single-variant one that is not
+  even on screen). Found by opening the page.
+
 - **Fixed: the CRISPR-Bench leaderboard page was unreadable in dark mode too, and the guard for that
   could not see it.** The report and the frontend were fixed by painting the ground their palettes
   assume; the board failed the same way for the opposite reason — it declared no colours at all, which
