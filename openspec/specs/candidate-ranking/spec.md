@@ -263,3 +263,24 @@ less, and the resulting menu presents both alike.
 #### Scenario: A generator of haplotypes
 - **WHEN** a re-iterable and a one-shot form of the same panel are supplied
 - **THEN** every chemistry's report records the same contribution from it
+
+
+### Requirement: An input inert on a chemistry says so
+
+The PAM-flexible fallbacks are consumed by SpCas9 nuclease design alone. Their names
+describe the run ("fall back to SpCas9-NG guides when no NGG guide is actionable"), so
+every surface that offers them SHALL state the scope, and a run that enables one while the
+nuclease vertical does not run SHALL say in its rationale that the fallback was not
+applied and that no other chemistry offers one.
+
+Nothing SHALL be said when no fallback was requested, or when the vertical that consumes
+them ran — its own decline reason already names the fallbacks it did not use.
+
+#### Scenario: A fallback enabled on a run with no nuclease candidates
+- **WHEN** `allow_ng` or `allow_spry` is set and SpCas9 nuclease is not eligible
+- **THEN** the rationale names the enabled fallback and says it was consumed by that
+  vertical alone
+
+#### Scenario: A fallback enabled on a nuclease run
+- **WHEN** the nuclease vertical ran
+- **THEN** no such note is added

@@ -178,6 +178,9 @@ def design(
         allow_ng: Fall back to SpCas9-NG (NG) guides when no NGG guide is
             actionable. Off by default: an NG guide is a different reagent with
             different specificity, so it is offered rather than assumed.
+            Consumed by SpCas9 nuclease design alone: prime and base editing take
+            no PAM-flexible fallback, and the rationale says so when one is
+            enabled and the nuclease vertical did not run.
         allow_spry: Fall back to SpRY (NRN/NYN) guides when neither NGG
             nor NG yields one. Off by default, for the same reason.
         max_candidates_per_chemistry: Cap candidates kept from each chemistry.
@@ -390,6 +393,23 @@ def design(
                 f"editing; it was not considered for {', '.join(unconsidered)}, whose "
                 "in-distribution flags describe the guide context alone"
             )
+    # The same declaration, for the same reason, on the PAM fallbacks. `--allow-ng` says
+    # "fall back to SpCas9-NG guides when no NGG guide is actionable", which reads as a
+    # statement about the run; it is routed to the SpCas9 nuclease vertical alone. A
+    # reader who enabled it and got an empty *prime* menu — whose decline reason is a
+    # bare "no PAM match at this offset" — has no way to learn the flag never applied
+    # there. Extending it to prime is a scientific decision (a PE-NG/PE-SpRY pegRNA is a
+    # different reagent, and the efficiency scorers are trained on SpCas9 PE2), so this
+    # states the scope rather than quietly widening it.
+    if (allow_ng or allow_spry) and Chemistry.CAS9_NUCLEASE not in eligible:
+        enabled = ", ".join(
+            name for on, name in ((allow_ng, "SpCas9-NG"), (allow_spry, "SpRY")) if on
+        )
+        notes.append(
+            f"the PAM-flexible fallback(s) {enabled} were enabled but are consumed by "
+            "SpCas9 nuclease design alone, which did not run here; no other chemistry "
+            "offered a PAM-flexible alternative"
+        )
     rationale = _menu_rationale(decisions, eligible, notes, outcome.rationale)
     provenance = Provenance.capture(
         alleleforge_version=__version__,

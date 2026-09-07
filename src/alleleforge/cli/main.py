@@ -848,7 +848,10 @@ def design(
             "--allow-ng",
             help="Fall back to SpCas9-NG (NG PAM) guides when no NGG guide is "
             "actionable. Off by default: an NG guide is a different reagent with "
-            "different specificity, so it is offered rather than assumed.",
+            "different specificity, so it is offered rather than assumed."
+            "Consumed by SpCas9 nuclease design alone — prime and base editing "
+            "take no PAM-flexible fallback, and the rationale says so when one is "
+            "enabled and the nuclease vertical did not run.",
         ),
     ] = False,
     allow_spry: Annotated[
@@ -1456,7 +1459,10 @@ def batch(
             "--allow-ng",
             help="Fall back to SpCas9-NG (NG PAM) guides when no NGG guide is "
             "actionable. Off by default: an NG guide is a different reagent with "
-            "different specificity, so it is offered rather than assumed.",
+            "different specificity, so it is offered rather than assumed."
+            "Consumed by SpCas9 nuclease design alone — prime and base editing "
+            "take no PAM-flexible fallback, and the rationale says so when one is "
+            "enabled and the nuclease vertical did not run.",
         ),
     ] = False,
     allow_spry: Annotated[

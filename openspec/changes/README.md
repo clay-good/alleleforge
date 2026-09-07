@@ -10322,6 +10322,37 @@ credible enough to survive two rounds that contradicted it. When a later round n
 truth, re-read the sentences the earlier ones wrote.**
 
 
+## Round 316 — two chemistries decline for the same reason; one explains itself
+
+Reading an empty menu, which is the artifact a user is least happy to receive. Its
+rationale is genuinely good — it names every chemistry that declined and why, and the
+nuclease one names the remedy:
+
+    - cas9_nuclease: … no actionable protospacer with a NGG PAM near the edit;
+      the PAM-flexible variants NG (SpCas9-NG), NRN/NYN (SpRY) are available…
+
+Beside it, on a locus where prime was the eligible route:
+
+    - prime: eligible but no actionable candidate enumerated — no PAM match at this offset (256)
+
+Same problem, no remedy, no explanation of why there is no remedy. `design_prime` takes a
+`pam` argument; `design()` never passes the fallback flags to it. So `--allow-ng`, whose
+help says "fall back to SpCas9-NG guides when no NGG guide is actionable", is inert on
+that menu and nothing says so.
+
+Whether prime *should* take the fallbacks is a scientific question, not a defect: a
+PE-NG/PE-SpRY pegRNA is a different reagent, and the prime efficiency scorers are trained
+on SpCas9 PE2. Widening it silently would be the worse error. So the round does what this
+project already does for `cell_context` — which is consumed by prime alone and says so
+when the other two chemistries run: the rationale states when an enabled fallback was
+inert, and the scope is written on all four surfaces that offer the flag.
+
+**Lesson: the finding came from two adjacent lines that answer the same question with
+different amounts of care. A codebase that explains itself well in one place makes its
+silences legible somewhere else — read good output next to bad output on the same page,
+because the good one is the specification the bad one is failing.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

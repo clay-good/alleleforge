@@ -200,7 +200,10 @@ class DesignRequest(BaseModel):
         default=False,
         description=(
             "Offer SpCas9-NG (NG PAM) guides when no NGG guide is actionable. Off by "
-            "default: an NG guide is a different reagent with different specificity."
+            "default: an NG guide is a different reagent with different specificity. "
+            "Consumed by SpCas9 nuclease design alone — prime and base editing take no "
+            "PAM-flexible fallback, and the rationale says so when one is enabled and "
+            "the nuclease vertical did not run."
         ),
     )
     allow_spry: bool = Field(
@@ -289,7 +292,10 @@ class BatchRequest(BaseModel):
         default=False,
         description=(
             "Offer SpCas9-NG (NG PAM) guides when no NGG guide is actionable. Off by "
-            "default: an NG guide is a different reagent with different specificity."
+            "default: an NG guide is a different reagent with different specificity. "
+            "Consumed by SpCas9 nuclease design alone — prime and base editing take no "
+            "PAM-flexible fallback, and the rationale says so when one is enabled and "
+            "the nuclease vertical did not run."
         ),
     )
     allow_spry: bool = Field(

@@ -21,6 +21,17 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **A PAM fallback that applied to one chemistry now says so.** `--allow-ng` reads as a statement about
+  the run — "fall back to SpCas9-NG guides when no NGG guide is actionable" — and is routed to the SpCas9
+  nuclease vertical alone. Prime and base editing never see it, and prime's decline reason is a bare "no
+  PAM match at this offset", so a caller who enabled the flag, got an empty prime menu and read that
+  sentence had no way to learn the flag never applied. The nuclease vertical names the fallbacks it did
+  *not* use, which is what made the gap visible: two chemistries decline for the same reason and only one
+  explains itself. The rationale now says when an enabled fallback was inert, and the scope is stated in
+  `design()`'s docstring, both CLI helps and both request models. Widening the fallbacks to prime is a
+  scientific decision — a PE-NG pegRNA is a different reagent and the efficiency scorers are trained on
+  SpCas9 PE2 — so this states the scope rather than quietly changing it.
+
 - **One account of what each export carries, instead of four.** Grepping for the *sentence* rather than
   the bug turned up "lossless" in four more places, all describing `report_to_json`. It is the complete
   serialization of the report and the report is a summary, so the word was true of the candidate list
