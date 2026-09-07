@@ -277,3 +277,15 @@ control, and it was false for as long as the rendered report carried a CDN scrip
 - **WHEN** a rendered report references a script from another origin
 - **THEN** the browser blocks the load, because a `srcdoc` frame inherits the parent's
   policy
+
+
+### Requirement: A terminal job reports finished
+
+`progress` is a coarse three-valued state a client is told to render as a state, not a
+percentage. A job that has reached a terminal state SHALL report `1.0` whether it
+succeeded, failed or timed out; `state` says which kind. A finished job reporting the
+running value shows as still running to any client following that instruction.
+
+#### Scenario: A job that fails
+- **WHEN** an async job ends in `error`
+- **THEN** its `progress` is `1.0` and its `error` carries the reason

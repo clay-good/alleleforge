@@ -21,6 +21,14 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: a failed async job reported the running progress value, forever.** `progress` is documented
+  as three values — "0.0 queued, 0.1 running, 1.0 finished" — with an explicit instruction to render it
+  as a state rather than a percentage. The 0.1 is assigned on entry to the run and only the success path
+  replaced it, so `{"state": "error", "progress": 0.1}` showed as *running* to any client that followed
+  that instruction, for a job that had finished and would never advance. `state` was right the whole
+  time; the field the documentation says to display was not. A terminal job now reports `1.0` whatever
+  kind of terminal it is, and the field's description says so.
+
 - **Fixed: printing the HTML report cut 340px off every cloning duplex.** The report had no `@media
   print` rules at all, and the oligo block is a horizontally scrolling box — an affordance paper does not
   have. Measured at a 624px print column, with the print rules applied and removed on the same page: 876px

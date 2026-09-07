@@ -10701,6 +10701,42 @@ about layout has an implied "when displayed how?", and print is the medium that 
 every affordance the reasoning quietly assumed.**
 
 
+## Round 328 — a contrast audit that found nothing, and a job that never finished
+
+Two things, and the first is worth recording precisely because it produced no change.
+Every foreground/background pair in both stylesheets was computed against WCAG:
+
+    report .muted   #666666 on #ffffff   5.74:1   needs 4.5   pass
+    chart subtitle  #62707d on #ffffff   5.08:1   needs 4.5   pass
+    badge           #ffffff on #0a7d77   4.98:1   needs 4.5   pass
+    …fifteen pairs, no failures
+
+The palette is fine. I am writing that down because "measured, passed" and "never
+measured" look identical afterwards, and the next round to wonder should not have to
+recompute it.
+
+The frontend's report iframe has a fixed 1400px height, which looked like the same class
+of defect until the reason surfaced: it is sandboxed without `allow-same-origin` and
+without scripts, so the page can neither read the content height nor receive a
+`postMessage`. A fixed height is the only option the security decision leaves. Also not a
+defect.
+
+Then the async job path, never exercised before. Submit, poll, done, 404 on an unknown id
+— all clean. Submit a bad variant:
+
+    {"state": "error", "progress": 0.1, "error": "unrecognized variant input: ..."}
+
+`progress` is documented as "0.0 queued, 0.1 running, 1.0 finished" and tells the client
+to *render it as a state, not as a percentage*. The 0.1 is assigned on entry and only the
+success path replaced it, so a client doing exactly what the field says shows "running"
+for a job that has finished and will never advance.
+
+**Lesson: an enumeration in a docstring is a claim about the code's whole state space, and
+this one had three entries for four situations. The missing entry was not an unusual case
+— it was failure, which every other part of this module handles carefully. Count the
+branches that reach a field, not the values the field is documented to take.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

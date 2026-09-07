@@ -161,6 +161,14 @@ class JobManager:
                 record.error = str(detail) if detail else f"{type(exc).__name__}: {exc}"
                 record.state = JobState.ERROR
             finally:
+                # Progress is documented as three values — "0.0 queued, 0.1 running, 1.0
+                # finished" — and clients are told to render it as a state rather than a
+                # percentage. A failed or timed-out job used to keep the 0.1 it was given
+                # on entry, so a job that had finished and would never advance reported
+                # the running value in the one field its own documentation says to
+                # display. `finished` is what this branch means, error or not; `state`
+                # carries which kind.
+                record.progress = 1.0
                 # This record is now terminal; free its slot and reclaim any backlog.
                 self._in_flight -= 1
                 self._evict()

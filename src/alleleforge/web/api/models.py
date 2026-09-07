@@ -559,9 +559,10 @@ class JobStatusResponse(BaseModel):
     state: JobState
     progress: float = Field(
         description=(
-            "Coarse, three-valued: 0.0 queued, 0.1 running, 1.0 finished. NOT a "
-            "completion fraction — a running job reports 0.1 whether it is 1% or 99% "
-            "through. Render it as a state, not as a percentage."
+            "Coarse, three-valued: 0.0 queued, 0.1 running, 1.0 finished — finished "
+            "meaning terminal, so a failed or timed-out job reports 1.0 too and `state` "
+            "says which kind. NOT a completion fraction: a running job reports 0.1 "
+            "whether it is 1% or 99% through. Render it as a state, not as a percentage."
         )
     )
     error: str | None = Field(default=None, description="The failure message, if the job failed.")
