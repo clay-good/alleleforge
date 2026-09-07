@@ -574,11 +574,18 @@ def resolve(
     # (no liftover happens here); otherwise the mislabel would poison provenance,
     # the working interval, and the VEP assembly selection downstream.
     if variant.source_assembly is not None and not assembly_matches(variant.source_assembly, build):
+        # Every surface gets a remedy it can use. This is raised in the resolver, so it
+        # reaches Python, the CLI and an HTTP client alike, and it used to name only
+        # `aforge lift` — a shell command a library caller has no reason to reach for and
+        # an HTTP client cannot run at all, on the one refusal whose whole purpose is
+        # stopping a design at the wrong place in the genome.
         raise ValueError(
             f"source assembly {variant.source_assembly!r} disagrees with requested build "
             f"{build!r}; lift the coordinates to {build!r} before resolving rather than "
             f"relabeling them — `aforge lift <locus> --chain <file> --from "
-            f"{variant.source_assembly} --to {build}`"
+            f"{variant.source_assembly} --to {build}` on the command line, "
+            f"`Liftover.from_chain_file(...)` from Python. Over HTTP there is no lift "
+            f"endpoint: lift before sending the request."
         )
     variant = variant.model_copy(update={"build": build})
     if reference is not None:

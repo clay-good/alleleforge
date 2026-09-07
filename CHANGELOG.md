@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: the build-mismatch refusal offered one remedy, usable by one of three callers.** It is raised
+  in the resolver, so it reaches a Python caller of `resolve()`, an `aforge design` user and an HTTP
+  client alike — and it named only `aforge lift`. A library caller has `Liftover.from_chain_file` and no
+  reason to shell out; an HTTP client has no shell on the server and there is no lift endpoint. This is
+  the refusal whose whole purpose is stopping a design at the wrong place in the genome, so it is the
+  last one that should leave two of its three audiences without a next step. It now names all three,
+  including that HTTP callers must lift before sending — and a guard fails if a lift endpoint is ever
+  added, since the message would then be stale.
+
 - **Fixed: `aforge offtarget --scorer mit` refused with a Python keyword as the remedy.** One of the
   three advertised scorers fails on the default bulge budget — correctly, since the MIT score is
   undefined for bulged alignments — and the message said "set dna_bulges=0 and rna_bulges=0", which is

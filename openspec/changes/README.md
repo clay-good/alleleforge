@@ -10931,6 +10931,40 @@ argued for while the second is quietly lost. Moving a check up a layer widens it
 the message has to widen with it.**
 
 
+## Round 335 — the same rule, read backwards
+
+R334 fixed a message that named a Python keyword to a CLI caller. The mirror question is
+whether anything names a *CLI flag* to a caller who has no shell, and the answer was on
+the refusal that matters most:
+
+    source assembly 'hg19' disagrees with requested build 'hg38'; lift the coordinates …
+    — `aforge lift <locus> --chain <file> --from hg19 --to hg38`
+
+Raised in `variant/resolver.py`, so it reaches Python, the CLI and `POST /api/design`
+alike. One of the three can run it. A library caller has `Liftover.from_chain_file` and no
+reason to shell out; an HTTP client has no shell on the server and there is no lift
+endpoint at all — which is itself worth saying, because "you cannot do this here" is a
+remedy and silence is not.
+
+That this is the *assembly* refusal is the point. Relabeling a coordinate instead of
+lifting it designs a guide at the wrong place in the genome; the whole reconciliation path
+exists to stop it. Refusing correctly and then stranding two of three audiences is the
+worst place to do it.
+
+The guard also pins the claim that there is no lift endpoint against the actual route
+table, so the sentence fails here first if one is ever added.
+
+Also this round, and worth recording as a non-finding: the suite appeared to have slowed
+from 2 to 14 minutes over this run. Profiled, it is 179s without coverage; the long runs
+were `pytest-cov` instrumentation plus my own concurrent background jobs, and nothing added
+in forty rounds appears in the slowest 25. There was no regression to fix.
+
+**Lesson: a rule found in one direction has a mirror, and the mirror is not automatically
+checked by the same fix. "Do not name a Python keyword to a shell caller" and "do not name
+a shell flag to a library caller" are the same rule about audiences, and I had to
+deliberately turn it around to find the second instance.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

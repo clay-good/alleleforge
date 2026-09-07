@@ -286,3 +286,19 @@ unaided; a Python example may pass a lookup, since Python can.
 #### Scenario: An accession on the command line
 - **WHEN** `aforge resolve VCV000012345` is run
 - **THEN** the refusal names the coordinate form and says why no shell can supply a lookup
+
+
+### Requirement: A shared refusal serves every caller
+
+The build-mismatch refusal is raised in the resolver and reaches a Python caller, a CLI
+user and an HTTP client alike. It SHALL name a next step each of them can take: the
+`aforge lift` command, the `Liftover` constructor, and — since there is no lift endpoint —
+the fact that an HTTP caller must lift before sending the request.
+
+The refusal itself is a safety property (relabeling a coordinate designs at the wrong
+place in the genome) and is unchanged; what is required here is that refusing leaves
+nobody without a next step.
+
+#### Scenario: A source assembly disagreeing with the requested build
+- **WHEN** a variant's native assembly does not match the build asked for
+- **THEN** the refusal names a remedy for the command line, for Python, and for HTTP
