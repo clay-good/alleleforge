@@ -22,7 +22,7 @@ from alleleforge.types.candidate import RankedMenu
 #: and for v6, when the TSV grew its leading `#` note block, which a reader that skips
 #: no comments does see; and for v11, when Parquet grew the same notes as file-level
 #: key/value metadata.
-EXPORT_SCHEMA_VERSION = 11
+EXPORT_SCHEMA_VERSION = 12
 
 #: The flat TSV column order (one row per candidate). ``schema_version`` leads so a
 #: reader can branch on the format before touching any other column.
@@ -75,6 +75,14 @@ TSV_COLUMNS = (
     # not the table a pipeline filters on, which is the surface that places the order.
     # Empty when oligos were not requested, like every other conditional column.
     "oligo_warnings",
+    # Which vector the oligos were built for, and the Type IIS enzyme its hazard screen
+    # actually ran against. `oligo_warnings` is only interpretable against these: an
+    # empty cell means "clean for *this* enzyme", and since the caller chooses the
+    # vector — and an sgRNA-only choice leaves pegRNA rows on the pegRNA acceptor — one
+    # table can carry rows screened by two different enzymes. The human renders name the
+    # scheme on every candidate's block; the table a pipeline filters on did not.
+    "oligo_scheme",
+    "oligo_enzyme",
     # The hazard subset of `flags`, so a pipeline can filter on "needs attention"
     # without hard-coding which flag names are hazards — a list that grows.
     "caveats",
@@ -141,6 +149,10 @@ def _row(candidate: Any) -> dict[str, Any]:
         "oligo_warnings": ";".join(
             getattr(candidate.oligos, "warnings", ()) if candidate.oligos else ()
         ),
+        # Empty together with `oligo_warnings` when no oligos were built, like every
+        # other conditional column: no screen ran, so no enzyme cleared anything.
+        "oligo_scheme": candidate.oligos.scheme.name if candidate.oligos else "",
+        "oligo_enzyme": candidate.oligos.scheme.enzyme if candidate.oligos else "",
         "caveats": ";".join(flag for flag, _ in caveats(candidate.flags)),
         "rationale": candidate.rationale,
         "reagent": candidate.reagent,

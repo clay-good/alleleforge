@@ -96,11 +96,16 @@ caveat attached.
 schema_version	rank	chemistry	locus	...
 ```
 
+`oligo_warnings` is read alongside `oligo_scheme` and `oligo_enzyme`: an empty hazard
+cell means "clean for **that** enzyme", and since `--vector-scheme` chooses the vector —
+and an sgRNA-only choice leaves pegRNA rows on the pegRNA acceptor — one table can carry
+rows screened by two different enzymes. All three are empty when oligos were not built.
+
 The column header is the first non-comment line, as in VCF, GTF and bedGraph, so a
 comment-skipping reader (`polars.read_csv(..., comment_prefix="#")`,
 `pandas.read_csv(..., comment="#")`, `read.delim(..., comment.char="#")`) gets exactly
 the table it got before. A reader that skips nothing sees a different first line, so
-`schema_version` — which leads every row for this purpose — is `11`.
+`schema_version` — which leads every row for this purpose — is `12`.
 
 `--format parquet --out menu.parquet` writes the same table for a batch consumer.
 Parquet has no comment lines, so it carries the same notes as file-level key/value

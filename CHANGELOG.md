@@ -10,6 +10,15 @@ acceptance.
 
 ### Added
 
+- **The flat table now names the enzyme that cleared each insert.** `oligo_warnings` is the ordering
+  hazard a pipeline filters on before placing a DNA order, and it became interpretable only against a fact
+  the table did not carry the moment the cloning vector became the caller's to choose: an empty cell means
+  "clean for **this** enzyme", and pX330's BbsI and lentiGuide's BsmBI clear different sequences. One report
+  can even mix them — an sgRNA-only vector cannot receive a pegRNA extension, so those rows stay on the
+  pegRNA acceptor — which is the `offtarget_worst_matrix` situation and is solved the same way, per row.
+  New `oligo_scheme` and `oligo_enzyme` columns, empty alongside `oligo_warnings` when no oligos were built.
+  Export schema version 11 → 12.
+
 - **The flat table a pipeline reads is now obtainable from both shells.** `report_to_parquet` was
   reachable from Python alone — so the round that gave Parquet its disclaimer, reference build and
   coordinate convention improved a file no shell could produce, while `docs/api/cli.md` documented it under

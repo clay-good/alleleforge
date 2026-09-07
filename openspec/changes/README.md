@@ -9730,6 +9730,31 @@ first without the second is invisible from inside the module — the export writ
 completely correct and completely unreachable at the same time.**
 
 
+## Round 298 — the round before it made a column conditional and did not say on what
+
+R296 made the cloning vector selectable. R294's own lesson — rank the surfaces by what
+acts on them, because a pipeline sees only the columns it selected — was sitting right
+there and went unapplied to the thing R296 had just changed.
+
+`oligo_warnings` is the hazard a pipeline filters on before placing a DNA order. Empty
+used to mean one thing. It now means "clean for whichever enzyme the caller picked", and
+the table records no enzyme. This is a shape the file already knows: `n_offtarget_sites`
+got its cut-offs, `offtarget_specificity` got its scorer, and `offtarget_worst_matrix`
+exists precisely because one table can mix scoring matrices.
+
+It mixes here too, and by a mechanism R296 introduced deliberately: an sgRNA vector has
+no 3'-extension overhangs, so asking for `px330-bbsi` leaves pegRNA rows on the BsaI
+acceptor. One table, BbsI-screened rows and BsaI-screened rows, no column distinguishing
+them. `oligo_scheme` and `oligo_enzyme` are now per row, empty together with
+`oligo_warnings` when no oligos were built. Schema 11 → 12.
+
+**Lesson: making a value configurable makes every derived column conditional on the new
+knob, and the surface that suffers is the one with no room for prose. The human renders
+absorbed this for free — the PDF already printed `cloning oligos (px330-bbsi, BbsI)` on
+every block — which is exactly why it was easy to miss. After adding a parameter, ask
+which existing columns just changed meaning, not which ones changed value.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
