@@ -10490,6 +10490,33 @@ wrong place to stop. When a string is built somewhere other than where it is dis
 list its displays.**
 
 
+## Round 321 — the same rule, one layer down
+
+R320's lesson said to list the displays of any string built somewhere other than where it
+is shown. Caveat reasons are built in `report/builder.py`, and one of them was written in
+`cas9.py` — the module that *sets* the flag, which is the one place with no view of where
+the sentence lands:
+
+    caveat — outcome-is-nhej-spectrum: the outcome distribution below is the NHEJ
+    indel spectrum …
+
+`_candidate_html` and `_candidate_lines` both build the allele table first and the caveats
+after it. So "below" points a reader down, past the flags, the oligo block and the score
+line, for a table they scrolled by three elements ago. On both renders, since they share
+the order.
+
+The interesting part was the guard. A bare word list flagged `offtarget-high` — "a
+nominated off-target site scores at or above the triage band" — which is a comparison, not
+a direction. The tempting fix is an exception entry, and an exception entry for a word this
+common is a place the next real instance goes to hide. The check matches deictic *use*
+instead ("below is", "the … below"), and a test asserts the comparison is not caught, so
+the distinction is pinned rather than assumed.
+
+**Lesson: when a guard produces a false positive, the false positive is usually telling you
+the rule is stated wrong, not that it needs an exception. "Don't say below" was never the
+rule; "don't point at page positions from a string that doesn't know the page" was.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

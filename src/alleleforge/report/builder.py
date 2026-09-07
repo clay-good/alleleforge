@@ -111,7 +111,11 @@ CAVEAT_FLAGS: dict[str, str] = {
         "be cut again after repair"
     ),
     "outcome-is-nhej-spectrum": (
-        "the outcome distribution below is the NHEJ indel spectrum — the byproduct of "
+        # Not "the outcome distribution below": both human renders draw the allele table
+        # *before* the caveats, so the word pointed a reader downward at something they
+        # had already passed. A caveat is positioned by whichever surface renders it and
+        # must not depend on where it lands.
+        "this candidate's outcome distribution is the NHEJ indel spectrum — the byproduct of "
         "this strategy, not the intended correction, which is the minority product"
     ),
     "bystander-present": ("editable bystander bases sit in the window alongside the target"),

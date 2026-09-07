@@ -130,8 +130,8 @@ def _flags(
         else:
             flags.append("hdr-donor:recut-not-blocked")
         # NHEJ, not HDR, is the majority repair outcome at a double-strand break.
-        # The outcome distribution below is the NHEJ indel spectrum, which is the
-        # *byproduct* of this strategy, not the intended correction.
+        # This candidate's outcome distribution is the NHEJ indel spectrum, which is
+        # the *byproduct* of this strategy, not the intended correction.
         flags.append("outcome-is-nhej-spectrum")
     # Pol III transcription caveats: a property of the spacer as a transcribed reagent,
     # not of the chemistry, so every vertical applies the same check.

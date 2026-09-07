@@ -475,3 +475,17 @@ note.
 #### Scenario: A candidate with no nominated sites
 - **WHEN** the count is zero or the search did not run
 - **THEN** no such note is rendered
+
+
+### Requirement: A caveat does not say where to look
+
+A caveat is positioned by whichever surface renders it, and the same reasons are read on
+the HTML page and on the printable sheet. A reason SHALL describe the thing it is about
+rather than its location, and SHALL NOT point a reader up or down the page.
+
+The rule is about *deictic* use. A caveat may say a score is "at or above the triage
+band"; it may not say "the table below".
+
+#### Scenario: A caveat about the outcome distribution
+- **WHEN** a nuclease candidate's outcome is the NHEJ spectrum
+- **THEN** the caveat names the distribution without saying where on the page it is

@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: a caveat pointed readers down at a table both renders draw above it.** "the outcome
+  distribution below is the NHEJ indel spectrum" — and `_candidate_html` and `_candidate_lines` both
+  build the allele table first and the caveats afterwards, so "below" sent a reader looking past the
+  flags, the oligo block and the score line for something they had already scrolled by. The sentence was
+  written where the flag is *set*, in `cas9.py`, which is the one place with no view of where it lands.
+  The guard forbids *deictic* use specifically, not the words: `offtarget-high` legitimately says a site
+  "scores at or above the triage band", and a check that could not tell the two apart would need an
+  exception list that hides the next real one.
+
 - **Fixed: the search description pointed at rows one of its two readers does not draw.** It is composed
   once by the engine and rendered both by `aforge offtarget`, which prints a row per nominated site, and
   by the design report, which prints none. Two clauses were written for the first reader and shipped to
