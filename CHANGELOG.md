@@ -2571,6 +2571,7 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+- `aforge bench compare` says when the results it is comparing came from synthetic stand-ins. It pronounced two of them “the same scientific result” without ever reading the flag, and its `--json` verdict now carries `synthetic_datasets` for a caller gating on `agree`.
 - The served page no longer pans sideways on a phone: the download row is a flex row that never wrapped, so it ran 4px past a 375px viewport with three buttons and 128px with four.
 - The served page no longer offers example inputs it always refuses (a ClinVar accession, an rsID and an HGVS string sat in the variant placeholder), and its banner stops promising that no sequence data leaves a deployment that has consequence annotation enabled.
 - `aforge data show` answers whether a run can use the dataset right now, the question `aforge data list` already answered. It had printed the raw descriptor — `redistributable: True`, `sha256: None` — leaving the reader to know that the first is a licence permission and the second means the registry will not even fetch it.

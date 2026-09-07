@@ -308,11 +308,16 @@ fraction.
   not the same scientific result, naming the field that differs
 
 
-### Requirement: A synthetic number says so in every output mode
+### Requirement: A synthetic number says so in every output mode, and on every command
 
 The bundled fixtures are synthetic stand-ins, and a metric measured on one prints in
-exactly the shape of one measured on a real validation library. `aforge bench run` SHALL
-say so for every output mode — the bare terminal summary, `--out`, and `--json` — not
+exactly the shape of one measured on a real validation library. Every command that
+reports such a number SHALL say so — `aforge bench run`, and `aforge bench compare`,
+whose verdict that two results are "the same scientific result" is the strongest
+statement the harness makes and the one a reader is most likely to keep. Agreement
+between two stand-ins says the pipeline is reproducible; it is not agreement about a
+benchmark result, and the command SHALL say which it is. `aforge bench run` SHALL say so
+for every output mode — the bare terminal summary, `--out`, and `--json` — not
 only the one a reader uses when they are not keeping the number.
 
 The caveat SHALL go to stderr, so that it reaches a reader who redirects stdout and does

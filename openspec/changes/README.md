@@ -11641,3 +11641,31 @@ project has had once already.
 **Lesson: after fixing a gap, ask where the same gap could hide from the guard you just
 wrote. Twice now the answer was "the sibling panel", and the guard's own scope was the
 thing that hid it.**
+
+## Round 357 — applying the last round's question to the round before it
+
+Round 356's lesson was to ask where the same gap could hide from the guard just written.
+Round 351 taught `bench run` to say that a number came from a synthetic stand-in, in every
+output mode. The question that follows is which *other* command reports such a number, and
+the answer is `bench compare`, which never read the flag at all.
+
+It matters more there than in `run`. "agree: the same scientific result (timestamps and
+versions aside)" is the strongest sentence the harness says — the reproducibility verdict
+two labs on two platforms ask each other for — and on the bundled fixtures both sides are
+stand-ins shipped so the harness runs in CI. Agreement between them says the pipeline is
+reproducible; it is not agreement about a benchmark result. `compare` is also the only
+command holding both sides, so it is the only one that can say it about a comparison.
+
+The note goes to stderr, as in `run`, so it reaches a `--json` caller without entering the
+data stream, and the payload gained `synthetic_datasets` so a caller gating on `agree` can
+see what it agreed about. The caveat is about the inputs, so it is printed whether the
+verdict is agreement or difference.
+
+One existing test broke, for the third time this session and always the same way: it
+parsed `result.output`, which is click's *mixed* stream, so a note written to stderr lands
+inside the JSON it decodes. Repointed at `result.stdout`, which is also the assertion that
+was intended. A sweep of the other thirty-odd is its own round.
+
+**Lesson: an honesty flag is a property of the number, so every command that reports that
+number owes the reader the flag. Fixing it where it was noticed fixes one reader's view;
+the question to ask next is who else prints the same value.**

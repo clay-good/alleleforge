@@ -960,9 +960,10 @@ def test_bench_compare_answers_the_question_the_digest_exists_for(
     assert differ.exit_code == ExitCode.UNAVAILABLE
     assert "DIFFER" in differ.output
     # Naming what differs is the useful half; a bare "no" sends a user diffing JSON.
-    payload = json.loads(
-        runner.invoke(app, ["bench", "compare", str(left), str(other), "--json"]).output
-    )
+    # `.stdout`, not `.output`: the caveat that both sides are synthetic stand-ins is
+    # written to stderr, and the mixed stream would put that sentence in the JSON.
+    compared = runner.invoke(app, ["bench", "compare", str(left), str(other), "--json"])
+    payload = json.loads(compared.stdout)
     assert payload["agree"] is False
     assert any(d.startswith("task: ") for d in payload["differences"])
     assert payload["problems"] == []  # both results are internally sound

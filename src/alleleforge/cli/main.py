@@ -2646,12 +2646,21 @@ def bench_compare(
             for key in sorted(left_body)
             if left_body[key] != right_body[key]
         ]
+    # `run` says a number came from a synthetic stand-in; `compare` never read the flag,
+    # so two stand-in results were pronounced "the same scientific result" — the strongest
+    # sentence this tool says, and the one a reader is most likely to keep as evidence of
+    # reproducibility. Whether they agree is unaffected; what they agree *about* is not a
+    # benchmark result, and only this command knew both sides.
+    synthetic = sorted(
+        {result.dataset for result in (a, b) if getattr(result, "dataset_is_synthetic", False)}
+    )
     payload = {
         "agree": agree and not problems,
         "left_digest": a.reproducibility_digest,
         "right_digest": b.reproducibility_digest,
         "differences": differences,
         "problems": problems,
+        "synthetic_datasets": synthetic,
     }
     human = [
         f"{left.name}: {a.task} @ {a.split_version}  digest {a.reproducibility_digest[:12]}…",
@@ -2665,6 +2674,16 @@ def bench_compare(
     else:
         human.append("DIFFER: these are not the same scientific result")
         human += [f"  - {d}" for d in differences]
+    if synthetic:
+        # On stderr, as in `bench run`: it reaches the reader who redirected stdout or
+        # asked for JSON, without putting a sentence in the data stream.
+        _echo_err(
+            f"NOTE: {', '.join(repr(name) for name in synthetic)} "
+            f"{'is a' if len(synthetic) == 1 else 'are'} bundled SYNTHETIC stand-in"
+            f"{'' if len(synthetic) == 1 else 's'} shipped so the harness runs in CI. "
+            "Agreement here says the pipeline is reproducible; it is not agreement about "
+            "a benchmark result."
+        )
     _emit(payload, as_json=as_json, human="\n".join(human))
     if problems or not agree:
         raise typer.Exit(ExitCode.UNAVAILABLE)
