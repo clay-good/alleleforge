@@ -155,6 +155,8 @@ look up.
 | Haplotype panel TSV (web) | `ALLELEFORGE_HAPLOTYPES` | _none (no haplotype-aware pass)_ |
 | Accessibility tracks (web) | `ALLELEFORGE_ENCODE_TRACKS` | _none (no chromatin adjustment)_ |
 | Consequence annotation (web) | `ALLELEFORGE_VEP` | _none (requests asking for it get a 422)_ |
+| Reuse off-target scans (web) | `ALLELEFORGE_OFFTARGET_CACHE` | _none (every scan recomputed)_ |
+| Persistent genome index (web) | `ALLELEFORGE_GENOME_INDEX` | _none (index rebuilt in memory)_ |
 | Global seed | `ALLELEFORGE_SEED` | `20240501` |
 | Predictive-interval level | `ALLELEFORGE_INTERVAL_LEVEL` | `0.80` |
 | Off-target MAF threshold | `ALLELEFORGE_MAF_THRESHOLD` | `0.001` |

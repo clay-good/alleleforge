@@ -11433,3 +11433,35 @@ is itself a failure. It found three the moment it was written, one of them pre-e
 **Lesson: an allowance dict is a claim about the code and rots like any other. Checking
 that an excuse names a real parameter is not the same as checking that the excuse is
 true, and only the second kind fails when the gap gets closed.**
+
+## Round 350 — an excuse that named a switch nobody had built
+
+Round 349's query was "is the allowance still true?", and it found two stale entries.
+Running it across the other fourteen allowance dicts in the suite found nothing — the
+frontend's, the cohort-parity ones and the design-only option lists are all accurate.
+Recorded as a non-finding so it is not re-chased. (One near-miss worth naming: a grep
+for `--out` in `aforge batch --help` matches `--output-dir`, which reads as a stale
+allowance and is not one.)
+
+The query did find one more thing, in the entry Round 349 itself had written. Keeping
+scan reuse off the web API was excused as "server-side resource; an operator enables
+reuse, not a request". The reasoning is sound — the store and the index sit on the
+server's disk, so a client asking for either spends resources that are not its own — but
+no operator could enable anything: no argument, no environment variable, nothing. An
+allowance naming a mechanism that does not exist is the same false record as one
+excusing a gap already closed, and it is harder to catch, because the sentence reads
+like a description of a design rather than a claim that can be wrong.
+
+`ALLELEFORGE_OFFTARGET_CACHE` and `ALLELEFORGE_GENOME_INDEX` are that switch, alongside
+`create_app(offtarget_cache=..., genome_index=...)`, and `GET /api/health` reports what
+a deployment enabled under `scan_reuse` — named rather than a pair of booleans, for the
+reason `chromatin_tracks` is a list: a client cannot turn either on, and otherwise has
+no way to account for two deployments running the same code answering at very different
+speeds. The index is built at startup rather than on first request: it is
+content-addressed on disk, so a restart with a warm cache memory-maps it in moments, and
+paying a cold build while the service is starting beats stalling whichever request
+happens to arrive first.
+
+**Lesson: an allowance that explains a design is still a claim about the code. "The
+operator decides" is only true if the operator has a switch, and that half of the
+sentence is the half nobody re-reads.**

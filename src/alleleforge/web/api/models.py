@@ -648,6 +648,11 @@ class HealthResponse(BaseModel):
     #: sends the client's variant to a third-party public server — a disclosure only
     #: the operator can consent to on behalf of the deployment.
     vep_enabled: bool = False
+    #: Which ways of reusing an expensive reference scan this deployment has enabled
+    #: ("offtarget-cache", "genome-index"). A client cannot turn either on — they spend
+    #: the operator's disk — and has no other way to learn that two deployments running
+    #: the same code answer at very different speeds.
+    scan_reuse: tuple[str, ...] = ()
     #: Why a *configured* source is not loaded, keyed by source name; empty when every
     #: configured source loaded. Without it `gnomad_loaded: false` means either "the
     #: operator configured none" or "the operator configured one and it could not be

@@ -236,6 +236,57 @@ def _load_encode_tracks_from_env() -> Any | None:
         return None
 
 
+#: As `_GNOMAD_LOAD_ERROR`, for the persistent genome index.
+_GENOME_INDEX_LOAD_ERROR: str | None = None
+
+
+def _load_reuse_from_env(reference: Any | None) -> tuple[Any | None, Any | None]:
+    """Build the cross-run scan cache and genome index this deployment opted into.
+
+    Reuse is the operator's call rather than a request field, and for once that is not
+    about safety: the store and the index live on the server's disk, so a client asking
+    for either would be spending the operator's resources on its own request. The
+    operator therefore needs a way to say yes — ``ALLELEFORGE_OFFTARGET_CACHE`` and
+    ``ALLELEFORGE_GENOME_INDEX``.
+
+    The index is built at startup rather than on the first request. It is
+    content-addressed on disk, so a restart with a warm cache memory-maps it in
+    moments; a cold one pays the whole build, and paying it while the service is
+    starting is better than stalling whichever request happens to arrive first.
+    """
+    global _GENOME_INDEX_LOAD_ERROR
+    _GENOME_INDEX_LOAD_ERROR = None
+    cache = None
+    if os.environ.get("ALLELEFORGE_OFFTARGET_CACHE"):
+        from alleleforge.offtarget.cache import OffTargetCache
+
+        cache = OffTargetCache()
+    index = None
+    if os.environ.get("ALLELEFORGE_GENOME_INDEX") and reference is not None:
+        try:
+            from alleleforge.genome.index import GenomeIndex
+
+            index = GenomeIndex.build_genome(reference)
+        except (OSError, ValueError, ImportError) as exc:
+            _GENOME_INDEX_LOAD_ERROR = str(exc)
+    return cache, index
+
+
+def _reuse_names(state: Any) -> tuple[str, ...]:
+    """Return the reuse mechanisms this deployment has enabled, by name.
+
+    Named rather than a pair of booleans, for the reason `chromatin_tracks` is a list:
+    a client comparing two deployments' response times has no other way to learn which
+    of them is serving stored scans.
+    """
+    enabled = []
+    if state.offtarget_cache is not None:
+        enabled.append("offtarget-cache")
+    if state.genome_index is not None:
+        enabled.append("genome-index")
+    return tuple(enabled)
+
+
 def _require_reference(request: Request) -> Any:
     """Return the configured reference genome, or raise ``503``."""
     reference = request.app.state.reference
@@ -422,6 +473,8 @@ def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
         encode_tracks=tracks,
         chromatin_track=req.chromatin_track,
         offtarget_regions=_regions(req.offtarget_regions),
+        offtarget_cache=request.app.state.offtarget_cache,
+        genome_index=request.app.state.genome_index,
         cell_context=req.cell_context,
         run_offtarget=req.run_offtarget,
         max_candidates_per_chemistry=req.max_per_chemistry,
@@ -497,6 +550,8 @@ def create_app(
     gnomad: Any | None = None,
     haplotypes: Any | None = None,
     effect: Any | None = None,
+    offtarget_cache: Any | None = None,
+    genome_index: Any | None = None,
     encode_tracks: Any | None = None,
     settings: Settings | None = None,
     api_token: str | None = None,
@@ -510,6 +565,10 @@ def create_app(
             loaded from ``ALLELEFORGE_GNOMAD_TSV`` when that is set. Without it every
             scan this API runs is reference-only, whatever `populations` a request asks
             for — the capability was unreachable over HTTP entirely.
+        offtarget_cache: A cross-run store of reference-only off-target scans. If
+            ``None``, one is opened when ``ALLELEFORGE_OFFTARGET_CACHE`` is set.
+        genome_index: A persistent memory-mapped FM-index over the reference. If
+            ``None``, one is built at startup when ``ALLELEFORGE_GENOME_INDEX`` is set.
         effect: A pre-loaded variant-consequence predictor. If ``None``, one is built
             from ``ALLELEFORGE_VEP`` when that is set. Without it a request asking for
             `annotate_consequence` is refused rather than answered without one.
@@ -569,6 +628,9 @@ def create_app(
         encode_tracks if encode_tracks is not None else _load_encode_tracks_from_env()
     )
     app.state.effect = _vep_predictor
+    _env_cache, _env_index = _load_reuse_from_env(app.state.reference)
+    app.state.offtarget_cache = offtarget_cache if offtarget_cache is not None else _env_cache
+    app.state.genome_index = genome_index if genome_index is not None else _env_index
     # Resolve through Settings.load() so the web interface honors the user config file
     # (~/.config/alleleforge/config.toml) with the same precedence as the CLI and library
     # — the provenance-reproducibility spec requires the config file to apply to web runs,
@@ -622,6 +684,7 @@ def create_app(
             gnomad_loaded=app.state.gnomad is not None,
             haplotypes_loaded=bool(app.state.haplotypes),
             vep_enabled=app.state.effect is not None,
+            scan_reuse=_reuse_names(app.state),
             # The names, not a flag: a client picks one per request and has no other way
             # to discover what this deployment's bedGraph contains.
             # `_*_LOAD_ERROR` was recorded for each optional source and read by
@@ -632,6 +695,7 @@ def create_app(
                 name: error
                 for name, error in (
                     ("reference", _REFERENCE_LOAD_ERROR),
+                    ("genome_index", _GENOME_INDEX_LOAD_ERROR),
                     ("gnomad", _GNOMAD_LOAD_ERROR),
                     ("haplotypes", _HAPLOTYPES_LOAD_ERROR),
                     ("encode_tracks", _ENCODE_TRACKS_LOAD_ERROR),
@@ -764,6 +828,8 @@ def create_app(
             run_offtarget=req.run_offtarget,
             max_candidates_per_chemistry=req.max_per_chemistry,
             offtarget_regions=_regions(req.offtarget_regions),
+            offtarget_cache=request.app.state.offtarget_cache,
+            genome_index=request.app.state.genome_index,
             cell_context=req.cell_context,
             allow_ng=req.allow_ng,
             allow_spry=req.allow_spry,

@@ -66,6 +66,14 @@ request because the variant is the client's. Where it is enabled, the API descri
 says so instead of claiming that no sequence data leaves the machine, and a request for
 it where it is not enabled is a `422` rather than a report quietly missing the field.
 
+`ALLELEFORGE_OFFTARGET_CACHE` and `ALLELEFORGE_GENOME_INDEX` enable the two ways to stop
+recomputing the reference scan: a cross-run store of reference-only reports, and a
+persistent memory-mapped FM-index built once at startup. Neither changes a result, and
+neither is a request field — both live on the server's disk, so a client asking for one
+would be spending the operator's resources on its own request. `GET /api/health` lists
+what is enabled under `scan_reuse`, which is a client's only way to know why two
+deployments running the same code answer at very different speeds.
+
 A personal genotype
 is the one input that stays out — it is the caller's data rather than the operator's, so
 server-side configuration is the wrong shape for it.

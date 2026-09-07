@@ -331,3 +331,20 @@ transmitted externally, and SHALL name the request field that causes the transmi
 #### Scenario: An enabled deployment serving a request that did not ask
 - **WHEN** `annotate_consequence` is absent on a deployment that has VEP enabled
 - **THEN** no variant is sent to the VEP server and the report carries no consequence
+
+
+### Requirement: Reuse is the operator's switch, and the operator has one
+
+The two ways to avoid recomputing a reference scan — the cross-run report cache and the
+persistent genome index — SHALL be enableable by the operator
+(`ALLELEFORGE_OFFTARGET_CACHE`, `ALLELEFORGE_GENOME_INDEX`, or `create_app(...)`), and
+SHALL NOT be request fields: both consume the server's disk, so a client asking for one
+spends resources that are not its own.
+
+A deployment that has enabled neither SHALL NOT write to the cross-run store.
+`GET /api/health` SHALL name what is enabled, because a client cannot enable either and
+has no other way to account for the difference between two deployments.
+
+#### Scenario: A deployment with reuse enabled serving the same design twice
+- **WHEN** an identical design request is made twice against such a deployment
+- **THEN** the second is served from the store and reports what the first reported

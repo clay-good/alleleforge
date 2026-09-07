@@ -61,8 +61,10 @@ _NOT_IN_WEB: dict[str, str] = {
     # Reuse is the operator's call, not the client's: the store and the index live
     # on the server's disk, and a client asking for either would be spending the
     # operator's resources on its own request.
-    "offtarget_cache": "server-side resource; an operator enables reuse, not a request",
-    "genome_index": "server-side resource; see `offtarget_cache`",
+    "offtarget_cache": "server-side resource: the operator enables reuse with "
+    "ALLELEFORGE_OFFTARGET_CACHE or create_app(offtarget_cache=...), because the store "
+    "is on the server's disk and a request asking for it spends the operator's",
+    "genome_index": "server-side resource; ALLELEFORGE_GENOME_INDEX, see `offtarget_cache`",
 }
 
 

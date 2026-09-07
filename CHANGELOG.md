@@ -9,6 +9,7 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- A deployment can enable off-target scan reuse (`ALLELEFORGE_OFFTARGET_CACHE`, `ALLELEFORGE_GENOME_INDEX`, or `create_app(...)`), and `GET /api/health` reports which under `scan_reuse`. The shell-parity guard had recorded reuse as the operator's call rather than the client's while no operator could make it.
 - `aforge design` and `aforge batch` can reuse a reference scan too (`--cache`, `--genome-index`), which is what the cross-run cache was built for — a cohort re-runs the same guide against the same reference constantly. Neither changes a result.
 - `aforge offtarget --cache` and `--genome-index` expose the two ways to avoid repeating a reference scan — a cross-run report cache and a persistent memory-mapped FM-index — which existed, were parity-tested, and could be reached only from Python.
 - The scope decision that says which trained adapters are real models and which are deliberate placeholders is now checked against the code: a supported model must implement a forward pass, an out-of-scope one must not, and a newly added adapter cannot go unclassified. One integration spec's header had claimed for three months that work its own execution log recorded as shipped was still next.
