@@ -21,6 +21,14 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: one page said 30 candidates are missing from the exports, and that none are.** The report has
+  two caps meaning opposite things about the data. `max_candidates_per_chemistry` removes candidates
+  during ranking, before the menu exists, so they are in no export — its note says so. The render cap
+  draws the top 50 plus the Pareto front and everything is still exported, and its note said "no export
+  is capped — every candidate is in the JSON report": true of the render cap, and phrased as a claim
+  about exports in general. With `--max-per-chemistry 60` on a 90-candidate menu both fire and a reader
+  gets both sentences. Scoping the second to *this menu* makes them true together, which they always were.
+
 - **`aforge resolve` now says that its own output is not its own input.** It prints `chr1:1017:T>A` for
   the input `chr1:1018:T>A` and said only "coordinates 0-based half-open (BED-style)" — a statement about
   loci, which is true, and which intervals satisfy by round-tripping unchanged. The variant is the one

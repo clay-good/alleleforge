@@ -65,8 +65,10 @@ weight the objectives differently from your defaults"*, so a candidate optimal o
 safety but 200th on the composite score is exactly the one such a reader opened the
 report for. The two renders share
 [`visible_candidates`][alleleforge.report.builder.visible_candidates] so they cannot
-drift apart on that guarantee. No export applies this cap: every candidate is in the
-JSON, TSV and Parquet forms whatever it is set to.
+drift apart on that guarantee. This cap shapes the render only: every candidate *in the
+menu* is in the JSON, TSV and Parquet forms whatever it is set to. The separate
+`max_candidates_per_chemistry` cap is a data one — it removes candidates before the menu
+exists, so they are in no export either, and the rationale says how many.
 
 ::: alleleforge.report.html
 

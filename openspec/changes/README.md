@@ -10798,6 +10798,36 @@ reads as complete coverage — which is precisely why nobody noticed it does not
 the one value on the page that behaves differently.**
 
 
+## Round 331 — my own sentence, one round later
+
+R330's lesson: a true general statement is the most effective place for a specific
+exception to hide. Applied to the sentence I wrote in R315, on a report where both of this
+tool's caps fire:
+
+    Run notes: — --max-per-chemistry 60: … 30 lower-ranked candidate(s) were dropped
+    and are not in this result or its exports
+
+    Showing 50 of 60 candidates … The remaining 10 are not lost: no export is capped —
+    every candidate is in the JSON report and as one row per candidate in the TSV and
+    Parquet tables.
+
+Thirty are missing from the exports, and none are. Both on one page.
+
+There are two caps and they mean opposite things about the data. `max_candidates_per_chemistry`
+removes candidates during ranking, before the menu exists; they are in no export and never
+were. The render cap withholds from the page only. "No export is capped" is a correct
+statement about the second and reads as a statement about exports.
+
+R315 wrote that sentence to *fix* the same class of error — it had said "lossless", which
+was true of the candidate list and false of everything else. The replacement narrowed the
+claim to the exact thing that was true and then made it about all caps instead of one.
+
+**Lesson: the second-most dangerous sentence in a codebase is the one written to fix the
+most dangerous one. Both times the error was scope — a word that is exactly right about
+the thing in front of you and silently quantifies over its neighbours. After narrowing a
+claim, ask what else is now in its range.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

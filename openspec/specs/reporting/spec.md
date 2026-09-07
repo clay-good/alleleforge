@@ -565,3 +565,19 @@ sequence stays on one line.
 #### Scenario: Printing a report that carries cloning oligos
 - **WHEN** the report is printed
 - **THEN** no duplex is cut off at the column edge and no candidate spans two sheets
+
+
+### Requirement: The two caps do not contradict each other
+
+This report has a **data** cap (`max_candidates_per_chemistry`, which removes candidates
+before the menu exists, so they are in no export) and a **display** cap (the render's,
+after which every candidate is still exported). Both can fire on one page.
+
+Each note SHALL scope itself to the cap it describes. The render cap's note SHALL be
+about the candidates *in this menu*, so that it does not read as a claim that the exports
+are complete when the data cap has already removed candidates from them.
+
+#### Scenario: Both caps firing on one report
+- **WHEN** a per-chemistry cap has dropped candidates and the render has withheld more
+- **THEN** the two notes are true together: the dropped ones are gone, and every
+  candidate in the menu is in the exports

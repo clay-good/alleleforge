@@ -595,10 +595,15 @@ NOMINATED_SITES_NOTE = (
 #: the two human renders. It no longer calls the report export "lossless": that word was
 #: correct about the *candidate list* and wrong about everything else, and it sat on the
 #: same page as two notes saying the per-allele and per-site detail is somewhere else.
-#: The render cap is the only cap; the exports carry every candidate.
+#:
+#: Nor does it say "no export is capped", which was its next wording and was true of *this*
+#: cap and of no other. `--max-per-chemistry` removes candidates before the menu exists,
+#: and its own note says they are "not in this result or its exports" — so on one page a
+#: reader could read that 30 candidates are missing from the exports and that every
+#: candidate is in them. Scoped to the menu, both sentences are true together.
 WITHHELD_CANDIDATES_NOTE = (
-    "no export is capped — every candidate is in the JSON report and as one row per "
-    "candidate in the TSV and Parquet tables"
+    "this is a render cap, not a data one — every candidate in this menu is in the JSON "
+    "report and as one row per candidate in the TSV and Parquet tables"
 )
 
 VARIANT_POSITION_NOTE = (
