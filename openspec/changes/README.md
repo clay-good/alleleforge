@@ -10619,6 +10619,29 @@ and false of the data the document exists to carry. A number with a unit in its 
 still needs the arithmetic done.**
 
 
+## Round 325 — a responsive rule that never reached the picture
+
+    .chart { width:100%; max-width:760px; height:320px; }
+
+`width:100%` is not ambiguous about what someone wanted. The chart is an inlined SVG with
+its own `width="720" height="380"`, and an element's own presentation attributes beat a
+rule on its parent, so neither half of that declaration ever applied to the drawing:
+
+    box 320px tall, drawing 380px      -> 60px of chart over the heading beneath it
+    375px viewport, svg fixed at 720   -> document 744px wide, page scrolls sideways
+
+The SVG has carried a `viewBox` since it was written. It could have scaled the whole time;
+nothing was asking it to. Styling the element instead of the box gives 760x401 on a desktop
+and 327x173 at 375px with no sideways scroll, both measured on the page rather than
+reasoned about — including the "before", reinstated as an injected stylesheet so the
+changelog's numbers are observations and not inferences.
+
+**Lesson: a stylesheet can express an intention that never reaches its target, and it
+reads afterwards exactly like a decision that was implemented. `width:100%` on the wrapper
+of a fixed-size SVG is indistinguishable, in a diff, from working responsive layout — the
+only thing that can tell them apart is a measurement at two widths.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

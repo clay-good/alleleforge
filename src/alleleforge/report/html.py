@@ -87,7 +87,14 @@ th { background:#f4f9f8; }
    panel at the top of the page uses, which is this report's existing warning colour. */
 .hazard { background:#fff8e6; border-left:3px solid #e8c96b; border-radius:0 4px 4px 0;
           padding:0.4rem 0.7rem; margin:0.5rem 0; font-size:0.95rem; color: var(--ink); }
-.chart { width:100%; max-width:760px; height:320px; }
+/* The responsive rule was written for the wrapper and never reached the picture. An
+   inlined SVG carries its own `width="720" height="380"`, which wins: the box was 320px
+   tall around a 380px drawing (60px of chart painted over the heading below it), and the
+   720px width could not shrink, so any viewport under ~770px scrolled sideways to see a
+   figure that had a `viewBox` and could have scaled all along. Styling the element, not
+   the box, and letting the aspect ratio come from the viewBox. */
+.chart { width:100%; max-width:760px; }
+.chart svg { display:block; width:100%; height:auto; }
 footer { margin-top:2rem; border-top:1px solid var(--line); padding-top:1rem;
          font-size:0.8rem; color: var(--muted); }
 """.strip()

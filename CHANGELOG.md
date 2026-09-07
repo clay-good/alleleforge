@@ -21,6 +21,14 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **Fixed: the chart ignored the responsive rule written for it.** `.chart { width:100%; max-width:760px;
+  height:320px; }` says the intent plainly — but the chart is an *inlined* SVG carrying its own
+  `width="720" height="380"`, and those win. Measured in a browser: a 320px box around a 380px drawing,
+  so 60px of chart painted over the heading below it; and on a 375px viewport the 720px SVG made the
+  document 744px wide, so the whole page scrolled sideways to show a figure that has a `viewBox` and
+  could have scaled all along. Styling the element rather than the box gives 760x401 on a desktop and
+  327x173 at 375px with no sideways scroll — both states measured on the same page, before and after.
+
 - **Fixed: a 180-nt HDR donor ran 110pt off the right edge of the page it is printed on.** The PDF wrapped
   at a fixed character count — `_WRAP = 92`, "characters per line at 10pt Helvetica within the margins".
   Helvetica is proportional: 92 characters is 460pt of lowercase prose and 614pt of upper-case DNA, on a

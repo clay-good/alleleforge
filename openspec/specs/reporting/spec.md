@@ -520,3 +520,19 @@ sequence is recoverable; a truncated one is a mis-ordered reagent.
 #### Scenario: A section rule
 - **WHEN** a horizontal rule is drawn
 - **THEN** it fills the column without exceeding it
+
+
+### Requirement: The chart scales with its container
+
+The charts are inlined SVG and carry their own `width`/`height` attributes, which outrank
+any rule on the wrapper. The stylesheet SHALL therefore style the SVG element: full width,
+automatic height, aspect ratio from the `viewBox`. No fixed pixel width or height SHALL be
+imposed on the figure or its box.
+
+A fixed box height around a taller drawing paints the chart over the content beneath it,
+and a fixed pixel width makes the document scroll sideways on a viewport narrower than the
+figure.
+
+#### Scenario: A narrow viewport
+- **WHEN** the report is opened on a viewport narrower than the chart's intrinsic width
+- **THEN** the chart scales down and the document does not scroll sideways
