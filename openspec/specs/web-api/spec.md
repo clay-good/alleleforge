@@ -289,3 +289,19 @@ running value shows as still running to any client following that instruction.
 #### Scenario: A job that fails
 - **WHEN** an async job ends in `error`
 - **THEN** its `progress` is `1.0` and its `error` carries the reason
+
+
+### Requirement: The cohort table is reachable over HTTP
+
+The per-item summary table is the file a cohort run gets forwarded in. `POST /api/batch`
+SHALL serve it as TSV alongside the JSON body, produced by the same library function the
+CLI writes it with, so the two shells cannot describe one run differently.
+
+No `html`/`pdf`: a cohort has no single rendered document, the same reason `aforge batch`
+has no `--format`. No `parquet` yet — there is no cohort Parquet writer, and adding one
+requires the guard that its columns match the TSV's in order.
+
+#### Scenario: Requesting the cohort table over HTTP
+- **WHEN** `POST /api/batch?format=tsv` is called
+- **THEN** the response is the same table, header and `#` notes included, that
+  `aforge batch --summary-tsv` writes

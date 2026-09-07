@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **`POST /api/batch?format=tsv` serves the per-patient table.** The summary having moved into the
+  library, the cohort endpoint can now return the same file `aforge batch --summary-tsv` writes — one
+  row per person with the disclaimer, the coordinate convention, the reference identity and the seed —
+  instead of leaving an HTTP client to rebuild the flattening and the note block. Both shells call one
+  function, and a test asserts their headers are byte-identical. No `html`/`pdf` (a cohort has no single
+  document) and no `parquet` yet, with the reason recorded on the enum: there is no cohort Parquet
+  writer, and adding one needs the guard that its columns match the TSV's in order — a defect this
+  project has shipped once already.
+
 - **The cohort summary moved out of the CLI into the library.** About 170 lines that flatten a
   `CohortRunReport` into one row per patient and lead the table with the research-use disclaimer, the
   coordinate convention, the reference genome's identity and the seed — all of it in `cli/main.py`, in a

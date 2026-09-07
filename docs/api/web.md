@@ -38,7 +38,7 @@ auto-generated at `/openapi.json`.
 | `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf\|tsv\|parquet` — the same set `aforge design --format` offers. |
 | `POST /api/jobs/design` | Submit an async design job (`202`, returns a job id). |
 | `GET /api/jobs/{job_id}` | Poll an async job: `state` (`pending` → `running` → `done` / `error`, an enum in the schema so a generated client can switch on it), a three-valued `progress`, and the result or the failure reason. |
-| `POST /api/batch` | Cohort design over a variant list; per-item summaries and provenance, a failed item isolated rather than failing the run. |
+| `POST /api/batch` | Variant list → per-item summaries; `?format=json\|tsv` — the TSV is the same per-patient table `aforge batch --summary-tsv` writes, from the same library function. No `html`/`pdf`: a cohort has no single document. |
 | `POST /api/offtarget` | Standalone population-aware off-target search, including the `scorer` choice (`cfd` / `mit` / `cfd-cas12a`) so a Cas12a run is labelled as the unvalidated approximation rather than as the published matrix. |
 | `GET /api/data` / `GET /api/data/{name}` | Inspect the dataset registry. |
 | `GET /api/bench` | List the CRISPR-Bench tasks with their kind, chemistry, dataset and metric battery. |

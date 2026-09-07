@@ -11000,6 +11000,31 @@ one way round. A symmetric rule asked asymmetrically will keep finding instances
 side you ask about, which reads like the other side being clean.**
 
 
+## Round 337 — finishing what the move opened
+
+R336 moved the cohort summary into the library because a shell should not hold a product
+its siblings cannot make. That fixed Python. It left the second half standing: `/api/batch`
+still returned JSON only, so an HTTP client wanting the per-patient table — the file a run
+over a patient VCF is actually forwarded in — had to rebuild the flattening and the note
+block themselves.
+
+`?format=tsv` now serves it, and because both shells call `cohort_to_tsv`, a test can
+assert their headers are byte-identical rather than hoping two implementations agree.
+
+The interesting decision was Parquet. The design endpoint offers it, the argument for it is
+strong here — this is literally the batch endpoint, and R297's case for Parquet was "it is
+what a batch job reads" — and there is no cohort Parquet writer. Building one means the
+writer *plus* a guard that its columns match the TSV's in order, because two tables of the
+same numbers disagreeing about their columns is a defect already shipped once in this
+project. That is a feature; this round is a reachability fix. The gap is recorded on the
+enum with the reason, where the next person to ask will find it.
+
+**Lesson: a refactor that unblocks something is not the same as doing it. R336's move was
+justified entirely by "Python and HTTP cannot produce this", and shipping it fixed one of
+the two — with the changelog entry making the full argument. The half-done state is
+hardest to see from inside the round that argued for it.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

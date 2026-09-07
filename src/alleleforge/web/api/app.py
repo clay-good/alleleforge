@@ -34,6 +34,7 @@ from fastapi.staticfiles import StaticFiles
 
 from alleleforge._version import __version__
 from alleleforge.config import Settings
+from alleleforge.design.cohort_summary import cohort_rows, cohort_to_tsv
 from alleleforge.errors import MissingDependencyError
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
@@ -68,6 +69,25 @@ from alleleforge.web.api.models import (
 )
 
 _FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+
+
+class BatchFormat(StrEnum):
+    """Renderings the cohort endpoint can return.
+
+    No `html`/`pdf`: a cohort produces per-item summaries, not one rendered document —
+    the same reason `aforge batch` has no `--format`. What it does produce is the flat
+    per-patient table a pipeline reads, which was CLI-only until the summary moved into
+    the library.
+
+    No `parquet` yet, deliberately: the design endpoint offers one because
+    `report_to_parquet` exists, and there is no cohort equivalent. Adding it means a new
+    writer plus the guard that its columns match the TSV's in order — two tables of the
+    same numbers disagreeing about their columns is a defect this project has already had
+    once — which is a feature, not the reachability fix this enum is part of.
+    """
+
+    json = "json"
+    tsv = "tsv"
 
 
 class DesignFormat(StrEnum):
@@ -644,8 +664,12 @@ def create_app(
         )
 
     @app.post("/api/batch", response_model=BatchResponse)
-    def batch_endpoint(req: BatchRequest, request: Request) -> BatchResponse:
-        """Design a whole cohort in one streaming run (per-item failures isolated)."""
+    def batch_endpoint(
+        req: BatchRequest,
+        request: Request,
+        fmt: Annotated[BatchFormat, Query(alias="format")] = BatchFormat.json,
+    ) -> BatchResponse | Response:
+        """Design a whole cohort in one run (JSON, TSV, or Parquet; failures isolated)."""
         from alleleforge.design.cohort import design_many
 
         reference = _require_reference(request)
@@ -674,6 +698,13 @@ def create_app(
             allow_spry=req.allow_spry,
             settings=settings,
         )
+        if fmt is not BatchFormat.json:
+            # The same table `aforge batch --summary-tsv` writes, from the same library
+            # function, so the two shells cannot describe one run differently.
+            return Response(
+                cohort_to_tsv(cohort_rows(report), report.provenance),
+                media_type="text/tab-separated-values; charset=utf-8",
+            )
         return BatchResponse(
             total=report.total,
             succeeded=report.succeeded,
