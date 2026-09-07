@@ -77,11 +77,14 @@ def test_a_single_chemistry_cohort_does_not(cohort: tuple[Path, Path]) -> None:
 
 def test_the_note_is_one_constant_not_two_wordings() -> None:
     """The menu and the cohort say the same sentence, from the same place."""
-    from alleleforge.cli import main as cli
-    from alleleforge.design import ranking
+    from alleleforge.design import cohort_summary, ranking
 
     assert CROSS_CHEMISTRY_NOTE in ranking.CROSS_CHEMISTRY_NOTE
-    assert "CROSS_CHEMISTRY_NOTE" in Path(cli.__file__).read_text(encoding="utf-8")
+    # Looked up through the module that *builds* the cohort summary, not a fixed path:
+    # that builder moved out of `cli/main.py` into the library, and a test pinned to
+    # where the code used to live fails on a move that changed nothing it cares about.
+    source = Path(cohort_summary.__file__).read_text(encoding="utf-8")
+    assert "CROSS_CHEMISTRY_NOTE" in source, cohort_summary.__file__
 
 
 def test_the_note_survives_as_a_comment_line(cohort: tuple[Path, Path]) -> None:

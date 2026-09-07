@@ -21,6 +21,17 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **The cohort summary moved out of the CLI into the library.** About 170 lines that flatten a
+  `CohortRunReport` into one row per patient and lead the table with the research-use disclaimer, the
+  coordinate convention, the reference genome's identity and the seed — all of it in `cli/main.py`, in a
+  project whose README says of both shells that they carry "no business logic of its own". That table is
+  a product: it is the file a run over a patient VCF gets forwarded in, and a Python caller had to
+  re-implement it, note block included, while `/api/batch` could not serve it at all. The single-design
+  flat table went through this same correction on the argument that a flat table is what a pipeline
+  reads; a per-patient table is more pipeline-shaped than that one. Now `alleleforge.design.cohort_rows`
+  and `cohort_to_tsv`, called by the CLI, with the two existing guards (API-reference coverage and
+  package re-export) catching the new public module on the first run.
+
 - **Fixed: the build-mismatch refusal offered one remedy, usable by one of three callers.** It is raised
   in the resolver, so it reaches a Python caller of `resolve()`, an `aforge design` user and an HTTP
   client alike — and it named only `aforge lift`. A library caller has `Liftover.from_chain_file` and no

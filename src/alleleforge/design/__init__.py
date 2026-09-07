@@ -15,6 +15,11 @@ from alleleforge.design.cohort import (
     CohortRunReport,
     design_many,
 )
+from alleleforge.design.cohort_summary import (
+    cohort_reference_shape_suffix,
+    cohort_rows,
+    cohort_to_tsv,
+)
 from alleleforge.design.designer import design
 from alleleforge.design.prime import design_prime
 from alleleforge.design.ranking import (
@@ -36,6 +41,9 @@ from alleleforge.design.routing import (
 )
 
 __all__ = [
+    "cohort_reference_shape_suffix",
+    "cohort_rows",
+    "cohort_to_tsv",
     "PRIME_MAX_EDIT",
     "PRIME_MAX_TEMPLATED_EDIT",
     "DEFAULT_WEIGHTS",

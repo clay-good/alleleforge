@@ -433,3 +433,19 @@ makes the rest meaningless.
 - **WHEN** the reference holds a contig with no bases
 - **THEN** the command explains that nothing was searched and exits non-zero, and the
   JSON payload reports `searched_bases` as zero
+
+
+### Requirement: A shell carries no business logic
+
+A shell parses its arguments, loads files from paths, formats for its medium and chooses
+exit codes. It SHALL NOT compute a *result* its siblings cannot then obtain.
+
+The cohort summary — the per-item row flattening and the TSV a whole run is read through,
+with its `#` note block — is a product: it is the file a run over a patient VCF gets
+forwarded in. It SHALL live in the library, reachable from Python and available to any
+shell, not in the command that happens to write it.
+
+#### Scenario: Producing a cohort summary from Python
+- **WHEN** a caller has a `CohortRunReport`
+- **THEN** the library gives them the same rows and the same TSV, notes included, that
+  `aforge batch --summary-tsv` writes

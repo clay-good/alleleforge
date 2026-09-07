@@ -73,6 +73,16 @@ stays bounded, isolates per-item failures, and is resumable from a JSONL run man
 
 ::: alleleforge.design.cohort
 
+## The cohort summary
+
+`cohort_rows` flattens a run into one dict per item and `cohort_to_tsv` writes the flat
+table a whole-cohort run is read through — one row per patient, led by the same `#` note
+block the per-design export carries. Both lived in the CLI, which made a *product* — the
+file a run over a patient VCF gets forwarded in — reachable from one shell only, while
+this project's stated shape is that a shell carries no business logic of its own.
+
+::: alleleforge.design.cohort_summary
+
 ## Spacer quality
 
 Pol III transcription caveats, shared by every chemistry — they are properties of a

@@ -10965,6 +10965,41 @@ a shell flag to a library caller" are the same rule about audiences, and I had t
 deliberately turn it around to find the second instance.**
 
 
+## Round 336 — the mirror of the oldest query in this log
+
+Forty rounds of "a capability the library has that no shell can reach". R335's lesson —
+a rule found in one direction has a mirror — turns it around: *a capability a shell has
+that the library does not.*
+
+The README makes the claim to check against: both shells carry "no business logic of its
+own". `cli/main.py` had about 170 lines flattening a `CohortRunReport` into one row per
+item and writing the TSV, led by the disclaimer, the coordinate convention, the reference
+identity and the seed.
+
+That is a product. It is the file a run over a patient VCF gets forwarded in — one row per
+person — and a Python caller had to rebuild all of it, note block and all, while
+`/api/batch` could not serve it. R297 moved the *single-design* flat table to every shell
+on the reasoning that a flat table is what a pipeline reads. A per-patient table is more
+pipeline-shaped than that one, and it stayed behind because nobody asked the question in
+this direction.
+
+Three things the move turned up, all from guards that already existed:
+
+* Two suite-level checks failed on the first run — every public module must appear in the
+  API reference, and a submodule's `__all__` must be re-exported by its package. Both are
+  right, and both fired without being asked.
+* A test asserted the cross-chemistry note appears in `cli/main.py` *by path*. Its intent
+  ("one constant, not two wordings") survived the move untouched; the assertion did not.
+  It reads the module that builds the summary now.
+* My own new guard rejected `cohort_rows`'s docstring — one line, adequate for a private
+  helper and not for a public function a caller is now expected to use.
+
+**Lesson: "the shell must not do what the library cannot" is the same requirement as "the
+library must not hold what the shell cannot reach", and forty rounds only ever asked it
+one way round. A symmetric rule asked asymmetrically will keep finding instances on the
+side you ask about, which reads like the other side being clean.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
