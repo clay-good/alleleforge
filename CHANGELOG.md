@@ -21,6 +21,15 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **`aforge verify` now checks the record against the result.** Every check it ran was verifiable from
+  the provenance block by itself — a version string, a config snapshot, a name and version on each entry
+  that is *listed*. Nothing looked at the artifact the block is attached to, so emptying `models` (one
+  edit, in the obvious place, on a report full of efficiency predictions in the same file) still reported
+  "provenance is complete and consistent". A prediction implies a scorer ran, and provenance's whole job
+  is naming what produced the numbers; that case is now a refusal with exit `4`. The bare
+  `.provenance.json` sidecar has no result to cross-check and is still accepted — it is the only
+  machine-readable provenance the tsv, html and pdf formats leave behind.
+
 - **Fixed: on the HTML report, a cloning-lethal hazard was typeset as de-emphasis.** Measured in a
   browser, `oligo warning: internal-BbsI-site` computed to 13.6px in grey on no background — it carried
   `class="muted"`, and so did every neighbour: the "showing 3 of 54 alleles" pagination note, the flag

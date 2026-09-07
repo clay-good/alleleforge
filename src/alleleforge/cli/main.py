@@ -99,6 +99,20 @@ _EXTRA_FOR_MODULE: dict[str, str] = {
 }
 
 
+def _carries_a_prediction(artifact: Any) -> bool:
+    """Return whether ``artifact`` holds at least one candidate prediction.
+
+    A prediction implies a scorer ran, which implies provenance should name a model.
+    Duck-typed across the two shapes `verify` accepts: a `DesignReport`'s candidates
+    expose `efficiency` directly, a `RankedMenu`'s expose it under `prediction`.
+    """
+    for candidate in getattr(artifact, "candidates", ()):
+        for owner in (candidate, getattr(candidate, "prediction", None)):
+            if owner is not None and getattr(owner, "efficiency", None) is not None:
+                return True
+    return False
+
+
 #: Every "wrote <path>" confirmation goes to **stderr**, not stdout. It is a status
 #: message about a side effect, and stdout is a data stream: `aforge design --out x.json
 #: --json > menu.json` used to interleave the line with the ranked-menu JSON and produce
@@ -2128,13 +2142,15 @@ def verify(
     # show. Adding a field to `DesignCandidate` ended the coincidence; naming all
     # three shapes ends the reliance on it.
     prov: Provenance | None = None
+    artifact: DesignReport | RankedMenu | None = None
     errors: list[str] = []
     for model in (DesignReport, RankedMenu):
         try:
-            prov = model.model_validate_json(text, context=context).provenance
+            artifact = model.model_validate_json(text, context=context)
         except ValueError as exc:
             errors.append(f"{model.__name__}: {exc}")
         else:
+            prov = artifact.provenance
             break
     else:
         try:
@@ -2175,6 +2191,18 @@ def verify(
     for ds in prov.datasets:
         if not ds.name or not ds.version:
             problems.append(f"a dataset is missing name/version: {ds.name!r}")
+    # Completeness has to be checked *against the artifact* when there is one. Every
+    # field above is verifiable from the provenance block alone, so a record whose
+    # `models` list had simply been emptied passed as "complete and consistent" — with
+    # a report full of efficiency predictions sitting in the same file. Provenance is
+    # meant to name what produced the numbers; a number with nothing named against it
+    # is exactly the state this command exists to refuse. The bare sidecar carries no
+    # such evidence and is unaffected.
+    if artifact is not None and not prov.models and _carries_a_prediction(artifact):
+        problems.append(
+            "provenance names no model, but the result carries model-derived "
+            "predictions — nothing here says what produced them"
+        )
 
     checks: list[dict[str, str]] = []
     if cache_dir is not None:

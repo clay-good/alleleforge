@@ -263,3 +263,23 @@ rather than as a changed hash.
 #### Scenario: A drifted score
 - **WHEN** a change moves one candidate's efficiency
 - **THEN** the gate fails naming that value's path and its old and new values
+
+
+### Requirement: Completeness is checked against the result, not only the record
+
+Every completeness check `aforge verify` can run on a provenance block alone is a check
+the block can satisfy while describing nothing. When the file also carries the result,
+the two SHALL be cross-checked: a result holding model-derived predictions and a
+provenance naming no model SHALL be reported as incomplete and exit non-zero.
+
+A bare `.provenance.json` sidecar carries no result to check against and SHALL still be
+accepted, since it is the only machine-readable provenance the tsv, html and pdf formats
+leave behind.
+
+#### Scenario: A result whose model list has been emptied
+- **WHEN** a design report carrying efficiency predictions names no model in provenance
+- **THEN** `verify` reports the inconsistency and exits non-zero
+
+#### Scenario: A bare sidecar naming no model
+- **WHEN** the file is a provenance block with no result attached
+- **THEN** `verify` accepts it, having nothing to cross-check

@@ -10155,6 +10155,39 @@ ranking of the author's attention, and things end up there by proximity rather t
 judgment.**
 
 
+## Round 311 — the checker that could not be told a lie because it never asked
+
+Running `aforge verify` for the first time. It works, and it is careful about its own
+limits — it says in as many words that nothing was re-hashed without `--cache-dir`, which
+is a lesson this project learned the hard way and applied here well.
+
+Then, out of curiosity, one edit to the file:
+
+    "models": []
+
+    provenance: aforge 0.1.0.dev0, seed 20240501, 0 model(s), 0 dataset(s)
+    verified: provenance is complete and consistent
+
+Look at what "complete" was checking. A version string is present. A config snapshot is
+present. Every entry that is *listed* has a name and a version. Every one of those is
+satisfiable by a block that describes nothing, and none of them looks at the artifact the
+block is attached to — which, for `--format json`, is in the same file, full of efficiency
+predictions with intervals and methods and OOD flags.
+
+A prediction implies a scorer ran. Provenance's entire purpose is naming what produced the
+numbers. So the cross-check is one line of reasoning and it now runs: predictions present,
+models empty, refuse. The bare sidecar is deliberately unaffected — it has no result to be
+inconsistent with, and refusing it would put the contract out of reach of three of the four
+output formats, which is a mistake this command already made once and fixed.
+
+**Lesson: "complete" is a two-place word and this one was being used with one argument.
+Every check was of the form "is this field non-empty", which validates the *shape* of a
+record; none was of the form "does this record account for that result", which is the only
+sense in which provenance can be complete. When a checker validates an artifact that
+contains its own subject matter, the subject matter is evidence — ask what the artifact
+implies must be in the record, not just whether the record parses.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
