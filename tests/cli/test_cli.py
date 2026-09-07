@@ -998,7 +998,11 @@ def test_bench_run_says_when_the_number_came_from_synthetic_data(
     assert "SYNTHETIC" in result.output
     assert "not a benchmark result" in result.output
 
-    payload = json.loads(runner.invoke(app, ["bench", "run", "cas9-efficiency", "--json"]).output)
+    # `.stdout` rather than `.output`: the caveat is written to stderr so that it
+    # reaches this reader too, and the data stream stays parseable.
+    piped = runner.invoke(app, ["bench", "run", "cas9-efficiency", "--json"])
+    assert "SYNTHETIC" in piped.stderr, "the reader who pipes the number was not told"
+    payload = json.loads(piped.stdout)
     assert payload["dataset_is_synthetic"] is True
     assert payload["schema_version"] >= 3  # the field changes the signed record
 

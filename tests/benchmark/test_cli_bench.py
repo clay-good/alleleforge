@@ -44,7 +44,9 @@ def test_bench_run_human(runner: CliRunner) -> None:
 def test_bench_run_json(runner: CliRunner) -> None:
     result = runner.invoke(app, ["bench", "run", "offtarget-classification", "--json"])
     assert result.exit_code == 0
-    payload = json.loads(result.output)
+    # `.stdout`, not `.output`: the latter is the mixed stream, so a note this command
+    # writes to stderr would be parsed as part of the JSON a pipeline reads.
+    payload = json.loads(result.stdout)
     assert payload["task"] == "offtarget-classification"
     assert payload["signature"]
 

@@ -11465,3 +11465,35 @@ happens to arrive first.
 **Lesson: an allowance that explains a design is still a claim about the code. "The
 operator decides" is only true if the operator has a switch, and that half of the
 sentence is the half nobody re-reads.**
+
+## Round 351 — the honesty note reached the reader who was not keeping the number
+
+Running the commands this session had not touched. `aforge verify` is sound on both
+result shapes and re-hashes the bundled CFD matrix rather than trusting its name;
+`aforge bench compare` and the leaderboard renderer are honest and well built. One thing
+was not.
+
+The bundled benchmark fixtures are synthetic stand-ins, and a Spearman over ten
+synthetic rows prints in exactly the shape of one over GUIDE-seq. An earlier round fixed
+that by printing a NOTE beside the number — inside the branch that runs when neither
+`--out` nor `--json` was given. So the reader who types the command bare was told, and
+the reader who writes the result to a file saw `wrote result.json` and nothing else,
+while the reader who pipes the JSON got `dataset_is_synthetic`, which is the very field
+that round's own comment describes as one "nothing read". Those two are the readers who
+save, share and publish the number. The caveat now goes to stderr, where this CLI puts
+every message about a side effect: it reaches all three modes and stays out of the data
+stream a pipeline parses.
+
+Two non-findings, both from measuring badly, and both worth recording because each
+looked like a serious defect for a few minutes:
+
+- `aforge bench compare` appeared to exit 0 on DIFFER — a comparison tool no CI could
+  gate on. It exits 4. The 0 was `head`'s exit code, because `$?` after a pipeline
+  reports the last command in it.
+- `--out` appeared to be offered by `aforge batch`, contradicting an allowance that
+  calls it design-only. The match was the `--out` inside `--output-dir`.
+
+**Lesson: a fix applied inside a branch is a fix for that branch. When the thing being
+fixed is "the reader was not told", ask which readers the branch excludes — here it
+excluded exactly the two who keep the number, which is the population the warning is
+for.**

@@ -2569,6 +2569,7 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+- `aforge bench run` states that a number came from a synthetic stand-in in every output mode. The caveat had been printed only in the bare terminal summary, so the two readers who keep the number — `--out` and `--json` — were the two never told.
 
 - **An ordering hazard reaches the table a pipeline filters on.** The oligo screen warns when an insert
   contains the assembly enzyme's own site (`internal-BsaI-site:pegrna-extension:+@27`) — the enzyme cuts

@@ -306,3 +306,24 @@ fraction.
   disclaimed nine predictions in ten and the other disclaimed none
 - **THEN** their reproducibility digests differ and `bench compare` reports them as
   not the same scientific result, naming the field that differs
+
+
+### Requirement: A synthetic number says so in every output mode
+
+The bundled fixtures are synthetic stand-ins, and a metric measured on one prints in
+exactly the shape of one measured on a real validation library. `aforge bench run` SHALL
+say so for every output mode — the bare terminal summary, `--out`, and `--json` — not
+only the one a reader uses when they are not keeping the number.
+
+The caveat SHALL go to stderr, so that it reaches a reader who redirects stdout and does
+not enter the data stream a pipeline parses. The `dataset_is_synthetic` field on the
+result SHALL remain: the terminal note is an addition to the in-band flag, not a
+replacement for it.
+
+#### Scenario: Saving a synthetic result to a file
+- **WHEN** `aforge bench run <task> --out result.json` scores a synthetic fixture
+- **THEN** stderr carries the stand-in caveat and stdout carries only the written path
+
+#### Scenario: Piping a synthetic result
+- **WHEN** `aforge bench run <task> --json` scores a synthetic fixture
+- **THEN** stderr carries the caveat and stdout remains parseable JSON without it

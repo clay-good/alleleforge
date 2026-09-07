@@ -2528,6 +2528,21 @@ def bench_run(
     if out is not None:
         out.write_text(result.model_dump_json(indent=2), encoding="utf-8")
         _echo_err(f"wrote {out}")
+    # The bundled fixtures are synthetic stand-ins and had always said so in a field
+    # nothing read, so a Spearman over ten synthetic rows printed in exactly the shape
+    # of one over GUIDE-seq. Saying so beside the number fixed that for the reader who
+    # runs the command bare — and left it broken for the two who keep the number.
+    # `--out` printed "wrote <path>" and nothing else; `--json` printed the body, whose
+    # `dataset_is_synthetic` field is the same field nothing reads. Those are the users
+    # who save, share and publish it. The caveat goes to stderr, where this CLI puts
+    # every message about a side effect, so it reaches all three without putting a
+    # sentence in a pipeline's data stream.
+    if result.dataset_is_synthetic:
+        _echo_err(
+            f"NOTE: dataset {result.dataset!r} is the bundled SYNTHETIC stand-in "
+            "shipped so the harness runs in CI. This number measures the contract, "
+            "not the model — it is not a benchmark result."
+        )
     if as_json:
         typer.echo(result.model_dump_json(indent=2))
     elif out is None:
@@ -2541,15 +2556,6 @@ def bench_run(
             f"{result.primary_value:.4f}, ece={ece_str} "
             f"(n={result.n_test}, model={result.model.name})"
         )
-        # The bundled fixtures are synthetic stand-ins and have always said so in a
-        # field nothing read, so a Spearman over ten synthetic rows printed in exactly
-        # the shape of one over GUIDE-seq. Say which one this is, next to the number.
-        if result.dataset_is_synthetic:
-            typer.echo(
-                f"  NOTE: dataset {result.dataset!r} is the bundled SYNTHETIC stand-in "
-                "shipped so the harness runs in CI. This number measures the contract, "
-                "not the model — it is not a benchmark result."
-            )
 
 
 @bench_app.command("compare")
