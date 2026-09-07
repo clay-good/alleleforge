@@ -11557,3 +11557,31 @@ page rewrites from `health.vep_enabled`, naming the checkbox that causes the tra
 banner fixes it for the audience that can check it another way, and leaves it broken for
 the audience that cannot. When a promise appears twice, the copy a person reads is the
 one that matters most.**
+
+## Round 354 — the page could not give you the document it was showing you
+
+Still in the browser. Submitting a real design and measuring the result: the report is
+39,062 pixels tall and the page embeds it in a frame fixed at 1400. That is 3.6% of it,
+read through a keyhole with no scrollbar cue on macOS, and a reader could reasonably
+believe the report ends where the frame does.
+
+The frame's height is not the defect and was checked before: the sandbox denies scripts,
+forms and same-origin access — deliberately, so that an escaping bug in the renderer is
+unexploitable rather than merely unlikely — and without same-origin access the frame
+cannot report its own height to be resized. The defect is that the reader had no way out.
+`/api/design?format=` serves five renderings and the page could download three. The TSV
+button carries the reasoning for its own round in a comment beside it: the format a bench
+scientist opens in Excel "had to be produced by another shell". HTML was in exactly that
+position and worse, because the page is already rendering it — a reader could not take
+the document away, keep it, or send it to a colleague without this deployment.
+
+So: a **Download HTML** button, a line saying the frame is not the end of the report, and
+a guard shaped like the request-field one — every format the API serves is downloadable
+or recorded with a reason. Parquet is recorded: a browser download of a binary columnar
+file can be opened by nothing the browser has, and the TSV beside it carries the same
+columns in the same order.
+
+**Lesson: when a surface cannot show all of something, the question is not how much it
+shows but whether the reader can get the rest. A constraint that is genuinely forced —
+here, the sandbox — makes the escape hatch more necessary, not less, and it is easy to
+close the question at "the constraint is justified" and never ask.**

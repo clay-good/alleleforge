@@ -66,6 +66,9 @@ async function design(event) {
     }
     reportFrame.srcdoc = await res.text();
     reportFrame.hidden = false;
+    // The frame is a fixed height and the report is often tens of thousands of pixels
+    // tall, with no cue on macOS that it scrolls. Say so, and point at the download.
+    document.getElementById("report-note").hidden = false;
     actions.hidden = false;
     setStatus("Done. The interactive report is below.");
   } catch (err) {
@@ -329,6 +332,15 @@ document
 document
   .getElementById("download-json")
   .addEventListener("click", () => download("json", "alleleforge-report.json", "application/json"));
+
+document
+  .getElementById("download-html")
+  .addEventListener("click", () =>
+    // The same document the frame renders, as a standalone file: it is self-contained
+    // (styles and charts inlined), so a reader can open it full-height, keep it, or
+    // send it to someone without this deployment.
+    download("html", "alleleforge-report.html", "text/html"),
+  );
 document
   .getElementById("download-tsv")
   .addEventListener("click", () =>

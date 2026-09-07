@@ -139,6 +139,12 @@
                object, so the one format a bench scientist opens in Excel — and the one
                a pipeline filters — had to be produced by another shell. -->
           <button id="download-tsv" type="button">Download TSV</button>
+          <!-- The format the frame below is already showing. It is embedded in a fixed
+               1400px sandbox — the sandbox is deliberate, and without same-origin access
+               the frame cannot report its own height to be resized — so a report that is
+               tens of thousands of pixels tall is read through a keyhole. Every other
+               rendering could be taken away and kept; the one on screen could not. -->
+          <button id="download-html" type="button">Download HTML</button>
         </section>
 
         <!-- Sandboxed: the report is server-generated HTML assembled from user-supplied
@@ -148,6 +154,9 @@
              keep the report's one external link (JBrowse) clickable. -->
         <iframe id="report" title="Design report"
                 sandbox="allow-popups allow-popups-to-escape-sandbox" hidden></iframe>
+        <small id="report-note" hidden>The report continues inside this frame — scroll it,
+               or use <strong>Download HTML</strong> to read the whole document at full
+               height.</small>
       </section>
 
       <section id="panel-batch" role="tabpanel" aria-labelledby="tab-batch" hidden>

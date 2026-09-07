@@ -369,3 +369,20 @@ description.
 - **WHEN** the page loads against a deployment reporting `vep_enabled`
 - **THEN** the banner says a variant can be sent off the deployment, and names what
   causes it
+
+
+### Requirement: The page can take away every rendering it can produce
+
+Every rendering `/api/design?format=` serves SHALL be downloadable from the served page,
+or recorded with the reason it is not. The HTML rendering in particular SHALL be
+downloadable, because the page embeds it in a fixed-height sandboxed frame that cannot
+resize itself: a reader sees a fraction of a report that is routinely tens of thousands
+of pixels tall.
+
+Because that frame is not the whole report and offers no cue that it scrolls, the page
+SHALL say so beside it and name the rendering that can be read at full height.
+
+#### Scenario: A report longer than the frame
+- **WHEN** a design report is rendered into the page's frame
+- **THEN** the page states that the report continues inside the frame, and offers the
+  HTML download

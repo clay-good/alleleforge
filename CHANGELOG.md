@@ -9,6 +9,7 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **Download HTML** on the served page: the one rendering it could not give you was the one it was showing you, through a fixed 1400px frame onto a report that is routinely tens of thousands of pixels tall. The page now also says the frame is not the whole report.
 - A deployment can enable off-target scan reuse (`ALLELEFORGE_OFFTARGET_CACHE`, `ALLELEFORGE_GENOME_INDEX`, or `create_app(...)`), and `GET /api/health` reports which under `scan_reuse`. The shell-parity guard had recorded reuse as the operator's call rather than the client's while no operator could make it.
 - `aforge design` and `aforge batch` can reuse a reference scan too (`--cache`, `--genome-index`), which is what the cross-run cache was built for — a cohort re-runs the same guide against the same reference constantly. Neither changes a result.
 - `aforge offtarget --cache` and `--genome-index` expose the two ways to avoid repeating a reference scan — a cross-run report cache and a persistent memory-mapped FM-index — which existed, were parity-tested, and could be reached only from Python.
