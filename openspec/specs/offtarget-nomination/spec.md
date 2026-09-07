@@ -425,3 +425,15 @@ intervals restricts a search to nothing and reports every guide as perfectly spe
 #### Scenario: An interval naming no bases
 - **WHEN** it arrives as `chr1:100-100` or as the BED row `chr1  100  100`
 - **THEN** both are a usage error, and the BED one names the line number
+
+
+### Requirement: Every surface that takes an interval refuses an empty one
+
+An interval naming no bases restricts a search to nothing and reports every guide as
+perfectly specific. Every way an interval reaches this tool from outside the process — a
+locus string, a web request region, a BED row — SHALL refuse one, and the enumeration of
+those surfaces SHALL be checked rather than asserted in a docstring.
+
+#### Scenario: An empty interval on any surface
+- **WHEN** `chr1:100-100` arrives as a locus string, a request region or a BED row
+- **THEN** each surface refuses it and says the interval names no bases

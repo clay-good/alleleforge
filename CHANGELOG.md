@@ -21,6 +21,14 @@ acceptance.
   actually builds, so a field added to the API and not to the page fails in the suite rather than in
   someone's browser.
 
+- **The empty-interval rule is now enumerated rather than claimed.** Three surfaces take an interval
+  from outside the process — a locus string, a web request region, a BED row — and each refuses a
+  zero-width one in its own words. They agree today; the BED reader did not until the previous round,
+  and `GenomicInterval.parse`'s docstring had claimed to be "shared by every surface that accepts a locus
+  from a user", which was true of the surfaces its author had in view. The surfaces are now a list a test
+  walks, so a fourth one has to appear there, and each is checked to refuse an empty and an inverted
+  interval and to accept a real one.
+
 - **Fixed: `chr1:100-100` was a usage error and the same interval in a BED file was accepted.**
   `GenomicInterval.parse` refuses an interval naming no bases and says why it exists — "shared by every
   surface that accepts a locus from a user, so the CLI and the web API cannot drift into accepting

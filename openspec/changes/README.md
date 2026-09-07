@@ -11089,6 +11089,33 @@ elsewhere. When a check's docstring says "shared by every surface", enumerate th
 and confirm each one actually calls it.**
 
 
+## Round 340 — the claim, enumerated
+
+R339's lesson said that when a check's docstring claims to be "shared by every surface",
+the surfaces should be enumerated and each confirmed to call it. Doing that:
+
+    GenomicInterval.parse    "locus 'chr1:100-100' is empty (100 <= 100)"
+    Region.to_interval       "region chr1:100-100 is empty"        (already correct)
+    read_bed_intervals       "line 1: interval names no bases"     (fixed last round)
+
+The web surface had the check all along, with the same reasoning written out — "a
+zero-width restriction would silently scope the scan to nothing and report every guide
+spotless." So R339 aligned the third of three, and the rule is now implemented three
+times in three files.
+
+Nothing is wrong today. What is true is that three copies of one rule already stopped
+agreeing once, in the copy that came from a file, where a stray row is least likely to be
+noticed. Consolidating them is a refactor with no bug behind it; enumerating them is the
+claim the docstring was making, made checkable. A fourth surface has to appear in the list,
+and every entry is checked to refuse an empty interval, refuse an inverted one, and accept
+a real one — because refusing identically is only half of agreeing.
+
+**Lesson: "this is shared by every X" is a claim about a set the code cannot see, and the
+author writes it while looking at the members that motivated it. The remedy is not always
+to consolidate — sometimes the copies are right where they are — but the set has to become
+something a test walks, or the sentence is just a description of what was true once.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
