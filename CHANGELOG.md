@@ -2056,6 +2056,13 @@ acceptance.
 
 ### Fixed
 
+- **Every prediction's notes reach a reader, from one rule instead of two lists.** `_uncovered_notes`
+  existed twice — once in the HTML render, once in the PDF — and both copies named `efficiency` and
+  `bystander_burden` while neither named `p_intended_prediction`, so a note on the intended-allele
+  probability would have reached the JSON and no human page. Latent, in duplicate. The rule is one shared
+  function now and the prediction list is derived from the model, so a prediction field added later is
+  covered the day it appears.
+
 - **An untrained point estimate says so on the report.** A candidate read
   `Efficiency 0.60 [0.45, 0.75] @ 80% (nominal — coverage not measured)` — a parenthetical about the
   *band*, while the number itself came from an unfitted pseudo-random scaffold. The bundled model card

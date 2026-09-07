@@ -193,7 +193,7 @@ def test_a_prediction_note_without_a_flag_behind_it_is_rendered() -> None:
     stating that the default prime scorer has no edit-size term, which is exactly
     the caveat a reader of a multi-base edit needs.
     """
-    from alleleforge.report.html import _uncovered_notes
+    from alleleforge.report.builder import uncovered_prediction_notes as _uncovered_notes
     from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE, Prediction, UncertaintyMethod
 
     prediction = Prediction[float](

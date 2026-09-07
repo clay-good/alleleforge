@@ -19,10 +19,10 @@ from alleleforge.report.builder import (
     caveats,
     model_limitation_lines,
     provenance_lines,
+    uncovered_prediction_notes,
     visible_candidates,
 )
 from alleleforge.report.oligos import PegRNAOligos, SgRnaOligos
-from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE
 
 #: US Letter media box (points).
 _PAGE_W, _PAGE_H = 612, 792
@@ -94,16 +94,6 @@ def oligo_lines(oligos: SgRnaOligos | PegRNAOligos) -> list[str]:
     return lines
 
 
-def _uncovered_notes(c: CandidateReport) -> list[str]:
-    """Prediction notes the inline calibration wording does not already convey."""
-    notes: list[str] = []
-    for prediction in (c.efficiency, c.bystander_burden):
-        if prediction is None:
-            continue
-        notes += [n for n in prediction.notes if n != NOMINAL_INTERVAL_NOTE]
-    return list(dict.fromkeys(notes))
-
-
 def _candidate_lines(c: CandidateReport) -> list[str]:
     """Render one candidate to a list of text lines."""
     lines: list[str] = []
@@ -138,7 +128,7 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
             f"@ {b.interval_level:.0%}{cal}",
             indent="    ",
         )
-    for note in _uncovered_notes(c):
+    for note in uncovered_prediction_notes(c):
         lines += _wrap(f"note: {note}", indent="    ")
     if c.p_intended is not None:
         prediction = c.p_intended_prediction

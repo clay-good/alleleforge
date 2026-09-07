@@ -28,10 +28,11 @@ from alleleforge.report.builder import (
     caveats,
     model_limitation_lines,
     provenance_lines,
+    uncovered_prediction_notes,
     visible_candidates,
 )
 from alleleforge.report.pdf import oligo_lines
-from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE, Prediction
+from alleleforge.types.prediction import Prediction
 from alleleforge.viz.svg import Series, bar_chart
 
 #: Series colors for the grouped off-target chart, cycled per candidate. Fixed and
@@ -135,24 +136,6 @@ def _offtarget_figure(report: DesignReport) -> str:
     )
 
 
-def _uncovered_notes(c: CandidateReport) -> list[str]:
-    """Return a prediction's notes that the rendered parentheticals do not already say.
-
-    A `Prediction` carries free-text caveats alongside its flags. The nominal-interval
-    caveat is already spelled out inline as "(nominal — coverage not measured)", so
-    repeating it is noise — but the others have no flag behind them and were reaching
-    only the JSON. One of them states that the default prime scorer has no edit-size
-    term, which is exactly the caveat a reader of a multi-base edit needs and the page
-    was silent about.
-    """
-    notes: list[str] = []
-    for prediction in (c.efficiency, c.bystander_burden):
-        if prediction is None:
-            continue
-        notes += [n for n in prediction.notes if n != NOMINAL_INTERVAL_NOTE]
-    return list(dict.fromkeys(notes))
-
-
 def _untrained(prediction: Prediction[float]) -> str:
     """Say when a point estimate did not come from a trained model.
 
@@ -194,7 +177,7 @@ def _candidate_html(c: CandidateReport) -> str:
             f"<p>Bystander burden <strong>{b.value:.2f}</strong> "
             f"[{b.interval[0]:.2f}, {b.interval[1]:.2f}] @ {b.interval_level:.0%}{cal}</p>"
         )
-    for note in _uncovered_notes(c):
+    for note in uncovered_prediction_notes(c):
         parts.append(f"<p class='muted'><strong>note:</strong> {_esc(note)}</p>")
     if c.p_intended is not None:
         # The number a reader is most likely to act on. Where the chemistry's outcome

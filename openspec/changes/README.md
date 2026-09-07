@@ -9419,6 +9419,33 @@ one about the band's coverage, one about the number's provenance.
 made the line *look* qualified — a partial disclosure reads as a complete one.**
 
 
+## Round 288 — one rule, two copies, both incomplete in the same way
+
+R287 asked whether every honesty flag on a `Prediction` has a surface. The flags do. The
+free-text `notes` do too — through `_uncovered_notes`, which renders the caveats that have
+no flag behind them (one of them states the default prime scorer has no edit-size term,
+exactly what a reader of a multi-base edit needs).
+
+It existed twice. `html.py` and `pdf.py` each had their own copy, and both listed
+`efficiency` and `bystander_burden` by hand. Neither listed `p_intended_prediction`, so a
+note attached to the intended-allele probability would have reached the JSON and no human
+page — the same omission, independently maintained, in both renders.
+
+Nothing is lost today: that prediction carries only the nominal-interval note, which is
+deduplicated anyway. The bug was latent, in duplicate, and would have surfaced the first
+time someone attached a caveat to P(intended) — a plausible thing to do, since it is the
+number the cleanliness axis is built from.
+
+One shared helper in `builder.py` now, with the prediction list derived from the model
+rather than maintained. The test constructs a note on P(intended) and asserts both renders
+show it, and asserts neither module still defines a local copy.
+
+**Lesson: when a rule exists in two renderers, the interesting question is not whether they
+agree — it is whether they are wrong in the same way. Two hand-maintained lists drift
+together when they were copied from each other, so finding one incomplete tells you nothing
+about the other; check both, then delete one.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

@@ -23,7 +23,7 @@ from alleleforge.report.oligos import (
 )
 from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import AlleleOutcome, Chemistry
-from alleleforge.types.prediction import Prediction
+from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE, Prediction
 from alleleforge.types.provenance import Provenance
 from alleleforge.types.sequence import GenomicInterval
 
@@ -677,6 +677,34 @@ def model_limitation_lines(provenance: Provenance | None) -> list[str]:
         if parts:
             lines.append(f"{model.name} {model.version} — " + " | ".join(parts))
     return lines
+
+
+def candidate_predictions(candidate: CandidateReport) -> list[Prediction[float]]:
+    """Return every prediction a rendered candidate carries, derived from the model.
+
+    Listing them by hand is how one gets missed: both renders named `efficiency` and
+    `bystander_burden` and neither named `p_intended_prediction`, so a note attached to
+    the intended-allele probability would have reached the JSON and no human page.
+    """
+    return [
+        value
+        for name in type(candidate).model_fields
+        if isinstance(value := getattr(candidate, name), Prediction)
+    ]
+
+
+def uncovered_prediction_notes(candidate: CandidateReport) -> list[str]:
+    """Return the prediction notes the inline parentheticals do not already state.
+
+    The nominal-interval caveat is rendered inline as "(nominal — coverage not
+    measured)", so repeating it is noise; the rest have no flag behind them and reached
+    only the JSON. Shared by both renders — it was two hand-maintained copies of one
+    rule, and they had already drifted in the same direction.
+    """
+    notes: list[str] = []
+    for prediction in candidate_predictions(candidate):
+        notes += [n for n in prediction.notes if n != NOMINAL_INTERVAL_NOTE]
+    return list(dict.fromkeys(notes))
 
 
 def build_report(
