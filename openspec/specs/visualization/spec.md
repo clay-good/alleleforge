@@ -8,6 +8,18 @@ and reference-bias evidence is regenerable and citable.
 
 ## Requirements
 
+### Requirement: Every figure states where its numbers came from
+
+A figure is the artifact most likely to be seen alone — in a slide, an issue, a paper — so
+a caveat that lives beside it in a report does not travel with it. Every shipped figure
+SHALL state its data provenance in rendered text: the bundled-benchmark caveat for
+benchmark rows, and an equivalent statement naming the construction for a figure drawn
+from a constructed or seeded set.
+
+#### Scenario: A new figure
+- **WHEN** a figure is added to the registry
+- **THEN** its rendered SVG carries a data-provenance line, or the build fails
+
 ### Requirement: Figures regenerate byte-for-byte
 
 Figures SHALL regenerate byte-for-byte from config and seed: deterministic number

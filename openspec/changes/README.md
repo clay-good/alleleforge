@@ -9563,6 +9563,34 @@ true of the column and false of most of the rows in it — a remedy needs to be 
 against the row it is printed on, not against the feature in general.**
 
 
+## Round 293 — three clean probes, and the guard worth leaving behind
+
+Three checks in a row came back sound, which is worth recording as plainly as a defect
+would be.
+
+`verify --cache-dir` on an empty cache: lists each checkpoint as `unpinned` and says
+"nothing was re-hashed ... Nothing about artifact integrity was established" — the honest
+form, already there. The `data list` remedy from R292 was the last gap in that family.
+
+Then the figures. `SYNTHETIC_DATA_NOTE` exists because "a figure is the artifact most
+likely to be seen *alone* — in a slide, an issue, a paper — so a caveat that lives in the
+report next to it does not travel with it". Two of the four figures carry that note and two
+do not, which looked like a gap for about a minute: the other two are not drawn from
+benchmark rows at all, and each states its own provenance in its subtitle — "Data: a
+CONSTRUCTED locus in the style of rs114518452", "Data: a seeded SYNTHETIC interval set".
+Three forms, each right for its source. Checked before concluding, again.
+
+So the round is the guard: every figure in the registry must state its provenance in
+*rendered text*, since a reader sees the picture and not the markup. Derived from `FIGURES`,
+so a fifth figure cannot ship without a data line, plus a staleness check that no accepted
+form has fallen out of use.
+
+**Lesson: when several probes come back clean, the area is telling you it was built by
+someone who had the same worry. The useful contribution there is not a fix but the
+enumeration nobody wrote — the property is already true, and what is missing is the thing
+that keeps it true for the next author.**
+
+
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.

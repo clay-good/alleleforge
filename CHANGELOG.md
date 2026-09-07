@@ -2056,6 +2056,12 @@ acceptance.
 
 ### Fixed
 
+- **Every figure is checked to state where its numbers came from.** `SYNTHETIC_DATA_NOTE`'s docstring makes
+  the argument — a figure is the artifact most likely to be seen alone, so a caveat living beside it in the
+  report does not travel with it — and all four shipped figures do state their provenance, in three forms
+  matched to their sources. Nothing enumerated the registry, so the failure mode was a *new* figure
+  shipping without a data line. Now guarded, against the rendered SVG rather than the builder source.
+
 - **`data list` no longer offers a fetch the registry will refuse.** The registry's second invariant is
   that no unverifiable artifact is fetched — a download requires a pinned `sha256` — and seven of the eight
   shipped descriptors carry none, so `resolve(..., consent=True)` raises `ChecksumError` for almost
