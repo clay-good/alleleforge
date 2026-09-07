@@ -1,9 +1,11 @@
 # Readiness assessment — AlleleForge for the medical/research community
 
-_Status as of 2026-09-05. Author: engineering audit. This file records the honest
+_Status as of 2026-09-07. Author: engineering audit. This file records the honest
 state of the project so context is not lost across sessions. Sections dated
 2026-06-23 are kept for the record; the 2026-09-05 update below supersedes their
-numbers and the prime-efficiency row._
+numbers and the prime-efficiency row, and the 2026-09-07 update supersedes the
+2026-09-05 reachability list. The verification numbers just below are re-measured,
+not remembered._
 
 ## TL;DR
 
@@ -21,11 +23,13 @@ not the real published models the README compares against. Build scientific subs
 - **The framework itself**: typed core, honest uncertainty contract, reproducible-
   to-the-byte runs, content-addressed benchmark harness, consent/license/checksum
   model-zoo gate, CLI + web + native Rust parity. All verified green:
-  - `ruff` clean; `mypy --strict` clean (93 files)
-  - 906 tests pass, 1 skipped, **97.9% coverage** (gate 85%)
+  - `ruff` clean; `mypy --strict` clean (103 files)
+  - 2,752 tests pass, 21 skipped, **97.7% coverage** (gate 85%)
   - `mkdocs build --strict` clean; `scripts/reproduce.py` matches golden
-  - 3 example notebooks pass; native crate builds, `cargo fmt`/`clippy` clean,
-    35 parity tests pass
+  - 4 example notebooks pass; native crate builds, `cargo fmt`/`clippy` clean
+  - The 21 skips are all opt-in, not failures: 17 native-kernel parity tests skip
+    when the Rust extension is not built in the checkout, and 4 real-weight tests
+    skip unless `ALLELEFORGE_REAL_WEIGHTS=1` (they reach outside the repository).
   - wheel + sdist build, `twine check` PASSED, assets bundled (py.typed, cards,
     splits, frontend)
 
@@ -160,3 +164,37 @@ configuration like the reference already has.
 
 The guardrail above is unchanged and now actually holds at the command line: "population/haplotype-aware
 off-target with honest uncertainty" is true today *and reachable by a user*, which it was not before.
+
+## UPDATE 2026-09-07 — the "still library-only" list above had gone stale
+
+The 2026-09-05 update ends with a list of what a promoter of the CLI should know is
+*not* reachable from it. Two days and several rounds later, every entry on it was
+wrong:
+
+- **`offtarget_regions` is reachable**: `design`, `batch` and `offtarget` all take
+  `--region` (repeatable) and `--regions-bed`.
+- **`encode_tracks` / `chromatin_track` are reachable**: `--encode-tracks` with
+  `--chromatin-track` to name the track, on `design` and `batch`.
+- **The three file inputs are reachable over HTTP**, by the server-side route that
+  update said was needed: `ALLELEFORGE_GNOMAD` and `ALLELEFORGE_HAPLOTYPES` are read
+  at app start, so a deployment opts in without a client ever naming a path.
+
+The 2026-09-05 update shipped a regression test for its *other* honesty claim — that
+no trained prime scorer satisfies the override protocol — and that claim is still
+true today. The unguarded claim in the same document rotted within two days. So this
+list is now generated from the code rather than remembered, and
+`tests/test_the_readiness_assessment_states_the_real_reachability.py` fails if it
+drifts: it binds every `run_design(...)` call in the CLI against `design()`'s
+signature and requires the table below to name exactly the parameters left over.
+
+### `design()` parameters no CLI command supplies
+
+| Parameter | Why not, and whether it is a gap |
+|---|---|
+| `build` | Not a gap. `--build` exists; the CLI resolves the variant itself and passes a `ResolvedVariant`, so the build reaches the run through the input. |
+| `clinvar` | Blocked, not declined. Accession inputs need a ClinVar lookup, and the project ships the `Protocol` with no implementation. |
+| `dbsnp` | Blocked, as `clinvar`: rsID inputs need a dbSNP lookup with no shipped implementation. |
+| `hgvs` | Blocked, as `clinvar`: `c.`/`p.` inputs need an HGVS adapter with no shipped implementation. |
+| `effect` | **A real gap.** A library caller can annotate each design with the variant's predicted consequence; no command-line user can, and nothing says so at the prompt. |
+| `prime_outcome_predictor` | Not a gap today. It is an override for the prime byproduct baseline, and, as with prime *efficiency*, nothing trained ships to pass it. |
+| `timestamp` | Not a gap. It exists so tests can pin provenance; `--timestamp` would only let a user forge a run's clock. |

@@ -11211,3 +11211,42 @@ especially mid-task.**
 Each change folder contains `proposal.md` (Why / What Changes / Impact), `tasks.md` (an
 ordered checklist), and `specs/<capability>/spec.md` (the ADDED/MODIFIED requirement
 deltas). When a change ships, fold its deltas into `specs/` and archive the folder.
+
+## Round 344 — the honest-state file was the stalest file in the repo
+
+`specs/readiness-assessment.md` opens by saying it "records the honest state of the
+project so context is not lost across sessions". It claimed 906 tests, 1 skipped, 93
+files under `mypy --strict` and 3 example notebooks. Measured: 2,750 pass, 21 skipped,
+101 files, 4 notebooks. Worse than the numbers, its closing section — the list a
+reader consults before promoting the CLI — named three capabilities as library-only,
+and all three had shipped to the CLI or the web API within two days of it being
+written: `--region`/`--regions-bed`, `--encode-tracks`/`--chromatin-track`, and the
+server-side `ALLELEFORGE_GNOMAD`/`ALLELEFORGE_HAPLOTYPES` route the same paragraph
+had said was the right way to expose the file inputs. The document was warning people
+away from the project's own features.
+
+The same document, in the same update, shipped a regression test for its *other*
+honesty claim ("no trained prime scorer satisfies the override protocol"). That claim
+is still true. The unguarded one next to it rotted in 48 hours. So the list is now
+generated: `tests/test_the_readiness_assessment_states_the_real_reachability.py`
+binds every `run_design(...)` call site in the CLI against `design()`'s signature and
+requires the document's table to name exactly the leftovers. Writing the table that
+way surfaced a real gap nobody had recorded — `effect`, the variant-consequence
+annotator, is available to library callers and to no command-line user — alongside
+six entries that are genuinely fine (`build` arrives through the resolved variant;
+`clinvar`/`dbsnp`/`hgvs` are `Protocol`s with no shipped implementation;
+`prime_outcome_predictor` has nothing trained to inject; `timestamp` exists so tests
+can pin provenance, and a `--timestamp` would only let a user forge a run's clock).
+
+Two false starts worth recording, because both were the same mistake. Comparing
+`design()`'s parameter *names* against the CLI command's parameter names called
+`offtarget_regions` unreachable — the CLI spells it `--region` and renames it at the
+call. Comparing keyword arguments only called `inp` and `build` unreachable — the CLI
+passes the resolved variant positionally. Each time the false positive meant the rule
+was stated wrong, not that it needed an exception; binding the call the way Python
+binds it is the rule that is actually true.
+
+**Lesson: a document that says it is the record of honest state is the one that most
+needs a test, and the guarded claim in it survived while its unguarded neighbour
+rotted in two days. When a file's purpose is to be current, derive its claims from
+the code or expect to be lying by the next round.**

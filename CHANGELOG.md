@@ -9,6 +9,7 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- The readiness assessment's list of what no CLI user can reach is now derived from the code instead of remembered: every entry on the old list had shipped to the command line within two days of it being written, and its verification numbers were three months stale.
 
 - **Nine capabilities the API accepted and the served page could not ask for.** `readForm()` sent five
   fields; `DesignRequest` has fourteen. Four of the missing ones changed what a run could *reach*:
