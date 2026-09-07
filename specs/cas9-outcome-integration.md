@@ -30,8 +30,8 @@ axis (the `MicrohomologyOutcomePredictor` baseline stays the weight-free default
 
 `LindelAdapter.predict(context, cut, *, max_del, mark_frameshift)` matches the
 `Cas9OutcomePredictor` protocol, so it is a drop-in for `design_cas9`'s
-`outcome_predictor` (a `--trained-outcome` CLI flag could expose it, mirroring
-`--trained-efficiency`).
+`outcome_predictor`. `aforge design --trained-outcome` exposes it, mirroring
+`--trained-efficiency`.
 
 ## Remaining outcome/cross-check stubs (still `NotImplementedError`)
 

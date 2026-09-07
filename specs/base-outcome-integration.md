@@ -1,13 +1,19 @@
-# Base-editing outcome model — next real-model target
+# Base-editing outcome model — BE-DICT (shipped)
 
-_Status as of 2026-06-23. Third real-model integration (after Rule Set 3 and
-PRIDICT2.0). Captures the research + plan; implementation is the next unit._
+_Plan written 2026-06-23 and executed the same day; status re-checked 2026-09-07.
+Third real-model integration (after Rule Set 3 and PRIDICT2.0). **`BeDictAdapter` is
+shipped and golden-verified** — see the execution log at the end. Everything between
+here and there is the plan as it was written, kept because it records why the
+boundary decisions were made; it is not a statement of what remains to do._
 
 ## Decision: BE-DICT first
 
 The base-editing **outcome** scorers (`scoring/base_outcome.py`: `BeDictAdapter`,
-`BeHiveAdapter`) are still heuristic placeholders / `NotImplementedError` stubs.
-Two real candidates:
+`BeHiveAdapter`) were both heuristic placeholders / `NotImplementedError` stubs when
+this was written. `BeDictAdapter` has since shipped; `BeHiveAdapter` is now
+out-of-scope by decision rather than pending (see
+[`cross-check-models-scope.md`](cross-check-models-scope.md)). Two real candidates
+were considered:
 
 - **BE-DICT** (`uzh-dqbm-cmi/crispr`) — **chosen first.** MIT; PyTorch; **same lab
   as PRIDICT2** (whose modern stack already runs here, so low rot risk); two models:
@@ -124,5 +130,12 @@ pins this against BE-DICT's own documented window (ABE/CBE canonical window ≈ 
   (ABE8e, seq `ACACACACACTTAGAATCTG`: base_pos 4≈0.776, 6≈0.577; full `predict`
   pins target pos 5 → base_pos 4 peak). Card `source_url` corrected (`crispr-bedict`
   → `crispr`). `make ci` green.
-- **BE-Hive** remains the deferred follow-up; **PRIDICT2 P2** (per-pegRNA parity) and
-  **Cas9 outcome** (inDelphi/Lindel/X-CRISP) are the other open outcome-model items.
+- 2026-09-07: The line that stood here — "BE-Hive remains the deferred follow-up;
+  PRIDICT2 P2 and Cas9 outcome (inDelphi/Lindel/X-CRISP) are the other open items" —
+  was true when written and had been overtaken. Lindel shipped
+  ([`cas9-outcome-integration.md`](cas9-outcome-integration.md)); BE-Hive, inDelphi
+  and X-CRISP were investigated and put **out of supported scope** with per-model
+  evidence ([`cross-check-models-scope.md`](cross-check-models-scope.md)). **PRIDICT2
+  P2** (per-pegRNA parity) is the one genuinely open item on this list, and a
+  regression test fails the moment a trained prime scorer satisfies the override
+  protocol, so it cannot close silently.

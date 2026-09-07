@@ -11329,3 +11329,33 @@ and `reference_checked` drew before it.
 reason here was sound and answered a different question than the one that mattered — how
 to expose it, not whether — and it had been written into the record as a decision not
 to.**
+
+## Round 347 — the sibling documents, and the claim that matters most
+
+Round 344 derived the readiness assessment's claims from the code. `specs/` holds six
+more documents beside it, two of them linked from the README, and they carry the single
+most consequential thing this project asserts: which predictions come from a published
+model and which come from a transparent baseline.
+
+Five were accurate. `specs/base-outcome-integration.md` contradicted itself: its header
+said implementation "is the next unit" and its opening paragraph called `BeDictAdapter`
+a `NotImplementedError` stub, while its own execution log at the bottom of the same file
+recorded BE-DICT shipping and golden-verifying — on the same day the header was written.
+A reader who stopped at the top got the opposite of the truth, for three months. Its
+closing line was stale in the other direction too, listing inDelphi, X-CRISP and BE-Hive
+as open follow-ups after each had been investigated and put out of scope with evidence.
+Fixed, and the plan body is now labelled as the plan as written rather than as work
+outstanding.
+
+The durable part is that `specs/cross-check-models-scope.md` — the decision record with
+both tables, four supported models and five deliberate placeholders — is no longer only
+prose. A supported adapter must override the gate's refusing forward pass; an
+out-of-scope one must still inherit it; and every adapter the scoring package ships must
+appear in one list or the other. That last clause is the one that pays later: it fails
+on the *next* adapter added, not just today's eight. The wiring check reads the resolved
+method rather than the class body, because every one of these subclasses inherits
+`_ModelZooAdapter` — a class-body scan calls all eight implemented and passes vacuously.
+
+**Lesson: when a document disagrees with itself, the top wins with readers and the
+bottom wins with authors — which is why the drift survived three months of people who
+had read the file. Check the header against the log, not the file against memory.**
