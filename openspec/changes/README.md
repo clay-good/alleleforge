@@ -12506,3 +12506,35 @@ against the symptom and enumerate the mechanisms.**
 **And: measure the page, do not look at it. A screenshot of a panned page looks fine —
 `document.scrollWidth > clientWidth` is the only thing that says otherwise.**
 
+## Round 387 — the gate was documented in three places and compared in two
+
+`test_gate_mirrors_ci.py` compares `make ci` to the CI workflow by *command*, because a
+mirror that matches job names is a mirror of the list of jobs. It does not read the README,
+which carried its own hand-spelled copy of the same gate — and that copy had drifted in
+exactly the way the file's docstring was written about: `ruff` over three paths where CI
+runs four.
+
+It also told contributors to `cd rust && maturin develop --release`. That installs a build
+of the working tree into whichever virtualenv is active — shared by every checkout using
+it, and stale the moment the tree moves, which in a repository routinely worked in several
+worktrees at once is a real hazard rather than a stylistic one. CI installs the built
+wheel; `make native` now does the same.
+
+The fix is removal, not a third copy to compare. The README points at the targets, and the
+new check keeps it pointing: a `ruff`/`mypy`/`pytest`/`maturin` invocation in the
+development section means someone has started a fourth copy. A companion check found two
+more `maturin develop` instructions — in CONTRIBUTING and the deployment guide — on its
+first run.
+
+The check's own first draft failed on prose that merely *names* the tools, including the
+new sentence explaining why they are no longer spelled out. It reads command lines inside
+the fenced blocks now.
+
+**Lesson: when a guard compares two copies of a fact, count the copies. Two were compared
+and a third was not, and the uncompared one is the surface a new contributor reads first.
+And the remedy for a duplicated instruction is usually to delete it and point, not to add
+a third comparison.**
+
+**Also: a needle that cannot tell an instruction from a mention will libel the explanation
+of the very rule it enforces.**
+
