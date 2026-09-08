@@ -12624,3 +12624,30 @@ second instance was the more consequential one.**
 **And a fix landing at a new call site inherits none of the handling around the old one.
 Route both through the boundary rather than repeating the `try`.**
 
+## Round 391 — the contributor guide's second command has never worked
+
+`CONTRIBUTING.md` says "a conda environment is also provided" and gives `conda env create
+-f environment.yml`. There has never been an `environment.yml`. What the repository ships
+is `conda/meta.yaml`, a bioconda packaging *recipe* — how to publish the released package,
+not how to set up a checkout. The two are adjacent enough in name that the claim reads as
+true to anyone who has seen `conda/` in the tree, and it is the second command in the
+guide, so it failed inside a new contributor's first five minutes.
+
+The step above it was wrong in a quieter way: `pip install -e ".[dev]"` leaves out the
+FASTA reader and the web server, so the gate the next section tells you to run cannot pass.
+Both now point at `make install`.
+
+Neither was reachable by the existing docs guards. The local-link check reads Markdown
+links; this is an argument inside a fenced command — the same class of claim in a different
+syntax. Every config file named in a documented command is now checked to exist, with a
+recorded allowance for the one a reader is meant to *write* (`run.toml`), and a reverse
+check so that allowance cannot cover a file the repository actually ships.
+
+**Lesson: a guard is scoped to a SYNTAX, and claims migrate between syntaxes. "Every local
+link resolves" and "every file a command names exists" are the same rule about the same
+kind of promise, and only the first had a check. When you find a guard, ask what other
+notation the same claim is written in.**
+
+**And the first commands in a contributor guide are the least-run code in the repository:
+everyone who could notice them broken already has a working checkout.**
+
