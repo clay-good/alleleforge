@@ -91,18 +91,52 @@ def test_an_enabled_model_is_no_longer_refused(reference: ReferenceGenome) -> No
     assert client.post("/api/design", json=body_other).status_code == 422
 
 
-@pytest.mark.parametrize("source", ["env", "argument"])
-def test_a_typo_in_the_operator_setting_is_loud(
-    source: str, reference: ReferenceGenome, monkeypatch: pytest.MonkeyPatch
+def test_a_typo_in_the_create_app_argument_raises(reference: ReferenceGenome) -> None:
+    """A bad literal in Python is a programmer's mistake, and raising is the answer."""
+    with pytest.raises(ValueError, match="unknown model"):
+        create_app(reference=reference, trained_models=["trained_efficency"])
+
+
+def test_a_typo_in_the_environment_is_loud_without_being_fatal(
+    reference: ReferenceGenome, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A misspelling that silently enables nothing is what the gate exists to prevent."""
-    if source == "env":
-        monkeypatch.setenv("ALLELEFORGE_TRAINED_MODELS", "trained_efficency")
-        with pytest.raises(ValueError, match="unknown model"):
-            create_app(reference=reference)
-    else:
-        with pytest.raises(ValueError, match="unknown model"):
-            create_app(reference=reference, trained_models=["trained_efficency"])
+    """A misspelling must not silently enable nothing — and must not stop the container.
+
+    Both halves matter, and the first draft of this feature only had one. `create_app()`
+    runs at module scope, so raising on an environment variable takes the whole process
+    down at import: `uvicorn alleleforge.web.api.app:app` — the command in the deployment
+    guide and the Dockerfile — exits with a traceback and the container never starts.
+    That is the defect the reference loader in the same file carries a paragraph about,
+    and this round reintroduced it one config source over.
+
+    Loud is now `/api/health`, where every other misconfigured source already reports
+    itself, plus a 422 by name on any request for a model that should have been enabled.
+    """
+    monkeypatch.setenv("ALLELEFORGE_TRAINED_MODELS", "trained_efficency")
+    app = create_app(reference=reference)  # must not raise
+    client = TestClient(app)
+    health = client.get("/api/health").json()
+
+    assert health["trained_models"] == [], health
+    error = health["source_errors"]["trained_models"]
+    assert "trained_efficency" in error and "trained_efficiency" in error, error
+
+    # And the capability the operator meant to enable is still refused by name.
+    response = client.post(
+        "/api/design",
+        json={"variant": "chr1:103:G>A", "run_offtarget": False, "trained_efficiency": True},
+    )
+    assert response.status_code == 422, response.text
+
+
+def test_a_healthy_deployment_reports_no_trained_model_error(
+    reference: ReferenceGenome, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The error key must be absent when there is nothing wrong, not present and empty."""
+    monkeypatch.setenv("ALLELEFORGE_TRAINED_MODELS", "trained_outcome")
+    health = TestClient(create_app(reference=reference)).get("/api/health").json()
+    assert health["trained_models"] == ["trained_outcome"]
+    assert "trained_models" not in health["source_errors"], health["source_errors"]
 
 
 def test_the_env_value_all_enables_every_one(

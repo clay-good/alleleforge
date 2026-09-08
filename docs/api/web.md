@@ -72,8 +72,11 @@ Lindel, BE-DICT, DeepPrime — is a consent-gated weight download or an external
 the operator's disk, so only the operator can turn one on; which model scores a given run
 is the client's choice, made per request with `trained_efficiency`, `trained_outcome`,
 `trained_base_outcome` or `trained_prime` (the same names `aforge design` uses as flags).
-Set it to a comma-separated list of those names, or `1` for all four; an unrecognized name
-raises at startup rather than quietly leaving the deployment baseline-only. `GET
+Set it to a comma-separated list of those names, or `1` for all four. An unrecognized name
+does not quietly leave the deployment baseline-only: it is reported on `GET /api/health`
+under `source_errors`, and a request for a model it should have enabled is refused by name.
+It does not raise, because `create_app()` runs at module scope and a deployment that will
+not boot is worse than one that starts and says what is misconfigured. `GET
 /api/health` lists what is enabled under `trained_models`, and a request for one that is
 not is a `422` — a menu scored by the weight-free baseline and one scored by a trained
 model are otherwise indistinguishable, and every number on them differs.

@@ -390,6 +390,10 @@ _TRAINED_MODELS: dict[str, tuple[str, str, str]] = {
 }
 
 
+#: As `_GNOMAD_LOAD_ERROR`, for a misconfigured `ALLELEFORGE_TRAINED_MODELS`.
+_TRAINED_MODELS_LOAD_ERROR: str | None = None
+
+
 def _load_trained_models_from_env() -> frozenset[str]:
     """Return the trained models ``ALLELEFORGE_TRAINED_MODELS`` permits.
 
@@ -404,6 +408,8 @@ def _load_trained_models_from_env() -> frozenset[str]:
     nothing: a typo that leaves the deployment quietly baseline-only is exactly the
     failure this gate exists to make visible.
     """
+    global _TRAINED_MODELS_LOAD_ERROR
+    _TRAINED_MODELS_LOAD_ERROR = None
     value = os.environ.get("ALLELEFORGE_TRAINED_MODELS", "").strip()
     if not value:
         return frozenset()
@@ -412,10 +418,18 @@ def _load_trained_models_from_env() -> frozenset[str]:
     names = {n.strip() for n in value.split(",") if n.strip()}
     unknown = sorted(names - set(_TRAINED_MODELS))
     if unknown:
-        raise ValueError(
-            f"ALLELEFORGE_TRAINED_MODELS names unknown model(s): {unknown}; "
-            f"choose from {sorted(_TRAINED_MODELS)}, or '1' for all of them"
+        # Recorded, not raised. `create_app()` runs at module scope, so raising here
+        # takes the whole process down at import — the same defect the reference loader
+        # thirty lines up carries a paragraph about, reintroduced by the round that
+        # added this. A typo must still be loud, since the failure it hides is a
+        # deployment that quietly offers nothing: it is loud on `/api/health` under
+        # `source_errors`, and every request for a model it should have enabled is
+        # refused by name. What it no longer does is stop the container from starting.
+        _TRAINED_MODELS_LOAD_ERROR = (
+            f"names unknown model(s): {unknown}; choose from {sorted(_TRAINED_MODELS)}, "
+            "or '1' for all of them. None of the named models are enabled."
         )
+        return frozenset()
     return frozenset(names)
 
 
@@ -817,6 +831,7 @@ def create_app(
                     ("reference", _REFERENCE_LOAD_ERROR),
                     ("genome_index", _GENOME_INDEX_LOAD_ERROR),
                     ("gnomad", _GNOMAD_LOAD_ERROR),
+                    ("trained_models", _TRAINED_MODELS_LOAD_ERROR),
                     ("haplotypes", _HAPLOTYPES_LOAD_ERROR),
                     ("encode_tracks", _ENCODE_TRACKS_LOAD_ERROR),
                 )

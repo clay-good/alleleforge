@@ -349,9 +349,13 @@ differs between the two, and nothing on the artifact says which model produced i
 /api/health` SHALL list what is enabled under `trained_models`, and the served page SHALL
 disable the ones this deployment does not offer rather than showing a control that 422s.
 
-An operator setting naming a model that does not exist SHALL raise at startup, because a
+An operator setting naming a model that does not exist SHALL be reported, not ignored: a
 misspelling that leaves the deployment silently baseline-only is the failure this gate
-exists to prevent.
+exists to prevent. It SHALL NOT raise from the environment path — `create_app()` runs at
+module scope, so raising there stops the container from starting at all — and SHALL
+instead appear in `GET /api/health`'s `source_errors`, with any request for a model it
+should have enabled refused by name. A bad value passed to `create_app(trained_models=…)`
+is a programmer's error rather than a deployment's, and SHALL raise.
 
 #### Scenario: Asking a deployment that has not enabled it
 - **WHEN** a request sets `trained_prime` on a deployment offering no trained models
