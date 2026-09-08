@@ -12596,3 +12596,31 @@ disables every layer beneath it.**
 **And: fixing an error message is a probe. Making the failure legible is what made the
 succeeding case visible as wrong.**
 
+## Round 390 — the same defect on the sibling option, found by asking
+
+R389's lesson said: wherever precedence is documented, check what the shell actually
+passes. `--reference` is the only other global option with a non-`None` default, and it had
+the identical defect — `hg38` reached every consumer directly, so `ALLELEFORGE_REFERENCE`
+changed nothing on any CLI run while the library honoured it.
+
+Larger blast radius than the seed's. The build label is stamped into provenance and states
+which assembly a locus is reported against — the value the resolver refuses a mismatched
+database record over — so a deployment configured for mm39 reported every design as hg38.
+
+The label resolves in one place now: flag, then environment and config, then default.
+Lazily, so `--help` and commands that never open a genome pay nothing, and through the same
+error boundary as the settings load — otherwise a malformed setting would have reached the
+terminal as a traceback again purely because this call site is different from the one fixed
+last round.
+
+Mutation-checking caught a vacuous first attempt: changing the dataclass default proved
+nothing, because the callback always passes the field explicitly. The mutation that matters
+is the callback substituting the default for `None`.
+
+**Lesson: when a round ends with a rule, spend the next one applying it to the siblings.
+"Check what the shell actually passes" took one grep to find the second instance, and the
+second instance was the more consequential one.**
+
+**And a fix landing at a new call site inherits none of the handling around the old one.
+Route both through the boundary rather than repeating the `try`.**
+
