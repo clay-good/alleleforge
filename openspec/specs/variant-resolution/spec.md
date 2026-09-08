@@ -271,6 +271,25 @@ statement about loci does not warn anyone about the one that does not.
   it back
 
 
+### Requirement: A record the supplied release lacks is explained, not raised
+
+A lookup that finds no record SHALL raise `ValueError` with an explanation, not the
+`KeyError` its index raises. The message SHALL name the record asked for, **how many
+records the supplied database holds**, and the release's pin when it carries one.
+
+The count is what distinguishes the two causes: a header-only VCF from a truncated
+download parses cleanly and indexes nothing, so `0 record(s)` says the file is the
+problem while a non-zero count says the accession is. No other output reveals either.
+
+Raised in the resolver, so one decision serves a Python caller, the command line and an
+HTTP client — the sibling refusals there already raise `ValueError`, which is why these
+two escaped the shells' handling.
+
+#### Scenario: An accession absent from the supplied release
+- **WHEN** a ClinVar accession is resolved against a release that does not contain it
+- **THEN** it raises `ValueError` naming the accession and the release's record count,
+  and no shell reports a traceback
+
 ### Requirement: A refusal offers a remedy the caller has
 
 Three input forms — a ClinVar accession, a dbSNP rsID and a coding/protein HGVS string —

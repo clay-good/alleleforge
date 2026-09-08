@@ -291,6 +291,33 @@ def _from_string(
     )
 
 
+def _absent_record(kind: str, key: object, database: object) -> str:
+    """Explain a lookup that found no record, in place of a bare ``KeyError``.
+
+    The likeliest thing to go wrong once a release can be supplied is supplying the
+    wrong one: a subset, a truncated download, a build that predates the accession, or
+    a file that parsed into nothing at all. All four arrived as a raw traceback from
+    three frames down — on every shell, since the lookup is reached identically from
+    Python, the command line and an HTTP request.
+
+    The record count is the load-bearing detail: `0 record(s)` says the file, not the
+    accession, is the problem, and no other output reveals it. The pinned digest lets a
+    reader tell which of two releases they actually passed.
+    """
+    try:
+        size = f"{len(database):,} record(s)"  # type: ignore[arg-type]
+    except TypeError:  # pragma: no cover - a Protocol implementation need not size itself
+        size = "an unknown number of records"
+    version = getattr(getattr(database, "dataset_version", None), "version", None)
+    named = f" ({version})" if version else ""
+    return (
+        f"no record for {kind} {key} in the database supplied{named}, which holds {size}. "
+        "The release may be a subset, may predate this record, or may have parsed to "
+        "nothing — check the file you passed contains it. Resolving by coordinates "
+        "(chrom:pos:ref>alt, 1-based as in a VCF) needs no database at all."
+    )
+
+
 def _clinical_assertion(record: _ClinVarRecordLike) -> ClinicalAssertion | None:
     """Return the record's classification, if it carries one.
 
@@ -323,7 +350,10 @@ def _from_clinvar(
             f"resolving a ClinVar accession requires a ClinVar database. "
             f"{database_remedy('clinvar')}"
         )
-    record = clinvar.get(accession)
+    try:
+        record = clinvar.get(accession)
+    except KeyError as exc:
+        raise ValueError(_absent_record("ClinVar accession", accession, clinvar)) from exc
     return record.variant, _clinical_assertion(record)
 
 
@@ -333,7 +363,10 @@ def _from_dbsnp(rsid: DbSnpId, dbsnp: DbSnpLookup | None) -> Variant:
         raise ValueError(
             f"resolving a dbSNP rsID requires a dbSNP database. {database_remedy('dbsnp')}"
         )
-    return dbsnp.locus(rsid)
+    try:
+        return dbsnp.locus(rsid)
+    except KeyError as exc:
+        raise ValueError(_absent_record("dbSNP rsID", rsid, dbsnp)) from exc
 
 
 def _from_hgvs(text: str, hgvs: HgvsAdapter | None, reference: ReferenceGenome | None) -> Variant:
