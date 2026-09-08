@@ -998,7 +998,8 @@ audiences (library, CLI, web) over one core.
 | **Failure-isolated** | a per-variant error is captured in the manifest; the cohort continues |
 | **Parallel (safe)** | `max_workers` + a `reference_factory` (a pyfaidx handle is not thread-safe to share) |
 | **VCF fast path** | `iter_vcf(path)` streams a VCF (cyvcf2), splitting multi-allelic rows and dropping non-`PASS`/symbolic calls — injectable, so CI-tested without htslib |
-| **Auditable** | `CohortRunReport` carries run counts + provenance (version, seed, build, intent) |
+| **Auditable** | `CohortRunReport` carries run counts + provenance (version, seed, build, intent, and the content-hashed datasets its items read) |
+| **Placed** | every row carries the *resolved* variant beside the `item_id` that was typed — an accession names no locus, and left-alignment moves a coordinate |
 
 ### Content-addressed cross-run caches (R4)
 

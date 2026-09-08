@@ -49,6 +49,9 @@ def cohort_rows(report: Any) -> list[dict[str, Any]]:
             {
                 "item_id": it.item_id,
                 "status": it.status,
+                # Second column, beside the id it disambiguates: a reader scanning the
+                # table left to right needs "what the row is about" before any number.
+                "variant": summary.get("variant"),
                 "best_chemistry": summary.get("best_chemistry"),
                 "best_efficiency": summary.get("best_efficiency"),
                 "best_efficiency_low": summary.get("best_efficiency_low"),
@@ -134,6 +137,7 @@ def cohort_to_tsv(
     """
     cols = [
         "item_id",
+        "variant",
         "status",
         "best_chemistry",
         "best_efficiency",
@@ -197,6 +201,16 @@ def cohort_to_tsv(
         f"intent {run.get('intent')}",
         f"started {run.get('started_at')}",
     ]
+    # The datasets the run actually read, pinned by content hash — the same block every
+    # per-item menu carries. Without it this file named the genome and nothing else, so a
+    # cohort resolved through a ClinVar release could not say which release chose its
+    # loci, and one made population-aware by a gnomAD file could not say which file.
+    # Reported as "none recorded" rather than omitted: an absent line is indistinguishable
+    # from a run that consumed no pinned dataset, and those are different runs.
+    datasets = run.get("datasets")
+    if datasets is not None:
+        named = ", ".join(f"{d.get('name')} {d.get('version')}" for d in datasets)
+        notes.append(f"datasets: {named or 'none recorded'}")
     if counts is not None:
         requested = counts.get("total", 0) + counts.get("skipped", 0)
         note = (

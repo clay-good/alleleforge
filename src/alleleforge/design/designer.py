@@ -516,6 +516,7 @@ def design(
         },
     )
     return RankedMenu(
+        variant=str(resolved.variant),
         candidates=outcome.candidates,
         rationale=rationale,
         pareto_front=outcome.pareto_front,

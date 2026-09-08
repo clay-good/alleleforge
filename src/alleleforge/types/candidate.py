@@ -80,6 +80,13 @@ class RankedMenu(BaseModel):
         rationale: How the ranking was computed and what drove the order.
         pareto_front: Indices into ``candidates`` that are Pareto-optimal.
         provenance: The reproducibility block for this menu.
+        variant: The canonical variant this menu was designed for, as the resolver
+            settled it (``chrom:pos:ref>alt``, 0-based). A menu did not say what it was
+            about: `build_report` takes the variant from *its* caller, so the single
+            design path looked complete, while a cohort's durable per-item JSON — and
+            the summary row built from it — identified the item only by the string the
+            user typed. For an accession or an rsID that string names no locus at all,
+            and even a coordinate can move under left-alignment.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -88,6 +95,7 @@ class RankedMenu(BaseModel):
     rationale: str | None = None
     pareto_front: tuple[int, ...] = ()
     provenance: Provenance | None = None
+    variant: str | None = None
 
     @property
     def best(self) -> DesignCandidate | None:

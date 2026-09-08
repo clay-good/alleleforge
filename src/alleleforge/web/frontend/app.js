@@ -278,12 +278,16 @@ function renderBatch(data) {
         it.status === "ok"
           ? `<td>${cell(s.best_chemistry)}</td><td>${eff}</td><td>${worst}</td><td>${spec}</td><td>${basis}</td><td>${caveats}</td><td>${cell(s.n_candidates)}</td>`
           : `<td colspan="7" class="err">${cell(it.error)}</td>`;
-      return `<tr class="${it.status}"><td>${esc(it.item_id)}</td><td>${it.status}</td>${detail}</tr>`;
+      // The first column was headed "variant" and held `item_id` — the string that was
+      // typed. Normalization moves an indel under left-alignment, and an accession or an
+      // rsID names no locus at all, so the header was making a claim the cell could not
+      // keep. Input and resolved variant are two columns now, as they are in the TSV.
+      return `<tr class="${it.status}"><td>${esc(it.item_id)}</td><td>${cell(s.variant)}</td><td>${it.status}</td>${detail}</tr>`;
     })
     .join("");
   batchResults.innerHTML = `
     <table class="results">
-      <thead><tr><th>variant</th><th>status</th><th>best</th><th>efficiency</th>
+      <thead><tr><th>input</th><th>variant</th><th>status</th><th>best</th><th>efficiency</th>
         <th>worst off-target</th><th>specificity</th><th>off-target basis</th>
         <th>caveats</th><th>candidates</th></tr></thead>
       <tbody>${rows}</tbody>

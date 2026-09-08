@@ -31,7 +31,7 @@ from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from threading import local
+from threading import Lock, local
 from typing import Any
 from uuid import uuid4
 
@@ -172,6 +172,13 @@ def _summarize(menu: RankedMenu) -> dict[str, Any]:
         best.offtarget.specificity_score() if best and best.offtarget is not None else None
     )
     return {
+        # What this row is *about*. `item_id` is the string the user typed, and for the
+        # two database input forms it names no locus — `VCV000000012` is a row a reader
+        # cannot place in the genome, and two ClinVar releases can place it differently.
+        # A coordinate is not safe either: left-alignment moves an indel, so the id and
+        # the designed locus routinely differ. This is the only column that says where
+        # the reagents in the rest of the row actually go.
+        "variant": menu.variant,
         "n_candidates": len(menu.candidates),
         # Why nothing was found, when nothing was. The single-variant path explains an
         # empty result in full — which chemistries were routed out and why, which
@@ -385,6 +392,25 @@ def design_many(
     if out_dir is not None:
         out_dir.mkdir(parents=True, exist_ok=True)
 
+    # The run header pinned the reference genome's shape and nothing else, while every
+    # per-item menu recorded the datasets it read — so the one artifact a whole cohort is
+    # forwarded in could not say which ClinVar release chose its loci or which gnomAD
+    # file made its scans population-aware. Per-item honesty does not accumulate into
+    # document honesty; the reader of the summary never opens 500 menus.
+    #
+    # Collected from the items rather than recomputed, so it states what the run actually
+    # consumed. A lock because the parallel path records from worker threads, and sorted
+    # at the end because a set's iteration order would make a byte-reproducible artifact
+    # depend on --max-workers.
+    seen_datasets: dict[tuple[str, str], dict[str, Any]] = {}
+    datasets_lock = Lock()
+
+    def _record_datasets(menu: RankedMenu) -> None:
+        prov = menu.provenance
+        for dataset in getattr(prov, "datasets", ()) or ():
+            with datasets_lock:
+                seen_datasets.setdefault((dataset.name, dataset.version), dataset.model_dump())
+
     tl = local()
 
     def _reference() -> ReferenceGenome:
@@ -415,6 +441,7 @@ def design_many(
                 summary=None,
                 error=f"unexpected {type(exc).__name__} (likely a defect): {exc}",
             )
+        _record_datasets(menu)
         if out_dir is not None:
             _atomic_write_text(out_dir / f"{_safe_name(iid)}.json", menu.model_dump_json())
         return CohortItemResult(iid, "ok", _summarize(menu), None)
@@ -474,6 +501,7 @@ def design_many(
     # The manifest stays completion-ordered: it is an append-as-you-go progress log,
     # and a resumed run reads it as a set.
     ordered = sorted(results, key=lambda r: order.get(r.item_id, len(order)))
+    provenance["datasets"] = [seen_datasets[key] for key in sorted(seen_datasets)]
     return CohortRunReport(
         total=counts["ok"] + counts["error"],
         succeeded=counts["ok"],

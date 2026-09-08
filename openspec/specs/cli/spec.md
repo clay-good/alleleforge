@@ -326,6 +326,28 @@ entirely from a file SHALL produce the same result as the equivalent command-lin
 - **THEN** the candidates, the rationale and the provenance snapshot match the
   flag-driven run
 
+### Requirement: A cohort row says which variant it is about
+
+`item_id` is the string the caller supplied. It is not a locus: an accession or an rsID
+names none, and left-alignment routinely moves a coordinate away from what was typed. The
+per-item summary SHALL therefore carry the **resolved** variant, and every surface built
+from it — the summary TSV, `/api/batch`, the browser's cohort table — SHALL show it beside
+the input rather than in place of it. An item that never resolved SHALL leave it empty
+rather than borrow its input.
+
+The run-level provenance SHALL pin the datasets the run's items actually read, in a
+deterministic order, so a whole-cohort artifact names the releases that chose its loci and
+backed its scans. Per-item honesty does not accumulate into document honesty: the reader of
+a summary does not open the per-item menus.
+
+#### Scenario: An accession and its coordinates in one cohort
+- **WHEN** a cohort designs a ClinVar accession and the coordinates it resolves to
+- **THEN** both rows show the same resolved variant, which neither `item_id` states
+
+#### Scenario: The same run at one worker and at four
+- **WHEN** the same cohort runs with `--max-workers 1` and `--max-workers 4`
+- **THEN** the run header pins the same datasets in the same order
+
 ### Requirement: A cohort summary qualifies the column it is sorted by
 
 A cohort is triaged by sorting `best_efficiency`, and when the rows' best candidates span
