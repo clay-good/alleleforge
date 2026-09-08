@@ -11856,3 +11856,36 @@ sentence false.
 **Lesson: when two checks answer the same question, they will eventually disagree, and
 both will be defensible. The one to fix is not the wrong one — it is the fact that there
 are two definitions.**
+
+## Round 364 — the gate the unification round missed, sixty lines from one it fixed
+
+Swept the refusal messages in `src/` for remedies only a Python caller can act on — the
+class `DATABASE_REMEDY` was written to close, never re-run since. Three of the four
+download gates already ended with "or set allow_network for this environment". The fourth
+did not, and that was the tell.
+
+`ModelRegistry.authorize` — the lighter gate for models whose weights come from their own
+loader rather than a pinned artifact — still read `if not consent`. The predicate that
+was introduced to end exactly this says so in its own docstring: "the check was written
+out three times identically, and the setting that was supposed to govern it,
+allow_network, was read by none of them". That round unified three registries and missed
+a fourth gate sixty lines from one of them, in the same file and the same class. The
+consequence was that one environment got two answers: opted in, it received weights for a
+pinned-artifact model and was refused for a loader-driven one.
+
+The three messages that *did* mention the environment named the **setting**,
+`allow_network`, which is the library's vocabulary. A command-line user reading "set
+allow_network" still has to guess `ALLELEFORGE_ALLOW_NETWORK`. One shared `DOWNLOAD_REMEDY`
+now names the keyword argument, the variable and the config key, so the four cannot word
+it differently again.
+
+Writing the guard turned up two more, and they are a different defect wearing the same
+coat: `raise ConsentError(f"... has no source_url to download from")`, in both registries,
+on code paths *past* the permission check. Consent was not withheld — there is nowhere to
+fetch from — so a caller who reads "consent" and supplies it gets the identical refusal.
+They are `MissingDependencyError` now, which is the type whose docstring already says
+"an artifact a feature needs is absent", and they say what to do instead: supply the file.
+
+**Lesson: when a round unifies N call sites, the N+1th is usually in a file it already
+touched. And an exception type is part of the message — a consent error raised for a
+missing source sends the reader to fix the one thing that was never the problem.**

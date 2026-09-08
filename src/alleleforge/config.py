@@ -160,6 +160,18 @@ def get_settings() -> Settings:
     return _SETTINGS
 
 
+#: How to authorize an artifact download, in the vocabulary of each surface that can
+#: reach the refusal. `consent=True` alone is a Python keyword argument, and the round
+#: that unified the three registries left the message speaking only to a Python caller —
+#: the same defect the resolver's `DATABASE_REMEDY` exists to avoid, on the other gate.
+#: The setting name alone is not enough either: a command-line user has to be told what
+#: to actually type.
+DOWNLOAD_REMEDY = (
+    "pass consent=True from Python, or opt this environment in with "
+    "ALLELEFORGE_ALLOW_NETWORK=1 (or allow_network in the config file)"
+)
+
+
 def artifact_download_permitted(consent: bool, *, settings: Settings | None = None) -> bool:
     """Return whether an external *artifact* may be downloaded.
 

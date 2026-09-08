@@ -25,8 +25,8 @@ import hashlib
 from collections.abc import Callable
 from pathlib import Path
 
-from alleleforge.config import artifact_download_permitted, get_settings
-from alleleforge.errors import ChecksumError, ConsentError
+from alleleforge.config import DOWNLOAD_REMEDY, artifact_download_permitted, get_settings
+from alleleforge.errors import ChecksumError, ConsentError, MissingDependencyError
 from alleleforge.types.provenance import DatasetVersion
 
 #: A downloader writes the artifact at ``url`` to ``dest``. Injected so tests
@@ -176,8 +176,8 @@ class DatasetRegistry:
         if not path.exists():
             if not artifact_download_permitted(consent):
                 raise ConsentError(
-                    f"dataset {desc.name!r} is not cached; pass consent=True to download "
-                    f"from {desc.source_url}, or set allow_network for this environment"
+                    f"dataset {desc.name!r} is not cached; {DOWNLOAD_REMEDY}. "
+                    f"Source: {desc.source_url}"
                 )
             if desc.sha256 is None:
                 raise ChecksumError(
@@ -185,7 +185,11 @@ class DatasetRegistry:
                     "an unverifiable artifact"
                 )
             if desc.source_url is None:
-                raise ConsentError(f"dataset {desc.name!r} has no source_url to download from")
+                # As in the model zoo: consent is not what is missing here, a source is.
+                raise MissingDependencyError(
+                    f"dataset {desc.name!r} names no source_url, so it cannot be "
+                    "fetched; supply the file in the cache directory instead"
+                )
             path.parent.mkdir(parents=True, exist_ok=True)
             (downloader or _default_downloader)(desc.source_url, path)
             _verify_sha256(path, desc.sha256)

@@ -31,8 +31,8 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from alleleforge.config import artifact_download_permitted
-from alleleforge.errors import ChecksumError, ConsentError
+from alleleforge.config import DOWNLOAD_REMEDY, artifact_download_permitted
+from alleleforge.errors import ChecksumError, ConsentError, MissingDependencyError
 from alleleforge.types.provenance import ModelCheckpoint
 
 #: Directory of bundled model cards shipped with AlleleForge.
@@ -254,8 +254,8 @@ class ModelRegistry:
         if not path.exists():
             if not artifact_download_permitted(consent):
                 raise ConsentError(
-                    f"checkpoint for {name!r} is not cached; pass consent=True to download "
-                    f"from {card.source_url}, or set allow_network for this environment"
+                    f"checkpoint for {name!r} is not cached; {DOWNLOAD_REMEDY}. "
+                    f"Source: {card.source_url}"
                 )
             if card.checkpoint_sha256 is None:
                 raise ChecksumError(
@@ -263,7 +263,13 @@ class ModelRegistry:
                     "artifact"
                 )
             if card.source_url is None:
-                raise ConsentError(f"model {name!r} has no source_url to download from")
+                # Not a ConsentError: consent was already given — this code is past the
+                # permission check — and the caller who reads "consent" and supplies it
+                # again gets the same refusal. What is missing is a place to fetch from.
+                raise MissingDependencyError(
+                    f"model {name!r} pins no source_url, so its checkpoint cannot be "
+                    "fetched; supply the file in the cache directory instead"
+                )
             path.parent.mkdir(parents=True, exist_ok=True)
             (downloader or _default_downloader)(card.source_url, path)
             _verify_sha256(path, card.checkpoint_sha256)
@@ -318,10 +324,16 @@ class ModelRegistry:
             raise LicenseError(
                 f"license {card.license!r} forbids {use.value} use of model {name!r}"
             )
-        if not consent:
+        # `artifact_download_permitted`, not a bare `consent` check. The round that
+        # introduced that predicate says why in its docstring — "the setting that was
+        # supposed to govern it, allow_network, was read by none of them" — and unified
+        # three registries. This fourth gate is in the same file as one of them, sixty
+        # lines away, and kept its own check: an environment that had opted in got
+        # weights for a pinned-artifact model and was refused for a loader-driven one.
+        if not artifact_download_permitted(consent):
             raise ConsentError(
                 f"loading model {name!r} downloads weights from {card.source_url}; "
-                "pass consent=True to authorize the fetch"
+                f"{DOWNLOAD_REMEDY}"
             )
         return card.to_checkpoint()
 

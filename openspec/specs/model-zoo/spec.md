@@ -130,3 +130,23 @@ it claims the model has no predictive value.
 - **WHEN** a card describes a model for which no accuracy measurement exists here
 - **THEN** its `metrics` carries no accuracy key, and its documented failure modes say
   that none has been measured
+
+
+### Requirement: One answer to "may I download this", and a remedy every caller has
+
+Every gate that refuses a download for want of consent SHALL consult
+`artifact_download_permitted`, so that an environment which has opted in through
+`allow_network` is answered the same way by all of them. A gate with its own consent
+check is a gate the environment cannot answer.
+
+Every such refusal SHALL name a remedy in the vocabulary of each caller that can reach
+it: the Python keyword argument *and* the environment variable, not the name of the
+setting behind them. A remedy the surface does not have is not a remedy.
+
+A refusal for a *missing source* SHALL NOT be raised as a consent error: consent is not
+what is missing, and a caller who supplies it again receives the same refusal.
+
+#### Scenario: An environment that opted in loading a loader-driven model
+- **WHEN** `allow_network` is set and a model whose weights come from its own loader is
+  requested without `consent=True`
+- **THEN** it is permitted, as it already was for a model with a pinned artifact

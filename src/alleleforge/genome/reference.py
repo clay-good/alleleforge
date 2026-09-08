@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 
 from pyfaidx import Fasta
 
-from alleleforge.config import artifact_download_permitted, get_settings
+from alleleforge.config import DOWNLOAD_REMEDY, artifact_download_permitted, get_settings
 from alleleforge.errors import ChecksumError, ConsentError, ReferenceIndexError
 from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import (
@@ -274,8 +274,8 @@ class ReferenceGenome:
         if not fasta_path.exists():
             if not artifact_download_permitted(consent):
                 raise ConsentError(
-                    f"reference {desc.name!r} is not cached; pass consent=True to download "
-                    f"from {desc.source_url}, or set allow_network for this environment"
+                    f"reference {desc.name!r} is not cached; {DOWNLOAD_REMEDY}. "
+                    f"Source: {desc.source_url}"
                 )
             if desc.sha256 is None:
                 raise ChecksumError(
