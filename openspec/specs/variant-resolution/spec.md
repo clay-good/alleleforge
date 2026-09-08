@@ -405,6 +405,21 @@ Ensembl-named reference resolves rather than being refused.
 - **THEN** it exits non-zero with a message naming `chrZ` and the contigs the reference
   has, and prints no traceback
 
+### Requirement: A coordinate is refused in the caller's own terms
+
+A refusal about an input coordinate SHALL quote the coordinate the caller supplied, in the
+convention they supplied it in, and SHALL NOT surface the validation machinery of a
+dependency: no model class name, no framework error formatting, no link to a library the
+caller did not import.
+
+Inputs are 1-based and stored 0-based, so a validator reading the stored value describes a
+number nobody typed. The conversion boundary is where the check belongs.
+
+#### Scenario: Position zero
+- **WHEN** a variant is given at position `0`
+- **THEN** the refusal names `0`, states that the first base of a contig is position 1, and
+  notes that a printed 0-based position means position 1 on the way back in
+
 ### Requirement: A position past a contig's end is refused as such
 
 A variant whose asserted ref falls, wholly or partly, beyond the end of a contig the

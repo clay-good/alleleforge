@@ -55,8 +55,12 @@ _REFSEQ_CHROM: dict[str, str] = {
     "NC_012920": "chrM",
 }
 
+# The position accepts a leading `-` so a negative coordinate is refused as a *position*
+# ("the first base of a contig is position 1") rather than as an unparseable input: the
+# string is obviously a coordinate, and saying "unrecognized variant input" of it sends
+# the reader to check their syntax, which is fine.
 _COORD_RE = re.compile(
-    r"^(?P<chrom>[\w.]+):(?P<pos>\d+):(?P<ref>[ACGTN]*)>(?P<alt>[ACGTN]*)$",
+    r"^(?P<chrom>[\w.]+):(?P<pos>-?\d+):(?P<ref>[ACGTN]*)>(?P<alt>[ACGTN]*)$",
     re.IGNORECASE,
 )
 _RSID_RE = re.compile(r"^rs\d+$", re.IGNORECASE)
@@ -158,7 +162,7 @@ class VcfRecord(BaseModel):
         """
         return Variant(
             chrom=self.chrom,
-            pos=self.pos - 1,
+            pos=_zero_based(self.chrom, self.pos),
             ref=self.ref,
             alt=self.alt,
             rsid=DbSnpId(value=self.rsid) if self.rsid else None,
@@ -256,6 +260,31 @@ def _chrom_from_hgvs(reference: str | None) -> str:
     raise ValueError(f"cannot map HGVS reference {reference!r} to a contig")
 
 
+def _zero_based(chrom: str, pos: int) -> int:
+    """Convert a 1-based input position to the 0-based one the model stores.
+
+    A non-positive input is refused here rather than by `Variant`'s field validator,
+    which sees the *converted* number: `chr11:0:T>C` produced a raw pydantic
+    `ValidationError` reading "pos -1 is negative", quoting a coordinate the caller
+    never typed, naming an internal model, and linking to the pydantic docs — beside
+    a dozen sibling refusals that are one curated sentence. The validator stays as
+    the library-level backstop for a caller who builds a `Variant` directly.
+    """
+    if pos < 1:
+        return _refuse_a_non_positive_position(chrom, pos)
+    return pos - 1
+
+
+def _refuse_a_non_positive_position(chrom: str, pos: int) -> int:
+    """Raise the refusal for a 1-based position below 1."""
+    raise ValueError(
+        f"position {pos} on {chrom} is not a valid 1-based coordinate: the first base of "
+        "a contig is position 1, as in a VCF record. AlleleForge reads "
+        "`chrom:pos:ref>alt` as a 1-based VCF record and prints it with a 0-based "
+        "position, so a printed 0 means position 1 on the way back in."
+    )
+
+
 def _from_string(
     text: str,
     *,
@@ -282,7 +311,7 @@ def _from_string(
         # (which could carry a wrong-build mismatch — see _to_variant / resolve).
         Variant(
             chrom=m.group("chrom"),
-            pos=int(m.group("pos")) - 1,  # human-facing coordinate strings are 1-based
+            pos=_zero_based(m.group("chrom"), int(m.group("pos"))),
             ref=m.group("ref").upper(),
             alt=m.group("alt").upper(),
         ),
