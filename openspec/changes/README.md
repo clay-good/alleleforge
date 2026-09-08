@@ -12480,3 +12480,29 @@ breaks down CAN vary by stratum. A number that is constant across the axis it is
 by is not a stratification, it is a table that looks like one — and it reads as evidence of
 uniformity, which is the strongest possible claim to make by accident.**
 
+## Round 386 — the same defect, a different mechanism, past a guard written for the first
+
+Measured the served page at 375x812 after a cohort run: `document.scrollWidth` 998 against
+a 375px viewport. The cohort table is twelve columns of content that does not shrink —
+about 980px — and every ancestor defaulted to `overflow-x: visible`. Overflow propagates,
+so the *document* panned sideways rather than the table, moving every element on the page
+with it. Two of those columns were added earlier in this session, but the table was already
+past a phone width before them: a pre-existing defect this session made worse.
+
+The guard existed and did not catch it. It was written for a non-wrapping flex row — the
+instance that was found — and its docstring asserted that "the page has no other horizontal
+overflow at that width". True when written. A table outgrew the viewport by a different
+mechanism, and a check keyed to `display: flex` cannot see it.
+
+It now enforces the general rule: an element that can outgrow the viewport must contain its
+own overflow, whether by wrapping or by scrolling. A table rule with no recorded scrolling
+container fails.
+
+**Lesson: when a guard is written from one instance, ask what ELSE produces that symptom.
+The rule that was recorded ("a flex row must wrap") was a mechanism, not the defect; the
+defect was "the page pans", and a second mechanism reached it untouched. Write the guard
+against the symptom and enumerate the mechanisms.**
+
+**And: measure the page, do not look at it. A screenshot of a panned page looks fine —
+`document.scrollWidth > clientWidth` is the only thing that says otherwise.**
+
