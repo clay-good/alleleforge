@@ -12214,3 +12214,26 @@ over a VCF of any size. The manifest stays completion-ordered on purpose.
 enumeration, and the consumers that get left out are the ones downstream of the code
 being justified. "Order is not load-bearing" was written by someone looking at the
 manifest, and it was load-bearing three surfaces later.**
+
+## Round 374 — the terminal was fixed for this; the file it writes was not
+
+Checking whether last round's ordering fix held under `--resume` turned up a different
+defect on the way. A completed cohort re-run against its own manifest correctly skips
+everything — and writes a summary TSV with seven `#` notes, a column header, and no rows.
+Nothing in the file says why. Opened by anyone who did not run the command, that is a
+cohort that produced no results.
+
+The terminal output had already been fixed for precisely this, and its comment says so:
+"Stating the requested count first stops `0 item(s)` from being the headline for a resume
+that had nothing left to do — the two numbers now visibly add up." That fix went to the
+line that scrolls past. The file is the half that outlives it and gets forwarded, and this
+is the fourth time this session that a correction reached the reader who was watching and
+not the one holding the document.
+
+The note is unconditional. A fresh run now states what it did too, because a count that
+appears only when something went unusually is a count a reader learns to distrust — and
+the property the terminal fix was about, requested = designed + skipped, is now visible in
+the artifact as well.
+
+**Lesson: when a fix is "say what happened", ask where it was said. A message printed
+during a run reaches whoever ran it; every reader after that has only the file.**

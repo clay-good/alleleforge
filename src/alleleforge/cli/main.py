@@ -1619,7 +1619,19 @@ def batch(
 
     rows = _batch_rows(report)
     if summary_tsv is not None:
-        summary_tsv.write_text(_batch_tsv(rows, report.provenance), encoding="utf-8")
+        summary_tsv.write_text(
+            _batch_tsv(
+                rows,
+                report.provenance,
+                counts={
+                    "total": report.total,
+                    "succeeded": report.succeeded,
+                    "failed": report.failed,
+                    "skipped": report.skipped,
+                },
+            ),
+            encoding="utf-8",
+        )
     if state.verbose:
         _echo_err(f"designed {report.succeeded}/{report.total} (skipped {report.skipped})")
 

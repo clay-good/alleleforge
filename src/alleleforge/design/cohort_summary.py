@@ -102,7 +102,12 @@ def cohort_reference_shape_suffix(shape: Any) -> str:
     )
 
 
-def cohort_to_tsv(rows: list[dict[str, Any]], provenance: Any | None = None) -> str:
+def cohort_to_tsv(
+    rows: list[dict[str, Any]],
+    provenance: Any | None = None,
+    *,
+    counts: Mapping[str, int] | None = None,
+) -> str:
     """Render the per-item summary rows as TSV (one row per cohort item).
 
     Led by the same `#` note block the per-design export carries: the research-use
@@ -111,9 +116,18 @@ def cohort_to_tsv(rows: list[dict[str, Any]], provenance: Any | None = None) -> 
     forwarded, and a row per patient with a bare `best_specificity` and no statement
     of which genome was searched is not interpretable.
 
+    ``counts`` states what the run did, which matters most when it did nothing. A
+    re-run against an existing manifest skips every item it has already designed, so
+    `--summary-tsv` writes a well-formed table with a header and no rows — and a file
+    with no rows reads as a cohort that produced no results. The terminal line was fixed
+    for this once ("stating the requested count first stops `0 item(s)` from being the
+    headline for a resume that had nothing left to do"); the file it writes says nothing,
+    and the file is the half that outlives the terminal and gets forwarded.
+
     Args:
         rows: One summary dict per cohort item.
         provenance: The run's provenance block, if there is one, for the notes.
+        counts: The run's ``total``/``succeeded``/``failed``/``skipped``, when known.
 
     Returns:
         The TSV text: `#` notes, the column header, one row per item.
@@ -183,6 +197,17 @@ def cohort_to_tsv(rows: list[dict[str, Any]], provenance: Any | None = None) -> 
         f"intent {run.get('intent')}",
         f"started {run.get('started_at')}",
     ]
+    if counts is not None:
+        requested = counts.get("total", 0) + counts.get("skipped", 0)
+        note = (
+            f"{requested} requested, {counts.get('total', 0)} designed "
+            f"({counts.get('succeeded', 0)} ok, {counts.get('failed', 0)} failed), "
+            f"{counts.get('skipped', 0)} already done (resume)"
+        )
+        if not rows and counts.get("skipped"):
+            # The case this exists for: every row is below, and there are none.
+            note += " — this table is empty because the run had nothing left to design"
+        notes.append(note)
     # A cohort is triaged by sorting a column, and `best_efficiency` is the column people
     # sort. When the rows' best candidates span chemistries, that sort compares a
     # base-editor number with a prime number — outputs of different, mutually

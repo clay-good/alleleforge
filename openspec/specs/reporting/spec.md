@@ -602,3 +602,21 @@ bytes.
 - **WHEN** a design report is rendered to PDF and opened
 - **THEN** the viewer shows the report's title and the variant, with any non-ASCII
   characters intact
+
+
+### Requirement: A cohort table states what the run did
+
+The cohort summary TSV SHALL carry the run's counts — requested, designed, succeeded,
+failed, and skipped by resume — in its note block, on every run and not only when
+something is unusual.
+
+A re-run against an existing manifest skips every item it has already designed and writes
+a table with a header and no rows. That file SHALL say that it is empty because the run
+had nothing left to design; without it, a resumed run's table is indistinguishable from a
+cohort that produced no results, and the file is the artifact that gets forwarded to
+someone who did not run the command.
+
+#### Scenario: Re-running a completed cohort with the same manifest
+- **WHEN** `aforge batch --manifest m.jsonl --summary-tsv out.tsv` is run a second time
+- **THEN** `out.tsv` states that every item was already done, and says its emptiness is a
+  consequence of that
