@@ -177,3 +177,44 @@ def test_the_rendered_provenance_marks_a_caller_supplied_dataset(tmp_path: Path)
     assert "clinvar sha256:abc (supplied by the caller)" in line, line
     assert "doench-2016-cfd 2016," in line or line.endswith("doench-2016-cfd 2016"), line
     assert "doench-2016-cfd 2016 (supplied" not in line, line
+
+
+def test_the_patient_source_is_marked_without_being_fingerprinted(tmp_path: Path) -> None:
+    """The one row that can never be re-checked from anywhere.
+
+    `--patient-vcf` is deliberately not content-hashed: fingerprinting it would put an
+    identifier for a person's genotypes into a report meant to be shared. That decision
+    stands, and it is the reason this row needs the marker most — with no hash and no
+    marker it read like a registry dataset a reader could go and verify.
+    """
+    from typer.testing import CliRunner
+
+    from alleleforge.cli.main import app
+
+    fasta = tmp_path / "ref.fa"
+    fasta.write_text(">chr1\n" + "ACGTTGCAAGGCTTACCGTA" * 20 + "\n")
+    patient = tmp_path / "patient.txt"
+    patient.write_text("chr1:11:G>A\n")
+    out = tmp_path / "menu.tsv"
+    result = CliRunner().invoke(
+        app,
+        [
+            "design",
+            "chr1:103:G>A",
+            "--reference-fasta",
+            str(fasta),
+            "--patient-vcf",
+            str(patient),
+            "--no-offtarget",
+            "--format",
+            "tsv",
+            "--out",
+            str(out),
+        ],
+    )
+    assert result.exit_code == 0, result.output + result.stderr
+    sidecar = json.loads((tmp_path / "menu.tsv.provenance.json").read_text())
+    (row,) = [d for d in sidecar["datasets"] if d["name"] == "patient-variants"]
+    assert row["caller_supplied"] is True, row
+    assert row["sha256"] is None, "the patient file must not be fingerprinted"
+    assert row["version"].startswith("n="), row

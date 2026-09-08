@@ -762,7 +762,15 @@ def _load_patient_variants(path: Path | None, reference: Any) -> list[Variant] |
         # put an identifier for a person's genotypes into a report meant to be
         # shared.
         variants.dataset_version = DatasetVersion(
-            name="patient-variants", version=f"n={len(variants)}"
+            name="patient-variants",
+            version=f"n={len(variants)}",
+            # Caller-supplied all the same, and the most caller-supplied source there
+            # is: the flag exists for a file that is nobody else's. Leaving it false
+            # made the one row that can *never* be re-checked from anywhere read like a
+            # registry dataset, which is the confusion the flag was added to end. It
+            # carries no hash, so it says "these bytes were yours" and nothing more —
+            # exactly the statement the privacy decision above permits.
+            caller_supplied=True,
         )
         return variants
     except MissingDependencyError as exc:
