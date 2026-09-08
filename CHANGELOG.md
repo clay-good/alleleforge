@@ -2571,6 +2571,7 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+- The rendered PDF carries a `/Title` and `/Producer`, so a forty-five-page report no longer opens untitled and is no longer filed by a reference manager as an untitled document. No creation date, so the same report still renders to the same bytes.
 - The model zoo's lighter consent gate consults `artifact_download_permitted` like the other three, so an environment that opted in with `allow_network` is no longer permitted for a pinned-artifact model and refused for a loader-driven one. All four refusals now name both remedies — `consent=True` and `ALLELEFORGE_ALLOW_NETWORK=1` — and two refusals that meant "there is nowhere to fetch this from" no longer claim consent was the problem.
 - The two guards that answer "is this reachable from the CLI?" now use one definition and agree. One counted only what the CLI passes to `design()` and so listed `effect` as unreachable on the day `--vep` shipped; both now count the resolver call site too. The README's absolute parity claim states how many exceptions there are and names the file holding them, and fails if a seventh appears.
 - The cohort manifest header states what the run's output is, not only what the run was. A `--manifest --output-dir` run with no `--summary-tsv` left a directory of serialized menus and an index with nothing in it saying what any of it was — while the exemption excusing those menus named the manifest header as the thing that carried the context.

@@ -17,8 +17,9 @@ module-level names, and a check that only walked `dir(module)` would report four
 positives on its first run and be deleted by the second.
 
 `_NOT_IDENTIFIERS` carries what looks like code and is not: restriction sites and PAM
-motifs (`GGTCTC`, `TTTT`), and the browser APIs the frontend spec names in order to say
-it does not use them.
+motifs (`GGTCTC`, `TTTT`), the browser APIs the frontend spec names in order to say it
+does not use them, and a PDF font encoding named in order to say a string is not written
+in it.
 """
 
 from __future__ import annotations
@@ -61,6 +62,9 @@ _NOT_IDENTIFIERS = {
     "WebSocket",
     "Worker",
     "XMLHttpRequest",
+    # A PDF font encoding named by the reporting spec to say that the document
+    # information dictionary is *not* written in it.
+    "WinAnsiEncoding",
 }
 
 

@@ -493,6 +493,53 @@ def _content_stream(page_lines: list[str]) -> bytes:
     return "\n".join(parts).encode("cp1252")  # matches the declared WinAnsiEncoding font
 
 
+def _pdf_text_string(text: str) -> bytes:
+    """Return ``text`` as a PDF *text string*, ASCII literal or UTF-16BE hex.
+
+    Not the encoding the page content uses. `WinAnsiEncoding` is a property of the font
+    the body is drawn with; a string in the document information dictionary is a PDF
+    text string, read as PDFDocEncoding unless it opens with a UTF-16 byte-order mark.
+    Writing the title in the body's encoding put a `Š` in the middle of the document's
+    own name — visible only by opening the file with a real reader, which is how it was
+    found.
+
+    ASCII stays a plain literal so the common case reads as text in the file itself.
+    """
+    if text.isascii():
+        escaped = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+        return b"(" + escaped.encode("ascii") + b")"
+    return b"<" + (b"\xfe\xff" + text.encode("utf-16-be")).hex().upper().encode("ascii") + b">"
+
+
+def _info_object(report: DesignReport) -> bytes:
+    """Return the document information dictionary.
+
+    A PDF's `/Title` is what a viewer puts in the window bar and what a reference
+    manager files the document under. This writer emitted no `/Info` at all, so a
+    forty-five-page report handed to a colleague opened untitled and was filed as one —
+    while the HTML rendering of the same report has carried a `<title>` all along.
+
+    No `/CreationDate`: the same report must render to the same bytes, and a clock in
+    the metadata would make every run differ from the golden by exactly the field
+    nobody reads.
+    """
+    # `report.title` rather than a string spelled again here: it is the name the
+    # document already gives itself on its own first page and in the HTML `<title>`,
+    # so the three cannot drift apart.
+    title = f"{report.title} — {report.variant}"
+    version = report.provenance.alleleforge_version if report.provenance else None
+    producer = f"AlleleForge {version}" if version else "AlleleForge"
+    return (
+        b"<< /Title "
+        + _pdf_text_string(title)
+        + b" /Producer "
+        + _pdf_text_string(producer)
+        + b" /Creator "
+        + _pdf_text_string(producer)
+        + b" >>"
+    )
+
+
 def render_pdf(
     report: DesignReport, *, max_candidates: int | None = DEFAULT_RENDER_CANDIDATES
 ) -> bytes:
@@ -511,16 +558,17 @@ def render_pdf(
     lines = _report_lines(report, max_candidates)
     pages = _paginate(lines)
 
-    # Object numbering: 1 catalog, 2 pages, 3 font, then page/content objects.
+    # Object numbering: 1 catalog, 2 pages, 3 font, 4 info, then page/content objects.
     n_pages = len(pages)
-    page_obj_nums = [4 + i for i in range(n_pages)]
-    content_obj_nums = [4 + n_pages + i for i in range(n_pages)]
+    page_obj_nums = [5 + i for i in range(n_pages)]
+    content_obj_nums = [5 + n_pages + i for i in range(n_pages)]
     kids = " ".join(f"{n} 0 R" for n in page_obj_nums)
 
     objects: dict[int, bytes] = {
         1: b"<< /Type /Catalog /Pages 2 0 R >>",
         2: f"<< /Type /Pages /Kids [{kids}] /Count {n_pages} >>".encode("latin-1"),
         3: b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+        4: _info_object(report),
     }
     for i, page in enumerate(pages):
         page_obj = (
@@ -547,7 +595,7 @@ def render_pdf(
     out += b"0000000000 65535 f \n"
     for num in range(1, count):
         out += f"{offsets[num]:010d} 00000 n \n".encode("latin-1")
-    out += (f"trailer\n<< /Size {count} /Root 1 0 R >>\nstartxref\n{xref_pos}\n%%EOF\n").encode(
-        "latin-1"
-    )
+    out += (
+        f"trailer\n<< /Size {count} /Root 1 0 R /Info 4 0 R >>\nstartxref\n{xref_pos}\n%%EOF\n"
+    ).encode("latin-1")
     return bytes(out)

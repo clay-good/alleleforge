@@ -11889,3 +11889,40 @@ They are `MissingDependencyError` now, which is the type whose docstring already
 **Lesson: when a round unifies N call sites, the N+1th is usually in a file it already
 touched. And an exception type is part of the message — a consent error raised for a
 missing source sends the reader to fix the one thing that was never the problem.**
+
+## Round 365 — the one output nobody had opened
+
+A non-finding first, recorded so it is not re-chased. The project's rule against
+rebuilding a shared model field by field has a mechanical query — find constructor calls
+whose keyword values echo the same attribute off another instance — and it produced six
+candidates, all of them fine: two `Variant` constructions convert *from another input
+type* (a VCF record, a raw target) and so have no source for the fields they omit, and the
+reference descriptor's `DatasetVersion` omits `license` because a reference descriptor has
+no licence field to copy. That last one is a real gap in what provenance records about a
+reference genome, but naming a licence for a genome assembly is a legal statement and not
+mine to invent; recorded, not fixed.
+
+The finding came from generating the one artifact this session had never opened.
+`aforge design --format pdf` writes a forty-five-page document with no document
+information dictionary at all — no `/Title`, no `/Producer`. `pdfinfo` printed no Title
+line; macOS Spotlight fell back to the filename. That is the field a viewer puts in its
+window bar and the one a reference manager files a document under, so a report handed to a
+colleague arrived nameless, while the HTML rendering of the same report has carried a
+`<title>` all along. The disclaimer on page one is checked by the artifact guard and
+reaches neither.
+
+Two things only a real reader could have caught. The first attempt wrote the title in the
+page font's `WinAnsiEncoding`, which is what the body text uses — and poppler rendered
+`AlleleForge design report Š chr1:100:A>G`, because a string in the information
+dictionary is a PDF *text string* read as PDFDocEncoding unless it opens with a UTF-16
+byte-order mark. The second: inserting the object renumbered every page and content
+object, so the cross-reference table had to follow, and the guard checks every offset
+points at the object it claims.
+
+The title is built from `report.title` rather than a string spelled again in the writer,
+so the first page, the HTML `<title>` and the metadata cannot drift. No `/CreationDate`,
+because the same report has to render to the same bytes.
+
+**Lesson: an artifact nobody has opened is unexamined however many tests read its bytes.
+Two of this round's three defects were invisible to any assertion I would have thought to
+write, and visible immediately to `pdfinfo`.**

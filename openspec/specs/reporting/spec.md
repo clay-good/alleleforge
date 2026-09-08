@@ -581,3 +581,24 @@ are complete when the data cap has already removed candidates from them.
 - **WHEN** a per-chemistry cap has dropped candidates and the render has withheld more
 - **THEN** the two notes are true together: the dropped ones are gone, and every
   candidate in the menu is in the exports
+
+
+### Requirement: The PDF names itself to a viewer, not only on its first page
+
+The rendered PDF SHALL carry a document information dictionary whose `/Title` names the
+report and the variant it is for, and whose `/Producer` names the tool and version. That
+is the field a viewer shows in its window bar and a reference manager files the document
+under; the disclaimer on page one does not reach either.
+
+The title SHALL be built from the report's own title, so the first page, the HTML
+`<title>` and the PDF metadata cannot drift apart, and SHALL be written as a PDF text
+string — ASCII literal or UTF-16BE with a byte-order mark — rather than in the page
+font's `WinAnsiEncoding`.
+
+The dictionary SHALL NOT carry a creation date: the same report must render to the same
+bytes.
+
+#### Scenario: Opening a rendered report
+- **WHEN** a design report is rendered to PDF and opened
+- **THEN** the viewer shows the report's title and the variant, with any non-ASCII
+  characters intact
