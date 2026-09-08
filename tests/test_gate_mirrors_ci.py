@@ -170,3 +170,73 @@ def test_the_rust_job_runs_the_whole_suite_not_only_the_native_marks() -> None:
     """
     ci_tests = [c for c in _job_commands("rust") if c.startswith("pytest")]
     assert ci_tests and all("-m native" not in c for c in ci_tests), ci_tests
+
+
+def test_the_readme_points_at_the_mirror_rather_than_respelling_it() -> None:
+    """The third surface, which this file did not read.
+
+    `make ci` mirrors CI and is compared to it by command. The README carried its own
+    hand-spelled copy of the same gate — a third place for it to drift, checked by
+    nothing — and it had: `ruff` over three paths where CI ran four, which is the exact
+    divergence this file's docstring was written about, and `maturin develop`, which
+    installs a build of the working tree into whatever virtualenv is active rather than
+    the wheel CI installs.
+
+    The fix is not to compare a third copy but to remove it: the README points at the
+    targets, and this keeps it pointing rather than respelling. A `ruff`/`mypy`/`pytest`
+    invocation in the development section means someone has started a fourth copy.
+    """
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    start = readme.index("## Development")
+    section = readme[start : start + 2000]
+    # Command lines only. The prose around them legitimately names the tools — including
+    # the sentence explaining why they are no longer spelled out here — and a needle that
+    # cannot tell an instruction from a mention libels the explanation.
+    commands = [
+        line.strip()
+        for block in re.findall(r"```bash\n(.*?)```", section, re.S)
+        for line in block.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+    assert commands, "the development section has no command block"
+
+    assert "make ci" in section, "the development section no longer points at `make ci`"
+    respelled = [
+        tool
+        for tool in ("ruff check", "ruff format", "mypy --strict", "pytest ", "maturin develop")
+        if any(tool in command for command in commands)
+    ]
+    assert not respelled, (
+        f"the README's development section spells out {respelled} instead of pointing at "
+        "the make targets. That is a second copy of the gate, and the one nothing "
+        "compares to CI — it drifted to three `ruff` paths against CI's four last time."
+    )
+
+
+def test_no_document_tells_a_contributor_to_maturin_develop() -> None:
+    """`maturin develop` installs the working tree into the active virtualenv.
+
+    Which is shared by every checkout using it, and goes stale the moment the tree moves.
+    CI installs the built wheel, `make native` does the same, and a contributor following
+    the docs should end up where CI is — especially in a repository where several
+    worktrees of the same project are normal.
+    """
+    offenders = []
+    for path in [
+        ROOT / "README.md",
+        ROOT / "CONTRIBUTING.md",
+        *sorted((ROOT / "docs").rglob("*.md")),
+    ]:
+        if not path.is_file():
+            continue
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            # The prose that *warns* about it names it too; only a command line counts.
+            stripped = line.strip()
+            if stripped.startswith(
+                ("maturin develop", "cd rust && maturin develop", "$ maturin develop")
+            ):
+                offenders.append(f"{path.relative_to(ROOT)}:{number}")
+    assert not offenders, (
+        f"these tell a contributor to run `maturin develop`: {offenders}. Point at "
+        "`make native`, which builds a wheel and installs that, as CI does."
+    )

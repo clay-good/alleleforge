@@ -293,8 +293,13 @@ k-mer, haplotype and alignment dispatchers do the same. AlleleForge imports and 
 
 ```bash
 pip install maturin
-cd rust && maturin develop --release      # builds & installs aforge_native
+make native    # build the wheel, install it, and run the suite against it
 ```
+
+`make native` is what CI's `rust` job runs, so a local build is checked the same way. It
+builds a wheel and installs *that*, rather than `maturin develop`, which installs a build
+of your working tree into whichever virtualenv is active — convenient until the tree moves
+under it, and shared by every checkout using that environment.
 
 `alleleforge._native.NATIVE_AVAILABLE` reports whether the compiled extension is present, and
 `alleleforge.genome.native_fm_available()` whether the FM-index kernels specifically are built. The
@@ -1454,14 +1459,20 @@ alleleforge/
 ## Development
 
 ```bash
-pip install -e ".[dev]"
-ruff check src tests scripts        # lint + import order + docstrings
-ruff format --check src tests scripts  # formatting
-mypy --strict src/alleleforge       # strict type-check
-pytest                              # tests + ≥85% coverage gate on core
-pytest --nbmake examples/ --no-cov  # execute the example notebooks
-cd rust && cargo test && maturin develop   # native crate
+make install   # editable install with the dev, cli, web and genome-light extras
+make ci        # the whole gate: lint · type · test · docs · examples · reproduce
+make native    # build the Rust crate and run the suite against it
 ```
+
+`make ci` is the local mirror of the blocking CI jobs, and
+[`tests/test_gate_mirrors_ci.py`](tests/test_gate_mirrors_ci.py) compares the two by
+*command*, not by job name — so what you run here is what the pipeline runs. Prefer it to
+typing the individual tools: this block used to spell them out, and drifted, running `ruff`
+over three paths where CI ran four and telling contributors to `maturin develop`, which
+installs a build of the working tree into whatever virtualenv is active.
+
+Individual targets, when you want one: `make lint`, `make type`, `make test`, `make docs`,
+`make examples`, `make reproduce`, `make figures`. `make help` lists them.
 
 The library is **fully typed and ships a PEP 561 `py.typed` marker**, so `mypy`/`pyright` see its types
 when you depend on it. A `Makefile` mirrors the gate so `make ci` reproduces it locally

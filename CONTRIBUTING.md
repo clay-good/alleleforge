@@ -27,7 +27,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
 # Optional native acceleration (Rust toolchain required)
-cd rust && maturin develop --release && cd ..
+make native   # builds the wheel, installs it, runs the suite against it
 ```
 
 A conda environment is also provided:

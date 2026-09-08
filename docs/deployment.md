@@ -173,7 +173,7 @@ The off-target FM-index has a correct pure-Python fallback, so the library runs
 without any compiled code. For genome-scale searches, build the PyO3 crate:
 
 ```bash
-cd rust && maturin develop      # builds aforge_native (BWT / k-mer / haplotype kernels)
+make native      # builds aforge_native (BWT / k-mer / haplotype kernels) and checks it
 ```
 
 The library detects and uses it automatically when present and falls back

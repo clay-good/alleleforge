@@ -31,11 +31,8 @@ COMMANDS = ("", "resolve", "design", "batch", "offtarget", "verify", "lift", "da
 #: Each is listed with its owner, so this cannot become a bucket for a real stale flag.
 _NOT_OURS: dict[str, str] = {
     "--build": "docker compose up --build",
-    "--check": "ruff format --check",
     "--nbmake": "pytest --nbmake",
-    "--no-cov": "pytest --no-cov",
     "--port": "uvicorn --port",
-    "--release": "maturin develop --release",
     "--strict": "mypy --strict",
     "--api-phase-13-shipping-now": "a markdown anchor link",
     "--oligo-output-phase-11-shipping-now": "a markdown anchor link",
