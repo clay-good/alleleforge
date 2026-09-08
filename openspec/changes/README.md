@@ -12858,3 +12858,44 @@ defect, filed and closed at one instance. Grep for comments of the form "not X: 
 **And when a dependency's exception type subclasses a builtin you catch everywhere, the
 leak is not at one site; it is at every site. Ask that question the first time.**
 
+## Round 398 — the warning nobody sees, guarding the answer nobody should get
+
+Found in the test suite's own captured-warnings section, which nothing had read as a
+finding:
+
+```
+RuntimeWarning: Index file .../ref.fa.fai is older than FASTA file .../ref.fa
+```
+
+In the tests it is harmless. In production it is the signal that a reference was replaced
+or truncated after it was indexed — writing a different assembly to the same path is the
+ordinary way — and `ReferenceGenome` opens with `rebuild=False` (correctly: a read-only
+reference mount must work), so pyfaidx warns and then reads the stale offsets.
+
+Reproduced against a FASTA holding only `chr1`, opened with a two-contig index:
+
+```
+contigs()               -> ('chr1', 'chr2')
+contig_length('chr2')   -> 40
+fetch_result(chr2:0-20) -> '' with padded=False
+```
+
+`padded=False` is the interesting one. The engine has an honest way to say "these bases are
+not real" and this path does not use it: it says "I read those twenty bases, and they are
+nothing", which downstream reads as measured. A `RuntimeWarning` is the only other signal,
+and a warning reaches no library caller, no HTTP client and no served page.
+
+The fix is one `stat` against the offsets the index itself asserts. It has no false
+positives — a file shorter than the bytes its index requires cannot be the file it
+describes, whatever the mtimes say — and a *longer* file is deliberately allowed, since
+appending a contig does not move the ones already recorded.
+
+**Lesson: read the warnings section of your own test output as a findings list. A warning
+that is harmless in the fixture is describing a condition that is not harmless in
+production, and nothing else will ever surface it — warnings are invisible in every
+non-terminal context this project ships.**
+
+**And when a component has an honest way to say "not measured" (`padded`), check every
+path that could need it. A wrong answer that arrives through the honest channel with the
+honesty flag unset is worse than one that raises.**
+
