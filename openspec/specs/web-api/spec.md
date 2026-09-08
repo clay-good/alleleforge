@@ -333,6 +333,35 @@ transmitted externally, and SHALL name the request field that causes the transmi
 - **THEN** no variant is sent to the VEP server and the report carries no consequence
 
 
+### Requirement: A trained model takes two keys, and neither alone
+
+The four trained scorers — Rule Set 3, Lindel, BE-DICT, DeepPrime — SHALL be reachable
+over HTTP and from the served page, under the same split as consequence annotation: the
+operator lists which this deployment offers (`ALLELEFORGE_TRAINED_MODELS` or
+`create_app(trained_models=...)`), because the weights are a consent-gated download or an
+external checkout on the operator's disk; the request chooses per call
+(`trained_efficiency`, `trained_outcome`, `trained_base_outcome`, `trained_prime` — the
+same names `aforge design` uses as flags, so one capability does not get two vocabularies).
+
+A request asking for one that is not enabled SHALL be refused with a `422` naming the
+field and the setting, never answered by the baseline scorer: every number on the menu
+differs between the two, and nothing on the artifact says which model produced it. `GET
+/api/health` SHALL list what is enabled under `trained_models`, and the served page SHALL
+disable the ones this deployment does not offer rather than showing a control that 422s.
+
+An operator setting naming a model that does not exist SHALL raise at startup, because a
+misspelling that leaves the deployment silently baseline-only is the failure this gate
+exists to prevent.
+
+#### Scenario: Asking a deployment that has not enabled it
+- **WHEN** a request sets `trained_prime` on a deployment offering no trained models
+- **THEN** the response is a `422` naming `trained_prime` and `ALLELEFORGE_TRAINED_MODELS`
+
+#### Scenario: A deployment offering some but not all
+- **WHEN** the operator enables only `trained_outcome`
+- **THEN** a request for `trained_outcome` succeeds and one for `trained_prime` is refused
+
+
 ### Requirement: Reuse is the operator's switch, and the operator has one
 
 The two ways to avoid recomputing a reference scan — the cross-run report cache and the

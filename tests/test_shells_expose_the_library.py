@@ -54,11 +54,17 @@ _NOT_IN_WEB: dict[str, str] = {
     "patient_vcf": "file-backed input; see `gnomad`",
     "encode_tracks": "file-backed input; see `gnomad`",
     "max_candidates_per_chemistry": "exposed under the request field `max_per_chemistry`",
-    "cas9_efficiency_scorer": "a Python object, not expressible in JSON",
-    "cas9_outcome_predictor": "a Python object, not expressible in JSON",
-    "base_outcome_predictor": "a Python object, not expressible in JSON",
-    "prime_efficiency_scorer": "a Python object, not expressible in JSON",
-    "prime_outcome_predictor": "a Python object, not expressible in JSON",
+    # A scorer *object* is not expressible in JSON — but the capability behind it is,
+    # and saying only the first half is how these four stayed unreachable while
+    # `aforge design --trained-efficiency` reached them with a boolean. The request
+    # asks for the trained adapter by name; the operator gates the download.
+    "cas9_efficiency_scorer": "a Python object; the trained adapter it selects is asked "
+    "for by the request field `trained_efficiency`, gated by ALLELEFORGE_TRAINED_MODELS",
+    "cas9_outcome_predictor": "a Python object; asked for by `trained_outcome`",
+    "base_outcome_predictor": "a Python object; asked for by `trained_base_outcome`",
+    "prime_efficiency_scorer": "a Python object; asked for by `trained_prime`",
+    "prime_outcome_predictor": "a Python object, and nothing trained ships to select, "
+    "so unlike its four siblings there is no capability behind it to expose",
     # Reuse is the operator's call, not the client's: the store and the index live
     # on the server's disk, and a client asking for either would be spending the
     # operator's resources on its own request.

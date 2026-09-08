@@ -1167,7 +1167,12 @@ flowchart LR
 > `create_app(...)` arguments) make the population-aware search, the haplotype-aware pass and the chromatin
 > adjustment available over HTTP. `ALLELEFORGE_VEP` is operator-configured for a different reason — enabling
 > it means this deployment discloses its clients' variants to an external VEP server — and a request then
-> opts in per call with `annotate_consequence`. `GET /api/health` reports which of them this deployment loaded, and names
+> opts in per call with `annotate_consequence`. `ALLELEFORGE_TRAINED_MODELS` splits the same way and for the
+> same kind of reason — the Rule Set 3, Lindel, BE-DICT and DeepPrime weights are a consent-gated download
+> onto the operator's disk — so the operator lists which are offered and a request picks one per call with
+> `trained_efficiency` / `trained_outcome` / `trained_base_outcome` / `trained_prime`, the same names
+> `aforge design` uses as flags. Until then every menu the API returned was scored by the transparent
+> baseline, and nothing on it said so. `GET /api/health` reports which of them this deployment loaded, and names
 > the reason when a configured one could not be read — a client cannot supply them, so it has to be able to
 > see them. `--patient-vcf` remains absent for a different reason: a personal genotype is the *caller's*
 > data, not the operator's, so server-side configuration is the wrong shape for it and an upload path is a

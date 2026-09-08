@@ -19,6 +19,7 @@ Two invariants from the specification:
 
 from __future__ import annotations
 
+import importlib
 import os
 import tempfile
 from collections.abc import Iterable
@@ -35,7 +36,8 @@ from fastapi.staticfiles import StaticFiles
 from alleleforge._version import __version__
 from alleleforge.config import Settings
 from alleleforge.design.cohort_summary import cohort_rows, cohort_to_tsv
-from alleleforge.errors import MissingDependencyError
+from alleleforge.errors import ChecksumError, ConsentError, MissingDependencyError
+from alleleforge.model_zoo.registry import LicenseError
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
     RESEARCH_USE_CORE,
@@ -360,6 +362,106 @@ def _load_effect_from_env() -> Any | None:
     return VepRestPredictor(server=server, consent=True)
 
 
+#: The trained-model opt-ins, keyed by the request field that asks for one, mapping to
+#: the `design()` keyword it fills and the adapter that fills it. The request field names
+#: match `aforge design`'s flags exactly (`--trained-efficiency`, ...) so the two shells
+#: do not give one capability two vocabularies.
+_TRAINED_MODELS: dict[str, tuple[str, str, str]] = {
+    "trained_efficiency": (
+        "cas9_efficiency_scorer",
+        "alleleforge.scoring.cas9_efficiency",
+        "TrainedRuleSet3Scorer",
+    ),
+    "trained_outcome": (
+        "cas9_outcome_predictor",
+        "alleleforge.scoring.cas9_outcome",
+        "LindelAdapter",
+    ),
+    "trained_base_outcome": (
+        "base_outcome_predictor",
+        "alleleforge.scoring.base_outcome",
+        "BeDictAdapter",
+    ),
+    "trained_prime": (
+        "prime_efficiency_scorer",
+        "alleleforge.scoring.prime_efficiency",
+        "DeepPrimeAdapter",
+    ),
+}
+
+
+def _load_trained_models_from_env() -> frozenset[str]:
+    """Return the trained models ``ALLELEFORGE_TRAINED_MODELS`` permits.
+
+    The operator's half of the same split `ALLELEFORGE_VEP` uses, for the same kind of
+    reason: each trained model is a consent-gated weight download or an external
+    checkout that lives on the *operator's* disk, so only they can turn one on, while
+    which model scores a given run is the client's choice. A client that could not ask
+    got the transparent baseline every time, with no way to know a trained model existed.
+
+    The value is a comma-separated list of request-field names, or ``1``/``all`` for
+    every one. An unrecognized name raises at startup rather than silently enabling
+    nothing: a typo that leaves the deployment quietly baseline-only is exactly the
+    failure this gate exists to make visible.
+    """
+    value = os.environ.get("ALLELEFORGE_TRAINED_MODELS", "").strip()
+    if not value:
+        return frozenset()
+    if value in {"1", "all", "true"}:
+        return frozenset(_TRAINED_MODELS)
+    names = {n.strip() for n in value.split(",") if n.strip()}
+    unknown = sorted(names - set(_TRAINED_MODELS))
+    if unknown:
+        raise ValueError(
+            f"ALLELEFORGE_TRAINED_MODELS names unknown model(s): {unknown}; "
+            f"choose from {sorted(_TRAINED_MODELS)}, or '1' for all of them"
+        )
+    return frozenset(names)
+
+
+def _trained_scorers(request: Request, req: Any) -> dict[str, Any]:
+    """Return the `design()` scorer arguments a request asked for, or ``422``/``503``.
+
+    Refused rather than ignored, for the reason `annotate_consequence` is: a client that
+    asked for the trained model and got a baseline-scored menu cannot tell "this
+    deployment does not offer it" from "the trained model returned this". Every number
+    on the menu would differ, and nothing on the artifact would say which model made it.
+
+    Only *construction* failures are mapped here. An adapter that constructs and then
+    cannot load its weights degrades exactly as it does on the command line — the
+    chemistry is skipped with the reason in the menu rationale — because the two shells
+    calling one `design()` must not invent two failure modes for one condition.
+    """
+    enabled: frozenset[str] = request.app.state.trained_models
+    out: dict[str, Any] = {}
+    for field, (kwarg, module, cls) in _TRAINED_MODELS.items():
+        if not getattr(req, field, False):
+            continue
+        if field not in enabled:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"{field} was requested but this deployment has not enabled it "
+                    f"(ALLELEFORGE_TRAINED_MODELS). Enabled here: "
+                    f"{sorted(enabled) or 'none'}. GET /api/health lists them under "
+                    "`trained_models`; without one the baseline scorer is used, and the "
+                    "request is refused rather than answered by a different model."
+                ),
+            )
+        try:
+            adapter = getattr(importlib.import_module(module), cls)
+            # The operator consented by enabling it; the client chose it per request.
+            out[kwarg] = adapter(consent=True)
+        except (MissingDependencyError, ConsentError, ChecksumError, LicenseError) as exc:
+            # Enabled by the operator but not actually installable here. 503, not 422:
+            # the client's request is well-formed and the deployment is the problem.
+            raise HTTPException(
+                status_code=503,
+                detail=f"{field} is enabled on this deployment but unavailable: {exc}",
+            ) from exc
+    return out
+
+
 def _chromatin_tracks(request: Request, track: str | None) -> Any | None:
     """Return the configured tracks when a valid track name was asked for, or raise 422.
 
@@ -481,6 +583,7 @@ def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
         allow_ng=req.allow_ng,
         allow_spry=req.allow_spry,
         settings=settings,
+        **_trained_scorers(request, req),
     )
     scheme = scheme_by_name(req.vector_scheme) if req.vector_scheme else None
     return build_report(menu, variant=str(resolved.variant), intent=intent.value, scheme=scheme)
@@ -553,6 +656,7 @@ def create_app(
     offtarget_cache: Any | None = None,
     genome_index: Any | None = None,
     encode_tracks: Any | None = None,
+    trained_models: Iterable[str] | None = None,
     settings: Settings | None = None,
     api_token: str | None = None,
 ) -> FastAPI:
@@ -569,6 +673,12 @@ def create_app(
             ``None``, one is opened when ``ALLELEFORGE_OFFTARGET_CACHE`` is set.
         genome_index: A persistent memory-mapped FM-index over the reference. If
             ``None``, one is built at startup when ``ALLELEFORGE_GENOME_INDEX`` is set.
+        trained_models: Which trained-model opt-ins this deployment permits, named by
+            the request field that asks for one (``"trained_efficiency"``, ...). If
+            ``None``, read from ``ALLELEFORGE_TRAINED_MODELS``. Each is a consent-gated
+            download or an external checkout on the operator's disk, so the operator
+            enables and the client chooses per request — without this every menu the API
+            returned was scored by the transparent baseline, with no way to ask.
         effect: A pre-loaded variant-consequence predictor. If ``None``, one is built
             from ``ALLELEFORGE_VEP`` when that is set. Without it a request asking for
             `annotate_consequence` is refused rather than answered without one.
@@ -628,6 +738,15 @@ def create_app(
         encode_tracks if encode_tracks is not None else _load_encode_tracks_from_env()
     )
     app.state.effect = _vep_predictor
+    app.state.trained_models = (
+        frozenset(trained_models) if trained_models is not None else _load_trained_models_from_env()
+    )
+    unknown = sorted(app.state.trained_models - set(_TRAINED_MODELS))
+    if unknown:
+        raise ValueError(
+            f"create_app(trained_models=...) names unknown model(s): {unknown}; "
+            f"choose from {sorted(_TRAINED_MODELS)}"
+        )
     _env_cache, _env_index = _load_reuse_from_env(app.state.reference)
     app.state.offtarget_cache = offtarget_cache if offtarget_cache is not None else _env_cache
     app.state.genome_index = genome_index if genome_index is not None else _env_index
@@ -684,6 +803,7 @@ def create_app(
             gnomad_loaded=app.state.gnomad is not None,
             haplotypes_loaded=bool(app.state.haplotypes),
             vep_enabled=app.state.effect is not None,
+            trained_models=tuple(sorted(app.state.trained_models)),
             scan_reuse=_reuse_names(app.state),
             # The names, not a flag: a client picks one per request and has no other way
             # to discover what this deployment's bedGraph contains.
@@ -834,6 +954,7 @@ def create_app(
             allow_ng=req.allow_ng,
             allow_spry=req.allow_spry,
             settings=settings,
+            **_trained_scorers(request, req),
         )
         if fmt is not BatchFormat.json:
             # The same table `aforge batch --summary-tsv` writes, from the same library

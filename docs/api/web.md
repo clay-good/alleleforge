@@ -66,6 +66,18 @@ request because the variant is the client's. Where it is enabled, the API descri
 says so instead of claiming that no sequence data leaves the machine, and a request for
 it where it is not enabled is a `422` rather than a report quietly missing the field.
 
+`ALLELEFORGE_TRAINED_MODELS` follows the same operator-enables / client-chooses split as
+`ALLELEFORGE_VEP`, for a structurally identical reason. Each trained model — Rule Set 3,
+Lindel, BE-DICT, DeepPrime — is a consent-gated weight download or an external checkout on
+the operator's disk, so only the operator can turn one on; which model scores a given run
+is the client's choice, made per request with `trained_efficiency`, `trained_outcome`,
+`trained_base_outcome` or `trained_prime` (the same names `aforge design` uses as flags).
+Set it to a comma-separated list of those names, or `1` for all four; an unrecognized name
+raises at startup rather than quietly leaving the deployment baseline-only. `GET
+/api/health` lists what is enabled under `trained_models`, and a request for one that is
+not is a `422` — a menu scored by the weight-free baseline and one scored by a trained
+model are otherwise indistinguishable, and every number on them differs.
+
 `ALLELEFORGE_OFFTARGET_CACHE` and `ALLELEFORGE_GENOME_INDEX` enable the two ways to stop
 recomputing the reference scan: a cross-run store of reference-only reports, and a
 persistent memory-mapped FM-index built once at startup. Neither changes a result, and

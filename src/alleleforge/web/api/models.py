@@ -233,6 +233,40 @@ class DesignRequest(BaseModel):
             "configured is a 422, not a silent omission."
         ),
     )
+    trained_efficiency: bool = Field(
+        default=False,
+        description=(
+            "Score SpCas9 efficiency with the trained Rule Set 3 model instead of the "
+            "weight-free baseline. Off by default and available only where the operator "
+            "has enabled it (`ALLELEFORGE_TRAINED_MODELS`), because the weights are a "
+            "consent-gated download onto the server's disk. `GET /api/health` lists the "
+            "trained models this deployment offers; asking for one it does not is a 422, "
+            "not a silent fall back to the baseline."
+        ),
+    )
+    trained_outcome: bool = Field(
+        default=False,
+        description=(
+            "Predict the SpCas9 indel spectrum with the trained Lindel model instead of "
+            "the microhomology baseline. Operator-gated; see `trained_efficiency`."
+        ),
+    )
+    trained_base_outcome: bool = Field(
+        default=False,
+        description=(
+            "Predict the base-edit window outcome with the trained BE-DICT model "
+            "instead of the weight-free baseline. Operator-gated; see "
+            "`trained_efficiency`."
+        ),
+    )
+    trained_prime: bool = Field(
+        default=False,
+        description=(
+            "Score prime-editing efficiency with the trained DeepPrime model instead of "
+            "the transparent PRIDICT2-style baseline. Operator-gated; see "
+            "`trained_efficiency`."
+        ),
+    )
     max_per_chemistry: int | None = Field(
         default=None, ge=1, description="Cap candidates kept per chemistry."
     )
@@ -308,6 +342,40 @@ class BatchRequest(BaseModel):
             "(`ALLELEFORGE_VEP`), because it sends every variant in the cohort to a "
             "third-party public server. `GET /api/health` says whether this deployment "
             "offers it."
+        ),
+    )
+    trained_efficiency: bool = Field(
+        default=False,
+        description=(
+            "Score SpCas9 efficiency with the trained Rule Set 3 model instead of the "
+            "weight-free baseline. Off by default and available only where the operator "
+            "has enabled it (`ALLELEFORGE_TRAINED_MODELS`), because the weights are a "
+            "consent-gated download onto the server's disk. `GET /api/health` lists the "
+            "trained models this deployment offers; asking for one it does not is a 422, "
+            "not a silent fall back to the baseline."
+        ),
+    )
+    trained_outcome: bool = Field(
+        default=False,
+        description=(
+            "Predict the SpCas9 indel spectrum with the trained Lindel model instead of "
+            "the microhomology baseline. Operator-gated; see `trained_efficiency`."
+        ),
+    )
+    trained_base_outcome: bool = Field(
+        default=False,
+        description=(
+            "Predict the base-edit window outcome with the trained BE-DICT model "
+            "instead of the weight-free baseline. Operator-gated; see "
+            "`trained_efficiency`."
+        ),
+    )
+    trained_prime: bool = Field(
+        default=False,
+        description=(
+            "Score prime-editing efficiency with the trained DeepPrime model instead of "
+            "the transparent PRIDICT2-style baseline. Operator-gated; see "
+            "`trained_efficiency`."
         ),
     )
     max_per_chemistry: int | None = Field(
@@ -648,6 +716,13 @@ class HealthResponse(BaseModel):
     #: sends the client's variant to a third-party public server — a disclosure only
     #: the operator can consent to on behalf of the deployment.
     vep_enabled: bool = False
+    #: The trained models this deployment will run when a request asks for one, by the
+    #: request field that asks ("trained_efficiency", ...). Empty unless the operator
+    #: enabled them: each is a consent-gated download or an external checkout on the
+    #: operator's disk, so a client can choose per request but cannot turn one on. A
+    #: client has no other way to learn whether the numbers it gets back came from a
+    #: trained model or the transparent baseline it can always reach.
+    trained_models: tuple[str, ...] = ()
     #: Which ways of reusing an expensive reference scan this deployment has enabled
     #: ("offtarget-cache", "genome-index"). A client cannot turn either on — they spend
     #: the operator's disk — and has no other way to learn that two deployments running

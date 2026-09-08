@@ -32,6 +32,10 @@ function readForm() {
     allow_ng: document.getElementById("allow-ng").checked,
     allow_spry: document.getElementById("allow-spry").checked,
     annotate_consequence: document.getElementById("annotate-consequence").checked,
+    trained_efficiency: document.getElementById("trained-efficiency").checked,
+    trained_outcome: document.getElementById("trained-outcome").checked,
+    trained_base_outcome: document.getElementById("trained-base-outcome").checked,
+    trained_prime: document.getElementById("trained-prime").checked,
   };
 }
 
@@ -121,6 +125,12 @@ async function checkHealth() {
       sources.push(`tracks: ${h.chromatin_tracks.join("/")}`);
     }
     if (h.vep_enabled) sources.push("VEP consequence (external)");
+    // Which models scored the numbers is as much a fact about the deployment as which
+    // data it searched, and a client cannot tell a trained-model run from a baseline one
+    // by looking at the menu.
+    if (h.trained_models && h.trained_models.length) {
+      sources.push(`trained: ${h.trained_models.join("/")}`);
+    }
     // The disclaimer promised that no sequence data leaves this deployment. That is the
     // sentence a reader checks before pasting a patient variant, and enabling the VEP
     // annotation makes it false — so the page says what this deployment actually does,
@@ -155,6 +165,16 @@ async function checkHealth() {
     // which of the two a greyed box means.
     for (const id of ["annotate-consequence", "batch-annotate-consequence"]) {
       document.getElementById(id).disabled = !h.vep_enabled;
+    }
+    // Same operator-enables/client-chooses split as VEP, and the same reason for reading
+    // it from health: which trained models a deployment can run is its own fact, and a
+    // checkbox that looks available and silently 422s is worse than a greyed-out one.
+    const trained = h.trained_models || [];
+    for (const field of ["trained_efficiency", "trained_outcome", "trained_base_outcome", "trained_prime"]) {
+      const id = field.replace(/_/g, "-");
+      for (const prefix of ["", "batch-"]) {
+        document.getElementById(prefix + id).disabled = !trained.includes(field);
+      }
     }
   } catch {
     document.getElementById("health").textContent = "API unreachable";
@@ -204,6 +224,10 @@ function readBatchForm() {
     allow_ng: document.getElementById("batch-allow-ng").checked,
     allow_spry: document.getElementById("batch-allow-spry").checked,
     annotate_consequence: document.getElementById("batch-annotate-consequence").checked,
+    trained_efficiency: document.getElementById("batch-trained-efficiency").checked,
+    trained_outcome: document.getElementById("batch-trained-outcome").checked,
+    trained_base_outcome: document.getElementById("batch-trained-base-outcome").checked,
+    trained_prime: document.getElementById("batch-trained-prime").checked,
   };
 }
 

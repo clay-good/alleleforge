@@ -107,6 +107,29 @@
                    &mdash; to an external VEP server. Greyed out means this deployment
                    does not offer it, not that the variant is unremarkable.</small>
 
+
+            <div class="row">
+              <label class="checkbox">
+                <input id="trained-efficiency" type="checkbox" disabled /> trained
+                SpCas9 efficiency (Rule Set 3)
+              </label>
+              <label class="checkbox">
+                <input id="trained-outcome" type="checkbox" disabled /> trained
+                SpCas9 outcome (Lindel)
+              </label>
+              <label class="checkbox">
+                <input id="trained-base-outcome" type="checkbox" disabled /> trained
+                base-edit outcome (BE-DICT)
+              </label>
+              <label class="checkbox">
+                <input id="trained-prime" type="checkbox" disabled /> trained prime
+                efficiency (DeepPrime)
+              </label>
+            </div>
+            <small>Each replaces a transparent, weight-free baseline with a trained model.
+                   Greyed out means the operator has not enabled that one here &mdash; the
+                   weights are a consent-gated download onto their disk &mdash; not that it
+                   would make no difference. Which model scored a run is recorded in its provenance.</small>
             <div class="row">
               <label class="checkbox">
                 <input id="allow-ng" type="checkbox" /> offer SpCas9-NG (NG PAM) guides
@@ -224,6 +247,29 @@
             <small>Available only where the operator enabled it, and off unless you ask:
                    it sends every variant in the cohort to an external VEP server.</small>
 
+
+            <div class="row">
+              <label class="checkbox">
+                <input id="batch-trained-efficiency" type="checkbox" disabled /> trained
+                SpCas9 efficiency (Rule Set 3)
+              </label>
+              <label class="checkbox">
+                <input id="batch-trained-outcome" type="checkbox" disabled /> trained
+                SpCas9 outcome (Lindel)
+              </label>
+              <label class="checkbox">
+                <input id="batch-trained-base-outcome" type="checkbox" disabled /> trained
+                base-edit outcome (BE-DICT)
+              </label>
+              <label class="checkbox">
+                <input id="batch-trained-prime" type="checkbox" disabled /> trained prime
+                efficiency (DeepPrime)
+              </label>
+            </div>
+            <small>Each replaces a transparent, weight-free baseline with a trained model.
+                   Greyed out means the operator has not enabled that one here &mdash; the
+                   weights are a consent-gated download onto their disk &mdash; not that it
+                   would make no difference. The choice applies to every item in the cohort.</small>
             <div class="row">
               <label class="checkbox">
                 <input id="batch-allow-ng" type="checkbox" /> offer SpCas9-NG (NG PAM) guides

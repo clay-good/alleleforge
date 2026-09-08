@@ -1,0 +1,113 @@
+"""Every menu this API returned was scored by the transparent baseline.
+
+`design()` takes five scorer overrides. The shell-parity guard excused all five from the
+web API with "a Python object, not expressible in JSON" — true of the *object*, and the
+reason the gap survived, because `aforge design --trained-efficiency` had reached the
+same capability all along with a boolean. An excuse that describes the argument's type
+rather than the capability behind it passes every sweep.
+
+The gap mattered in the direction that is hardest to notice: the API answered `200` with
+a complete, plausible menu, and nothing on it said the numbers came from a weight-free
+heuristic rather than from Rule Set 3, Lindel, BE-DICT or DeepPrime — nor that the
+trained model was an option.
+
+The split is the one `ALLELEFORGE_VEP` already uses, and for a structurally identical
+reason: the weights are a consent-gated download or an external checkout on the
+*operator's* disk, so only they can turn one on; which model scores a given run is the
+client's choice. `GET /api/health` reports what is enabled, because a client has no other
+way to learn it, and asking for one that is not enabled is a 422 — never a silent fall
+back to a different model.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+from alleleforge.genome.reference import ReferenceGenome
+from alleleforge.web.api.app import _TRAINED_MODELS, create_app
+from alleleforge.web.api.models import BatchRequest, DesignRequest
+
+_FIELDS = sorted(_TRAINED_MODELS)
+
+
+@pytest.fixture
+def reference(tmp_path: Path) -> ReferenceGenome:
+    fasta = tmp_path / "ref.fa"
+    fasta.write_text(">chr1\n" + "ACGTTGCAAGGCTTACCGTA" * 20 + "\n")
+    return ReferenceGenome(fasta, build="hg38")
+
+
+def test_the_four_opt_ins_are_named_the_same_on_both_shells() -> None:
+    """One capability, one vocabulary: the request fields are the CLI's flag names."""
+    import typer
+
+    from alleleforge.cli.main import app
+
+    design_params = {p.name for p in typer.main.get_command(app).commands["design"].params}  # type: ignore[attr-defined]
+    assert set(_FIELDS) <= design_params, sorted(set(_FIELDS) - design_params)
+    for model in (DesignRequest, BatchRequest):
+        missing = [f for f in _FIELDS if f not in model.model_fields]
+        assert not missing, f"{model.__name__} cannot ask for {missing}"
+
+
+@pytest.mark.parametrize("field", _FIELDS)
+@pytest.mark.parametrize("endpoint", ["/api/design", "/api/batch"])
+def test_asking_for_a_model_this_deployment_lacks_is_refused_not_ignored(
+    field: str, endpoint: str, reference: ReferenceGenome
+) -> None:
+    """A baseline-scored menu and a trained-model one are indistinguishable."""
+    client = TestClient(create_app(reference=reference))
+    body: dict[str, object] = {"run_offtarget": False, field: True}
+    body["variants" if endpoint == "/api/batch" else "variant"] = (
+        ["chr1:103:G>A"] if endpoint == "/api/batch" else "chr1:103:G>A"
+    )
+    response = client.post(endpoint, json=body)
+    assert response.status_code == 422, response.text
+    detail = response.json()["detail"]
+    assert field in detail and "ALLELEFORGE_TRAINED_MODELS" in detail, detail
+    assert "trained_models" in detail, "the refusal should name where to look them up"
+
+
+def test_health_reports_what_the_operator_enabled(reference: ReferenceGenome) -> None:
+    assert (
+        TestClient(create_app(reference=reference)).get("/api/health").json()["trained_models"]
+        == []
+    )
+    enabled = ["trained_outcome", "trained_prime"]
+    client = TestClient(create_app(reference=reference, trained_models=enabled))
+    assert client.get("/api/health").json()["trained_models"] == sorted(enabled)
+
+
+def test_an_enabled_model_is_no_longer_refused(reference: ReferenceGenome) -> None:
+    """The gate opens: same request, same deployment, one operator setting apart."""
+    client = TestClient(create_app(reference=reference, trained_models=["trained_outcome"]))
+    body = {"variant": "chr1:103:G>A", "run_offtarget": False, "trained_outcome": True}
+    assert client.post("/api/design", json=body).status_code == 200
+    # And the gate is per model, not a single on/off.
+    body_other = {"variant": "chr1:103:G>A", "run_offtarget": False, "trained_prime": True}
+    assert client.post("/api/design", json=body_other).status_code == 422
+
+
+@pytest.mark.parametrize("source", ["env", "argument"])
+def test_a_typo_in_the_operator_setting_is_loud(
+    source: str, reference: ReferenceGenome, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A misspelling that silently enables nothing is what the gate exists to prevent."""
+    if source == "env":
+        monkeypatch.setenv("ALLELEFORGE_TRAINED_MODELS", "trained_efficency")
+        with pytest.raises(ValueError, match="unknown model"):
+            create_app(reference=reference)
+    else:
+        with pytest.raises(ValueError, match="unknown model"):
+            create_app(reference=reference, trained_models=["trained_efficency"])
+
+
+def test_the_env_value_all_enables_every_one(
+    reference: ReferenceGenome, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ALLELEFORGE_TRAINED_MODELS", "1")
+    client = TestClient(create_app(reference=reference))
+    assert client.get("/api/health").json()["trained_models"] == _FIELDS
