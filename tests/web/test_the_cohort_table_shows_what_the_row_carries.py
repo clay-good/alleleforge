@@ -32,13 +32,18 @@ _NOT_A_COLUMN: dict[str, str] = {
 
 
 def _row_keys() -> set[str]:
-    """Return the keys a cohort summary row carries, from the function that builds it."""
-    from alleleforge.design.cohort import _summarize
+    """Return the keys a cohort summary row carries, from the function that builds it.
 
-    source = __import__("inspect").getsource(_summarize)
-    keys = set(re.findall(r'^\s{8}"(\w+)":', source, re.M))
-    assert len(keys) > 8, f"parsed {keys} from _summarize — this check would be vacuous"
-    return keys | {"item_id", "status"}
+    Read off `cohort_rows`, which is the row's actual contract, rather than off
+    `_summarize` plus a guess at what the wrapper adds — the guess omitted `error`, and
+    an approximation of the thing under test reports the difference as a defect.
+    """
+    from alleleforge.design.cohort_summary import cohort_rows
+
+    source = __import__("inspect").getsource(cohort_rows)
+    keys = set(re.findall(r'^\s{16}"(\w+)":', source, re.M))
+    assert len(keys) > 8, f"parsed {keys} from cohort_rows — this check would be vacuous"
+    return keys
 
 
 def _rendered_by_the_table() -> set[str]:
@@ -75,3 +80,33 @@ def test_the_header_and_the_cells_stay_the_same_width() -> None:
         leading,
         len(header),
     )
+
+
+def _tsv_columns() -> list[str]:
+    """Return the TSV's column list, in order, from the writer that emits it."""
+    from alleleforge.design import cohort_summary
+
+    source = __import__("inspect").getsource(cohort_summary.cohort_to_tsv)
+    cols = re.findall(r'^\s{8}"(\w+)",', source, re.M)
+    assert len(cols) > 8, f"parsed {cols} — this check would be vacuous"
+    return cols
+
+
+def test_the_tsv_writes_every_fact_the_row_carries() -> None:
+    """The same rule one layer down, where the column list is also hand-written.
+
+    `cohort_to_tsv` keeps an explicit `cols` list, so a key added to the row and not to
+    it is dropped from the file in silence — which is how `chemistries` came to be
+    available to a Python caller and absent from the artifact the run is read through.
+    """
+    missing = sorted(set(_row_keys()) - set(_tsv_columns()))
+    assert not missing, (
+        f"the cohort row carries {missing} and the TSV has no column for them. A key on "
+        "the row that the file drops is a fact a Python caller has and a reader does not."
+    )
+
+
+def test_the_tsv_has_no_column_the_row_cannot_fill() -> None:
+    """The other direction: a column whose key nothing produces is an always-empty cell."""
+    orphan = sorted(set(_tsv_columns()) - set(_row_keys()))
+    assert not orphan, f"the TSV writes columns no cohort row carries: {orphan}"

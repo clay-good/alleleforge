@@ -54,6 +54,7 @@ def cohort_rows(report: Any) -> list[dict[str, Any]]:
                 "variant": summary.get("variant"),
                 "clinical_significance": summary.get("clinical_significance"),
                 "best_chemistry": summary.get("best_chemistry"),
+                "chemistries": summary.get("chemistries") or [],
                 "best_efficiency": summary.get("best_efficiency"),
                 "best_efficiency_low": summary.get("best_efficiency_low"),
                 "best_efficiency_high": summary.get("best_efficiency_high"),
@@ -144,6 +145,11 @@ def cohort_to_tsv(
         "clinical_significance",
         "status",
         "best_chemistry",
+        # Every chemistry that produced a candidate, not only the recommended one. A
+        # cohort is scanned to decide which variants need a closer look, and "prime
+        # only" and "prime, base_abe and cas9_nuclease" send a reader to very different
+        # next steps. It was on the row, so a Python caller had it and the file did not.
+        "chemistries",
         "best_efficiency",
         "best_efficiency_low",
         "best_efficiency_high",

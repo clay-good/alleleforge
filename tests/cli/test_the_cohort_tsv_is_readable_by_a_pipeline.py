@@ -28,6 +28,7 @@ def _row(**overrides: object) -> dict[str, object]:
         "clinical_significance": None,
         "status": "ok",
         "best_chemistry": "base_abe",
+        "chemistries": ["base_abe", "prime"],
         "best_efficiency": 0.6,
         "best_efficiency_low": 0.44999999999999996,
         "best_efficiency_high": 0.75,
