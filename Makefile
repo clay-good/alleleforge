@@ -28,6 +28,11 @@ examples: ## Execute the runnable notebooks, as CI's `examples` job does.
 reproduce: ## Re-derive the canonical run and diff it against the golden (R0).
 	python scripts/reproduce.py
 
+# Not in `ci` because the suite now compares the committed SVGs against this
+# generator (test_the_committed_figures_match_their_generator). It was in neither
+# for a long time: the figures are committed, only this target rewrites them, and
+# nothing checked that the two agreed — so a change behind a figure left the docs
+# showing the old one with every gate green.
 figures: ## Regenerate the committed docs/preprint figures (dependency-free SVG).
 	python scripts/figures.py
 

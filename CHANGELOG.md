@@ -2571,6 +2571,7 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+- The suite checks that the committed docs figures are what `scripts/figures.py` produces. They are committed, that script is the only thing that writes them, and it ran in neither `make ci` nor CI — so a change behind a figure left the docs showing the old one with every gate green.
 - The reproducibility golden is current again, and the test suite checks it. It had drifted three legitimate changes behind — a new field, a dataset reaching provenance, a reworded rationale — and because `scripts/reproduce.py` runs only as its own CI job, every local signal stayed green.
 - A stale native extension is now reported instead of silently disabling the parity suite. The version handshake could not see it — the crate version is single-sourced and unchanged between builds — so an extension built before the off-target evaluation kernel existed reported the same version as one built after it, and the seventeen tests that prove native/Python parity skipped themselves saying the crate was not built.
 - The rendered PDF carries a `/Title` and `/Producer`, so a forty-five-page report no longer opens untitled and is no longer filed by a reference manager as an untitled document. No creation date, so the same report still renders to the same bytes.
