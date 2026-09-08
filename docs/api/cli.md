@@ -152,7 +152,7 @@ The column header is the first non-comment line, as in VCF, GTF and bedGraph, so
 comment-skipping reader (`polars.read_csv(..., comment_prefix="#")`,
 `pandas.read_csv(..., comment="#")`, `read.delim(..., comment.char="#")`) gets exactly
 the table it got before. A reader that skips nothing sees a different first line, so
-`schema_version` — which leads every row for this purpose — is `13`.
+`schema_version` — which leads every row for this purpose — is `14`.
 
 `--format parquet --out menu.parquet` writes the same table for a batch consumer.
 Parquet has no comment lines, so it carries the same notes as file-level key/value

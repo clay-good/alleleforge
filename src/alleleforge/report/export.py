@@ -30,8 +30,10 @@ from alleleforge.types.candidate import RankedMenu
 #: ranking weights, and Parquet's metadata keys gained a `note_NN_` ordinal prefix so a
 #: reader sorting them reads the notes in the order the document states them. That last
 #: part is a BREAKING change to the Parquet metadata key names, taken pre-1.0 and with
-#: the schema version bumped for exactly this purpose.
-EXPORT_SCHEMA_VERSION = 13
+#: the schema version bumped for exactly this purpose; and for v14, when
+#: `bystander_burden` grew the interval and honesty flags its two neighbouring
+#: predictions already carried.
+EXPORT_SCHEMA_VERSION = 14
 
 #: The flat TSV column order (one row per candidate). ``schema_version`` leads so a
 #: reader can branch on the format before touching any other column.
@@ -49,6 +51,14 @@ TSV_COLUMNS = (
     "in_distribution",
     "calibrated",
     "bystander_burden",
+    # The same envelope `efficiency` above and `p_intended` below carry, on the third
+    # calibrated `Prediction` in this row. It was the only one flattened to its point
+    # estimate — the never-a-bare-float rule holding for two columns of a table and not
+    # for the one between them.
+    "bystander_burden_low",
+    "bystander_burden_high",
+    "bystander_burden_in_distribution",
+    "bystander_burden_calibrated",
     "p_intended",
     # The same three qualifiers `efficiency` carries. `p_intended` alone is the
     # number a pipeline filters on, and without these a derived sum over an indel
@@ -137,6 +147,10 @@ def _row(candidate: Any) -> dict[str, Any]:
         "in_distribution": None if eff is None else eff.in_distribution,
         "calibrated": None if eff is None else eff.calibrated,
         "bystander_burden": None if burden is None else round(burden.value, 4),
+        "bystander_burden_low": None if burden is None else round(burden.interval[0], 4),
+        "bystander_burden_high": None if burden is None else round(burden.interval[1], 4),
+        "bystander_burden_in_distribution": None if burden is None else burden.in_distribution,
+        "bystander_burden_calibrated": None if burden is None else burden.calibrated,
         "p_intended": None if candidate.p_intended is None else round(candidate.p_intended, 4),
         "p_intended_low": None if pi is None else round(pi.interval[0], 4),
         "p_intended_high": None if pi is None else round(pi.interval[1], 4),
