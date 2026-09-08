@@ -12538,3 +12538,31 @@ a third comparison.**
 **Also: a needle that cannot tell an instruction from a mention will libel the explanation
 of the very rule it enforces.**
 
+## Round 388 — I broke the rule the file states, in the file that states it
+
+Checking my own week's work against the repo's own rules: `ALLELEFORGE_TRAINED_MODELS`,
+added earlier in this same release, validated itself by raising on an unknown name. It is
+read from `create_app()`, which runs at module scope — so `uvicorn
+alleleforge.web.api.app:app`, the command in the deployment guide and the Dockerfile,
+exited with a traceback and the container never started. A misspelled model name took the
+whole deployment down.
+
+Thirty lines above it, `_REFERENCE_LOAD_ERROR` carries a paragraph about exactly this:
+"a service that answers 'no genome, here is why' is strictly better than one that will not
+boot". I reintroduced the defect one config source over, in the same file, while arguing
+for loudness — the right instinct aimed at the wrong mechanism.
+
+Loud is now where every other misconfigured source already reports itself: `source_errors`
+on `/api/health`, plus a 422 by name on any request for a model that should have been
+enabled. Nothing is silently baseline-only, and the container starts.
+`create_app(trained_models=…)` still raises, because a bad literal in Python is a
+programmer's mistake rather than a deployment's environment.
+
+**Lesson: "this must fail loudly" and "this must not be fatal at import" are both true, and
+the second is a constraint on HOW to be loud, not a reason to be quiet. When a module
+constructs anything at import — and a FastAPI `app = create_app()` always does — every
+validation on that path is a boot decision.**
+
+**And: audit your own recent work against the rules the surrounding file already states.
+The paragraph I needed was thirty lines away in the file I was editing.**
+
