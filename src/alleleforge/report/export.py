@@ -109,6 +109,60 @@ TSV_COLUMNS = (
     "reagent",
 )
 
+#: The type each flat column holds, for the formats that have types.
+#:
+#: Parquet inferred its schema from the rows, which is only sound when the first
+#: `infer_schema_length` (100) of them are representative. On a real menu they are not:
+#: `bystander_burden` is null for every prime candidate and a float on the one base
+#: editor at rank 341, so a 341-row report died with a polars `ComputeError` — the
+#: documented `--format parquet`, and `POST /api/design?format=parquet`, on an ordinary
+#: mixed-chemistry design. Inference is wrong even when it works: a run with no
+#: population data leaves `worst_ancestry` entirely null and gives it a Null dtype, so
+#: two runs of the same tool write files a pipeline cannot union.
+#:
+#: Declared once and used for both the populated frame and the empty one, which is what
+#: makes "the two flat formats hold the same table" true of the types as well as the
+#: names.
+TSV_COLUMN_TYPES: dict[str, type] = {
+    "schema_version": int,
+    "rank": int,
+    "chemistry": str,
+    "locus": str,
+    "on_pareto_front": bool,
+    "efficiency": float,
+    "efficiency_low": float,
+    "efficiency_high": float,
+    "in_distribution": bool,
+    "calibrated": bool,
+    "bystander_burden": float,
+    "bystander_burden_low": float,
+    "bystander_burden_high": float,
+    "bystander_burden_in_distribution": bool,
+    "bystander_burden_calibrated": bool,
+    "p_intended": float,
+    "p_intended_low": float,
+    "p_intended_high": float,
+    "p_intended_in_distribution": bool,
+    "p_intended_calibrated": bool,
+    "n_offtarget_sites": int,
+    "offtarget_specificity": float,
+    "offtarget_expected_burden": float,
+    "offtarget_scorer": str,
+    "offtarget_matrix": str,
+    "offtarget_worst_matrix": str,
+    "offtarget_scorer_citation": str,
+    "offtarget_search": str,
+    "worst_ancestry": str,
+    "worst_ancestry_score": float,
+    "flags": str,
+    "oligo_warnings": str,
+    "oligo_scheme": str,
+    "oligo_enzyme": str,
+    "caveats": str,
+    "rationale": str,
+    "reagent": str,
+}
+
 
 def report_to_json(report: DesignReport, *, indent: int | None = 2) -> str:
     """Serialize the whole report to JSON: every field the report holds, nothing added.
@@ -157,8 +211,11 @@ def _row(candidate: Any) -> dict[str, Any]:
         "p_intended_in_distribution": None if pi is None else pi.in_distribution,
         "p_intended_calibrated": None if pi is None else pi.calibrated,
         "n_offtarget_sites": candidate.n_offtarget_sites,
+        # `None`, not `""`: the TSV renders both as an empty cell (`_cell`), and the
+        # empty string made this the one numeric column carrying a string sentinel —
+        # which a typed format cannot hold alongside the numbers it also carries.
         "offtarget_expected_burden": (
-            ""
+            None
             if candidate.offtarget_expected_burden is None
             else round(candidate.offtarget_expected_burden, 4)
         ),
@@ -296,8 +353,9 @@ def report_to_parquet(report: DesignReport, path: str | Path) -> Path:
     # TSV — two numbers on unrelated scales, in the pair of tables documented as
     # holding identical columns. It also makes the empty frame (built from the same
     # constant) and the populated one agree by construction rather than by luck.
-    frame = pl.DataFrame(rows) if rows else pl.DataFrame({col: [] for col in TSV_COLUMNS})
-    frame = frame.select(TSV_COLUMNS)
+    dtypes = {bool: pl.Boolean, int: pl.Int64, float: pl.Float64, str: pl.Utf8}
+    schema = {col: dtypes[TSV_COLUMN_TYPES[col]] for col in TSV_COLUMNS}
+    frame = pl.DataFrame(rows, schema=schema)
     out = Path(path)
     # Zero-padded ordinals, because a Parquet reader gets a *mapping* and every one I
     # know sorts it. The notes are an ordered document — disclaimer, what was asked for,
