@@ -67,8 +67,11 @@ its tests are green.
   | `@pytest.mark.real_weights` | `ALLELEFORGE_REAL_WEIGHTS=1` | real model weights (a gated download) |
   | `@pytest.mark.live_integration` | `ALLELEFORGE_LIVE_INTEGRATION=1` | a live external service (VEP / UTA / Cas-OFFinder) |
 
-- Tests needing the compiled extension are marked `@pytest.mark.native`. It is **not** opt-in here — it
-  has its own CI job selecting it with `-m native`, which a skip would turn into a no-op.
+- Tests needing the compiled extension are marked `@pytest.mark.native`. It is **not** opt-in here — the
+  root conftest must not skip it, or the job that runs it becomes a no-op.
+- That job (`make native`) builds the crate and runs the **whole** suite against it, not only the marked
+  tests. With the crate installed the library takes its native branches everywhere, and that is the
+  configuration the docs recommend for real work, while every other job runs the pure-Python one.
 
 ## Commit &amp; PR conventions
 

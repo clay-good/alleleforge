@@ -37,10 +37,10 @@ reproduce: ## Re-derive the canonical run and diff it against the golden (R0).
 figures: ## Regenerate the committed docs/preprint figures (dependency-free SVG).
 	python scripts/figures.py
 
-native: ## Build the Rust crate and run the native parity tests.
+native: ## Build the Rust crate and run the whole suite against it, as CI's `rust` job does.
 	cd rust && maturin build --release --out dist
 	pip install rust/dist/*.whl --force-reinstall
-	pytest -m native --no-cov
+	pytest --no-cov
 
 # Mirrors every blocking CI job, in CI's order. `examples` is here because it was
 # once missing and a change that passed lint, types, tests, docs and reproduce still

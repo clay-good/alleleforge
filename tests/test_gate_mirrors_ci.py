@@ -133,3 +133,40 @@ def test_the_command_comparison_is_not_vacuous() -> None:
     assert _job_commands("lint"), "no CI commands parsed"
     assert _target_commands("lint"), "no Makefile recipe parsed"
     assert "examples" in " ".join(_job_commands("lint"))
+
+
+def test_the_on_demand_rust_gate_runs_what_ci_runs() -> None:
+    """`rust` is excused from `make ci`, not from being mirrored.
+
+    Its excuse says "`make native` covers it on demand" — a claim about commands that
+    nothing compared, on the one job this file lets out of the main check. That is the
+    same shape as the `lint` divergence in the docstring above: an excuse phrased as a
+    promise, with no check behind it.
+
+    Compared on the test invocation rather than the whole recipe, because the build
+    steps legitimately differ: CI installs the wheel it just built into a fresh runner,
+    and `make native` has to `--force-reinstall` over the developer's existing one.
+    """
+    assert NOT_MIRRORED.get("rust"), "this test is about the excused rust job"
+    ci_tests = [c for c in _job_commands("rust") if c.startswith("pytest")]
+    make_tests = [c for c in _target_commands("native") if c.startswith("pytest")]
+    assert ci_tests, "CI's rust job runs no pytest command"
+    assert ci_tests == make_tests, (
+        f"CI's rust job runs {ci_tests} and `make native` runs {make_tests}. The excuse "
+        "for leaving `rust` out of `make ci` is that `make native` covers it, which is "
+        "only true while they run the same tests."
+    )
+
+
+def test_the_rust_job_runs_the_whole_suite_not_only_the_native_marks() -> None:
+    """Every other job runs the pure-Python configuration.
+
+    With the crate installed the library takes its native branches everywhere, and that
+    is the configuration the docs recommend for real work — so a `-m native` selection
+    here means the shipped configuration is exercised only where someone remembered to
+    add a marker. It has bitten before: with the crate built, `FMIndex.build` dispatched
+    to the extension and silently dropped `cache_dir`, `rebuild`, `occ_rate` and
+    `sa_rate`, which no `native`-marked test covered.
+    """
+    ci_tests = [c for c in _job_commands("rust") if c.startswith("pytest")]
+    assert ci_tests and all("-m native" not in c for c in ci_tests), ci_tests

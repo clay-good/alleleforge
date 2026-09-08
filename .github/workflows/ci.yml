@@ -149,4 +149,12 @@ jobs:
       - run: maturin build --release --out dist
         working-directory: rust
       - run: pip install rust/dist/*.whl
-      - run: pytest -m native --no-cov
+      # The WHOLE suite, not `-m native`. With the crate installed the library takes
+      # its native branches everywhere, and that is the configuration the docs
+      # recommend for real work — yet every other job runs the pure-Python one, so
+      # nothing exercised the shipped configuration end to end. It has bitten before:
+      # with the crate built, `FMIndex.build` once dispatched to the extension and
+      # silently dropped `cache_dir`, `rebuild`, `occ_rate` and `sa_rate`, which no
+      # `native`-marked test covered. The parity tests prove the kernels agree; this
+      # proves the library around them still behaves.
+      - run: pytest --no-cov
