@@ -12679,3 +12679,34 @@ this version understand it, and would it change what they do?**
 every command and every option; the guard is a regex over that. Any surface that can list
 its own user-facing strings can be checked for anything you can express about a sentence.**
 
+## Round 393 — the benchmark's most interesting number had no command
+
+`benchmark.generalization_gap` measures how much worse a scorer does on a cell type it
+never saw. It is exported from the package, tested, reported by the calibration study,
+and plotted as one of the four committed figures. From every shell the project ships,
+there was no way to ask for it. A user could score the baseline on a frozen test split
+and could not find out whether that score meant anything outside the split's contexts —
+which is the question a cross-context split exists to answer.
+
+This is the class the design entry point has a guard for, because three of *its*
+capabilities went missing exactly this way (`test_shells_expose_the_library.py`). The
+benchmark package had no such guard, so the same failure happened in the same repository
+to a different module. The guard exists now: every callable in `benchmark.__all__` is a
+`bench` subcommand or a recorded reason, and the reason cannot name a function nobody
+exports.
+
+The second finding fell out of documenting the first. `docs/api/cli.md`'s command table
+omitted `aforge bench compare` and `aforge data show` — and the guard whose entire subject
+is undocumented commands passed, because it enumerated `app.registered_commands`:
+top-level names only. `bench` was listed, so `bench` was documented, so every subcommand
+under it was invisible to the check. Round 391 corrected this table by asking *per
+surface* rather than corpus-wide; the same table was wrong again one level *down*.
+
+**Lesson: when a guard finds a gap in one module, the gap is a class, not an instance.
+`design()` had a shells-expose-the-library check because it had been burned three times;
+nobody asked which other module exports operations. Ask it of every public `__all__`.**
+
+**And a check that enumerates has a granularity, exactly as a check that matches has a
+syntax (R391). "Every command is documented" was true of every command the enumeration
+returned. Both rounds are the same mistake: the guard was scoped narrower than the claim.**
+
