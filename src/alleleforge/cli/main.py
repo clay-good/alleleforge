@@ -1124,7 +1124,7 @@ def design(
             "--allow-ng",
             help="Fall back to SpCas9-NG (NG PAM) guides when no NGG guide is "
             "actionable. Off by default: an NG guide is a different reagent with "
-            "different specificity, so it is offered rather than assumed."
+            "different specificity, so it is offered rather than assumed. "
             "Consumed by SpCas9 nuclease design alone — prime and base editing "
             "take no PAM-flexible fallback, and the rationale says so when one is "
             "enabled and the nuclease vertical did not run.",
@@ -1600,7 +1600,7 @@ def batch(
             "--allow-ng",
             help="Fall back to SpCas9-NG (NG PAM) guides when no NGG guide is "
             "actionable. Off by default: an NG guide is a different reagent with "
-            "different specificity, so it is offered rather than assumed."
+            "different specificity, so it is offered rather than assumed. "
             "Consumed by SpCas9 nuclease design alone — prime and base editing "
             "take no PAM-flexible fallback, and the rationale says so when one is "
             "enabled and the nuclease vertical did not run.",
@@ -2618,9 +2618,8 @@ def lift(
 
     `resolve` refuses a record whose native assembly disagrees with the requested
     build — the right answer, since relabeling a coordinate designs a guide at the
-    wrong place in the genome — and tells the caller to lift first. The liftover was
-    implemented and tested but reachable only from Python, so that instruction named
-    an operation the CLI did not offer.
+    wrong place in the genome — and tells the caller to lift first. This is that
+    operation: run it on the loci, then re-run `resolve` or `design` on the output.
 
     Prints `input<TAB>output` per locus, in order, in the same locus form `design --region`
     accepts, so the result pipes straight back in. An unmappable locus prints
@@ -2888,8 +2887,7 @@ def bench_compare(
 ) -> None:
     """Check whether two benchmark results are the *same scientific result*.
 
-    This is the operation the reproducibility digest exists for, and it had no
-    implementation: the digest was computed, stored, and read by nothing. It covers
+    This is the operation the reproducibility digest exists for. It covers
     the scientific body only — task, split identity, dataset, metrics, model — so two
     runs on different platforms, releases or wall clocks agree iff the science agrees.
 
