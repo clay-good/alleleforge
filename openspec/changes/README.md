@@ -11719,3 +11719,43 @@ answers.
 **Lesson: "the sibling command" was the right question and the wrong scope. Count the
 surfaces that answer the question, then check the guard covers that many — twice now the
 guard's own scope was what let the defect survive the round that fixed it.**
+
+## Round 360 — running the surface-count query over every CLI/HTTP pair at once
+
+Rather than one pair at a time: dump the key sets of `aforge <cmd> --json` and the
+matching endpoint for resolve, bench list, data list, data show and offtarget, and diff
+them. Four agreed. `offtarget` did not, and the difference was not only shape.
+
+The CLI builds its payload by naming fields of `OffTargetReport` one at a time and had
+drifted eight behind the model, while the endpoint returns the model itself. So a script
+written against `/api/offtarget` could branch on all of them and the same script written
+against the CLI could not — on the surface most likely to be automated.
+
+The omissions were the honest-negative ones. `unbacked_populations` names the ancestries a
+caller asked to stratify by that no loaded source can speak for, which is the only thing
+separating "no ancestry-specific risk found" from "nothing was measured" — demonstrated by
+running it: `--populations afr,eur` with no source now reports both by name.
+`subthreshold_placements` and `subthreshold_score_sum` are what the scan found and did not
+report, so "0 sites" after a long sub-threshold tail read exactly like a clean scan; the
+same run reported two. `on_target_excluded_placements` and `ambiguous_spacer_positions`
+are the other two routes to a specificity of 1.000 that means nothing.
+`search_description()` folds several into a sentence the payload did carry, which a human
+reads and a pipeline cannot branch on.
+
+The project already has the rule this breaks — never reconstruct a shared model field by
+field — written for pydantic constructors. It applies to a hand-built payload for the same
+reason and with the same failure: whatever you forget silently becomes absent. The guard
+enforces it here: every field of the report reaches the JSON or is recorded with a reason.
+
+Also fixed: `aforge data list --json` gained the `presence` sentence, an asymmetry
+introduced one round earlier when the web listing grew it first.
+
+One existing test had pinned the search block by *exact equality*, deliberately, so that
+a silently dropped key would fail. Adding keys failed it too, which is not the defect it
+was protecting against. Rewritten as a subset check — losing a pinned setting still fails
+— with completeness delegated to the new guard, which is the check that actually knows
+what a full payload is.
+
+**Lesson: diff the key sets, don't read the code. Four of five pairs matched, and the one
+that did not gave up eight fields in a single command — a comparison no amount of reading
+either file would have produced.**

@@ -737,11 +737,16 @@ def test_offtarget_states_the_settings_its_site_count_depends_on(
     # report different specificities -- and `searched_bases: 0` is the value that makes
     # "0 sites, specificity 1.000" mean nothing at all.
     # `description` is checked separately: it is a sentence, and pinning it here would
-    # make every wording change fail a test about *keys*. The exact-equality intent is
-    # preserved by comparing the block minus that one field, so a silently dropped key
-    # still fails, and by asserting the key is present.
+    # make every wording change fail a test about *keys*.
     assert "description" in payload["search"], sorted(payload["search"])
-    assert {k: v for k, v in payload["search"].items() if k != "description"} == {
+    # Each pinned setting present, with the value this run was given. Written as a subset
+    # rather than exact equality, which is what it was: losing a key a consumer filters
+    # on is the failure worth pinning, and *gaining* one is not — the block later grew
+    # the fields saying what was not measured, and exact equality made that a failure.
+    # Completeness against the report model is checked by
+    # `test_the_offtarget_json_carries_the_whole_report`, which is the check that
+    # actually knows what a full payload is.
+    settings = {
         "mismatch_threshold": 3,
         "dna_bulge_budget": 0,
         "rna_bulge_budget": 0,
@@ -751,6 +756,11 @@ def test_offtarget_states_the_settings_its_site_count_depends_on(
         "resolved_bases": 63,
         "maf_threshold": None,
     }
+    missing = {k: v for k, v in settings.items() if payload["search"].get(k, object()) != v}
+    assert not missing, (
+        f"the search block lost or changed {sorted(missing)}; every number the site "
+        "count depends on has to be stated beside it"
+    )
     # The sentence must describe *this* run, not a default one — the numbers above are
     # what it is derived from, so a stale description is a contradiction on one payload.
     assert "up to 3 mismatches, 0 DNA / 0 RNA bulges" in payload["search"]["description"]

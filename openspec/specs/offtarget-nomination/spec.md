@@ -474,3 +474,22 @@ haplotype or patient augmentation — because those inputs are not captured by t
 #### Scenario: A scan run without the flag
 - **WHEN** `aforge offtarget <spacer>` is run with no `--cache`
 - **THEN** nothing is written to the cross-run store
+
+
+### Requirement: The machine-readable off-target output carries the whole report
+
+`aforge offtarget --json` SHALL emit every field of the report, or record the reason a
+field is rendered differently. The HTTP response returns the model, so any field the CLI
+omits is one a pipeline can branch on through one shell and not the other.
+
+The fields that say what was *not* measured or *not* reported —
+`unbacked_populations`, `available_populations`, `subthreshold_placements`,
+`subthreshold_score_sum`, `on_target_excluded_placements`,
+`ambiguous_spacer_positions` — SHALL be present as structured values and not only folded
+into the search description, which a reader can interpret and a script cannot.
+
+#### Scenario: Ancestries requested with no source loaded
+- **WHEN** `aforge offtarget <spacer> --populations afr,eur --json` runs with no
+  population source
+- **THEN** `unbacked_populations` names both ancestries, so an empty breakdown cannot be
+  read as "no ancestry-specific risk found"

@@ -1938,6 +1938,25 @@ def offtarget(
             # `search_description`. Here a consumer got the inputs to that inference and
             # not the inference, on the surface most likely to be scripted against.
             "description": report.search_description(),
+            # The structured facts behind that sentence. `search_description()` folds
+            # several of them into prose, which a human can read and a pipeline cannot
+            # branch on — and this payload is the surface most likely to be scripted
+            # against. The HTTP response has carried all of them all along, so a script
+            # written against the API could filter on an unbacked ancestry and the same
+            # script written against the CLI could not.
+            "scanned_pam": report.scanned_pam,
+            "sources_considered": dict(report.sources_considered),
+            # The ancestries a caller asked to stratify by that no loaded source can
+            # speak for. An empty ancestry breakdown reads as "no ancestry-specific risk
+            # found"; this is what distinguishes that from "nothing was measured".
+            "unbacked_populations": list(report.unbacked_populations),
+            "available_populations": list(report.available_populations),
+            "ambiguous_spacer_positions": list(report.ambiguous_spacer_positions),
+            # What was found and not reported. Without these, "0 sites" from a scan with
+            # a long sub-threshold tail is indistinguishable from a genuinely clean one.
+            "subthreshold_placements": report.subthreshold_placements,
+            "subthreshold_score_sum": round(report.subthreshold_score_sum, 4),
+            "on_target_excluded_placements": report.on_target_excluded_placements,
         },
         # The document-level context. Every number above is conditional on which
         # genome was searched, and `reference_build` alone is a label the caller
@@ -2372,7 +2391,15 @@ def data_list(
     )
 
     rows = [
-        {"name": name, "version": d.version, "license": d.license, **status}
+        {
+            "name": name,
+            "version": d.version,
+            "license": d.license,
+            **status,
+            # The sentence the human table prints, so the two renderings of this row
+            # carry the same answer — and so does `GET /api/data`, which grew it first.
+            "presence": dataset_presence(status),
+        }
         for name in DEFAULT_REGISTRY.names
         for d in (DEFAULT_REGISTRY.get(name),)
         for status in (dataset_status(name, d),)
