@@ -2216,6 +2216,17 @@ def offtarget(
         raise typer.Exit(ExitCode.MISSING_DATA)
 
 
+def _check(kind: str, artifact: str, status: str) -> dict[str, str]:
+    """One artifact-integrity row: what it is, which one, and what was found.
+
+    Every row used to print the word "checkpoint", datasets included — while the line
+    above them counted models and datasets separately, leaving a reader to work out
+    which of the rows were which. A model and a dataset fail for different reasons and
+    have different remedies.
+    """
+    return {"kind": kind, "artifact": artifact, "status": status}
+
+
 @app.command()
 def verify(
     result: Annotated[
@@ -2337,17 +2348,17 @@ def verify(
     if cache_dir is not None:
         for ck in prov.models:
             if ck.sha256 is None:
-                checks.append({"artifact": f"{ck.name}.{ck.version}", "status": "unpinned"})
+                checks.append(_check("model", f"{ck.name}.{ck.version}", "unpinned"))
                 continue
             path = cache_dir / f"{ck.name}.{ck.version}.ckpt"
             if not path.is_file():
-                checks.append({"artifact": f"{ck.name}.{ck.version}", "status": "not-cached"})
+                checks.append(_check("model", f"{ck.name}.{ck.version}", "not-cached"))
                 continue
             actual = hashlib.sha256(path.read_bytes()).hexdigest()
             if actual == ck.sha256:
-                checks.append({"artifact": f"{ck.name}.{ck.version}", "status": "ok"})
+                checks.append(_check("model", f"{ck.name}.{ck.version}", "ok"))
             else:
-                checks.append({"artifact": f"{ck.name}.{ck.version}", "status": "MISMATCH"})
+                checks.append(_check("model", f"{ck.name}.{ck.version}", "MISMATCH"))
                 problems.append(
                     f"checkpoint {ck.name}.{ck.version} hash mismatch: "
                     f"expected {ck.sha256[:12]}…, got {actual[:12]}…"
@@ -2359,11 +2370,11 @@ def verify(
         for ds in prov.datasets:
             label = f"{ds.name}.{ds.version}"
             if ds.sha256 is None:
-                checks.append({"artifact": label, "status": "unpinned"})
+                checks.append(_check("dataset", label, "unpinned"))
                 continue
             if ds.name not in DEFAULT_REGISTRY:
                 # No known cache layout to locate the bytes; report rather than pass.
-                checks.append({"artifact": label, "status": "unknown"})
+                checks.append(_check("dataset", label, "unknown"))
                 continue
             # A bundled dataset ships inside the installed package and is never in the
             # cache, so looking there reported "not-cached" for the one dataset whose
@@ -2374,13 +2385,13 @@ def verify(
                 ds.name, cache_dir=cache_dir
             )
             if not ds_path.is_file():
-                checks.append({"artifact": label, "status": "not-cached"})
+                checks.append(_check("dataset", label, "not-cached"))
                 continue
             ds_actual = hashlib.sha256(ds_path.read_bytes()).hexdigest()
             if ds_actual == ds.sha256:
-                checks.append({"artifact": label, "status": "ok"})
+                checks.append(_check("dataset", label, "ok"))
             else:
-                checks.append({"artifact": label, "status": "MISMATCH"})
+                checks.append(_check("dataset", label, "MISMATCH"))
                 problems.append(
                     f"dataset {label} hash mismatch: "
                     f"expected {ds.sha256[:12]}…, got {ds_actual[:12]}…"
@@ -2399,6 +2410,7 @@ def verify(
         "n_datasets": len(prov.datasets),
         "checkpoint_checks": checks,
         "artifacts_rehashed": n_ok,
+        "artifacts_checkable": len(checks),
         "artifact_verification_run": cache_dir is not None,
         "problems": problems,
         "verified": not problems,
@@ -2407,7 +2419,7 @@ def verify(
         f"provenance: aforge {prov.alleleforge_version}, seed {prov.seed}, "
         f"{len(prov.models)} model(s), {len(prov.datasets)} dataset(s)"
     ]
-    human += [f"  checkpoint {c['artifact']}: {c['status']}" for c in checks]
+    human += [f"  {c['kind']} {c['artifact']}: {c['status']}" for c in checks]
     if problems:
         human.append("PROBLEMS:")
         human += [f"  - {p}" for p in problems]
@@ -2424,6 +2436,20 @@ def verify(
             f"  NOTE: --cache-dir was given but nothing was re-hashed ({len(checks)} "
             "artifact(s) unpinned, not cached, or of unknown layout). Nothing about "
             "artifact integrity was established."
+        )
+    elif n_ok < len(checks):
+        # The partial case, which read exactly like the complete one: "verified" with a
+        # per-row list a reader has to add up. A run that re-hashed one of four artifacts
+        # has established something about one of them, and the other three are unmeasured
+        # — the distinction this project draws everywhere else, missing from the command
+        # whose entire purpose is drawing it. The zero case was already handled, which is
+        # the usual shape: the total absence was foreseen and the partial one was not.
+        unchecked = ", ".join(
+            f"{c['artifact']} ({c['status']})" for c in checks if c["status"] != "ok"
+        )
+        human.append(
+            f"  NOTE: re-hashed {n_ok} of {len(checks)} artifact(s). Nothing was "
+            f"established about the rest: {unchecked}."
         )
     _emit(payload, as_json=as_json, human="\n".join(human))
     if problems:

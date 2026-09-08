@@ -177,10 +177,20 @@ The CLI SHALL expose `aforge verify <result>` that re-hashes the pinned checkpoi
 datasets in the result's provenance and re-runs a determinism check against the embedded
 config, exiting non-zero on any mismatch.
 
+`verify` SHALL state how much it actually checked, not only what it found. Each artifact
+row SHALL say whether it is a model or a dataset, and a run that re-hashed fewer artifacts
+than it listed SHALL say so and name the ones it did not, rather than closing with the
+same sentence a fully checked run closes with. "Re-hashed nothing" and "re-hashed one of
+four" are both short of "verified", and only the first was ever said out loud.
+
 #### Scenario: Tampered artifact
 - **WHEN** `aforge verify` is run on a result whose recorded artifact no longer matches its
   hash
 - **THEN** it exits non-zero and names the mismatch
+
+#### Scenario: Some artifacts unpinned or absent from the cache
+- **WHEN** `--cache-dir` is given and only some of the listed artifacts can be re-hashed
+- **THEN** the output states how many of how many were re-hashed and names the rest
 
 ### Requirement: A standalone off-target report says whose specificity it is
 

@@ -18,9 +18,11 @@ pip install "alleleforge[cli]"
 | Command | Purpose |
 |---|---|
 | `aforge resolve` | Normalize any input form and show the variant + class (debugging aid). |
-| `aforge design` | Variant → ranked, multi-chemistry menu rendered to JSON/TSV/HTML/PDF. |
+| `aforge design` | Variant → ranked, multi-chemistry menu rendered to JSON/TSV/Parquet/HTML/PDF. |
 | `aforge batch` | Cohort design over a VCF or variant list — streaming, resumable, failure-isolated. |
 | `aforge offtarget` | Standalone population-aware off-target search for a spacer. |
+| `aforge lift` | Lift loci to another assembly, so a build mismatch has a remedy in the tool. |
+| `aforge verify` | Re-check a result's (or a sidecar's) provenance: completeness always, artifact re-hashing with `--cache-dir`. |
 | `aforge data list` / `show` | Inspect the dataset registry (versions, licenses, provenance). |
 | `aforge bench list` / `run` | List and run [CRISPR-Bench](benchmark.md) tasks against frozen splits. |
 | `aforge bench leaderboard` | Aggregate signed result JSONs into the model-card-gated leaderboard. |

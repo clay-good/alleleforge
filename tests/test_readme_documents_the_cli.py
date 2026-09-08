@@ -46,6 +46,29 @@ def test_every_cli_command_is_named_in_the_docs() -> None:
     assert not missing, f"CLI commands documented nowhere: {missing}"
 
 
+def test_the_cli_reference_lists_every_command_in_its_own_table() -> None:
+    """Corpus-wide coverage is not per-surface coverage.
+
+    The check above concatenates the README and every page under `docs/`, so a command
+    named in one file counts as documented everywhere. That is exactly how `aforge
+    verify` and `aforge lift` came to be missing from the command table on the page
+    titled "The `aforge` CLI" — the reference a reader opens to find out what the tool
+    can do — while passing a guard whose whole subject is undocumented commands.
+
+    Asking per surface rather than corpus-wide is the correction this project has had to
+    make before, for provenance facts. The table is the surface here.
+    """
+    table = (_ROOT / "docs" / "api" / "cli.md").read_text()
+    heading = table.index("| Command | Purpose |")
+    rows = table[heading : table.index("\n\n", heading)]
+    missing = [name for name in _command_names() if f"`aforge {name}" not in rows]
+    assert not missing, (
+        f"the CLI reference's command table omits: {missing}. It is the page a reader "
+        "opens to learn what the tool does; a command missing from it is undiscoverable "
+        "however many other files mention it."
+    )
+
+
 @pytest.mark.parametrize("removed", ["verify", "offtarget"])
 def test_the_check_would_notice_a_missing_command(removed: str) -> None:
     """Guard the guard: the assertion above must depend on the prose, not pass blindly."""
