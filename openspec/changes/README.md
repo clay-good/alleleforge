@@ -12781,3 +12781,38 @@ as something the data CONTAINS.**
 off-target engine's region refusal was the model; the resolver had never been compared
 against it. When you fix a message, grep for the other entry point to the same constraint.**
 
+## Round 396 — a refusal quoting a number the caller never typed
+
+Same method as R395, one cohort further: a list of twelve deliberately malformed inputs,
+run through `batch`, so every refusal appears in one column side by side. Eleven were one
+curated sentence. The twelfth was this:
+
+```
+chr11:0:T>C  error  ValidationError: 1 validation error for Variant
+pos
+  Value error, pos -1 is negative [type=value_error, input_value=-1, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.13/v/value_error
+```
+
+Inputs are 1-based and stored 0-based, so the validator that fired was looking at the
+*converted* number. The caller typed `0` and was shown `-1`, plus an internal model name,
+a framework's formatting, and a link to a library they never imported.
+
+The check belongs at the conversion boundary, where the caller's own number is still in
+hand — and both 1-based entry points now route through it, the coordinate string and a VCF
+record. `0` earns the specific sentence it now gets: it is exactly what pasting a printed
+0-based position for a contig's first base produces.
+
+Two things the same sweep cleared, worth recording so they are not re-audited: `T>N` with
+`--intent install` is already refused by the enumerator ("the RT template spans an assembly
+gap (N)"), and with `--intent correct` it writes the reference base back, which is
+well-defined. The alphabet check on alleles is deliberate, not missing.
+
+**Lesson: a validator on a converted value cannot produce a good message, because the
+value it can see is not the value the user wrote. Wherever a unit or convention changes —
+1-based to 0-based, percent to fraction, ms to s — check the input BEFORE the conversion,
+or the error will be about a number that exists only inside the program.**
+
+**And R395's method paid twice: a cohort of bad rows renders every refusal in one column,
+which is the only view in which "eleven sentences and one stack trace" is obvious.**
+
