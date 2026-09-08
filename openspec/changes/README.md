@@ -12816,3 +12816,45 @@ or the error will be about a number that exists only inside the program.**
 **And R395's method paid twice: a cohort of bad rows renders every refusal in one column,
 which is the only view in which "eleven sentences and one stack trace" is obvious.**
 
+## Round 397 — the class R396 fixed one instance of
+
+R396 fixed a pydantic report leaking out of one code path. The obvious next question was
+how many others there were, and the answer was: structurally, all of them.
+
+`pydantic.ValidationError` subclasses `ValueError`. This project catches `ValueError` at
+about forty boundaries and prints `str(exc)`. So `aforge offtarget --pam XYZ` printed:
+
+```
+error: 1 validation error for PAM
+pattern
+  Value error, PAM has non-IUPAC characters: ['X', 'Z'] [type=value_error,
+  input_value='XYZ', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.13/v/value_error
+```
+
+The sentence a person needs is on the third line, under an internal model name, a field, a
+framework's error taxonomy, and a link to a library the caller never imported.
+
+The most interesting part is what was already in the code. At `main.py:1287`:
+
+```python
+# Not `{exc}`: pydantic's message is "'PRIME' is not a valid Chemistry",
+```
+
+Someone had already met this, understood it, and fixed it — for one model, at one call
+site, with a comment. The class was never asked about. That is the same shape as R393
+(`design()` had a shells-expose-the-library guard because it had been burned three times;
+nobody asked which other module exports operations) and R150 (a guard scoped to one
+syntax).
+
+`errors.reason(exc)` returns the sentence and is the identity for everything else, so it
+drops in wherever `str(exc)` already was. Four surfaces now use it, and a guard keeps a
+bare `{exc}` out of those files.
+
+**Lesson: a hand-patched call site with a comment explaining WHY is a report of a class
+defect, filed and closed at one instance. Grep for comments of the form "not X: Y does Z"
+— each one is a bug someone diagnosed correctly and fixed too narrowly.**
+
+**And when a dependency's exception type subclasses a builtin you catch everywhere, the
+leak is not at one site; it is at every site. Ask that question the first time.**
+
