@@ -1153,7 +1153,12 @@ flowchart LR
 > nuclease and base editing do not take a cell context; when one is supplied and they run, the rationale
 > names them and says their in-distribution flag describes the guide context alone, so an unqualified "in
 > distribution" beside a nuclease candidate is not mistaken for a claim about the cell line. **Every `design()` capability is reachable from
-> the CLI.** On the web API a client-supplied filesystem path would be a server-side file-read primitive, so
+> the CLI.** Six of its parameters are not passed by any command, and none of them is a capability: three are
+> lookups whose `Protocol` ships with no implementation (so there is nothing for a flag to pass), one is an
+> injection point with no trained model to select, one is the positional variant argument and one is a
+> test-only provenance hook. That list lives with its reasons in
+> [`tests/test_shells_expose_the_library.py`](tests/test_shells_expose_the_library.py), which fails if a
+> seventh appears or if one of the six becomes reachable and the reason is left behind. On the web API a client-supplied filesystem path would be a server-side file-read primitive, so
 > the **file-backed** inputs are configured by the operator, exactly as the reference already is:
 > `ALLELEFORGE_GNOMAD_TSV`, `ALLELEFORGE_HAPLOTYPES` and `ALLELEFORGE_ENCODE_TRACKS` (or the matching
 > `create_app(...)` arguments) make the population-aware search, the haplotype-aware pass and the chromatin

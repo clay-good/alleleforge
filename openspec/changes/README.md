@@ -11823,3 +11823,36 @@ it describes, and read by `aforge verify`, which prints the wording itself.
 beside it" is a testable sentence, and this one had been true of neither file — the kind
 of thing that survives review precisely because it sounds like it has already been
 thought about.**
+
+## Round 363 — two guards, one question, two answers
+
+The README says, in bold: "Every `design()` capability is reachable from the CLI." The
+project also keeps an allowance list of `design()` parameters no command supplies, each
+with a reason. Nothing connected them, and by this round they had drifted apart in both
+directions at once.
+
+`_NOT_IN_CLI` still excused `effect` — "the CLI resolves the variant itself before
+calling design()" — a sentence that is true and now reads as a limitation, since
+`--vep` supplies exactly that predictor at exactly that call. It excused `build` the same
+way. Meanwhile the readiness-assessment guard, written four rounds earlier, counts both
+the `design()` call and the CLI's own `resolve_variant(...)` call, and had already dropped
+both from its table. So two files in this repository answered "is `effect` reachable from
+the command line?" differently, each correctly under its own definition — which is how a
+reader ends up with the wrong one.
+
+One definition now: an input the CLI supplies at either call site is reachable, because
+the CLI resolves the variant itself and hands `design()` the result, and an input consumed
+during resolution reaches the run through that. With the definition fixed, the allowance
+list is exactly the set of parameters no command supplies — six, no slack in either
+direction, which is now asserted rather than implied by two one-way checks.
+
+The README's claim is true only because none of those six is a capability: three are
+lookups whose `Protocol` ships with no implementation, one is an injection point with
+nothing trained to select, one is the positional argument and one is a test hook. That is
+an argument about six specific entries, so the README now says how many there are and
+names the file, and a seventh entry fails the check rather than quietly making a bold
+sentence false.
+
+**Lesson: when two checks answer the same question, they will eventually disagree, and
+both will be defensible. The one to fix is not the wrong one — it is the fact that there
+are two definitions.**

@@ -27,11 +27,10 @@ _ROOT = Path(__file__).resolve().parents[1]
 _NOT_IN_CLI: dict[str, str] = {
     "inp": "the positional variant argument",
     "timestamp": "test-only hook for a reproducible provenance stamp",
-    "build": "supplied by the global --reference-build option",
-    "clinvar": "the CLI resolves the variant itself before calling design()",
-    "dbsnp": "the CLI resolves the variant itself before calling design()",
-    "hgvs": "the CLI resolves the variant itself before calling design()",
-    "effect": "the CLI resolves the variant itself before calling design()",
+    "clinvar": "accession inputs need a ClinVar lookup, and the project ships the "
+    "Protocol with no implementation, so there is nothing for a flag to pass",
+    "dbsnp": "as `clinvar`: rsID inputs need a dbSNP lookup with no shipped implementation",
+    "hgvs": "as `clinvar`: c./p. inputs need an HGVS adapter with no shipped implementation",
     "prime_outcome_predictor": "no trained prime-outcome model is registered to select",
 }
 
@@ -81,11 +80,28 @@ def _design_parameters() -> set[str]:
 
 
 def _cli_forwards() -> set[str]:
-    """Return the keyword arguments the CLI's `design` command passes to `design()`."""
+    """Return the `design()` inputs the CLI supplies, at either of the two call sites.
+
+    Two, not one. Several of `design()`'s inputs are read only during resolution, and
+    the CLI resolves the variant itself before handing `design()` the result — so
+    `resolve_variant(..., effect=...)` is exactly as much "the user reached it from the
+    command line" as passing it to `design()` would be.
+
+    Counting only the `design()` call made this file disagree with
+    `test_the_readiness_assessment_states_the_real_reachability`, which counts both: one
+    said `effect` was unreachable and the other said it was, on the day `--vep` shipped.
+    Two answers to one question is how a reader gets the wrong one.
+    """
     source = (_ROOT / "src" / "alleleforge" / "cli" / "main.py").read_text()
-    call = re.search(r"menu = run_design\(\n(?:.*\n)*?\s{8}\)", source)
-    assert call, "could not find the CLI's design() call — this check would be vacuous"
-    return set(re.findall(r"^\s+(\w+)=", call.group(0), re.M))
+    supplied: set[str] = set()
+    for pattern in (
+        r"menu = run_design\(\n(?:.*\n)*?\s{8}\)",
+        r"resolved = resolve_variant\(\n(?:.*\n)*?\s{8}\)",
+    ):
+        call = re.search(pattern, source)
+        assert call, f"could not find {pattern!r} in the CLI — this check would be vacuous"
+        supplied |= set(re.findall(r"^\s+(\w+)=", call.group(0), re.M))
+    return supplied
 
 
 def test_the_cli_forwards_every_design_parameter_or_says_why() -> None:
@@ -351,4 +367,44 @@ def test_the_two_shells_offer_the_same_output_formats() -> None:
         f"only the CLI can produce {sorted(cli - web)} and only the web API "
         f"{sorted(web - cli)}; the same design should be obtainable in the same "
         "formats from either shell."
+    )
+
+
+def test_the_readme_states_the_number_of_exceptions_this_file_records() -> None:
+    """The README makes an absolute claim; this is what keeps it from becoming false.
+
+    "Every `design()` capability is reachable from the CLI" is true only because none of
+    the parameters below is a capability — three lookups with no shipped implementation,
+    an injection point with nothing trained to select, the positional argument and a test
+    hook. That is an argument about six specific entries, so the README states the count
+    and points here, and a seventh entry makes the sentence a promise nobody checked.
+    """
+    words = {
+        1: "One",
+        2: "Two",
+        3: "Three",
+        4: "Four",
+        5: "Five",
+        6: "Six",
+        7: "Seven",
+        8: "Eight",
+    }
+    readme = (_ROOT / "README.md").read_text(encoding="utf-8")
+    stated = f"{words[len(_NOT_IN_CLI)]} of its parameters are not passed by any command"
+    assert stated in readme, (
+        f"the README should say {stated!r}; this file records {len(_NOT_IN_CLI)} "
+        f"exceptions ({sorted(_NOT_IN_CLI)}) and the README's absolute claim depends on "
+        "each of them not being a capability"
+    )
+    assert "tests/test_shells_expose_the_library.py" in readme, (
+        "the README should name the file that holds the list and its reasons"
+    )
+
+
+def test_the_cli_allowances_are_exactly_the_unsupplied_parameters() -> None:
+    """No slack in either direction: every excuse real, every gap excused."""
+    unsupplied = _design_parameters() - _cli_forwards()
+    assert set(_NOT_IN_CLI) == unsupplied, (
+        f"excused but supplied: {sorted(set(_NOT_IN_CLI) - unsupplied)}; "
+        f"unsupplied but unexcused: {sorted(unsupplied - set(_NOT_IN_CLI))}"
     )

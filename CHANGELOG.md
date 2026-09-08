@@ -2571,6 +2571,7 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+- The two guards that answer "is this reachable from the CLI?" now use one definition and agree. One counted only what the CLI passes to `design()` and so listed `effect` as unreachable on the day `--vep` shipped; both now count the resolver call site too. The README's absolute parity claim states how many exceptions there are and names the file holding them, and fails if a seventh appears.
 - The cohort manifest header states what the run's output is, not only what the run was. A `--manifest --output-dir` run with no `--summary-tsv` left a directory of serialized menus and an index with nothing in it saying what any of it was — while the exemption excusing those menus named the manifest header as the thing that carried the context.
 - `aforge batch --json` states what it is. The cohort summary TSV carried the research-use disclaimer, `/api/batch` carried it, every other JSON this CLI emits carried it, and the cohort JSON — the document a lab passes around after a run — did not.
 - `aforge offtarget --json` emits the eight report fields it had drifted behind on, including which requested ancestries no loaded source can speak for and how many sites fell below the reporting threshold. The HTTP response had carried them all along, so the same script could see them through one shell and not the other. `aforge data list --json` also carries the `presence` sentence the API returns.
