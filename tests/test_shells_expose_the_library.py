@@ -27,10 +27,9 @@ _ROOT = Path(__file__).resolve().parents[1]
 _NOT_IN_CLI: dict[str, str] = {
     "inp": "the positional variant argument",
     "timestamp": "test-only hook for a reproducible provenance stamp",
-    "clinvar": "accession inputs need a ClinVar lookup, and the project ships the "
-    "Protocol with no implementation, so there is nothing for a flag to pass",
-    "dbsnp": "as `clinvar`: rsID inputs need a dbSNP lookup with no shipped implementation",
-    "hgvs": "as `clinvar`: c./p. inputs need an HGVS adapter with no shipped implementation",
+    "hgvs": "c./p. inputs need a projector from the `hgvs` library, which is not a "
+    "dependency and has no file a flag could name; genomic `g.` needs no adapter and "
+    "already works on every surface",
     "prime_outcome_predictor": "no trained prime-outcome model is registered to select",
 }
 
@@ -40,8 +39,11 @@ _NOT_IN_WEB: dict[str, str] = {
     "settings": "server-side; a client does not choose the server's configuration",
     "timestamp": "test-only hook for a reproducible provenance stamp",
     "build": "the request's `build` field",
-    "clinvar": "resolved server-side from the request's variant string",
-    "dbsnp": "resolved server-side from the request's variant string",
+    # File-backed, exactly like `gnomad` below — the CLI supplies them with
+    # `--clinvar`/`--dbsnp`, and over HTTP a client-supplied server path would be a
+    # file-read primitive. The refusal says so and names the coordinate form.
+    "clinvar": "file-backed lookup; a client-supplied path on a server reads server files",
+    "dbsnp": "file-backed lookup; see `clinvar`",
     "hgvs": "resolved server-side from the request's variant string",
     "effect": "asked for by the request field `annotate_consequence` and built "
     "server-side; the predictor itself is an operator-configured object",
@@ -374,10 +376,15 @@ def test_the_readme_states_the_number_of_exceptions_this_file_records() -> None:
     """The README makes an absolute claim; this is what keeps it from becoming false.
 
     "Every `design()` capability is reachable from the CLI" is true only because none of
-    the parameters below is a capability — three lookups with no shipped implementation,
-    an injection point with nothing trained to select, the positional argument and a test
-    hook. That is an argument about six specific entries, so the README states the count
-    and points here, and a seventh entry makes the sentence a promise nobody checked.
+    the parameters below is a capability the command line cannot reach — one adapter
+    needing an undeclared library, an injection point with nothing trained to select,
+    the positional argument and a test hook. That is an argument about four specific
+    entries, so the README states the count and points here, and a fifth entry makes
+    the sentence a promise nobody checked.
+
+    Two entries left this list when `--clinvar` and `--dbsnp` were added: the excuse
+    had said the lookups were "Protocols with no shipped implementation", and
+    `ClinVarDB`/`DbSnpDB` had shipped all along.
     """
     words = {
         1: "One",

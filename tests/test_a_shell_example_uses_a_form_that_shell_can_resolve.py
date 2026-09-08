@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from alleleforge.variant.resolver import DATABASE_REMEDY
+from alleleforge.variant.resolver import database_remedy
 
 _ROOT = Path(__file__).resolve().parents[1]
 _DOCS = [_ROOT / "README.md", *(_ROOT / "docs").rglob("*.md")]
@@ -76,10 +76,18 @@ def test_no_documented_example_uses_a_form_its_shell_cannot_resolve(source: str)
 
 def test_the_refusal_names_a_remedy_this_caller_has() -> None:
     """Not `clinvar=`: a keyword argument is not something a command line can pass."""
-    assert "clinvar=" not in DATABASE_REMEDY
-    assert "dbsnp=" not in DATABASE_REMEDY
-    assert "chrom:pos:ref>alt" in DATABASE_REMEDY
-    assert "Protocol" in DATABASE_REMEDY, "it should say why no shell can supply one"
+    for kind, flag, factory in (
+        ("clinvar", "--clinvar", "ClinVarDB.from_vcf"),
+        ("dbsnp", "--dbsnp", "DbSnpDB.from_tsv"),
+    ):
+        remedy = database_remedy(kind)
+        assert "clinvar=" not in remedy and "dbsnp=" not in remedy
+        # Each caller is told what *it* can do: a flag for the command line, a
+        # constructor for Python, and for HTTP the reason there is no third option.
+        assert flag in remedy, remedy
+        assert factory in remedy, remedy
+        assert "chrom:pos:ref>alt" in remedy, remedy
+        assert "Over HTTP" in remedy, remedy
 
 
 @pytest.mark.parametrize("bad", ["VCV000012345", "rs334"])

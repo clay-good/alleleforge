@@ -472,7 +472,12 @@ def design(
             # A haplotype panel and a patient variant set are inputs a result
             # depends on as much as gnomAD is; a run that used them and does not
             # name them is not re-derivable from its own provenance.
-            extra=(haplotypes, patient_vcf, encode_tracks),
+            # `dbsnp` belongs here for the same reason `clinvar` is named above: it
+            # decides *which locus the run is about*. It was the one resolution input
+            # with no route into provenance, so two runs off different dbSNP releases
+            # — hence potentially different coordinates for one rsID — produced
+            # byte-identical `datasets`.
+            extra=(dbsnp, *resolved.sources, haplotypes, patient_vcf, encode_tracks),
             # The weight matrix every specificity number on the menu came out of. It
             # is a registered, sha-pinned, *bundled* dataset and it was the one input
             # a scored run never recorded: an off-target run reported `matrix
@@ -763,8 +768,16 @@ def _collect_datasets(
     """
     seen: dict[tuple[str, str], DatasetVersion] = {}
     for source in (reference, gnomad, clinvar, *extra):
-        version = getattr(source, "dataset_version", None)
-        if isinstance(version, DatasetVersion):
+        # A ready-made descriptor is accepted alongside an object carrying one: a
+        # shell that resolves the variant itself (the CLI does) never hands the
+        # design layer the lookup database, only the descriptor the resolved
+        # variant carries, so without this the release that chose the locus went
+        # unrecorded on every command-line run.
+        version = source if isinstance(source, DatasetVersion) else None
+        if version is None:
+            candidate = getattr(source, "dataset_version", None)
+            version = candidate if isinstance(candidate, DatasetVersion) else None
+        if version is not None:
             seen.setdefault((version.name, version.version), version)
     # A scoring matrix is a dataset the run read, not a model it ran: it is registered,
     # pinned and cited like every other one. Only matrices the registry knows are

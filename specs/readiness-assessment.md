@@ -196,11 +196,25 @@ signature and requires the table below to name exactly the parameters left over.
 
 | Parameter | Why not, and whether it is a gap |
 |---|---|
-| `clinvar` | Blocked, not declined. Accession inputs need a ClinVar lookup, and the project ships the `Protocol` with no implementation. |
-| `dbsnp` | Blocked, as `clinvar`: rsID inputs need a dbSNP lookup with no shipped implementation. |
-| `hgvs` | Blocked, as `clinvar`: `c.`/`p.` inputs need an HGVS adapter with no shipped implementation. |
+| `hgvs` | Blocked, not declined. `c.`/`p.` inputs need a projector from the `hgvs` library, which is not a dependency and is not a file a flag could name. Genomic `g.` needs no adapter and already works on every surface. |
 | `prime_outcome_predictor` | Not a gap today. It is an override for the prime byproduct baseline, and, as with prime *efficiency*, nothing trained ships to pass it. |
 | `timestamp` | Not a gap. It exists so tests can pin provenance; `--timestamp` would only let a user forge a run's clock. |
+
+### Addendum — `clinvar` and `dbsnp` closed, and the excuse was false
+
+The two rows above these lines said the accession and rsID lookups were `Protocol`s
+the project ships with no implementation. `ClinVarDB` and `DbSnpDB` had shipped all
+along: package exports, their own tests, and the two Protocol methods signature for
+signature. They are *file-backed*, like `--gnomad` — the true half of the sentence was
+only that nothing downloads a release. `--clinvar` and `--dbsnp` now supply one on
+`resolve`, `design` and `batch`, and the release is pinned by content hash in
+provenance and under `resolved_from` on `resolve --json`.
+
+The instructive part is not the flag. A wrong reason for a gap, written into a
+guard's allowance list, is stronger than no reason: the guard then reports the area
+as decided every time it runs. This one had been checked, and agreed, for many
+rounds — while the project's own flagship example, `aforge design VCV000012345`, had
+never run.
 
 ### Addendum, same day — `effect` closed, and the table's own rule was wrong
 

@@ -29,6 +29,7 @@ from alleleforge.genome.coordinates import (
     flag_ambiguous_regions,
 )
 from alleleforge.genome.reference import ReferenceGenome
+from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import (
     CoordinateSystem,
     DNASequence,
@@ -80,20 +81,45 @@ class _ClinVarRecordLike(Protocol):
     variant: Variant
 
 
-#: What a caller can actually do about a missing accession/rsID database. The refusals
-#: used to name `clinvar=` and `dbsnp=` — the *Python keyword arguments* — to callers who
-#: had reached them from `aforge resolve VCV000012345` or a JSON request body, where no
-#: such keyword exists and neither shell has any way to supply one. `ClinVarLookup` and
-#: `DbSnpLookup` are Protocols with no shipped implementation, so the honest remedy is the
-#: coordinate form, which every surface accepts, plus what supplying a database would
-#: actually take.
-DATABASE_REMEDY = (
-    "Neither the CLI nor the web API can supply one: the lookups are Protocols with no "
-    "shipped implementation, and the registry lists no fetchable ClinVar or dbSNP "
-    "release. Give the variant as coordinates instead (chrom:pos:ref>alt, 1-based as in "
-    "a VCF), which every surface accepts — or, from Python, pass an object implementing "
-    "the lookup Protocol."
-)
+#: What a caller can actually do about a missing accession/rsID database, per surface.
+#: The refusals first named `clinvar=`/`dbsnp=` — the *Python keyword arguments* — to
+#: callers who had reached them from `aforge resolve VCV000012345` or a JSON body. The
+#: replacement then said the lookups were "Protocols with no shipped implementation",
+#: which was simply false: :class:`~alleleforge.data.clinvar.ClinVarDB` and
+#: :class:`~alleleforge.data.dbsnp.DbSnpDB` ship, are exported, and implement these
+#: Protocols exactly. They are *file-backed*, like `--gnomad`, so every surface that can
+#: take a local path can supply one; only HTTP cannot, and for the same reason gnomAD
+#: cannot (a client-supplied server path is a file-read primitive).
+_DATABASE_REMEDIES: dict[str, str] = {
+    "clinvar": (
+        "Supply one with `--clinvar <clinvar.vcf.gz>` on the command line, or "
+        "`ClinVarDB.from_vcf(path)` from Python. AlleleForge parses the ClinVar VCF "
+        "release itself but never downloads it — the registry has no pinned checksum "
+        "for it — so the file is yours to provide. Over HTTP there is no such option, "
+        "because a client-supplied server path reads the server's files: send "
+        "coordinates (chrom:pos:ref>alt, 1-based as in a VCF), which every surface "
+        "accepts."
+    ),
+    "dbsnp": (
+        "Supply one with `--dbsnp <dbsnp.tsv>` on the command line, or "
+        "`DbSnpDB.from_tsv(path)` from Python — an `rsid chrom pos ref alt` "
+        "tab-separated file (plain or .gz), with 1-based pos as in a VCF. AlleleForge "
+        "never downloads a dbSNP release; the file is yours to provide. Over HTTP "
+        "there is no such option, because a client-supplied server path reads the "
+        "server's files: send coordinates (chrom:pos:ref>alt, 1-based as in a VCF), "
+        "which every surface accepts."
+    ),
+}
+
+
+def database_remedy(kind: str) -> str:
+    """Return the remedy text for a missing ``kind`` ("clinvar"/"dbsnp") database.
+
+    Kept per-kind rather than shared: one sentence covering both had to name both
+    flags on every refusal, and a remedy the reader has to filter is one they will
+    mis-apply. Each caller — Python, CLI, HTTP client — is told what *it* can do.
+    """
+    return _DATABASE_REMEDIES[kind]
 
 
 class ClinVarLookup(Protocol):
@@ -193,6 +219,13 @@ class ResolvedVariant(BaseModel):
         effect: The molecular consequence, if an effect predictor was supplied.
         reference_recommendation: A T2T recommendation when the locus is
             hg38-ambiguous, else ``None``.
+        sources: The version descriptor of each resolution database that actually
+            produced this variant. A ClinVar or dbSNP release decides *which locus
+            the run is about*, so two runs off different releases can disagree about
+            the coordinates for one accession — and the descriptor is the only thing
+            that tells those two runs apart. It rides on the resolved variant rather
+            than being collected by the caller because a shell that resolves first
+            (as the CLI does) hands the design layer nothing but this object.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -204,6 +237,7 @@ class ResolvedVariant(BaseModel):
     transcript: str = "MANE_SELECT"
     effect: VariantEffect | None = None
     reference_recommendation: ReferenceRecommendation | None = None
+    sources: tuple[DatasetVersion, ...] = ()
 
 
 def _chrom_from_hgvs(reference: str | None) -> str:
@@ -286,7 +320,8 @@ def _from_clinvar(
     """
     if clinvar is None:
         raise ValueError(
-            f"resolving a ClinVar accession requires a ClinVar database. {DATABASE_REMEDY}"
+            f"resolving a ClinVar accession requires a ClinVar database. "
+            f"{database_remedy('clinvar')}"
         )
     record = clinvar.get(accession)
     return record.variant, _clinical_assertion(record)
@@ -295,7 +330,9 @@ def _from_clinvar(
 def _from_dbsnp(rsid: DbSnpId, dbsnp: DbSnpLookup | None) -> Variant:
     """Look up a dbSNP rsID (requires a dbSNP DB)."""
     if dbsnp is None:
-        raise ValueError(f"resolving a dbSNP rsID requires a dbSNP database. {DATABASE_REMEDY}")
+        raise ValueError(
+            f"resolving a dbSNP rsID requires a dbSNP database. {database_remedy('dbsnp')}"
+        )
     return dbsnp.locus(rsid)
 
 
@@ -561,6 +598,24 @@ def _rename_contig_to_reference(variant: Variant, reference: ReferenceGenome) ->
     return variant
 
 
+def _resolution_sources(
+    source: str, *, clinvar: ClinVarLookup | None, dbsnp: DbSnpLookup | None
+) -> tuple[DatasetVersion, ...]:
+    """Return the version descriptor of the database this variant was resolved from.
+
+    Only the database that actually produced the variant is recorded. A ClinVar
+    release passed alongside a coordinate input contributed nothing, and naming it
+    would assert that it did — the same overclaim recording a chromatin track made
+    when the track never applied.
+    """
+    # Keyed on the *input form* `source` records, not on the database's name: an
+    # rsID is labelled "rsid" and resolves through dbSNP. Getting this wrong is
+    # silent — an empty tuple looks exactly like "no descriptor was attached".
+    lookup = {"clinvar": clinvar, "rsid": dbsnp}.get(source)
+    version = getattr(lookup, "dataset_version", None)
+    return (version,) if isinstance(version, DatasetVersion) else ()
+
+
 def resolve(
     inp: ResolveInput,
     *,
@@ -649,6 +704,7 @@ def resolve(
         variant=variant,
         working_interval=working,
         source=source,
+        sources=_resolution_sources(source, clinvar=clinvar, dbsnp=dbsnp),
         clinical_assertion=assertion,
         transcript=transcript,
         effect=effect.predict(variant, transcript=transcript) if effect is not None else None,

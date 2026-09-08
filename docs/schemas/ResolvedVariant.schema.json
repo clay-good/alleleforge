@@ -130,6 +130,78 @@
       "title": "CoordinateSystem",
       "type": "string"
     },
+    "DatasetVersion": {
+      "description": "A versioned, license-aware dataset descriptor.\n\nAttributes:\n    name: Dataset identifier (e.g. ``\"gnomad\"``).\n    version: Pinned dataset version (e.g. ``\"v4.1\"``).\n    source_url: Where the dataset is fetched from.\n    license: The dataset's license identifier.\n    sha256: Content hash of the pinned artifact.\n    citation: Literature citation for the dataset.\n    redistributable: Whether AlleleForge may vendor this dataset.",
+      "properties": {
+        "citation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citation"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "License"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "redistributable": {
+          "default": false,
+          "title": "Redistributable",
+          "type": "boolean"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "source_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Url"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "DatasetVersion",
+      "type": "object"
+    },
     "DbSnpId": {
       "description": "A validated dbSNP rsID (``rs`` followed by digits).",
       "properties": {
@@ -419,7 +491,7 @@
       "type": "object"
     }
   },
-  "description": "The canonical result of resolving any input form.\n\nAttributes:\n    variant: The normalized, left-aligned, reference-validated variant.\n    working_interval: The +/- ``window`` analysis interval around it.\n    source: The input form it was resolved from (audit aid).\n    clinical_assertion: What a clinical database asserts about this variant, when\n        resolution came from one. A ClinVar accession is chosen for its\n        classification, not its coordinates; carrying only the coordinates left\n        every downstream layer unable to say whether it was correcting a\n        pathogenic allele or a benign one.\n    transcript: The transcript consequence is reported against.\n    effect: The molecular consequence, if an effect predictor was supplied.\n    reference_recommendation: A T2T recommendation when the locus is\n        hg38-ambiguous, else ``None``.",
+  "description": "The canonical result of resolving any input form.\n\nAttributes:\n    variant: The normalized, left-aligned, reference-validated variant.\n    working_interval: The +/- ``window`` analysis interval around it.\n    source: The input form it was resolved from (audit aid).\n    clinical_assertion: What a clinical database asserts about this variant, when\n        resolution came from one. A ClinVar accession is chosen for its\n        classification, not its coordinates; carrying only the coordinates left\n        every downstream layer unable to say whether it was correcting a\n        pathogenic allele or a benign one.\n    transcript: The transcript consequence is reported against.\n    effect: The molecular consequence, if an effect predictor was supplied.\n    reference_recommendation: A T2T recommendation when the locus is\n        hg38-ambiguous, else ``None``.\n    sources: The version descriptor of each resolution database that actually\n        produced this variant. A ClinVar or dbSNP release decides *which locus\n        the run is about*, so two runs off different releases can disagree about\n        the coordinates for one accession \u2014 and the descriptor is the only thing\n        that tells those two runs apart. It rides on the resolved variant rather\n        than being collected by the caller because a shell that resolves first\n        (as the CLI does) hands the design layer nothing but this object.",
   "properties": {
     "clinical_assertion": {
       "anyOf": [
@@ -457,6 +529,14 @@
     "source": {
       "title": "Source",
       "type": "string"
+    },
+    "sources": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/DatasetVersion"
+      },
+      "title": "Sources",
+      "type": "array"
     },
     "transcript": {
       "default": "MANE_SELECT",

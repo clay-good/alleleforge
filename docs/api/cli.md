@@ -87,6 +87,37 @@ aforge bench run offtarget-classification --out offtarget.json
 aforge bench leaderboard cas9.json offtarget.json --format html --out board.html
 ```
 
+### Accession and rsID inputs
+
+Coordinates (`chrom:pos:ref>alt`, 1-based as in a VCF) and a VCF record work on every
+surface with nothing extra. The two *database* input forms need the release that defines
+them, which you supply — AlleleForge parses both and downloads neither, because the
+registry has no pinned checksum for either:
+
+| Input form | Flag | File |
+|---|---|---|
+| ClinVar accession (`VCV000012345`) | `--clinvar` | the ClinVar VCF release, plain or `.gz` |
+| dbSNP rsID (`rs334`) | `--dbsnp` | an `rsid chrom pos ref alt` TSV, 1-based pos, plain or `.gz` |
+
+Both are accepted by `resolve`, `design` and `batch`. Without the flag the input is
+refused, and the refusal names the flag.
+
+An accession is worth typing over the coordinates it stands for because ClinVar's
+**classification** comes with it: the record's significance and review status are carried
+into the menu rationale (`ClinVar: pathogenic (criteria provided, multiple submitters, no
+conflicts)`), which is what tells a reader whether the design corrects a pathogenic allele
+or a benign one. The release itself is pinned by content hash in provenance, and on
+`resolve --json` under `resolved_from` — two dbSNP builds can put one rsID at two loci, so
+naming the input *form* would not tell those two runs apart.
+
+Neither flag exists on the web API, for the same reason `--gnomad` does not: a
+client-supplied filesystem path on a server is a file-read primitive. Over HTTP, send
+coordinates.
+
+A coding or protein HGVS string (`c.`/`p.`) is the remaining input form no shell offers.
+It needs a projector from the `hgvs` library, which is not a dependency and is not a file
+a flag could name; genomic `g.` needs no adapter and works everywhere.
+
 ### The TSV export
 
 `--format tsv` writes the flat per-candidate table led by `#` comment lines carrying the

@@ -274,18 +274,32 @@ statement about loci does not warn anyone about the one that does not.
 ### Requirement: A refusal offers a remedy the caller has
 
 Three input forms — a ClinVar accession, a dbSNP rsID and a coding/protein HGVS string —
-need a lookup database or the `hgvs` library. The lookups are Protocols with no shipped
-implementation; neither the CLI nor the web API can construct one, and the registry lists
-no fetchable release. The refusal SHALL therefore say that this surface cannot supply one
-and name the coordinate form, which every surface accepts. It SHALL NOT name a Python
-keyword argument to a caller who arrived from a command line or a request body.
+need a lookup database or the `hgvs` library. The accession and rsID lookups are
+*file-backed*: `ClinVarDB` and `DbSnpDB` ship and implement the resolver's Protocols, and
+the registry lists no fetchable release only because nothing downloads one. Any surface
+that can name a local path SHALL therefore be able to supply a lookup — `--clinvar` and
+`--dbsnp` on `resolve`, `design` and `batch` — and the refusal SHALL name that flag to a
+shell caller and the constructor (`ClinVarDB.from_vcf` / `DbSnpDB.from_tsv`) to a Python
+caller. For an HTTP client there is no such option, because a client-supplied server path
+reads the server's files; the refusal SHALL say so and name the coordinate form, which
+every surface accepts. It SHALL NOT name a Python keyword argument to a caller who
+arrived from a command line or a request body.
 
-Every documented example on a shell SHALL use an input form that shell can resolve
-unaided; a Python example may pass a lookup, since Python can.
+A lookup release decides which locus the run is about, so a run resolved through one
+SHALL pin it: by content hash in the menu's provenance `datasets`, and under
+`resolved_from` on `aforge resolve --json`. Naming the input *form* is not enough — two
+dbSNP builds can place one rsID at two loci.
+
+Every documented example on a shell SHALL use an input form that shell can resolve with
+the flags shown alongside it.
 
 #### Scenario: An accession on the command line
-- **WHEN** `aforge resolve VCV000012345` is run
-- **THEN** the refusal names the coordinate form and says why no shell can supply a lookup
+- **WHEN** `aforge resolve VCV000012345` is run with no `--clinvar`
+- **THEN** the refusal names `--clinvar`, and running it with that flag resolves
+
+#### Scenario: Two dbSNP releases disagreeing about one rsID
+- **WHEN** the same rsID is resolved against two releases that place it differently
+- **THEN** the two payloads' `resolved_from` pins differ
 
 
 ### Requirement: A shared refusal serves every caller

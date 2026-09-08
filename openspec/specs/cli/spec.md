@@ -205,6 +205,24 @@ name. A malformed locus SHALL be a usage error, never a silently skipped exclusi
 - **WHEN** the locus is not `chrom:start-end(strand)`, or is empty
 - **THEN** the command exits with a usage error rather than searching without it
 
+### Requirement: A file-backed input the library accepts is reachable from the CLI
+
+An input the library takes as a local file is reachable from any surface that can name a
+path, and the command line is one. The ClinVar and dbSNP lookups SHALL therefore be
+supplyable with `--clinvar` and `--dbsnp` on every command that resolves a variant —
+`resolve`, `design` and `batch` — and an unreadable file SHALL be a data error, never a
+silent fall back. Neither is ever downloaded: the caller supplies the release.
+
+This requirement exists because the opposite was asserted for many releases. The refusal
+said the lookups were "Protocols with no shipped implementation", and the excuse was
+copied into the shell-parity guard's allowance list, where nothing could re-open it —
+while `ClinVarDB` and `DbSnpDB` shipped, were exported, and satisfied those Protocols.
+
+#### Scenario: An accession resolved from a supplied release
+- **WHEN** `aforge design VCV000012345 --clinvar <release>` is run
+- **THEN** the design runs, the record's clinical significance appears in the menu
+  rationale, and the release is pinned by content hash in provenance
+
 ### Requirement: The population-aware search is reachable from the CLI
 
 Population-aware off-target nomination is the capability this tool exists for, so

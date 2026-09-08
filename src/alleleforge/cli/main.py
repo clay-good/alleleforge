@@ -245,14 +245,23 @@ def resolve(
         str,
         typer.Argument(
             help="Variant to design for. Coordinates (chrom:pos:ref>alt, 1-based as in a VCF) "
-            "and a VCF record work everywhere. A ClinVar accession, a dbSNP rsID or a "
-            "coding/protein HGVS string needs a lookup database or the `hgvs` library, "
-            "which this surface has no way to supply — the refusal says so and names the "
-            "coordinate form."
+            "and a VCF record work everywhere. A ClinVar accession (VCV…) needs "
+            "--clinvar and a dbSNP rsID (rs…) needs --dbsnp, each naming a release you "
+            "supply — neither is ever downloaded. A coding/protein HGVS string (c./p.) "
+            "needs a projector from the `hgvs` library, which this surface has no way to "
+            "supply; genomic g. works without one."
         ),
     ],
     reference_fasta: Annotated[
         Path | None, typer.Option(help="Reference FASTA for left-alignment + ref validation.")
+    ] = None,
+    clinvar: Annotated[
+        Path | None,
+        typer.Option("--clinvar", help="ClinVar VCF release to look a `VCV…` accession up in."),
+    ] = None,
+    dbsnp: Annotated[
+        Path | None,
+        typer.Option("--dbsnp", help="dbSNP `rsid chrom pos ref alt` TSV to look an `rs…` up in."),
     ] = None,
     vep: Annotated[bool, typer.Option("--vep", help=_VEP_HELP)] = False,
     as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
@@ -278,6 +287,8 @@ def resolve(
             build=state.reference_build,
             reference=reference,
             effect=_effect_predictor(vep),
+            clinvar=_load_clinvar(clinvar),
+            dbsnp=_load_dbsnp(dbsnp),
         )
     except ValueError as exc:
         _echo_err(f"error: {exc}")
@@ -296,6 +307,11 @@ def resolve(
         "changes_the_sequence": changes,
         "build": v.build,
         "source": resolved.source,
+        # Naming the source form ("clinvar") does not say *which release* answered.
+        # Two dbSNP builds can put one rsID at two loci, so the descriptor of the
+        # file that produced this variant is what tells the two runs apart — the
+        # same pin the reference already gets below.
+        "resolved_from": [d.model_dump(mode="json") for d in resolved.sources],
         "working_interval": str(resolved.working_interval),
         # Every locus on this payload — the working interval, and the position inside
         # `variant` — is 0-based half-open, and a genome browser reads the same digits as
@@ -828,6 +844,40 @@ def _load_gnomad(path: Path | None) -> GnomadDB | None:
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
 
 
+def _load_clinvar(path: Path | None) -> Any:
+    """Load the ClinVar release, if one was given.
+
+    `ClinVarDB` implements the resolver's `ClinVarLookup` Protocol and parses a plain
+    or gzipped ClinVar VCF in pure Python. It shipped for many releases while every
+    shell refused an accession outright, on the stated grounds that the Protocol had
+    no implementation — so the project's own flagship example, `aforge design
+    VCV000012345`, had never run. The database is file-backed exactly like `--gnomad`:
+    nothing fetches it, and the caller supplies the release.
+    """
+    if path is None:
+        return None
+    from alleleforge.data.clinvar import ClinVarDB
+
+    try:
+        return _attach_source(ClinVarDB.from_vcf(path), path, "clinvar")
+    except (OSError, ValueError, KeyError) as exc:
+        _echo_err(f"error: could not read --clinvar {path}: {exc}")
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
+
+
+def _load_dbsnp(path: Path | None) -> Any:
+    """Load the dbSNP release, if one was given. See :func:`_load_clinvar`."""
+    if path is None:
+        return None
+    from alleleforge.data.dbsnp import DbSnpDB
+
+    try:
+        return _attach_source(DbSnpDB.from_tsv(path), path, "dbsnp")
+    except (OSError, ValueError, KeyError) as exc:
+        _echo_err(f"error: could not read --dbsnp {path}: {exc}")
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
+
+
 @app.command()
 def design(
     ctx: typer.Context,
@@ -835,10 +885,11 @@ def design(
         str,
         typer.Argument(
             help="Variant to design for. Coordinates (chrom:pos:ref>alt, 1-based as in a VCF) "
-            "and a VCF record work everywhere. A ClinVar accession, a dbSNP rsID or a "
-            "coding/protein HGVS string needs a lookup database or the `hgvs` library, "
-            "which this surface has no way to supply — the refusal says so and names the "
-            "coordinate form."
+            "and a VCF record work everywhere. A ClinVar accession (VCV…) needs "
+            "--clinvar and a dbSNP rsID (rs…) needs --dbsnp, each naming a release you "
+            "supply — neither is ever downloaded. A coding/protein HGVS string (c./p.) "
+            "needs a projector from the `hgvs` library, which this surface has no way to "
+            "supply; genomic g. works without one."
         ),
     ],
     reference_fasta: Annotated[
@@ -911,6 +962,30 @@ def design(
                 "Personal variants (VCF or one-variant-per-line list) to personalize "
                 "the off-target scan — a site present in this genome but not the "
                 "reference is nominated as `patient` origin."
+            ),
+        ),
+    ] = None,
+    clinvar: Annotated[
+        Path | None,
+        typer.Option(
+            "--clinvar",
+            help=(
+                "ClinVar VCF release (plain or .gz) — what a `VCV…` accession input is "
+                "looked up in. Never downloaded: the registry has no pinned checksum "
+                "for ClinVar, so you supply the release. The record's clinical "
+                "significance is carried into the design, which is what an accession "
+                "is chosen for over the plain coordinates."
+            ),
+        ),
+    ] = None,
+    dbsnp: Annotated[
+        Path | None,
+        typer.Option(
+            "--dbsnp",
+            help=(
+                "dbSNP `rsid chrom pos ref alt` TSV (plain or .gz), 1-based pos as in "
+                "a VCF — what an `rs…` input is looked up in. Never downloaded; you "
+                "supply the file."
             ),
         ),
     ] = None,
@@ -1115,6 +1190,8 @@ def design(
     pops = _parse_populations(pops_str)
     _warn_if_ancestries_unbacked(pops, gnomad, haplotypes)
     gnomad_db = _load_gnomad(gnomad)
+    clinvar_db = _load_clinvar(clinvar)
+    dbsnp_db = _load_dbsnp(dbsnp)
     haplotype_panel = _load_haplotypes(haplotypes)
     region_list = _load_regions(regions, regions_bed)
     tracks, track_name = _load_encode_tracks(encode_tracks, chromatin_track)
@@ -1153,6 +1230,8 @@ def design(
             build=state.reference_build,
             reference=reference,
             effect=_effect_predictor(vep),
+            clinvar=clinvar_db,
+            dbsnp=dbsnp_db,
         )
         store, index = _reuse(reference, cache=reuse_cache, index=genome_index)
         menu = run_design(
@@ -1348,6 +1427,30 @@ def batch(
             ),
         ),
     ] = None,
+    clinvar: Annotated[
+        Path | None,
+        typer.Option(
+            "--clinvar",
+            help=(
+                "ClinVar VCF release (plain or .gz) — what a `VCV…` accession input is "
+                "looked up in. Never downloaded: the registry has no pinned checksum "
+                "for ClinVar, so you supply the release. The record's clinical "
+                "significance is carried into the design, which is what an accession "
+                "is chosen for over the plain coordinates."
+            ),
+        ),
+    ] = None,
+    dbsnp: Annotated[
+        Path | None,
+        typer.Option(
+            "--dbsnp",
+            help=(
+                "dbSNP `rsid chrom pos ref alt` TSV (plain or .gz), 1-based pos as in "
+                "a VCF — what an `rs…` input is looked up in. Never downloaded; you "
+                "supply the file."
+            ),
+        ),
+    ] = None,
     gnomad: Annotated[
         Path | None,
         typer.Option(
@@ -1515,6 +1618,8 @@ def batch(
     pops = _parse_populations(pops_str)
     _warn_if_ancestries_unbacked(pops, gnomad, haplotypes)
     gnomad_db = _load_gnomad(gnomad)
+    clinvar_db = _load_clinvar(clinvar)
+    dbsnp_db = _load_dbsnp(dbsnp)
     haplotype_panel = _load_haplotypes(haplotypes)
     region_list = _load_regions(regions, regions_bed)
     tracks, track_name = _load_encode_tracks(encode_tracks, chromatin_track)
@@ -1608,6 +1713,8 @@ def batch(
             base_outcome_predictor=base_outcome,
             prime_efficiency_scorer=prime_scorer,
             effect=_effect_predictor(vep),
+            clinvar=clinvar_db,
+            dbsnp=dbsnp_db,
             settings=settings,
             **ref_kwargs,
         )

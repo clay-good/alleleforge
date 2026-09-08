@@ -198,7 +198,10 @@ def test_neither_refusal_offers_a_python_keyword_to_a_shell_caller() -> None:
             resolve(inp)
         message = str(excinfo.value)
         assert "clinvar=" not in message and "dbsnp=" not in message, message
-        assert "Protocol" in message, message
+        # A flag the caller can type, not a fact about the type system. The earlier
+        # version of this assertion required the word "Protocol" — and so pinned the
+        # false claim that the lookups had no shipped implementation.
+        assert "--clinvar" in message or "--dbsnp" in message, message
 
 
 # -- normalization, left-alignment, validation --------------------------------

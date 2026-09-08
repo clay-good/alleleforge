@@ -1127,10 +1127,10 @@ flowchart LR
 
 | Command | Purpose |
 |---|---|
-| `aforge resolve <input>` | Normalize any input form; show the canonical variant + class. `--vep` adds the predicted molecular consequence (opt-in: it sends the variant to Ensembl's public VEP API). |
-| `aforge design <input>` | Variant → ranked, multi-chemistry menu rendered to JSON/TSV/Parquet/HTML/PDF (`--format`; TSV and Parquet are one table in two encodings, same columns in the same order, each carrying the disclaimer, reference build and coordinate convention). `--allow-ng` / `--allow-spry` offer the SpCas9-NG and SpRY PAM-flexible fallbacks when no NGG guide is actionable; `--trained-efficiency` / `--trained-outcome` / `--trained-base-outcome` / `--trained-prime` swap in the consent-gated trained models; `--vep` annotates the menu with the variant's predicted consequence (opt-in: it sends the variant to Ensembl's public VEP API). |
+| `aforge resolve <input>` | Normalize any input form; show the canonical variant + class. `--clinvar` / `--dbsnp` name the release a `VCV…` accession or an `rs…` rsID is looked up in (supplied by you; never downloaded), and the release is pinned by content hash under `resolved_from`. `--vep` adds the predicted molecular consequence (opt-in: it sends the variant to Ensembl's public VEP API). |
+| `aforge design <input>` | Variant → ranked, multi-chemistry menu rendered to JSON/TSV/Parquet/HTML/PDF (`--format`; TSV and Parquet are one table in two encodings, same columns in the same order, each carrying the disclaimer, reference build and coordinate convention). `--clinvar` / `--dbsnp` accept an accession or an rsID as the variant, carrying ClinVar's classification into the menu rationale — the reason to type an accession rather than the coordinates it stands for; `--allow-ng` / `--allow-spry` offer the SpCas9-NG and SpRY PAM-flexible fallbacks when no NGG guide is actionable; `--trained-efficiency` / `--trained-outcome` / `--trained-base-outcome` / `--trained-prime` swap in the consent-gated trained models; `--vep` annotates the menu with the variant's predicted consequence (opt-in: it sends the variant to Ensembl's public VEP API). |
 | `aforge lift <locus>… --chain <file> --from <build> --to <build>` | Lift loci to another assembly, in the same locus form `--region` accepts. An unmappable locus prints `UNMAPPED` and exits non-zero rather than being dropped. |
-| `aforge batch <vcf\|list>` | Cohort design over a VCF (cyvcf2 fast path) or variant list — streaming, resumable, failure-isolated. `--vep` annotates each item's consequence (opt-in: it sends every variant to Ensembl's public VEP API); `--cache` and `--genome-index` let a cohort reuse the reference scan its items share. |
+| `aforge batch <vcf\|list>` | Cohort design over a VCF (cyvcf2 fast path) or variant list — streaming, resumable, failure-isolated. `--clinvar` / `--dbsnp` apply to every item, so a cohort can be a list of accessions. `--vep` annotates each item's consequence (opt-in: it sends every variant to Ensembl's public VEP API); `--cache` and `--genome-index` let a cohort reuse the reference scan its items share. |
 | `aforge offtarget <spacer>` | Standalone population/haplotype-aware off-target search. `--scorer cfd|mit|cfd-cas12a` selects the specificity scorer. `--cache` reuses an identical reference scan across runs; `--genome-index` anchors PAMs through a persistent memory-mapped FM-index. Both are opt-in and neither changes a result. |
 
 > [!IMPORTANT]
@@ -1153,12 +1153,15 @@ flowchart LR
 > nuclease and base editing do not take a cell context; when one is supplied and they run, the rationale
 > names them and says their in-distribution flag describes the guide context alone, so an unqualified "in
 > distribution" beside a nuclease candidate is not mistaken for a claim about the cell line. **Every `design()` capability is reachable from
-> the CLI.** Six of its parameters are not passed by any command, and none of them is a capability: three are
-> lookups whose `Protocol` ships with no implementation (so there is nothing for a flag to pass), one is an
+> the CLI.** Four of its parameters are not passed by any command, and none of them is a capability: one is
+> the HGVS adapter for `c.`/`p.` inputs, which needs a projector from the `hgvs` library (not a dependency,
+> and no file a flag could name — genomic `g.` needs no adapter and already works everywhere), one is an
 > injection point with no trained model to select, one is the positional variant argument and one is a
 > test-only provenance hook. That list lives with its reasons in
 > [`tests/test_shells_expose_the_library.py`](tests/test_shells_expose_the_library.py), which fails if a
-> seventh appears or if one of the six becomes reachable and the reason is left behind. On the web API a client-supplied filesystem path would be a server-side file-read primitive, so
+> fifth appears or if one of the four becomes reachable and the reason is left behind. It went from six to
+> four when `--clinvar` and `--dbsnp` were added: the excuse for those two said the lookups were
+> `Protocol`s with no shipped implementation, and `ClinVarDB`/`DbSnpDB` had shipped all along. On the web API a client-supplied filesystem path would be a server-side file-read primitive, so
 > the **file-backed** inputs are configured by the operator, exactly as the reference already is:
 > `ALLELEFORGE_GNOMAD_TSV`, `ALLELEFORGE_HAPLOTYPES` and `ALLELEFORGE_ENCODE_TRACKS` (or the matching
 > `create_app(...)` arguments) make the population-aware search, the haplotype-aware pass and the chromatin
