@@ -24,18 +24,19 @@ cd alleleforge
 
 # Python toolchain (3.11 or 3.12)
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+make install   # editable install with the dev, cli, web and genome-light extras
 
 # Optional native acceleration (Rust toolchain required)
-make native   # builds the wheel, installs it, runs the suite against it
+make native    # builds the wheel, installs it, runs the suite against it
 ```
 
-A conda environment is also provided:
+`make install` rather than a hand-written `pip install -e ".[dev]"`: `dev` alone leaves
+out the FASTA reader and the web server, so the gate you are about to run cannot pass. It
+is the same extras set CI installs, kept in one place.
 
-```bash
-conda env create -f environment.yml
-conda activate alleleforge
-```
+There is no conda *environment* file. `conda/meta.yaml` is a bioconda-style packaging
+recipe — it describes how to publish the released package, not how to set up a checkout —
+and this section used to point at an `environment.yml` that has never existed.
 
 ## Quality gates
 

@@ -221,3 +221,67 @@ def test_every_documented_command_and_flag_exists() -> None:
                     f"— in: {line}"
                 )
     assert not problems, "documented commands the CLI cannot run:\n" + "\n".join(problems)
+
+
+#: Config files a documented command names that the repository does not ship, each with
+#: the reason. A file the docs tell a reader to *use* must exist; one the docs teach them
+#: to *write* must not.
+_CALLER_SUPPLIED_CONFIGS: dict[str, str] = {
+    "run.toml": "the reproducible-run config a reader writes themselves; the CLI page "
+    "shows its contents immediately above the command that consumes it",
+}
+
+
+def _configs_named_in_commands() -> dict[str, list[str]]:
+    """Return {path: documents} for every config file named in a documented command."""
+    import re
+
+    pattern = re.compile(r"[\w./-]+\.(?:ya?ml|toml|cfg|ini)\b")
+    found: dict[str, list[str]] = {}
+    for path in [
+        _ROOT / "README.md",
+        _ROOT / "CONTRIBUTING.md",
+        *sorted((_ROOT / "docs").rglob("*.md")),
+    ]:
+        if not path.is_file():
+            continue
+        for block in re.findall(
+            r"```(?:bash|sh|console)?\n(.*?)```", path.read_text(encoding="utf-8"), re.S
+        ):
+            for line in block.splitlines():
+                if line.strip().startswith("#"):
+                    continue
+                for name in pattern.findall(line):
+                    found.setdefault(name, []).append(path.name)
+    assert found, "no config files named in any documented command — check is vacuous"
+    return found
+
+
+def test_every_config_a_documented_command_names_exists() -> None:
+    """A setup command that names a file the repository does not have fails immediately.
+
+    CONTRIBUTING said "a conda environment is also provided" and gave `conda env create -f
+    environment.yml`. There has never been an `environment.yml`; the repository ships
+    `conda/meta.yaml`, a bioconda packaging recipe, which is a different thing for a
+    different purpose. It is the second command in the contributor guide, so it failed in
+    a new contributor's first five minutes.
+
+    The local-link guard above cannot see this: the name is an argument inside a fenced
+    command, not a Markdown link. Same class of claim, different syntax.
+    """
+    missing = sorted(
+        f"{name} (in {sorted(set(where))})"
+        for name, where in _configs_named_in_commands().items()
+        if not (_ROOT / name).exists() and name not in _CALLER_SUPPLIED_CONFIGS
+    )
+    assert not missing, (
+        f"documented commands name config files this repository does not ship: {missing}. "
+        "Add the file, fix the command, or — if the reader is meant to write it — record "
+        "it in _CALLER_SUPPLIED_CONFIGS with that reason."
+    )
+
+
+def test_no_caller_supplied_allowance_names_a_file_that_exists() -> None:
+    """If the repository ships it, it is not something the reader writes."""
+    shipped = sorted(n for n in _CALLER_SUPPLIED_CONFIGS if (_ROOT / n).exists())
+    assert not shipped, f"_CALLER_SUPPLIED_CONFIGS excuses files the repo has: {shipped}"
