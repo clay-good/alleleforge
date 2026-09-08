@@ -12747,3 +12747,37 @@ answered by "what this chemistry is for," however accurate.**
 byte-identical across inputs is a description of the policy, not of the decision. Diff the
 output of two different runs and look at what stayed the same.**
 
+## Round 395 — the reference "has N" where it has nothing
+
+Found by running a cohort with a deliberately bad row in it:
+
+```
+chr11:9999:A>T  error  reference mismatch at chr11:9998: asserted ref 'A' but
+                       reference has 'N' (wrong build?)
+```
+
+The contig is 4,000 bases. There is no base at 9,998 — the `N` is padding
+`fetch_result` invents so a window near a telomere still comes back full length, and
+`_validate_ref` reported that invention as an observation. Two things wrong at once: the
+message states what the reference holds at a position the reference does not reach, and
+it blames the assembly, sending the reader to `lift` for a variant no coordinate
+conversion can rescue. The real fault is a truncated or single-chromosome FASTA, or a
+position in the wrong convention.
+
+The branch already tested `result.padded` — and OR'd it into the mismatch condition. Every
+fact needed for a good refusal was in hand: the contig, its length, the requested span.
+
+The same mistake from the other input was already handled well: an off-target `--region`
+past a contig end reports "only 0% of the 100 requested bases were searchable (the rest
+are assembly gaps, ambiguity codes, or past a contig end)". One input surface knew; the
+other did not.
+
+**Lesson: when a reader synthesizes a value for a missing thing — N padding, a zero
+default, an empty string — an error message that reports that value as an observation is
+lying with the truth. Grep for places where a sentinel a lower layer INVENTED is printed
+as something the data CONTAINS.**
+
+**And two input surfaces that hit the same physical limit should hit the same wording. The
+off-target engine's region refusal was the model; the resolver had never been compared
+against it. When you fix a message, grep for the other entry point to the same constraint.**
+
