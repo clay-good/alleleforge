@@ -2571,6 +2571,7 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+- `aforge batch --json` states what it is. The cohort summary TSV carried the research-use disclaimer, `/api/batch` carried it, every other JSON this CLI emits carried it, and the cohort JSON — the document a lab passes around after a run — did not.
 - `aforge offtarget --json` emits the eight report fields it had drifted behind on, including which requested ancestries no loaded source can speak for and how many sites fell below the reporting threshold. The HTTP response had carried them all along, so the same script could see them through one shell and not the other. `aforge data list --json` also carries the `presence` sentence the API returns.
 - `GET /api/data` and `GET /api/data/{name}` report whether a deployment can actually use each dataset. The listing had carried the licence permission alone, so an HTTP client was told AlleleForge may redistribute seven datasets the deployment does not have. All four registry surfaces now share one derivation.
 - Thirty-three CLI tests decoded `CliRunner`'s interleaved stdout+stderr as JSON. They now decode `result.stdout`, which is the stream a pipeline reads — the assertion that was meant, and the one a message on stderr cannot break.

@@ -24,7 +24,7 @@ not the real published models the README compares against. Build scientific subs
   to-the-byte runs, content-addressed benchmark harness, consent/license/checksum
   model-zoo gate, CLI + web + native Rust parity. All verified green:
   - `ruff` clean; `mypy --strict` clean (103 files)
-  - 2,815 tests pass, 21 skipped, **97.7% coverage** (gate 85%)
+  - 2,816 tests pass, 21 skipped, **97.7% coverage** (gate 85%)
   - `mkdocs build --strict` clean; `scripts/reproduce.py` matches golden
   - 4 example notebooks pass; native crate builds, `cargo fmt`/`clippy` clean
   - The 21 skips are all opt-in, not failures: 17 native-kernel parity tests skip

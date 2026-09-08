@@ -1624,7 +1624,17 @@ def batch(
         _echo_err(f"designed {report.succeeded}/{report.total} (skipped {report.skipped})")
 
     if as_json:
+        from alleleforge.report.builder import COORDINATE_NOTE, RESEARCH_USE_DISCLAIMER
+
         payload = {
+            # The cohort summary TSV carries this, the web cohort response carries it,
+            # every other JSON this CLI emits carries it — and the cohort JSON, which is
+            # the file a lab actually passes around after a run, did not. The exemption
+            # recorded for the per-item menu files reasons that "the run that wrote it
+            # puts the context in the summary TSV beside it"; a `--json` run writes no
+            # TSV, so that justification does not reach this document.
+            "disclaimer": RESEARCH_USE_DISCLAIMER,
+            "coordinate_note": COORDINATE_NOTE,
             "provenance": report.provenance,
             "total": report.total,
             "succeeded": report.succeeded,

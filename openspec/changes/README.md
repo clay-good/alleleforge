@@ -11759,3 +11759,37 @@ what a full payload is.
 **Lesson: diff the key sets, don't read the code. Four of five pairs matched, and the one
 that did not gave up eight fields in a single command — a comparison no amount of reading
 either file would have produced.**
+
+## Round 361 — the fifth artifact, found by the same diff as the fourth
+
+Same technique as Round 360, on the two pairs it had not covered. `design` matched its
+endpoint key for key. `batch` did not, and among the differences was `disclaimer`:
+web-only.
+
+`tests/test_every_artifact_says_what_it_is` exists because four rounds in a row found
+that defect one artifact over, and its answer was to enumerate the artifacts rather than
+key the check to a type. That was the right answer and it has a cost, which showed up
+here: an enumeration is only as complete as whoever last extended it. The cohort summary
+*TSV* was on the list; `aforge batch --json` was not. So the document a lab actually
+passes around after a cohort run said nothing about what it was, while the TSV beside it
+and the HTTP response above it both did.
+
+The exemption recorded for the per-item menu files is what makes this sharper rather than
+merely missed. Its reason reads: "the run that wrote it puts the context in the summary
+TSV and the manifest header beside it." A `--json` run writes neither, so that
+justification never reached this document — an exemption that was true of one path being
+read as true of the surface.
+
+The cohort JSON now leads with the disclaimer and the coordinate note, and the artifact
+list has a fifth entry with the reason it was missing recorded in the file's own
+docstring.
+
+Also checked, no finding: `aforge design --json` and `/api/design` agree key for key, and
+the cohort item summaries differ only by nesting plus `chemistries`, which is a web
+addition to the nested summary rather than a column of the shared row — adding it to the
+CLI would change the TSV schema for no reader who asked.
+
+**Lesson: an enumerated guard fails open. Keying a check to a type missed four artifacts
+because they were not that type; listing them by hand missed a fifth because nobody
+listed it. When a guard is a list, the round that adds to it should say what made the
+entry easy to omit — here, that the exemption beside it described a different code path.**

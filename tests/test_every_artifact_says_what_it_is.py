@@ -10,6 +10,13 @@ So this enumerates the artifacts instead of the types. Every writer in `src/` th
 user ends up holding is produced here, through its real path, and asserted to carry
 `RESEARCH_USE_CORE`.
 
+A fifth turned up later all the same, and by the same mechanism one level down: this
+list is written by hand, and `aforge batch --json` was not on it. The cohort *TSV* was,
+`/api/batch` carried the disclaimer, every other JSON this CLI emits carried it, and the
+cohort JSON — the document a lab actually passes around after a cohort run — did not. An
+enumeration is only as complete as whoever last extended it, which is the cost of the
+approach and the reason each addition is worth stating.
+
 `EXEMPT` is the mechanism that keeps it honest: an artifact may be absent from the rule
 only with a reason recorded here, and the reason has to survive being read. Two are
 exempt today and both are load-bearing decisions, not conveniences.
@@ -86,6 +93,33 @@ def _design(runner: CliRunner, fasta: Path, out: Path, fmt: str) -> str:
     return out.read_bytes().decode("latin-1", "replace")
 
 
+def _cohort_json(runner: CliRunner, fasta: Path, tmp_path: Path) -> str:
+    """The cohort document a `--json` run produces — the one a lab passes around.
+
+    Distinct from the summary TSV below, and it is the distinction that hid this: a
+    `--json` run writes no TSV and no manifest, so the context those carry is not
+    "beside it" in any sense a reader can reach.
+    """
+    listing = tmp_path / "cohort-json.txt"
+    listing.write_text("chr2:71:A>C\n")
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            str(listing),
+            "--reference-fasta",
+            str(fasta),
+            "--intent",
+            "install",
+            "--max-per-chemistry",
+            "1",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0, result.output + result.stderr
+    return result.stdout
+
+
 def _cohort_summary(runner: CliRunner, fasta: Path, tmp_path: Path) -> str:
     listing = tmp_path / "cohort.txt"
     listing.write_text("chr2:71:A>C\n")
@@ -147,6 +181,7 @@ def _leaderboard(runner: CliRunner, tmp_path: Path, fmt: str) -> str:
         "design-tsv",
         "design-json",
         "cohort-summary-tsv",
+        "cohort-summary-json",
         "offtarget-json",
         "leaderboard-markdown",
         "leaderboard-html",
@@ -160,6 +195,8 @@ def test_the_artifact_states_what_it_is(
         text = _design(runner, fasta, tmp_path / f"menu.{fmt}", fmt)
     elif artifact == "cohort-summary-tsv":
         text = _cohort_summary(runner, fasta, tmp_path)
+    elif artifact == "cohort-summary-json":
+        text = _cohort_json(runner, fasta, tmp_path)
     elif artifact == "offtarget-json":
         text = _offtarget_json(runner, fasta)
     else:
