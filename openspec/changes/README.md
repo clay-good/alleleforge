@@ -12651,3 +12651,31 @@ notation the same claim is written in.**
 **And the first commands in a contributor guide are the least-run code in the repository:
 everyone who could notice them broken already has a working checkout.**
 
+## Round 392 — the help text was a changelog
+
+`aforge lift --help` spent its second paragraph explaining that the liftover "was
+implemented and tested but reachable only from Python, so that instruction named an
+operation the CLI did not offer." That is true of a release nobody can install, and it is
+no help at all to the person deciding whether to run the command. `aforge bench compare`
+was worse: it opened by saying the reproducibility digest "had no implementation: the
+digest was computed, stored, and read by nothing" — a sentence that reads, to a reader
+deciding whether to trust the comparison, as a description of the command in front of them.
+
+Both texts were written in the round that shipped the fix, where the motivation was the
+most interesting thing in the author's head. The motivation was already recorded in
+CHANGELOG.md and in this log. Help text has one job.
+
+The second check is duller and catches an accident rather than a habit: `--allow-ng`'s
+help rendered as `assumed.Consumed`, two adjacent string literals joined without the space
+between them. It is invisible in the source — the two lines look like a paragraph — and
+visible to every user who asks for help.
+
+**Lesson: help text is written by whoever just finished the work, and what is salient to
+them is the gap they closed. Both defects are the author's context leaking into the
+reader's manual. Ask of every sentence in `--help`: would a user who has only ever seen
+this version understand it, and would it change what they do?**
+
+**And the checks were cheap because the CLI can enumerate itself. `get_command(app)` walks
+every command and every option; the guard is a regex over that. Any surface that can list
+its own user-facing strings can be checked for anything you can express about a sentence.**
+
