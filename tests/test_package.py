@@ -25,8 +25,18 @@ def test_ships_pep561_py_typed_marker() -> None:
 
 
 def test_bundles_runtime_data_files() -> None:
-    # The registry, benchmark, and web server load these via package paths at
-    # runtime; if a packaging change dropped them the installed wheel would break.
+    # The registry, benchmark, and web server load these via package paths at runtime.
+    #
+    # What this proves and what it does not: `resources.files` resolves to the source
+    # tree under a development install, so this checks the files exist in the repository
+    # and are reachable by the path the code uses. It does not open a wheel, and the
+    # comment here used to claim it caught a packaging change that "would break the
+    # installed wheel" — it cannot see one. The wheel was checked by hand instead
+    # (2026-09-07: py.typed, 17 cards, 6 splits, 3 frontend files and the CFD matrix all
+    # present, and the package imports and resolves them from the wheel's own contents).
+    # Building a wheel here would cost the suite a minute per run to re-prove something
+    # the build backend does by default: hatchling packages `src/alleleforge` wholesale,
+    # so dropping an asset takes a deliberate exclude rather than an oversight.
     cards = resources.files("alleleforge").joinpath("model_zoo", "cards")
     splits = resources.files("alleleforge").joinpath("benchmark", "splits")
     frontend = resources.files("alleleforge").joinpath("web", "frontend", "index.html")

@@ -35,7 +35,7 @@ not the real published models the README compares against. Build scientific subs
     to skip here now run: the installed extension was stale, which the version
     handshake could not detect, and a build that lacks a registered kernel is now
     reported rather than skipped.
-  - wheel + sdist build, `twine check` PASSED, assets bundled (py.typed, cards,
+  - wheel + sdist build, assets bundled and verified *from the wheel* (py.typed, cards,
     splits, frontend)
 
 ## UPDATE 2026-06-23 — four real models now wired (one per axis)

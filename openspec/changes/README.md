@@ -12107,3 +12107,37 @@ the rebuild command.
 **Lesson: a report that grades a codebase from a local run mixes two claims — what the
 repository contains and what this machine verified. The second is the one that quietly
 degrades, and it degrades into the optimistic answer.**
+
+## Round 371 — the packaging claim, and what a source-tree test can see
+
+The last claim in the honest-state file that had not been exercised: "wheel + sdist build,
+`twine check` PASSED, assets bundled". Built the wheel and looked inside it.
+
+The substantive half holds, and holds well. The wheel carries `py.typed`, 17 model cards,
+6 benchmark splits, the 3 frontend files and the CFD matrix, and — the check worth making —
+unzipping it and putting *it* first on the path, the package imports and resolves every one
+of those from the wheel's own contents rather than the source tree beside it. A user who
+pip-installs this gets a package that can score CFD and serve its own page.
+
+Two things were not right.
+
+`twine check` errors on this toolchain: twine 6.2.0 with packaging 26.2 rejects
+`Metadata-Version: 2.5`, which the build backend now emits. That is the packaging ecosystem
+disagreeing with itself, not a defect in the distribution — but `RELEASE.md` said
+"`twine upload dist/*` (already passes `twine check`)", so whoever cuts the release meets an
+error the checklist promised would not be there. No CI job runs it, which is why nothing
+noticed; it is a manual release step. Both documents now say what is true, and the
+checklist says to re-run it with a current twine rather than assume.
+
+And `test_bundles_runtime_data_files` claimed more than it checks. Its comment says that if
+a packaging change dropped these files "the installed wheel would break" — but
+`resources.files` resolves to the source tree under a development install, so it proves the
+files are in the repository, not in any wheel. The comment now says which of the two it
+does. Building a wheel per suite run would cost a minute to re-prove what the backend does
+by default (hatchling packages `src/alleleforge` wholesale, so losing an asset takes a
+deliberate exclude), so the wheel is checked by hand and the test says so.
+
+**Lesson: `resources.files` under a dev install reads the repository, so every "the
+installed package has this" test is really a "the repository has this" test. That is often
+enough — but the comment has to say which one it is, or the next reader trusts a check that
+never opened the artifact.**
