@@ -52,19 +52,19 @@ Distinct, meaningful exit codes make the CLI scriptable:
 
 ```bash
 # Normalize any input form (1-based in, 0-based canonical out)
-aforge resolve chr2:100:A>G --json
+aforge resolve 'chr2:100:A>G' --json
 
 # Variant → ranked menu, written as an interactive HTML report + provenance sidecar
-aforge design chr2:71:A>C \
+aforge design 'chr2:71:A>C' \
     --reference-fasta hg38.fa --intent install \
     --populations afr,eur,eas --format html --out report.html
 
 # Restrict chemistries and tune ranking weights (efficiency,cleanliness,safety,simplicity)
-aforge design chr11:5227002:A>T --reference-fasta hg38.fa \
+aforge design 'chr11:5227002:A>T' --reference-fasta hg38.fa \
     --chemistry prime --weights 0.5,0.2,0.2,0.1 --json
 
 # A reproducible run from a config file (CLI flags override the file)
-aforge --seed 20240501 design chr2:71:A>C --reference-fasta hg38.fa --config run.toml --format tsv
+aforge --seed 20240501 design 'chr2:71:A>C' --reference-fasta hg38.fa --config run.toml --format tsv
 
 # Cohort design: a whole VCF (cyvcf2 fast path) or a one-variant-per-line list.
 # Streaming + resumable (--manifest), durable per-sample menus (--output-dir),

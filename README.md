@@ -385,7 +385,7 @@ The same journey from the `aforge` CLI (`pip install "alleleforge[cli]"`):
 # `--gnomad` is what makes the off-target scan population-aware; `--populations` only
 # names the ancestries to stratify by, so without a sites file the scan is
 # reference-only and the ancestry breakdown comes back empty (the command says so).
-aforge design chr11:5227002:A>T --reference-fasta hg38.fa \
+aforge design 'chr11:5227002:A>T' --reference-fasta hg38.fa \
     --intent correct --gnomad gnomad.sites.tsv.gz --populations afr,eur,eas \
     --cell-context HEK293T --format html --out report.html
 # Coordinates, because that is what this surface can resolve on its own. A ClinVar
@@ -401,7 +401,7 @@ aforge offtarget GACGGAGGCTAAGCGTCGCAA --reference-fasta hg38.fa --pam NGG --jso
     --dna-bulges 1 --rna-bulges 1 --cfd-threshold 0.20 --mit-threshold 0.10 --maf 0.001
 
 # Normalize any input form and show its class (debugging aid)
-aforge resolve chr2:100:A>G --json
+aforge resolve 'chr2:100:A>G' --json
 ```
 
 ---
@@ -1196,7 +1196,7 @@ timestamp), and a `<output>.provenance.json` sidecar is written next to every fi
 
 ```bash
 # Reproducible design from a config file; CLI flags override the file
-aforge --seed 20240501 design chr2:71:A>C \
+aforge --seed 20240501 design 'chr2:71:A>C' \
     --reference-fasta hg38.fa --config run.toml \
     --chemistry prime --weights 0.5,0.2,0.2,0.1 --format html --out report.html
 # → wrote report.html and report.html.provenance.json

@@ -301,6 +301,25 @@ the report's searchable-fraction line already states how little of it held seque
 - **WHEN** a region begins beyond the end of its contig
 - **THEN** the search runs and reports that none of those bases were searchable
 
+### Requirement: A documented command survives the shell it is pasted into
+
+The variant syntax contains `>`, which every POSIX shell reads as output redirection, so
+an unquoted `aforge design chr2:71:A>C` creates a file named `C` and hands the tool
+`chr2:71:A`. Every documented command line SHALL quote an argument containing `>`.
+
+The refusal SHALL name the cause when the input has exactly the shape a shell leaves
+behind — `chrom:pos:ref` with no `>alt` — and SHALL NOT offer that explanation for any
+other malformed input, where it would be a story about something that did not happen.
+
+#### Scenario: A truncated coordinate
+- **WHEN** an input is `chrom:pos:ref` with no alternate allele
+- **THEN** the refusal says the shell redirected, names the file it created, and shows
+  the quoted form
+
+#### Scenario: An unrelated malformed input
+- **WHEN** an input is malformed in some other way
+- **THEN** the refusal does not mention quoting
+
 ### Requirement: A malformed or unsupported input fails with a decision, not a traceback
 
 Every file input SHALL fail with a message a user can act on, and with the exit code that

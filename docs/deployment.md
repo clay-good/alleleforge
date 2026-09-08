@@ -31,7 +31,7 @@ ships genomes; point it at one you control.
 
 ```bash
 # CLI: pass the FASTA per invocation
-aforge design chr2:71:A>C --reference-fasta /data/hg38.fa --intent install
+aforge design 'chr2:71:A>C' --reference-fasta /data/hg38.fa --intent install
 
 # Web: supply it once via env var (or create_app(reference=...))
 export ALLELEFORGE_REFERENCE_FASTA=/data/hg38.fa

@@ -275,7 +275,7 @@ def _from_string(
         return _from_hgvs(text, hgvs, reference), "hgvs", None
     m = _COORD_RE.match(text)
     if m is None:
-        raise ValueError(f"unrecognized variant input: {text!r}")
+        raise ValueError(f"unrecognized variant input: {text!r}{_shell_ate_it(text)}")
     return (
         # Un-normalized on purpose: resolve() validates the full asserted ref span
         # against the reference before parsimony trims a shared prefix/suffix base
@@ -288,6 +288,29 @@ def _from_string(
         ),
         "coordinates",
         None,
+    )
+
+
+#: A coordinate input with its `>alt` missing: `chrom:pos:ref` and nothing after. This is
+#: what every POSIX shell leaves behind when the variant is not quoted, because `>` is
+#: output redirection — so `aforge design chr2:71:A>C` writes a file named `C` and hands
+#: the tool `chr2:71:A`. The tool's own syntax is hostile to its own command line, and the
+#: user sees a string in their history that looks exactly right.
+_TRUNCATED_BY_A_SHELL = re.compile(r"^(?P<chrom>[\w.]+):(?P<pos>\d+):(?P<ref>[ACGTNacgtn]*)$")
+
+
+def _shell_ate_it(text: str) -> str:
+    """Return a sentence naming the shell, when the input has the shape it leaves behind.
+
+    Offered only for that exact shape, so an ordinary typo is not told a story about
+    redirection it has nothing to do with.
+    """
+    if not _TRUNCATED_BY_A_SHELL.match(text):
+        return ""
+    return (
+        f". This is `chrom:pos:ref` with no `>alt` — the shape a shell leaves when the "
+        f"variant is unquoted, because `>` redirects output (a file named after your ALT "
+        f"allele was just created). Quote it: '{text}>ALT'"
     )
 
 
