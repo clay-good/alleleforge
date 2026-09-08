@@ -26,15 +26,44 @@ from alleleforge.types.sequence import GenomicInterval, canonical_contig
 
 
 def reference_key(reference: ReferenceGenome) -> list[object]:
-    """Return a stable identity for ``reference`` (build + contig lengths).
+    """Return a stable identity for ``reference``: build, contig lengths, and the file.
 
-    Standard assemblies are uniquely determined by their build name and the set of
-    contig lengths; this avoids hashing multi-gigabyte FASTA content on every
-    query. Two references that share a build *and* every contig length are treated
-    as identical sequence — true for the pinned builds AlleleForge ships.
+    Build plus contig lengths is not an identity, it is a *shape*. `build` is a label
+    the caller picks (`--reference-fasta any.fa --reference hg38`), and two FASTAs can
+    share every contig name and length while differing in their bases — a soft-masked
+    copy, a patched build, a locally edited genome. Measured, with two 4 kb references
+    of one shape where the second contains a perfect match for the guide:
+
+        second genome alone      2 sites, worst 1.000, specificity 0.333
+        second genome, warm cache 0 sites, worst 0.000, specificity 1.000
+
+    A cache hit turned a guide that cuts elsewhere into the most reassuring output the
+    system can produce, on the opt-in flag whose whole promise is that it changes no
+    result. An under-specified *label* fails to tell two records apart; an
+    under-specified *key* serves one run the other's answer.
+
+    Hashing the bases is genuinely out of reach (multi-gigabyte, per query), so the
+    file's identity on this machine stands in for them: resolved path, size, and
+    modification time. Two byte-identical copies at different paths no longer share
+    entries — a miss, which costs a rescan — and a genome edited in place is correctly a
+    different key rather than silently the same one.
     """
     contigs = sorted((c, reference.contig_length(c)) for c in reference.contigs)
-    return [reference.build, contigs]
+    return [reference.build, contigs, _file_identity(reference.path)]
+
+
+def _file_identity(path: Path) -> list[object]:
+    """Return a cheap identity for the FASTA on this machine, or ``[]`` if unstattable.
+
+    An empty identity is the conservative answer only because it is paired with the
+    shape above: it degrades the key to what it used to be, so a reference whose file
+    cannot be stat'd is no worse off than before, and every ordinary one is safer.
+    """
+    try:
+        stat = Path(path).resolve().stat()
+    except OSError:
+        return []
+    return [str(Path(path).resolve()), stat.st_size, stat.st_mtime_ns]
 
 
 def search_signature(

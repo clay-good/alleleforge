@@ -133,6 +133,18 @@ input SHALL always be a different key. The off-target cache SHALL be used only f
 reference-only, default-scorer search and SHALL bypass caching when any population,
 haplotype, patient, or custom-scorer augmentation is present.
 
+The reference genome is one of those inputs, and identifying it by build name and contig
+lengths does not distinguish two genomes: the build is a label the caller supplies, and a
+soft-masked, patched or locally edited FASTA shares the shape of the one it came from. A
+key SHALL therefore carry the reference's identity, not only its shape. Where the bases
+cannot be hashed at genome scale, the substitute SHALL fail toward a cache *miss* — a
+rescan costs time, and a false hit reports one genome's off-target profile for another.
+
+#### Scenario: Two genomes of one shape
+- **WHEN** a guide is scanned with the cache enabled against two references that share a
+  build and every contig length but differ in their bases
+- **THEN** each scan reports its own genome's sites, and neither is served the other's
+
 #### Scenario: Concurrent writers
 - **WHEN** two processes write the same cache key at once
 - **THEN** each uses a unique temp file (a per-write token, not the payload object's
