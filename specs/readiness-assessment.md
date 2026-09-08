@@ -24,8 +24,11 @@ not the real published models the README compares against. Build scientific subs
   to-the-byte runs, content-addressed benchmark harness, consent/license/checksum
   model-zoo gate, CLI + web + native Rust parity. All verified green:
   - `ruff` clean; `mypy --strict` clean (103 files)
-  - 2,849 tests pass, 4 skipped, **97.6% coverage** (gate 85%)
-  - `mkdocs build --strict` clean; `scripts/reproduce.py` matches golden
+  - 2,851 tests pass, 4 skipped, **97.6% coverage** (gate 85%)
+  - `mkdocs build --strict` clean; `scripts/figures.py` regenerates the committed
+    figures byte-identically; `scripts/reproduce.py` matches golden — and that last
+    one is now checked by the test suite, having been false when this line was
+    written and true only of a CI job nobody reads locally
   - 4 example notebooks pass; native crate builds, `cargo fmt`/`clippy` clean
   - The 4 skips are the real-weight tests, which need `ALLELEFORGE_REAL_WEIGHTS=1`
     (they reach outside the repository). The 17 native-kernel parity tests that used

@@ -83,6 +83,7 @@
           "maf_threshold": null,
           "mismatch_threshold": 4,
           "mit_threshold": 0.1,
+          "on_target_excluded_placements": 1,
           "pam": "NGG",
           "reference_build": "hg38",
           "resolved_bases": 63,
@@ -166,7 +167,17 @@
       0
     ],
     "provenance": {
-      "datasets": [],
+      "datasets": [
+        {
+          "citation": "Doench et al., Nat Biotechnol 2016 (CFD; Suppl. Table 19)",
+          "license": "published data (Doench et al. 2016); redistributed via CRISPOR/CRISPRitz",
+          "name": "doench-2016-cfd",
+          "redistributable": true,
+          "sha256": "9134bbd7609507beef37fcc3a046a56a0ab2ed78d8456ea751528e6993451496",
+          "source_url": "https://raw.githubusercontent.com/maximilianh/crisporWebsite/master/CFD_Scoring/mismatch_score.pkl",
+          "version": "2016"
+        }
+      ],
       "models": [
         {
           "chemistry": "base_abe",
@@ -218,8 +229,8 @@
       "timestamp": "2024-05-01T00:00:00Z",
       "tools": []
     },
-    "rationale": "Routing: base_abe=yes, base_cbe=no, prime=yes, cas9_nuclease=no.\nEligible and run: base_abe, prime.\nWhy the other chemistries declined:\n- base_cbe: Cytosine base editing installs a C->T / G->A transition in a narrow window with no double-strand break \u2014 eligible when the required change is a G:C->A:T transition SNV.\n- cas9_nuclease: An SpCas9 double-strand break repaired by error-prone NHEJ yields frameshifting indels that ablate gene function \u2014 the canonical knock-out route.\nRun notes:\n- ClinVar: pathogenic\n- intent install writes an allele ClinVar classifies as pathogenic \u2014 a disease model, not a correction\n- base_abe: 1 candidate(s)\n- prime: eligible but no actionable candidate enumerated \u2014 no PAM match at this offset (155); the spacer contains TTTT, which terminates Pol III transcription (1)\nRanked by a weighted sum of four higher-is-better objectives (efficiency 0.35, cleanliness 0.30, safety 0.30, simplicity 0.05); the safety term uses the worst-affected ancestry and the efficiency term is uncertainty-discounted. The Pareto front lists the 1 candidate(s) not dominated on all four objectives."
+    "rationale": "Routing: base_abe=yes, base_cbe=no, prime=yes, cas9_nuclease=no.\nEligible and run: base_abe, prime.\nWhy the other chemistries declined:\n- base_cbe: Cytosine base editing installs a C->T / G->A transition in a narrow window with no double-strand break \u2014 eligible when the required change is a G:C->A:T transition SNV.\n- cas9_nuclease: An SpCas9 double-strand break repaired by error-prone NHEJ yields frameshifting indels that ablate gene function \u2014 the canonical knock-out route.\nRun notes:\n- ClinVar: pathogenic\n- intent install writes an allele ClinVar classifies as pathogenic \u2014 a disease model, not a correction\n- base_abe: 1 candidate(s)\n- prime: eligible but no actionable candidate enumerated \u2014 no PAM match at this offset (155); the spacer contains TTTT, which terminates Pol III transcription (1)\nRanked by a weighted sum of four higher-is-better objectives (efficiency 0.35, cleanliness 0.30, safety 0.30, simplicity 0.05); the safety term uses the worst nominated site \u2014 no candidate here carries ancestry annotation, so there is no per-ancestry worst to take; every efficiency here is in-distribution, so the efficiency term is the point estimate (an out-of-distribution one would be discounted to its lower interval bound). The Pareto front lists the 1 candidate(s) not dominated on all four objectives."
   },
   "n_candidates": 1,
-  "sha256": "3974566b1af4cbd3641c7dd9933e6454494ed614ed9741102d0542d9c201080e"
+  "sha256": "fb3a600d7b0eb9263c69a7ca1e18dac3c0c8e63693fe4be7c2f0da531b67c850"
 }

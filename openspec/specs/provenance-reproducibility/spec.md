@@ -333,3 +333,21 @@ the record reproduces the result rather than a larger one.
 #### Scenario: A cap that drops nothing
 - **WHEN** the cap is above every chemistry's enumerated count
 - **THEN** the rationale says nothing about it
+
+
+### Requirement: The reproducibility gate fails where developers look
+
+The canonical run's agreement with its golden manifest SHALL be checked by the test
+suite, not only by a separate `make` target and CI job. A drift that leaves the suite
+green is a drift nobody sees until a reviewer reads one job's log, and the golden went
+three legitimate changes out of date that way.
+
+The separate target SHALL remain, because regenerating the manifest is how an intended
+change to the canonical output is accepted; the suite check is what makes someone notice
+they need to. The failing test names the command that does it, so the remedy reaches the
+reader who hits the drift.
+
+#### Scenario: The canonical output changes for a good reason
+- **WHEN** a change alters the canonical run's body
+- **THEN** the suite fails, naming the drifted paths, and the change is accepted by
+  regenerating the golden rather than by leaving it stale

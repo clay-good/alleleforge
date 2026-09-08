@@ -2571,6 +2571,7 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+- The reproducibility golden is current again, and the test suite checks it. It had drifted three legitimate changes behind — a new field, a dataset reaching provenance, a reworded rationale — and because `scripts/reproduce.py` runs only as its own CI job, every local signal stayed green.
 - A stale native extension is now reported instead of silently disabling the parity suite. The version handshake could not see it — the crate version is single-sourced and unchanged between builds — so an extension built before the off-target evaluation kernel existed reported the same version as one built after it, and the seventeen tests that prove native/Python parity skipped themselves saying the crate was not built.
 - The rendered PDF carries a `/Title` and `/Producer`, so a forty-five-page report no longer opens untitled and is no longer filed by a reference manager as an untitled document. No creation date, so the same report still renders to the same bytes.
 - The model zoo's lighter consent gate consults `artifact_download_permitted` like the other three, so an environment that opted in with `allow_network` is no longer permitted for a pinned-artifact model and refused for a loader-driven one. All four refusals now name both remedies — `consent=True` and `ALLELEFORGE_ALLOW_NETWORK=1` — and two refusals that meant "there is nowhere to fetch this from" no longer claim consent was the problem.

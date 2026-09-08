@@ -11967,3 +11967,39 @@ escaped the same rule only because its wording contained no keyword the check lo
 records. Between releases nothing bumps, so it is blind exactly when it is needed — during
 development, which is when the artifact goes stale. Compare the thing itself: what the
 source registers against what the build exports.**
+
+## Round 367 — running the gates the honest-state file says pass
+
+Round 344 rewrote `specs/readiness-assessment.md` from measurement instead of memory, and
+re-measured the numbers it states. It did not re-run the *other* claims on the same line.
+This round did, and four of five hold: `mkdocs build --strict` is clean, `scripts/figures.py`
+regenerates the committed figures byte-identically, and `scripts/native_speedup.py` produces
+per-kernel ratios consistent with the README's (bulged alignment 12.6x against a documented
+~10x, per-anchor evaluation 7.5x against ~9x, the contig fold 17–19x against ~13–19x —
+within the hardware variance the README explicitly warns about).
+
+The fifth was false. `scripts/reproduce.py` — the check behind "reproducible to the byte" —
+had been failing, three legitimate changes behind its golden: `on_target_excluded_placements`
+added to an off-target report, the CFD matrix reaching `provenance.datasets`, and a rationale
+reworded to stop describing mechanisms that had not run. All three predate this session's
+commits, so the drift is not from these rounds; all three are improvements the golden should
+have absorbed.
+
+What made it survive is the part worth keeping. `reproduce.py` is a `make ci` target and its
+own GitHub Actions job, and not a test. So the full suite stayed green through all three
+changes, `make test` said nothing, and the drift was visible only to someone reading one job's
+log. Every local signal a developer looks at reported a healthy project. The golden is
+regenerated, and the suite now runs the comparison — with a second test that tampers with a
+copy of the golden and requires the script to exit non-zero, because "the gate cannot fail"
+is exactly what this round found somewhere else.
+
+A measurement note, for the third time this session: `cmd | tail; echo $?` reports `tail`'s
+exit code. It briefly made this script look like it reported drift and exited 0, which would
+have been a second, larger finding. It exits 1. I have now written this trap down twice and
+walked into it again — the habit that works is redirecting to a file and testing `$?` on the
+command itself.
+
+**Lesson: a gate that runs in exactly one place fails in exactly one place, and if that
+place is a CI log rather than the suite, the project's own developers get a green light
+across the whole drift. Ask of every check: which of the signals I actually look at would
+turn red?**
