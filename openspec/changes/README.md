@@ -12899,3 +12899,43 @@ non-terminal context this project ships.**
 path that could need it. A wrong answer that arrives through the honest channel with the
 honesty flag unset is worse than one that raises.**
 
+## Round 399 — a documented format crashed, and only a real run could show it
+
+Started the server, opened the page, ran a design, then asked each documented format for
+the same report:
+
+```
+pdf     -> 200  158,333 bytes
+tsv     -> 200  395,464 bytes
+parquet -> 500       21 bytes      <-- "Internal Server Error"
+json    -> 200  1,306,314 bytes
+html    -> 200  197,196 bytes
+```
+
+`polars.exceptions.ComputeError: could not append value: 0.36 of type: f64 to the builder`.
+polars infers each column's dtype from the first `infer_schema_length` (100) rows.
+`bystander_burden` is null for every prime candidate and a float on the single base editor
+— which ranks 341st. The column was typed Null and then handed a float.
+
+The column became mixed in the round that gave bystander burden the interval and honesty
+flags its two neighbours already carried. That round's tests pass, and always will: every
+fixture report is smaller than the inference window. The bug needs ~a hundred rows of one
+chemistry followed by one row of another, which is what a real variant produces and no
+unit test does.
+
+Two more defects fell out of the same line. A run with no population data leaves
+`worst_ancestry` null in every row, so it got a Null dtype, while the same tool with a
+gnomAD file writes a string column — two files a pipeline cannot union. And the empty
+frame was a *separate expression* (`{col: [] for col in TSV_COLUMNS}`), so a report with
+no candidates wrote every column as Null; the comment above it claimed the empty and
+populated frames "agree by construction", which was true of the column order it had just
+fixed and never of the types.
+
+**Lesson: schema inference is a sampling assumption, and a test fixture is exactly the
+sample where it holds. Any `infer_schema_length`, `dtype=None`, or "guess from the data"
+is a bug that only appears at production scale — declare the schema, and check the
+declaration against real rows.**
+
+**And the tell for reachability was cheap: ask every documented output format for the same
+report and compare status codes. Five formats, one line, one 500.**
+
