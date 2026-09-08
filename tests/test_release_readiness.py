@@ -130,3 +130,23 @@ def test_r2_does_not_call_a_stale_build_importable() -> None:
     current = readiness._native_kernels()
     if _native.NATIVE_AVAILABLE:
         assert "current here" in current.detail, current.detail
+
+
+def test_the_report_says_its_tracks_are_not_the_roadmap_phases() -> None:
+    """`[MET ] R2` next to a README row reading "R2 ... in progress" is a false alarm.
+
+    The criteria are named after the roadmap phases and are narrower than them: the
+    native-kernels criterion asks for kernels on the hot paths with parity tests and a
+    recorded speedup, while the phase of the same name carries its own deliverable list.
+    A reader who runs the script and then reads the README sees two verdicts for one
+    label, and nothing told them the scopes differ.
+    """
+    from pathlib import Path
+
+    import scripts.release_readiness as readiness
+
+    rendered = readiness._render(readiness.criteria())
+    assert "not the roadmap phase statuses" in rendered, rendered.splitlines()[:3]
+
+    readme = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
+    assert "narrower" in readme, "the README should say the same from its side"

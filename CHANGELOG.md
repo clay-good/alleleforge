@@ -2571,6 +2571,7 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+- The readiness report says its criteria are narrower than the roadmap phases they are named after, and the README says the same from its side. `[MET ] R2` beside a README row reading "R2 … in progress" is not a contradiction, and nothing said so.
 - The cohort summary TSV states the run's counts, so a resumed run's empty table says it is empty because everything was already designed rather than reading as a cohort that produced nothing.
 - A parallel cohort reports its items in input order. `--max-workers 4` recorded them as they finished, so three consecutive runs of one cohort produced three different row orders and the summary table could not be diffed — a performance flag changing the artifact. The manifest stays completion-ordered; it is a progress log.
 - A variant naming a contig the reference does not have is refused with a message naming it and listing what the reference has, instead of a traceback ending in `KeyError: "unknown contig 'chrZ'"`. Fixed in the resolver, so the CLI, the HTTP API and a Python caller all get it.

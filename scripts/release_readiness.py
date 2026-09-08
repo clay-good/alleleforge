@@ -216,7 +216,18 @@ def criteria() -> list[Criterion]:
 
 
 def _render(items: list[Criterion]) -> str:
-    lines = ["v1.0 release readiness (SPEC_V2.md, R6)", ""]
+    # The track labels below are the R6 *criteria*, which are narrower than the
+    # roadmap phases of the same names: `[MET ] R2` says the v1.0 condition about
+    # native kernels holds, not that SPEC_V2's R2 phase is finished — that phase has
+    # its own deliverable list and the README shows it in progress. Two documents
+    # printing "R2" with different verdicts is a contradiction a reader has to be told
+    # is not one.
+    lines = [
+        "v1.0 release readiness (SPEC_V2.md, R6)",
+        "these are the R6 release criteria, not the roadmap phase statuses they are "
+        "named after — a phase can be in progress while its v1.0 criterion is met",
+        "",
+    ]
     for c in items:
         mark = "MET " if c.met else "open"
         lines.append(f"[{mark}] {c.track:6} {c.summary}")

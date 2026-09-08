@@ -12237,3 +12237,35 @@ the artifact as well.
 
 **Lesson: when a fix is "say what happened", ask where it was said. A message printed
 during a run reaches whoever ran it; every reader after that has only the file.**
+
+## Round 375 — two non-findings and a collision between them
+
+Two probes, both answered "already handled", and worth recording so they are not
+re-chased.
+
+**The ancestry warning does reach the artifact.** `--populations afr,eur` with no
+population source prints a stderr warning that the scan is reference-only. Given this
+session's repeated finding — a correction reaching the reader who was watching and not the
+one holding the document — the obvious suspicion was that the saved report stayed silent.
+It does not. Every rendering carries it, in `offtarget_search`: "no supplied source carries
+data for afr, eur — those ancestries were requested but not examined, and their absence
+from the breakdown means 'no data', not 'no risk'", and a second clause naming the remedy.
+JSON, TSV, HTML and PDF all have it. My first probe said otherwise because it grepped for
+"reference-only" and "unbacked" and the prose uses neither — a substring probe on prose
+gives false negatives, which is worth remembering before trusting one.
+
+**The README's roadmap status is not contradicted by the readiness script**, though it
+looks like it is. The script prints `[MET ] R2` and the README's R-track table shows R2 "in
+progress". They are different R2s: the script measures a v1.0 *criterion* — native kernels
+on the hot paths, with parity tests and a recorded speedup — while `SPEC_V2.md`'s R2 is a
+*phase* with its own deliverable list. Flipping the README's glyph would have been me making
+a roadmap call on someone else's scope.
+
+The collision is real even though the disagreement is not: a reader who runs the script and
+then opens the README sees one label with two verdicts. Both now say the scopes differ —
+the report in its header, the README in the row that points at the report — and a test
+holds the two halves together.
+
+**Lesson: when two documents disagree, establish they are talking about the same thing
+before changing either. Here they were not, and the fix was to say so rather than to make
+one of them wrong.**
