@@ -12269,3 +12269,182 @@ holds the two halves together.
 **Lesson: when two documents disagree, establish they are talking about the same thing
 before changing either. Here they were not, and the fix was to say so rather than to make
 one of them wrong.**
+
+## Round 376 — the excuse was false, and it had been written into a guard
+
+`aforge design VCV000012345` — the README's own flagship example — had never run. Every
+shell refused a ClinVar accession or a dbSNP rsID, saying the lookups were "Protocols with
+no shipped implementation". `ClinVarDB` and `DbSnpDB` ship: package exports, their own
+tests, and the two Protocol methods signature for signature. They are *file-backed*, like
+`--gnomad`; the only true half of the sentence was that nothing downloads a release.
+
+`--clinvar` and `--dbsnp` now supply one on `resolve`, `design` and `batch`, and the
+refusal names the flag to a shell caller, the constructor to a Python caller, and for HTTP
+says why there is no third option. With the flag, ClinVar's classification reaches the menu
+rationale — the whole reason to type an accession rather than the coordinates it stands
+for. The release is pinned by content hash in provenance and under `resolved_from` on
+`resolve --json`, because two dbSNP builds can place one rsID at two loci.
+
+**Lesson: audit the REASONS, not the gaps. A wrong reason for a gap is stronger than no
+reason — it gets copied into a guard's allowance list, and from then on the parity sweep
+*agrees* every time it runs. For each entry in every allowance list, do not ask "is this
+parameter real" (the check that passes); ask "is the stated CAUSE still true", and go read
+the class the excuse says does not exist.**
+
+## Round 377 — the same query, run across every allowance list
+
+The web-parity guard excused all five `design()` scorer overrides as "a Python object, not
+expressible in JSON" — true of the object, and beside the point, since `aforge design
+--trained-efficiency` had reached the same capability with a boolean since it shipped.
+Every menu the API returned was scored by the weight-free baseline, 200, with nothing
+saying so. The four trained models are now reachable over HTTP and from the served page,
+under the operator-enables / client-chooses split `ALLELEFORGE_VEP` already established.
+
+Two more stale allowances turned up on entry points whose guard had only the *weak* form
+("does this excuse name a real parameter"): `_SEARCH_NOT_IN_WEB["scorer"]` said the CLI's
+`--scorer` had no web counterpart while `OffTargetRequest` carried the field, and
+`_SEARCH_NOT_IN_CLI` said the CLI "has no session to hold" a cross-run cache two rounds
+after `aforge offtarget --cache` shipped. The reachability detectors also matched `name=`,
+so positional arguments read as unsupplied — and each phantom gap had been given an
+allowance entry explaining it.
+
+**Lesson: an excuse that describes the ARGUMENT'S TYPE rather than the CAPABILITY behind it
+passes every sweep forever. And a false positive in a mechanical check does not just hide a
+bug — it manufactures prose.**
+
+## Round 378 — what the artifacts could not say
+
+Running a mixed cohort (accessions, an rsID, coordinates) surfaced three related gaps, each
+about an artifact failing to say what it was about. The cohort summary identified every row
+by the string the user typed — which for an accession names no locus, and for a coordinate
+moves under left-alignment; the single-design flat table stated neither the variant, the
+intent, nor the ranking weights that produced its `rank` column; and the ClinVar
+classification, the reason an accession is chosen at all, lived only inside the menu
+*rationale*, so it reached the prose renderers and no tabular one.
+
+The cohort run header also pinned the reference genome's shape and nothing else, while
+every per-item menu recorded the datasets it read.
+
+**Lesson: a fact that lives inside a prose field has silently chosen its audience — every
+prose-rendering surface has it and every tabular one does not, and a corpus-wide "is this
+fact present" check passes. Ask which surfaces render prose and which do not.**
+
+## Round 379 — three identity checks that trusted a label
+
+`item_id` identifies a *request*, so a cohort resume against a second ClinVar release
+reported every item "already done", exited 0, and wrote a summary with no rows — an
+artifact designed against the release the user did not name. The manifest header had
+recorded what the first run was since it was introduced, and nothing read it back.
+
+The off-target cache keyed a reference by build name and contig lengths. Measured with two
+4 kb genomes of one shape, the second carrying a perfect match for the guide: alone, 2
+sites, worst 1.000, specificity 0.333; with the first genome's scan in the cache, 0 sites,
+specificity 1.000 — the most reassuring output the system can produce, from the wrong
+genome. The repo's own spec already required that "a different input SHALL always be a
+different key".
+
+The leaderboard's comparison group keyed on `split_version`, a string a submitter writes,
+while every result carries `split_sha256`. Two admissible, correctly signed submissions
+from different labs, both saying `v1`, scored on different bytes, were ranked against each
+other.
+
+**Lesson: a SHAPE is not an IDENTITY, and the difference is fatal in a key. When you find
+an identifier too weak for a record, grep for everything else keyed on it: an
+under-specified label fails to tell two records apart, while an under-specified key serves
+one run the other's answer.**
+
+## Round 380 — junk at the flag added last round, and the shell in between
+
+Five malformed files at `--clinvar`/`--dbsnp` produced three tracebacks, all one cause:
+`ClinVarDB.get` and `DbSnpDB.locus` raise `KeyError` where every sibling refusal in the
+resolver raises `ValueError`, so the shells' handling did not apply. The refusal now names
+the record, the release's pin, and how many records it holds — `0 record(s)` says the file
+is the problem rather than the accession, which a header-only VCF from a truncated download
+reveals in no other way.
+
+Then the larger one: the variant syntax contains `>`, which every POSIX shell reads as
+output redirection. Six documented command lines — the first example in the CLI reference,
+in the README quickstart and in the deployment guide — created a file named after the ALT
+allele and handed the tool a truncated variant. The existing guards asked whether an example
+names real flags and a resolvable input form; both were true. (The correction then shipped a
+stray `T` of its own, and the root-inventory guard reads `git ls-files`, so it could only
+have caught it after the commit. It reads the working tree now.)
+
+**Lesson: ask whether the SHELL delivers the argument, not only whether the tool accepts it.
+`shlex` is not a shell — it keeps `>` inside an ordinary token and reported all six lines as
+fine. Walk the quote state, and execute the premise rather than asserting it.**
+
+## Round 381 — the renderers that are written by hand
+
+Twice in three rounds a fact was added to the cohort row, reached the CLI's TSV and
+`/api/batch`, and never reached the browser table — the only renderer of that record that
+is hand-written HTML rather than generated. The check written to stop it found a third
+instance on its first run, and a better one: `best_bystander_burden` is a calibrated
+`Prediction`, and the row kept its point estimate and dropped the envelope, so one column
+of a triage table followed the never-a-bare-float rule and its neighbour did not. The same
+pair one level up (`CandidateReport` → the flat export row) had the same gap, on the same
+field.
+
+`cohort_to_tsv`'s hand-written column list was silently dropping `chemistries`.
+
+**Lesson: a generated renderer stays in step; a hand-written one silently ignores new
+fields. For any record with a hand-written renderer, require every key to be rendered or
+excused — and expect the enumeration to find the member nobody was looking at.**
+
+## Round 382 — the configuration nothing ran, and the number nobody read
+
+No CI job ran the full suite with the compiled crate installed: the `rust` job built the
+wheel and then ran `pytest -m native`, so the configuration the docs recommend for real
+work was exercised only where someone had remembered a marker. Verified first that the
+suite passes that way, then made the job run it.
+
+And `scripts/native_speedup.py` had been printing, for as long as anyone had not looked:
+
+    anchor enumeration: FM-index vs linear scan
+      1,000,000 bp   linear 2.63s   fm-index 36.65s   (0.07x, SLOWER)
+
+...while `search()` auto-engaged that path past 1 Mb and three documents said the index
+"only amortizes at contig scale". Measured on the real default path: 2.7x slower at 1 Mb,
+2.7x at 2 Mb, 4.6x at 8 Mb, and 2.2x across five guides sharing a contig. It diverges with
+size and does not amortize across guides. Now opt-in; hits byte-identical, golden unchanged.
+
+**Lesson: a repository that ships a "re-measure it yourself" script has already done the
+work — RUN IT. Nobody runs the benchmark because nothing fails when it regresses, which is
+exactly why it is a good place to look. And a performance threshold is a claim: find every
+`if size > N` that switches algorithms and ask what measured it.**
+
+## Round 383 — the documents that state their own currency
+
+`specs/readiness-assessment.md` exists so context is not lost across sessions and says its
+numbers are "re-measured, not remembered". It claimed 2,871 tests and 17 native parity
+tests when the real figures were 2,975 and 71. An earlier round had found exactly this,
+re-measured by hand, concluded the fix was to *derive* the claims, written a guard for the
+reachability table in the same document, and left the numbers beside it.
+
+The current section now states only what a test derives from the repository, and an
+absolute suite-wide test count is forbidden outright — a comparison guard would fail on the
+commit that adds a test, and a guard that fails constantly gets deleted rather than obeyed.
+
+**Lesson: a round that ends "the fix is to derive this" and then re-types it has not fixed
+it, it has reset the clock. And choose claims by whether they can be checked without churn,
+not by what sounds impressive.**
+
+## Round 384 — pinning the copies a reader would cite
+
+Three preventive checks, all clean today, all mutation-verified since nothing had ever
+demonstrated they work. The preprint's split-conformal recalibration table is a hand-copied
+set of computed numbers above a sentence asserting what it shows; the benchmark's task
+table — name, kind, and the metric a model is *ranked on* — is written by hand in the
+README, the API reference and the preprint, and was compared to the registry in none of
+them; and half of `search()`'s numeric defaults had no documentation guard, because the
+existing one listed the checks somebody remembered rather than enumerating the population.
+
+The same correction reached `test_every_artifact_says_what_it_is`, whose docstring already
+confessed the weakness: "an enumeration is only as complete as whoever last extended it".
+Every file writer in `src/` is now found by walking the AST.
+
+**Lesson: rank a duplicated fact by what it ASSERTS. A stale exit code is an inconvenience;
+a stale primary metric in a benchmark table is a false statement about how models are
+compared, in the document written to be cited. And a docstring that names its own weakness
+is a to-do nobody filed.**
+
