@@ -46,6 +46,7 @@ from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.report.builder import caveats
 from alleleforge.types.candidate import RankedMenu
 from alleleforge.types.edit import EditIntent
+from alleleforge.types.provenance import DatasetVersion
 from alleleforge.variant.resolver import ResolvedVariant, ResolveInput
 
 #: A cohort input item: anything :func:`design` accepts.
@@ -266,6 +267,99 @@ def _read_done_ids(manifest_path: Path) -> set[str]:
     return done
 
 
+#: Header fields a resume must agree with. Everything here changes what a design
+#: *produces*, so reusing a result computed under a different value is not resuming a
+#: run, it is mixing two. `started_at` and the counts are deliberately absent: they
+#: describe the attempt, not the answer.
+_RESUME_CRITICAL = (
+    "alleleforge_version",
+    "seed",
+    "reference_build",
+    "reference",
+    "intent",
+    "inputs",
+)
+
+
+def _input_descriptors(design_kwargs: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return the provenance descriptors of the data sources a run was handed.
+
+    The same attribute `_collect_datasets` reads off gnomAD, ClinVar, a haplotype panel
+    and the rest — read here, before any item runs, because a resume decision needs them
+    and the observed union is only available once the run is over.
+    """
+    found: dict[tuple[str, str], dict[str, Any]] = {}
+    for value in design_kwargs.values():
+        version = getattr(value, "dataset_version", None)
+        if isinstance(version, DatasetVersion):
+            found.setdefault((version.name, version.version), version.model_dump(mode="json"))
+    return [found[key] for key in sorted(found)]
+
+
+def _run_header(manifest_path: Path) -> dict[str, Any]:
+    """Return the `_run` block a manifest was opened with, or ``{}`` if it has none."""
+    if not manifest_path.exists():
+        return {}
+    first = manifest_path.read_text().splitlines()
+    if not first:
+        return {}
+    try:
+        record = json.loads(first[0])
+    except json.JSONDecodeError:
+        return {}
+    header = record.get("_run")
+    return header if isinstance(header, dict) else {}
+
+
+def _render(key: str, value: Any) -> str:
+    """Render one header value for a refusal a human has to act on.
+
+    The two structured fields are a list of dataset descriptors and a reference shape.
+    Dumped as `repr`, one differing ClinVar release filled three lines with `None`s and
+    buried the two hashes that differ — a message that is technically complete and
+    practically unreadable is the failure mode this project keeps correcting.
+    """
+    if key == "inputs" and isinstance(value, list):
+        return ", ".join(f"{d.get('name')} {d.get('version')}" for d in value) or "nothing"
+    if key == "reference" and isinstance(value, dict):
+        return f"{value.get('contigs')} contig(s), sha {str(value.get('sha256'))[:8]}"
+    return repr(value)
+
+
+def _refuse_a_mismatched_resume(manifest_path: Path, provenance: dict[str, Any]) -> None:
+    """Refuse to resume a manifest opened under different result-determining inputs.
+
+    Resume keys on `item_id` alone, which is the *request*, not the answer. Re-running
+    the same cohort against a second ClinVar release — same accessions, different loci —
+    skipped every item as "already done", exited 0, and wrote a summary with no rows.
+    The user believes the run used the release they named; it used the previous one, and
+    nothing in the artifact says so. The same holds for a different genome, a different
+    seed and a different intent.
+
+    The manifest header already records what the first run was, and nothing had ever read
+    it back. Refusing is the right answer rather than warning: the alternative is a
+    result that is silently a mixture of two runs, and the two ways forward (`--no-resume`,
+    or a fresh manifest) are both one flag away.
+    """
+    header = _run_header(manifest_path)
+    if not header:
+        return
+    differing = [
+        f"{key}: manifest has {_render(key, header.get(key))}, "
+        f"this run has {_render(key, provenance.get(key))}"
+        for key in _RESUME_CRITICAL
+        if key in header and header.get(key) != provenance.get(key)
+    ]
+    if differing:
+        raise ValueError(
+            f"{manifest_path} was written by a run with different inputs, so resuming it "
+            "would mix two runs into one result:\n  "
+            + "\n  ".join(differing)
+            + "\nRe-run with resume disabled (`--no-resume`) to design every item under "
+            "these inputs, or point --manifest at a new file."
+        )
+
+
 def design_many(
     variants: Iterable[CohortInput],
     *,
@@ -344,7 +438,6 @@ def design_many(
     id_of = item_id or str
 
     manifest = Path(manifest_path) if manifest_path is not None else None
-    done = _read_done_ids(manifest) if (manifest is not None and resume) else set()
     provenance = {
         "alleleforge_version": __version__,
         # The seed that actually governs the run is the one threaded into every
@@ -363,8 +456,16 @@ def design_many(
         # per worker and there is no run-wide one to describe.
         "reference": None if reference is None else _reference_snapshot(reference),
         "intent": intent.value,
+        # The result-determining *data* this run was given, named up front rather than
+        # observed at the end: a resume has to compare them before it decides what to
+        # skip. Each entry is whatever descriptor the source carries (a content hash for
+        # a caller-supplied file), sorted so the header is stable.
+        "inputs": _input_descriptors(design_kwargs),
         "started_at": datetime.now(UTC).isoformat(),
     }
+    if manifest is not None and resume:
+        _refuse_a_mismatched_resume(manifest, provenance)
+    done = _read_done_ids(manifest) if (manifest is not None and resume) else set()
     if manifest is not None and not manifest.exists():
         from alleleforge.report.builder import COORDINATE_NOTE, RESEARCH_USE_DISCLAIMER
 

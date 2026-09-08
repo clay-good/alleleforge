@@ -1739,6 +1739,14 @@ def batch(
     except MissingDependencyError as exc:
         _echo_err(f"error: {exc}")
         raise typer.Exit(ExitCode.UNAVAILABLE) from exc
+    # `design_many` refuses a call it cannot honour: a parallel run with no
+    # reference factory, and a resume whose manifest was opened under different
+    # result-determining inputs. Both are the caller's to fix and both name a remedy;
+    # arriving as a traceback made a decision the code had already taken look like a
+    # crash.
+    except ValueError as exc:
+        _echo_err(f"error: {exc}")
+        raise typer.Exit(ExitCode.USAGE) from exc
 
     rows = _batch_rows(report)
     if summary_tsv is not None:

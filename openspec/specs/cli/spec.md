@@ -450,6 +450,27 @@ cannot re-run the item by hand to find out.
 - **THEN** every other item is still designed and recorded, and the command exits
   non-zero naming how many failed
 
+### Requirement: A resume refuses a manifest from a different run
+
+Resume is keyed on `item_id`, which identifies the *request*. A run SHALL refuse to
+resume a manifest whose header records different result-determining inputs — the
+AlleleForge version, the seed, the reference build and shape, the intent, or the data
+sources the run was handed — because reusing results computed under other inputs makes
+the artifact a mixture of two runs while reporting success.
+
+The refusal SHALL name what differs, in a form a reader can act on rather than a dump of
+the recorded structures, and SHALL name both ways forward: designing every item under the
+new inputs, or writing to a new manifest. A manifest with no header SHALL stay resumable.
+
+#### Scenario: The same accessions against a second release
+- **WHEN** a cohort resumes a manifest written against a different ClinVar release
+- **THEN** it is refused, naming both releases, rather than reporting every item as
+  already done
+
+#### Scenario: The same inputs
+- **WHEN** the inputs match the manifest header
+- **THEN** the run resumes and skips the items already recorded as succeeded
+
 ### Requirement: A resume retries what failed and survives an interrupted write
 
 Resuming a cohort SHALL skip only the items that succeeded. An item recorded as failed
