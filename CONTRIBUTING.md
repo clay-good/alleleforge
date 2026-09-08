@@ -59,8 +59,16 @@ its tests are green.
   coordinate conversions round-trip, normalization is idempotent, intervals contain their point estimate…).
 - Never download a real genome or multi-GB dataset in CI — ship small synthetic fixtures under
   `tests/**/fixtures/` (the `.gitignore` explicitly allows them).
-- Tests needing real model weights are marked `@pytest.mark.real_weights` and are skipped in CI.
-- Tests needing the compiled extension are marked `@pytest.mark.native`.
+- Two markers are **opt-in**: the root `conftest.py` skips them unless their variable is set, so a
+  clean checkout never downloads weights or calls an external service by accident.
+
+  | Marker | Run them with | What they reach |
+  |---|---|---|
+  | `@pytest.mark.real_weights` | `ALLELEFORGE_REAL_WEIGHTS=1` | real model weights (a gated download) |
+  | `@pytest.mark.live_integration` | `ALLELEFORGE_LIVE_INTEGRATION=1` | a live external service (VEP / UTA / Cas-OFFinder) |
+
+- Tests needing the compiled extension are marked `@pytest.mark.native`. It is **not** opt-in here — it
+  has its own CI job selecting it with `-m native`, which a skip would turn into a no-op.
 
 ## Commit &amp; PR conventions
 

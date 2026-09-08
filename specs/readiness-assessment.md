@@ -181,7 +181,7 @@ wrong:
 - **`encode_tracks` / `chromatin_track` are reachable**: `--encode-tracks` with
   `--chromatin-track` to name the track, on `design` and `batch`.
 - **The three file inputs are reachable over HTTP**, by the server-side route that
-  update said was needed: `ALLELEFORGE_GNOMAD` and `ALLELEFORGE_HAPLOTYPES` are read
+  update said was needed: `ALLELEFORGE_GNOMAD_TSV` and `ALLELEFORGE_HAPLOTYPES` are read
   at app start, so a deployment opts in without a client ever naming a path.
 
 The 2026-09-05 update shipped a regression test for its *other* honesty claim — that

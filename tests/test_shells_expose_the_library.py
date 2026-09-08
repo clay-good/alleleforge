@@ -14,8 +14,10 @@ reason. That is the point: the gap has to be a decision, not an oversight.
 
 from __future__ import annotations
 
+import ast
 import inspect
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 from alleleforge.design.designer import design
@@ -87,6 +89,36 @@ def _design_parameters() -> set[str]:
     return params
 
 
+def _bound_arguments(callee: str, target: Callable[..., object]) -> set[str]:
+    """Return the parameters of ``target`` the CLI's call to ``callee`` supplies.
+
+    Bound the way Python binds them, from the AST, so a **positional** argument counts.
+    The regex form this replaced matched `name=` only, which is why `search(spacer,
+    PAM(...), ...)` looked as though the CLI never supplied a spacer or a PAM — and both
+    then sat in an allowance list with a reason written to explain the phantom gap.
+
+    That is the third time in this project a false positive in a reachability check meant
+    the *rule* was stated wrong rather than needing an exception.
+    """
+    source = (_ROOT / "src" / "alleleforge" / "cli" / "main.py").read_text()
+    names = [n for n, _ in inspect.signature(target).parameters.items()]
+    supplied: set[str] = set()
+    found = False
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Call):
+            continue
+        # Only an unqualified call. `re.search(pattern, text)` is also a call named
+        # "search", and binding *its* positional arguments onto this signature would
+        # silently mark parameters as supplied that nothing supplies.
+        if not isinstance(node.func, ast.Name) or node.func.id != callee:
+            continue
+        found = True
+        supplied |= {names[i] for i in range(len(node.args)) if i < len(names)}
+        supplied |= {kw.arg for kw in node.keywords if kw.arg is not None}
+    assert found, f"no call to {callee}() found in the CLI — this check would be vacuous"
+    return supplied
+
+
 def _cli_forwards() -> set[str]:
     """Return the `design()` inputs the CLI supplies, at either of the two call sites.
 
@@ -156,6 +188,46 @@ def test_an_allowance_does_not_outlive_the_gap_it_excuses() -> None:
     )
 
 
+def test_the_search_and_report_allowances_do_not_outlive_their_gaps() -> None:
+    """The same rule, on the two entry points that only had the weaker version.
+
+    The strong form ("excused *and* offered" is a false record) was written for
+    `design()` and never mirrored, and by the time it was, three entries had gone
+    stale in the direction that matters. `_SEARCH_NOT_IN_WEB["scorer"]` read "not yet
+    exposed; the CLI's `--scorer` has no web counterpart" while `OffTargetRequest`
+    had the field, and `_SEARCH_NOT_IN_CLI` told a reader the CLI "has no session to
+    hold" a cross-run cache two rounds after `aforge offtarget --cache` shipped.
+
+    A weaker sibling check makes this worse rather than neutral: the list *is*
+    checked, so it reads as maintained, and set subtraction can never see an entry
+    that is both excused and offered because such an entry changes no result.
+    """
+    from alleleforge.report.builder import build_report
+    from alleleforge.web.api.models import OffTargetRequest
+
+    offered = {
+        "_SEARCH_NOT_IN_CLI": set(_SEARCH_NOT_IN_CLI) & _cli_search_forwards(),
+        "_SEARCH_NOT_IN_WEB": set(_SEARCH_NOT_IN_WEB) & set(OffTargetRequest.model_fields),
+        "_REPORT_NOT_IN_CLI": set(_REPORT_NOT_IN_CLI) & _cli_report_forwards(),
+        # `scheme` is spelled `vector_scheme` on the request; the alias is the
+        # positive test's, and reusing it keeps one answer to "does the web offer it".
+        "_REPORT_NOT_IN_WEB": {
+            name
+            for name in _REPORT_NOT_IN_WEB
+            if {"scheme": "vector_scheme"}.get(name, name) in set(DesignRequest.model_fields)
+        },
+    }
+    stale = {name: sorted(hits) for name, hits in offered.items() if hits}
+    assert not stale, (
+        f"these allowances excuse something the shell already offers: {stale}. Drop the "
+        "entry — a reason recorded beside a capability that exists sends a reader away "
+        "from it."
+    )
+    # A floor, since every assertion above is trivially satisfied by empty sets.
+    assert build_report is not None
+    assert len(_SEARCH_NOT_IN_WEB) > 3, _SEARCH_NOT_IN_WEB
+
+
 #: Options that belong to `aforge design` alone, with the reason. `batch` shapes its
 #: output through `--output-dir`, `--manifest` and `--summary-tsv` instead, so the
 #: single-result rendering options have no meaning there.
@@ -211,25 +283,16 @@ def test_the_design_only_allowances_are_real_options() -> None:
 #: all — only `design()` did — which is how three R4-era capabilities and a whole
 #: nuclease's scorer came to be library-only.
 _SEARCH_NOT_IN_CLI: dict[str, str] = {
-    "spacer": "the positional argument",
-    "pam": "the `--pam` option, passed positionally as a PAM object",
-    "reference": "built by the CLI from --reference-fasta",
-    "cache": "a cross-run cache object; the CLI has no session to hold one",
-    "genome_index": "a prebuilt whole-genome FM-index object; needs a path option to "
-    "select and is not yet exposed (R4 scale path, library-only)",
     "use_fm_index": "an override for a heuristic that auto-engages past 1 Mb; the "
     "default is the documented behaviour",
 }
 
 _SEARCH_NOT_IN_WEB: dict[str, str] = {
-    "spacer": "the request's `spacer` field",
-    "pam": "the request's `pam` field",
     "reference": "the server's own reference genome, configured at startup",
     "regions": "the request's `offtarget_regions` field",
     "gnomad": "file-backed input; a client-supplied path on a server reads server files",
     "haplotypes": "file-backed input; see `gnomad`",
     "patient_vcf": "file-backed input; see `gnomad`",
-    "scorer": "not yet exposed; the CLI's `--scorer` has no web counterpart",
     "cache": "server-side concern, not a client's to choose",
     "genome_index": "server-side concern; see `cache`",
     "use_fm_index": "server-side performance heuristic, not a client's to choose",
@@ -251,10 +314,9 @@ def _search_parameters() -> set[str]:
 
 
 def _cli_search_forwards() -> set[str]:
-    source = (_ROOT / "src" / "alleleforge" / "cli" / "main.py").read_text()
-    call = re.search(r"report = search\(\n(?:.*\n)*?\s{8}\)", source)
-    assert call, "could not find the CLI's search() call — this check would be vacuous"
-    return set(re.findall(r"^\s+(\w+)=", call.group(0), re.M))
+    from alleleforge.offtarget.engine import search
+
+    return _bound_arguments("search", search)
 
 
 def test_the_cli_forwards_every_search_parameter_or_says_why() -> None:
@@ -290,18 +352,13 @@ def test_the_search_allowances_are_real_parameters() -> None:
 #: enzyme every insert is screened against, and so decides whether a pX330 user is told
 #: their insert is cloning-lethal — sat reachable from Python alone.
 _REPORT_NOT_IN_CLI: dict[str, str] = {
-    "menu": "the ranked menu the CLI just designed",
-    "variant": "the variant the CLI was invoked on",
-    "intent": "supplied by --intent",
     "title": "cosmetic; the default names the tool, and no one has asked to retitle it",
     "top_alleles": "not yet exposed; --render-candidates caps rows, not alleles per row",
     "with_oligos": "always on; a report that withholds the reagents helps no one",
 }
 
 _REPORT_NOT_IN_WEB: dict[str, str] = {
-    "menu": "the ranked menu the server just designed",
-    "variant": "the request's `variant` field",
-    "intent": "the request's `intent` field",
+    "menu": "built by the server from the design it just ran; not a request field",
     "title": "cosmetic; see the CLI note",
     "top_alleles": "not yet exposed; see the CLI note",
     "with_oligos": "always on; see the CLI note",
@@ -321,10 +378,9 @@ def _report_parameters() -> set[str]:
 
 
 def _cli_report_forwards() -> set[str]:
-    source = (_ROOT / "src" / "alleleforge" / "cli" / "main.py").read_text()
-    call = re.search(r"report = build_report\(\n(?:.*\n)*?\s{4}\)", source)
-    assert call, "could not find the CLI's build_report() call — this check would be vacuous"
-    return set(re.findall(r"(\w+)=", call.group(0)))
+    from alleleforge.report.builder import build_report
+
+    return _bound_arguments("build_report", build_report)
 
 
 def test_the_cli_forwards_every_report_parameter_or_says_why() -> None:

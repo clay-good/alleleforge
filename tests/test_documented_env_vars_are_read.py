@@ -30,8 +30,18 @@ from alleleforge.config import Settings
 _ROOT = Path(__file__).resolve().parents[1]
 #: Prose surfaces a deployer actually reads. `openspec/changes/README.md` is the audit
 #: log, which quotes historical mistakes on purpose and is therefore excluded.
-_DOCS = [_ROOT / "README.md", _ROOT / "SPEC.md", _ROOT / "SPEC_V2.md"] + sorted(
-    (_ROOT / "docs").rglob("*.md")
+#:
+#: `specs/` and `openspec/specs/` were not here, and they are the two directories whose
+#: stated job is describing the software *as it is now*. The omission cost exactly what
+#: it sounds like: `specs/readiness-assessment.md` — the file written so the honest state
+#: is not lost across sessions — told a deployer to set `ALLELEFORGE_GNOMAD`, which
+#: nothing reads, so following it leaves a silently reference-only deployment. That is
+#: the same shape as the guard that once read every surface except the canonical one.
+_DOCS = (
+    [_ROOT / "README.md", _ROOT / "SPEC.md", _ROOT / "SPEC_V2.md", _ROOT / "CONTRIBUTING.md"]
+    + sorted((_ROOT / "docs").rglob("*.md"))
+    + sorted((_ROOT / "specs").glob("*.md"))
+    + sorted((_ROOT / "openspec" / "specs").rglob("*.md"))
 )
 #: Any environment variable name a document might list. It was `ALLELEFORGE_`-only,
 #: which was fine while the guard only ran documented -> read; checking the reverse
@@ -48,6 +58,15 @@ def _honored() -> set[str]:
     names = {f"{prefix}{field}".upper() for field in Settings.model_fields}
     for path in (_ROOT / "src").rglob("*.py"):
         names |= set(_OS_ENVIRON.findall(path.read_text()))
+    # The root conftest gates the opt-in test markers on their own variables. A
+    # contributor sets `ALLELEFORGE_REAL_WEIGHTS` exactly as a deployer sets the others,
+    # and it is documented — so scanning `src/` alone would have made a real, honoured,
+    # documented variable look like a stray name the moment the doc scan reached the
+    # file listing it. Read from the mapping rather than by regex: conftest indexes
+    # `os.environ` with a *variable*, so no literal is there to match.
+    import conftest
+
+    names |= set(conftest._OPT_IN_MARKERS.values())
     return names
 
 
