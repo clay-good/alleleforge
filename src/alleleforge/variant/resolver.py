@@ -568,14 +568,39 @@ def _unknown_contig_message(variant: Variant, reference: ReferenceGenome) -> str
     )
 
 
+def _past_the_contig_end_message(variant: Variant, reference: ReferenceGenome) -> str:
+    """Return the refusal for a position the contig does not reach.
+
+    The reference does not "have N" there — it has nothing there, and the N is padding
+    :meth:`ReferenceGenome.fetch_result` invents so a window near a telomere still
+    returns a full-length sequence. Reported as an observed base it produced
+    "asserted ref 'A' but reference has 'N' (wrong build?)", which sends a reader to
+    liftover for a variant no assembly conversion can rescue: the fault is a coordinate
+    outside the contig, usually a truncated FASTA, a chromosome-only file, or a 1-based
+    position pasted where a 0-based one was printed.
+
+    The contig's length is known at the moment of the refusal, so it is stated.
+    """
+    length = reference.contig_length(variant.chrom)
+    end = variant.pos + len(variant.ref)
+    span = f"{variant.pos}" if len(variant.ref) == 1 else f"{variant.pos}-{end}"
+    return (
+        f"variant at {variant.chrom}:{span} lies past the end of {variant.chrom}, which "
+        f"is {length:,} bases in this reference (0-based positions 0-{length - 1:,}). "
+        "Nothing can be validated or designed there. Check that the FASTA is the whole "
+        "assembly and not a single chromosome or a truncated copy, and that the "
+        "position is the 1-based VCF coordinate this tool reads."
+    )
+
+
 def _validate_ref(variant: Variant, reference: ReferenceGenome) -> None:
     """Raise if the variant's asserted ref disagrees with the reference.
 
     Raises:
         ValueError: On a ref/reference mismatch, or when the variant names a contig the
-            reference does not have. The message names an off-by-one coordinate
-            convention when that is what happened, and only blames the build when the
-            allele is nowhere near.
+            reference does not have, or when the position lies past the contig's end.
+            The message names an off-by-one coordinate convention when that is what
+            happened, and only blames the build when the allele is nowhere near.
     """
     if not variant.ref:
         return
@@ -596,8 +621,13 @@ def _validate_ref(variant: Variant, reference: ReferenceGenome) -> None:
         # intended message never ran, and `aforge resolve chrZ:101:A>G` printed a
         # traceback: the single likeliest first-run mistake, answered with a stack.
         raise ValueError(_unknown_contig_message(variant, reference)) from exc
+    if result.padded:
+        # Checked before the mismatch branch, which used to absorb it: the padding is
+        # this function's own invention, so reporting it as what the reference holds
+        # blames the build for a coordinate the contig never had.
+        raise ValueError(_past_the_contig_end_message(variant, reference))
     observed = str(result.sequence)
-    if result.padded or observed != variant.ref:
+    if observed != variant.ref:
         remedy = _off_by_one_remedy(variant, reference)
         raise ValueError(
             f"reference mismatch at {variant.chrom}:{variant.pos}: asserted ref "

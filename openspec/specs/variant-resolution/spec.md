@@ -404,3 +404,25 @@ Ensembl-named reference resolves rather than being refused.
 - **WHEN** `aforge resolve chrZ:101:A>G` is run against a reference without `chrZ`
 - **THEN** it exits non-zero with a message naming `chrZ` and the contigs the reference
   has, and prints no traceback
+
+### Requirement: A position past a contig's end is refused as such
+
+A variant whose asserted ref falls, wholly or partly, beyond the end of a contig the
+reference does have SHALL be refused with a message naming the contig's length and the
+valid position range.
+
+It SHALL NOT be reported as a reference-base mismatch. The fetch pads an over-run with
+`N` so a window near a telomere still returns full length; reporting that padding as an
+observed base states that the reference "has N" where it has nothing, and blames the
+assembly for a coordinate no liftover can rescue. The likely faults — a truncated or
+single-chromosome FASTA, or a position in the wrong coordinate convention — SHALL be named
+instead.
+
+#### Scenario: A coordinate off the end
+- **WHEN** a variant is resolved at a position greater than the contig's length
+- **THEN** the refusal names the contig, its length, and the valid range, and does not
+  mention a build mismatch or an `N` base
+
+#### Scenario: The last base of a contig
+- **WHEN** a variant asserts the contig's final base
+- **THEN** it resolves normally
