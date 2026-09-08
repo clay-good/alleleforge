@@ -78,6 +78,37 @@ def test_no_unexpected_file_is_tracked_in_the_root() -> None:
     )
 
 
+def _untracked_root_files() -> set[str]:
+    """Return root files git can see but does not track, ignoring what `.gitignore` covers."""
+    listing = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=normal", "--", "."],
+        cwd=_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    names = (line[3:].strip().strip('"') for line in listing if line.startswith("?? "))
+    return {name for name in names if name and "/" not in name}
+
+
+def test_no_unexpected_file_is_lying_around_in_the_root() -> None:
+    """The same check one step earlier, which is the step that matters.
+
+    The tracked version notices a stray only once it has been committed — too late, by
+    the definition of the thing it is preventing. And the cause recurs: `G` was captured
+    stderr, and `T` was an unquoted `chr…:A>T` on a shell command line, because this
+    tool's own variant syntax contains the shell's redirect operator. Both are files
+    named after an ALT allele, made by the same accident, two years apart.
+    """
+    stray = sorted(_untracked_root_files() - set(_EXPECTED))
+    assert not stray, (
+        f"unlisted files sitting in the repository root: {stray}. A single upper-case "
+        "letter is almost certainly an unquoted `>` in a shell command — the ALT allele "
+        "of a variant, written to a file. Delete it; `.gitignore` is the wrong answer, "
+        "because the next one has a different name."
+    )
+
+
 def test_the_inventory_does_not_outlive_its_files() -> None:
     """An expectation list that names files nobody has stops describing anything."""
     missing = sorted(set(_EXPECTED) - _tracked_root_files())

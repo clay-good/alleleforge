@@ -1,1 +1,0 @@
-error: unrecognized variant input: 'chr2:60100:A'

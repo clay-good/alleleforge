@@ -83,7 +83,7 @@ def test_no_documented_command_hands_its_variant_to_the_shell() -> None:
     ]
     assert not offenders, (
         "these documented commands contain an unquoted `>`, so a shell redirects to a "
-        f"file and the tool receives a truncated argument:\n  " + "\n  ".join(offenders)
+        "file and the tool receives a truncated argument:\n  " + "\n  ".join(offenders)
     )
 
 
