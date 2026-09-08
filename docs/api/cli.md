@@ -23,8 +23,12 @@ pip install "alleleforge[cli]"
 | `aforge offtarget` | Standalone population-aware off-target search for a spacer. |
 | `aforge lift` | Lift loci to another assembly, so a build mismatch has a remedy in the tool. |
 | `aforge verify` | Re-check a result's (or a sidecar's) provenance: completeness always, artifact re-hashing with `--cache-dir`. |
-| `aforge data list` / `show` | Inspect the dataset registry (versions, licenses, provenance). |
-| `aforge bench list` / `run` | List and run [CRISPR-Bench](benchmark.md) tasks against frozen splits. |
+| `aforge data list` | List every registered dataset with its version and license. |
+| `aforge data show` | Show one dataset's full provenance descriptor. |
+| `aforge bench list` | List the [CRISPR-Bench](benchmark.md) tasks, their datasets, and primary metrics. |
+| `aforge bench run` | Score the reference baseline on a task's frozen test split. |
+| `aforge bench gap` | Measure the drop from an in-context fold to a held-out one — whether the score transfers. |
+| `aforge bench compare` | Check whether two results are the same scientific result. |
 | `aforge bench leaderboard` | Aggregate signed result JSONs into the model-card-gated leaderboard. |
 
 Global options (before the subcommand): `--seed`, `--reference`, `--cache-dir`,
@@ -82,6 +86,7 @@ aforge data show gnomad --json
 # CRISPR-Bench: list the tasks, then score the reference baseline on a frozen split
 aforge bench list
 aforge bench run cas9-efficiency --out cas9.json
+aforge bench gap cas9-efficiency
 aforge bench run offtarget-classification --out offtarget.json
 
 # Aggregate signed results into the model-card-gated leaderboard (Markdown or HTML).

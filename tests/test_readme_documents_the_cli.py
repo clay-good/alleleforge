@@ -19,7 +19,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import click
 import pytest
+from typer.main import get_command
 
 from alleleforge.cli.main import app
 
@@ -27,11 +29,26 @@ _ROOT = Path(__file__).resolve().parents[1]
 
 
 def _command_names() -> list[str]:
-    """Return every registered top-level command name."""
-    return sorted(
-        info.name or (info.callback.__name__ if info.callback else "")
-        for info in (*app.registered_commands, *app.registered_groups)
-    )
+    """Return every runnable command, as the path a user types.
+
+    Top-level names are not the whole CLI. `bench compare` and `bench gap` are
+    commands a reader has to be told about exactly as much as `verify` is, and both
+    guards below were blind to them while `bench` itself was documented — the same
+    mistake as checking the corpus instead of the reference page, one level down.
+    """
+    root = get_command(app)
+
+    def walk(command: click.Command, path: str) -> list[str]:
+        subcommands: dict[str, click.Command] = getattr(command, "commands", {})
+        if not subcommands:
+            return [path]
+        return [
+            found
+            for name, sub in subcommands.items()
+            for found in walk(sub, f"{path} {name}".strip())
+        ]
+
+    return sorted(walk(root, ""))
 
 
 def test_every_cli_command_is_named_in_the_docs() -> None:

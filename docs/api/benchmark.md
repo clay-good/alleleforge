@@ -48,7 +48,13 @@ From the CLI:
 aforge bench list                       # the five tasks, datasets, and metrics
 aforge bench run cas9-efficiency        # score the reference baseline
 aforge bench run pe-efficiency --out result.json --json
+aforge bench gap cas9-efficiency        # does the score survive a held-out cell type?
 ```
+
+`bench gap` answers the question the test split alone cannot: a single number says how
+the model does on the contexts the benchmark happens to hold out, not whether it
+transfers. It scores an in-context fold and a held-out one and reports the drop,
+oriented so a positive gap always means worse generalization.
 
 ## Tasks & examples
 

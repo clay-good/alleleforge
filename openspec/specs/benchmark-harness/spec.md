@@ -230,6 +230,23 @@ descending.
 - **WHEN** the gap is computed for a higher-is-better metric
 - **THEN** a positive gap still denotes worse held-out performance
 
+### Requirement: The generalization gap is reachable from the command line
+
+The cross-context gap SHALL be runnable from the CLI, not from Python alone. A
+capability the library exports and no shell reaches cannot be used by the audience the
+benchmark is for.
+
+#### Scenario: Measuring the gap
+- **WHEN** `aforge bench gap <task>` runs
+- **THEN** it reports the in-context and held-out values of the task's primary metric and
+  the orientation-corrected gap between them, and says when the dataset is the bundled
+  synthetic stand-in
+
+#### Scenario: A fold that does not exist
+- **WHEN** `--in-context-fold` or `--held-out-fold` names something other than
+  train/val/test
+- **THEN** the command refuses with a usage error naming the valid folds, not a traceback
+
 ### Requirement: A degenerate evaluation cannot flatter itself
 
 A metric computed over a degenerate input SHALL NOT report a value that would rank

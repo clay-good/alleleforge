@@ -2879,6 +2879,86 @@ def bench_run(
         )
 
 
+@bench_app.command("gap")
+def bench_gap(
+    task: Annotated[str, typer.Argument(help="Task name (see `aforge bench list`).")],
+    split_version: Annotated[str, typer.Option(help="Frozen split version to score.")] = "v1",
+    in_context_fold: Annotated[
+        str, typer.Option(help="The fold from a context the model saw (train/val/test).")
+    ] = "val",
+    held_out_fold: Annotated[
+        str, typer.Option(help="The fold from the held-out context (train/val/test).")
+    ] = "test",
+    as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Measure how much worse the baseline scores a cell type it did not see.
+
+    A single test-split number says how well a model does on the contexts the
+    benchmark happens to hold out; it does not say whether the model transfers.
+    This scores an in-context fold and a held-out one and reports the drop between
+    them, oriented so a positive gap always means worse generalization, whichever
+    direction the task's primary metric ranks in.
+    """
+    try:
+        from alleleforge.benchmark.baseline import build_baseline
+        from alleleforge.benchmark.runner import generalization_gap
+        from alleleforge.benchmark.splits import SplitIntegrityError, load_split
+        from alleleforge.benchmark.tasks import get_task
+    except ImportError as exc:
+        _missing_dependency(exc)
+
+    try:
+        task_obj = get_task(task)
+    except KeyError as exc:
+        _echo_err(f"error: {exc}")
+        raise typer.Exit(ExitCode.USAGE) from exc
+    try:
+        split, dataset = load_split(task, version=split_version)
+    except FileNotFoundError as exc:
+        _echo_err(f"error: {exc}")
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
+    except SplitIntegrityError as exc:
+        _echo_err(f"error: split integrity check failed: {exc}")
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
+
+    baseline = build_baseline(task_obj, split, dataset)
+    try:
+        gap = generalization_gap(
+            baseline,
+            task_obj,
+            split=split,
+            dataset=dataset,
+            in_context_fold=in_context_fold,
+            held_out_fold=held_out_fold,
+        )
+    except ValueError as exc:
+        # An unknown fold name, or a fold too degenerate for the primary metric to
+        # be defined on. Both are the caller's input, not a crash.
+        _echo_err(f"error: {exc}")
+        raise typer.Exit(ExitCode.USAGE) from exc
+
+    # Same caveat, same stream, same reason as `bench run`: the bundled fixtures are
+    # synthetic, and a gap over ten synthetic rows prints in the shape of one over
+    # real data. `dataset_is_synthetic` lives on the result model, which this
+    # operation does not build, so it is read off the dataset directly.
+    if dataset.synthetic:
+        _echo_err(
+            f"NOTE: dataset {dataset.name!r} is the bundled SYNTHETIC stand-in "
+            "shipped so the harness runs in CI. This gap measures the contract, "
+            "not the model — it is not a generalization result."
+        )
+    if as_json:
+        typer.echo(gap.model_dump_json(indent=2))
+    else:
+        direction = "higher is better" if gap.higher_is_better else "lower is better"
+        typer.echo(
+            f"{gap.task} @ {split_version}: {gap.primary_metric} "
+            f"({direction}) {gap.in_context_fold}={gap.in_context:.4f} "
+            f"{gap.held_out_fold}={gap.held_out:.4f} -> gap={gap.gap:+.4f} "
+            "(positive = worse on the held-out context)"
+        )
+
+
 @bench_app.command("compare")
 def bench_compare(
     left: Annotated[Path, typer.Argument(help="A benchmark result JSON.")],
