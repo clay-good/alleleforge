@@ -26,8 +26,12 @@ from alleleforge.types.candidate import RankedMenu
 #: added, removed, or reinterpreted so a downstream consumer can detect the drift —
 #: and for v6, when the TSV grew its leading `#` note block, which a reader that skips
 #: no comments does see; and for v11, when Parquet grew the same notes as file-level
-#: key/value metadata.
-EXPORT_SCHEMA_VERSION = 12
+#: key/value metadata; and for v13, when the notes grew the variant, the intent and the
+#: ranking weights, and Parquet's metadata keys gained a `note_NN_` ordinal prefix so a
+#: reader sorting them reads the notes in the order the document states them. That last
+#: part is a BREAKING change to the Parquet metadata key names, taken pre-1.0 and with
+#: the schema version bumped for exactly this purpose.
+EXPORT_SCHEMA_VERSION = 13
 
 #: The flat TSV column order (one row per candidate). ``schema_version`` leads so a
 #: reader can branch on the format before touching any other column.
@@ -217,6 +221,19 @@ def _export_notes(report: DesignReport) -> dict[str, str]:
     notes: dict[str, str] = {}
     if report.disclaimer:
         notes["disclaimer"] = _cell(report.disclaimer)
+    # What was asked for, and how the `rank` column was produced. `DesignReport` carries
+    # nine fields; these notes were built from two of them, so the flat table — the one
+    # format a scientist opens in a spreadsheet and forwards — was a list of reagents
+    # with no statement of the variant they edit, the intent they were designed for, or
+    # the weights that ordered them. Every one of the three is on the HTML and PDF header
+    # line. `locus` per row names where a *guide* sits, which is not the same question.
+    if report.variant:
+        notes["variant"] = _cell(f"variant {report.variant}")
+    if report.intent:
+        notes["intent"] = _cell(f"intent {report.intent}")
+    if report.weights:
+        ordered = ", ".join(f"{name} {value:.2f}" for name, value in report.weights.items())
+        notes["weights"] = _cell(f"ranking weights: {ordered}")
     for index, line in enumerate(provenance_lines(report.provenance), start=1):
         if line:
             notes[f"provenance_{index}"] = _cell(line)
@@ -261,5 +278,15 @@ def report_to_parquet(report: DesignReport, path: str | Path) -> Path:
     frame = pl.DataFrame(rows) if rows else pl.DataFrame({col: [] for col in TSV_COLUMNS})
     frame = frame.select(TSV_COLUMNS)
     out = Path(path)
-    frame.write_parquet(out, metadata=_export_notes(report))
+    # Zero-padded ordinals, because a Parquet reader gets a *mapping* and every one I
+    # know sorts it. The notes are an ordered document — disclaimer, what was asked for,
+    # how it was ranked, then provenance — and until v13 the alphabetical order happened
+    # to match the document order by luck (`disclaimer` < `provenance_*`). Adding
+    # `variant`/`intent`/`weights` broke the coincidence, which is the guard doing its
+    # job. Prefixing makes the order a property of the format rather than of the words.
+    ordered = {
+        f"note_{index:02d}_{key}": value
+        for index, (key, value) in enumerate(_export_notes(report).items(), start=1)
+    }
+    frame.write_parquet(out, metadata=ordered)
     return out

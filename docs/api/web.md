@@ -114,8 +114,10 @@ curl -s -X POST 'localhost:8000/api/design?format=tsv' \
 surface a pipeline acts on, which until now could not be obtained over HTTP at all.
 Both carry the research-use disclaimer, the reference build and the coordinate
 convention the JSON body carries: the TSV in leading `#` comment lines (skip them with
-`comment_prefix="#"`), the Parquet in file-level key/value metadata under `disclaimer`
-and `provenance_1..n` (`polars.read_parquet_metadata`). A table of specificities and
+`comment_prefix="#"`), the Parquet in file-level key/value metadata keyed
+`note_NN_<name>`, which sort into the order the TSV prints them
+(`polars.read_parquet_metadata`). Both also state the variant, the intent and the
+ranking weights, without which a table of reagents does not say what it is a table of. A table of specificities and
 genomic loci with nothing saying what they are is the state those notes exist to end.
 
 The Parquet writer is the optional `polars` dependency. A deployment without it answers

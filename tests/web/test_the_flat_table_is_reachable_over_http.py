@@ -51,8 +51,9 @@ async def test_the_parquet_arrives_with_the_same_notes(client: httpx.AsyncClient
     frame = pl.read_parquet(io.BytesIO(body))
     assert frame.columns == list(TSV_COLUMNS)
     metadata = pl.read_parquet_metadata(io.BytesIO(body))
-    assert "research tool" in metadata["disclaimer"]
-    notes = " ".join(v for k, v in metadata.items() if k.startswith("provenance_"))
+    # `note_NN_` ordinal keys: sorting the mapping reproduces document order.
+    notes = " ".join(v for k, v in metadata.items() if k.startswith("note_"))
+    assert "research tool" in notes
     assert "hg38" in notes and "0-based" in notes
 
 

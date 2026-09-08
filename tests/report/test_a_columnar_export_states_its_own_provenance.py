@@ -26,9 +26,17 @@ from alleleforge.types.candidate import RankedMenu
 
 
 def _parquet_notes(pl: object, path: Path) -> dict[str, str]:
-    """Return the file's key/value metadata, minus Arrow's own schema entry."""
+    """Return the file's notes in document order, minus Arrow's own schema entry.
+
+    Read the way a consumer would: sort the keys. The `note_NN_` ordinal prefix exists
+    so that sorting a *mapping* — which is all Parquet metadata is — reproduces the
+    order the notes are stated in, instead of the alphabetical order of whatever the
+    facts happen to be called.
+    """
     raw = pl.read_parquet_metadata(path)  # type: ignore[attr-defined]
-    return {key: value for key, value in raw.items() if not key.startswith("ARROW:")}
+    notes = {key: value for key, value in raw.items() if not key.startswith("ARROW:")}
+    assert all(key.startswith("note_") for key in notes), notes
+    return {key.split("_", 2)[2]: value for key, value in sorted(notes.items())}
 
 
 def test_parquet_carries_the_disclaimer_and_provenance(

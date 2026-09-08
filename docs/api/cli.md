@@ -128,10 +128,18 @@ caveat attached.
 
 ```
 # AlleleForge is a research tool. It is not a medical device ...
+# variant chr11:5227001:A>T
+# intent correct
+# ranking weights: efficiency 0.35, cleanliness 0.30, safety 0.30, simplicity 0.05
 # reference build hg38 (1 contig, 140 bases, shape 379efc3d — pins contig names and lengths, not the bases)
 # coordinates 0-based half-open (BED-style); a genome browser reads the same locus as 1-based inclusive
 schema_version	rank	chemistry	locus	...
 ```
+
+The variant, the intent and the weights are there because the table alone does not say
+what it is a table *of*: `locus` names where each **guide** sits, which is a different
+question from which edit the run was for — obvious the moment the input was a ClinVar
+accession — and `rank` is meaningless without the weights that produced it.
 
 `oligo_warnings` is read alongside `oligo_scheme` and `oligo_enzyme`: an empty hazard
 cell means "clean for **that** enzyme", and since `--vector-scheme` chooses the vector —
@@ -142,12 +150,14 @@ The column header is the first non-comment line, as in VCF, GTF and bedGraph, so
 comment-skipping reader (`polars.read_csv(..., comment_prefix="#")`,
 `pandas.read_csv(..., comment="#")`, `read.delim(..., comment.char="#")`) gets exactly
 the table it got before. A reader that skips nothing sees a different first line, so
-`schema_version` — which leads every row for this purpose — is `12`.
+`schema_version` — which leads every row for this purpose — is `13`.
 
 `--format parquet --out menu.parquet` writes the same table for a batch consumer.
 Parquet has no comment lines, so it carries the same notes as file-level key/value
-metadata under `disclaimer` and `provenance_1..n` — read them with
-`polars.read_parquet_metadata(path)`. The columns are identical to the TSV's, in the
+metadata, keyed `note_NN_<name>` — read them with
+`polars.read_parquet_metadata(path)` and **sort the keys**: Parquet metadata is a
+mapping, and the ordinal prefix is what makes sorting it reproduce the order the TSV
+prints the notes in. The columns are identical to the TSV's, in the
 same order (a positional reader gets the same column from either file), and the notes
 come from the same source, so the two formats cannot state different provenance for the
 same table. (This needs `polars>=1.30`, the first release whose Parquet writer accepts

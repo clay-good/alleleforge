@@ -69,10 +69,12 @@ def test_the_cli_writes_a_parquet_carrying_its_notes(
     assert frame.height > 0
     assert frame.columns == list(TSV_COLUMNS)
 
+    # Keys carry a `note_NN_` ordinal so a reader sorting the mapping gets the
+    # notes in document order; match on the fact, not the position.
     metadata = pl.read_parquet_metadata(out)
-    assert "research tool" in metadata["disclaimer"]
-    notes = " ".join(v for k, v in metadata.items() if k.startswith("provenance_"))
-    assert "hg38" in notes and "0-based" in notes
+    joined = " ".join(v for k, v in metadata.items() if k.startswith("note_"))
+    assert "research tool" in joined
+    assert "hg38" in joined and "0-based" in joined
 
 
 def test_the_parquet_gets_the_same_provenance_sidecar_every_format_gets(
