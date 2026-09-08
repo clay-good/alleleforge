@@ -64,10 +64,21 @@ class ExitCode(IntEnum):
 class GlobalState:
     """Global options shared by every command, set in the root callback."""
 
-    seed: int = DEFAULT_SEED
+    #: ``None`` when `--seed` was not given. The documented precedence is
+    #: defaults < config file < environment < explicit overrides, and a flag's *default*
+    #: is not an explicit override: passing `DEFAULT_SEED` here unconditionally outranked
+    #: `ALLELEFORGE_SEED`, so the documented variable changed nothing on any CLI run
+    #: while the library honoured it. `seed_or_default` is for the callers that need a
+    #: number regardless.
+    seed: int | None = None
     reference_build: str = DEFAULT_REFERENCE
     cache_dir: Path | None = None
     verbose: bool = False
+
+    @property
+    def seed_or_default(self) -> int:
+        """Return the seed a caller that cannot consult `Settings` should use."""
+        return DEFAULT_SEED if self.seed is None else self.seed
 
 
 app = typer.Typer(
@@ -163,9 +174,15 @@ def _version_callback(value: bool) -> None:
 @app.callback()
 def main(
     ctx: typer.Context,
-    seed: Annotated[int, typer.Option(help="Global random seed (recorded in provenance).")] = (
-        DEFAULT_SEED
-    ),
+    seed: Annotated[
+        int | None,
+        typer.Option(
+            help=(
+                "Global random seed (recorded in provenance). Overrides "
+                f"ALLELEFORGE_SEED and the config file; default {DEFAULT_SEED}."
+            )
+        ),
+    ] = None,
     reference: Annotated[
         str, typer.Option(help="Reference build identifier (e.g. hg38, T2T-CHM13v2, mm39).")
     ] = DEFAULT_REFERENCE,
@@ -196,6 +213,30 @@ def main(
     # stops being silently ignored. Safe because the singleton loads lazily, after this.
     if cache_dir is not None:
         os.environ["ALLELEFORGE_CACHE_DIR"] = str(cache_dir)
+
+
+def _load_settings(config: Path | None, seed: int | None) -> Any:
+    """Build settings, reporting a bad value as a usage error rather than a traceback.
+
+    A malformed `ALLELEFORGE_*` variable or config key reached the terminal as a raw
+    pydantic `ValidationError` and exit 1 — the code this CLI reserves for a defect in
+    itself. It is the caller's environment, and the message now names the variable they
+    set rather than the model field it maps to.
+    """
+    # Imported here rather than at module scope: this CLI defers its heavy imports so
+    # `--help` stays fast, and `alleleforge.config` pulls in pydantic-settings.
+    from alleleforge.config import Settings
+
+    # Omitted, not passed as `None`: an override is "the caller said so", and
+    # `Settings.load(seed=None)` would both fail validation and — if it did not —
+    # outrank the environment with a non-answer. This is the whole reason
+    # `ALLELEFORGE_SEED` did nothing on the command line.
+    overrides = {} if seed is None else {"seed": seed}
+    try:
+        return Settings.load(config_file=config, **overrides)
+    except ValueError as exc:
+        _echo_err(f"error: {exc}")
+        raise typer.Exit(ExitCode.USAGE) from exc
 
 
 def _load_reference(fasta: Path | None, build: str = DEFAULT_REFERENCE) -> Any:
@@ -1161,7 +1202,6 @@ def design(
 ) -> None:
     """Design a ranked, multi-chemistry editing menu for a variant."""
     try:
-        from alleleforge.config import Settings
         from alleleforge.design.designer import design as run_design
         from alleleforge.report.builder import DEFAULT_RENDER_CANDIDATES, build_report
         from alleleforge.report.export import report_to_json, report_to_parquet, report_to_tsv
@@ -1237,7 +1277,7 @@ def design(
     # Honor the user's config file (its Settings keys) with the CLI --seed as
     # an override, so a config.toml maf_threshold/interval_level/cache_dir is
     # applied instead of being silently ignored.
-    settings = Settings.load(config_file=config, seed=state.seed)
+    settings = _load_settings(config, state.seed)
     cas9_scorer = None
     if trained_efficiency:
         from alleleforge.scoring.cas9_efficiency import TrainedRuleSet3Scorer
@@ -1602,8 +1642,6 @@ def batch(
     recorded, not fatal). A ``.vcf``/``.vcf.gz``/``.bcf`` input takes the cyvcf2
     fast path; anything else is read as a one-variant-per-line list.
     """
-    from alleleforge.config import Settings
-
     try:
         from alleleforge.design.cohort import design_many
     except ImportError as exc:
@@ -1666,7 +1704,7 @@ def batch(
     # Honor the user's config file (its Settings keys) with the CLI --seed as
     # an override, so a config.toml maf_threshold/interval_level/cache_dir is
     # applied instead of being silently ignored.
-    settings = Settings.load(config_file=config, seed=state.seed)
+    settings = _load_settings(config, state.seed)
 
     ingest: Any = None
     if _is_vcf_path(inputs):
@@ -2774,7 +2812,9 @@ def bench_run(
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
 
     baseline = build_baseline(task_obj, split, dataset)
-    result = run_benchmark(baseline, task_obj, split=split, dataset=dataset, seed=state.seed)
+    result = run_benchmark(
+        baseline, task_obj, split=split, dataset=dataset, seed=state.seed_or_default
+    )
 
     if out is not None:
         out.write_text(result.model_dump_json(indent=2), encoding="utf-8")

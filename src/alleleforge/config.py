@@ -16,7 +16,7 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 #: Global random seed, threaded through every stochastic step and recorded in
@@ -146,7 +146,48 @@ class Settings(BaseSettings):
             for key, value in file_values.items()
             if key not in overrides and f"{env_prefix}{key}".upper() not in env_set
         }
-        return cls(**{**file_kwargs, **overrides})
+        try:
+            return cls(**{**file_kwargs, **overrides})
+        except ValidationError as exc:
+            # `from None`: this lands in a container log as the entire diagnosis, and
+            # the pydantic chain above it is a stack through pydantic-settings that says
+            # nothing the message below does not. The field, the value and the reason
+            # are all carried across.
+            raise ValueError(_settings_problem(exc, env_prefix, path)) from None
+
+
+def _settings_problem(exc: ValidationError, env_prefix: str, config_file: Path) -> str:
+    """Explain a settings validation failure in the operator's own vocabulary.
+
+    Pydantic reports the *field* — "1 validation error for Settings / seed / Input should
+    be a valid integer". The operator did not set `seed`; they set `ALLELEFORGE_SEED`, and
+    the connection between the two is `env_prefix`, which nothing in the traceback
+    mentions. The same name appears in the deployment guide's settings table, so the one
+    string a reader could search for is the one string the error does not print.
+
+    It matters more here than in most places because of *where* it lands.
+    `alleleforge.web.api.app` builds its app at module scope, so a mistyped variable is
+    not a bad request but a container that will not start, and the whole diagnosis is
+    whatever this message says. On the command line it was arriving as a traceback and
+    exit 1 — the code reserved for a defect in this tool.
+
+    Not softened into a default: a seed or an interval level has no honest degraded mode.
+    Substituting the default would stamp every result with a seed the operator did not
+    choose, and this project's reproducibility claims rest on that number. Failing to
+    start is right; failing to start with a stack trace is not.
+    """
+    lines = []
+    for error in exc.errors():
+        field = str(error["loc"][0]) if error["loc"] else "?"
+        variable = f"{env_prefix}{field}".upper()
+        value = error.get("input")
+        lines.append(f"  {variable}={value!r}: {error['msg']}")
+    return (
+        f"invalid AlleleForge configuration (environment, or {config_file}):\n"
+        + "\n".join(lines)
+        + "\nEach setting is listed in docs/deployment.md; unset the variable to take the "
+        "documented default."
+    )
 
 
 _SETTINGS: Settings | None = None
