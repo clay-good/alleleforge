@@ -11,6 +11,18 @@ Nothing in the suite drives a browser, so the check is on the rule rather than t
 rendering: a `display: flex` row that lays out left-to-right must say what happens when
 it runs out of room. That is a rule the next button can break, which is the same way this
 one broke.
+
+It broke a second way. The sentence above — "the page has no other horizontal overflow at
+that width" — was true when written and false once the cohort table grew columns: twelve
+of them, ~980px of content that does not shrink, inside ancestors that all defaulted to
+`overflow-x: visible`. Overflow propagates, so the whole document panned, not just the
+table. Measured at 375x812: `document.scrollWidth` 998 against a 375px viewport, and 375
+after the fix, with the table scrolling inside its own box.
+
+So the rule here is the general one now: an element that can outgrow the viewport must
+contain its own overflow. A flex row does it by wrapping, a table by living in a
+scrolling container — same defect, two mechanisms, and the second was invisible to a
+check written only for the first.
 """
 
 from __future__ import annotations
@@ -63,3 +75,49 @@ def test_the_download_row_wraps() -> None:
     """The row this was found on, named directly: it is the one that keeps growing."""
     actions = _flex_rules()[".actions"]
     assert "flex-wrap: wrap" in actions, actions
+
+
+#: Tables whose container must scroll, mapped to the container that does it. A table's
+#: content does not shrink — a twelve-column cohort row is ~980px whatever the viewport —
+#: so the only two honest options are a scrolling box or a narrower table.
+_SCROLLING_TABLE_CONTAINERS: dict[str, str] = {
+    "table.results": "#batch-results",
+}
+
+
+def _rules() -> dict[str, str]:
+    """Return {selector: declarations} for every rule in the stylesheet."""
+    rules = {}
+    for match in re.finditer(r"(?m)^([^@{/\s][^{]*)\{([^}]*)\}", _CSS):
+        rules[match.group(1).strip()] = match.group(2)
+    assert len(rules) > 10, f"parsed {list(rules)} — this check would be vacuous"
+    return rules
+
+
+def test_every_table_scrolls_inside_its_own_box() -> None:
+    """A wide table pans the page exactly as a non-wrapping flex row does."""
+    rules = _rules()
+    tables = [s for s in rules if re.match(r"table(\.|\s|$)", s)]
+    assert tables, "no table rules found — this check would be vacuous"
+    for selector in tables:
+        base = selector.split()[0]
+        container = _SCROLLING_TABLE_CONTAINERS.get(base)
+        assert container is not None, (
+            f"{selector} styles a table and no container is recorded for it. A table's "
+            "content does not shrink, so without a scrolling ancestor it pans the whole "
+            "page at a phone width. Record its container here."
+        )
+        body = rules.get(container)
+        assert body is not None, f"{container} is recorded for {selector} but has no rule"
+        assert "overflow-x: auto" in body, (
+            f"{container} holds {selector} and does not scroll ({body.strip()}). "
+            "Overflow propagates: a visible overflow on any ancestor moves the document, "
+            "not the table."
+        )
+
+
+def test_the_recorded_containers_are_real_selectors() -> None:
+    """A container recorded for a table that no longer exists hides the next one."""
+    rules = _rules()
+    stale = sorted(s for s in _SCROLLING_TABLE_CONTAINERS if s not in rules)
+    assert not stale, f"containers recorded for table rules that are gone: {stale}"
