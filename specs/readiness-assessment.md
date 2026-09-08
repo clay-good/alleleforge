@@ -24,12 +24,14 @@ not the real published models the README compares against. Build scientific subs
   to-the-byte runs, content-addressed benchmark harness, consent/license/checksum
   model-zoo gate, CLI + web + native Rust parity. All verified green:
   - `ruff` clean; `mypy --strict` clean (103 files)
-  - 2,828 tests pass, 21 skipped, **97.7% coverage** (gate 85%)
+  - 2,849 tests pass, 4 skipped, **97.6% coverage** (gate 85%)
   - `mkdocs build --strict` clean; `scripts/reproduce.py` matches golden
   - 4 example notebooks pass; native crate builds, `cargo fmt`/`clippy` clean
-  - The 21 skips are all opt-in, not failures: 17 native-kernel parity tests skip
-    when the Rust extension is not built in the checkout, and 4 real-weight tests
-    skip unless `ALLELEFORGE_REAL_WEIGHTS=1` (they reach outside the repository).
+  - The 4 skips are the real-weight tests, which need `ALLELEFORGE_REAL_WEIGHTS=1`
+    (they reach outside the repository). The 17 native-kernel parity tests that used
+    to skip here now run: the installed extension was stale, which the version
+    handshake could not detect, and a build that lacks a registered kernel is now
+    reported rather than skipped.
   - wheel + sdist build, `twine check` PASSED, assets bundled (py.typed, cards,
     splits, frontend)
 

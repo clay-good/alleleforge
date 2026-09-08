@@ -11926,3 +11926,44 @@ because the same report has to render to the same bytes.
 **Lesson: an artifact nobody has opened is unexamined however many tests read its bytes.
 Two of this round's three defects were invisible to any assertion I would have thought to
 write, and visible immediately to `pdfinfo`.**
+
+## Round 366 — the parity suite had been skipping itself, and said it was not built
+
+The readiness assessment claims the native crate builds and is fmt/clippy clean. Checking
+rather than restating: `cargo fmt --check` and `cargo clippy` are both clean. Then the
+next claim — that the parity tests pass — turned out to be unverifiable here, and the
+reason was worth the round.
+
+`aforge_native` was installed in this environment and did not export `evaluate_anchor`,
+the off-target evaluation kernel, because it had been built before that kernel was added.
+Seventeen parity tests skipped with "native aforge_native evaluate kernel not built",
+which was false: it was built, and old.
+
+The handshake written for exactly this could not see it. `assert_native_matches_python`
+compares the crate's version against the package's, and the crate version is
+single-sourced from the package version — so it does not change between builds during
+development, and an extension built before a kernel was added reports precisely the
+version of one built after it. The check is real and blind to the case it exists for.
+
+The consequence is worse than an ordinary stale build. The native kernel's entire safety
+argument is a parity suite proving it returns what the Python implementation returns, and
+that suite disables itself when the kernel is absent. So the failure mode is: the
+extension falls behind, the tests that would notice withdraw themselves, and the message
+blames a build nobody skipped.
+
+`missing_native_functions()` compares what `lib.rs` registers against what the installed
+module exports — the comparison that separates "not built" from "built, and behind the
+source". Rebuilding here took the suite from 21 skips to 4 (only the opt-in real-weights
+tests remain) and 2,844 tests pass, with the evaluate kernel's parity verified against the
+Python implementation for the first time this session.
+
+One thing worth recording: the suite caught my own new code inside the round. The
+staleness error was a bare `RuntimeError`, and the check that "this is not installed" and
+"this has a bug" must not share an exception type flagged it immediately. It is a
+`MissingDependencyError` now, along with the version-mismatch error beside it, which had
+escaped the same rule only because its wording contained no keyword the check looks for.
+
+**Lesson: a freshness check that compares a version can only see what a version bump
+records. Between releases nothing bumps, so it is blind exactly when it is needed — during
+development, which is when the artifact goes stale. Compare the thing itself: what the
+source registers against what the build exports.**

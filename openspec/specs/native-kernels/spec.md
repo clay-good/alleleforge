@@ -79,3 +79,24 @@ runs.
 #### Scenario: Genome-scale parity
 - **WHEN** a multi-megabase reference with poly-N/poly-A runs is searched
 - **THEN** the FM/native hits are byte-identical to the linear-scan hits
+
+
+### Requirement: A stale native build is reported, not silently skipped
+
+An installed `aforge_native` that does not export every function `rust/src/lib.rs`
+registers is *stale* — built before the crate source beside it — and SHALL be reported as
+such, naming the missing kernels and the command that rebuilds them.
+
+The version handshake cannot detect this: the crate version is single-sourced from the
+package version and does not change between builds, so an extension built before a kernel
+was added reports the same version as one built after it.
+
+This matters because the native kernels' safety argument is a parity suite proving each
+returns what the Python implementation returns, and that suite skips itself when a kernel
+is absent. A stale build therefore withdraws the tests that exist to catch divergence, and
+reports that the crate is not built when it is.
+
+#### Scenario: An extension older than the crate source
+- **WHEN** the installed extension lacks a kernel `lib.rs` registers
+- **THEN** the mismatch check raises, naming the kernel and `maturin develop`, rather
+  than reporting the crate as unbuilt
