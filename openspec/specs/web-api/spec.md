@@ -389,3 +389,20 @@ SHALL say so beside it and name the rendering that can be read at full height.
 - **WHEN** a design report is rendered into the page's frame
 - **THEN** the page states that the report continues inside the frame, and offers the
   HTML download
+
+
+### Requirement: The page's script is parsed, not only read
+
+The served page's behaviour lives in `app.js`, and the checks on it read the file as
+text — which fields the form builds, which formats the buttons fetch, whether every
+element id exists. A syntax error satisfies all of them and ships a page whose script
+dies on load.
+
+The script SHALL be parsed by a JavaScript engine wherever one is available, and CI SHALL
+run that check as an explicit step rather than relying on the runner image to provide the
+engine incidentally.
+
+#### Scenario: A syntax error reaches the frontend
+- **WHEN** `app.js` is not valid JavaScript
+- **THEN** the suite fails with the parser's message, instead of the text checks passing
+  on a file the browser cannot run

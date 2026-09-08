@@ -12031,3 +12031,49 @@ docs.
 **Lesson: "is this checked?" has three answers, not two — checked twice, checked once
 somewhere quiet, and checked nowhere. Enumerating the gates found one of each, and the
 third had been invisible for as long as the figures had existed.**
+
+## Round 369 — seven guards read the page's script; none parsed it
+
+The frontend's behaviour lives in `app.js`, and this suite checks it seven ways: the
+fields `readForm()` builds, the formats each download button fetches, whether every
+`getElementById` matches an id in the markup, whether a caption carries a caveat. All
+seven read the file as a string. There is no package.json, no linter, and no JavaScript
+step in CI — so a missing brace ships a page whose script dies on load, with a blank form,
+no downloads and no results, and all seven guards still green. The only thing that had
+ever executed the file was a person opening the page.
+
+`node --check` now parses it, and CI runs the same check as an explicit step so the
+guarantee does not rest on a runner image happening to include a JavaScript engine.
+Verified by appending `function broken( {` and watching the suite fail with the parser's
+own message.
+
+The first attempt was worse than the problem. To cover machines without node I added a
+hand-rolled brace-balance check, and it immediately reported two unclosed delimiters in a
+file `node --check` accepts: the "comment" it was skipping was a regex literal,
+`.replace(/</g, "&lt;")`. Telling a regex from division needs a real tokenizer. The rule
+was wrong, not the code, and rather than write a JavaScript lexer the fallback is gone —
+replaced by a test asserting the CI step still exists, so a workflow that stops running
+node cannot leave the file unparsed in silence.
+
+Not done, and worth saying: the CI supply-chain job (`pip-audit`, `cargo audit`) is
+advisory by an explicit, reasoned decision — a newly published advisory should not redden
+an unrelated PR, and Dependabot opens the remediation. I tried to run the audit locally in
+a throwaway environment to see whether it is currently reporting anything; the install did
+not converge here, so I have no result to report and did not want to leave the impression
+of one. Acting on advisories is that job's design, not this loop's.
+
+Adding the step to CI alone tripped a guard I had not met: `test_gate_mirrors_ci` requires
+`make lint` and the CI lint job to run the same commands. Correct, and the local target is
+where a developer wants this anyway — so it is in both.
+
+Running `make lint` for the first time then found the round's second defect, and it is not
+mine either: `ruff format --check` fails on `examples/04_indel_prime_correction.ipynb`, a
+trailing newline in one cell, predating this session's commits. That is the second red CI
+job this session found by running a gate rather than trusting it. It also exposed a flaw
+in my own loop — every round has run `ruff check src tests scripts examples` but
+`ruff format src tests`, so formatting drift in `scripts/` or `examples/` passed my gate
+and would have failed CI. Widened.
+
+**Lesson: "checked by seven tests" and "checked" are different claims when all seven read
+the artifact rather than run it. Ask what would still pass if the file were replaced with
+something the runtime cannot even load.**

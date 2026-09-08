@@ -9,9 +9,10 @@ help: ## Show this help.
 install: ## Editable install with the dev + genome extras.
 	pip install -e ".[dev,cli,web,genome-light]"
 
-lint: ## Ruff lint + format check.
+lint: ## Ruff lint + format check, and parse the served page's script.
 	ruff check src tests scripts examples
 	ruff format --check src tests scripts examples
+	node --check src/alleleforge/web/frontend/app.js
 
 type: ## mypy --strict over the library.
 	mypy --strict src/alleleforge

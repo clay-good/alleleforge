@@ -21,6 +21,12 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check src tests scripts examples
       - run: ruff format --check src tests scripts examples
+      # The served page's script had never been parsed by anything: seven tests read
+      # it as text, there is no package.json and no JavaScript job, so a missing brace
+      # shipped a dead form with every gate green. The suite parses it wherever node
+      # exists; this step is what makes "wherever node exists" include CI, rather than
+      # depending on the runner image happening to ship one.
+      - run: node --check src/alleleforge/web/frontend/app.js
 
   type-check:
     name: Type-check (mypy --strict)
