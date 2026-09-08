@@ -195,6 +195,21 @@ Labelling a row is not enough: showing the split version and a `(synthetic)` mar
 beside a score leaves the rank column itself asserting an ordering across populations
 that nothing measured.
 
+`split_version` is a *label a submitter writes*, so the group states what its rows
+intended to measure and not what they measured. Every result also carries
+`split_sha256`, the split's membership hash. A group whose rows carry more than one
+SHALL be reported as such on every rendered board, naming the consequence — the rows
+were scored on different test sets, so the order between them is unmeasured.
+
+Grouping SHALL remain keyed on the label. Re-partitioning silently by hash would
+produce two identically-captioned tables and hide the disagreement rather than show it.
+
+#### Scenario: Two labs, one split label, two splits
+- **WHEN** two admissible submissions name the same `split_version` and carry different
+  `split_sha256`
+- **THEN** the board ranks them in one group and states that the ranking compares
+  scores from different test sets
+
 #### Scenario: A synthetic score above a real one
 - **WHEN** one model scores 0.91 on the synthetic stand-in and another 0.42 on a real
   corpus, for the same task

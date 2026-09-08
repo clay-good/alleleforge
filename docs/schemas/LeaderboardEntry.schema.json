@@ -53,6 +53,11 @@
       "title": "Primary Value",
       "type": "number"
     },
+    "split_sha256": {
+      "default": "",
+      "title": "Split Sha256",
+      "type": "string"
+    },
     "split_version": {
       "title": "Split Version",
       "type": "string"

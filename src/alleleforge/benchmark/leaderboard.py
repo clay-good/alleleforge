@@ -194,7 +194,10 @@ class ComparisonGroup(NamedTuple):
         primary_metric: The metric the rank is on. Different metrics are different
             scales; ranking a Spearman against an AUROC is meaningless arithmetic.
         split_version: The frozen split the score came from. Different splits are
-            different test sets.
+            different test sets. It is a *label* a submitter writes, so it groups by
+            stated intent; whether two rows really measured the same bytes is
+            `split_sha256`, which every result carries and this key deliberately does
+            not include — see :meth:`Leaderboard.contested_groups`.
         synthetic: Whether the corpus was the bundled synthetic stand-in.
     """
 
@@ -217,6 +220,12 @@ class LeaderboardEntry(BaseModel):
     submitter: str
     model_name: str
     split_version: str
+    #: The membership hash of the split this score was actually computed over. Every
+    #: result carries it and the board consulted none of them: two rows can agree on the
+    #: `split_version` *label* and have been scored on different bytes, and a rank
+    #: between them is an ordering nothing measured. Recorded per row so a group can be
+    #: checked rather than assumed.
+    split_sha256: str = ""
     primary_metric: str
     primary_value: float
     ece: float | None
@@ -304,6 +313,16 @@ _STYLE = (
 )
 
 
+#: What a group whose rows disagree about the split has to say. The rank inside it is
+#: the thing this whole module exists to keep meaningful, so the sentence names the
+#: consequence rather than only the fact.
+_CONTESTED_NOTE = (
+    "The rows below name one split version and were scored on different split contents "
+    "({n} distinct hashes), so this ranking compares scores from different test sets. "
+    "Treat the order as unmeasured until the submitters agree on the split."
+)
+
+
 class Leaderboard:
     """An in-memory leaderboard that ranks carded submissions per task."""
 
@@ -326,6 +345,7 @@ class Leaderboard:
                     submitter=submission.submitter,
                     model_name=submission.model.name,
                     split_version=r.split_version,
+                    split_sha256=r.split_sha256,
                     primary_metric=r.primary_metric,
                     primary_value=r.primary_value,
                     ece=r.metrics.get("ece"),
@@ -335,6 +355,27 @@ class Leaderboard:
                     dataset_is_synthetic=r.dataset_is_synthetic,
                 )
             )
+
+    def contested_groups(self, task: str) -> dict[ComparisonGroup, tuple[str, ...]]:
+        """Return the groups whose rows disagree about which split they measured.
+
+        The group key is `(metric, split_version, synthetic)`, and `split_version` is a
+        *label a submitter writes*. Two submissions can both say `v1` and have been
+        scored on different bytes — a stale local copy, a regenerated split, a typo —
+        and the board would rank them against each other while its own module docstring
+        promises that ranks never cross a comparison group. `split_sha256` is on every
+        result and nothing looked at it.
+
+        Grouping is still by the label, deliberately: the label states what a submitter
+        *intended* to measure, and re-partitioning silently by hash would produce two
+        identically-captioned tables and hide the problem rather than show it. A
+        disagreement is a finding, so it is surfaced and the rank is disclaimed.
+        """
+        seen: dict[ComparisonGroup, set[str]] = {}
+        for entry in self._entries:
+            if entry.task == task and entry.split_sha256:
+                seen.setdefault(entry.comparison_group, set()).add(entry.split_sha256)
+        return {group: tuple(sorted(h)) for group, h in seen.items() if len(h) > 1}
 
     @property
     def tasks(self) -> tuple[str, ...]:
@@ -391,6 +432,7 @@ class Leaderboard:
             return "\n".join(lines) + "\n"
         for task in self.tasks:
             groups = self.comparison_groups(task)
+            contested = self.contested_groups(task)
             lines.append(f"## {_md_cell(task)}")
             lines.append("")
             if len(groups) > 1:
@@ -401,6 +443,9 @@ class Leaderboard:
                 arrow = "↓" if not metric_is_descending(metric) else "↑"
                 lines.append(f"### {_md_cell(group.label())}")
                 lines.append("")
+                if group in contested:
+                    lines.append(f"**{_md_cell(_CONTESTED_NOTE.format(n=len(contested[group])))}**")
+                    lines.append("")
                 lines.append(
                     f"| Rank | Model | Submitter | {_md_cell(metric)} {arrow} | "
                     "ECE ↓ | OOD ↓ | Split |"
@@ -429,11 +474,15 @@ class Leaderboard:
             parts.append("<p>No submissions yet.</p>")
         for task in self.tasks:
             groups = self.comparison_groups(task)
+            contested = self.contested_groups(task)
             parts.append(f"<h2>{_html_cell(task)}</h2>")
             if len(groups) > 1:
                 parts.append(f"<p><strong>{_html_cell(_INCOMPARABLE_NOTE)}</strong></p>")
             for group, ranked in groups:
                 parts.append(f"<h3>{_html_cell(group.label())}</h3>")
+                if group in contested:
+                    note = _CONTESTED_NOTE.format(n=len(contested[group]))
+                    parts.append(f'<p class="warn"><strong>{_html_cell(note)}</strong></p>')
                 parts.append(
                     "<table><thead><tr><th>Rank</th><th>Model</th><th>Submitter</th>"
                     f"<th>{_html_cell(group.primary_metric)}</th><th>ECE</th>"
