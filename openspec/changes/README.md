@@ -12710,3 +12710,40 @@ nobody asked which other module exports operations. Ask it of every public `__al
 syntax (R391). "Every command is documented" was true of every command the enumeration
 returned. Both rounds are the same mistake: the guard was scoped narrower than the claim.**
 
+## Round 394 — the heading asked a question the answer did not answer
+
+Run `aforge design 'chr11:2000:T>A'` and the menu rationale prints:
+
+```
+Why the other chemistries declined:
+- base_abe: Adenine base editing installs an A->G / T->C transition in a narrow window
+  with no double-strand break — the cleanest fix when the required change is an
+  A:T->G:C transition SNV.
+```
+
+Every word is true. None of it is about this variant. It is the routing rule's
+`rationale`, a description of what the chemistry is *for*, byte-identical on every run of
+the tool for every input — and the reader is left to hold "A:T->G:C transition" against
+their own T>A and do the comparison themselves. The reader who most needs that line is
+precisely the one who wanted a base editor and is now looking at a prime candidate.
+
+The router knew the fact and threw it away. `_base_eligible` computes the required change
+and asks whether any editor installs it; `ChemistryDecision` kept the rule and dropped
+everything specific to the call. Each rule now carries an `explain` beside its
+`predicate`, mirroring it branch for branch, and `route()` fills `decline_reason` on every
+rejection: the change no editor installs, the variant class outside a repertoire, the size
+against the budget it exceeded, the break-free routes that made a break unnecessary. The
+line leads with that and keeps the policy sentence behind it.
+
+The reproducibility golden moved, which is the guard working: it exists because a reworded
+rationale once shipped with a stale manifest.
+
+**Lesson: a heading is a promise about the lines under it, and a true sentence in the
+wrong slot passes every test a false one would fail. Read each heading as a question and
+ask whether the text under it answers THAT question — "why did this decline" is not
+answered by "what this chemistry is for," however accurate.**
+
+**And the tell was that the sentence never changed. Any explanation of a decision that is
+byte-identical across inputs is a description of the policy, not of the decision. Diff the
+output of two different runs and look at what stayed the same.**
+
