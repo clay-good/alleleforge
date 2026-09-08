@@ -158,3 +158,36 @@ def test_an_explicit_flag_still_outranks_the_environment(tmp_path: Path) -> None
     menu = _design(tmp_path, "--seed", "999", ALLELEFORGE_SEED="1234")
     assert menu["provenance"]["seed"] == 999
     assert _design(tmp_path, "--seed", "999")["provenance"]["seed"] == 999
+
+
+def _resolve(*argv: str, **env: str) -> dict[str, object]:
+    """Run `aforge resolve` and return the parsed payload."""
+    import json
+
+    result = subprocess.run(
+        [sys.executable, "-m", "alleleforge.cli.main", *argv, "resolve", "chr1:5:A>T", "--json"],
+        capture_output=True,
+        text=True,
+        cwd=_ROOT,
+        env={"PYTHONPATH": str(_ROOT / "src"), "PATH": "/usr/bin:/bin", **env},
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    return json.loads(result.stdout)
+
+
+def test_the_documented_reference_variable_actually_changes_the_run() -> None:
+    """The sibling of the seed defect, on the option that sets the coordinate frame.
+
+    `--reference` carried `hg38` as its default and that default reached every consumer
+    directly, so `ALLELEFORGE_REFERENCE` — honoured by the library, listed in the
+    deployment guide — changed nothing on any CLI run. The build label is stamped into
+    provenance and decides which assembly a locus is reported against, so this is the
+    same mechanism with a larger blast radius than the seed's.
+    """
+    assert _resolve()["build"] == "hg38"
+    assert _resolve(ALLELEFORGE_REFERENCE="mm39")["build"] == "mm39"
+
+
+def test_an_explicit_reference_flag_still_outranks_the_environment() -> None:
+    assert _resolve("--reference", "T2T-CHM13v2")["build"] == "T2T-CHM13v2"
+    assert _resolve("--reference", "hg38", ALLELEFORGE_REFERENCE="mm39")["build"] == "hg38"

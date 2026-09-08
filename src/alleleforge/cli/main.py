@@ -71,7 +71,11 @@ class GlobalState:
     #: while the library honoured it. `seed_or_default` is for the callers that need a
     #: number regardless.
     seed: int | None = None
-    reference_build: str = DEFAULT_REFERENCE
+    #: ``None`` when `--reference` was not given, for the reason `seed` above is: a
+    #: flag's default is not an explicit override, and passing one unconditionally hid
+    #: `ALLELEFORGE_REFERENCE` from every CLI run. Read it through `reference_build`,
+    #: which resolves environment and config before falling back to the default.
+    _reference_build: str | None = None
     cache_dir: Path | None = None
     verbose: bool = False
 
@@ -79,6 +83,27 @@ class GlobalState:
     def seed_or_default(self) -> int:
         """Return the seed a caller that cannot consult `Settings` should use."""
         return DEFAULT_SEED if self.seed is None else self.seed
+
+    @property
+    def reference_build(self) -> str:
+        """Return the build label: the flag, else the environment/config, else the default.
+
+        Resolved here rather than in the callback so `--help` and a command that never
+        looks at a genome pay nothing, and so a malformed setting is reported by the
+        command that needed it rather than by every invocation.
+        """
+        if self._reference_build is not None:
+            return self._reference_build
+        from alleleforge.config import get_settings
+
+        # Through the same boundary `_load_settings` uses: a malformed setting is the
+        # caller's environment, and reaching the terminal as a traceback here would undo
+        # the fix one function down purely because this call site is different.
+        try:
+            return str(get_settings().reference)
+        except ValueError as exc:
+            _echo_err(f"error: {exc}")
+            raise typer.Exit(ExitCode.USAGE) from None
 
 
 app = typer.Typer(
@@ -184,8 +209,14 @@ def main(
         ),
     ] = None,
     reference: Annotated[
-        str, typer.Option(help="Reference build identifier (e.g. hg38, T2T-CHM13v2, mm39).")
-    ] = DEFAULT_REFERENCE,
+        str | None,
+        typer.Option(
+            help=(
+                "Reference build identifier (e.g. hg38, T2T-CHM13v2, mm39). Overrides "
+                f"ALLELEFORGE_REFERENCE and the config file; default {DEFAULT_REFERENCE}."
+            )
+        ),
+    ] = None,
     cache_dir: Annotated[
         Path | None, typer.Option(help="Override the XDG cache directory.")
     ] = None,
@@ -203,7 +234,7 @@ def main(
 ) -> None:
     """Configure global state shared by every subcommand."""
     ctx.obj = GlobalState(
-        seed=seed, reference_build=reference, cache_dir=cache_dir, verbose=verbose
+        seed=seed, _reference_build=reference, cache_dir=cache_dir, verbose=verbose
     )
     # Honor --cache-dir at the process boundary: the cache root is consumed via the
     # get_settings() singleton by the dataset registry, model loader, FM-index,
