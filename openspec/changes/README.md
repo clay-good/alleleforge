@@ -11793,3 +11793,33 @@ CLI would change the TSV schema for no reader who asked.
 because they were not that type; listing them by hand missed a fifth because nobody
 listed it. When a guard is a list, the round that adds to it should say what made the
 entry easy to omit — here, that the exemption beside it described a different code path.**
+
+## Round 362 — the exemption pointed at a document that did not carry it
+
+Round 361's lesson was that an enumerated guard fails open, so: enumerate every writer in
+`src/` that produces a file a user ends up holding, and check each against the list. Three
+were not on it. One of the three was a real hole and it was hiding inside an exemption.
+
+`EXEMPT["cohort-item-menu-json"]` excuses the per-item menu files — serialized
+`RankedMenu`s, the library's own type — on the grounds that "the run that wrote it puts
+the context in the summary TSV and the manifest header beside it". Both halves were
+wrong. The summary TSV is written only when `--summary-tsv` is passed. The manifest header
+carried version, seed, reference, intent and start time — provenance, which is what the
+run *was*, and not one word about what its output *is*. So `aforge batch --manifest
+--output-dir` with no TSV left a directory of menus and an index, and nothing in it said
+what any of it was. The exemption was a recorded decision resting on a mechanism nobody
+had built, which is the third time this session that an allowance's *reason* was false
+while the allowance itself passed every check.
+
+The manifest header now leads with the disclaimer and the coordinate note, which makes
+the exemption's remaining half true and is itself now a checked artifact. `design-parquet`
+joined the list too — it already carried the disclaimer, from the round that gave the
+Parquet table the notes the TSV carries, but nothing was stopping it from losing it. The
+provenance sidecar is recorded as exempt with the reason: it is a record *about* a
+document rather than one, carrying no candidate and no score, written beside the artifact
+it describes, and read by `aforge verify`, which prints the wording itself.
+
+**Lesson: read an exemption as a claim and go check it. "The context is in the file
+beside it" is a testable sentence, and this one had been true of neither file — the kind
+of thing that survives review precisely because it sounds like it has already been
+thought about.**

@@ -359,8 +359,27 @@ def design_many(
         "started_at": datetime.now(UTC).isoformat(),
     }
     if manifest is not None and not manifest.exists():
+        from alleleforge.report.builder import COORDINATE_NOTE, RESEARCH_USE_DISCLAIMER
+
         manifest.parent.mkdir(parents=True, exist_ok=True)
-        manifest.write_text(json.dumps({"_run": provenance}) + "\n")
+        # The header says what this run *was*; it also has to say what the run's output
+        # *is*. The per-item menu files are exempt from the every-artifact rule on the
+        # grounds that "the run that wrote it puts the context in the summary TSV and
+        # the manifest header beside it" — and the manifest header did not, so a
+        # `--manifest --output-dir` run with no `--summary-tsv` left a directory of
+        # menus and an index, with nothing in it saying what any of it was.
+        manifest.write_text(
+            json.dumps(
+                {
+                    "_run": {
+                        "disclaimer": RESEARCH_USE_DISCLAIMER,
+                        "coordinate_note": COORDINATE_NOTE,
+                        **provenance,
+                    }
+                }
+            )
+            + "\n"
+        )
 
     out_dir = Path(output_dir) if output_dir is not None else None
     if out_dir is not None:

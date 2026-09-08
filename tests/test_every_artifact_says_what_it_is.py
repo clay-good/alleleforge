@@ -18,8 +18,9 @@ enumeration is only as complete as whoever last extended it, which is the cost o
 approach and the reason each addition is worth stating.
 
 `EXEMPT` is the mechanism that keeps it honest: an artifact may be absent from the rule
-only with a reason recorded here, and the reason has to survive being read. Two are
-exempt today and both are load-bearing decisions, not conveniences.
+only with a reason recorded here, and the reason has to survive being read — one of them
+did not, and pointed at a document that turned out not to carry the context either. Three are
+exempt today and each is a load-bearing decision, not a convenience.
 """
 
 from __future__ import annotations
@@ -50,8 +51,19 @@ EXEMPT: dict[str, str] = {
     ),
     "cohort-item-menu-json": (
         "a serialized `RankedMenu`, the library's own type rather than a rendered "
-        "artifact; the run that wrote it puts the context in the summary TSV and the "
-        "manifest header beside it"
+        "artifact; the run that wrote it puts the context in the manifest header beside "
+        "it, which is written by every run that writes these files and is itself checked "
+        "here. The reason used to read 'the summary TSV and the manifest header' — the "
+        "TSV is written only when `--summary-tsv` is passed, and the manifest header did "
+        "not carry the disclaimer at all, so both halves of the justification were "
+        "reachable only by a run that had not been made"
+    ),
+    "design-provenance-sidecar": (
+        "a record *about* a document rather than one: it carries the version, seed, "
+        "reference, models and datasets of a run and not one candidate or score, so "
+        "there is no finding in it to be mistaken for advice. It is written beside the "
+        "artifact it describes — which does carry the disclaimer, and is checked above — "
+        "and read by `aforge verify`, which prints the research-use wording itself"
     ),
 }
 
@@ -91,6 +103,36 @@ def _design(runner: CliRunner, fasta: Path, out: Path, fmt: str) -> str:
     )
     assert result.exit_code == 0, result.output + result.stderr
     return out.read_bytes().decode("latin-1", "replace")
+
+
+def _cohort_manifest(runner: CliRunner, fasta: Path, tmp_path: Path) -> str:
+    """The index a `--manifest --output-dir` run leaves beside the per-item menus.
+
+    This run passes no `--summary-tsv` on purpose: it is the shape in which a user ends
+    up holding a directory of serialized menus and an index, and nothing else.
+    """
+    listing = tmp_path / "manifest-cohort.txt"
+    listing.write_text("chr2:71:A>C\n")
+    manifest = tmp_path / "manifest.jsonl"
+    result = runner.invoke(
+        app,
+        [
+            "batch",
+            str(listing),
+            "--reference-fasta",
+            str(fasta),
+            "--intent",
+            "install",
+            "--max-per-chemistry",
+            "1",
+            "--manifest",
+            str(manifest),
+            "--output-dir",
+            str(tmp_path / "items"),
+        ],
+    )
+    assert result.exit_code == 0, result.output + result.stderr
+    return manifest.read_text(encoding="utf-8")
 
 
 def _cohort_json(runner: CliRunner, fasta: Path, tmp_path: Path) -> str:
@@ -180,8 +222,10 @@ def _leaderboard(runner: CliRunner, tmp_path: Path, fmt: str) -> str:
         "design-pdf",
         "design-tsv",
         "design-json",
+        "design-parquet",
         "cohort-summary-tsv",
         "cohort-summary-json",
+        "cohort-manifest",
         "offtarget-json",
         "leaderboard-markdown",
         "leaderboard-html",
@@ -197,6 +241,8 @@ def test_the_artifact_states_what_it_is(
         text = _cohort_summary(runner, fasta, tmp_path)
     elif artifact == "cohort-summary-json":
         text = _cohort_json(runner, fasta, tmp_path)
+    elif artifact == "cohort-manifest":
+        text = _cohort_manifest(runner, fasta, tmp_path)
     elif artifact == "offtarget-json":
         text = _offtarget_json(runner, fasta)
     else:
@@ -208,7 +254,11 @@ def test_the_artifact_states_what_it_is(
 
 def test_the_exemptions_are_still_the_only_ones() -> None:
     """Guard the guard: an exemption must be a decision, not a place to lose one."""
-    assert set(EXEMPT) == {"bench-result-json", "cohort-item-menu-json"}
+    assert set(EXEMPT) == {
+        "bench-result-json",
+        "cohort-item-menu-json",
+        "design-provenance-sidecar",
+    }
     for artifact, reason in EXEMPT.items():
         assert len(reason) > 80, f"{artifact}'s exemption has no real reason"
 
