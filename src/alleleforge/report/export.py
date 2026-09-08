@@ -231,6 +231,13 @@ def _export_notes(report: DesignReport) -> dict[str, str]:
         notes["variant"] = _cell(f"variant {report.variant}")
     if report.intent:
         notes["intent"] = _cell(f"intent {report.intent}")
+    # What a clinical database asserts about that variant, when one was consulted. It is
+    # the reason an accession is chosen over the coordinates it stands for, and the HTML
+    # and PDF state it in the rationale — prose the flat table does not carry. A
+    # spreadsheet of pegRNAs correcting a variant ClinVar calls Benign read exactly like
+    # one correcting a pathogenic allele.
+    if report.clinical_significance:
+        notes["clinical_significance"] = _cell(f"ClinVar: {report.clinical_significance}")
     if report.weights:
         ordered = ", ".join(f"{name} {value:.2f}" for name, value in report.weights.items())
         notes["weights"] = _cell(f"ranking weights: {ordered}")

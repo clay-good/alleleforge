@@ -460,7 +460,7 @@ def test_batch_summary_tsv(runner: CliRunner, cohort_fasta: Path, tmp_path: Path
     # the table starts at the first non-comment line.
     lines = [ln for ln in out.read_text().strip().splitlines() if not ln.startswith("#")]
     header = lines[0].split("\t")
-    assert header[:3] == ["item_id", "variant", "status"]
+    assert header[:4] == ["item_id", "variant", "clinical_significance", "status"]
     assert "best_specificity" in header  # aggregate specificity surfaces in the cohort TSV
     assert len(lines) == 3  # header + 2 items
     assert any("error" not in line and "base_abe" in line for line in lines[1:])

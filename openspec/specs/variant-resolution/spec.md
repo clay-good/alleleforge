@@ -271,6 +271,25 @@ statement about loci does not warn anyone about the one that does not.
   it back
 
 
+### Requirement: The classification reaches every surface, not only the prose ones
+
+A ClinVar accession is looked up for its coordinates, and chosen for its classification.
+Every surface that reports a design or a resolution SHALL state what the database
+asserted, when one did: `resolve` on both shells, the flat TSV and Parquet exports, and
+the cohort summary — not only the renders that carry the menu rationale.
+
+A surface SHALL distinguish "no database asserted anything" from an assertion: an absent
+classification is not a benign one.
+
+#### Scenario: An accession resolved on the command line
+- **WHEN** `aforge resolve <accession> --clinvar <release> --json` is run
+- **THEN** the payload states the classification and the review status behind it
+
+#### Scenario: A cohort mixing accessions and coordinates
+- **WHEN** a cohort designs an accession and a bare coordinate
+- **THEN** the summary states the accession's classification and leaves the coordinate's
+  empty
+
 ### Requirement: A record the supplied release lacks is explained, not raised
 
 A lookup that finds no record SHALL raise `ValueError` with an explanation, not the

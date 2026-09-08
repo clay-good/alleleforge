@@ -180,6 +180,11 @@ def _summarize(menu: RankedMenu) -> dict[str, Any]:
         # the designed locus routinely differ. This is the only column that says where
         # the reagents in the rest of the row actually go.
         "variant": menu.variant,
+        # The reason a row was requested by accession at all. A cohort of `VCV…` inputs
+        # is exactly the run where this matters — hundreds of rows, triaged by scanning
+        # — and the classification lived only in each item's rationale, which the
+        # summary does not carry and nobody opens five hundred of.
+        "clinical_significance": menu.clinical_significance,
         "n_candidates": len(menu.candidates),
         # Why nothing was found, when nothing was. The single-variant path explains an
         # empty result in full — which chemistries were routed out and why, which

@@ -517,6 +517,11 @@ def design(
     )
     return RankedMenu(
         variant=str(resolved.variant),
+        clinical_significance=(
+            resolved.clinical_assertion.significance.value
+            if resolved.clinical_assertion is not None
+            else None
+        ),
         candidates=outcome.candidates,
         rationale=rationale,
         pareto_front=outcome.pareto_front,

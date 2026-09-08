@@ -859,6 +859,16 @@ def create_app(
             consequence=effect.consequence.value if effect else None,
             impact=effect.impact.name if effect else None,
             gene=effect.gene if effect else None,
+            clinical_significance=(
+                resolved.clinical_assertion.significance.value
+                if resolved.clinical_assertion is not None
+                else None
+            ),
+            clinical_review_status=(
+                resolved.clinical_assertion.review_status
+                if resolved.clinical_assertion is not None
+                else None
+            ),
         )
 
     @app.post("/api/design", response_model=DesignReport)

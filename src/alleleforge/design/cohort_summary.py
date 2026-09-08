@@ -52,6 +52,7 @@ def cohort_rows(report: Any) -> list[dict[str, Any]]:
                 # Second column, beside the id it disambiguates: a reader scanning the
                 # table left to right needs "what the row is about" before any number.
                 "variant": summary.get("variant"),
+                "clinical_significance": summary.get("clinical_significance"),
                 "best_chemistry": summary.get("best_chemistry"),
                 "best_efficiency": summary.get("best_efficiency"),
                 "best_efficiency_low": summary.get("best_efficiency_low"),
@@ -138,6 +139,7 @@ def cohort_to_tsv(
     cols = [
         "item_id",
         "variant",
+        "clinical_significance",
         "status",
         "best_chemistry",
         "best_efficiency",

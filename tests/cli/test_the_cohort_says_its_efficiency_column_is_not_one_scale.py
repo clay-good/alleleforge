@@ -60,11 +60,11 @@ def _summary(fasta: Path, tmp_path: Path, variants: list[str], name: str) -> str
 def test_a_mixed_cohort_carries_the_note(cohort: tuple[Path, Path]) -> None:
     fasta, tmp_path = cohort
     text = _summary(fasta, tmp_path, ["chr2:1006:G>A", "chr2:1050:G>A"], "mixed")
-    chemistries = {
-        line.split("\t")[2]
-        for line in text.splitlines()
-        if not line.startswith("#") and "\t" in line
-    } - {"best_chemistry", ""}
+    # By column *name*: indexing position 2 pinned this fixture to the table's layout,
+    # so adding a column made it assert that a cohort of one chemistry was mixed.
+    rows = [line for line in text.splitlines() if not line.startswith("#") and "\t" in line]
+    column = rows[0].split("\t").index("best_chemistry")
+    chemistries = {r.split("\t")[column] for r in rows[1:]} - {""}
     assert len(chemistries) > 1, f"the fixture cohort is not mixed: {chemistries}"
     assert CROSS_CHEMISTRY_NOTE in text
 

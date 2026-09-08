@@ -1225,7 +1225,7 @@
       "type": "string"
     }
   },
-  "description": "An ordered menu of design candidates with rationale and provenance.\n\nAttributes:\n    candidates: Candidates in rank order (best first).\n    rationale: How the ranking was computed and what drove the order.\n    pareto_front: Indices into ``candidates`` that are Pareto-optimal.\n    provenance: The reproducibility block for this menu.\n    variant: The canonical variant this menu was designed for, as the resolver\n        settled it (``chrom:pos:ref>alt``, 0-based). A menu did not say what it was\n        about: `build_report` takes the variant from *its* caller, so the single\n        design path looked complete, while a cohort's durable per-item JSON \u2014 and\n        the summary row built from it \u2014 identified the item only by the string the\n        user typed. For an accession or an rsID that string names no locus at all,\n        and even a coordinate can move under left-alignment.",
+  "description": "An ordered menu of design candidates with rationale and provenance.\n\nAttributes:\n    candidates: Candidates in rank order (best first).\n    rationale: How the ranking was computed and what drove the order.\n    pareto_front: Indices into ``candidates`` that are Pareto-optimal.\n    provenance: The reproducibility block for this menu.\n    variant: The canonical variant this menu was designed for, as the resolver\n        settled it (``chrom:pos:ref>alt``, 0-based). A menu did not say what it was\n        about: `build_report` takes the variant from *its* caller, so the single\n        design path looked complete, while a cohort's durable per-item JSON \u2014 and\n        the summary row built from it \u2014 identified the item only by the string the\n        user typed. For an accession or an rsID that string names no locus at all,\n        and even a coordinate can move under left-alignment.\n    clinical_significance: What a clinical database asserts about that variant, when\n        resolution came from one. It is the reason an accession is chosen over the\n        coordinates it stands for, and it lived only inside ``rationale`` \u2014 prose the\n        cohort summary does not carry and nobody reads five hundred of.",
   "properties": {
     "candidates": {
       "items": {
@@ -1233,6 +1233,18 @@
       },
       "title": "Candidates",
       "type": "array"
+    },
+    "clinical_significance": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Clinical Significance"
     },
     "pareto_front": {
       "default": [],

@@ -25,6 +25,7 @@ def _row(**overrides: object) -> dict[str, object]:
     row: dict[str, object] = {
         "item_id": "chr2:1006:G>A",
         "variant": "chr2:1005:G>A",
+        "clinical_significance": None,
         "status": "ok",
         "best_chemistry": "base_abe",
         "best_efficiency": 0.6,

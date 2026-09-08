@@ -77,7 +77,7 @@ def test_the_table_is_unchanged_for_a_comment_aware_reader(
     comments = [line for line in text.splitlines() if line.startswith("#")]
     data = [line for line in text.splitlines() if not line.startswith("#")]
     assert comments, "no notes were emitted"
-    assert data[0].startswith("item_id\tvariant\tstatus\t")
+    assert data[0].startswith("item_id\tvariant\tclinical_significance\tstatus\t")
     assert len(data) == 3  # header + two items
     widths = {len(line.split("\t")) for line in data}
     assert len(widths) == 1, widths

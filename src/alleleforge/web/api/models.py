@@ -134,6 +134,14 @@ class ResolveResponse(BaseModel):
     consequence: str | None = None
     impact: str | None = None
     gene: str | None = None
+    #: What a clinical database asserts about the variant, when resolution came from one.
+    #: Over HTTP no client can supply a lookup, so this is `None` for every request today
+    #: — carried because the field is the CLI's and the two `resolve` surfaces answering
+    #: the same question differently is how one of them quietly stops being checked.
+    clinical_significance: str | None = None
+    #: The class alone is not the claim: the same class "reviewed by expert panel" and
+    #: "no assertion criteria provided" is very different evidence.
+    clinical_review_status: str | None = None
 
 
 class VectorSchemeName(StrEnum):

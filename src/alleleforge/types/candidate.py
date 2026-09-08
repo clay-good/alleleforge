@@ -87,6 +87,10 @@ class RankedMenu(BaseModel):
             the summary row built from it — identified the item only by the string the
             user typed. For an accession or an rsID that string names no locus at all,
             and even a coordinate can move under left-alignment.
+        clinical_significance: What a clinical database asserts about that variant, when
+            resolution came from one. It is the reason an accession is chosen over the
+            coordinates it stands for, and it lived only inside ``rationale`` — prose the
+            cohort summary does not carry and nobody reads five hundred of.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -96,6 +100,7 @@ class RankedMenu(BaseModel):
     pareto_front: tuple[int, ...] = ()
     provenance: Provenance | None = None
     variant: str | None = None
+    clinical_significance: str | None = None
 
     @property
     def best(self) -> DesignCandidate | None:

@@ -366,6 +366,9 @@ class DesignReport(BaseModel):
         disclaimer: The research-use disclaimer (leads every render).
         variant: The target variant string, if supplied.
         intent: The edit intent, if known.
+        clinical_significance: What a clinical database asserts about the variant,
+            when resolution came from one. Carried on the report, not only inside the
+            rationale, because the flat exports do not render prose.
         weights: The ranking weights used.
         candidates: One :class:`CandidateReport` per menu candidate, in rank order.
         rationale: The **menu-level** rationale — which chemistries routed and why,
@@ -388,6 +391,7 @@ class DesignReport(BaseModel):
     coordinate_system: str = COORDINATE_SYSTEM
     variant: str | None
     intent: str | None
+    clinical_significance: str | None = None
     weights: dict[str, float]
     candidates: tuple[CandidateReport, ...]
     rationale: str | None = None
@@ -872,6 +876,7 @@ def build_report(
         disclaimer=RESEARCH_USE_DISCLAIMER,
         variant=variant,
         intent=intent,
+        clinical_significance=menu.clinical_significance,
         weights=weights,
         candidates=candidates,
         rationale=rationale,

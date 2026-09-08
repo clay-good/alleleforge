@@ -163,6 +163,7 @@
         "rationale": "ABE8e sgRNA on + strand; P(exact)=0.29, bystander burden=0.60; score 0.641 [eff 0.60 [0.45, 0.75], clean 0.29, safe 1.00, simple 0.90]"
       }
     ],
+    "clinical_significance": "pathogenic",
     "pareto_front": [
       0
     ],
@@ -234,5 +235,5 @@
     "variant": "chr2:25:A>G"
   },
   "n_candidates": 1,
-  "sha256": "368801d5d6b0376e501745644a435ffca963b45b2e2c3a701b8ffabd1f85a5a6"
+  "sha256": "b57a550bf8d7fec7b43a0f62454632904ee012721aa60157f259cef59b2d8c04"
 }

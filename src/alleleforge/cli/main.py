@@ -312,6 +312,25 @@ def resolve(
         # file that produced this variant is what tells the two runs apart — the
         # same pin the reference already gets below.
         "resolved_from": [d.model_dump(mode="json") for d in resolved.sources],
+        # What the database asserts, on the command whose entire job is saying what an
+        # input means. An accession is chosen for its classification, not its
+        # coordinates — that is why the resolver carries the assertion at all — and this
+        # payload reported `source: clinvar` and dropped the whole difference between
+        # `VCV000012345` and the coordinates it stands for. `None` here means no
+        # database asserted anything, which for a coordinate input is simply the truth.
+        "clinical_significance": (
+            resolved.clinical_assertion.significance.value
+            if resolved.clinical_assertion is not None
+            else None
+        ),
+        # The class alone is not the claim: "Pathogenic, no assertion criteria provided"
+        # and "Pathogenic, reviewed by expert panel" are the same class and very
+        # different evidence. The model carries both for that reason; so does this.
+        "clinical_review_status": (
+            resolved.clinical_assertion.review_status
+            if resolved.clinical_assertion is not None
+            else None
+        ),
         "working_interval": str(resolved.working_interval),
         # Every locus on this payload — the working interval, and the position inside
         # `variant` — is 0-based half-open, and a genome browser reads the same digits as
