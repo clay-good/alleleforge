@@ -63,12 +63,26 @@ RESEARCH_USE_DISCLAIMER = (
 
 
 class AncestryOffTarget(BaseModel):
-    """The worst-case off-target score for one ancestry."""
+    """What one ancestry carries: the worst-case score, and how often.
+
+    Both, because a score does not depend on ancestry. On the reference-bias finding
+    this engine reproduces, `worst_score` is 1.000 for every stratum while the carrying
+    frequency spans 0.105 to 0.001, so the score column alone reads as risk spread
+    evenly — the opposite of the finding.
+
+    Attributes:
+        ancestry: The population label.
+        worst_score: The highest-scoring site affecting this ancestry. Answers "is
+            there a dangerous site at all", and drives the ranking safety axis.
+        expected_burden: The same sites weighted by how often a genome from this
+            population carries them. Answers "how often is it actually there".
+    """
 
     model_config = ConfigDict(frozen=True)
 
     ancestry: str
     worst_score: float
+    expected_burden: float = 0.0
 
 
 #: Flags that change what a reader should *do*, each with the reason, keyed by the
@@ -475,8 +489,9 @@ def _candidate_report(
             worst_site = max(candidate.offtarget.sites, key=lambda site: site.score)
             worst_matrix = worst_site.score_matrix
         strata = candidate.offtarget.ancestry_stratification()
+        burden = candidate.offtarget.ancestry_expected_burden()
         ancestry_rows = tuple(
-            AncestryOffTarget(ancestry=a, worst_score=s)
+            AncestryOffTarget(ancestry=a, worst_score=s, expected_burden=burden.get(a, 0.0))
             for a, s in sorted(strata.items(), key=lambda kv: kv[1], reverse=True)
         )
 

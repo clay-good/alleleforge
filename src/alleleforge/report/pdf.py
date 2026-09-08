@@ -394,7 +394,11 @@ def _candidate_lines(c: CandidateReport) -> list[str]:
     if c.offtarget_by_ancestry:
         lines += _wrap(f"off-target sites: {c.n_offtarget_sites}{spec}", indent="    ")
         for r in c.offtarget_by_ancestry:
-            lines += _wrap(f"{r.ancestry}: worst score {r.worst_score:.3f}", indent="      ")
+            lines += _wrap(
+                f"{r.ancestry}: worst score {r.worst_score:.3f}, "
+                f"expected burden {r.expected_burden:.4f}",
+                indent="      ",
+            )
     elif c.n_offtarget_sites is not None:
         lines += _wrap(f"off-target sites: {c.n_offtarget_sites}{spec}", indent="    ")
     if c.n_offtarget_sites:

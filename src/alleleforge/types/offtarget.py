@@ -472,6 +472,57 @@ class OffTargetReport(BaseModel):
             strata[ancestry] = best
         return strata
 
+    def ancestry_expected_burden(self) -> dict[str, float]:
+        """Return the frequency-weighted expected off-target burden per ancestry.
+
+        :meth:`ancestry_stratification` reports the worst *score* per ancestry, and a
+        score does not depend on ancestry — only on the sequence. So on the finding this
+        engine exists to reproduce (a minor allele creating a de-novo PAM, enriched in
+        one population) the stratification reads::
+
+            worst off-target score by ancestry: afr 1.000, amr 1.000, nfe 1.000
+
+        Three identical numbers over frequencies of 0.105, 0.012 and 0.001. A reader
+        takes that as risk spread evenly across ancestries, which is the opposite of the
+        published finding, and the opposite of what the site line beneath it says.
+
+        The blindness is already named in this class: :meth:`expected_burden`'s docstring
+        says it "separates a rare-variant off-target from a universal one, which the
+        frequency-blind :meth:`worst_score` and :meth:`specificity_score` cannot" — and
+        the ancestry axis, the one thing the population-aware search is for, was reported
+        with the frequency-blind statistic.
+
+        Weighted per ancestry, so the same site contributes what a genome from *that*
+        population is actually likely to carry. Unattributed sites (a reference site, a
+        patient site, or a population site with no per-ancestry breakdown) count at full
+        weight for every ancestry, exactly as they do in :meth:`ancestry_stratification`
+        and :meth:`expected_burden`: not knowing which stratum carries a site is not a
+        reason to discount it.
+
+        This does **not** replace the worst-case score, and does not touch the ranking
+        safety axis, which :meth:`worst_ancestry` still drives. "Is there a dangerous
+        site at all" and "how often is it actually there" are two questions, and the
+        second was the one with no answer.
+        """
+        ancestries: set[str] = set()
+        for site in self.sites:
+            ancestries.update(site.ancestries)
+        burden: dict[str, float] = {}
+        for ancestry in sorted(ancestries):
+            total = 0.0
+            for site in self.sites:
+                unattributed = (
+                    site.origin is SiteOrigin.REFERENCE
+                    or site.frequency is None
+                    or not site.ancestries
+                )
+                if unattributed:
+                    total += site.score
+                else:
+                    total += site.score * site.ancestries.get(ancestry, 0.0)
+            burden[ancestry] = total
+        return burden
+
     def worst_ancestry(self) -> tuple[str, float] | None:
         """Return the ``(ancestry, score)`` with the highest worst-case score.
 

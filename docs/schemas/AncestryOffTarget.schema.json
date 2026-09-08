@@ -1,9 +1,14 @@
 {
-  "description": "The worst-case off-target score for one ancestry.",
+  "description": "What one ancestry carries: the worst-case score, and how often.\n\nBoth, because a score does not depend on ancestry. On the reference-bias finding\nthis engine reproduces, `worst_score` is 1.000 for every stratum while the carrying\nfrequency spans 0.105 to 0.001, so the score column alone reads as risk spread\nevenly \u2014 the opposite of the finding.\n\nAttributes:\n    ancestry: The population label.\n    worst_score: The highest-scoring site affecting this ancestry. Answers \"is\n        there a dangerous site at all\", and drives the ranking safety axis.\n    expected_burden: The same sites weighted by how often a genome from this\n        population carries them. Answers \"how often is it actually there\".",
   "properties": {
     "ancestry": {
       "title": "Ancestry",
       "type": "string"
+    },
+    "expected_burden": {
+      "default": 0.0,
+      "title": "Expected Burden",
+      "type": "number"
     },
     "worst_score": {
       "title": "Worst Score",

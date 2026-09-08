@@ -594,6 +594,16 @@ class OffTargetResponse(BaseModel):
     ancestry_stratification: dict[str, float] = Field(
         description="Worst-case off-target score per annotated ancestry."
     )
+    ancestry_expected_burden: dict[str, float] = Field(
+        default_factory=dict,
+        description=(
+            "Frequency-weighted expected off-target burden per annotated ancestry. A "
+            "score does not depend on ancestry, so `ancestry_stratification` reads the "
+            "same for every stratum even where the carrying frequency differs "
+            "hundredfold — which is precisely the case the population-aware search "
+            "exists to surface. This is the half that differs."
+        ),
+    )
     effective_matrix: str | None = Field(
         default=None,
         description=(
@@ -649,6 +659,7 @@ class OffTargetResponse(BaseModel):
             on_target_excluded=on_target_excluded,
             search_description=report.search_description(),
             ancestry_stratification=report.ancestry_stratification(),
+            ancestry_expected_burden=report.ancestry_expected_burden(),
             effective_matrix=report.effective_matrix(),
             reference=reference,
         )

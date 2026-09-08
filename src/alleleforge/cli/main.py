@@ -2153,6 +2153,9 @@ def offtarget(
         "ancestry_stratification": {
             a: round(v, 4) for a, v in report.ancestry_stratification().items()
         },
+        "ancestry_expected_burden": {
+            a: round(v, 6) for a, v in report.ancestry_expected_burden().items()
+        },
         "sites": sites,
     }
     # The nominal matrix records how the scorer was configured; the effective matrix is
@@ -2202,6 +2205,15 @@ def offtarget(
             f"{a} {v:.3f}" for a, v in sorted(strata.items(), key=lambda kv: (-kv[1], kv[0]))
         )
         human_lines.append(f"  worst off-target score by ancestry: {worst_by}")
+        # ...and how often a genome from that population actually carries it. A score
+        # does not depend on ancestry, so the line above reads the same for every
+        # stratum on exactly the finding this engine exists to reproduce. Printed
+        # together because either one alone is half the answer.
+        burden = report.ancestry_expected_burden()
+        weighted = ", ".join(
+            f"{a} {v:.4f}" for a, v in sorted(burden.items(), key=lambda kv: (-kv[1], kv[0]))
+        )
+        human_lines.append(f"  expected burden by ancestry (frequency-weighted): {weighted}")
     # A published matrix falls back to the length-relative approximation per hit, so one
     # report can mix two scales. `effective_matrix()` says both were used — it cannot say
     # *which row is which*, and the rows are printed in score order, so a reader compares

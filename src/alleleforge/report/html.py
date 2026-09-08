@@ -327,13 +327,19 @@ def _candidate_html(c: CandidateReport) -> str:
 
     if c.offtarget_by_ancestry:
         rows = "".join(
-            f"<tr><td>{_esc(r.ancestry)}</td><td>{r.worst_score:.3f}</td></tr>"
+            f"<tr><td>{_esc(r.ancestry)}</td><td>{r.worst_score:.3f}</td>"
+            f"<td>{r.expected_burden:.4f}</td></tr>"
             for r in c.offtarget_by_ancestry
         )
+        # Both columns. A score does not depend on ancestry, so the worst-case column
+        # reads the same for every stratum on exactly the finding this engine exists to
+        # reproduce, while the carrying frequency spans a hundredfold.
         parts.append(
             f"<p class='muted'>{c.n_offtarget_sites} nominated site(s){spec}; "
-            "worst-case score by ancestry:</p>"
-            "<table><tr><th>ancestry</th><th>worst off-target score</th></tr>"
+            "by ancestry — the worst-case score, and how often a genome from that "
+            "population carries it:</p>"
+            "<table><tr><th>ancestry</th><th>worst off-target score</th>"
+            "<th>expected burden</th></tr>"
             f"{rows}</table>"
         )
     elif c.n_offtarget_sites is not None:
