@@ -24,7 +24,7 @@ not the real published models the README compares against. Build scientific subs
   to-the-byte runs, content-addressed benchmark harness, consent/license/checksum
   model-zoo gate, CLI + web + native Rust parity. All verified green:
   - `ruff` clean; `mypy --strict` clean (103 files)
-  - 2,863 tests pass, 4 skipped, **97.6% coverage** (gate 85%)
+  - 2,868 tests pass, 4 skipped, **97.6% coverage** (gate 85%)
   - `mkdocs build --strict` clean; `scripts/figures.py` regenerates the committed
     figures byte-identically; `scripts/reproduce.py` matches golden — and that last
     one is now checked by the test suite, having been false when this line was

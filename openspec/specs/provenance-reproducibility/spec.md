@@ -351,3 +351,24 @@ reader who hits the drift.
 - **WHEN** a change alters the canonical run's body
 - **THEN** the suite fails, naming the drifted paths, and the change is accepted by
   regenerating the golden rather than by leaving it stale
+
+
+### Requirement: A cohort reports its items in input order
+
+The report `design_many` returns SHALL list items in the order they were requested, at
+every `max_workers`. `max_workers` is a performance option and SHALL NOT change the
+artifact: the summary TSV, the cohort JSON, the HTTP response and the served table all
+render that sequence, and a cohort whose rows move between identical runs cannot be
+diffed for what actually changed.
+
+The manifest SHALL remain in completion order. It is an append-as-you-go progress log,
+and a resumed run reads it as a set keyed on item id.
+
+A streaming run — one given an `on_result` callback — SHALL keep receiving results as they
+complete and SHALL NOT accumulate a report, so its memory stays bounded by the worker
+count rather than the cohort size.
+
+#### Scenario: The same cohort run twice in parallel
+- **WHEN** a cohort is designed twice with `max_workers` above one
+- **THEN** both runs report the items in the requested order, and their summary tables
+  are byte-identical to each other and to a serial run's

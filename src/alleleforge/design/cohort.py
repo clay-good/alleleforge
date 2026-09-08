@@ -429,14 +429,22 @@ def design_many(
     def _pending() -> Iterator[CohortInput]:
         nonlocal skipped_requests
         for item in variants:
-            if id_of(item) in done:
+            iid = id_of(item)
+            if iid in done:
                 skipped_requests += 1
                 continue
+            if accumulating:
+                order.setdefault(iid, len(order))
             yield item
 
     pending = _pending()
     results: list[CohortItemResult] = []
     counts = {"ok": 0, "error": 0}
+    # Input position per item, kept only when this run is accumulating a report. The
+    # streaming path (`on_result`) holds nothing and must keep holding nothing: its
+    # whole point is O(max_workers) memory over a VCF of any size.
+    order: dict[str, int] = {}
+    accumulating = on_result is None
 
     def _record(result: CohortItemResult) -> None:
         counts[result.status] += 1
@@ -454,12 +462,24 @@ def design_many(
         for item in pending:
             _record(_design_one(item))
 
+    # Input order, not completion order. `_run_windowed` records results as they
+    # finish and says so, reasoning that "the manifest and resume are set-keyed on
+    # item_id, so order is not load-bearing" — true of both, and of neither of the
+    # things a person reads. The summary TSV, the cohort JSON, the HTTP response and
+    # the browser's table all render `items` in the order they arrive, so the same
+    # cohort run twice with `--max-workers 4` produced two byte-different tables whose
+    # rows had merely moved. In a project whose promise is byte-reproducibility, a
+    # performance flag must not change the artifact.
+    #
+    # The manifest stays completion-ordered: it is an append-as-you-go progress log,
+    # and a resumed run reads it as a set.
+    ordered = sorted(results, key=lambda r: order.get(r.item_id, len(order)))
     return CohortRunReport(
         total=counts["ok"] + counts["error"],
         succeeded=counts["ok"],
         failed=counts["error"],
         skipped=skipped_requests,
-        items=tuple(results),
+        items=tuple(ordered),
         provenance=provenance,
         manifest_path=str(manifest) if manifest is not None else None,
     )
@@ -478,8 +498,14 @@ def _run_windowed(
     futures, which breaks the "consumed lazily / bounded memory" guarantee for the
     parallel path. Instead this keeps at most ``max_workers`` futures in flight,
     pulling the next input only as each completes, so peak memory is O(max_workers)
-    regardless of cohort size. Results are recorded in completion order (the manifest
-    and resume are set-keyed on ``item_id``, so order is not load-bearing).
+    regardless of cohort size.
+
+    Results are *recorded* in completion order, which is right for the two consumers
+    that see them as they arrive: the manifest is a progress log and a resumed run reads
+    it as a set. The report `design_many` returns is re-sorted into input order there,
+    because everything a person reads — the summary TSV, the cohort JSON, the HTTP
+    response, the browser's table — renders it in sequence, and a cohort whose rows move
+    between identical runs cannot be diffed.
     """
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         in_flight: set[Future[CohortItemResult]] = set()

@@ -2571,6 +2571,7 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+- A parallel cohort reports its items in input order. `--max-workers 4` recorded them as they finished, so three consecutive runs of one cohort produced three different row orders and the summary table could not be diffed — a performance flag changing the artifact. The manifest stays completion-ordered; it is a progress log.
 - A variant naming a contig the reference does not have is refused with a message naming it and listing what the reference has, instead of a traceback ending in `KeyError: "unknown contig 'chrZ'"`. Fixed in the resolver, so the CLI, the HTTP API and a Python caller all get it.
 - The release checklist no longer promises that `twine check` already passes. It errors on a current toolchain (`'2.5' is not a valid metadata version`), which is the packaging tools disagreeing with each other rather than a bad distribution — but a checklist that says a step passes is how that becomes a surprise mid-release. The wheel itself was verified from its own contents.
 - The release-readiness report no longer calls a stale native build "importable". It counted a parity module as evidence while every test in it skipped, which is the self-flattery the criterion's own comments record having fixed twice before.

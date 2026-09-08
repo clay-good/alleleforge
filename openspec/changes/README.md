@@ -12179,3 +12179,38 @@ swallow the case it exists to permit.
 developers rather than users. Nineteen inputs proved the error handling is good, which is
 what made the twentieth worth fixing — this is a project whose refusals are usually
 paragraphs, and here the most common mistake got a stack.**
+
+## Round 373 — a performance flag was changing the artifact
+
+Adversarial input found one hole and no more: twenty malformed variants and twenty-three
+malformed HTTP bodies produced exactly one traceback (last round's) and zero 5xx. So this
+round turned the same suspicion on my own recent work — Round 349 let a *parallel* cohort
+share a cross-run cache, and concurrent writers to a file store is a real question.
+
+The store was already hardened: temp-file-then-rename, a per-call uuid so two writers of
+one key cannot collide, the checksum sidecar published before the payload, and a comment
+recording the race that taught it. Nothing to fix — worth checking, because it was my
+change that put it under concurrent load.
+
+Running it anyway found something else. A cohort designed twice with `--max-workers 4`
+produced two summary tables whose rows had *moved*: same content, different order. Three
+consecutive runs gave three orders, none of them the input's, while serial runs were
+stable every time. So `--max-workers` — a performance option — changed the artifact, in a
+project whose promise is byte-reproducibility, and it changed the one artifact people diff
+between runs: a cohort table where every row appears to have changed says nothing about
+what did.
+
+`_run_windowed` had a reason for it, and the reason is the finding: "the manifest and
+resume are set-keyed on `item_id`, so order is not load-bearing". That is true of the
+manifest and true of resume — the two consumers that read results as they arrive. The
+enumeration stopped there, and every consumer a *person* reads renders the sequence: the
+summary TSV, the cohort JSON, the HTTP response, the browser's table.
+
+The report is now sorted into input order, and only when the run is accumulating one — the
+streaming path holds nothing, which is what keeps its memory bounded by the worker count
+over a VCF of any size. The manifest stays completion-ordered on purpose.
+
+**Lesson: a justification that enumerates its consumers is only as good as the
+enumeration, and the consumers that get left out are the ones downstream of the code
+being justified. "Order is not load-bearing" was written by someone looking at the
+manifest, and it was load-bearing three surfaces later.**
