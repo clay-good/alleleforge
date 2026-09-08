@@ -6,9 +6,11 @@ other three can pass everywhere and still be broken where a human is looking.
 
 Both of these were found by opening the page.
 
-**The example it invites you to type.** `ClinVarLookup`, `DbSnpLookup` and the HGVS
-adapter are Protocols with no shipped implementation, so an accession, an rsID or a
-`c.`/`p.` string is refused by every shell. There is a spec requirement about this, and a
+**The example it invites you to type.** An accession, an rsID or a `c.`/`p.` string is
+refused *by this surface*. The ClinVar and dbSNP lookups are file-backed, and a
+client-supplied path on a server is a file-read primitive, so over HTTP there is no
+equivalent of the CLI's `--clinvar`/`--dbsnp`; `c.`/`p.` needs a projector from the `hgvs`
+library, which nothing ships. There is a spec requirement about this, and a
 test that the CLI's own argument help must carry the caveat rather than listing five
 forms unqualified. The page's placeholder read
 `chr2:71:A>C · VCV000012345 · rs1234 · NM_000518.5:c.20A>T` with the caption "ClinVar
