@@ -65,11 +65,31 @@ DEFAULT_MIT_THRESHOLD = 0.10
 #: Length of the canonical SpCas9 spacer the MIT score is defined for.
 _MIT_LENGTH = 20
 
-#: Auto-engage the FM-index reference path once a region reaches this many bases.
-#: Below it the linear scan wins (no index to build/cache); at and above it the
-#: content-addressed FM-index seed-and-extend is the genome-scale path. Override
-#: per call with ``use_fm_index``.
-FM_INDEX_AUTO_THRESHOLD = 1_000_000
+#: The FM-index reference path is **opt-in**, never automatic. It used to engage
+#: itself once a region reached 1,000,000 bases, on the stated grounds that the index
+#: build "only amortizes at contig scale". Measured, on this machine, with the native
+#: crate present and comparing the default path against a forced linear scan:
+#:
+#:     1 Mb, one guide     linear  1.77s   auto/FM   4.85s   (2.7x slower)
+#:     2 Mb, one guide     linear  3.61s   auto/FM   9.69s   (2.7x slower)
+#:     8 Mb, one guide     linear 14.22s   auto/FM  65.19s   (4.6x slower)
+#:     1 Mb, five guides   linear  9.75s   auto/FM  21.56s   (2.2x slower)
+#:
+#: The justification was backwards: it does not converge at contig scale, it diverges,
+#: and it does not amortize across guides either. So the threshold turned the *default*
+#: configuration 2.7x slower at exactly the genome scale the tool exists for, and worse
+#: from there. `scripts/native_speedup.py` has been printing "SLOWER" for this pair; the
+#: number was in the output and the decision was in the prose.
+#:
+#: The path itself stays — it is exact, parity-pinned, and a caller with a prebuilt
+#: memory-mapped index may have reasons of their own (memory, not time). It is reached
+#: by asking: `use_fm_index=True`, or by supplying `genome_index=`.
+#:
+#: Not measured, and so not claimed either way: a persistent cross-process index whose
+#: build cost is fully paid in an earlier run. The speedup script prebuilds the index
+#: outside its timing and still measures the FM *queries* 11-14x slower than the linear
+#: scan, which is the reason to doubt that case too, but it was not measured here.
+FM_INDEX_AUTO_ENGAGES = False
 
 
 def low_stringency_pam(pam: PAM) -> PAM:
@@ -365,10 +385,10 @@ def search(
         cfd_threshold: Report a site at or above this CFD (default 0.20).
         mit_threshold: ...or at or above this MIT (default 0.10).
         use_fm_index: Force (``True``) or forbid (``False``) the FM-index
-            seed-and-extend reference path; ``None`` (default) auto-engages it per
-            region once the region reaches :data:`FM_INDEX_AUTO_THRESHOLD` bases.
-            The path returns identical hits to the linear scan (a parity test
-            pins this); it is the cached, content-addressed genome-scale path.
+            seed-and-extend reference path. ``None`` (default) takes the linear scan
+            at every size — see :data:`FM_INDEX_AUTO_ENGAGES` for the measurements
+            that removed the automatic threshold. The path returns identical hits
+            either way (a parity test pins this); what differs is only the time.
         cache: Optional cross-run :class:`OffTargetCache`. Used **only** when the
             result is a pure function of the reference — the default scorer and no
             gnomAD/haplotype/patient augmentation — so a stale entry can never be
@@ -498,9 +518,8 @@ def search(
     tagged: list[tuple[Hit, SiteProvenance]] = []
     ref_prov = SiteProvenance(origin=SiteOrigin.REFERENCE)
 
-    # Stage 1 — reference candidate search. The FM-index seed-and-extend is the
-    # genome-scale path: auto-engaged per region past FM_INDEX_AUTO_THRESHOLD
-    # bases unless the caller forces it on or off.
+    # Stage 1 — reference candidate search. The linear PAM pass is the default at
+    # every size; the FM-index seed-and-extend is opt-in (see FM_INDEX_AUTO_ENGAGES).
     # How much of the requested sequence could actually be searched. A window holding
     # an assembly gap or an IUPAC ambiguity code is not scannable, and a scan over a
     # region that is mostly gap reports the same "0 sites" as one over fully-resolved
@@ -528,7 +547,7 @@ def search(
                 **kw,
             )
         else:
-            fm = use_fm_index if use_fm_index is not None else len(seq) >= FM_INDEX_AUTO_THRESHOLD
+            fm = use_fm_index if use_fm_index is not None else FM_INDEX_AUTO_ENGAGES
             region_hits = scan_sequence(
                 region.chrom, seq, sp, scan_pam, offset=region.start, use_fm_index=fm, **kw
             )

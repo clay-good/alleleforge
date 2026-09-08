@@ -85,7 +85,7 @@ population-aware safety — in that order**; the rationale and the code that enf
 |---|---|
 | **Weight-free stubs are the CI default; real weights are opt-in** (`real_weights` marker) | The full gate (lint, type, test, docs, examples, reproduce) runs with no GPU, network, or torch, so any contributor reproduces it byte-for-byte. The consent/license/checksum flow is still exercised in CI with an **injected downloader**; only the tensor load / forward pass is gated. See [`SPEC_V2.md`](SPEC_V2.md) R1. |
 | **An unverifiable artifact is refused, never fetched** | A `null` checkpoint/dataset hash *blocks* the download by design — you cannot silently load an unpinned weight or dataset. The pin is a content hash, never a mutable tag. ([`model_zoo/loader.py`](src/alleleforge/model_zoo/loader.py), R0/R1.) |
-| **FM-index auto-engages per region past 1 Mb** (`FM_INDEX_AUTO_THRESHOLD`) | Building the index has a fixed cost that only amortizes at contig scale; below the threshold the linear PAM pass wins. The result is byte-identical either way (parity-pinned). ([`offtarget/engine.py`](src/alleleforge/offtarget/engine.py).) |
+| **The linear PAM pass is the default at every size; the FM-index is opt-in** (`FM_INDEX_AUTO_ENGAGES`) | It used to auto-engage past 1 Mb, on the grounds that the index build "only amortizes at contig scale". Measured, that is backwards: the default path was **2.7x slower at 1 Mb and 4.6x slower at 8 Mb**, and it does not amortize across guides either. The path stays, exact and parity-pinned, reached by asking (`use_fm_index=True`, or a supplied `genome_index=`). The result is byte-identical either way. ([`offtarget/engine.py`](src/alleleforge/offtarget/engine.py).) |
 | **The k-mer seed prefilter engages only when `k ≥ 5`** (`MIN_SELECTIVE_K`) | Honest micro-benchmark finding: a 4-letter alphabet saturates short k-mers, so a short seed prunes almost nothing and only adds overhead. `k ≥ 5` (low edit budget) measures ~2–4×; at the default ≤4-mismatch+bulge budget the seed is too short, so the FM-index stays the genome-scale path. ([`offtarget/_search.py`](src/alleleforge/offtarget/_search.py), R2.) |
 | **Every native kernel keeps a parity-tested pure-Python fallback; the library never *requires* the crate** | `prefer_native` selects Rust when built; CI runs the off-target engine on **both** paths. Trades raw speed-when-unbuilt for "installs and passes anywhere; native is a pure bonus." ([`SPEC_V2.md`](SPEC_V2.md) R2.) |
 | **Off-target nomination is an OR of two thresholds** (CFD ≥ 0.20 **or** MIT ≥ 0.10), and **both** scores are recorded per site | Two complementary specificity models catch different failure shapes; recording both (`OffTargetSite.mit_score`) keeps a MIT-nominated, low-CFD site auditable rather than mysteriously retained. ([`offtarget/scoring.py`](src/alleleforge/offtarget/scoring.py).) |
@@ -206,7 +206,7 @@ axes, opset 17) for portable inference (the trained forward pass and the export 
 the report footer, and captured by the reproducibility golden). R2 — **all three spec
 kernels (`bwt`/`kmer`/`haplotype`) are now on their hot paths**: a **true-linear SA-IS**
 FM-index build, a native k-mer seed kernel, **FM-index seed-and-extend wired into the engine's
-reference scan** (auto-engaged past 1 Mb, byte-identical to the linear scan), and a **native
+reference scan** (opt-in, byte-identical to the linear scan), and a **native
 haplotype-walk kernel** that materializes each common haplotype's alternative sequence (~4x, pinned
 byte-for-byte to the Python fallback). R3 — **the three external-tool adapters are now real** behind
 recorded-fixture tests: **Cas-OFFinder** (input-deck builder + legacy/bulge output parser +
@@ -473,7 +473,7 @@ flowchart TB
     SP["spacer + PAM"] --> S1
     subgraph ENG["search() — five stages"]
         direction TB
-        S1["1 · Reference scan<br/>PAM-anchored · ≤4 mismatch · ≤1 DNA + ≤1 RNA bulge · both strands<br/>FM-index seed-and-extend at genome scale (auto past 1 Mb)"]
+        S1["1 · Reference scan<br/>PAM-anchored · ≤4 mismatch · ≤1 DNA + ≤1 RNA bulge · both strands<br/>FM-index seed-and-extend available opt-in"]
         S2["2 · Population augmentation<br/>gnomAD alt-allele re-scan → de-novo PAMs / strengthened seed sites"]
         S3["3 · Haplotype walk<br/>common 1000G / HGDP haplotypes (variant combinations)<br/>native haplotype kernel materializes each alt sequence (~4x)"]
         S4["4 · Patient VCF (optional)<br/>personalize to one genome"]
@@ -530,9 +530,14 @@ attribute a site's burden to a population that merely shows a trace, sub-thresho
 > content-addressed FM-index (`search(..., use_fm_index=...)`): each concrete PAM is *located* in the
 > index (the PAM is the seed) and only those anchors are *extended* by the shared alignment, replacing
 > the linear `O(n)` PAM pass. It returns **byte-identical hits** to the brute-force scan — pinned by a
-> randomized parity test at both the `scan_sequence` and `search` levels — and **auto-engages per
-> region past 1 Mb** (`FM_INDEX_AUTO_THRESHOLD`), so genome-scale contigs take the indexed path while
-> small inputs stay on the linear scan.
+> randomized parity test at both the `scan_sequence` and `search` levels.
+>
+> It is **opt-in**, and was not always: it engaged itself past 1 Mb until that threshold was measured
+> rather than reasoned about. On this machine the default path was 2.7x slower at 1 Mb, 2.7x at 2 Mb
+> and 4.6x at 8 Mb — diverging with size rather than converging, and no better across five guides
+> sharing one contig. `scripts/native_speedup.py` had been printing `SLOWER` for the pair all along.
+> Ask for it with `use_fm_index=True` or a prebuilt `genome_index=`; the hits are identical either way,
+> so the only thing at stake is time.
 
 ### Reference bias, reproduced
 
@@ -592,7 +597,7 @@ dropped.
 
 > The genome-scale search is the FM-index seed-and-extend path (native Rust `bwt` kernel when built, a
 > *correct* pure-Python FM-index otherwise — byte-identical, pinned by parity tests; CI never blocks on
-> the native build). It is wired into the engine's reference scan and auto-engages on large contigs.
+> the native build). It is wired into the engine's reference scan, opt-in (see `FM_INDEX_AUTO_ENGAGES`).
 
 ### External-tool adapters (R3)
 

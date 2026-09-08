@@ -161,10 +161,11 @@ dead code.
   FM-index (the PAM is the seed) and only those anchors are *extended* by the
   shared alignment, replacing the linear `O(n)` PAM pass. It returns
   byte-identical hits to the brute-force scan (pinned by a randomized parity test
-  on both the low-level scan and the engine report), and **auto-engages per
-  region** past `FM_INDEX_AUTO_THRESHOLD` (1 Mb) so genome-scale contigs take the
-  indexed path while small inputs stay on the linear scan. The persistent,
-  memory-mapped whole-genome variant of this index is R4's `GenomeIndex`.
+  on both the low-level scan and the engine report). It is **opt-in**
+  (`FM_INDEX_AUTO_ENGAGES`); it auto-engaged past 1 Mb until that was measured — 2.7x
+  slower at 1 Mb, 4.6x at 8 Mb — so the linear PAM pass is the default at every size.
+  The persistent, memory-mapped whole-genome variant of this index is R4's
+  `GenomeIndex`, which a caller reaches by supplying `genome_index=`.
 - **`haplotype` kernel (◐ landed).** A native Rust haplotype-walk kernel
   (`haplotype.rs`: `haplotype_apply_variants`) + pure-Python fallback
   (`offtarget._haplotype`) wired into the haplotype off-target engine

@@ -120,7 +120,7 @@ engine searches three site origins:
 
 1. **Reference** — FM-index seed-and-extend (each concrete PAM is *located* in the
    index and only those anchors are *extended* by the shared alignment), which
-   auto-engages on contigs above a 1 Mb threshold and is byte-identical to the
+   is opt-in (it auto-engaged above 1 Mb until measurement showed that slower) and is byte-identical to the
    linear brute-force scan (pinned by a randomized parity test).
 2. **Population** — variants from gnomAD (and equivalents) are applied so that
    off-targets *created or destroyed by* common variation are searched, not just
