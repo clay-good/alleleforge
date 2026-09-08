@@ -210,8 +210,19 @@ def _summarize(menu: RankedMenu) -> dict[str, Any]:
         # The recommended candidate's hazards, so a triage scan surfaces the rows that
         # need a closer look rather than only the ones with a poor number.
         "best_caveats": ([flag for flag, _ in caveats(best.flags)] if best is not None else []),
+        # With its interval, like `best_efficiency` two fields up and for the same
+        # stated reason: "every numeric prediction carries a calibrated interval, never
+        # a bare float". `bystander_burden` is a `Prediction[float]` too, and this row
+        # kept the point estimate and dropped the envelope — the rule applied to one
+        # column of a triage table and not to its neighbour.
         "best_bystander_burden": (
             best.bystander_burden.value if best and best.bystander_burden else None
+        ),
+        "best_bystander_burden_low": (
+            best.bystander_burden.interval[0] if best and best.bystander_burden else None
+        ),
+        "best_bystander_burden_high": (
+            best.bystander_burden.interval[1] if best and best.bystander_burden else None
         ),
         # Which safety sources actually contributed for this variant. A cohort is where
         # a per-item difference hides: one variant screened against a haplotype panel

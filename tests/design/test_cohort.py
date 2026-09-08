@@ -60,9 +60,17 @@ def test_designs_cohort_and_summarizes(reference: ReferenceGenome) -> None:
     # The cohort summary carries the best candidate's aggregate specificity for triage.
     spec = best.summary["best_specificity"]
     assert spec is None or 0.0 < spec <= 1.0
-    # ...and, for base-editor cohorts, the best candidate's bystander burden.
+    # ...and, for base-editor cohorts, the best candidate's bystander burden — with its
+    # interval, because `bystander_burden` is a calibrated `Prediction` and this row
+    # carried only the point estimate while `best_efficiency` beside it carried the
+    # envelope. One column of a triage table followed the never-a-bare-float rule and
+    # its neighbour did not.
     burden = best.summary["best_bystander_burden"]
     assert burden is not None and burden >= 0.0
+    low = best.summary["best_bystander_burden_low"]
+    high = best.summary["best_bystander_burden_high"]
+    assert low is not None and high is not None, best.summary
+    assert low <= burden <= high, (low, burden, high)
 
 
 def test_per_item_error_is_captured_not_fatal(reference: ReferenceGenome) -> None:

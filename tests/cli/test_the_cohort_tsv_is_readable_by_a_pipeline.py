@@ -35,6 +35,8 @@ def _row(**overrides: object) -> dict[str, object]:
         "best_caveats": ["pol3-terminator", "gc-out-of-band:0.20"],
         "offtarget_sources": {},
         "best_bystander_burden": 0.0,
+        "best_bystander_burden_low": 0.0,
+        "best_bystander_burden_high": 0.1,
         "worst_offtarget": None,
         "best_specificity": 0.9507042253989784,
         "n_candidates": 1,

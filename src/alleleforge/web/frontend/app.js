@@ -264,6 +264,24 @@ function renderBatch(data) {
       // (the status line above says which), so this reads "reference-only" for a
       // deployment that has none rather than for the web shell as such. Either way an
       // empty ancestry picture means "not measured", not "clean".
+      // What a clinical database asserts, when one did. This is the reason a row was
+      // requested by accession rather than by coordinates, and it reached the CLI's
+      // summary table and the API response while the page — the audience with no
+      // terminal to fall back to — had no column for it.
+      const clinical = cell(s.clinical_significance);
+      // Never a bare estimate — the rule this table already follows for efficiency, and
+      // `bystander_burden` is a calibrated prediction too. It is the unintended-edit
+      // burden of the recommended reagent, which is exactly what a triage scan is for.
+      let bystander = "—";
+      if (typeof s.best_bystander_burden === "number") {
+        bystander = s.best_bystander_burden.toFixed(2);
+        if (
+          typeof s.best_bystander_burden_low === "number" &&
+          typeof s.best_bystander_burden_high === "number"
+        ) {
+          bystander += ` [${s.best_bystander_burden_low.toFixed(2)}, ${s.best_bystander_burden_high.toFixed(2)}]`;
+        }
+      }
       const worst = typeof s.worst_offtarget === "number" ? s.worst_offtarget.toFixed(3) : "—";
       const spec =
         typeof s.best_specificity === "number" ? s.best_specificity.toFixed(3) : "—";
@@ -276,19 +294,19 @@ function renderBatch(data) {
       const caveats = flagged.length ? `<span class="err">${flagged.map(esc).join(", ")}</span>` : "—";
       const detail =
         it.status === "ok"
-          ? `<td>${cell(s.best_chemistry)}</td><td>${eff}</td><td>${worst}</td><td>${spec}</td><td>${basis}</td><td>${caveats}</td><td>${cell(s.n_candidates)}</td>`
-          : `<td colspan="7" class="err">${cell(it.error)}</td>`;
+          ? `<td>${cell(s.best_chemistry)}</td><td>${eff}</td><td>${bystander}</td><td>${worst}</td><td>${spec}</td><td>${basis}</td><td>${caveats}</td><td>${cell(s.n_candidates)}</td>`
+          : `<td colspan="8" class="err">${cell(it.error)}</td>`;
       // The first column was headed "variant" and held `item_id` — the string that was
       // typed. Normalization moves an indel under left-alignment, and an accession or an
       // rsID names no locus at all, so the header was making a claim the cell could not
       // keep. Input and resolved variant are two columns now, as they are in the TSV.
-      return `<tr class="${it.status}"><td>${esc(it.item_id)}</td><td>${cell(s.variant)}</td><td>${it.status}</td>${detail}</tr>`;
+      return `<tr class="${it.status}"><td>${esc(it.item_id)}</td><td>${cell(s.variant)}</td><td>${clinical}</td><td>${it.status}</td>${detail}</tr>`;
     })
     .join("");
   batchResults.innerHTML = `
     <table class="results">
-      <thead><tr><th>input</th><th>variant</th><th>status</th><th>best</th><th>efficiency</th>
-        <th>worst off-target</th><th>specificity</th><th>off-target basis</th>
+      <thead><tr><th>input</th><th>variant</th><th>ClinVar</th><th>status</th><th>best</th><th>efficiency</th>
+        <th>bystander burden</th><th>worst off-target</th><th>specificity</th><th>off-target basis</th>
         <th>caveats</th><th>candidates</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
