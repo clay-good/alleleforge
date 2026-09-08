@@ -12566,3 +12566,33 @@ validation on that path is a boot decision.**
 **And: audit your own recent work against the rules the surrounding file already states.
 The paragraph I needed was thirty lines away in the file I was editing.**
 
+## Round 389 — a flag's default outranked the environment for 380 rounds
+
+Threw malformed values at every variable in the deployment guide's settings table. Three
+were boot-fatal with a raw pydantic traceback — and pydantic names the model *field*, so an
+operator who sets `ALLELEFORGE_SEED` is told about `seed`. The one string a reader could
+search for, the one in the settings table, is the one string the message omitted. That
+lands in a container log, because `alleleforge.web.api.app` builds its app at module scope,
+and it was the entire diagnosis available. On the command line it exited `1`, the code this
+CLI reserves for a defect in itself, for a mistake in the caller's environment.
+
+Fixing the message is how the real one surfaced. With a bad `ALLELEFORGE_SEED` the CLI
+*succeeded* — because `--seed` carried the default seed as its **default value**, and that
+default was passed to `Settings.load` as an override. Overrides outrank the environment,
+correctly, for a value the caller actually typed; a flag's default is not that. So the
+documented variable changed nothing on any `aforge design` or `batch` run, every result
+stamped 20240501 into its provenance whatever the operator set, and the library honoured
+it all along — the divergence invisible unless you compared the two.
+
+Kept fatal on purpose. A missing *path* has an honest degraded mode and is recorded rather
+than raised ("no genome, here is why"); a seed does not. Substituting the default would
+stamp every result with a number nobody chose, and the reproducibility claim rests on it.
+
+**Lesson: a default is not a decision. Wherever precedence is documented as
+"defaults < file < environment < explicit", check what the CLI actually passes — a
+non-`None` default on a flag silently promotes itself to the top of that order and
+disables every layer beneath it.**
+
+**And: fixing an error message is a probe. Making the failure legible is what made the
+succeeding case visible as wrong.**
+
