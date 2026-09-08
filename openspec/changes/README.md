@@ -12448,3 +12448,35 @@ a stale primary metric in a benchmark table is a false statement about how model
 compared, in the document written to be cited. And a docstring that names its own weakness
 is a to-do nobody filed.**
 
+## Round 385 — the ancestry axis reported the one statistic that cannot vary by ancestry
+
+Ran the project's flagship scientific claim — the BCL11A reference-bias reproduction —
+from the CLI, and read the output as a user. It reproduces: a reference-only scan reports
+0 sites at specificity 1.000, and the population-aware scan nominates the de-novo-PAM site
+at score 1.000, specificity 0.500, ancestry-stratified. Then this line:
+
+    worst off-target score by ancestry: afr 1.000, amr 1.000, nfe 1.000
+
+`ancestry_stratification()` reports the worst-case CFD score per ancestry, and a CFD score
+does not depend on ancestry — only on the sequence. So the axis the whole population-aware
+search exists to expose is flat, over carrying frequencies of 0.105, 0.012 and 0.001. A
+reader takes three identical numbers as risk spread evenly across populations, which is the
+opposite of the published finding and of the site line printed directly beneath it.
+
+The blindness was already named one method up: `expected_burden`'s docstring says it
+"separates a rare-variant off-target from a universal one, which the frequency-blind
+`worst_score` and `specificity_score` cannot". The ancestry axis was reported with the
+frequency-blind statistic. `ancestry_expected_burden()` is the weighted companion, on every
+surface that already showed the score, and it is *added* rather than substituted:
+`worst_ancestry` still drives the ranking safety axis untouched.
+
+A vacuous test caught in the act, worth recording: the first fixture for "an unattributed
+site counts for every ancestry" used a contig where the reference already carried the PAM,
+which leaves no population site, no annotated ancestries, and an empty mapping the
+assertions then ranged over. It survived the mutation. Rebuilt from two sites directly.
+
+**Lesson: when a project reports a per-stratum breakdown, check that the statistic it
+breaks down CAN vary by stratum. A number that is constant across the axis it is grouped
+by is not a stratification, it is a table that looks like one — and it reads as evidence of
+uniformity, which is the strongest possible claim to make by accident.**
+
