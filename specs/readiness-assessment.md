@@ -23,15 +23,23 @@ not the real published models the README compares against. Build scientific subs
 - **The framework itself**: typed core, honest uncertainty contract, reproducible-
   to-the-byte runs, content-addressed benchmark harness, consent/license/checksum
   model-zoo gate, CLI + web + native Rust parity. All verified green:
-  - `ruff` clean; `mypy --strict` clean (103 files)
-  - 2,871 tests pass, 4 skipped, **97.6% coverage** (gate 85%)
+  - `ruff` clean; `mypy --strict` clean (**103** source files)
+  - the full suite passes, with coverage above the **85%** gate. No absolute test
+    count is stated here: it changes with almost every commit, so a number written
+    down is a number already wrong, and "the suite passes" is the claim that matters.
+    The numbers this section *does* give are the ones a test derives from the
+    repository and compares — see
+    [`tests/test_the_readiness_numbers_are_derived.py`](../tests/test_the_readiness_numbers_are_derived.py).
   - `mkdocs build --strict` clean; `scripts/figures.py` regenerates the committed
     figures byte-identically; `scripts/reproduce.py` matches golden — and that last
     one is now checked by the test suite, having been false when this line was
     written and true only of a CI job nobody reads locally
-  - 4 example notebooks pass; native crate builds, `cargo fmt`/`clippy` clean
-  - The 4 skips are the real-weight tests, which need `ALLELEFORGE_REAL_WEIGHTS=1`
-    (they reach outside the repository). The 17 native-kernel parity tests that used
+  - **4** example notebooks pass; native crate builds, `cargo fmt`/`clippy` clean, and
+    CI runs the whole suite against the installed crate rather than only the
+    `native`-marked tests — the configuration the docs recommend was otherwise
+    exercised nowhere
+  - The skips are the real-weight tests, which need `ALLELEFORGE_REAL_WEIGHTS=1`
+    (they reach outside the repository). The native-kernel parity tests that used
     to skip here now run: the installed extension was stale, which the version
     handshake could not detect, and a build that lacks a registered kernel is now
     reported rather than skipped.
