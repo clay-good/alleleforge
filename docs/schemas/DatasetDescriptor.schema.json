@@ -18,6 +18,11 @@
       "default": null,
       "title": "Bundled Path"
     },
+    "caller_supplied": {
+      "default": false,
+      "title": "Caller Supplied",
+      "type": "boolean"
+    },
     "citation": {
       "anyOf": [
         {

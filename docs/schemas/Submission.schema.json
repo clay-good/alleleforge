@@ -93,8 +93,13 @@
       "type": "object"
     },
     "DatasetVersion": {
-      "description": "A versioned, license-aware dataset descriptor.\n\nAttributes:\n    name: Dataset identifier (e.g. ``\"gnomad\"``).\n    version: Pinned dataset version (e.g. ``\"v4.1\"``).\n    source_url: Where the dataset is fetched from.\n    license: The dataset's license identifier.\n    sha256: Content hash of the pinned artifact.\n    citation: Literature citation for the dataset.\n    redistributable: Whether AlleleForge may vendor this dataset.",
+      "description": "A versioned, license-aware dataset descriptor.\n\nAttributes:\n    name: Dataset identifier (e.g. ``\"gnomad\"``).\n    version: Pinned dataset version (e.g. ``\"v4.1\"``).\n    source_url: Where the dataset is fetched from.\n    license: The dataset's license identifier.\n    sha256: Content hash of the pinned artifact.\n    citation: Literature citation for the dataset.\n    redistributable: Whether AlleleForge may vendor this dataset.\n    caller_supplied: Whether these bytes came from a file the caller pointed at\n        (``--gnomad``, ``--clinvar``, a haplotype panel) rather than from the\n        registry. It changes what a *reader* can do with the pin: a registry\n        dataset can be re-hashed from the cache or the bundle, and one of these\n        cannot, because the bytes live on the caller's own disk. Reporting the two\n        identically made \"we could not find it here\" indistinguishable from \"you\n        have not fetched it yet\", and only the second has a remedy.",
       "properties": {
+        "caller_supplied": {
+          "default": false,
+          "title": "Caller Supplied",
+          "type": "boolean"
+        },
         "citation": {
           "anyOf": [
             {

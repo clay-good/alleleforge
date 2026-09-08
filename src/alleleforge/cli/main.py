@@ -799,7 +799,15 @@ def _describe_source(path: Path, name: str) -> DatasetVersion:
     provenance block is that a result can be re-derived from it.
     """
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    return DatasetVersion(name=name, version=f"sha256:{digest[:12]}", sha256=digest)
+    return DatasetVersion(
+        name=name,
+        version=f"sha256:{digest[:12]}",
+        sha256=digest,
+        # Marked, because the pin means something different for a reader: nothing in a
+        # cache or a bundle holds these bytes, so `verify` cannot re-hash them and must
+        # not report them as an artifact the reader could go and fetch.
+        caller_supplied=True,
+    )
 
 
 _T = TypeVar("_T")
@@ -2372,6 +2380,14 @@ def verify(
             if ds.sha256 is None:
                 checks.append(_check("dataset", label, "unpinned"))
                 continue
+            if ds.caller_supplied:
+                # The bytes are on the caller's disk — a file they named with
+                # `--gnomad`/`--clinvar`/`--haplotypes`. No cache and no bundle holds
+                # them, so looking there and reporting `not-cached` offered a remedy
+                # ("fetch it") that is false for this row: nothing is fetchable. The
+                # check the reader *can* run is against their own copy.
+                checks.append(_check("dataset", label, "caller-supplied"))
+                continue
             if ds.name not in DEFAULT_REGISTRY:
                 # No known cache layout to locate the bytes; report rather than pass.
                 checks.append(_check("dataset", label, "unknown"))
@@ -2451,6 +2467,13 @@ def verify(
             f"  NOTE: re-hashed {n_ok} of {len(checks)} artifact(s). Nothing was "
             f"established about the rest: {unchecked}."
         )
+        if any(c["status"] == "caller-supplied" for c in checks):
+            human.append(
+                "  A caller-supplied source cannot be re-hashed from a cache — the "
+                "bytes are on your disk. Check it yourself by comparing your file's "
+                "SHA-256 (`sha256sum`, or `shasum -a 256` on macOS) with the sha256 "
+                "recorded in this provenance."
+            )
     _emit(payload, as_json=as_json, human="\n".join(human))
     if problems:
         raise typer.Exit(ExitCode.UNAVAILABLE)

@@ -119,3 +119,61 @@ def test_a_run_that_hashed_nothing_still_says_nothing_was_established(
     text = CliRunner().invoke(app, argv).output
     assert "NOTE" in text, text
     assert "re-hashed 1 of" not in text, text
+
+
+def test_a_caller_supplied_source_is_not_reported_as_merely_uncached(
+    tmp_path: Path,
+) -> None:
+    """`not-cached` offered a remedy that is false for this row.
+
+    A file the caller named (`--gnomad`, `--clinvar`, a haplotype panel) is pinned by
+    content hash like any other dataset, and `verify --cache-dir` went looking for it in
+    the registry cache — where it can never be, because the bytes are on the caller's own
+    disk. Reported as `not-cached` it read as "you have not fetched it yet", which is a
+    remedy for a different row: nothing is fetchable here. The check the reader *can* run
+    is against their own copy, and the note says so.
+    """
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    sidecar = _sidecar(
+        tmp_path,
+        datasets=(
+            _bundled_dataset(),
+            DatasetVersion(
+                name="clinvar", version="sha256:abc", sha256="a" * 64, caller_supplied=True
+            ),
+        ),
+    )
+    _, text, payload = _run(sidecar, cache)
+    assert "  dataset clinvar.sha256:abc: caller-supplied" in text, text
+    assert "not-cached" not in text, text
+    assert "on your disk" in text and "SHA-256" in text, text
+    statuses = {c["artifact"]: c["status"] for c in payload["checkpoint_checks"]}  # type: ignore[union-attr]
+    assert statuses["clinvar.sha256:abc"] == "caller-supplied"
+
+
+def test_the_rendered_provenance_marks_a_caller_supplied_dataset(tmp_path: Path) -> None:
+    """A second reader for the flag: printing both pins the same way makes them one kind.
+
+    A registry dataset is re-checkable from the bundle or the cache; reproducing a result
+    that used a caller-supplied source means obtaining that same file. The footer every
+    render shares has to keep them apart.
+    """
+    from alleleforge.report.builder import provenance_lines
+    from alleleforge.types.provenance import Provenance
+
+    provenance = Provenance(
+        alleleforge_version="0.0.0",
+        reference_build="hg38",
+        seed=1,
+        timestamp=datetime(2026, 1, 1, tzinfo=UTC),
+        config_snapshot={"intent": "correct"},
+        datasets=(
+            _bundled_dataset(),
+            DatasetVersion(name="clinvar", version="sha256:abc", caller_supplied=True),
+        ),
+    )
+    (line,) = [ln for ln in provenance_lines(provenance) if ln.startswith("datasets:")]
+    assert "clinvar sha256:abc (supplied by the caller)" in line, line
+    assert "doench-2016-cfd 2016," in line or line.endswith("doench-2016-cfd 2016"), line
+    assert "doench-2016-cfd 2016 (supplied" not in line, line

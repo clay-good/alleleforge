@@ -735,7 +735,18 @@ def provenance_lines(provenance: Provenance | None) -> list[str]:
     # applied. A footer that names the models and not the data says which code ran but
     # not what it ran on, and "population-aware" is a claim about the data.
     if provenance.datasets:
-        lines.append("datasets: " + ", ".join(f"{d.name} {d.version}" for d in provenance.datasets))
+        # A caller-supplied source is marked, because the reader's next step differs.
+        # A registry dataset is re-checkable from the bundle or the cache — `aforge
+        # verify --cache-dir` does it — while these bytes came off whoever ran this,
+        # so reproducing the result means obtaining that same file. Printed
+        # identically, the two read as one kind of pin.
+        lines.append(
+            "datasets: "
+            + ", ".join(
+                f"{d.name} {d.version}" + (" (supplied by the caller)" if d.caller_supplied else "")
+                for d in provenance.datasets
+            )
+        )
     if provenance.tools:
         lines.append("tools: " + ", ".join(f"{t.name} {t.version}" for t in provenance.tools))
     return lines

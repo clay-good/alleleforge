@@ -36,6 +36,13 @@ class DatasetVersion(BaseModel):
         sha256: Content hash of the pinned artifact.
         citation: Literature citation for the dataset.
         redistributable: Whether AlleleForge may vendor this dataset.
+        caller_supplied: Whether these bytes came from a file the caller pointed at
+            (``--gnomad``, ``--clinvar``, a haplotype panel) rather than from the
+            registry. It changes what a *reader* can do with the pin: a registry
+            dataset can be re-hashed from the cache or the bundle, and one of these
+            cannot, because the bytes live on the caller's own disk. Reporting the two
+            identically made "we could not find it here" indistinguishable from "you
+            have not fetched it yet", and only the second has a remedy.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -47,6 +54,7 @@ class DatasetVersion(BaseModel):
     sha256: str | None = None
     citation: str | None = None
     redistributable: bool = False
+    caller_supplied: bool = False
 
 
 class ModelCheckpoint(BaseModel):
