@@ -276,9 +276,27 @@ _RESUME_CRITICAL = (
     "seed",
     "reference_build",
     "reference",
+    "reference_file",
     "intent",
     "inputs",
 )
+
+
+def _reference_file_digest(reference: ReferenceGenome | None) -> str | None:
+    """Return an opaque, machine-local digest of the reference file's identity.
+
+    ``None`` when there is no run-wide reference (the parallel path opens one per
+    worker) or the file cannot be stat'd, in which case the comparison falls back to the
+    shape — no worse than before, and every ordinary run is safer.
+    """
+    if reference is None:
+        return None
+    try:
+        stat = Path(reference.path).resolve().stat()
+    except OSError:
+        return None
+    parts = f"{Path(reference.path).resolve()}|{stat.st_size}|{stat.st_mtime_ns}"
+    return hashlib.sha256(parts.encode()).hexdigest()[:12]
 
 
 def _input_descriptors(design_kwargs: dict[str, Any]) -> list[dict[str, Any]]:
@@ -321,6 +339,8 @@ def _render(key: str, value: Any) -> str:
     """
     if key == "inputs" and isinstance(value, list):
         return ", ".join(f"{d.get('name')} {d.get('version')}" for d in value) or "nothing"
+    if key == "reference_file":
+        return f"file {value}" if value else "no run-wide reference"
     if key == "reference" and isinstance(value, dict):
         return f"{value.get('contigs')} contig(s), sha {str(value.get('sha256'))[:8]}"
     return repr(value)
@@ -357,6 +377,16 @@ def _refuse_a_mismatched_resume(manifest_path: Path, provenance: dict[str, Any])
             + "\n  ".join(differing)
             + "\nRe-run with resume disabled (`--no-resume`) to design every item under "
             "these inputs, or point --manifest at a new file."
+            # The innocent cause is common enough to name: a genome moved, re-copied or
+            # re-downloaded is a different file to this check even when its bytes are
+            # identical, and a reader should not go looking for corrupted data.
+            + (
+                "\n(`reference_file` is an identity, not a checksum of the bases: a "
+                "genome moved, re-copied or re-downloaded reads as a different file "
+                "even when its bytes are identical.)"
+                if all(d.startswith("reference_file:") for d in differing)
+                else ""
+            )
         )
 
 
@@ -455,6 +485,14 @@ def design_many(
         # against. `None` under the parallel path, where the reference is opened
         # per worker and there is no run-wide one to describe.
         "reference": None if reference is None else _reference_snapshot(reference),
+        # The snapshot pins contig names and lengths, deliberately and by its own
+        # statement — it is a *shareable* descriptor, so it cannot carry a local path
+        # and cannot afford to hash a genome. Two FASTAs of one shape therefore have one
+        # snapshot, which is the weakness that let a warm off-target cache serve one
+        # genome's report for another. A resume decision is local to this machine, so it
+        # can compare more: an opaque digest of the file's identity, which leaks no path
+        # into an artifact and still tells the two files apart.
+        "reference_file": _reference_file_digest(reference),
         "intent": intent.value,
         # The result-determining *data* this run was given, named up front rather than
         # observed at the end: a resume has to compare them before it decides what to

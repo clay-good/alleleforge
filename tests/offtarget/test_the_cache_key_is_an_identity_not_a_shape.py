@@ -110,3 +110,22 @@ def test_a_genome_edited_in_place_is_a_different_key(tmp_path: Path) -> None:
     after = ReferenceGenome(fasta, build="hg38")
     assert after.contig_length("chr1") == before.contig_length("chr1")
     assert reference_key(after) != key_before
+
+
+def test_an_unstattable_reference_degrades_to_the_old_key_rather_than_failing(
+    tmp_path: Path,
+) -> None:
+    """The identity is a strengthening, not a new requirement.
+
+    A reference whose file cannot be stat'd — deleted after opening, an exotic mount —
+    must still produce a key. It falls back to the shape, which is where it was before,
+    so an unusual deployment is no worse off and every ordinary one is safer.
+    """
+    fasta = tmp_path / "g.fa"
+    reference = _reference(fasta, "ACGT" * 500)
+    with_file = reference_key(reference)
+    fasta.unlink()
+    (tmp_path / "g.fa.fai").unlink(missing_ok=True)
+    without_file = reference_key(reference)
+    assert without_file[:2] == with_file[:2], (without_file, with_file)
+    assert without_file[2] == []

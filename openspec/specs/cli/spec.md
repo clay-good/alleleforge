@@ -454,8 +454,8 @@ cannot re-run the item by hand to find out.
 
 Resume is keyed on `item_id`, which identifies the *request*. A run SHALL refuse to
 resume a manifest whose header records different result-determining inputs — the
-AlleleForge version, the seed, the reference build and shape, the intent, or the data
-sources the run was handed — because reusing results computed under other inputs makes
+AlleleForge version, the seed, the reference build, shape *and file*, the intent, or
+the data sources the run was handed — because reusing results computed under other inputs makes
 the artifact a mixture of two runs while reporting success.
 
 The refusal SHALL name what differs, in a form a reader can act on rather than a dump of
@@ -466,6 +466,19 @@ new inputs, or writing to a new manifest. A manifest with no header SHALL stay r
 - **WHEN** a cohort resumes a manifest written against a different ClinVar release
 - **THEN** it is refused, naming both releases, rather than reporting every item as
   already done
+
+The reference's *shape* is not enough here for the reason it is not enough in a cache
+key: two FASTAs can share a build and every contig length while differing in their bases.
+The shareable snapshot cannot be strengthened — it must carry no local path and cannot
+hash a genome — so the resume decision, which is local to one machine, compares an opaque
+digest of the file's identity as well, and the refusal names the innocent cause (a genome
+moved or re-copied) rather than leaving a reader to suspect their data.
+
+#### Scenario: A second genome of the same shape
+- **WHEN** a cohort resumes a manifest written against a different FASTA that shares the
+  build and every contig length
+- **THEN** it is refused, and the refusal says a re-copied genome reads as a different
+  file even when its bytes are identical
 
 #### Scenario: The same inputs
 - **WHEN** the inputs match the manifest header

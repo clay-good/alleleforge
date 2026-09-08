@@ -131,3 +131,71 @@ def test_a_manifest_with_no_header_is_still_resumable(
     manifest.write_text(json.dumps({"item_id": "VCV000000012", "status": "ok"}) + "\n")
     report = _run(reference, manifest, _release(tmp_path, "a", 103, "G", "A"))
     assert report.skipped == 1  # type: ignore[attr-defined]
+
+
+def test_an_empty_manifest_file_is_not_a_refusal(
+    reference: ReferenceGenome, tmp_path: Path
+) -> None:
+    """A run killed before its first write leaves exactly this."""
+    manifest = tmp_path / "run.jsonl"
+    manifest.write_text("")
+    report = _run(reference, manifest, _release(tmp_path, "a", 103, "G", "A"))
+    assert report.succeeded == 1  # type: ignore[attr-defined]
+
+
+def test_a_corrupt_first_line_still_reaches_the_corrupt_manifest_refusal(
+    reference: ReferenceGenome, tmp_path: Path
+) -> None:
+    """Reading the header leniently must not weaken the check after it.
+
+    `_run_header` shrugs at a first line it cannot parse, because a manifest without a
+    header is legitimate. That must not turn a *corrupt* manifest into a silently
+    header-less one: skipping a bad line would silently recompute or silently drop an
+    item, which is what the reader refuses on.
+    """
+    manifest = tmp_path / "run.jsonl"
+    manifest.write_text("{not json\n" + json.dumps({"item_id": "x", "status": "ok"}) + "\n")
+    with pytest.raises(ValueError, match="corrupt"):
+        _run(reference, manifest, _release(tmp_path, "a", 103, "G", "A"))
+
+
+def test_a_second_genome_of_the_same_shape_is_caught(tmp_path: Path) -> None:
+    """The weakness the off-target cache key had, one layer up.
+
+    `_reference_snapshot` pins contig names and lengths and says so: it is a *shareable*
+    descriptor, so it cannot carry a local path or afford to hash a genome. Two FASTAs of
+    one shape share it — which is exactly the case that let a warm cache serve one
+    genome's off-target report for another. A resume decision is local to this machine,
+    so it compares an opaque digest of the file's identity as well.
+    """
+    first = tmp_path / "one.fa"
+    first.write_text(">chr9\n" + _SEQ + "\n")
+    second = tmp_path / "two.fa"
+    second.write_text(">chr9\n" + _SEQ[:-4] + "TTTT\n")
+    manifest = tmp_path / "run.jsonl"
+    release = _release(tmp_path, "a", 103, "G", "A")
+    _run(ReferenceGenome(first, build="hg38"), manifest, release)
+    with pytest.raises(ValueError) as excinfo:
+        _run(ReferenceGenome(second, build="hg38"), manifest, release)
+    message = str(excinfo.value)
+    assert "reference_file:" in message, message
+    # The innocent cause is named, so a reader does not go looking for corrupted data.
+    assert "re-copied or re-downloaded" in message, message
+
+
+def test_a_genome_of_a_different_shape_is_reported_readably(tmp_path: Path) -> None:
+    """The `reference` field is structured too, and gets the same rendering treatment."""
+    first = tmp_path / "one.fa"
+    first.write_text(">chr9\n" + _SEQ + "\n")
+    second = tmp_path / "two.fa"
+    second.write_text(">chr9\n" + _SEQ + "ACGT\n")
+    manifest = tmp_path / "run.jsonl"
+    release = _release(tmp_path, "a", 103, "G", "A")
+    _run(ReferenceGenome(first, build="hg38"), manifest, release)
+    with pytest.raises(ValueError) as excinfo:
+        _run(ReferenceGenome(second, build="hg38"), manifest, release)
+    message = str(excinfo.value)
+    assert "reference: manifest has 1 contig(s), sha " in message, message
+    assert "'contigs':" not in message, message
+    # Two fields differ here, so the reference-file-only note must NOT appear.
+    assert "re-copied or re-downloaded" not in message, message

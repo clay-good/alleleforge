@@ -111,3 +111,47 @@ def test_the_env_value_all_enables_every_one(
     monkeypatch.setenv("ALLELEFORGE_TRAINED_MODELS", "1")
     client = TestClient(create_app(reference=reference))
     assert client.get("/api/health").json()["trained_models"] == _FIELDS
+
+
+def test_the_operator_can_enable_a_subset_by_name_from_the_environment(
+    reference: ReferenceGenome, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The comma-separated form is what an operator with one checkout actually sets.
+
+    Only `1` and the typo case were exercised, and this is the branch a deployment
+    reaches: BE-DICT checked out and DeepPrime not is an ordinary state, and enabling
+    "all four" there would advertise two models the deployment cannot run.
+    """
+    monkeypatch.setenv("ALLELEFORGE_TRAINED_MODELS", " trained_outcome , trained_prime ")
+    client = TestClient(create_app(reference=reference))
+    assert client.get("/api/health").json()["trained_models"] == [
+        "trained_outcome",
+        "trained_prime",
+    ]
+
+
+def test_a_model_enabled_but_not_installable_here_is_a_503_not_a_422(
+    reference: ReferenceGenome, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The operator said yes and the deployment cannot deliver: that is not the client's fault.
+
+    Reached by making the adapter fail to *construct*. The shipped adapters all construct
+    lazily and fail at weight-load time, where a failure degrades exactly as it does on
+    the CLI — so this branch is for the case a model card's licence gate refuses the use,
+    and it had no test because nothing in this environment raises there.
+    """
+    import alleleforge.scoring.cas9_outcome as outcome
+    from alleleforge.errors import MissingDependencyError
+
+    def _refuse(**_: object) -> object:
+        raise MissingDependencyError("needs a Lindel checkout")
+
+    monkeypatch.setattr(outcome, "LindelAdapter", _refuse)
+    client = TestClient(create_app(reference=reference, trained_models=["trained_outcome"]))
+    response = client.post(
+        "/api/design",
+        json={"variant": "chr1:103:G>A", "run_offtarget": False, "trained_outcome": True},
+    )
+    assert response.status_code == 503, response.text
+    detail = response.json()["detail"]
+    assert "trained_outcome" in detail and "Lindel checkout" in detail, detail
