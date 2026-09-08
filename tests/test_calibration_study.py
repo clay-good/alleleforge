@@ -72,3 +72,44 @@ def test_the_report_says_its_numbers_are_synthetic() -> None:
         assert row["synthetic"] is True  # the shipped fixtures really are stand-ins
     # ...and the per-row label, so a future real corpus is visibly different.
     assert "| synthetic |" in report
+
+
+def test_the_preprints_conformal_table_is_the_script_s_output() -> None:
+    """The most citable artifact in the repository carries a hand-copied copy.
+
+    `docs/paper/preprint.md` prints the conformal recalibration table inline, above a
+    sentence asserting what it shows ("the recalibrated coverage meets the target at both
+    levels"). Nothing compared those digits to `conformal_demo()`, so the numbers a reader
+    would cite were a second copy of a computed result with nothing keeping it true.
+
+    Preventive rather than corrective: the table is correct today. This project's rule for
+    a preventive check is that it must be mutation-verified, since nothing has ever shown
+    it works — flipping any digit in the preprint fails this.
+
+    The claim above the table is checked too. A table that drifts is a nuisance; a table
+    that stops supporting the sentence introducing it is a false scientific claim.
+    """
+    import re
+    from pathlib import Path
+
+    preprint = (Path(__file__).resolve().parents[1] / "docs" / "paper" / "preprint.md").read_text(
+        encoding="utf-8"
+    )
+    section = preprint[preprint.index("Split-conformal recalibration restores coverage") :]
+    rows = re.findall(r"^\| (0\.\d+) \| ([\d.]+) \| ([\d.]+) \| ([\d.]+) \|$", section, re.M)
+    assert rows, "the preprint no longer prints the conformal table"
+
+    computed = {r["level"]: r for r in calibration_study.conformal_demo()}
+    assert len(rows) == len(computed), (rows, sorted(computed))
+    for level_s, raw_s, recal_s, width_s in rows:
+        row = computed[float(level_s)]
+        assert (float(raw_s), float(recal_s), float(width_s)) == (
+            row["raw_coverage"],
+            row["recalibrated_coverage"],
+            row["scale"],
+        ), (
+            f"the preprint prints {(raw_s, recal_s, width_s)} at level {level_s}; "
+            f"`calibration_study.conformal_demo()` computes {row}. Regenerate the table."
+        )
+        # The sentence the table is there to support.
+        assert row["recalibrated_coverage"] >= row["level"] - 0.01, row
