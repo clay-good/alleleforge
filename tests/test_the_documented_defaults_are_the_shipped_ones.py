@@ -20,6 +20,8 @@ import inspect
 import re
 from pathlib import Path
 
+import pytest
+
 from alleleforge.offtarget.engine import search
 from alleleforge.types.guide import PBS_RANGE, RTT_RANGE
 
@@ -65,3 +67,61 @@ def test_every_documented_pbs_and_rtt_range_is_the_real_one() -> None:
             assert (int(low), int(high)) == expected, (
                 f"{path.name} says {label} {low}-{high}, the code ships {expected}"
             )
+
+
+#: `search()`'s numeric defaults, and the prose pattern each is written as. A default
+#: with no pattern is either a number no document quotes or one nobody is checking, and
+#: the test below refuses to let that difference go unrecorded.
+_DOCUMENTED_AS: dict[str, str] = {
+    "cfd_threshold": r"CFD [>≥]=? ?([0-9.]+)",
+    "mit_threshold": r"MIT [>≥]=? ?([0-9.]+)",
+    "mismatches": r"[≤<]=? ?([0-9]+) ?mismatch",
+    # Written as "≤ 1 DNA + ≤ 1 RNA bulge", so only the second carries the word.
+    "dna_bulges": r"[≤<]=? ?([0-9]+) ?DNA\b",
+    "rna_bulges": r"[≤<]=? ?([0-9]+) ?RNA bulge",
+    "maf": r"MAF [>≥]=? ?([0-9.]+)",
+}
+
+
+def _numeric_defaults() -> dict[str, float]:
+    """Return `search()`'s numeric defaults — the operating envelope a reader is quoted."""
+    found = {
+        name: value
+        for name, value in _DEFAULTS.items()
+        if isinstance(value, int | float) and not isinstance(value, bool)
+    }
+    assert len(found) > 4, f"introspection returned {found}; the check would be vacuous"
+    return found
+
+
+def test_every_numeric_default_has_a_documented_pattern() -> None:
+    """The half that was missing: three of six defaults had no check at all.
+
+    `cfd_threshold`, `mit_threshold` and `mismatches` were pinned; the bulge budgets and
+    the MAF floor were not, and they are restated across five documents in exactly the
+    same way — "≤ 1 DNA + ≤ 1 RNA bulge", "MAF ≥ 0.001". Enumerating the defaults rather
+    than listing the checked ones is what makes a *new* default impossible to forget:
+    the previous shape could only ever cover what someone remembered to add.
+    """
+    unchecked = sorted(set(_numeric_defaults()) - set(_DOCUMENTED_AS))
+    assert not unchecked, (
+        f"`search()` ships {unchecked} and no document is checked to quote them "
+        "correctly. Add the prose pattern, or — if no document quotes it — say so here."
+    )
+
+
+def test_no_pattern_outlives_its_default() -> None:
+    stale = sorted(set(_DOCUMENTED_AS) - set(_numeric_defaults()))
+    assert not stale, f"_DOCUMENTED_AS names parameters `search()` no longer has: {stale}"
+
+
+@pytest.mark.parametrize("name", sorted(_DOCUMENTED_AS))
+def test_every_documented_occurrence_matches_the_default(name: str) -> None:
+    """Every occurrence, not one: a stale second copy is the failure mode."""
+    hits = _occurrences(_DOCUMENTED_AS[name])
+    assert hits, f"no document quotes {name} in the form {_DOCUMENTED_AS[name]!r}"
+    expected = _numeric_defaults()[name]
+    for path, value in hits:
+        assert float(value) == float(expected), (
+            f"{path.name} quotes {name} as {value}; `search()` ships {expected}"
+        )
