@@ -922,6 +922,21 @@ def _first_sentence(text: str) -> str:
     return stripped
 
 
+def _declined_line(decision: ChemistryDecision, *, brief: bool = False) -> str:
+    """Render one declined chemistry: what closed the route, then the policy.
+
+    The heading above these lines asks why the chemistry declined, and for a long
+    time the answer under it was the rule's `rationale` — a description of what the
+    chemistry is for, identical on every run, from which the reader was left to
+    derive the comparison themselves. `decline_reason` is the half that is about
+    their variant, so it leads.
+    """
+    policy = _first_sentence(decision.rationale) if brief else decision.rationale
+    if decision.decline_reason is None:
+        return policy  # a decision built without one; the policy is still true
+    return f"{decision.decline_reason}. {policy}"
+
+
 def _menu_rationale(
     decisions: list[ChemistryDecision],
     eligible: list[Chemistry],
@@ -949,10 +964,10 @@ def _menu_rationale(
         # the one that names the chemistry's role and why it is or is not the route.
         if not eligible:
             lines.append("No chemistry can make this edit. Why each declined:")
-            lines += [f"- {d.chemistry.value}: {d.rationale}" for d in declined]
+            lines += [f"- {d.chemistry.value}: {_declined_line(d)}" for d in declined]
         else:
             lines.append("Why the other chemistries declined:")
-            lines += [f"- {d.chemistry.value}: {_first_sentence(d.rationale)}" for d in declined]
+            lines += [f"- {d.chemistry.value}: {_declined_line(d, brief=True)}" for d in declined]
     if notes:
         # Their own heading. These are run outcomes and caveats — what each eligible
         # chemistry produced, what the database says about the target, whether a

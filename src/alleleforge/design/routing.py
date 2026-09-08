@@ -131,6 +131,63 @@ def _prime_eligible(resolved: ResolvedVariant, intent: EditIntent) -> bool:
     return len(desired) <= PRIME_MAX_TEMPLATED_EDIT
 
 
+def _why_not_base(resolved: ResolvedVariant, intent: EditIntent, chemistry: Chemistry) -> str:
+    """Name the fact about *this* variant that closed the base-editing route.
+
+    Mirrors :func:`_base_eligible` branch for branch. The rule's ``rationale``
+    states the policy — what a base editor is for — and is the same sentence on
+    every run; a reader asking why the chemistry they wanted declined needs the
+    other half, which is what their variant actually requires.
+    """
+    if intent is EditIntent.KNOCK_OUT:
+        return "the intent is knock-out, which is a disruption rather than a clean transition"
+    var = resolved.variant
+    if var.variant_class is not VariantClass.SNV:
+        return f"the variant class is {var.variant_class.value}; a base editor edits a single base"
+    frm, to = _required_change(resolved, intent)
+    editor = "adenine" if chemistry is Chemistry.BASE_ABE else "cytosine"
+    return f"the required change is {frm}->{to}, which no {editor} base editor installs"
+
+
+def _why_not_prime(resolved: ResolvedVariant, intent: EditIntent) -> str:
+    """Name the fact about *this* variant that closed the prime-editing route."""
+    if intent is EditIntent.KNOCK_OUT:
+        return "the intent is knock-out, which wants a break rather than a templated edit"
+    var = resolved.variant
+    if var.variant_class not in _PRIME_CLASSES:
+        return (
+            f"the variant class is {var.variant_class.value}, outside the small-edit "
+            "repertoire an RTT can template"
+        )
+    if len(var.ref) > PRIME_MAX_EDIT or len(var.alt) > PRIME_MAX_EDIT:
+        return (
+            f"the edit spans {max(len(var.ref), len(var.alt))} nt, over the "
+            f"{PRIME_MAX_EDIT} nt practical RTT budget"
+        )
+    _, desired = _required_change(resolved, intent)
+    return (
+        f"the allele the RTT must write is {len(desired)} nt, over the "
+        f"{PRIME_MAX_TEMPLATED_EDIT} nt templated-edit budget"
+    )
+
+
+def _why_not_nuclease(resolved: ResolvedVariant, intent: EditIntent) -> str:
+    """Name why the last-resort route was not needed for *this* variant."""
+    break_free = [
+        chemistry.value
+        for chemistry, eligible in (
+            (Chemistry.BASE_ABE, _base_eligible(resolved, intent, Chemistry.BASE_ABE)),
+            (Chemistry.BASE_CBE, _base_eligible(resolved, intent, Chemistry.BASE_CBE)),
+            (Chemistry.PRIME, _prime_eligible(resolved, intent)),
+        )
+        if eligible
+    ]
+    return (
+        f"a break-free route reaches this edit ({', '.join(break_free)}), and a "
+        "double-strand break is offered only when none does"
+    )
+
+
 @dataclass(frozen=True)
 class RoutingRule:
     """One transparent eligibility rule for a chemistry.
@@ -138,14 +195,18 @@ class RoutingRule:
     Attributes:
         chemistry: The chemistry this rule admits.
         name: A short, stable rule identifier (audit aid).
-        rationale: The biological reason the rule exists.
+        rationale: The biological reason the rule exists — the same sentence on
+            every run, because it describes the policy and not the variant.
         predicate: Pure ``(resolved, intent) -> bool`` eligibility test.
+        explain: Pure ``(resolved, intent) -> str`` naming the fact about *this*
+            variant that the predicate rejected. Called only when it rejected.
     """
 
     chemistry: Chemistry
     name: str
     rationale: str
     predicate: Callable[[ResolvedVariant, EditIntent], bool]
+    explain: Callable[[ResolvedVariant, EditIntent], str]
 
     def applies(self, resolved: ResolvedVariant, intent: EditIntent) -> bool:
         """Return ``True`` when this rule admits ``(resolved, intent)``."""
@@ -164,6 +225,7 @@ ROUTING_RULES: tuple[RoutingRule, ...] = (
             "required change is an A:T->G:C transition SNV."
         ),
         predicate=lambda r, i: _base_eligible(r, i, Chemistry.BASE_ABE),
+        explain=lambda r, i: _why_not_base(r, i, Chemistry.BASE_ABE),
     ),
     RoutingRule(
         chemistry=Chemistry.BASE_CBE,
@@ -174,6 +236,7 @@ ROUTING_RULES: tuple[RoutingRule, ...] = (
             "change is a G:C->A:T transition SNV."
         ),
         predicate=lambda r, i: _base_eligible(r, i, Chemistry.BASE_CBE),
+        explain=lambda r, i: _why_not_base(r, i, Chemistry.BASE_CBE),
     ),
     RoutingRule(
         chemistry=Chemistry.PRIME,
@@ -186,6 +249,7 @@ ROUTING_RULES: tuple[RoutingRule, ...] = (
             "templated allele both fit the practical RTT budget."
         ),
         predicate=_prime_eligible,
+        explain=_why_not_prime,
     ),
     RoutingRule(
         chemistry=Chemistry.CAS9_NUCLEASE,
@@ -201,6 +265,7 @@ ROUTING_RULES: tuple[RoutingRule, ...] = (
             "longer than any RT template can write back."
         ),
         predicate=_nuclease_eligible,
+        explain=_why_not_nuclease,
     ),
 )
 
@@ -213,11 +278,14 @@ class ChemistryDecision:
         chemistry: The chemistry judged.
         eligible: Whether the rule admitted this ``(variant, intent)``.
         rule: The rule that was evaluated.
+        decline_reason: When not eligible, the fact about *this* variant the rule
+            rejected — ``None`` when it was admitted.
     """
 
     chemistry: Chemistry
     eligible: bool
     rule: RoutingRule
+    decline_reason: str | None = None
 
     @property
     def rationale(self) -> str:
@@ -238,12 +306,18 @@ def route(resolved: ResolvedVariant, intent: EditIntent) -> list[ChemistryDecisi
     Returns:
         One :class:`ChemistryDecision` per rule, in routing-table order.
     """
-    return [
-        ChemistryDecision(
-            chemistry=rule.chemistry, eligible=rule.applies(resolved, intent), rule=rule
+    decisions = []
+    for rule in ROUTING_RULES:
+        eligible = rule.applies(resolved, intent)
+        decisions.append(
+            ChemistryDecision(
+                chemistry=rule.chemistry,
+                eligible=eligible,
+                rule=rule,
+                decline_reason=None if eligible else rule.explain(resolved, intent),
+            )
         )
-        for rule in ROUTING_RULES
-    ]
+    return decisions
 
 
 def eligible_chemistries(resolved: ResolvedVariant, intent: EditIntent) -> list[Chemistry]:

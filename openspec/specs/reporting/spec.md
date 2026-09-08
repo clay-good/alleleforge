@@ -234,6 +234,20 @@ bullet format.
 - **THEN** its outcome appears under the run-notes heading, never under the heading for
   chemistries that declined
 
+A declined chemistry's line SHALL name the fact about *this* variant that closed the
+route, before any statement of what the chemistry is for. A routing rule's biological
+rationale is the same sentence on every run; a reader asking why the chemistry they
+wanted declined cannot get the answer from it without doing the comparison themselves.
+
+#### Scenario: A transversion under a base editor
+- **WHEN** a base-editing route declines because the required change is not a transition
+  it installs
+- **THEN** the line names the required change, and the rule's rationale follows it
+
+#### Scenario: An edit over the RTT budget
+- **WHEN** prime editing declines because the edit exceeds a template budget
+- **THEN** the line names the size and the budget it exceeded
+
 ### Requirement: The menu states what the database says about the target
 
 When the target variant carries a clinical assertion, the menu-level rationale SHALL lead
