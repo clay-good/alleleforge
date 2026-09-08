@@ -37,6 +37,30 @@ raising. An unknown contig SHALL raise `KeyError`.
 - **WHEN** a contig name absent from the reference is fetched
 - **THEN** it raises `KeyError`
 
+### Requirement: An index that cannot describe the FASTA is refused
+
+Opening a reference SHALL refuse when the FASTA is smaller than the byte offsets its
+`.fai` asserts. Such an index cannot belong to that file, and reads through it return the
+wrong bases.
+
+The index is not re-derived on open, so a reference replaced or truncated after indexing
+is read through with only a `RuntimeWarning` about file mtimes — which reaches no library
+caller, no HTTP client and no served page. The failure is silent and wrong rather than
+loud: a contig the file no longer holds is still listed with its old length, and a fetch
+over it returns an empty sequence marked as *not* padded, which downstream code reads as
+measured.
+
+A FASTA *larger* than its index describes SHALL NOT be refused: appending a contig does
+not move the offsets already recorded.
+
+#### Scenario: The reference was replaced
+- **WHEN** a FASTA is overwritten with a smaller one and opened against its old index
+- **THEN** opening fails with a message naming `samtools faidx` and the byte counts
+
+#### Scenario: A contig was appended
+- **WHEN** a FASTA grows and is opened against its older index
+- **THEN** it opens, and the previously indexed contigs read as before
+
 ### Requirement: Minus-strand fetches are reverse-complemented
 
 A minus-strand fetch SHALL return the IUPAC-aware reverse complement of the plus-strand

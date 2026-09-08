@@ -234,7 +234,50 @@ class ReferenceGenome:
                 f"directory is writable — `samtools faidx {self.path}` — and ship it "
                 "alongside the FASTA."
             ) from exc
+        self._refuse_a_stale_index()
         self._lock = threading.Lock()  # pyfaidx Fasta is not thread-safe; serialize reads
+
+    def _refuse_a_stale_index(self) -> None:
+        """Refuse an index that describes a longer file than the FASTA on disk.
+
+        A `.fai` records a byte offset and a line layout per contig; it is not
+        re-derived on open (`rebuild=False`, so a read-only reference mount works).
+        When the FASTA is replaced or truncated after indexing — a different assembly
+        written to the same path is the ordinary way this happens — pyfaidx emits a
+        `RuntimeWarning` about mtimes and then reads through the stale offsets. A
+        library caller, an HTTP deployment and a served page never see a warning, and
+        what they get instead is not a failure: `contigs` lists a contig the file no
+        longer has, `contig_length` returns its old length, and a fetch over it comes
+        back as the empty string with `padded=False` — "I read those bases, and they
+        are nothing", which is the one answer this project must never give.
+
+        The check is a single `stat` against the offsets the index itself asserts, so
+        it has no false positives: if the file is shorter than the bytes the index
+        requires, those offsets cannot be read, whatever the mtimes say. A file that is
+        *longer* is left alone — an appended contig does not move the ones already
+        indexed, and a same-length edit is undetectable from the index either way.
+        """
+        try:
+            size = self.path.stat().st_size
+        except OSError:  # pragma: no cover - the open above already succeeded
+            return
+        required = 0
+        for record in self._fasta.faidx.index.values():
+            lenc, lenb, rlen = record.lenc, record.lenb, record.rlen
+            if not lenc or rlen is None:
+                continue
+            # Bytes needed to hold the sequence, excluding the final line terminator,
+            # which a FASTA is allowed to end without.
+            full_lines = max(-(-rlen // lenc) - 1, 0)
+            required = max(required, record.offset + rlen + full_lines * (lenb - lenc))
+        if size < required:
+            raise ReferenceIndexError(
+                f"the index {self.path.name}.fai describes a larger file than "
+                f"{self.path} is ({required:,} bytes required, {size:,} on disk), so it "
+                "does not belong to this FASTA — the reference was replaced or truncated "
+                "after it was indexed. Reads through a stale index return the wrong "
+                f"bases silently. Rebuild it: `samtools faidx {self.path}`."
+            )
 
     @classmethod
     def from_build(
