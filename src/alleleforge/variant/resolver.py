@@ -453,24 +453,56 @@ def _off_by_one_remedy(variant: Variant, reference: ReferenceGenome) -> str:
     return ""
 
 
+def _unknown_contig_message(variant: Variant, reference: ReferenceGenome) -> str:
+    """Return the refusal for a variant naming a contig the reference does not have.
+
+    Worded like the off-target engine's region refusal, because it is the same mistake
+    from the other input: a wrong assembly, a wrong species, or a contig spelling that
+    does not reconcile. That one already names the offender and lists what the reference
+    does have; this path raised a bare `KeyError` from inside the fetch instead, which is
+    the very failure `_reject_unknown_contigs` was written to end — for regions, and only
+    for regions.
+
+    Naming reconciliation has already been tried by the time this is reached, so `1` and
+    `chr1` are not what gets here; what gets here is genuinely absent.
+    """
+    available = ", ".join(sorted(reference.contigs)[:8])
+    more = "…" if len(reference.contigs) > 8 else ""
+    return (
+        f"variant names contig {variant.chrom!r}, which this reference does not have "
+        f"(it has: {available}{more}). Check the assembly and the contig naming — a "
+        "variant on a contig the reference lacks cannot be placed at all."
+    )
+
+
 def _validate_ref(variant: Variant, reference: ReferenceGenome) -> None:
     """Raise if the variant's asserted ref disagrees with the reference.
 
     Raises:
-        ValueError: On a ref/reference mismatch. The message names an off-by-one
-            coordinate convention when that is what happened, and only blames the build
-            when the allele is nowhere near.
+        ValueError: On a ref/reference mismatch, or when the variant names a contig the
+            reference does not have. The message names an off-by-one coordinate
+            convention when that is what happened, and only blames the build when the
+            allele is nowhere near.
     """
     if not variant.ref:
         return
-    result = reference.fetch_result(
-        GenomicInterval(
-            chrom=variant.chrom,
-            start=variant.pos,
-            end=variant.pos + len(variant.ref),
-            strand=Strand.PLUS,
+    try:
+        result = reference.fetch_result(
+            GenomicInterval(
+                chrom=variant.chrom,
+                start=variant.pos,
+                end=variant.pos + len(variant.ref),
+                strand=Strand.PLUS,
+            )
         )
-    )
+    except KeyError as exc:
+        # The docstring on `_rename_contig_to_reference` says an unknown contig is left
+        # alone "so the existing reference-base validation raises the error it already
+        # raises" — but that validation reaches the reference through `fetch_result`,
+        # which raises first, from two frames deeper and as a `KeyError`. So the
+        # intended message never ran, and `aforge resolve chrZ:101:A>G` printed a
+        # traceback: the single likeliest first-run mistake, answered with a stack.
+        raise ValueError(_unknown_contig_message(variant, reference)) from exc
     observed = str(result.sequence)
     if result.padded or observed != variant.ref:
         remedy = _off_by_one_remedy(variant, reference)

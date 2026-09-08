@@ -332,3 +332,23 @@ report whether it was asked for, so that its absence cannot be read as a measure
 #### Scenario: Resolving without the flag
 - **WHEN** `aforge resolve <variant> --json` is run without `--vep`
 - **THEN** `consequence` is null and `consequence_checked` is `false`
+
+
+### Requirement: A variant on an unknown contig is refused in words
+
+A variant naming a contig the reference does not have SHALL be refused with a message
+naming that contig and listing what the reference does have, in the library — so the
+command line, the HTTP API and a Python caller all receive it.
+
+It SHALL NOT surface as the `KeyError` the fetch raises. The mistake is almost always a
+wrong assembly, a wrong species, or a contig spelling that does not reconcile, and none of
+those is suggested by a missing-key error. The same refusal already exists for a region
+naming an unknown contig; a reader should not meet two vocabularies for one mistake.
+
+Contig-name reconciliation SHALL be attempted first, so a `chr`-prefixed variant against an
+Ensembl-named reference resolves rather than being refused.
+
+#### Scenario: A variant from another assembly
+- **WHEN** `aforge resolve chrZ:101:A>G` is run against a reference without `chrZ`
+- **THEN** it exits non-zero with a message naming `chrZ` and the contigs the reference
+  has, and prints no traceback

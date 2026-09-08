@@ -12141,3 +12141,41 @@ deliberate exclude), so the wheel is checked by hand and the test says so.
 installed package has this" test is really a "the repository has this" test. That is often
 enough — but the comment has to say which one it is, or the next reader trusts a check that
 never opened the artifact.**
+
+## Round 372 — twenty malformed inputs, one traceback
+
+The verification vein is exhausted — every gate, command, artifact, the wheel and the
+native build have now been run — so: a different method. Twenty malformed variants at
+`aforge resolve`, looking for a stack trace where there should be a sentence. Nineteen were
+answered cleanly: empty, unparseable, negative, absurd coordinates, a five-thousand-base
+allele, shell metacharacters, a path traversal, mixed case. One was not.
+
+A variant naming a contig the reference does not have — `chrZ:101:A>G` — printed a rich
+traceback ending in `KeyError: "unknown contig 'chrZ'"`, from `resolve` and `design` alike.
+That is the likeliest first-run mistake there is: a wrong assembly, a wrong species, a VCF
+from another build.
+
+The project had already fixed this exact mistake from the other input, and the contrast is
+the finding. `--region chrZ:1-100` answers with a sentence naming the offender, listing what
+the reference has, and stating the consequence — and its docstring argues the choice:
+"Deliberately not a `KeyError` from the fetch: the caller's mistake is the *region list*, and
+the fix is usually the panel's assembly or its `chr` prefixing, neither of which a bare
+missing-key error suggests." Every word of that applies to a variant.
+
+It was even supposed to be handled. `_rename_contig_to_reference` leaves an unknown contig
+alone "so the existing reference-base validation raises the error it already raises" — but
+that validation reads the genome through `fetch_result`, which raises first, two frames
+deeper, as a `KeyError`. The intended message never ran. A comment describing a downstream
+check is not the same as that check running first.
+
+Fixed in the resolver, not the CLI, which is the region round's other recorded lesson: it
+noted that "the CLI had this check and the library did not, so only one of three callers got
+an answer they could act on". Verified through all three: CLI exit 2 with the sentence, HTTP
+422 with the same sentence, `ValueError` for a Python caller — and `1:101:A>G` against a
+`chr1` reference still resolves, because reconciliation runs first and this refusal must not
+swallow the case it exists to permit.
+
+**Lesson: throwing junk at a surface is cheap and it finds the errors written for
+developers rather than users. Nineteen inputs proved the error handling is good, which is
+what made the twentieth worth fixing — this is a project whose refusals are usually
+paragraphs, and here the most common mistake got a stack.**
