@@ -12077,3 +12077,33 @@ and would have failed CI. Widened.
 **Lesson: "checked by seven tests" and "checked" are different claims when all seven read
 the artifact rather than run it. Ask what would still pass if the file were replaced with
 something the runtime cannot even load.**
+
+## Round 370 — the readiness report graded itself generously, for the third time
+
+Every local gate now runs clean — lint, type, test, docs, examples, reproduce, figures
+byte-identical, and the native parity suite live. The remaining unexercised claim was the
+v1.0 readiness report, so I ran it. It is honest work: one criterion met, four open, each
+marked blocked with the reason and the evidence, exiting non-zero.
+
+One line in it was not. R2 reported "the compiled extension is importable", and importable
+is not current. The build this session started with imported fine, reported an unchanged
+version — the crate version is single-sourced from the package version, so it does not move
+between builds — and made `test_native_evaluate_parity` skip every test in it. The report
+counted that module among its seven parity modules and described the extension as
+importable. So on the machine where it ran, the evidence for "native kernels with parity
+tests" included a module that verified nothing.
+
+That is the third tightening of this one criterion, and the first two are recorded in its
+own comments: it once counted parity modules by grepping for the substring `native`
+(matching "alternative"), and it once graded itself MET on half a two-part criterion. The
+comment beside them says a readiness report that overstates its evidence is worse than
+none. This is the same failure with a subtler cause.
+
+The verdict is unchanged — whether the local machine has a current build is not what R2 is
+about — but the evidence now says which of "importable and current", "stale here (no
+<kernel>), so those parity tests skip", or "not built here" is true, and a stale build gets
+the rebuild command.
+
+**Lesson: a report that grades a codebase from a local run mixes two claims — what the
+repository contains and what this machine verified. The second is the one that quietly
+degrades, and it degrades into the optimistic answer.**

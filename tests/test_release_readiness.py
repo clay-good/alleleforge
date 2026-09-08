@@ -96,3 +96,37 @@ def test_a_criterion_summary_covers_its_spec_bullet() -> None:
         "the R2 criterion is graded on both halves; its summary must say so"
     )
     assert "speedup harness" in native.detail
+
+
+def test_r2_does_not_call_a_stale_build_importable() -> None:
+    """The third tightening of this criterion, and the same failure as the first two.
+
+    An extension built before a kernel was added imports fine and reports an unchanged
+    version, while that kernel's parity module skips every test in it. The report counted
+    the module as evidence and described the extension as "importable" — overstating what
+    this machine had actually verified, which is the failure mode the criterion's own
+    comments say it exists to avoid.
+    """
+    import scripts.release_readiness as readiness
+
+    from alleleforge import _native
+
+    original = _native.missing_native_functions
+    try:
+        _native.missing_native_functions = lambda: frozenset({"evaluate_anchor"})  # type: ignore[assignment]
+        stale = readiness._native_kernels()
+    finally:
+        _native.missing_native_functions = original  # type: ignore[assignment]
+
+    assert "stale here" in stale.detail, stale.detail
+    assert "evaluate_anchor" in stale.detail
+    assert "importable" not in stale.detail, (
+        "a build missing a registered kernel must not be described as importable"
+    )
+    assert any("maturin develop" in line for line in stale.evidence), (
+        "the report should name the command that fixes it"
+    )
+
+    current = readiness._native_kernels()
+    if _native.NATIVE_AVAILABLE:
+        assert "current here" in current.detail, current.detail

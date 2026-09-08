@@ -2571,6 +2571,7 @@ acceptance.
   future dependency drift automatically.
 
 ### Fixed
+- The release-readiness report no longer calls a stale native build "importable". It counted a parity module as evidence while every test in it skipped, which is the self-flattery the criterion's own comments record having fixed twice before.
 - `make lint` passes again: `ruff format --check` had been failing on a trailing newline in one notebook cell, so the CI lint job was red.
 - The served page's JavaScript is parsed. Seven tests read `app.js` as text and nothing had ever run it through a parser, so a missing brace would ship a dead form with every gate green; the suite now runs `node --check` and CI runs it explicitly.
 - The suite checks that the committed docs figures are what `scripts/figures.py` produces. They are committed, that script is the only thing that writes them, and it ran in neither `make ci` nor CI — so a change behind a figure left the docs showing the old one with every gate green.

@@ -104,6 +104,14 @@ def _native_kernels() -> Criterion:
     from alleleforge import _native
 
     available = _native.NATIVE_AVAILABLE
+    # Importable is not the same as current. An extension built before a kernel was
+    # added imports fine, reports the same version (the crate version is single-sourced
+    # from the package version and does not change between builds), and makes that
+    # kernel's parity module skip every test in it — while this report counted the
+    # module as evidence and called the extension "importable". That is the third time
+    # this criterion has had to stop grading itself generously; the first two are in the
+    # comments below.
+    stale = sorted(_native.missing_native_functions())
     # The `native` *marker*, not the substring: grepping for "native" catches every
     # test whose prose happens to contain the word ("alternative", "natively") and
     # would have reported 16 parity modules where there are five. A readiness report
@@ -126,12 +134,27 @@ def _native_kernels() -> Criterion:
         detail=(
             f"{len(parity)} test module(s) exercise the native path; "
             f"speedup harness {'present and cited in the README' if recorded else 'missing'}; "
-            f"the compiled extension is {'importable' if available else 'not built here'}"
+            "the compiled extension is "
+            + (
+                f"stale here (no {', '.join(stale)}), so those parity tests skip"
+                if stale
+                else "importable and current here"
+                if available
+                else "not built here"
+            )
         ),
         blocked_by="" if (parity and recorded) else "no recorded speedup",
         evidence=[
             "parity modules: " + ", ".join(parity),
             f"speedup harness: {harness.relative_to(_ROOT)}",
+            *(
+                [
+                    "a stale build silently withdraws the parity tests that prove the "
+                    "kernel matches the Python fallback: rebuild with `maturin develop`"
+                ]
+                if stale
+                else []
+            ),
             "the extension is optional at runtime: the Python fallback is pinned "
             "byte-identical, so an unbuilt kernel changes speed and not results",
         ],
