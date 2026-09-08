@@ -45,7 +45,7 @@ from alleleforge.data.haplotypes import Haplotype
 from alleleforge.design.cohort_summary import cohort_reference_shape_suffix as _shape_suffix
 from alleleforge.design.cohort_summary import cohort_rows as _batch_rows
 from alleleforge.design.cohort_summary import cohort_to_tsv as _batch_tsv
-from alleleforge.errors import MissingDependencyError
+from alleleforge.errors import MissingDependencyError, reason
 from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import GenomicInterval
 from alleleforge.types.variant import Variant
@@ -102,7 +102,7 @@ class GlobalState:
         try:
             return str(get_settings().reference)
         except ValueError as exc:
-            _echo_err(f"error: {exc}")
+            _echo_err(f"error: {reason(exc)}")
             raise typer.Exit(ExitCode.USAGE) from None
 
 
@@ -266,7 +266,7 @@ def _load_settings(config: Path | None, seed: int | None) -> Any:
     try:
         return Settings.load(config_file=config, **overrides)
     except ValueError as exc:
-        _echo_err(f"error: {exc}")
+        _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.USAGE) from exc
 
 
@@ -300,7 +300,7 @@ def _load_reference(fasta: Path | None, build: str = DEFAULT_REFERENCE) -> Any:
         # front of this changed nothing observable — the indexer's own exception type is
         # not in that set, and everything else it raises lands here anyway. Two clauses
         # differing only in the verb is a branch no test can distinguish.
-        _echo_err(f"error: cannot read reference FASTA {fasta}: {exc}")
+        _echo_err(f"error: cannot read reference FASTA {fasta}: {reason(exc)}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
     return reference
 
@@ -363,7 +363,7 @@ def resolve(
             dbsnp=_load_dbsnp(dbsnp),
         )
     except ValueError as exc:
-        _echo_err(f"error: {exc}")
+        _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.USAGE) from exc
     v = resolved.variant
     # `variant_class` is computed from the allele *lengths*, so a one-base ref and a
@@ -567,7 +567,7 @@ def _parse_weights(spec: Any) -> Any:
             **{axis: float(v) for axis, v in zip(OBJECTIVES, values, strict=True)}
         )
     except (TypeError, ValueError) as exc:
-        _echo_err(f"error: weights must be {len(OBJECTIVES)} non-negative numbers: {exc}")
+        _echo_err(f"error: weights must be {len(OBJECTIVES)} non-negative numbers: {reason(exc)}")
         raise typer.Exit(ExitCode.USAGE) from exc
 
 
@@ -748,7 +748,7 @@ def _load_encode_tracks(path: Path | None, track: str | None) -> tuple[Any | Non
             raise typer.Exit(ExitCode.USAGE)
         return _attach_source(tracks, path, "encode-tracks"), track
     except (OSError, ValueError) as exc:
-        _echo_err(f"error: could not read --encode-tracks {path}: {exc}")
+        _echo_err(f"error: could not read --encode-tracks {path}: {reason(exc)}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
 
 
@@ -771,7 +771,7 @@ def _validate_regions(regions: list[GenomicInterval] | None, reference: Any) -> 
     try:
         _reject_unknown_contigs(regions, reference)
     except ValueError as exc:
-        _echo_err(f"error: {exc}")
+        _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.USAGE) from exc
 
 
@@ -788,10 +788,10 @@ def _load_regions(regions: list[str] | None, bed: Path | None) -> list[GenomicIn
     try:
         return merge_region_arguments(regions, bed)
     except ValueError as exc:
-        _echo_err(f"error: {exc}")
+        _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.USAGE) from exc
     except OSError as exc:
-        _echo_err(f"error: could not read --regions-bed {bed}: {exc}")
+        _echo_err(f"error: could not read --regions-bed {bed}: {reason(exc)}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
 
 
@@ -822,7 +822,7 @@ def _load_haplotypes(path: Path | None) -> Iterable[Haplotype]:
         )
         raise typer.Exit(ExitCode.USAGE) from exc
     except (OSError, ValueError) as exc:
-        _echo_err(f"error: could not read --haplotypes {path}: {exc}")
+        _echo_err(f"error: could not read --haplotypes {path}: {reason(exc)}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
 
 
@@ -871,10 +871,10 @@ def _load_patient_variants(path: Path | None, reference: Any) -> list[Variant] |
         # than `RuntimeError`: catching the base class reported a genuine defect in the
         # reader as an installation problem, telling the user to install something that
         # was already installed.
-        _echo_err(f"error: {exc}")
+        _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.UNAVAILABLE) from exc
     except (OSError, ValueError, KeyError) as exc:
-        _echo_err(f"error: could not read --patient-vcf {path}: {exc}")
+        _echo_err(f"error: could not read --patient-vcf {path}: {reason(exc)}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
 
 
@@ -947,7 +947,7 @@ def _load_gnomad(path: Path | None) -> GnomadDB | None:
     try:
         return _attach_source(GnomadDB.from_sites_tsv(path), path, "gnomad-sites")
     except (OSError, ValueError) as exc:
-        _echo_err(f"error: could not read --gnomad {path}: {exc}")
+        _echo_err(f"error: could not read --gnomad {path}: {reason(exc)}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
 
 
@@ -968,7 +968,7 @@ def _load_clinvar(path: Path | None) -> Any:
     try:
         return _attach_source(ClinVarDB.from_vcf(path), path, "clinvar")
     except (OSError, ValueError, KeyError) as exc:
-        _echo_err(f"error: could not read --clinvar {path}: {exc}")
+        _echo_err(f"error: could not read --clinvar {path}: {reason(exc)}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
 
 
@@ -981,7 +981,7 @@ def _load_dbsnp(path: Path | None) -> Any:
     try:
         return _attach_source(DbSnpDB.from_tsv(path), path, "dbsnp")
     except (OSError, ValueError, KeyError) as exc:
-        _echo_err(f"error: could not read --dbsnp {path}: {exc}")
+        _echo_err(f"error: could not read --dbsnp {path}: {reason(exc)}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
 
 
@@ -1271,7 +1271,7 @@ def design(
         try:
             scheme = scheme_by_name(vector_scheme)
         except ValueError as exc:
-            _echo_err(f"error: {exc}")
+            _echo_err(f"error: {reason(exc)}")
             raise typer.Exit(ExitCode.USAGE) from exc
 
     try:
@@ -1367,7 +1367,7 @@ def design(
             allow_spry=allow_spry,
         )
     except ValueError as exc:
-        _echo_err(f"error: {exc}")
+        _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.USAGE) from exc
 
     report = build_report(
@@ -1393,7 +1393,7 @@ def design(
         try:
             report_to_parquet(report, out)
         except MissingDependencyError as exc:
-            _echo_err(f"error: {exc}")
+            _echo_err(f"error: {reason(exc)}")
             raise typer.Exit(ExitCode.UNAVAILABLE) from exc
         sidecar = _write_provenance_sidecar(out, menu)
         _echo_err(f"wrote {out}" + (f" and {sidecar}" if sidecar else ""))
@@ -1825,7 +1825,7 @@ def batch(
     # Named rather than `RuntimeError`: a defect escaping `design_many` is a bug in the
     # cohort machinery, not a missing package, and must not be reported as one.
     except MissingDependencyError as exc:
-        _echo_err(f"error: {exc}")
+        _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.UNAVAILABLE) from exc
     # `design_many` refuses a call it cannot honour: a parallel run with no
     # reference factory, and a resume whose manifest was opened under different
@@ -1833,7 +1833,7 @@ def batch(
     # arriving as a traceback made a decision the code had already taken look like a
     # crash.
     except ValueError as exc:
-        _echo_err(f"error: {exc}")
+        _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.USAGE) from exc
 
     rows = _batch_rows(report)
@@ -1914,8 +1914,8 @@ def batch(
             # An item that designed nothing is `ok` — nothing errored — and every
             # other column is blank, which reads as a silent shrug in a list of five
             # hundred. Say why, as the single-variant report does.
-            reason = r.get("no_candidate_reason")
-            why = f"  — {reason}" if not r["n_candidates"] and reason else ""
+            no_candidate = r.get("no_candidate_reason")
+            why = f"  — {no_candidate}" if not r["n_candidates"] and no_candidate else ""
             lines.append(
                 f"  {r['item_id']}  ok  best={r['best_chemistry'] or '-'}  "
                 f"eff={eff_str}  n={r['n_candidates'] or 0}{caveat_str}{why}"
@@ -2085,7 +2085,7 @@ def offtarget(
     try:
         locus = GenomicInterval.parse(on_target) if on_target else None
     except ValueError as exc:
-        _echo_err(f"error: {exc}")
+        _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.USAGE) from exc
     scorer_impl = None
     if scorer is not None:
@@ -2094,7 +2094,7 @@ def offtarget(
         try:
             scorer_impl = scorer_for(scorer)
         except ValueError as exc:
-            _echo_err(f"error: {exc}")
+            _echo_err(f"error: {reason(exc)}")
             raise typer.Exit(ExitCode.USAGE) from exc
     index = None
     if genome_index:
@@ -2123,7 +2123,7 @@ def offtarget(
             patient_vcf=patient_variants,
         )
     except ValueError as exc:
-        _echo_err(f"error: {exc}")
+        _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.USAGE) from exc
 
     from alleleforge.design.designer import _reference_snapshot
@@ -2412,7 +2412,7 @@ def verify(
         try:
             artifact = model.model_validate_json(text, context=context)
         except ValueError as exc:
-            errors.append(f"{model.__name__}: {exc}")
+            errors.append(f"{model.__name__}: {reason(exc)}")
         else:
             prov = artifact.provenance
             break
@@ -2635,10 +2635,12 @@ def lift(
     try:
         lo = Liftover.from_chain_file(chain, source_build=from_build, target_build=to_build)
     except ImportError as exc:  # pragma: no cover - depends on the optional extra
-        _echo_err(f"error: liftover needs pyliftover: pip install 'pyliftover>=0.4' ({exc})")
+        _echo_err(
+            f"error: liftover needs pyliftover: pip install 'pyliftover>=0.4' ({reason(exc)})"
+        )
         raise typer.Exit(ExitCode.UNAVAILABLE) from exc
     except (OSError, ValueError) as exc:
-        _echo_err(f"error: could not read chain file {chain}: {exc}")
+        _echo_err(f"error: could not read chain file {chain}: {reason(exc)}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
 
     unmapped = 0
@@ -2663,7 +2665,7 @@ def _parsed_loci(loci: list[str]) -> list[str]:
         try:
             GenomicInterval.parse(text)
         except ValueError as exc:
-            _echo_err(f"error: {exc}")
+            _echo_err(f"error: {reason(exc)}")
             raise typer.Exit(ExitCode.USAGE) from exc
     return loci
 
@@ -2830,15 +2832,15 @@ def bench_run(
     try:
         task_obj = get_task(task)
     except KeyError as exc:
-        _echo_err(f"error: {exc}")
+        _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.USAGE) from exc
     try:
         split, dataset = load_split(task, version=split_version)
     except FileNotFoundError as exc:
-        _echo_err(f"error: {exc}")
+        _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
     except SplitIntegrityError as exc:
-        _echo_err(f"error: split integrity check failed: {exc}")
+        _echo_err(f"error: split integrity check failed: {reason(exc)}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
 
     baseline = build_baseline(task_obj, split, dataset)
@@ -2910,15 +2912,15 @@ def bench_gap(
     try:
         task_obj = get_task(task)
     except KeyError as exc:
-        _echo_err(f"error: {exc}")
+        _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.USAGE) from exc
     try:
         split, dataset = load_split(task, version=split_version)
     except FileNotFoundError as exc:
-        _echo_err(f"error: {exc}")
+        _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
     except SplitIntegrityError as exc:
-        _echo_err(f"error: split integrity check failed: {exc}")
+        _echo_err(f"error: split integrity check failed: {reason(exc)}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
 
     baseline = build_baseline(task_obj, split, dataset)
@@ -2934,7 +2936,7 @@ def bench_gap(
     except ValueError as exc:
         # An unknown fold name, or a fold too degenerate for the primary metric to
         # be defined on. Both are the caller's input, not a crash.
-        _echo_err(f"error: {exc}")
+        _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.USAGE) from exc
 
     # Same caveat, same stream, same reason as `bench run`: the bundled fixtures are
@@ -2993,7 +2995,7 @@ def bench_compare(
             _echo_err(f"error: result file not found: {path}")
             raise typer.Exit(ExitCode.MISSING_DATA) from None
         except ValueError as exc:
-            _echo_err(f"error: {path} is not a valid benchmark result: {exc}")
+            _echo_err(f"error: {path} is not a valid benchmark result: {reason(exc)}")
             raise typer.Exit(ExitCode.USAGE) from exc
 
     a, b = results
@@ -3105,7 +3107,7 @@ def bench_leaderboard(
         try:
             result = BenchmarkResult.model_validate_json(path.read_text())
         except ValueError as exc:
-            _echo_err(f"error: {path} is not a valid result JSON: {exc}")
+            _echo_err(f"error: {path} is not a valid result JSON: {reason(exc)}")
             raise typer.Exit(ExitCode.USAGE) from exc
         by_model.setdefault(result.model.name, []).append(result)
 
@@ -3122,7 +3124,7 @@ def bench_leaderboard(
                 )
             )
     except SubmissionError as exc:
-        _echo_err(f"error: inadmissible submission: {exc}")
+        _echo_err(f"error: inadmissible submission: {reason(exc)}")
         raise typer.Exit(ExitCode.USAGE) from exc
 
     rendered = board.render_html() if fmt is LeaderboardFormat.html else board.render_markdown()

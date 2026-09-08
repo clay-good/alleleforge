@@ -55,6 +55,7 @@ from alleleforge.errors import (
     ChecksumError,
     ConsentError,
     MissingDependencyError,
+    reason,
 )
 from alleleforge.genome.index import GenomeIndex
 from alleleforge.genome.reference import ReferenceGenome
@@ -610,11 +611,12 @@ def _run_chemistry(
     try:
         result = runner()
     except _EXPECTED_DESIGN_FAILURES as exc:
-        notes.append(f"{label}: skipped ({type(exc).__name__}: {exc})")
+        notes.append(f"{label}: skipped ({type(exc).__name__}: {reason(exc)})")
         return []
     except Exception as exc:  # noqa: BLE001 - a defect is surfaced, not swallowed as "no design"
         notes.append(
-            f"{label}: ERROR — unexpected {type(exc).__name__}: {exc} (a defect, not 'no design')"
+            f"{label}: ERROR — unexpected {type(exc).__name__}: {reason(exc)} "
+            "(a defect, not 'no design')"
         )
         return []
     if not result:

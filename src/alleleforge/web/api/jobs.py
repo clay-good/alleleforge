@@ -26,6 +26,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from alleleforge.errors import reason
 from alleleforge.web.api.models import JobState
 
 #: Default cap on retained job records. A long-lived server would otherwise grow
@@ -158,7 +159,7 @@ class JobManager:
                 # inside the reason. Any other exception keeps its type, which is a real
                 # clue when the message alone is opaque.
                 detail = getattr(exc, "detail", None)
-                record.error = str(detail) if detail else f"{type(exc).__name__}: {exc}"
+                record.error = str(detail) if detail else f"{type(exc).__name__}: {reason(exc)}"
                 record.state = JobState.ERROR
             finally:
                 # Progress is documented as three values — "0.0 queued, 0.1 running, 1.0

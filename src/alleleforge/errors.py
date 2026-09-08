@@ -26,6 +26,7 @@ __all__ = [
     "ConsentError",
     "MissingDependencyError",
     "ReferenceIndexError",
+    "reason",
 ]
 
 
@@ -62,3 +63,41 @@ class ReferenceIndexError(OSError):
     (`samtools faidx <path>`) can be raised in place of pyfaidx's advice about a
     Python API the caller is not using.
     """
+
+
+def reason(exc: BaseException) -> str:
+    """Return the human half of ``exc``: what went wrong, without the machinery.
+
+    `pydantic.ValidationError` subclasses `ValueError`, so every boundary in this
+    project that catches `ValueError` and prints `str(exc)` — the CLI's twenty error
+    sites, the cohort's per-item `error` column, the designer's per-vertical skip
+    note — prints pydantic's full report instead of a sentence::
+
+        error: 1 validation error for PAM
+        pattern
+          Value error, PAM has non-IUPAC characters: ['X', 'Z'] [type=value_error,
+          input_value='XYZ', input_type=str]
+            For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+    The sentence a person needs is on the third line. The rest names an internal model,
+    a field, a framework's error taxonomy, and a library the caller never imported. One
+    call site had been patched by hand for one model; the class stayed.
+
+    Every other exception renders as it always did, so this is safe to apply at any
+    boundary that already printed `str(exc)`.
+    """
+    errors = getattr(exc, "errors", None)
+    if not callable(errors) or not isinstance(exc, ValueError):
+        return str(exc)
+    try:
+        details = errors()
+    except Exception:  # noqa: BLE001 - a look-alike `errors()` is not ours to interpret
+        return str(exc)
+    messages = [
+        # Pydantic prefixes a message raised by a field validator with its own
+        # category; the category is already implied by the sentence that follows it.
+        str(detail.get("msg", "")).removeprefix("Value error, ")
+        for detail in details
+        if isinstance(detail, dict) and detail.get("msg")
+    ]
+    return "; ".join(messages) if messages else str(exc)

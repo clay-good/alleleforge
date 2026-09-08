@@ -42,6 +42,7 @@ from alleleforge.design.designer import (
     _reference_snapshot,
     design,
 )
+from alleleforge.errors import reason
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.report.builder import caveats
 from alleleforge.types.candidate import RankedMenu
@@ -584,7 +585,10 @@ def design_many(
             menu = design(item, reference=_reference(), intent=intent, **design_kwargs)
         except _EXPECTED_DESIGN_FAILURES as exc:
             return CohortItemResult(
-                item_id=iid, status="error", summary=None, error=f"{type(exc).__name__}: {exc}"
+                item_id=iid,
+                status="error",
+                summary=None,
+                error=f"{type(exc).__name__}: {reason(exc)}",
             )
         except Exception as exc:  # noqa: BLE001 - a defect is recorded distinctly, not hidden
             # An unexpected exception type is a code defect, not a per-item data
@@ -594,7 +598,7 @@ def design_many(
                 item_id=iid,
                 status="error",
                 summary=None,
-                error=f"unexpected {type(exc).__name__} (likely a defect): {exc}",
+                error=f"unexpected {type(exc).__name__} (likely a defect): {reason(exc)}",
             )
         _record_datasets(menu)
         if out_dir is not None:
