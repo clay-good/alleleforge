@@ -131,7 +131,19 @@ def test_the_undocumented_allowances_are_real() -> None:
 def test_a_setting_really_moves_when_its_variable_is_set(
     name: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The honored list is derived, so pin that the derivation matches behaviour."""
+    """The honored list is derived, so pin that the derivation matches behaviour.
+
+    What this proves, and what it does not. It reads `Settings` directly, so it says the
+    *library* honours the variable — which was true of `ALLELEFORGE_SEED` and
+    `ALLELEFORGE_REFERENCE` on the day both were discovered to do nothing on the command
+    line. The CLI passed its flag defaults as explicit overrides, and an override outranks
+    the environment, so every `aforge` run ignored both while this test passed.
+
+    A check that exercises the layer where the mechanism works cannot see the surface that
+    discards it. `tests/test_a_bad_setting_names_the_variable_you_set.py` drives the CLI
+    for each of them, and that is where the shell half belongs; this file's subject is
+    whether the documented list and the honored list agree.
+    """
     field = name.removeprefix("ALLELEFORGE_").lower()
     before = getattr(Settings(), field)
     monkeypatch.setenv(name, {"seed": "1234", "reference": "mm39", "allow_network": "1"}[field])
