@@ -14196,3 +14196,58 @@ and a set I had only half-audited.
 **And a guard that can fail on the prose describing it is worse than no guard**, because
 the cheapest way to make it pass is to delete the explanation. When a check reads
 documentation, scope it to the part a reader executes.
+
+## Round 426 — the remedy for a missing dependency lived inside the module that needed it
+
+Continuing R423/R424's instrument on the last never-built artifact: `conda/meta.yaml`. Its
+`run:` requirements are python, pydantic, pydantic-settings and pyyaml. Its own `test:`
+block is:
+
+```yaml
+test:
+  commands:
+    - aforge --version
+```
+
+No typer. The recipe's self-test fails at build with `ModuleNotFoundError`.
+
+Which raised the sharper question: the recipe declares the same entry point pyproject
+does, so does `pip install alleleforge` — the *documented* base install, "core library
+(light)" — ship a working `aforge`? It does not:
+
+```
+$ pip install alleleforge && aforge --version
+Traceback (most recent call last):
+  File ".../bin/aforge", line 3, in <module>
+    from alleleforge.cli.main import app
+ModuleNotFoundError: No module named 'typer'
+```
+
+The console script is declared unconditionally; typer lives in the `cli` extra.
+
+The pointed part is what already existed. `main._missing_dependency` was written for
+exactly this, and its docstring says so — it gives an actionable answer *"for the imports
+that fail before any check runs"*. It could not help, because **it lives inside the module
+that cannot load**. The one dependency the command is written in is the one its own remedy
+could not reach.
+
+The entry point is now a shim in `alleleforge.cli`, which answers for `typer` by name and
+re-raises anything else — turning every startup error into an install hint would hide bugs
+behind an instruction the reader has already followed. Verified in a clean venv: core-only
+prints `pip install 'alleleforge[cli]'` and exits 69; adding the extra gives `0.1.0.dev0`.
+
+**A bug I introduced and a test caught.** I first named the shim `main` — and
+`alleleforge.cli.main` is a *submodule*, so any `import alleleforge.cli.main` in the
+process rebinds `alleleforge.cli.main` from my function to that module. The console script
+resolves before that happens, so it worked in the venv and would have shipped. A test in
+the same file imported `_EXTRA_FOR_MODULE` first and turned it into
+`TypeError: 'module' object is not callable`. It is now `run`, and a test imports the
+submodule *deliberately* before asserting the entry point is still callable.
+
+**Lesson: when a helper exists to make a failure actionable, check whether it can run in
+the failure it names.** The docstring said "imports that fail before any check runs" and
+it was one import too late to see the first of them.
+
+**And an entry point named after a sibling submodule is a bug that passes every test you
+would think to write** — because the script resolves first. The test that finds it is the
+one that imports the submodule on purpose.
