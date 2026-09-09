@@ -13860,3 +13860,64 @@ shell" defects for a hundred rounds — in the one pair with no guard.
 
 **And make an allowance list state its own kind.** `decision:` and `GAP,` cost one word
 each and turn a list that reads as coverage into a list that reads as a backlog.
+
+## Round 419 — building the thing the last round wrote down as a gap
+
+R418 added the API→page parity guard and recorded five decisions and one **GAP, not a
+decision**: `POST /api/offtarget` had no page surface, so the audience with no terminal
+could not check a spacer it already held. R411's lesson says the round after the flag is
+the cheapest time to act on it. This is that round.
+
+A third tab. It posts to `/api/offtarget` through the same `apiFetch` wrapper the other
+panels use (so the API-token header cannot be skipped), and renders the site count, worst
+score, specificity, expected burden, effective matrix, the search-budget sentence, the
+coordinate convention and the disclaimer — the same set every other surface carries.
+
+Three decisions inside it are worth recording, because each was a fork:
+
+**The ancestry table shows both columns.** Worst score *and* frequency-weighted burden,
+side by side. Showing the worst score alone is what R415 found the acceptance suite doing:
+a CFD score is a property of the sequence and not of who carries it, so that column reads
+`1.000 / 1.000 / 1.000` and says "risk is spread evenly", which is the opposite of the
+finding this search exists to reproduce.
+
+**The on-target locus is four inputs, not one box.** The API takes a structured locus. A
+`chr2:1000-1020(+)` text box would need a coordinate parser in the page — a second one,
+which is precisely how two surfaces come to accept different spellings — and it would hide
+the convention. Four labelled fields put "0-based" where a reader sees it. This was my
+second attempt: the first passed the string through and the parity guard caught it,
+because the guard reads the object literal the page builds and an assignment after it is
+invisible to a reader and to the check.
+
+**One escaper, hoisted.** The cohort panel had a local one, with a comment recording the
+`<img src=x onerror=...>` that got through before it. The new panel echoes the spacer and
+the ancestry labels, both user input. Two panels with two escapers is one escaper that
+falls behind, so there is now one at module scope.
+
+Verified in a browser rather than only in tests: the search returns 3 sites at specificity
+0.354; giving the on-target locus drops it to 2, lifts specificity to 0.549, replaces the
+"not excluded" warning with the sentence naming the exclusion; and `>chr1` comes back as
+*"Error 422: spacer has non-IUPAC characters: ['1', '>'] …"*, which is R416's refusal
+arriving in a browser as a sentence.
+
+One incidental fix. `_body_from`, the shared helper that builds a request body from the
+keys a panel sends, filled every non-boolean field with `None` — so the new panel's
+numeric budgets failed as `int_type`/`float_type` 422s. Its own docstring already records
+this exact class for booleans. It now reads each field's *default* off the model, so the
+next new type does not need a new line.
+
+**And the blast radius, caught by the gate.** `test_the_header_and_the_cells_stay_the_same_width`
+scraped *every* `<th>` in `app.js` and compared the count against the cohort row's cells.
+That was correct only while the cohort table was the only table on the page. Adding a
+summary table and an ancestry table broke a cohort test without touching the cohort — the
+recurring shape in this log, where a feature's blast radius lands on another module's
+assumption rather than on its own. The guard now reads the header it is about, and still
+fails when a real cohort column drifts.
+
+**Lesson: a `GAP,` entry in an allowance list is a to-do with a deadline, and the deadline
+is the next round.** Writing "this is a gap, not a decision" and then leaving it is worse
+than not writing it, because the list then reads as coverage to everyone including me.
+
+**And build the page against its own guard.** The parity check found my first shape wrong
+in under a second — not because the code was broken, but because it was written in a form
+nothing could read. That is the same property the guard exists to protect.
