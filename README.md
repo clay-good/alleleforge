@@ -290,14 +290,16 @@ pure-Python fallback and a byte-identical parity test, and each wired into its h
 
 | Kernel | What it does | Hot path | Parity test | Speedup |
 |---|---|---|---|:---:|
-| `bwt` | FM-index `build`/`count`/`locate`/`pam_sites` | reference scan (PAM seed-and-extend) | [`test_native.py`](tests/genome/test_native.py) | genome-scale |
+| `bwt` | FM-index `build`/`count`/`locate`/`pam_sites` | reference scan, now **opt-in** (`use_fm_index=True`, or supply `genome_index=`) | [`test_native.py`](tests/genome/test_native.py) | scan-level a **net cost** at every size measured — `scripts/native_speedup.py` prints `SLOWER` at 300 kb and 1 Mb, because the per-anchor work the index avoids is now C-level. The path is exact and parity-pinned and stays for a caller who wants a memory-mapped index for *memory* rather than time; see `FM_INDEX_AUTO_ENGAGES`. |
 | `kmer` | exact length-`k` seed positions | seed prefilter, now **opt-in** (`scan_sequence(seed=True)`) | [`test_kmer.py`](tests/offtarget/test_kmer.py) | ~5–7x lookup; scan-level a **net cost**, so it no longer runs by default — the prefilter's own O(n) pass exceeds what it saves now that the anchor scan is C-level. `scripts/native_speedup.py` prints the pair; [`test_the_seed_prefilter_is_opt_in.py`](tests/offtarget/test_the_seed_prefilter_is_opt_in.py) carries the numbers. |
 | `haplotype` | apply a haplotype's variant set to a window | haplotype walk (stage 3 materialization) | [`test_haplotype_kernel.py`](tests/offtarget/test_haplotype_kernel.py) | ~4x |
 | `align` | best single-base removal within a mismatch budget | the scan's innermost alignment (two calls per PAM anchor) | [`test_native_align_parity.py`](tests/offtarget/test_native_align_parity.py) | ~43% off a whole scan |
 
 `FMIndex.build(prefer_native=True)` transparently uses the Rust index when the crate is present; the
 k-mer, haplotype and alignment dispatchers do the same. AlleleForge imports and runs cleanly **without** the crate
-(pure-Python mode); build it for the genome-scale path:
+(pure-Python mode); build it for the kernels that are on the hot path — the per-anchor evaluation and
+bulged alignment the scan calls a million times over 2 Mb, the haplotype materialization, and the contig
+fold:
 
 ```bash
 pip install maturin
@@ -516,8 +518,8 @@ attribute a site's burden to a population that merely shows a trace, sub-thresho
 > in-budget alignment shares an exact length-`k` seed with the spacer, so anchors whose window contains
 > no seed can be skipped without ever dropping a hit (an exhaustive randomized test pins seeded ≡
 > brute-force). It **auto-engages only when the seed is selective** (`k ≥ 5`, i.e. high-stringency / low
-> edit-budget scans) and is a transparent no-op at the default ≤4-mismatch+bulge budget, where the FM-index
-> remains the genome-scale path.
+> edit-budget scans) and is a transparent no-op at the default ≤4-mismatch+bulge budget, where the linear
+> scan with native per-anchor kernels is the default path and the FM-index is opt-in.
 >
 > **Its scan-level payoff is currently ~1x, and that is worth stating plainly.** The prefilter once measured
 > ~2–4x on a high-stringency scan; since then the per-anchor work it prunes got roughly 50x cheaper (see the
@@ -608,9 +610,13 @@ auditable, every site records **both**: the primary `score` (under `score_method
 The MIT score that retained a low-CFD site is therefore visible in the serialized report, never silently
 dropped.
 
-> The genome-scale search is the FM-index seed-and-extend path (native Rust `bwt` kernel when built, a
-> *correct* pure-Python FM-index otherwise — byte-identical, pinned by parity tests; CI never blocks on
-> the native build). It is wired into the engine's reference scan, opt-in (see `FM_INDEX_AUTO_ENGAGES`).
+> The FM-index seed-and-extend path (native Rust `bwt` kernel when built, a *correct* pure-Python
+> FM-index otherwise — byte-identical, pinned by parity tests; CI never blocks on the native build) is
+> wired into the engine's reference scan and **opt-in** (see `FM_INDEX_AUTO_ENGAGES`). It was the default
+> until the per-anchor work it exists to avoid became C-level, at which point it made the default
+> configuration 2.7x slower at genome scale; the linear scan with native kernels is the default now. Not
+> measured and so not claimed either way: a persistent cross-process index whose build cost was paid in an
+> earlier run.
 
 ### External-tool adapters (R3)
 

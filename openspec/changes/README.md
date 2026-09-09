@@ -16147,3 +16147,42 @@ four were checked because a previous round's lesson said to; both were already h
 someone who had the same thought and wrote it into the code rather than into a log. The
 fourth was measurable and I declined to measure it, which is the same discipline pointed at
 myself: a number I cannot stand behind is worse than the number already there.
+
+## Round 471 — the row that was honest, next to the row that was not
+
+`scripts/native_speedup.py`, run last round, prints this:
+
+    anchor enumeration: FM-index vs linear scan (identical hits)
+        300,000 bp   linear   0.18s   fm-index   4.93s   (0.04x, SLOWER)
+      1,000,000 bp   linear   0.35s   fm-index   6.08s   (0.06x, SLOWER)
+
+The engine already knows. `FM_INDEX_AUTO_ENGAGES = False`, with the reason written above
+it: the threshold "turned the *default* configuration 2.7x slower at exactly the genome
+scale the tool exists for", and "`scripts/native_speedup.py` has been printing 'SLOWER'
+for this pair; the number was in the output and the decision was in the prose". Someone
+did that work properly, including the part where they said what they had *not* measured —
+a persistent cross-process index whose build cost was paid in an earlier run.
+
+The README did not get the message. Its kernel table listed the `bwt` speedup as
+"genome-scale" — in the row directly above the `kmer` row, which is scrupulous about being
+"a **net cost**, so it no longer runs by default". It told a reader to build the crate
+"for the genome-scale path", when the reason to build it now is the per-anchor evaluation
+and bulged alignment the *linear* scan calls a million times over 2 Mb. And twice it said
+the FM-index **is** the genome-scale search.
+
+Two sibling rows in one table, one telling the truth about its net cost and one repeating
+a claim its own module had retracted. The rows and the prose now say what the code
+decided, including the parts that keep it fair to the feature: exact, parity-pinned,
+reachable by asking, and a real option for a caller who wants a memory-mapped index for
+*memory* rather than for time.
+
+The guard is derived, in the shape round 461 used for the "not yet on a hot path" claim:
+while `FM_INDEX_AUTO_ENGAGES` is off, no document may describe that path as the default —
+and if the flag is ever flipped back, the guard inverts with it rather than needing an
+edit.
+
+**Lesson: when a decision is recorded in the code, the artifact most likely to contradict
+it is the one that sells the feature.** The module comment, the flag, the harness output
+and the CHANGELOG all agreed. The README — the page a prospective user reads to decide
+whether this tool is fast — carried the superseded claim in a table cell, four words long,
+next to a neighbour that had been corrected for exactly the same reason.
