@@ -16370,3 +16370,42 @@ unqualified one.** Nobody adds "when a source is present" to a design principle;
 as hedging. But the qualification is the engineering, and the surfaces that had to *do* the
 thing all carry it. When the code is more careful than the mission statement, the mission
 statement is the defect.
+
+## Round 477 — the honesty principle, overstating honesty
+
+Finishing the sweep of the numbered principles. Principle 2:
+
+> **Honest uncertainty.** Every numeric prediction ships with a **calibrated** interval.
+
+Run the tool. Two hundred candidates, and every efficiency and every `p_intended` comes
+back `calibrated=False`, `method=heuristic`. That is not a defect — it is the entire point
+of the flag. The weight-free defaults that run out of the box have not fitted their
+intervals against held-out coverage and say so; conformal recalibration and the trained
+models are what set it true. This project spends a whole module and several rounds on that
+distinction.
+
+And its statement of the principle asserts the one thing the flag exists to deny. So do
+`CONTRIBUTING.md` — where a contributor learns what honesty means in this codebase —
+`openspec/project.md`, and the README, twice. Four documents, all upstream of the code,
+all claiming the calibration the code carefully refuses to claim.
+
+The corrected form gives up nothing: every numeric prediction ships with an interval, the
+method that produced it, and a `calibrated` flag stating whether that interval was fitted.
+The flag is the principle; the adjective was decoration, and it happened to be the one word
+that made the sentence false. An interval *asserted* to be calibrated when it is not is the
+confident wrong answer wearing the honest one's clothes — which is the failure mode the
+principle exists to prevent.
+
+Four rounds, four defining statements: the privacy guarantee, the reproducibility
+requirement, the differentiator, and now the honesty principle. Every one was absolute in
+the document that defines it and qualified in every surface that implements it.
+
+A guard of this repository's own caught my new test in passing: it looped over
+`menu.candidates` without first asserting the collection was non-empty, so it would have
+passed on a menu with nothing in it. Written by an earlier round, for exactly this mistake.
+
+**Lesson: check the mission statement against a run, not against the code.** All four
+findings came from executing the product and reading what it printed —
+`calibrated=False`, `offtarget_sources: reference-only`, a provenance block with no
+variant, an OpenAPI description that branches on `vep_enabled`. The code was right every
+time. Reading it would have confirmed the principles; running it contradicted them.

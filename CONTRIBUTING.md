@@ -11,8 +11,11 @@ By participating you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md)
 AlleleForge is built phase by phase against [`SPEC.md`](SPEC.md), the authoritative build contract.
 Before proposing a change, read the relevant phase. Two principles override personal preference:
 
-- **Honest uncertainty.** No scorer returns a bare float; every numeric prediction carries a calibrated
-  interval. Do not add code paths that emit point estimates without an uncertainty contract.
+- **Honest uncertainty.** No scorer returns a bare float; every numeric prediction carries an interval,
+  the method behind it, and a `calibrated` flag saying whether that interval was fitted against held-out
+  coverage. The weight-free defaults are heuristics and report `calibrated=False`; asserting otherwise is
+  the one thing this project treats as worse than a wide interval. Do not add code paths that emit
+  point estimates without an uncertainty contract.
 - **Population-aware by default — as behaviour, not as a shipped dataset.** Off-target analysis is
   ancestry-stratified; a single global number hides exactly the disparities we exist to surface. Given a
   population source the scan uses it without being asked again; nothing of gnomAD ships, so without

@@ -44,7 +44,9 @@ Specs must preserve this honesty: never let a heuristic masquerade as a trained 
 
 1. **Variant-first.** The canonical journey starts from a variant, not a guide.
 2. **Honest uncertainty.** No scorer returns a bare float. Every numeric prediction
-   ships with a calibrated interval, a method tag, a calibrated flag, and an OOD flag.
+   ships with an interval, a method tag, a `calibrated` flag stating whether that interval was
+   fitted against held-out coverage, and an OOD flag. The weight-free defaults are heuristics and
+   report `calibrated=False`; the flag is the contract, not the adjective.
 3. **Population-aware, and explicit when it cannot be.** A minor allele can create a
    de novo PAM a reference-only scan misses, so population and haplotype variation is a
    first-class search pass rather than an add-on. It is **not** on by default, because

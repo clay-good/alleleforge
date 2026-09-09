@@ -109,8 +109,13 @@ of candidate guide designs**, with a population-aware off-target profile for eac
 
 1. **Variant-first.** The canonical user journey starts from a variant, not a guide. Chemistry selection,
    guide enumeration, and scoring are all downstream of "what is the variant and what design addresses it."
-2. **Honest uncertainty.** Every numeric prediction ships with a calibrated interval. A confident wrong
-   answer is worse than a wide honest one. No scorer returns a bare float.
+2. **Honest uncertainty.** No scorer returns a bare float: every numeric prediction ships with an
+   interval, the method that produced it, and a `calibrated` flag stating whether that interval has been
+   fitted against held-out coverage. A confident wrong answer is worse than a wide honest one — and an
+   interval *asserted* to be calibrated when it is not is the confident wrong answer wearing the honest
+   one's clothes. The weight-free defaults that run out of the box are heuristics and report
+   `calibrated=False` on every prediction; conformal recalibration and the trained models are what set it
+   true. The flag is the principle, not the word "calibrated".
 3. **Population-aware as the default *behaviour*, not as a default *dataset*.** Reference-genome-only
    off-target analysis is a known blind spot: a minor allele can create a *de novo* PAM that a
    reference-only scan misses. So when a population source is present, the scan uses it without being

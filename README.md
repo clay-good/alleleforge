@@ -57,7 +57,7 @@ Cas-OFFinder, …) behind a unified, typed, uncertainty-honest interface and add
 ## Design principles
 
 1. **Variant-first.** The canonical journey starts from *what is broken*, not from a guide.
-2. **Honest uncertainty.** Every numeric prediction ships with a calibrated interval. No scorer returns a bare float — including `P(intended)`, the probability the edit produces the allele you asked for, which is the number a reader is most likely to act on. Where a chemistry's outcome predictor makes no such prediction (SpCas9 nuclease), the figure is labelled *derived from the outcome distribution* rather than given a band it does not have.
+2. **Honest uncertainty.** Every numeric prediction ships with an interval, the method that produced it, and a `calibrated` flag saying whether that interval was fitted against held-out coverage — the weight-free defaults that run out of the box are heuristics and report `calibrated=False`, which is the flag doing its job. No scorer returns a bare float — including `P(intended)`, the probability the edit produces the allele you asked for, which is the number a reader is most likely to act on. Where a chemistry's outcome predictor makes no such prediction (SpCas9 nuclease), the figure is labelled *derived from the outcome distribution* rather than given a band it does not have.
 3. **Population-aware, and explicit when it cannot be.** Reference-only off-target analysis is a known
    safety gap (the Casgevy / BCL11A `rs114518452` case is the canonical cautionary tale), so population and
    haplotype variation is a first-class search pass rather than an add-on. It is **not** on by default,
@@ -350,7 +350,7 @@ from alleleforge.types import DNASequence, Prediction, UncertaintyMethod
 seq = DNASequence("ACGTRYN")           # validates IUPAC alphabet
 print(seq.reverse_complement())        # ambiguity-aware: R↔Y, N↔N → "NRYACGT"
 
-# Every numeric prediction carries a calibrated interval, never a bare float.
+# Every numeric prediction carries an interval and a `calibrated` flag, never a bare float.
 p = Prediction(value=0.72, interval=(0.61, 0.83), method=UncertaintyMethod.ENSEMBLE,
                in_distribution=True)
 print(p.interval_level)                # 0.80 by default
