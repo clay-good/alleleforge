@@ -1261,6 +1261,7 @@ flowchart LR
 | `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf\|tsv\|parquet\|menu` — the same set `aforge design --format` offers, so a pipeline gets the flat table over HTTP too, and `menu` the untruncated outcome spectrum the report points at |
 | `POST /api/jobs/design` → `GET /api/jobs/{job_id}` | Async job submit + status/progress/result |
 | `POST /api/jobs/batch` → `GET /api/jobs/{job_id}` | The same, for a whole cohort — the operation that actually takes minutes, and the one the async path did not cover |
+| `GET /api/jobs/{job_id}/result` | A finished job's result in any format its blocking twin offers (`?format=` — design: `json\|menu\|html\|pdf\|tsv\|parquet`; cohort: `json\|tsv`), rendered from the stored result rather than recomputed. Without it the client whose run is long enough to need a job was the one who could not have the PDF, the flat table, or the untruncated menu |
 | `POST /api/batch` | Cohort design over a variant list; per-item summaries + provenance, failures isolated |
 | `POST /api/offtarget` | Standalone population-aware off-target search — full report plus the aggregate summary (site count, worst-case, specificity) |
 | `GET /api/data` · `/api/data/{name}` | Inspect the dataset registry |

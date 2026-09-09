@@ -14819,3 +14819,50 @@ in a terminal, in a downloaded file, in a PDF a collaborator opens. Inside a pag
 reason for existing is that its reader has no terminal, it is the one place it cannot be
 followed — and the fix was not to reword it but to notice that the thing it pointed at was
 unreachable from three of the four shells.
+
+## Round 438 — the door for slow clients had one way out
+
+Round 437 added `format=menu` and left an obvious next question: who can actually ask for
+it? `POST /api/design` offers six renderings and `POST /api/batch` two. Their **async
+twins** offered one — the JSON envelope `GET /api/jobs/{id}` returns — because that
+envelope was the only way anything left the job store.
+
+Which inverts the point of the async path. `/api/jobs/batch` exists, in this project's own
+words, because "a three-hundred-variant run through `POST /api/batch` holds the connection
+for minutes, past any ordinary reverse-proxy or browser timeout". So the client whose run
+is long enough to *need* a job was precisely the client who could not have the PDF, the
+flat per-patient table, or the untruncated menu.
+
+The served page is where that bill came due. `downloadBatchTsv` re-`POST`ed the whole
+cohort to `/api/batch?format=tsv` — the blocking endpoint the comment three functions above
+it says "fails exactly on the cohorts this panel exists for". The button therefore spent the
+cohort's entire runtime a second time (the page's own note measures a 300-variant run at
+3m 40s), over a connection the panel had already concluded could not be held open that long,
+to format a result that was already in the browser and already in the job store. On any
+cohort big enough to have needed the job route, Download TSV could not work.
+
+`GET /api/jobs/{job_id}/result?format=…` renders a finished job's stored result in every
+format its blocking twin offers. Nothing is recomputed. Two things had to change behind it:
+
+- A job now stores what its result can be **rendered** from, not the one document the
+  envelope reports. `FinishedDesign` keeps the menu and the render cap because neither can
+  be recovered from the report — the report is what the truncation already happened to —
+  and `FinishedCohort` keeps both the response model the JSON body is and the library
+  report the TSV is written from. The status envelope is byte-identical; it unwraps.
+- The synchronous endpoint and the job result share **one renderer apiece**. A second copy
+  of that wiring is how an async client comes to be handed a quietly different document
+  from a blocking one, which is the same defect this file records for `_run_cohort` and for
+  the population sources three rounds apart.
+
+`409` while a job is unfinished or failed, carrying the failure reason, because the
+question is *when* and not *whether*. `422` for a format that kind of job does not have: a
+cohort has no PDF — `aforge batch` has none either — and saying so is a client-fixable
+answer rather than a 500.
+
+**Lesson: shipping a format is not shipping reachability, and the audience that most needs
+a capability is the one most likely to be on the path that lacks it.** The format existed;
+the door the slow client is *told to use* did not open onto it. A parity guard comparing
+the two shells' format enums passed the whole time, because both shells did offer the
+format — on their synchronous route. Parity between shells is not parity between the doors
+within a shell, and the async door is not a lesser copy of the blocking one; it is the one
+the hard case has to use.

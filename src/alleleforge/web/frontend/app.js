@@ -261,7 +261,7 @@ const batchActions = document.getElementById("batch-actions");
 const batchSubmit = document.getElementById("batch-submit");
 
 let lastBatch = null; // the last batch response, for the JSON download.
-let lastBatchRequest = null; // the body that produced it, for renderings the server makes.
+let lastBatchJobId = null; // the job that produced it: the server can still render it.
 
 function readBatchForm() {
   const variants = document
@@ -451,7 +451,7 @@ async function runBatch(event) {
       return;
     }
     lastBatch = finished.result;
-    lastBatchRequest = body;
+    lastBatchJobId = jobId;
     renderBatch(lastBatch);
     batchActions.hidden = false;
     batchStatus.textContent =
@@ -482,19 +482,21 @@ function downloadBatch() {
 }
 
 async function downloadBatchTsv() {
-  if (!lastBatchRequest) {
+  if (!lastBatchJobId) {
     batchStatus.textContent = "Run a cohort first — there is nothing to download yet.";
     batchStatus.classList.add("error");
     return;
   }
-  // Asked of the endpoint rather than assembled here: the column set and its order are
-  // the shared ones, and a second implementation in the browser is exactly how two
-  // tables of the same numbers come to disagree about their columns.
-  const res = await apiFetch("/api/batch?format=tsv", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(lastBatchRequest),
-  });
+  // Asked of the server rather than assembled here: the column set and its order are the
+  // shared ones, and a second implementation in the browser is exactly how two tables of
+  // the same numbers come to disagree about their columns.
+  //
+  // Asked of the *finished job*, not of `/api/batch`. This used to re-POST the whole
+  // cohort to the blocking endpoint — the one the comment in `runBatch` says "fails
+  // exactly on the cohorts this panel exists for" — spending the entire run again (a
+  // 300-variant cohort measured 3m 40s) to format a result already on this page, over a
+  // connection this panel had already concluded it could not hold open that long.
+  const res = await apiFetch(`/api/jobs/${lastBatchJobId}/result?format=tsv`);
   if (!res.ok) {
     batchStatus.textContent = `Download failed: ${res.status}`;
     batchStatus.classList.add("error");

@@ -23,9 +23,10 @@ import importlib
 import os
 import tempfile
 from collections.abc import Iterable
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, TypeVar
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.encoders import jsonable_encoder
@@ -61,6 +62,7 @@ from alleleforge.web.api.models import (
     DatasetRow,
     DesignRequest,
     HealthResponse,
+    JobState,
     JobStatusResponse,
     JobSubmitResponse,
     OffTargetRequest,
@@ -615,9 +617,107 @@ def _design_to_menu_and_report(request: Request, req: DesignRequest) -> tuple[An
     return menu, report
 
 
-def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
-    """Resolve + design + build a report for a design request (or ``4xx``)."""
-    return _design_to_menu_and_report(request, req)[1]
+@dataclass(frozen=True)
+class FinishedDesign:
+    """Everything a finished design run can still be rendered from.
+
+    A design job used to store the ``DesignReport`` alone, which is one rendering of the
+    six ``POST /api/design`` offers — and the truncated one. So the client who *has* to go
+    async, because their run is the long one, was the client who could not have the PDF or
+    the full menu. The menu and the render cap are kept because they cannot be recovered
+    from the report: the report is what the truncation already happened to.
+    """
+
+    menu: Any
+    report: DesignReport
+    render_candidates: int | None
+
+
+@dataclass(frozen=True)
+class FinishedCohort:
+    """Both shapes a finished cohort run is read in.
+
+    The response model is what the JSON envelope carries; the library report is what the
+    flat TSV is written from. Keeping only one of them is why the served page re-ran a
+    whole cohort to format a table it was already holding.
+    """
+
+    cohort: Any
+    response: BatchResponse
+
+
+def _render_design(finished: FinishedDesign, fmt: DesignFormat) -> DesignReport | Response:
+    """Render a finished design in one of the formats the design endpoint offers.
+
+    One renderer for the synchronous endpoint and the job result, so an async client
+    cannot be quietly handed a different document than a blocking one.
+    """
+    if fmt is DesignFormat.menu:
+        # The ranked menu, uncapped and untruncated — the document the report's own
+        # withheld-alleles note points at. Returned as a Response so the DesignReport
+        # response_model does not reshape it into the very thing it is not.
+        return Response(finished.menu.model_dump_json(indent=2), media_type="application/json")
+    # 0 means "draw them all"; the JSON body is never capped either way.
+    cap = (
+        DEFAULT_RENDER_CANDIDATES
+        if finished.render_candidates is None
+        else (finished.render_candidates or None)
+    )
+    report = finished.report
+    if fmt is DesignFormat.html:
+        return HTMLResponse(render_html(report, max_candidates=cap))
+    if fmt is DesignFormat.pdf:
+        return Response(render_pdf(report, max_candidates=cap), media_type="application/pdf")
+    if fmt is DesignFormat.tsv:
+        # `text/tab-separated-values`, charset declared: the `#` note block carries
+        # a reference-genome description that may hold a non-ASCII gene name.
+        return Response(
+            report_to_tsv(report), media_type="text/tab-separated-values; charset=utf-8"
+        )
+    if fmt is DesignFormat.parquet:
+        return Response(_report_parquet_bytes(report), media_type="application/vnd.apache.parquet")
+    return report
+
+
+def _render_cohort(finished: FinishedCohort, fmt: BatchFormat) -> BatchResponse | Response:
+    """Render a finished cohort as the JSON envelope or the flat per-patient table."""
+    if fmt is BatchFormat.json:
+        return finished.response
+    # The same table `aforge batch --summary-tsv` writes, from the same library
+    # function, so the two shells cannot describe one run differently.
+    return Response(
+        cohort_to_tsv(cohort_rows(finished.cohort), finished.cohort.provenance),
+        media_type="text/tab-separated-values; charset=utf-8",
+    )
+
+
+def _job_payload(result: Any) -> Any:
+    """Return the document a job's stored result is reported as in the status envelope."""
+    if isinstance(result, FinishedDesign):
+        return result.report
+    if isinstance(result, FinishedCohort):
+        return result.response
+    return result
+
+
+_FormatT = TypeVar("_FormatT", bound=StrEnum)
+
+
+def _as_format(kind: type[_FormatT], value: str) -> _FormatT:
+    """Parse ``value`` as one of ``kind``'s members, or ``422`` naming the real set.
+
+    The job-result route cannot type its ``format`` query as one enum: which formats
+    exist depends on what kind of job finished. Asking a cohort for a PDF is a client
+    mistake with an answer, not a 500.
+    """
+    try:
+        return kind(value)
+    except ValueError:
+        offered = "|".join(sorted(member.value for member in kind.__members__.values()))
+        raise HTTPException(
+            status_code=422,
+            detail=f"this job's result is available as {offered}; got {value!r}",
+        ) from None
 
 
 #: Request paths that never require the API token (liveness must stay probeable).
@@ -913,39 +1013,18 @@ def create_app(
     ) -> DesignReport | Response:
         """Design a ranked, multi-chemistry menu (JSON, menu, HTML, PDF, TSV, or Parquet)."""
         menu, report = _design_to_menu_and_report(request, req)
-        if fmt is DesignFormat.menu:
-            # The ranked menu, uncapped and untruncated — the document the report's own
-            # withheld-alleles note points at. Returned as a Response so the DesignReport
-            # response_model does not reshape it into the very thing it is not.
-            return Response(menu.model_dump_json(indent=2), media_type="application/json")
-        # 0 means "draw them all"; the JSON body is never capped either way.
-        cap = (
-            DEFAULT_RENDER_CANDIDATES
-            if req.render_candidates is None
-            else (req.render_candidates or None)
-        )
-        if fmt is DesignFormat.html:
-            return HTMLResponse(render_html(report, max_candidates=cap))
-        if fmt is DesignFormat.pdf:
-            return Response(render_pdf(report, max_candidates=cap), media_type="application/pdf")
-        if fmt is DesignFormat.tsv:
-            # `text/tab-separated-values`, charset declared: the `#` note block carries
-            # a reference-genome description that may hold a non-ASCII gene name.
-            return Response(
-                report_to_tsv(report), media_type="text/tab-separated-values; charset=utf-8"
-            )
-        if fmt is DesignFormat.parquet:
-            return Response(
-                _report_parquet_bytes(report), media_type="application/vnd.apache.parquet"
-            )
-        return report
+        return _render_design(FinishedDesign(menu, report, req.render_candidates), fmt)
 
     @app.post("/api/jobs/design", response_model=JobSubmitResponse, status_code=202)
     async def submit_design_job(req: DesignRequest, request: Request) -> JobSubmitResponse:
         """Submit an async design job; poll ``/api/jobs/{id}`` for the result."""
         jobs: JobManager = request.app.state.jobs
         try:
-            record = await jobs.submit(lambda: _design_to_report(request, req))
+            record = await jobs.submit(
+                lambda: FinishedDesign(
+                    *_design_to_menu_and_report(request, req), req.render_candidates
+                )
+            )
         except JobCapacityError as exc:
             raise HTTPException(status_code=429, detail=reason(exc)) from exc
         return JobSubmitResponse(job_id=record.id, state=record.state)
@@ -957,7 +1036,9 @@ def create_app(
         record = jobs.get(job_id)
         if record is None:
             raise HTTPException(status_code=404, detail=f"unknown job {job_id!r}")
-        result = record.result
+        # A job now stores everything its result can be *rendered* from, not only the
+        # one document this envelope carries; the envelope itself is unchanged.
+        payload = _job_payload(record.result)
         return JobStatusResponse(
             job_id=record.id,
             state=record.state.value,
@@ -967,11 +1048,48 @@ def create_app(
             # when a design was the only job kind, so a cohort job would have finished
             # `done` with `result: null` — the job ran and its answer was dropped.
             result=(
-                result.model_dump(mode="json")
-                if isinstance(result, DesignReport | BatchResponse)
+                payload.model_dump(mode="json")
+                if isinstance(payload, DesignReport | BatchResponse)
                 else None
             ),
         )
+
+    # `response_model=None`: which model this returns depends on the kind of job that
+    # finished, and four of the eight renderings are not models at all.
+    @app.get("/api/jobs/{job_id}/result", response_model=None)
+    def job_result(
+        job_id: str,
+        request: Request,
+        fmt: Annotated[str, Query(alias="format")] = "json",
+    ) -> DesignReport | BatchResponse | Response:
+        """Render a *finished* job's result in any format its synchronous twin offers.
+
+        The async doors are the ones the documentation sends a client behind a proxy
+        timeout to, and the ones the served page uses for a cohort — and they returned
+        one rendering of the six a design has and the two a cohort has, because the JSON
+        status envelope was the only way out of the job store. So the client whose run is
+        long enough to need a job was the one who could not have the TSV, the PDF, or the
+        untruncated menu, and the page paid for it by re-running a whole cohort through
+        the blocking endpoint just to format a table it was already holding.
+
+        Nothing is recomputed here: the job's own result is rendered.
+        """
+        jobs: JobManager = request.app.state.jobs
+        record = jobs.get(job_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail=f"unknown job {job_id!r}")
+        if record.state is not JobState.DONE:
+            # 409, not 404: the job exists and this is a question about *when*, which is
+            # what `GET /api/jobs/{id}` answers. A failed job carries its reason here too,
+            # so a client that polls only this route is not told merely "no".
+            detail = record.error or f"job {job_id} is {record.state.value}, not done"
+            raise HTTPException(status_code=409, detail=detail)
+        result = record.result
+        if isinstance(result, FinishedDesign):
+            return _render_design(result, _as_format(DesignFormat, fmt))
+        if isinstance(result, FinishedCohort):
+            return _render_cohort(result, _as_format(BatchFormat, fmt))
+        raise HTTPException(status_code=409, detail=f"job {job_id} has no renderable result")
 
     def _run_cohort(request: Request, req: BatchRequest) -> Any:
         """Run a cohort and return the library's report, for both batch entry points.
@@ -1030,6 +1148,11 @@ def create_app(
             disclaimer=RESEARCH_USE_DISCLAIMER,
         )
 
+    def _finished_cohort(request: Request, req: BatchRequest) -> FinishedCohort:
+        """Run a cohort once and keep both shapes its two renderings need."""
+        report = _run_cohort(request, req)
+        return FinishedCohort(report, _cohort_response(report))
+
     @app.post("/api/batch", response_model=BatchResponse)
     def batch_endpoint(
         req: BatchRequest,
@@ -1043,15 +1166,7 @@ def create_app(
         work — so a client that cannot hold a request open that long should submit it
         to `/api/jobs/batch` and poll instead.
         """
-        report = _run_cohort(request, req)
-        if fmt is not BatchFormat.json:
-            # The same table `aforge batch --summary-tsv` writes, from the same library
-            # function, so the two shells cannot describe one run differently.
-            return Response(
-                cohort_to_tsv(cohort_rows(report), report.provenance),
-                media_type="text/tab-separated-values; charset=utf-8",
-            )
-        return _cohort_response(report)
+        return _render_cohort(_finished_cohort(request, req), fmt)
 
     @app.post("/api/jobs/batch", response_model=JobSubmitResponse, status_code=202)
     async def submit_batch_job(req: BatchRequest, request: Request) -> JobSubmitResponse:
@@ -1065,7 +1180,7 @@ def create_app(
         """
         jobs: JobManager = request.app.state.jobs
         try:
-            record = await jobs.submit(lambda: _cohort_response(_run_cohort(request, req)))
+            record = await jobs.submit(lambda: _finished_cohort(request, req))
         except JobCapacityError as exc:
             raise HTTPException(status_code=429, detail=reason(exc)) from exc
         return JobSubmitResponse(job_id=record.id, state=record.state)
