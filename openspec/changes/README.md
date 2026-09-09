@@ -12939,3 +12939,50 @@ declaration against real rows.**
 **And the tell for reachability was cheap: ask every documented output format for the same
 report and compare status codes. Five formats, one line, one 500.**
 
+## Round 400 — the async path covered the operation that did not need it
+
+Measured, not inferred. A 300-variant cohort through `POST /api/batch`:
+
+```
+curl -X POST localhost:8765/api/batch --data @300-variants.json
+200
+3m 40.22s total
+```
+
+One connection, held for three and a half minutes. `POST /api/jobs/design` — submit,
+`202`, poll — exists for the operation that finishes in *seconds*. The cohort, which is
+what this project is built for and what its own README sizes at five hundred patients, had
+only the blocking door, and a reverse proxy or a browser closes that door long before the
+work is finished.
+
+Adding `POST /api/jobs/batch` turned up the second half on its own. The status endpoint
+serialized with:
+
+```python
+result=result.model_dump(mode="json") if isinstance(result, DesignReport) else None
+```
+
+Correct while a design was the only job kind. The moment it is not, a cohort job reports
+`state: done, progress: 1.0, result: null` — the work performed, the answer discarded,
+and no error anywhere. A type check that enumerates is a place a future type gets dropped
+silently; this one now names both shapes and a test fails if a third is added without it.
+
+Both doors run the cohort through one function. The endpoint's own comment records that
+the wiring was duplicated once before and left "a cohort run reference-only while an
+identical one-variant request was population-aware" — the same duplication, one door over.
+
+A note on method: my first version of the test used the sync `TestClient` with
+`time.sleep` between polls and hung, roughly one run in four, for the full deadline. That
+was the *test*, not the product — the repo's existing job tests are async with
+`httpx.AsyncClient` for exactly this reason. Worth chasing to the bottom rather than
+raising the timeout: a flaky new test is indistinguishable from a flaky new feature until
+you know which it is.
+
+**Lesson: when a mechanism exists for "the long operation", check which operation is
+actually long. Time it. The async path here was built for a design because a design was
+what someone was looking at, and the cohort — an order of magnitude slower — got the
+synchronous one.**
+
+**And `isinstance(x, TheOnlyTypeSoFar)` in a serializer is a silent-drop waiting for a
+second type. Grep for isinstance checks that gate whether a result is returned at all.**
+
