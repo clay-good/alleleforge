@@ -409,16 +409,43 @@ def _python_evaluate(
 #: almost every window contains one) and seeding is pure overhead; the scan then
 #: falls back to the full brute force.
 #:
-#: The threshold was calibrated when ``k>=5`` bought a ~2-4x scan-level speedup.
-#: That figure is stale: the per-anchor work the prefilter prunes has since become
-#: roughly 50x cheaper (the linear-time bulge alignment, its budget early-exit, and
-#: the memoized PAM test), so the prefilter's own ``O(n)`` cost -- seed positions
-#: plus the covered-index prefix sum -- now cancels what it saves. Re-measured over
-#: six mismatch/bulge configurations with repeats: **0.94-1.12x**, neutral within
-#: noise, hit sets identical throughout. The threshold is kept because seeding at
-#: ``k>=5`` is exact and costs nothing measurable, not because it is fast; making it
-#: pay again would mean attacking the prefix-sum construction, not this constant.
+#: The threshold was calibrated when ``k>=5`` bought a ~2-4x scan-level speedup, and
+#: re-measured once at **0.94-1.12x** -- neutral -- once the per-anchor work it prunes
+#: got cheaper. It is now a clear loss; see :data:`SEED_PREFILTER_AUTO_ENGAGES`. The
+#: constant still decides *whether a seed is selective enough to be worth trying at
+#: all*, which is a property of the alphabet and the budget, so it stays.
 MIN_SELECTIVE_K = 5
+
+#: Whether the linear scan engages the k-mer seed prefilter on its own. **No.**
+#:
+#: The prefilter's saving is the anchors it skips; its cost is its own ``O(n)`` pass
+#: over the sequence. Every round that measured it found the saving shrinking as the
+#: work per anchor got cheaper -- ~2-4x when it was calibrated, then 0.94-1.12x. The
+#: last of that saving went when the PAM test moved from a per-anchor Python slice and
+#: memo lookup to one compiled regex scan: the prefilter now prunes only a native
+#: ``evaluate_anchor`` call, which is cheaper than deciding not to make it.
+#:
+#: Measured at 1 Mb, one guide, no bulges, three runs each, hit sets identical
+#: throughout (milliseconds, one strand):
+#:
+#: ===========  ==========  ==========  ==========  ==========
+#: crate        mm=0        mm=1        mm=2        mm=3
+#: ===========  ==========  ==========  ==========  ==========
+#: built        48 / 139    45 / 156    39 / 167    58 / 157
+#: not built    60 / 226    80 / 212    69 / 292    81 / 282
+#: ===========  ==========  ==========  ==========  ==========
+#:
+#: (brute force / seeded.) The previous comment here left one repair open -- "making
+#: it pay again would mean attacking the prefix-sum construction". That was measured
+#: too: replacing `covered_prefix` with a `bisect` over the seed positions, which has
+#: no ``O(n)`` pass at all, gives 0.79x-1.65x against brute force with the crate and
+#: 1.82x-2.66x without it. Still a loss almost everywhere, so the repair is not worth
+#: making and the prefilter is not worth engaging by default.
+#:
+#: It stays reachable as ``scan_sequence(seed=True)`` and stays parity-tested: it is a
+#: *proven superset* (pigeonhole), and that property is the reason to keep it available
+#: rather than delete it. What is removed is the assumption that it is free.
+SEED_PREFILTER_AUTO_ENGAGES = False
 
 
 def _seed_filter(
@@ -636,7 +663,7 @@ def scan_sequence(
     dna_bulges: int = 1,
     rna_bulges: int = 1,
     offset: int = 0,
-    seed: bool = True,
+    seed: bool | None = None,
     use_fm_index: bool = False,
     fm_cache_dir: str | Path | None = None,
     fm_plus: FMIndex | None = None,
@@ -654,9 +681,11 @@ def scan_sequence(
         rna_bulges: Maximum RNA bulges (0 or 1).
         offset: Added to every coordinate so a scanned sub-window maps back to
             genome coordinates.
-        seed: Use the k-mer seed prefilter (default); the result is identical to
-            the unseeded scan but skips windows that provably contain no hit. Set
-            ``False`` to force the exhaustive brute-force scan.
+        seed: Force (``True``) or forbid (``False``) the k-mer seed prefilter.
+            ``None`` (default) takes the brute-force scan — see
+            :data:`SEED_PREFILTER_AUTO_ENGAGES` for the measurements that removed
+            the automatic engagement. The prefilter returns identical hits either
+            way (a parity test pins this); what differs is only the time.
         use_fm_index: Anchor PAMs through a (content-addressed, cached) FM-index
             seed-and-extend instead of the linear scan. Identical hits (a parity
             test pins this); this is the genome-scale reference path. Ignores
@@ -675,6 +704,7 @@ def scan_sequence(
     sp = str(spacer).upper()
     n = len(seq)
     hits: list[Hit] = []
+    use_seed = seed if seed is not None else SEED_PREFILTER_AUTO_ENGAGES
 
     use_fm = use_fm_index or (fm_plus is not None and fm_minus is not None)
     if use_fm and seq:
@@ -700,7 +730,13 @@ def scan_sequence(
                 rna_bulges=rna_bulges,
             )
         return _scan_one_strand(
-            sp, seq, pam, max_mm=mismatches, dna_bulges=dna_bulges, rna_bulges=rna_bulges, seed=seed
+            sp,
+            seq,
+            pam,
+            max_mm=mismatches,
+            dna_bulges=dna_bulges,
+            rna_bulges=rna_bulges,
+            seed=use_seed,
         )
 
     for local in _plus():
@@ -733,7 +769,13 @@ def scan_sequence(
                 rna_bulges=rna_bulges,
             )
         return _scan_one_strand(
-            sp, rc, pam, max_mm=mismatches, dna_bulges=dna_bulges, rna_bulges=rna_bulges, seed=seed
+            sp,
+            rc,
+            pam,
+            max_mm=mismatches,
+            dna_bulges=dna_bulges,
+            rna_bulges=rna_bulges,
+            seed=use_seed,
         )
 
     for local in _minus():

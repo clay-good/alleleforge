@@ -148,13 +148,23 @@ dead code.
   seed-and-extend prefilter (`scan_sequence(..., seed=...)`). It is a **proven
   superset** (pigeonhole: ≥1 uncut, substitution-free block of length
   `k = ⌊n/(E+1)⌋` survives any in-budget alignment), pinned by an exhaustive
-  randomized seeded ≡ brute-force test. **Honest finding** from the R2
-  micro-benchmark (`scripts/native_speedup.py`): the seed must run *before* the
-  PAM check to prune, and it only pays off when selective (`k ≥ 5`, i.e. low edit
-  budget) — measured ~2–4x there, a no-op at AlleleForge's default ≤4-mismatch+
-  bulge budget (the seed is too short to prune). So it auto-engages only when
-  `k ≥ 5`; the **FM-index seed-and-extend remains the genome-scale path** for the
-  default budget.
+  randomized seeded ≡ brute-force test. **Honest finding, twice revised.** The R2
+  micro-benchmark measured ~2–4x when selective (`k ≥ 5`, i.e. low edit budget) and
+  a no-op at AlleleForge's default ≤4-mismatch+bulge budget (the seed is too short
+  to prune), so it auto-engaged at `k ≥ 5`. Both halves of that finding have since
+  expired. The ordering rule — "the seed must run *before* the PAM check to prune" —
+  was about a per-anchor Python PAM test that no longer exists: the PAM check is one
+  compiled regex scan over the whole sequence, so there is no Python anchor work left
+  for the seed to run ahead of. And the speedup went with it: the prefilter now prunes
+  only a native `evaluate_anchor` call, which is cheaper than its own `O(n)` pass costs
+  to decide. Re-measured at 1 Mb, one guide, three runs each, brute force / seeded in
+  ms — crate built `48/139, 45/156, 39/167, 58/157` and not built `60/226, 80/212,
+  69/292, 81/282` for `mm = 0,1,2,3`; a `bisect` variant with no `O(n)` pass at all is
+  still 0.79–1.65x (built) and 1.82–2.66x (not built). **So it no longer auto-engages
+  at any budget** (`SEED_PREFILTER_AUTO_ENGAGES = False`); it stays reachable as
+  `scan_sequence(..., seed=True)` and stays parity-tested, because the *proven-superset*
+  property is exact and worth keeping available. The **FM-index seed-and-extend remains
+  the genome-scale path** for the default budget.
 - **FM-index wired into the reference scan (◐ landed).** The engine's stage-1
   reference search now runs FM-index seed-and-extend (`scan_sequence(...,
   use_fm_index=...)`): each concrete PAM is *located* in a content-addressed
