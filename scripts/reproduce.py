@@ -8,6 +8,12 @@ scenario) twice, asserts the two runs are byte-identical (determinism), and
 diffs a canonicalized digest of the *scientific* result against a committed
 golden manifest.
 
+The scenario is chosen so the contract covers what it claims: the menu ranks
+several candidates across two chemistries, and the reference carries a real
+off-target site for the guide. See `_LEFT_FLANK` for what it looked like before,
+and why one candidate and an empty off-target table made three quarters of the
+sentence below untrue.
+
 Volatile, environment-specific provenance (the package version and the config
 snapshot's cache paths) is stripped before hashing, and floats are rounded so a
 last-ULP difference across platforms is not a spurious failure; everything that
@@ -51,9 +57,33 @@ GOLDEN = Path(__file__).with_name("reproduce_golden.json")
 #: Fixed run timestamp so provenance is stable across runs.
 FIXED_TS = datetime(2024, 5, 1, tzinfo=UTC)
 
-#: The canonical scenario: a 20-nt ABE-correctable protospacer + NGG PAM, padded.
-_PAD = "T" * 20
+#: The canonical scenario: a 20-nt ABE-correctable protospacer + NGG PAM, in flanks
+#: that make prime editing eligible too, followed by a two-mismatch decoy of the same
+#: protospacer with its own ``AGG``.
+#:
+#: It used to be that protospacer between two 20-nt poly-T pads: 63 bases, which produced
+#: **one candidate, of one chemistry, with zero off-target sites**. The docstring above
+#: calls this run a "full ranked menu" and says everything defining the result is kept —
+#: "candidates, scores, intervals, outcomes, **off-targets**" — and three of those had no
+#: non-trivial instance in it. Nothing ranked (one candidate cannot), nothing was compared
+#: across chemistries, and the off-target block recorded a search over 63 bases that found
+#: nothing, so every site-level number in a real report was outside the contract. Two
+#: rounds of changes to the off-target scan were reported as "reproduce matches golden";
+#: that was true and close to meaningless.
+#:
+#: The flanks are literals rather than a seeded RNG so the scenario cannot move with a
+#: Python version, and the decoy is two mismatches from the protospacer so it scores as a
+#: real off-target rather than being excluded as the on-target.
+_LEFT_FLANK = "AAAGCGGCACTTGTGAAGTGTTCCCCACGCCGCTTGGGTCTTCTGTGTTGTTCGCGTGGT"
 _ABE_PROTO = "TTTAAACGTTTTTTTTTTTT"
+_RIGHT_FLANK = "GCTGAGACAAAGCACGCCATAAGGCCAAAAAAAGGCCCATACCAAGAGGTAGTAGTCTCA"
+#: The off-target decoy: `_ABE_PROTO` with two substitutions, plus its own PAM.
+_DECOY_PROTO = "TTGAAACGTTTTTTTTTTTT"
+_TAIL_FLANK = "GAATCTTGCGGGTACAGACCCATCACCTAGACGGTGACATTCAACAAACCACATTGTCCT"
+
+#: Candidates kept per chemistry. The menu must rank and compare, but the golden is read
+#: as a diff in review, so it holds a menu-sized menu rather than every enumerated guide.
+_MAX_PER_CHEMISTRY = 2
 
 #: Provenance keys whose value is environment-specific, not part of the result.
 _VOLATILE_KEYS = frozenset({"alleleforge_version", "config_snapshot"})
@@ -77,10 +107,12 @@ def _run() -> str:
     """Build the canonical menu and return its serialized JSON."""
     with tempfile.TemporaryDirectory() as tmp:
         fasta = Path(tmp) / "reproduce.fa"
-        fasta.write_text(f">chr2\n{_PAD}{_ABE_PROTO}TGG{_PAD}\n")
+        fasta.write_text(
+            f">chr2\n{_LEFT_FLANK}{_ABE_PROTO}TGG{_RIGHT_FLANK}{_DECOY_PROTO}AGG{_TAIL_FLANK}\n"
+        )
         reference = ReferenceGenome(fasta, build="hg38")
 
-        pos = 25  # the in-window A to install A->G
+        pos = len(_LEFT_FLANK) + 5  # the in-window A to install A->G
         iv = GenomicInterval(chrom="chr2", start=pos, end=pos + 1, strand=Strand.PLUS)
         ref_base = str(reference.fetch(iv))
         accession = ClinVarAccession(value="VCV000012345")
@@ -103,6 +135,7 @@ def _run() -> str:
             intent=EditIntent.INSTALL,
             clinvar=clinvar,
             timestamp=FIXED_TS,
+            max_candidates_per_chemistry=_MAX_PER_CHEMISTRY,
         )
         return menu.model_dump_json()
 

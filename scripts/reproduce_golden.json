@@ -2,6 +2,278 @@
   "body": {
     "candidates": [
       {
+        "base_edit_window": null,
+        "bystander_burden": null,
+        "chemistry": "prime",
+        "efficiency": {
+          "calibrated": false,
+          "in_distribution": true,
+          "interval": [
+            0.402118,
+            0.702118
+          ],
+          "interval_level": 0.8,
+          "method": "heuristic",
+          "notes": [
+            "nominal interval level: fixed heuristic half-width, coverage not measured"
+          ],
+          "point_from_trained_model": false,
+          "value": 0.552118
+        },
+        "flags": [
+          "epegRNA:tevopreQ1",
+          "pe3",
+          "nick-distance:+52nt",
+          "both-nicks-searched"
+        ],
+        "guide": null,
+        "hdr_donor": null,
+        "offtarget": {
+          "ambiguous_spacer_positions": [],
+          "available_populations": [],
+          "cfd_threshold": 0.2,
+          "dna_bulge_budget": 1,
+          "maf_threshold": null,
+          "mismatch_threshold": 4,
+          "mit_threshold": 0.1,
+          "on_target_excluded_placements": 1,
+          "pam": "NGG",
+          "reference_build": "hg38",
+          "resolved_bases": 226,
+          "rna_bulge_budget": 1,
+          "scanned_pam": "NRG",
+          "score_matrix": "doench-2016-cfd",
+          "scorer": "CFD",
+          "searched_bases": 226,
+          "sites": [],
+          "sources_considered": {},
+          "spacer": "GGTCTTCTGTGTTGTTCGCG",
+          "subthreshold_placements": 0,
+          "subthreshold_score_sum": 0.0,
+          "unbacked_populations": []
+        },
+        "outcome": {
+          "alleles": [
+            {
+              "allele": "intended",
+              "is_intended": true,
+              "probability": 0.598
+            },
+            {
+              "allele": "scaffold_incorporation",
+              "is_intended": false,
+              "probability": 0.1
+            },
+            {
+              "allele": "partial_rtt",
+              "is_intended": false,
+              "probability": 0.152
+            },
+            {
+              "allele": "indel",
+              "is_intended": false,
+              "probability": 0.15
+            }
+          ],
+          "partial": false
+        },
+        "p_intended": {
+          "calibrated": false,
+          "in_distribution": true,
+          "interval": [
+            0.448,
+            0.748
+          ],
+          "interval_level": 0.8,
+          "method": "heuristic",
+          "notes": [
+            "nominal interval level: fixed heuristic half-width, coverage not measured"
+          ],
+          "point_from_trained_model": false,
+          "value": 0.598
+        },
+        "pegrna": {
+          "nick_site": 53,
+          "nicking_guide": {
+            "nick_offset": 52,
+            "placement": {
+              "chrom": "chr2",
+              "coordinate_system": "0-based-half-open",
+              "end": 122,
+              "start": 102,
+              "strand": "-"
+            },
+            "seed_disrupting": false,
+            "spacer": {
+              "sequence": {
+                "sequence": "TGGGCCTTTTTTTGGCCTTA"
+              }
+            }
+          },
+          "pbs": {
+            "sequence": "GAACAACACAGAA"
+          },
+          "placement": {
+            "chrom": "chr2",
+            "coordinate_system": "0-based-half-open",
+            "end": 56,
+            "start": 36,
+            "strand": "+"
+          },
+          "rtt": {
+            "sequence": "AAACGCTTAAAACCACGC"
+          },
+          "rtt_homology_3prime": 5,
+          "rtt_homology_5prime": 12,
+          "scaffold": {
+            "sequence": "GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGCACCGAGTCGGTGC"
+          },
+          "spacer": {
+            "sequence": {
+              "sequence": "GGTCTTCTGTGTTGTTCGCG"
+            }
+          },
+          "three_prime_motif": "tevopreQ1"
+        },
+        "rationale": "pegRNA on + strand, PBS 13 / RTT 18 (1 nt written, +5 homology); efficiency 0.55, intended P=0.60; score 0.693 [eff 0.55 [0.40, 0.70], clean 0.60, safe 1.00, simple 0.40]"
+      },
+      {
+        "base_edit_window": null,
+        "bystander_burden": null,
+        "chemistry": "prime",
+        "efficiency": {
+          "calibrated": false,
+          "in_distribution": true,
+          "interval": [
+            0.399127,
+            0.699127
+          ],
+          "interval_level": 0.8,
+          "method": "heuristic",
+          "notes": [
+            "nominal interval level: fixed heuristic half-width, coverage not measured"
+          ],
+          "point_from_trained_model": false,
+          "value": 0.549127
+        },
+        "flags": [
+          "epegRNA:tevopreQ1",
+          "pe3",
+          "nick-distance:+52nt",
+          "both-nicks-searched"
+        ],
+        "guide": null,
+        "hdr_donor": null,
+        "offtarget": {
+          "ambiguous_spacer_positions": [],
+          "available_populations": [],
+          "cfd_threshold": 0.2,
+          "dna_bulge_budget": 1,
+          "maf_threshold": null,
+          "mismatch_threshold": 4,
+          "mit_threshold": 0.1,
+          "on_target_excluded_placements": 1,
+          "pam": "NGG",
+          "reference_build": "hg38",
+          "resolved_bases": 226,
+          "rna_bulge_budget": 1,
+          "scanned_pam": "NRG",
+          "score_matrix": "doench-2016-cfd",
+          "scorer": "CFD",
+          "searched_bases": 226,
+          "sites": [],
+          "sources_considered": {},
+          "spacer": "GGTCTTCTGTGTTGTTCGCG",
+          "subthreshold_placements": 0,
+          "subthreshold_score_sum": 0.0,
+          "unbacked_populations": []
+        },
+        "outcome": {
+          "alleles": [
+            {
+              "allele": "intended",
+              "is_intended": true,
+              "probability": 0.598
+            },
+            {
+              "allele": "scaffold_incorporation",
+              "is_intended": false,
+              "probability": 0.1
+            },
+            {
+              "allele": "partial_rtt",
+              "is_intended": false,
+              "probability": 0.152
+            },
+            {
+              "allele": "indel",
+              "is_intended": false,
+              "probability": 0.15
+            }
+          ],
+          "partial": false
+        },
+        "p_intended": {
+          "calibrated": false,
+          "in_distribution": true,
+          "interval": [
+            0.448,
+            0.748
+          ],
+          "interval_level": 0.8,
+          "method": "heuristic",
+          "notes": [
+            "nominal interval level: fixed heuristic half-width, coverage not measured"
+          ],
+          "point_from_trained_model": false,
+          "value": 0.598
+        },
+        "pegrna": {
+          "nick_site": 53,
+          "nicking_guide": {
+            "nick_offset": 52,
+            "placement": {
+              "chrom": "chr2",
+              "coordinate_system": "0-based-half-open",
+              "end": 122,
+              "start": 102,
+              "strand": "-"
+            },
+            "seed_disrupting": false,
+            "spacer": {
+              "sequence": {
+                "sequence": "TGGGCCTTTTTTTGGCCTTA"
+              }
+            }
+          },
+          "pbs": {
+            "sequence": "GAACAACACAGAAG"
+          },
+          "placement": {
+            "chrom": "chr2",
+            "coordinate_system": "0-based-half-open",
+            "end": 56,
+            "start": 36,
+            "strand": "+"
+          },
+          "rtt": {
+            "sequence": "AAACGCTTAAAACCACGC"
+          },
+          "rtt_homology_3prime": 5,
+          "rtt_homology_5prime": 12,
+          "scaffold": {
+            "sequence": "GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGCACCGAGTCGGTGC"
+          },
+          "spacer": {
+            "sequence": {
+              "sequence": "GGTCTTCTGTGTTGTTCGCG"
+            }
+          },
+          "three_prime_motif": "tevopreQ1"
+        },
+        "rationale": "pegRNA on + strand, PBS 14 / RTT 18 (1 nt written, +5 homology); efficiency 0.55, intended P=0.60; score 0.692 [eff 0.55 [0.40, 0.70], clean 0.60, safe 1.00, simple 0.40]"
+      },
+      {
         "base_edit_window": {
           "bystander_positions": [
             4,
@@ -17,8 +289,8 @@
           "placement": {
             "chrom": "chr2",
             "coordinate_system": "0-based-half-open",
-            "end": 40,
-            "start": 20,
+            "end": 80,
+            "start": 60,
             "strand": "+"
           },
           "spacer": {
@@ -68,10 +340,10 @@
         "flags": [
           "bystander-present:2",
           "bystander-burden:0.60",
+          "offtarget-high:0.90",
           "pol3-terminator",
           "no-5prime-g",
-          "gc-out-of-band:0.10",
-          "recommended"
+          "gc-out-of-band:0.10"
         ],
         "guide": null,
         "hdr_donor": null,
@@ -83,16 +355,83 @@
           "maf_threshold": null,
           "mismatch_threshold": 4,
           "mit_threshold": 0.1,
-          "on_target_excluded_placements": 1,
+          "on_target_excluded_placements": 2,
           "pam": "NGG",
           "reference_build": "hg38",
-          "resolved_bases": 63,
+          "resolved_bases": 226,
           "rna_bulge_budget": 1,
           "scanned_pam": "NRG",
           "score_matrix": "doench-2016-cfd",
           "scorer": "CFD",
-          "searched_bases": 63,
-          "sites": [],
+          "searched_bases": 226,
+          "sites": [
+            {
+              "ancestries": {},
+              "causal_allele": null,
+              "dna_bulges": 1,
+              "frequency": null,
+              "locus": {
+                "chrom": "chr2",
+                "coordinate_system": "0-based-half-open",
+                "end": 164,
+                "start": 143,
+                "strand": "+"
+              },
+              "mismatches": 1,
+              "mit_score": null,
+              "origin": "reference",
+              "pam_sequence": "GGG",
+              "populations": [],
+              "rna_bulges": 0,
+              "score": 0.9,
+              "score_matrix": "doench-2016-seed-tolerance-approximation",
+              "score_method": "cfd"
+            },
+            {
+              "ancestries": {},
+              "causal_allele": null,
+              "dna_bulges": 0,
+              "frequency": null,
+              "locus": {
+                "chrom": "chr2",
+                "coordinate_system": "0-based-half-open",
+                "end": 163,
+                "start": 143,
+                "strand": "+"
+              },
+              "mismatches": 1,
+              "mit_score": 0.986,
+              "origin": "reference",
+              "pam_sequence": "AGG",
+              "populations": [],
+              "rna_bulges": 0,
+              "score": 0.5,
+              "score_matrix": "doench-2016-cfd",
+              "score_method": "cfd"
+            },
+            {
+              "ancestries": {},
+              "causal_allele": null,
+              "dna_bulges": 0,
+              "frequency": null,
+              "locus": {
+                "chrom": "chr2",
+                "coordinate_system": "0-based-half-open",
+                "end": 162,
+                "start": 143,
+                "strand": "+"
+              },
+              "mismatches": 1,
+              "mit_score": null,
+              "origin": "reference",
+              "pam_sequence": "TAG",
+              "populations": [],
+              "rna_bulges": 1,
+              "score": 0.231893,
+              "score_matrix": "doench-2016-seed-tolerance-approximation",
+              "score_method": "cfd"
+            }
+          ],
           "sources_considered": {},
           "spacer": "TTTAAACGTTTTTTTTTTTT",
           "subthreshold_placements": 0,
@@ -160,12 +499,201 @@
           "value": 0.288
         },
         "pegrna": null,
-        "rationale": "ABE8e sgRNA on + strand; P(exact)=0.29, bystander burden=0.60; score 0.641 [eff 0.60 [0.45, 0.75], clean 0.29, safe 1.00, simple 0.90]"
+        "rationale": "ABE8e sgRNA on + strand; P(exact)=0.29, bystander burden=0.60; score 0.371 [eff 0.60 [0.45, 0.75], clean 0.29, safe 0.10, simple 0.90]"
+      },
+      {
+        "base_edit_window": {
+          "bystander_positions": [
+            4
+          ],
+          "editor": "ABE8e",
+          "pam": {
+            "pattern": "NGG"
+          },
+          "pam_sequence": {
+            "sequence": "GGG"
+          },
+          "placement": {
+            "chrom": "chr2",
+            "coordinate_system": "0-based-half-open",
+            "end": 81,
+            "start": 61,
+            "strand": "+"
+          },
+          "spacer": {
+            "sequence": {
+              "sequence": "TTAAACGTTTTTTTTTTTTT"
+            }
+          },
+          "target_positions": [
+            5
+          ],
+          "window": [
+            4,
+            8
+          ]
+        },
+        "bystander_burden": {
+          "calibrated": false,
+          "in_distribution": true,
+          "interval": [
+            0.05,
+            0.35
+          ],
+          "interval_level": 0.8,
+          "method": "heuristic",
+          "notes": [
+            "count-valued quantity: interval is a nominal spread, not a coverage band"
+          ],
+          "point_from_trained_model": false,
+          "value": 0.2
+        },
+        "chemistry": "base_abe",
+        "efficiency": {
+          "calibrated": false,
+          "in_distribution": true,
+          "interval": [
+            0.25,
+            0.55
+          ],
+          "interval_level": 0.8,
+          "method": "heuristic",
+          "notes": [
+            "nominal interval level: fixed heuristic half-width, coverage not measured"
+          ],
+          "point_from_trained_model": false,
+          "value": 0.4
+        },
+        "flags": [
+          "bystander-present:1",
+          "bystander-burden:0.20",
+          "offtarget-high:0.95",
+          "intended-not-modal:0.32",
+          "pol3-terminator",
+          "no-5prime-g",
+          "gc-out-of-band:0.10",
+          "recommended"
+        ],
+        "guide": null,
+        "hdr_donor": null,
+        "offtarget": {
+          "ambiguous_spacer_positions": [],
+          "available_populations": [],
+          "cfd_threshold": 0.2,
+          "dna_bulge_budget": 1,
+          "maf_threshold": null,
+          "mismatch_threshold": 4,
+          "mit_threshold": 0.1,
+          "on_target_excluded_placements": 2,
+          "pam": "NGG",
+          "reference_build": "hg38",
+          "resolved_bases": 226,
+          "rna_bulge_budget": 1,
+          "scanned_pam": "NRG",
+          "score_matrix": "doench-2016-cfd",
+          "scorer": "CFD",
+          "searched_bases": 226,
+          "sites": [
+            {
+              "ancestries": {},
+              "causal_allele": null,
+              "dna_bulges": 0,
+              "frequency": null,
+              "locus": {
+                "chrom": "chr2",
+                "coordinate_system": "0-based-half-open",
+                "end": 163,
+                "start": 144,
+                "strand": "+"
+              },
+              "mismatches": 1,
+              "mit_score": null,
+              "origin": "reference",
+              "pam_sequence": "AGG",
+              "populations": [],
+              "rna_bulges": 1,
+              "score": 0.947222,
+              "score_matrix": "doench-2016-seed-tolerance-approximation",
+              "score_method": "cfd"
+            },
+            {
+              "ancestries": {},
+              "causal_allele": null,
+              "dna_bulges": 0,
+              "frequency": null,
+              "locus": {
+                "chrom": "chr2",
+                "coordinate_system": "0-based-half-open",
+                "end": 164,
+                "start": 144,
+                "strand": "+"
+              },
+              "mismatches": 2,
+              "mit_score": 0.08612,
+              "origin": "reference",
+              "pam_sequence": "GGG",
+              "populations": [],
+              "rna_bulges": 0,
+              "score": 0.4725,
+              "score_matrix": "doench-2016-cfd",
+              "score_method": "cfd"
+            }
+          ],
+          "sources_considered": {},
+          "spacer": "TTAAACGTTTTTTTTTTTTT",
+          "subthreshold_placements": 1,
+          "subthreshold_score_sum": 0.10875,
+          "unbacked_populations": []
+        },
+        "outcome": {
+          "alleles": [
+            {
+              "allele": "wildtype",
+              "is_intended": false,
+              "probability": 0.48
+            },
+            {
+              "allele": "A4G",
+              "is_intended": false,
+              "probability": 0.12
+            },
+            {
+              "allele": "A5G",
+              "is_intended": true,
+              "probability": 0.32
+            },
+            {
+              "allele": "A4G;A5G",
+              "is_intended": false,
+              "probability": 0.08
+            }
+          ],
+          "partial": false
+        },
+        "p_intended": {
+          "calibrated": false,
+          "in_distribution": true,
+          "interval": [
+            0.17,
+            0.47
+          ],
+          "interval_level": 0.8,
+          "method": "heuristic",
+          "notes": [
+            "nominal interval level: fixed heuristic half-width, coverage not measured"
+          ],
+          "point_from_trained_model": false,
+          "value": 0.32
+        },
+        "pegrna": null,
+        "rationale": "ABE8e sgRNA on + strand; P(exact)=0.32, bystander burden=0.20; score 0.297 [eff 0.40 [0.25, 0.55], clean 0.32, safe 0.05, simple 0.90]"
       }
     ],
     "clinical_significance": "pathogenic",
     "pareto_front": [
-      0
+      0,
+      2,
+      3
     ],
     "provenance": {
       "datasets": [
@@ -231,9 +759,9 @@
       "timestamp": "2024-05-01T00:00:00Z",
       "tools": []
     },
-    "rationale": "Routing: base_abe=yes, base_cbe=no, prime=yes, cas9_nuclease=no.\nEligible and run: base_abe, prime.\nWhy the other chemistries declined:\n- base_cbe: the required change is A->G, which no cytosine base editor installs. Cytosine base editing installs a C->T / G->A transition in a narrow window with no double-strand break \u2014 eligible when the required change is a G:C->A:T transition SNV.\n- cas9_nuclease: a break-free route reaches this edit (base_abe, prime), and a double-strand break is offered only when none does. An SpCas9 double-strand break repaired by error-prone NHEJ yields frameshifting indels that ablate gene function \u2014 the canonical knock-out route.\nRun notes:\n- ClinVar: pathogenic\n- intent install writes an allele ClinVar classifies as pathogenic \u2014 a disease model, not a correction\n- base_abe: 1 candidate(s)\n- prime: eligible but no actionable candidate enumerated \u2014 no PAM match at this offset (155); the spacer contains TTTT, which terminates Pol III transcription (1)\nRanked by a weighted sum of four higher-is-better objectives (efficiency 0.35, cleanliness 0.30, safety 0.30, simplicity 0.05); the safety term uses the worst nominated site \u2014 no candidate here carries ancestry annotation, so there is no per-ancestry worst to take; every efficiency here is in-distribution, so the efficiency term is the point estimate (an out-of-distribution one would be discounted to its lower interval bound). The Pareto front lists the 1 candidate(s) not dominated on all four objectives.",
-    "variant": "chr2:25:A>G"
+    "rationale": "Routing: base_abe=yes, base_cbe=no, prime=yes, cas9_nuclease=no.\nEligible and run: base_abe, prime.\nWhy the other chemistries declined:\n- base_cbe: the required change is A->G, which no cytosine base editor installs. Cytosine base editing installs a C->T / G->A transition in a narrow window with no double-strand break \u2014 eligible when the required change is a G:C->A:T transition SNV.\n- cas9_nuclease: a break-free route reaches this edit (base_abe, prime), and a double-strand break is offered only when none does. An SpCas9 double-strand break repaired by error-prone NHEJ yields frameshifting indels that ablate gene function \u2014 the canonical knock-out route.\nRun notes:\n- ClinVar: pathogenic\n- intent install writes an allele ClinVar classifies as pathogenic \u2014 a disease model, not a correction\n- base_abe: 2 candidate(s)\n- prime: 90 candidate(s)\n- --max-per-chemistry 2: the counts above are what each chemistry enumerated; 88 lower-ranked candidate(s) were dropped and are not in this result or its exports\nRanked by a weighted sum of four higher-is-better objectives (efficiency 0.35, cleanliness 0.30, safety 0.30, simplicity 0.05); the safety term uses the worst nominated site \u2014 no candidate here carries ancestry annotation, so there is no per-ancestry worst to take; every efficiency here is in-distribution, so the efficiency term is the point estimate (an out-of-distribution one would be discounted to its lower interval bound). Efficiency is predicted by a different model for each chemistry (named in the provenance) and those models are not calibrated against one another, so a cross-chemistry ordering is triage, not a measured comparison. The Pareto front lists the 3 candidate(s) not dominated on all four objectives. The top 2 candidates are within the leader's own efficiency uncertainty of each other, so their relative order is not resolved by the evidence \u2014 treat them as one group and choose on the reagent, not the rank.",
+    "variant": "chr2:65:A>G"
   },
-  "n_candidates": 1,
-  "sha256": "c23fc000194c91c1c6d132c921c770064788f32d5002f1d9723f5120cdcc7e82"
+  "n_candidates": 4,
+  "sha256": "abac015ce2b962e59d62520ca98ab5b9fbb729936463ae61635af0b173ced477"
 }
