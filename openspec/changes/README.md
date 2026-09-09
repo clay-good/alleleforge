@@ -14305,3 +14305,46 @@ except the one drifted machine that never saw it.
 **And a virtualenv with one member of a three-package extra is a warning sign.** `polars`
 without `pyarrow` or `numpy` is not something an install produces; it is something a person
 does to get past an error. The environment that makes your gate pass is part of the gate.
+
+## Round 428 — the same hole, one gate member over
+
+R427's closing lesson was that the environment making your gate pass is part of the gate.
+So: diff this machine's virtualenv against a clean documented install.
+
+Beyond the Rust crate and release tooling, the local venv had the whole **mkdocs** stack.
+`make ci` is `lint type test docs examples reproduce`, `make docs` runs `mkdocs build
+--strict`, and `make install` did not install the `docs` extra. A contributor following
+CONTRIBUTING to the letter gets:
+
+```
+make: mkdocs: No such file or directory
+make: *** [docs] Error 1
+```
+
+Exactly R427's defect, one gate member over, and invisible for the same reason: the tool
+was on this machine.
+
+`docs` joins the install, and the guard is generalised from imports to *tools*. Every
+executable the targets `make ci` depends on actually run is enumerated from the Makefile —
+`ruff`, `mypy`, `pytest`, `mkdocs`, `node`, `python` — and each must be provided by an
+extra the gate installs, or recorded. `node` is recorded: `make lint` parses the served
+page's script with `node --check`, and it is a system runtime pip cannot supply.
+
+I also had to correct R427's own CI check. It required every suite-running job to install
+`make install`'s whole set, which is wrong — CI splits the gate across jobs and the job
+running `pytest` has no use for mkdocs. The property that matters is narrower and is the
+one that was actually violated: a job running the suite must install whatever a test
+imports **at module scope**, or it cannot collect. That is what `test` (missing `core`) and
+`rust` (missing `core`, `cli`, `web`) failed.
+
+Four mutations verify it: dropping `docs` or `core` from the install fails, narrowing the
+`rust` job's extras fails, and renaming a gate tool to something unrecorded fails.
+
+**A note on my own guards.** Adding a comment above the `install:` recipe broke *two* of
+them — both read the pip line as "the line immediately after the target". A guard that
+breaks when you document the thing it guards is a guard that teaches people not to
+document. Both now read the target block to the next target, comments included.
+
+**Lesson: "can the documented install run the documented gate" is one question with one
+answer per gate member.** R427 answered it for `test` and I stopped there, because that
+was where the failure was. The other five members were the same question, unasked.
