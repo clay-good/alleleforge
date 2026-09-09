@@ -36,7 +36,7 @@ from fastapi.staticfiles import StaticFiles
 from alleleforge._version import __version__
 from alleleforge.config import Settings
 from alleleforge.design.cohort_summary import cohort_rows, cohort_to_tsv
-from alleleforge.errors import ChecksumError, ConsentError, MissingDependencyError
+from alleleforge.errors import ChecksumError, ConsentError, MissingDependencyError, reason
 from alleleforge.model_zoo.registry import LicenseError
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
@@ -122,7 +122,7 @@ def _report_parquet_bytes(report: DesignReport) -> bytes:
     except MissingDependencyError as exc:
         # 501, not 500: the deployment did not install the optional writer. The
         # message already names the extra to install, and a client can act on it.
-        raise HTTPException(status_code=501, detail=str(exc)) from exc
+        raise HTTPException(status_code=501, detail=reason(exc)) from exc
 
 
 #: Why the configured reference could not be opened, for `_require_reference` to
@@ -151,7 +151,7 @@ def _load_reference_from_env() -> Any | None:
         # on a read-only mount raises the first; a `pip install "alleleforge[web]"`
         # without a FASTA reader raised the second, and only the first was caught —
         # so that install died at import instead of starting and saying why.
-        _REFERENCE_LOAD_ERROR = str(exc)
+        _REFERENCE_LOAD_ERROR = reason(exc)
         return None
 
 
@@ -180,7 +180,7 @@ def _load_gnomad_from_env() -> Any | None:
 
         return GnomadDB.from_sites_tsv(Path(path))
     except (OSError, ValueError, ImportError) as exc:
-        _GNOMAD_LOAD_ERROR = str(exc)
+        _GNOMAD_LOAD_ERROR = reason(exc)
         return None
 
 
@@ -209,7 +209,7 @@ def _load_haplotypes_from_env() -> Any:
 
         return HaplotypePanel.from_tsv(Path(path), source=path)
     except (OSError, ValueError, KeyError, ImportError) as exc:
-        _HAPLOTYPES_LOAD_ERROR = str(exc)
+        _HAPLOTYPES_LOAD_ERROR = reason(exc)
         return ()
 
 
@@ -234,7 +234,7 @@ def _load_encode_tracks_from_env() -> Any | None:
 
         return EncodeTracks.from_bedgraph(Path(path))
     except (OSError, ValueError, ImportError) as exc:
-        _ENCODE_TRACKS_LOAD_ERROR = str(exc)
+        _ENCODE_TRACKS_LOAD_ERROR = reason(exc)
         return None
 
 
@@ -270,7 +270,7 @@ def _load_reuse_from_env(reference: Any | None) -> tuple[Any | None, Any | None]
 
             index = GenomeIndex.build_genome(reference)
         except (OSError, ValueError, ImportError) as exc:
-            _GENOME_INDEX_LOAD_ERROR = str(exc)
+            _GENOME_INDEX_LOAD_ERROR = reason(exc)
     return cache, index
 
 
@@ -335,7 +335,7 @@ def _resolve(request: Request, variant: str, build: str, *, annotate: bool = Fal
     try:
         return resolve_variant(variant, build=build, reference=reference, effect=effect)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=reason(exc)) from exc
 
 
 def _load_effect_from_env() -> Any | None:
@@ -471,7 +471,7 @@ def _trained_scorers(request: Request, req: Any) -> dict[str, Any]:
             # the client's request is well-formed and the deployment is the problem.
             raise HTTPException(
                 status_code=503,
-                detail=f"{field} is enabled on this deployment but unavailable: {exc}",
+                detail=f"{field} is enabled on this deployment but unavailable: {reason(exc)}",
             ) from exc
     return out
 
@@ -546,7 +546,9 @@ def _design_options(
         try:
             weights = RankingWeights(**dict(zip(OBJECTIVES, weights_in, strict=True)))
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail=f"invalid ranking weights: {exc}") from exc
+            raise HTTPException(
+                status_code=422, detail=f"invalid ranking weights: {reason(exc)}"
+            ) from exc
     return intent, chemistries, weights
 
 
@@ -561,7 +563,7 @@ def _regions(regions: list[Region] | None) -> list[GenomicInterval] | None:
     try:
         return [region.to_interval() for region in regions]
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=reason(exc)) from exc
 
 
 def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
@@ -923,7 +925,7 @@ def create_app(
         try:
             record = await jobs.submit(lambda: _design_to_report(request, req))
         except JobCapacityError as exc:
-            raise HTTPException(status_code=429, detail=str(exc)) from exc
+            raise HTTPException(status_code=429, detail=reason(exc)) from exc
         return JobSubmitResponse(job_id=record.id, state=record.state)
 
     @app.get("/api/jobs/{job_id}", response_model=JobStatusResponse)
@@ -1043,7 +1045,7 @@ def create_app(
         try:
             record = await jobs.submit(lambda: _cohort_response(_run_cohort(request, req)))
         except JobCapacityError as exc:
-            raise HTTPException(status_code=429, detail=str(exc)) from exc
+            raise HTTPException(status_code=429, detail=reason(exc)) from exc
         return JobSubmitResponse(job_id=record.id, state=record.state)
 
     @app.post("/api/offtarget", response_model=OffTargetResponse)
@@ -1063,7 +1065,7 @@ def create_app(
             # the field — served a CFD result to a client that asked for Cas12a.
             scorer = scorer_for(req.scorer) if req.scorer else None
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise HTTPException(status_code=422, detail=reason(exc)) from exc
         try:
             report = search(
                 req.spacer,
@@ -1083,7 +1085,7 @@ def create_app(
                 haplotypes=request.app.state.haplotypes,
             )
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise HTTPException(status_code=422, detail=reason(exc)) from exc
         from alleleforge.design.designer import _reference_snapshot
 
         return OffTargetResponse.from_report(

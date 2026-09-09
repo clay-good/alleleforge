@@ -31,15 +31,23 @@ from alleleforge.types.guide import PAM
 _ROOT = Path(__file__).resolve().parents[1]
 
 #: Surfaces that render an exception for a person to read.
+#:
+#: `web/api/app.py` was missing from the first version of this list, and it is the
+#: one place a *client* reads the text: `POST /api/offtarget` with `pam: "XYZ"`
+#: answered with pydantic's four-line report inside the JSON `detail`, in the round
+#: after the same case was fixed on the command line. A list of surfaces is a scope,
+#: and a scope is a place to forget one — so the check also refuses `str(exc)` now,
+#: not only `{exc}`.
 _REPORTING_SOURCES = [
     _ROOT / "src" / "alleleforge" / "cli" / "main.py",
     _ROOT / "src" / "alleleforge" / "design" / "cohort.py",
     _ROOT / "src" / "alleleforge" / "design" / "designer.py",
+    _ROOT / "src" / "alleleforge" / "web" / "api" / "app.py",
     _ROOT / "src" / "alleleforge" / "web" / "api" / "jobs.py",
 ]
 
-#: `{exc}` interpolated straight into a message, which is what leaks the report.
-_RAW_INTERPOLATION = re.compile(r"(?<!`)\{exc\}(?!`)")
+#: An exception rendered straight into a message, which is what leaks the report.
+_RAW_INTERPOLATION = re.compile(r"(?<!`)(?:\{exc\}|str\(exc\))(?!`)")
 
 
 def test_reason_keeps_the_sentence_and_drops_the_machinery() -> None:

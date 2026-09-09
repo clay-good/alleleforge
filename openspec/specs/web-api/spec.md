@@ -134,6 +134,19 @@ by hand.
 - **THEN** the two results describe the same run — same items, in the same order, with the
   same totals
 
+### Requirement: A refusal is a sentence
+
+A refusal this service raises SHALL reach the client as the sentence that explains it, not
+as a dependency's error report: no internal model class name, no framework error taxonomy,
+no link to a library the client did not import.
+
+The framework's own request-schema 422 — the structured `[{"type", "loc", "msg"}]` body —
+is a published contract a generated client parses, and SHALL keep its shape.
+
+#### Scenario: A field the library refuses
+- **WHEN** a request carries a value a library model rejects, such as a non-IUPAC PAM
+- **THEN** `detail` is the library's sentence about that value, and nothing else
+
 ### Requirement: Research-use and local-compute are stated
 
 Responses SHALL carry the research-use disclaimer where user-facing, and the API
