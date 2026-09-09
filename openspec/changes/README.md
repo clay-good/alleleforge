@@ -15690,3 +15690,39 @@ deciding it — the same unexamined narrowing, one level up, in the round whose 
 subject was unexamined narrowing. The question that would have caught it is the one the
 guard exists to ask, asked about itself: *what does this repository contain that this
 check does not open?*
+
+## Round 458 — the weight that separated nothing
+
+Back to the product, on the axis this tool exists for. `--no-offtarget` is a real flag a
+user reaches for when they have no genome index or want a fast look, and the question is
+what the run then claims about safety.
+
+The data half is exemplary. Every off-target field comes back `None` rather than `0.0` or
+`1.0` — a search that did not happen does not report a clean one — and every candidate
+carries an `offtarget-not-searched` flag that renders as a caveat. `_safety` gives such a
+candidate a full `1.0` and says why in its own docstring: penalising an unmeasured axis
+means choosing a penalty, and "that is a policy this project has no basis for".
+
+What nothing said was what that does to the *ordering*. Safety carries 0.30 of the
+weighted sum. When no candidate was searched, every one of them takes the same maximum, so
+that 30% cannot separate any two candidates and the ranking is decided entirely by
+efficiency, cleanliness and simplicity. The rationale — the sentence a reader consults to
+learn what the order means — said:
+
+> the safety term uses the worst nominated site — no candidate here carries ancestry
+> annotation, so there is no per-ancestry worst to take
+
+describing a computation that did not happen. The tell is inside that sentence: it already
+qualifies the *lesser* version of the same problem. Someone noticed that claiming
+population-aware behaviour on a reference-only run was an overclaim, wrote the clause to
+say so, and did not ask what happens when there is no report at all.
+
+Three cases now, named: searched with ancestry, searched without, and not searched — plus
+the mixed menu, where it says how many of how many were not searched and that the term
+does not compare them with the rest.
+
+**Lesson: a defensible default for a number is not a statement about what the number
+did.** `1.0`-for-unmeasured is right, documented, and flagged per candidate. The gap was
+one level up, in what the *aggregate* built from those defaults can support — and the
+place it showed was a sentence explaining the aggregate, written by someone who had
+already caught the smaller instance of exactly this in the same clause.

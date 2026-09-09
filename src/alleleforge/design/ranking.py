@@ -452,14 +452,44 @@ def rank_candidates(
     # avoid. `_efficiency` discounts only an out-of-distribution prediction; an
     # in-distribution one is ranked on its point estimate, so with no OOD candidate
     # nothing was discounted. Each clause now describes what this run did.
-    safety_clause = (
-        "the safety term uses the worst-affected ancestry"
-        if any(score.worst_ancestry for score in ordered_scores)
-        else (
-            "the safety term uses the worst nominated site — no candidate here carries "
-            "ancestry annotation, so there is no per-ancestry worst to take"
+    # The third case, and the one that most changes how the ordering should be read: a
+    # candidate with no off-target report scores a full 1.0 on safety — the reassuring
+    # extreme for an axis nobody measured, which `_safety` documents and every vertical
+    # flags as `offtarget-not-searched`. When *no* candidate was searched, that weight is
+    # a constant across the whole menu: it cannot separate anything, and the order is
+    # decided by the other three objectives alone. This sentence already qualified the
+    # lesser version of the same thing ("no candidate here carries ancestry annotation,
+    # so there is no per-ancestry worst to take") while describing a term that was not
+    # computed at all as though it had been.
+    unsearched = sum(1 for candidate in ranked if candidate.offtarget is None)
+    if unsearched == len(ranked) and ranked:
+        safety_clause = (
+            f"no off-target search was run, so every candidate takes the maximum on the "
+            f"safety objective and its {w['safety']:.2f} weight separates none of them — "
+            "this ordering is decided by the other three objectives, and each candidate "
+            "is flagged offtarget-not-searched"
         )
-    )
+    elif unsearched:
+        safety_clause = (
+            f"{unsearched} of {len(ranked)} candidate(s) were not searched for "
+            "off-targets and take the maximum on the safety objective (flagged "
+            "offtarget-not-searched), so the safety term does not compare them with the "
+            "rest; where it was searched it uses "
+            + (
+                "the worst-affected ancestry"
+                if any(score.worst_ancestry for score in ordered_scores)
+                else "the worst nominated site"
+            )
+        )
+    else:
+        safety_clause = (
+            "the safety term uses the worst-affected ancestry"
+            if any(score.worst_ancestry for score in ordered_scores)
+            else (
+                "the safety term uses the worst nominated site — no candidate here carries "
+                "ancestry annotation, so there is no per-ancestry worst to take"
+            )
+        )
     efficiency_clause = (
         "the efficiency term is uncertainty-discounted"
         if n_ood
