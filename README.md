@@ -1249,6 +1249,7 @@ flowchart LR
 | `POST /api/resolve` | Normalize any input form to a canonical variant |
 | `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf\|tsv\|parquet` — the same set `aforge design --format` offers, so a pipeline gets the flat table over HTTP too |
 | `POST /api/jobs/design` → `GET /api/jobs/{job_id}` | Async job submit + status/progress/result |
+| `POST /api/jobs/batch` → `GET /api/jobs/{job_id}` | The same, for a whole cohort — the operation that actually takes minutes, and the one the async path did not cover |
 | `POST /api/batch` | Cohort design over a variant list; per-item summaries + provenance, failures isolated |
 | `POST /api/offtarget` | Standalone population-aware off-target search — full report plus the aggregate summary (site count, worst-case, specificity) |
 | `GET /api/data` · `/api/data/{name}` | Inspect the dataset registry |

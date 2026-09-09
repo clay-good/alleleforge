@@ -939,16 +939,23 @@ def create_app(
             state=record.state.value,
             progress=record.progress,
             error=record.error,
-            result=result.model_dump(mode="json") if isinstance(result, DesignReport) else None,
+            # Both result shapes, named: the check was `isinstance(result, DesignReport)`
+            # when a design was the only job kind, so a cohort job would have finished
+            # `done` with `result: null` — the job ran and its answer was dropped.
+            result=(
+                result.model_dump(mode="json")
+                if isinstance(result, DesignReport | BatchResponse)
+                else None
+            ),
         )
 
-    @app.post("/api/batch", response_model=BatchResponse)
-    def batch_endpoint(
-        req: BatchRequest,
-        request: Request,
-        fmt: Annotated[BatchFormat, Query(alias="format")] = BatchFormat.json,
-    ) -> BatchResponse | Response:
-        """Design a whole cohort in one run (JSON, TSV, or Parquet; failures isolated)."""
+    def _run_cohort(request: Request, req: BatchRequest) -> Any:
+        """Run a cohort and return the library's report, for both batch entry points.
+
+        The synchronous endpoint and the job submission must run *the same* cohort: a
+        second copy of this wiring is how the endpoint below came to be population-aware
+        while an identical request through another door was reference-only.
+        """
         from alleleforge.design.cohort import design_many
 
         reference = _require_reference(request)
@@ -981,13 +988,10 @@ def create_app(
             settings=settings,
             **_trained_scorers(request, req),
         )
-        if fmt is not BatchFormat.json:
-            # The same table `aforge batch --summary-tsv` writes, from the same library
-            # function, so the two shells cannot describe one run differently.
-            return Response(
-                cohort_to_tsv(cohort_rows(report), report.provenance),
-                media_type="text/tab-separated-values; charset=utf-8",
-            )
+        return report
+
+    def _cohort_response(report: Any) -> BatchResponse:
+        """Shape a cohort report into the JSON body both entry points return."""
         return BatchResponse(
             total=report.total,
             succeeded=report.succeeded,
@@ -1001,6 +1005,46 @@ def create_app(
             provenance=report.provenance,
             disclaimer=RESEARCH_USE_DISCLAIMER,
         )
+
+    @app.post("/api/batch", response_model=BatchResponse)
+    def batch_endpoint(
+        req: BatchRequest,
+        request: Request,
+        fmt: Annotated[BatchFormat, Query(alias="format")] = BatchFormat.json,
+    ) -> BatchResponse | Response:
+        """Design a whole cohort in one run (JSON or TSV; failures isolated).
+
+        Blocking: it returns when the whole cohort has been designed. A cohort is the
+        long operation this project is built for — hundreds of variants, minutes of
+        work — so a client that cannot hold a request open that long should submit it
+        to `/api/jobs/batch` and poll instead.
+        """
+        report = _run_cohort(request, req)
+        if fmt is not BatchFormat.json:
+            # The same table `aforge batch --summary-tsv` writes, from the same library
+            # function, so the two shells cannot describe one run differently.
+            return Response(
+                cohort_to_tsv(cohort_rows(report), report.provenance),
+                media_type="text/tab-separated-values; charset=utf-8",
+            )
+        return _cohort_response(report)
+
+    @app.post("/api/jobs/batch", response_model=JobSubmitResponse, status_code=202)
+    async def submit_batch_job(req: BatchRequest, request: Request) -> JobSubmitResponse:
+        """Submit an async cohort job; poll ``/api/jobs/{id}`` for the result.
+
+        The async machinery was wired to the single design — the operation that
+        finishes in seconds — and not to the cohort, which is the one that does not.
+        A three-hundred-variant run through `POST /api/batch` holds the connection for
+        minutes, past any ordinary reverse-proxy or browser timeout, and the project's
+        stated cohort size is larger than that.
+        """
+        jobs: JobManager = request.app.state.jobs
+        try:
+            record = await jobs.submit(lambda: _cohort_response(_run_cohort(request, req)))
+        except JobCapacityError as exc:
+            raise HTTPException(status_code=429, detail=str(exc)) from exc
+        return JobSubmitResponse(job_id=record.id, state=record.state)
 
     @app.post("/api/offtarget", response_model=OffTargetResponse)
     def offtarget_endpoint(req: OffTargetRequest, request: Request) -> OffTargetResponse:

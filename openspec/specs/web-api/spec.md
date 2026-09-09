@@ -46,7 +46,8 @@ mistake, and the operator is the only party who can fix it.
 
 ### Requirement: A schema-validated endpoint surface
 
-The service SHALL expose health, resolve, design, async design jobs, batch, off-target,
+The service SHALL expose health, resolve, design, async design and cohort jobs, batch,
+off-target,
 and data/bench read endpoints; every request SHALL be validated by a frozen schema, and a
 variant parse error SHALL map to HTTP 422.
 
@@ -96,15 +97,38 @@ is the request-size cap that bounds the work a caller can queue in one request.
 
 ### Requirement: Async jobs have a defined lifecycle
 
-Async design jobs SHALL follow `pending → running → done|error`, exposing state,
-progress, and error, and returning the serialized report when done; an unknown job id
-SHALL return 404, and a job's exception SHALL be captured into its record without crashing
-the server loop.
+Async jobs SHALL follow `pending → running → done|error`, exposing state, progress, and
+error, and returning the serialized result when done; an unknown job id SHALL return 404,
+and a job's exception SHALL be captured into its record without crashing the server loop.
+
+Every job kind's result SHALL be serialized by the status endpoint. A result shape the
+endpoint does not name is reported as `done` with a null result — the work performed and
+the answer discarded.
 
 #### Scenario: Job failure
 - **WHEN** a submitted job's work raises
 - **THEN** the record transitions to error with the exception type and message, and the
   poll returns that error with a null result
+
+#### Scenario: A finished job of any kind
+- **WHEN** a submitted job reaches `done`
+- **THEN** its result is present in the poll response
+
+### Requirement: The long operation is submittable
+
+A cohort SHALL be submittable as an async job, not only as a blocking request. A cohort
+is the operation this project exists for and the one that runs for minutes; a synchronous
+request holds the connection past ordinary proxy and browser timeouts, and offering the
+async path only for the single design — which finishes in seconds — covers the case that
+does not need it.
+
+Both entry points SHALL run the cohort through one function, so the two doors cannot come
+to disagree about which configured sources a run was given.
+
+#### Scenario: A cohort through either door
+- **WHEN** the same variants are sent to the blocking endpoint and submitted as a job
+- **THEN** the two results describe the same run — same items, in the same order, with the
+  same totals
 
 ### Requirement: Research-use and local-compute are stated
 
