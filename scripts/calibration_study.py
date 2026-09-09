@@ -95,10 +95,23 @@ def render_markdown(
         "|---|---|---:|---:|---:|---|",
     ]
     for r in generalization:
+        # A gap can be absent: the baseline predicts one constant, so its rank
+        # correlation is undefined on both folds and there is nothing to subtract. The
+        # table says so and names the reason rather than printing `+0.0`.
+        if r["gap"] is None:
+            lines.append(
+                f"| {r['task']} | {r['metric']} | — | — | undefined | {r['held_out_context']} |"
+            )
+            continue
         lines.append(
             f"| {r['task']} | {r['metric']} | {r['in_context']} | "
             f"{r['held_out']} | {r['gap']:+} | {r['held_out_context']} |"
         )
+    undefined = [r for r in generalization if r["gap"] is None]
+    if undefined:
+        lines.append("")
+        for r in undefined:
+            lines.append(f"- **{r['task']}: no gap.** {r['undefined_reason']}")
     lines += [
         "",
         "## Conformal interval recalibration",

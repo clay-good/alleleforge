@@ -90,13 +90,16 @@ aforge data show gnomad --json
 
 # CRISPR-Bench: list the tasks, then score the reference baseline on a frozen split
 aforge bench list
-aforge bench run cas9-efficiency --out cas9.json
-aforge bench gap cas9-efficiency
+# `cas9-outcome`, not `cas9-efficiency`: the reference baseline predicts one constant,
+# so its Spearman is undefined on the regression tasks — reported as such, and not
+# ranked. A demo of a ranked board needs a task the baseline can be ranked on.
+aforge bench run cas9-outcome --out outcome.json
+aforge bench gap cas9-outcome
 aforge bench run offtarget-classification --out offtarget.json
 
 # Aggregate signed results into the model-card-gated leaderboard (Markdown or HTML).
 # Every result must verify its signature and carry a complete model card.
-aforge bench leaderboard cas9.json offtarget.json --format html --out board.html
+aforge bench leaderboard outcome.json offtarget.json --format html --out board.html
 ```
 
 ### Accession and rsID inputs

@@ -25,12 +25,14 @@ from alleleforge._version import __version__
 from alleleforge.benchmark._canon import content_hash, reproducibility_digest
 from alleleforge.benchmark.datasets import BenchmarkDataset, load_dataset
 from alleleforge.benchmark.metrics import (
+    correlation_undefined_reason,
     expected_calibration_error,
     interval_calibration_error,
     kl_divergence,
     pearson,
     pr_auc,
     roc_auc,
+    roc_auc_undefined_reason,
     spearman,
     topk_accuracy,
 )
@@ -84,7 +86,7 @@ class ModelInfo(BaseModel):
 #: (undefined calibration). v4 moves ``n_out_of_distribution`` into the scientific
 #: body, so a result whose model disclaimed nine predictions in ten no longer
 #: re-derives to the digest of one that stood behind all ten.
-RESULT_SCHEMA_VERSION = 4
+RESULT_SCHEMA_VERSION = 5
 
 
 class BenchmarkResult(BaseModel):
@@ -105,8 +107,16 @@ class BenchmarkResult(BaseModel):
             when the metric is **undefined** for this run (e.g. calibration ECE with
             no scorable predictions), kept distinct from a genuine ``0.0``.
         primary_metric: The task's ranking metric.
-        primary_value: The value of the primary metric (never a calibration metric,
-            so always defined).
+        primary_value: The value of the primary metric, or ``None`` when it is
+            **undefined** for this run. This was documented as "never a calibration
+            metric, so always defined" — true of calibration and false of the ranking
+            metrics themselves. A correlation needs variance in both series and an AUROC
+            needs both classes, and the metric functions used to answer ``0.0`` when the
+            input supplied neither. The shipped reference baseline predicts one constant,
+            so its Spearman is undefined on every fold, and that ``0.0`` was published as
+            a measured score and ranked. A result with no primary value is not ranked.
+        primary_undefined_reason: Why :attr:`primary_value` is ``None``, in a sentence
+            aimed at whoever submitted the model — ``None`` when the value is defined.
         dataset_is_synthetic: Whether the rows this number was computed on are the
             bundled synthetic stand-in rather than the real corpus. The datasets have
             always carried the flag and nothing read it, so a Spearman from ten
@@ -132,7 +142,8 @@ class BenchmarkResult(BaseModel):
     n_test: int
     metrics: dict[str, float | None]
     primary_metric: str
-    primary_value: float
+    primary_value: float | None
+    primary_undefined_reason: str | None = None
     dataset_is_synthetic: bool = False
     n_out_of_distribution: int
     model: ModelInfo
@@ -142,14 +153,14 @@ class BenchmarkResult(BaseModel):
 
     @field_validator("primary_value")
     @classmethod
-    def _primary_value_is_finite(cls, v: float) -> float:
+    def _primary_value_is_finite(cls, v: float | None) -> float | None:
         # The leaderboard sorts on primary_value, so a non-finite one (a signed NaN
         # from an external submission) would make the ranking order non-deterministic
         # for the whole board — NaN loses every comparison. The computed path is
         # already finite (the metrics guard); reject a non-finite *signed* value on
         # ingestion so a submitter cannot scramble the sort.
-        if not math.isfinite(v):
-            raise ValueError(f"primary_value must be finite, got {v!r}")
+        if v is not None and not math.isfinite(v):
+            raise ValueError(f"primary_value must be finite or None, got {v!r}")
         return v
 
     @field_validator("metrics")
@@ -200,6 +211,7 @@ class BenchmarkResult(BaseModel):
             "metrics": self.metrics,
             "primary_metric": self.primary_metric,
             "primary_value": self.primary_value,
+            "primary_undefined_reason": self.primary_undefined_reason,
             "model": self.model.model_dump(mode="json"),
         }
 
@@ -223,6 +235,25 @@ class BenchmarkResult(BaseModel):
         are excluded by construction.
         """
         return self.reproducibility_digest == other.reproducibility_digest
+
+
+def _undefined_reason(task: Task, predictions: list[Prediction[Any]], labels: list[Any]) -> str:
+    """Return why ``task``'s primary metric is undefined for this fold.
+
+    Falls back to a generic sentence rather than asserting: a missing number with a vague
+    reason is still better than a missing number with none, and better than a run that
+    refuses to report the numbers it *did* compute.
+    """
+    values = [float(p.value) for p in predictions]
+    if task.kind is TaskKind.REGRESSION:
+        reason_text = correlation_undefined_reason([float(y) for y in labels], values)
+    elif task.kind is TaskKind.CLASSIFICATION:
+        reason_text = roc_auc_undefined_reason(values, [int(y) for y in labels])
+    else:
+        reason_text = None
+    return reason_text or (
+        f"{task.primary_metric} is not determined by this fold's predictions and labels"
+    )
 
 
 def _regression_metrics(
@@ -338,6 +369,26 @@ HIGHER_IS_BETTER: dict[str, bool] = {
 }
 
 
+def _fold_predictions_and_labels(
+    scorer: BenchScorer,
+    task: Task,
+    split: Split,
+    dataset: BenchmarkDataset,
+    fold: str,
+) -> tuple[list[Prediction[Any]], list[Any]]:
+    """Score one fold and return its predictions beside its labels.
+
+    Only for explaining an *absent* metric: the metric battery is a dict of numbers and
+    cannot say why one of them is missing, and the answer is in the inputs.
+    """
+    examples = list(split.examples(dataset, fold))
+    predictions = [
+        ensure_prediction(scorer.score(ex.scorer_input(task.input_key)), who=scorer.name)
+        for ex in examples
+    ]
+    return predictions, [ex.label for ex in examples]
+
+
 def evaluate_fold(
     scorer: BenchScorer,
     task: Task | str,
@@ -427,10 +478,21 @@ def generalization_gap(
     pm = task_obj.primary_metric
     in_value = evaluate_fold(scorer, task_obj, split, dataset, in_context_fold)[pm]
     held_value = evaluate_fold(scorer, task_obj, split, dataset, held_out_fold)[pm]
-    # The primary metric is a ranking metric (never a calibration metric), so it is
-    # always defined on a non-empty fold; the gap arithmetic relies on that.
+    # A gap is a subtraction, so both sides must be numbers. A ranking metric can be
+    # undefined on a fold — a correlation over constant predictions, an AUROC over a
+    # single-class fold — and this used to be unreachable only because the metric
+    # functions answered `0.0`, which made `0.0 - 0.0 = +0.0000` a published statement
+    # about generalization derived from two absences.
     if in_value is None or held_value is None:
-        raise ValueError(f"primary metric {pm!r} is undefined on a compared fold")
+        undefined = in_context_fold if in_value is None else held_out_fold
+        detail = _undefined_reason(
+            task_obj,
+            *_fold_predictions_and_labels(scorer, task_obj, split, dataset, undefined),
+        )
+        raise ValueError(
+            f"primary metric {pm!r} is undefined on the {undefined!r} fold, so there is "
+            f"no gap to report: {detail}"
+        )
     higher_is_better = HIGHER_IS_BETTER[pm]
     gap = (in_value - held_value) if higher_is_better else (held_value - in_value)
     return GeneralizationGap(
@@ -514,11 +576,17 @@ def run_benchmark(
         chemistry=card.chemistry,
     )
 
-    # The primary metric is a task's ranking metric (Spearman/AUROC/KL/top1), never
-    # a calibration metric, so it is always defined; guard the contract explicitly.
+    # A ranking metric can be undefined too — a correlation over constant predictions,
+    # an AUROC over a single-class fold — which this used to treat as impossible because
+    # the metric functions answered `0.0`. The run still happened and its other numbers
+    # still mean something, so the result records the absence and the reason rather than
+    # refusing to exist; nothing ranks it.
     primary_value = metrics[task_obj.primary_metric]
-    if primary_value is None:
-        raise ValueError(f"primary metric {task_obj.primary_metric!r} is undefined for this run")
+    primary_undefined_reason = (
+        None
+        if primary_value is not None
+        else _undefined_reason(task_obj, predictions, [ex.label for ex in examples])
+    )
     # The scientific body: everything that defines the result *scientifically*,
     # excluding the volatile provenance (wall-clock timestamp, package version, local
     # config). Its digest is stable across releases and platforms, so a second lab's
@@ -550,6 +618,11 @@ def run_benchmark(
         "metrics": metrics,
         "primary_metric": task_obj.primary_metric,
         "primary_value": primary_value,
+        # Part of the scientific body: "undefined because the model is constant" and
+        # "undefined because the fold has one class" are different claims about the same
+        # missing number, and two runs that differ in which one they are are not the same
+        # scientific result.
+        "primary_undefined_reason": primary_undefined_reason,
         "model": model_info.model_dump(mode="json"),
     }
     digest = reproducibility_digest(scientific_body)

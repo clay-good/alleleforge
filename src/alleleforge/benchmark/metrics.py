@@ -14,8 +14,18 @@ specification:
   but always reported under the single key ``"ece"`` so the leaderboard can rank
   honesty uniformly.
 
-Degenerate inputs (empty, constant) return ``0.0`` rather than ``NaN`` so results
-stay JSON-serializable and a uniform-guess baseline scores a clean zero.
+Degenerate inputs return ``None`` — **undefined**, not zero. A correlation needs
+variance in both series and an AUROC needs both classes, and when the input does not
+supply them there is no number to report. Returning ``0.0`` there was not a neutral
+placeholder: it is a *rank*. The shipped reference baseline predicts a single constant,
+so its Spearman is undefined on every fold, and the harness published `0.0` as a measured
+score, ranked it on the leaderboard, and subtracted two of them to state a generalization
+gap. On AUROC it is worse than neutral — 0.0 reads as perfectly wrong, where an undefined
+one is not a performance claim at all.
+
+`None` is the answer already used for calibration in the same result ("kept distinct from
+a genuine 0.0 so an empty run is not scored as perfectly calibrated"); the ranking metrics
+now use it too. It stays JSON-serializable, which is what the old contract was protecting.
 """
 
 from __future__ import annotations
@@ -49,21 +59,23 @@ def _has_nonfinite(*seqs: Sequence[float]) -> bool:
     return any(not math.isfinite(v) for seq in seqs for v in seq)
 
 
-def pearson(x: Sequence[float], y: Sequence[float]) -> float:
-    """Return the Pearson correlation between ``x`` and ``y``.
+def pearson(x: Sequence[float], y: Sequence[float]) -> float | None:
+    """Return the Pearson correlation between ``x`` and ``y``, or ``None`` if undefined.
 
-    Returns ``0.0`` when the inputs differ in length, are shorter than two
-    points, either series is constant (zero variance), or either contains a
-    non-finite value (NaN or ±inf).
+    Undefined — ``None``, not ``0.0`` — when the inputs differ in length, are shorter
+    than two points, either series is constant (zero variance), or either contains a
+    non-finite value (NaN or ±inf). A correlation with a constant series has a zero
+    denominator; there is no number, and reporting one puts an unmeasurable model on a
+    ranked board beside measured ones.
     """
     if len(x) != len(y) or len(x) < 2 or _has_nonfinite(x, y):
-        return 0.0
+        return None
     mx, my = _mean(x), _mean(y)
     sxy = sum((a - mx) * (b - my) for a, b in zip(x, y, strict=True))
     sxx = sum((a - mx) ** 2 for a in x)
     syy = sum((b - my) ** 2 for b in y)
     if sxx <= 0.0 or syy <= 0.0:
-        return 0.0
+        return None
     return sxy / math.sqrt(sxx * syy)
 
 
@@ -83,17 +95,85 @@ def _rank(xs: Sequence[float]) -> list[float]:
     return ranks
 
 
-def spearman(x: Sequence[float], y: Sequence[float]) -> float:
-    """Return the Spearman rank correlation between ``x`` and ``y``.
+def spearman(x: Sequence[float], y: Sequence[float]) -> float | None:
+    """Return the Spearman rank correlation between ``x`` and ``y``, or ``None``.
 
     Computed as the Pearson correlation of tie-averaged ranks; shares the same
-    degenerate-input guards as :func:`pearson`. NaN is caught here **before**
-    ranking, because ``_rank`` sorts on NaN (all comparisons ``False``) and would
-    otherwise emit finite-but-meaningless ranks that score as a perfect 1.0.
+    degenerate-input guards as :func:`pearson`, including the constant-series one — a
+    model that predicts one value for everything has no rank order to correlate. NaN is
+    caught here **before** ranking, because ``_rank`` sorts on NaN (all comparisons
+    ``False``) and would otherwise emit finite-but-meaningless ranks that score as a
+    perfect 1.0.
     """
     if len(x) != len(y) or len(x) < 2 or _has_nonfinite(x, y):
-        return 0.0
+        return None
     return pearson(_rank(x), _rank(y))
+
+
+def correlation_undefined_reason(x: Sequence[float], y: Sequence[float]) -> str | None:
+    """Return why a correlation over ``x`` and ``y`` is undefined, or ``None``.
+
+    A number's absence is only useful if the reader learns what would have produced one.
+    "spearman: undefined" sends someone to the code; "the model predicted one constant
+    value for every example, and a rank correlation needs variance in both series" sends
+    them to their model.
+
+    Kept beside the metrics rather than merged into them because the metrics must stay
+    pure numbers; `test_a_reason_exists_exactly_when_the_metric_does_not` pins the two
+    together, so this cannot fall out of step with the guards above.
+    """
+    if len(x) != len(y):
+        return f"the series differ in length ({len(x)} vs {len(y)})"
+    if len(x) < 2:
+        return f"a correlation needs at least two examples; this fold has {len(x)}"
+    if _has_nonfinite(x, y):
+        return "a value is NaN or infinite, so the ranks and means are meaningless"
+    if len(set(y)) == 1:
+        return (
+            "the model predicted one constant value for every example, and a "
+            "correlation needs variance in both series"
+        )
+    if len(set(x)) == 1:
+        return "the labels are constant on this fold, so there is no order to predict"
+    return None
+
+
+def _shared_auc_reason(scores: Sequence[float], labels: Sequence[int]) -> str | None:
+    """Return the reason both AUC metrics share, or ``None``."""
+    if len(scores) != len(labels):
+        return f"scores and labels differ in length ({len(scores)} vs {len(labels)})"
+    if _has_nonfinite(scores):
+        return "a score is NaN or infinite, so the ranking is meaningless"
+    return None
+
+
+def roc_auc_undefined_reason(scores: Sequence[float], labels: Sequence[int]) -> str | None:
+    """Return why :func:`roc_auc` is undefined for these inputs, or ``None``."""
+    shared = _shared_auc_reason(scores, labels)
+    if shared is not None:
+        return shared
+    positives = sum(1 for y in labels if y == 1)
+    if positives == 0:
+        return "this fold has no positive example, so there is no positive/negative pair"
+    if positives == len(labels):
+        return "this fold has no negative example, so there is no positive/negative pair"
+    return None
+
+
+def pr_auc_undefined_reason(scores: Sequence[float], labels: Sequence[int]) -> str | None:
+    """Return why :func:`pr_auc` is undefined for these inputs, or ``None``.
+
+    Not the same predicate as :func:`roc_auc_undefined_reason`: average precision is an
+    average over the *positives*, so a fold with no negatives still has one (it is 1.0),
+    while AUROC there has no pair to rank. Writing one reason for both metrics is how
+    that difference gets flattened — the paired test caught exactly that.
+    """
+    shared = _shared_auc_reason(scores, labels)
+    if shared is not None:
+        return shared
+    if not any(y == 1 for y in labels):
+        return "this fold has no positive example, so there is nothing to average over"
+    return None
 
 
 def _normalize(dist: Mapping[str, float]) -> dict[str, float]:
@@ -154,10 +234,13 @@ def topk_accuracy(
     return 1.0 if true_mode in top else 0.0
 
 
-def roc_auc(scores: Sequence[float], labels: Sequence[int]) -> float:
+def roc_auc(scores: Sequence[float], labels: Sequence[int]) -> float | None:
     """Return the area under the ROC curve (rank-statistic form).
 
-    ``labels`` are 0/1. Returns ``0.0`` if either class is absent. Ties in
+    ``labels`` are 0/1. Returns ``None`` if either class is absent: AUROC is the
+    probability that a positive outranks a negative, and with one class present there is
+    no such pair. ``0.0`` was the old answer and is the *worst possible score* on this
+    metric, so an unmeasurable fold was published as a perfectly wrong model. Ties in
     ``scores`` contribute 0.5, matching the Mann-Whitney U definition.
 
     Complexity is ``O(pos * neg)`` (a quadratic pairwise sweep), which is fine
@@ -166,11 +249,11 @@ def roc_auc(scores: Sequence[float], labels: Sequence[int]) -> float:
     (``O(n log n)``) before evaluating folds that large.
     """
     if len(scores) != len(labels) or _has_nonfinite(scores):
-        return 0.0
+        return None
     pos = [s for s, y in zip(scores, labels, strict=True) if y == 1]
     neg = [s for s, y in zip(scores, labels, strict=True) if y == 0]
     if not pos or not neg:
-        return 0.0
+        return None
     wins = 0.0
     for sp in pos:
         for sn in neg:
@@ -181,12 +264,13 @@ def roc_auc(scores: Sequence[float], labels: Sequence[int]) -> float:
     return wins / (len(pos) * len(neg))
 
 
-def pr_auc(scores: Sequence[float], labels: Sequence[int]) -> float:
+def pr_auc(scores: Sequence[float], labels: Sequence[int]) -> float | None:
     """Return the average precision (area under the precision-recall curve).
 
     Computed as the precision-weighted sum over recall increments as the
-    decision threshold sweeps from high to low score. Returns ``0.0`` with no
-    positives.
+    decision threshold sweeps from high to low score. Returns ``None`` with no
+    positives: average precision is an average over the positives, and there is nothing
+    to average.
 
     Tied scores are advanced as a single group: precision and recall are only
     evaluated at each distinct-score boundary, never partway through a run of
@@ -195,11 +279,11 @@ def pr_auc(scores: Sequence[float], labels: Sequence[int]) -> float:
     it, which a per-example sweep would allow.
     """
     if len(scores) != len(labels) or _has_nonfinite(scores):
-        return 0.0
+        return None
     order = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
     total_pos = sum(1 for y in labels if y == 1)
     if total_pos == 0:
-        return 0.0
+        return None
     tp = 0
     fp = 0
     prev_recall = 0.0

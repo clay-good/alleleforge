@@ -154,14 +154,24 @@ def task_ece_figure() -> str:
 def generalization_gap_figure() -> str:
     """Render the cross-cell-type generalization-gap figure."""
     rows = generalization_table()
-    categories = tuple(str(r["task"]) for r in rows)
-    values = tuple(round(float(r["gap"]), 4) for r in rows)
+    # A task whose gap is undefined is not a bar of height zero. Drawing it as one
+    # would put "we could not measure this" and "we measured no drop" at the same
+    # pixel, on the figure whose whole subject is how far a number can be trusted.
+    measured = [r for r in rows if r["gap"] is not None]
+    absent = [str(r["task"]) for r in rows if r["gap"] is None]
+    categories = tuple(str(r["task"]) for r in measured)
+    values = tuple(round(float(r["gap"]), 4) for r in measured)
     held_out = next((str(r["held_out_context"]) for r in rows), "")
+    missing_note = (
+        ""
+        if not absent
+        else f" No gap for {', '.join(sorted(absent))}: the metric is undefined on a fold."
+    )
     return bar_chart(
         title="Cross-cell-type generalization gap",
         subtitle=(
             f"Metric drop from a training-seen to the held-out cell type ({held_out}). "
-            f"Positive = worse generalization." + _benchmark_data_note(rows)
+            f"Positive = worse generalization.{missing_note}" + _benchmark_data_note(rows)
         ),
         categories=categories,
         series=(Series("Generalization gap", values, PALETTE[4]),),

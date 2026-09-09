@@ -227,7 +227,14 @@ class LeaderboardEntry(BaseModel):
     #: checked rather than assumed.
     split_sha256: str = ""
     primary_metric: str
-    primary_value: float
+    #: ``None`` when the primary metric is **undefined** for this result — a correlation
+    #: over constant predictions, an AUROC over a single-class fold. Such a row is listed
+    #: but never ranked: a rank is a claim that this model did better than that one, and
+    #: there is no number here to support it. It used to arrive as `0.0`, which on a
+    #: descending metric is a middling score and on AUROC is the worst possible one.
+    primary_value: float | None
+    #: Why there is no value, in a sentence aimed at whoever submitted the model.
+    primary_undefined_reason: str | None = None
     ece: float | None
     metrics: dict[str, float | None]
     #: Test-fold size and how many of those predictions the model self-flagged as
@@ -247,6 +254,11 @@ class LeaderboardEntry(BaseModel):
         if self.n_test <= 0:
             return None
         return self.n_out_of_distribution / self.n_test
+
+    @property
+    def is_ranked(self) -> bool:
+        """Return whether this row has a number a rank could be based on."""
+        return self.primary_value is not None
 
     @property
     def comparison_group(self) -> ComparisonGroup:
@@ -281,17 +293,42 @@ def _context_lines() -> list[str]:
     ]
 
 
+#: Said beside the table a row could not join. A leaderboard's job is to order things,
+#: so the one thing it must never do quietly is include something it could not order.
+_UNRANKED_NOTE = (
+    "Not ranked: {model} has no {metric} on this split, so there is no number to place it by. Why:"
+)
+
+
+def _fmt_primary(entry: LeaderboardEntry) -> str:
+    """Render a primary value, or the word for its absence."""
+    return "—" if entry.primary_value is None else f"{entry.primary_value:.4f}"
+
+
 def _rank_within(entries: list[LeaderboardEntry]) -> list[LeaderboardEntry]:
-    """Order one comparison group best-first (see :meth:`Leaderboard.rankings`)."""
-    descending = metric_is_descending(entries[0].primary_metric)
+    """Order one comparison group best-first (see :meth:`Leaderboard.rankings`).
+
+    Rows whose primary metric is undefined are not here: they are not ordered at all.
+    Sorting them to the bottom would still be a rank, and the board would be asserting
+    that a model nothing could measure did worse than one that was measured badly.
+    """
+    ranked = [e for e in entries if e.is_ranked]
+    if not ranked:
+        return []
+    descending = metric_is_descending(ranked[0].primary_metric)
     return sorted(
-        entries,
+        ranked,
         key=lambda e: (
-            -e.primary_value if descending else e.primary_value,
+            -e.primary_value if descending and e.primary_value is not None else e.primary_value,
             float("inf") if e.ece is None else e.ece,
             e.model_name,
         ),
     )
+
+
+def _unranked_within(entries: list[LeaderboardEntry]) -> list[LeaderboardEntry]:
+    """Return one group's unrankable rows, ordered by model name for determinism."""
+    return sorted((e for e in entries if not e.is_ranked), key=lambda e: e.model_name)
 
 
 #: The board ships no design, only enough CSS to be legible. A page that declares
@@ -348,6 +385,7 @@ class Leaderboard:
                     split_sha256=r.split_sha256,
                     primary_metric=r.primary_metric,
                     primary_value=r.primary_value,
+                    primary_undefined_reason=r.primary_undefined_reason,
                     ece=r.metrics.get("ece"),
                     metrics=r.metrics,
                     n_test=r.n_test,
@@ -399,6 +437,23 @@ class Leaderboard:
             for g in sorted(groups, key=lambda g: (g.synthetic, g.split_version, g.primary_metric))
         ]
 
+    def unranked(self, task: str) -> list[tuple[ComparisonGroup, list[LeaderboardEntry]]]:
+        """Return ``task``'s rows that carry no primary value, per comparison group.
+
+        Rendered beside each group's table rather than dropped. A submission whose
+        metric is undefined still ran, still has a calibration number and an OOD share,
+        and its author is the person most in need of being told why it cannot be ranked.
+        """
+        groups: dict[ComparisonGroup, list[LeaderboardEntry]] = {}
+        for e in self._entries:
+            if e.task == task:
+                groups.setdefault(e.comparison_group, []).append(e)
+        return [
+            (g, _unranked_within(groups[g]))
+            for g in sorted(groups, key=lambda g: (g.synthetic, g.split_version, g.primary_metric))
+            if _unranked_within(groups[g])
+        ]
+
     def rankings(self, task: str) -> list[LeaderboardEntry]:
         """Return ``task``'s entries, ranked within each comparison group.
 
@@ -433,6 +488,7 @@ class Leaderboard:
         for task in self.tasks:
             groups = self.comparison_groups(task)
             contested = self.contested_groups(task)
+            unranked = dict(self.unranked(task))
             lines.append(f"## {_md_cell(task)}")
             lines.append("")
             if len(groups) > 1:
@@ -454,10 +510,18 @@ class Leaderboard:
                 for i, e in enumerate(ranked, start=1):
                     lines.append(
                         f"| {i} | {_md_cell(e.model_name)} | {_md_cell(e.submitter)} | "
-                        f"{e.primary_value:.4f} | {_fmt_ece(e.ece)} | {_fmt_ood(e)} | "
+                        f"{_fmt_primary(e)} | {_fmt_ece(e.ece)} | {_fmt_ood(e)} | "
                         f"{_md_cell(e.split_version)}{_synthetic_mark(e)} |"
                     )
+                if not ranked:
+                    lines.append("| — | _no ranked submission_ | | | | | |")
                 lines.append("")
+                for e in unranked.get(group, ()):
+                    lines.append(
+                        f"**{_md_cell(_UNRANKED_NOTE.format(model=e.model_name, metric=metric))}** "
+                        f"{_md_cell(e.primary_undefined_reason or '')}"
+                    )
+                    lines.append("")
         return "\n".join(lines)
 
     def render_html(self) -> str:
@@ -475,6 +539,7 @@ class Leaderboard:
         for task in self.tasks:
             groups = self.comparison_groups(task)
             contested = self.contested_groups(task)
+            unranked = dict(self.unranked(task))
             parts.append(f"<h2>{_html_cell(task)}</h2>")
             if len(groups) > 1:
                 parts.append(f"<p><strong>{_html_cell(_INCOMPARABLE_NOTE)}</strong></p>")
@@ -493,12 +558,21 @@ class Leaderboard:
                     parts.append(
                         f"<tr><td>{i}</td><td>{_html_cell(e.model_name)}</td>"
                         f"<td>{_html_cell(e.submitter)}</td>"
-                        f"<td>{e.primary_value:.4f}</td><td>{_fmt_ece(e.ece)}</td>"
+                        f"<td>{_fmt_primary(e)}</td><td>{_fmt_ece(e.ece)}</td>"
                         f"<td>{_fmt_ood(e)}</td>"
                         f"<td>{_html_cell(e.split_version)}"
                         + ("<strong> (synthetic)</strong>" if e.dataset_is_synthetic else "")
                         + "</td></tr>"
                     )
+                if not ranked:
+                    parts.append('<tr><td colspan="7">No ranked submission.</td></tr>')
                 parts.append("</tbody></table>")
+                for e in unranked.get(group, ()):
+                    note = _UNRANKED_NOTE.format(model=e.model_name, metric=group.primary_metric)
+                    reason_text = e.primary_undefined_reason or ""
+                    parts.append(
+                        f'<p class="warn"><strong>{_html_cell(note)}</strong> '
+                        f"{_html_cell(reason_text)}</p>"
+                    )
         parts.append("</body></html>")
         return "\n".join(parts)

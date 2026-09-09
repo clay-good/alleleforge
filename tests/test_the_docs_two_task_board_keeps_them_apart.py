@@ -2,15 +2,19 @@
 
 `docs/api/cli.md` documents a chain that scores two different tasks and renders one board:
 
-    aforge bench run cas9-efficiency --out cas9.json
+    aforge bench run cas9-outcome --out outcome.json
     aforge bench run offtarget-classification --out offtarget.json
-    aforge bench leaderboard cas9.json offtarget.json --format html --out board.html
+    aforge bench leaderboard outcome.json offtarget.json --format html --out board.html
 
-Those results are not comparable — one is a Spearman correlation on a regression task, the
+Those results are not comparable — one is a KL divergence on a distribution task, the
 other an AUROC on a classification task — and the spec says a rank never crosses a
 comparison group. A refactor that merged the groups would produce a single ranked table
-putting `0.7500` above `0.0000` as though one model beat another, which is the most
-plausible way for this board to become actively misleading.
+putting one above the other as though one model beat another, which is the most plausible
+way for this board to become actively misleading.
+
+The chain used to lead with `cas9-efficiency`. The reference baseline predicts one
+constant, so its Spearman is undefined there and the row is listed unranked — an honest
+board and a poor demonstration of ranking, which is what this file is about.
 
 The chain is executed rather than described, so this covers both the documented workflow
 and the grouping rule. Running it verbatim is also how one confirms the docs still work:
@@ -65,13 +69,13 @@ def test_two_tasks_render_as_two_groups(tmp_path: Path, monkeypatch: pytest.Monk
         assert runner.invoke(app, argv).exit_code == 0
     board = (tmp_path / "board.html").read_text(encoding="utf-8")
 
-    assert "cas9-efficiency" in board and "offtarget-classification" in board
+    assert "cas9-outcome" in board and "offtarget-classification" in board
     # Each group carries its own primary metric in its own header row.
     headers = re.findall(r"<th>([a-z0-9_]+)</th>", board)
-    assert "spearman" in headers and "auroc" in headers
+    assert "kl" in headers and "auroc" in headers
     for row in re.findall(r"<tr>(.*?)</tr>", board, re.S):
         cells = re.findall(r"<th>([a-z0-9_]+)</th>", row)
-        assert not ("spearman" in cells and "auroc" in cells), (
+        assert not ("kl" in cells and "auroc" in cells), (
             "one header row carries both metrics — the two tasks were ranked together"
         )
 

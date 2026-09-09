@@ -3210,6 +3210,17 @@ def bench_run(
             "shipped so the harness runs in CI. This number measures the contract, "
             "not the model — it is not a benchmark result."
         )
+    # A ranking metric can be undefined — a correlation over constant predictions, an
+    # AUROC over a single-class fold — and this is the only surface that can say why
+    # while the person who ran it is still looking. It reaches `--out` and `--json`
+    # callers too, for the same reason the synthetic caveat above does: those are the
+    # users who save and publish the number that is not there.
+    if result.primary_value is None:
+        _echo_err(
+            f"NOTE: {result.primary_metric} is UNDEFINED for this run, not zero — "
+            f"{result.primary_undefined_reason}. The result is recorded and will not "
+            "be ranked."
+        )
     if as_json:
         typer.echo(result.model_dump_json(indent=2))
     elif out is None:
@@ -3218,9 +3229,10 @@ def bench_run(
         # None.__format__.
         ece = result.metrics["ece"]
         ece_str = "n/a" if ece is None else f"{ece:.4f}"
+        primary = "undefined" if result.primary_value is None else f"{result.primary_value:.4f}"
         typer.echo(
             f"{result.task} @ {result.split_version}: {result.primary_metric}="
-            f"{result.primary_value:.4f}, ece={ece_str} "
+            f"{primary}, ece={ece_str} "
             f"(n={result.n_test}, model={result.model.name})"
         )
 

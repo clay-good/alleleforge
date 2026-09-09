@@ -26,6 +26,13 @@ def _baseline_result(task_name: str, ts: datetime) -> BenchmarkResult:
     return run_benchmark(baseline, task, split=split, dataset=dataset, timestamp=ts)
 
 
+#: A task the shipped baseline can actually be *ranked* on. The baseline predicts one
+#: constant, so its Spearman is undefined on the two regression tasks — it is listed
+#: there and never ordered, which is the honest treatment and useless for testing a
+#: ranked table. AUROC over a constant score is a real 0.5 (every pair tied).
+_RANKED_TASK = "offtarget-classification"
+
+
 def _model() -> ModelInfo:
     return ModelInfo(
         name="crispr-bench-baseline", version="1.0", license="MIT", citation="AlleleForge"
@@ -59,15 +66,41 @@ def test_result_rejects_non_finite_primary_value(fixed_ts: datetime) -> None:
 
 
 def test_valid_submission_admits(fixed_ts: datetime) -> None:
-    result = _baseline_result("cas9-efficiency", fixed_ts)
+    result = _baseline_result(_RANKED_TASK, fixed_ts)
     sub = Submission(
         submitter="alleleforge", model=_model(), results=(result,), submitted_at=fixed_ts
     )
     lb = Leaderboard()
     lb.add(sub)
-    assert lb.tasks == ("cas9-efficiency",)
-    ranking = lb.rankings("cas9-efficiency")
+    assert lb.tasks == (_RANKED_TASK,)
+    ranking = lb.rankings(_RANKED_TASK)
     assert len(ranking) == 1 and ranking[0].model_name == "crispr-bench-baseline"
+
+
+def test_a_result_with_no_primary_value_is_listed_and_not_ranked(fixed_ts: datetime) -> None:
+    """The shipped baseline predicts one constant, so its Spearman does not exist.
+
+    It was published as `0.0` and ranked first. A rank is a claim that this model did
+    better than that one, and there is no number here to support it — but the run
+    happened, and dropping it would hide a submission rather than qualify it.
+    """
+    result = _baseline_result("cas9-efficiency", fixed_ts)
+    assert result.primary_value is None, result.primary_value
+
+    lb = Leaderboard()
+    lb.add(
+        Submission(
+            submitter="alleleforge", model=_model(), results=(result,), submitted_at=fixed_ts
+        )
+    )
+    assert lb.rankings("cas9-efficiency") == []
+    unranked = lb.unranked("cas9-efficiency")
+    assert len(unranked) == 1, unranked
+    assert [e.model_name for e in unranked[0][1]] == ["crispr-bench-baseline"]
+
+    for rendered in (lb.render_markdown(), lb.render_html()):
+        assert "Not ranked" in rendered, rendered
+        assert "constant value" in rendered, rendered
 
 
 def test_submission_requires_model_card(fixed_ts: datetime) -> None:
@@ -184,8 +217,9 @@ def _resign(result: BenchmarkResult) -> str:
 
 def test_leaderboard_escapes_submitter_markup(fixed_ts: datetime) -> None:
     # A submitter handle is attacker-controlled text: markup must be escaped in
-    # the HTML board and a pipe must be escaped in the Markdown table.
-    result = _baseline_result("cas9-efficiency", fixed_ts)
+    # the HTML board and a pipe must be escaped in the Markdown table. On a ranked
+    # task, because the submitter appears in the table row and not in the unranked note.
+    result = _baseline_result(_RANKED_TASK, fixed_ts)
     evil = "<script>alert(1)</script> a|b"
     lb = Leaderboard()
     lb.add(Submission(submitter=evil, model=_model(), results=(result,), submitted_at=fixed_ts))
@@ -206,7 +240,7 @@ def test_markdown_cell_neutralizes_link_injection(fixed_ts: datetime) -> None:
     # A Markdown table cell renders inline links, so a submitter can inject a
     # `javascript:` link the pipe-only escape left intact. The link syntax must be
     # broken so the cell is inert data, while an ordinary name stays readable.
-    result = _baseline_result("cas9-efficiency", fixed_ts)
+    result = _baseline_result(_RANKED_TASK, fixed_ts)
     lb = Leaderboard()
     lb.add(
         Submission(
@@ -219,7 +253,7 @@ def test_markdown_cell_neutralizes_link_injection(fixed_ts: datetime) -> None:
     md_out = lb.render_markdown()
     assert "[pwn](javascript:alert(1))" not in md_out  # link syntax is broken
     assert "\\[pwn\\]" in md_out
-    assert "rule-set-3" in md_out or "cas9" in md_out  # ordinary text unharmed
+    assert "rule-set-3" in md_out or "offtarget" in md_out  # ordinary text unharmed
 
 
 def test_duplicate_task_in_submission_rejected(fixed_ts: datetime) -> None:
@@ -250,7 +284,7 @@ def test_the_board_shows_how_much_a_model_disclaimed(fixed_ts: datetime) -> None
     """
     from alleleforge.benchmark._canon import content_hash
 
-    result = _baseline_result("cas9-efficiency", fixed_ts)
+    result = _baseline_result(_RANKED_TASK, fixed_ts)
     # Re-sign after editing: the submission gate verifies the content hash, and a
     # hand-edited result is correctly rejected — which is itself worth having seen.
     body = result.model_dump(mode="json")
@@ -268,7 +302,7 @@ def test_the_board_shows_how_much_a_model_disclaimed(fixed_ts: datetime) -> None
             submitted_at=fixed_ts,
         )
     )
-    entry = board.rankings("cas9-efficiency")[0]
+    entry = board.rankings(_RANKED_TASK)[0]
     assert entry.n_test == result.n_test
     assert entry.ood_fraction is not None and entry.ood_fraction > 0.85
 
@@ -314,7 +348,7 @@ def test_a_synthetic_result_is_labelled_everywhere_it_appears(fixed_ts: datetime
     tell whether that measured a model or a contract, and a board could rank a
     synthetic row against a real one without saying which was which.
     """
-    result = _baseline_result("cas9-efficiency", fixed_ts)
+    result = _baseline_result(_RANKED_TASK, fixed_ts)
     # The shipped fixture really is synthetic; if that ever changes, this test is
     # measuring nothing and should fail rather than pass quietly.
     assert result.dataset_is_synthetic is True
@@ -325,7 +359,7 @@ def test_a_synthetic_result_is_labelled_everywhere_it_appears(fixed_ts: datetime
             submitter="alleleforge", model=_model(), results=(result,), submitted_at=fixed_ts
         )
     )
-    entry = board.rankings("cas9-efficiency")[0]
+    entry = board.rankings(_RANKED_TASK)[0]
     assert entry.dataset_is_synthetic is True
     assert "(synthetic)" in board.render_markdown()
     assert "(synthetic)" in board.render_html()

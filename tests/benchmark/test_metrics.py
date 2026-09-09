@@ -27,10 +27,17 @@ def test_pearson_perfect_negative() -> None:
     assert pearson([1.0, 2.0, 3.0], [3.0, 2.0, 1.0]) == -1.0
 
 
-def test_pearson_degenerate_returns_zero() -> None:
-    assert pearson([1.0, 1.0, 1.0], [1.0, 2.0, 3.0]) == 0.0  # constant x
-    assert pearson([1.0], [2.0]) == 0.0  # too few points
-    assert pearson([1.0, 2.0], [1.0]) == 0.0  # mismatched length
+def test_pearson_degenerate_is_undefined_not_zero() -> None:
+    """`0.0` is not a neutral placeholder on a ranked board; it is a score.
+
+    The shipped reference baseline predicts a single constant, so its correlation is
+    undefined on every fold — and the harness published `0.0` as a measured Spearman,
+    ranked it, and subtracted two of them to state a generalization gap.
+    """
+    assert pearson([1.0, 1.0, 1.0], [1.0, 2.0, 3.0]) is None  # constant x
+    assert pearson([1.0, 2.0, 3.0], [7.0, 7.0, 7.0]) is None  # constant y
+    assert pearson([1.0], [2.0]) is None  # too few points
+    assert pearson([1.0, 2.0], [1.0]) is None  # mismatched length
 
 
 def test_metrics_treat_nan_as_degenerate_not_perfect() -> None:
@@ -40,10 +47,10 @@ def test_metrics_treat_nan_as_degenerate_not_perfect() -> None:
     # inverting the module's "degenerate inputs return 0.0 rather than NaN, so
     # results stay JSON-serializable" contract. Reachable via a NaN label.
     nan = float("nan")
-    assert pearson([1.0, 2.0, nan], [1.0, 2.0, 3.0]) == 0.0
-    assert spearman([1.0, 2.0, nan], [1.0, 2.0, 3.0]) == 0.0  # was 1.0 (perfect!)
-    assert pr_auc([nan, 0.1, 0.9], [1, 0, 1]) == 0.0  # was 1.0 (perfect!)
-    assert roc_auc([nan, 0.1, 0.9], [1, 0, 1]) == 0.0
+    assert pearson([1.0, 2.0, nan], [1.0, 2.0, 3.0]) is None
+    assert spearman([1.0, 2.0, nan], [1.0, 2.0, 3.0]) is None  # was 1.0 (perfect!)
+    assert pr_auc([nan, 0.1, 0.9], [1, 0, 1]) is None  # was 1.0 (perfect!)
+    assert roc_auc([nan, 0.1, 0.9], [1, 0, 1]) is None
     assert expected_calibration_error([nan, 0.5], [1, 0]) is None  # was a crash
     # Every metric now stays JSON-serializable (no NaN escapes).
     json.dumps(
@@ -62,10 +69,10 @@ def test_metrics_treat_inf_as_degenerate_not_perfect() -> None:
     # pearson returned a non-JSON-serializable NaN, and ECE *crashed* on
     # `int(inf * n_bins)`. Reachable: the Prediction contract admits value=inf.
     inf = float("inf")
-    assert spearman([1.0, 2.0, inf], [1.0, 2.0, 3.0]) == 0.0  # was 1.0 (perfect!)
-    assert pearson([1.0, 2.0, inf], [1.0, 2.0, 3.0]) == 0.0  # was NaN
-    assert roc_auc([inf, 0.1, 0.2], [1, 0, 0]) == 0.0  # was 1.0 (perfect!)
-    assert pr_auc([inf, 0.1, 0.2], [1, 0, 0]) == 0.0  # was 1.0 (perfect!)
+    assert spearman([1.0, 2.0, inf], [1.0, 2.0, 3.0]) is None  # was 1.0 (perfect!)
+    assert pearson([1.0, 2.0, inf], [1.0, 2.0, 3.0]) is None  # was NaN
+    assert roc_auc([inf, 0.1, 0.2], [1, 0, 0]) is None  # was 1.0 (perfect!)
+    assert pr_auc([inf, 0.1, 0.2], [1, 0, 0]) is None  # was 1.0 (perfect!)
     assert expected_calibration_error([inf, 0.5], [1, 0]) is None  # was an OverflowError crash
     json.dumps({"pearson": pearson([1.0, 2.0, inf], [1.0, 2.0, 3.0])}, allow_nan=False)
 
@@ -160,16 +167,19 @@ def test_roc_auc_ties_count_half() -> None:
     assert roc_auc([0.5, 0.5], [1, 0]) == 0.5
 
 
-def test_roc_auc_single_class_returns_zero() -> None:
-    assert roc_auc([0.9, 0.8], [1, 1]) == 0.0
+def test_roc_auc_single_class_is_undefined_not_the_worst_score() -> None:
+    """On AUROC, `0.0` is not neutral — it is "perfectly wrong"."""
+    assert roc_auc([0.9, 0.8], [1, 1]) is None
+    assert roc_auc([0.9, 0.8], [0, 0]) is None
 
 
 def test_pr_auc_perfect() -> None:
     assert pr_auc([0.9, 0.8, 0.2, 0.1], [1, 1, 0, 0]) == 1.0
 
 
-def test_pr_auc_no_positives_is_zero() -> None:
-    assert pr_auc([0.9, 0.1], [0, 0]) == 0.0
+def test_pr_auc_no_positives_is_undefined() -> None:
+    """Average precision averages over the positives; there are none to average."""
+    assert pr_auc([0.9, 0.1], [0, 0]) is None
 
 
 def test_pr_auc_tied_scores_are_order_insensitive() -> None:
@@ -242,3 +252,54 @@ def test_a_non_empty_distribution_evaluation_still_reports_a_number() -> None:
     result = _distribution_metrics([prediction], [{"a": 0.7, "b": 0.3}])
     assert isinstance(result["kl"], float)
     assert result["kl"] >= 0.0
+
+
+@pytest.mark.parametrize(
+    "x,y",
+    [
+        ([1.0, 2.0, 3.0], [3.0, 1.0, 2.0]),  # ordinary
+        ([1.0, 1.0, 1.0], [1.0, 2.0, 3.0]),  # constant labels
+        ([1.0, 2.0, 3.0], [7.0, 7.0, 7.0]),  # constant predictions
+        ([1.0], [2.0]),  # too few
+        ([1.0, 2.0], [1.0]),  # mismatched
+        ([1.0, 2.0, float("nan")], [1.0, 2.0, 3.0]),
+        ([1.0, 2.0, float("inf")], [1.0, 2.0, 3.0]),
+    ],
+)
+def test_a_correlation_reason_exists_exactly_when_the_metric_does_not(
+    x: list[float], y: list[float]
+) -> None:
+    """The reason lives beside the guards rather than inside them; keep them in step.
+
+    A missing number is only useful if the reader learns what would have produced one,
+    and a reason that disagrees with the metric is worse than none — it would either
+    explain a number that exists or leave an absence unexplained.
+    """
+    from alleleforge.benchmark.metrics import correlation_undefined_reason
+
+    assert (pearson(x, y) is None) == (correlation_undefined_reason(x, y) is not None)
+    assert (spearman(x, y) is None) == (correlation_undefined_reason(x, y) is not None)
+
+
+@pytest.mark.parametrize(
+    "scores,labels",
+    [
+        ([0.9, 0.1], [1, 0]),  # ordinary
+        ([0.9, 0.8], [1, 1]),  # no negatives
+        ([0.9, 0.8], [0, 0]),  # no positives
+        ([0.9], [1, 0]),  # mismatched
+        ([float("nan"), 0.1], [1, 0]),
+    ],
+)
+def test_an_auc_reason_exists_exactly_when_the_metric_does_not(
+    scores: list[float], labels: list[int]
+) -> None:
+    from alleleforge.benchmark.metrics import pr_auc_undefined_reason, roc_auc_undefined_reason
+
+    assert (roc_auc(scores, labels) is None) == (
+        roc_auc_undefined_reason(scores, labels) is not None
+    )
+    # A separate predicate, and this test is why: average precision over a fold with no
+    # negatives is defined (1.0) while AUROC there is not, so one shared reason would
+    # have claimed an existing number was missing.
+    assert (pr_auc(scores, labels) is None) == (pr_auc_undefined_reason(scores, labels) is not None)

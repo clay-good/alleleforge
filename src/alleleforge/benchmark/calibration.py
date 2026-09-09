@@ -27,6 +27,7 @@ from alleleforge.benchmark.runner import generalization_gap, run_benchmark
 from alleleforge.benchmark.splits import load_split
 from alleleforge.benchmark.tasks import TASKS, get_task
 from alleleforge.config import DEFAULT_SEED
+from alleleforge.errors import reason
 from alleleforge.scoring.uncertainty import (
     ConformalCalibrator,
     empirical_coverage,
@@ -54,7 +55,12 @@ def task_calibration_table() -> list[dict[str, Any]]:
                 "task": name,
                 "kind": task.kind.value,
                 "primary_metric": result.primary_metric,
-                "primary_value": round(result.primary_value, 4),
+                "primary_value": (
+                    None if result.primary_value is None else round(result.primary_value, 4)
+                ),
+                # Why there is no number, when there is none: the board this feeds says
+                # "undefined" and a reader's next question is always "undefined by what".
+                "primary_undefined_reason": result.primary_undefined_reason,
                 "ece": None if result.metrics["ece"] is None else round(result.metrics["ece"], 4),
                 # A metric is not readable without its sample size and its corpus. The
                 # shipped fixtures are synthetic stand-ins of eight to ten rows, and a
@@ -82,7 +88,26 @@ def generalization_table() -> list[dict[str, Any]]:
         if not any(test_contexts):
             continue
         baseline = build_baseline(task, split, dataset)
-        gap = generalization_gap(baseline, task, split=split, dataset=dataset)
+        try:
+            gap = generalization_gap(baseline, task, split=split, dataset=dataset)
+        except ValueError as exc:
+            # A gap is a subtraction and one of its sides does not exist — the baseline
+            # predicts one constant, so its rank correlation is undefined on both folds.
+            # This study used to print `+0.0` here, a generalization claim made out of
+            # two placeholders, in the document whose subject is honest uncertainty.
+            rows.append(
+                {
+                    "task": name,
+                    "metric": task.primary_metric,
+                    "in_context": None,
+                    "held_out": None,
+                    "gap": None,
+                    "undefined_reason": reason(exc),
+                    "held_out_context": ",".join(sorted(held_out)) or "(unlabeled)",
+                    "synthetic": dataset.synthetic,
+                }
+            )
+            continue
         rows.append(
             {
                 "task": name,
@@ -90,6 +115,7 @@ def generalization_table() -> list[dict[str, Any]]:
                 "in_context": round(gap.in_context, 4),
                 "held_out": round(gap.held_out, 4),
                 "gap": round(gap.gap, 4),
+                "undefined_reason": None,
                 "held_out_context": ",".join(sorted(held_out)) or "(unlabeled)",
                 "synthetic": dataset.synthetic,
             }

@@ -15162,3 +15162,73 @@ the sweep, are gone with it — dead the moment the population stopped being a l
 not from the callers.** "Ask each store for its entries" still requires knowing every
 store. The on-disk layout is the thing all of them share, and it is what a person holding
 a suspect cache directory can see too.
+
+## Round 445 — the leaderboard ranked a model on a number that did not exist
+
+Eight rounds in the caches, so this one started somewhere else entirely: run the benchmark
+harness end to end and read what it prints. The first line of the first board:
+
+    | Rank | Model | Submitter | spearman ↑ | ECE ↓ | OOD ↓ | Split |
+    | 1 | crispr-bench-baseline | local | 0.0000 | 0.2000 | 0% (0/10) | v1 (synthetic) |
+
+A Spearman of exactly `0.0000`, and a `bench gap` of exactly `+0.0000`. Two exact zeros
+are worth ten minutes. The reference baseline predicts **one constant**:
+
+    preds : [0.5721] * 10
+    labels: [0.8143, 0.098, 0.2527, 0.3521, 0.9712, 0.2399, 0.0199, 0.9083, 0.6822, 0.4226]
+
+A rank correlation over a constant series has a zero denominator. It is not zero; it does
+not exist. `metrics.py` had said so in its own module docstring for as long as it has
+existed — "degenerate inputs return `0.0` rather than `NaN` so results stay
+JSON-serializable and a uniform-guess baseline scores a clean zero" — a sentence that
+solves a serialization problem and creates a scientific one.
+
+Because `0.0` is not a placeholder on a ranked board. It is a *rank*. It put an
+unmeasurable model first, and `bench gap` subtracted two of them to publish
+`gap=+0.0000 (positive = worse on the held-out context)` — a generalization claim built
+out of two absences. On AUROC the placeholder is worse than neutral: `0.0` is the worst
+possible score, so a single-class fold, which determines nothing, was published as a
+perfectly wrong model.
+
+The correct answer was three lines away in the same function, on the sibling metric:
+
+    # ECE is undefined (None) with no predictions to estimate coverage from, kept
+    # distinct from a genuine 0.0 so an empty run is not scored as perfectly calibrated.
+
+That comment is this project's whole thesis. The `metrics` dict has been typed
+`dict[str, float | None]` all along; the ranking metrics simply never used the `None`. And
+`BenchmarkResult.primary_value` was documented as "never a calibration metric, so always
+defined" — true of calibration, and false of the ranking metrics themselves, which is
+precisely the wrong half of the sentence to have checked.
+
+So `None` throughout, and everything downstream had to answer for what it does with an
+absence:
+
+- `primary_value` may be null, with `primary_undefined_reason` — a sentence aimed at
+  whoever submitted the model ("the model predicted one constant value for every example,
+  and a correlation needs variance in both series"), part of the *scientific* body because
+  "undefined because constant" and "undefined because single-class" are different claims.
+- The board **lists and does not rank**. Sorting the row to the bottom would still be a
+  rank: it would assert that a model nothing could measure did worse than one measured
+  badly.
+- `bench gap` refuses and names the fold and the reason. That branch already existed, with
+  a comment explaining it could never fire.
+- The calibration study's generalization table, and the committed figure, stopped drawing
+  two bars at height zero. On a chart about generalization drop, a zero-height bar reads
+  as "no drop"; the figure now names them as unmeasured in its subtitle.
+
+Two things the change taught, both caught by tests rather than by me. `pr_auc` over a fold
+with no *negatives* is defined (1.0) while AUROC there is not, so one shared
+"why is this undefined" helper was wrong — the paired test that asserts a reason exists
+exactly when the metric does not is what said so. And the generalization-gap test's own
+scorer was "perfect on memorized contexts, ignorant (constant) elsewhere", so its asserted
+"large drop on the unseen cell type" was `1.0 - 0.0` with a placeholder for the second
+term; it now answers a deterministic hash off its memorized fold, which is still ignorant
+but *ordered*, so the drop it measures is real.
+
+**Lesson: a degenerate-input convention chosen for serialization is a scientific claim
+once the value is published.** The `0.0` was documented, deliberate, and tested — three
+tests named `..._returns_zero` pinned it. Nothing about it was an oversight except which
+question it was answering: "does this stay JSON-serializable" instead of "is this a number
+someone will rank on". The tell was in the same dict, in a comment saying the opposite for
+the neighbouring metric.

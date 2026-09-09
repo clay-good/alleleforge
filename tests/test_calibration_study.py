@@ -25,7 +25,16 @@ def test_generalization_table_covers_cell_type_tasks() -> None:
     assert {"cas9-efficiency", "pe-efficiency", "cas9-outcome", "be-outcome"} <= tasks
     for r in rows:
         assert r["held_out_context"]  # the held-out context is labeled
-        assert isinstance(r["gap"], float)
+        # A gap can be absent: the shipped baseline predicts one constant, so its rank
+        # correlation is undefined on both folds and there is nothing to subtract. What
+        # must never happen is an absent gap arriving as a number — this study used to
+        # print `+0.0`, a generalization claim made out of two placeholders.
+        if r["gap"] is None:
+            assert r["in_context"] is None and r["held_out"] is None, r
+            assert r["undefined_reason"], r
+        else:
+            assert isinstance(r["gap"], float)
+            assert r["undefined_reason"] is None, r
 
 
 def test_conformal_demo_restores_coverage() -> None:

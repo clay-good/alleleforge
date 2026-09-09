@@ -49,9 +49,28 @@
       "title": "Primary Metric",
       "type": "string"
     },
+    "primary_undefined_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Primary Undefined Reason"
+    },
     "primary_value": {
-      "title": "Primary Value",
-      "type": "number"
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Primary Value"
     },
     "split_sha256": {
       "default": "",
