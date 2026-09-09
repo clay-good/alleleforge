@@ -13050,3 +13050,37 @@ about a file you did not open — here, nothing at all.**
 **And an error-rendering defect is worst where the reader is a program. Rank the surfaces
 by who parses the text, not by who is easiest to reach.**
 
+## Round 403 — the deployment the docs tell you to run, served a dead page
+
+`docker-compose.yml` says, in a comment above the line: uncomment
+`ALLELEFORGE_API_TOKEN` before publishing this port beyond the host. Follow that advice
+and the served page becomes an ornament. It loads (`/` is not gated), reads health (the
+one exempt endpoint), fills in this deployment's capabilities — and then every button
+returns `401 missing or invalid API token`.
+
+The message is correct. It is also unactionable: the gate is a *header*, and a browser
+cannot add one by itself. The audience with no terminal to fall back to was the audience
+locked out, on the configuration the project's own deployment file recommends.
+
+Health is exempt from the gate, which makes it the only channel through which the page can
+learn it needs to ask. It reports `auth_required` now — the fact, never the token — and
+the page reveals a field, holds what is typed in `sessionStorage` (the tab, not the
+profile: it is the operator's secret), and sends it on every call.
+
+The structural half: every API call on the page goes through one `apiFetch` wrapper, and a
+test fails if a `fetch("/api/...")` appears outside it. Health keeps its bare `fetch`, and
+the test names that exemption, because it is the same exemption the server makes.
+
+Two of my own assertions were wrong before they were right, both in the same way — they
+grepped the whole file and matched the *comment explaining the decision* rather than the
+code implementing it. "No `localStorage`" failed on the sentence "sessionStorage, not
+localStorage, because…".
+
+**Lesson: read the deployment file as instructions and follow them. The gap here was
+between two files that are both correct — a compose comment telling you to set a token,
+and a page that assumes none — and nothing that reads either file alone can see it.**
+
+**And a source-grep guard must match code, not prose. A file that explains its own choices
+contains the words for the opposite choice, put there by the person who made the right
+one.**
+
