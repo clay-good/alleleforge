@@ -19,6 +19,16 @@
       — no sequence data is transmitted off this deployment.</span>
     </div>
 
+    <div id="auth" class="disclaimer" role="note" hidden>
+      <strong>This deployment requires an API token.</strong>
+      Every request except the health check is refused without it. Paste the token the
+      operator set as <code>ALLELEFORGE_API_TOKEN</code>; it is held for this browser tab
+      only and sent to this deployment as an <code>X-API-Token</code> header.
+      <label for="api-token">API token</label>
+      <input id="api-token" type="password" autocomplete="off" spellcheck="false"
+             placeholder="X-API-Token" />
+    </div>
+
     <div class="tabs" role="tablist" aria-label="Design mode">
       <button id="tab-single" class="tab active" role="tab" aria-selected="true"
               aria-controls="panel-single" type="button">Single variant</button>

@@ -87,6 +87,13 @@ token. Running `uvicorn` against the module-level `app`, as above, binds the soc
 itself and cannot consult that guard — so on that path the token is the control, and
 setting it is on you.
 
+The served page works against a gated deployment: `GET /api/health` — the one endpoint
+the gate lets through — reports `auth_required`, and the page then shows a token field
+and sends what you paste as the `X-API-Token` header on every call. The token is held in
+`sessionStorage`, so it lasts for that browser tab and not for the browser profile, and it
+is never sent anywhere but this deployment. Health never carries the token itself, only
+the fact that one is required.
+
 ```bash
 # Container (one-command local deploy; mount the reference at ./data/reference.fa)
 docker compose up --build

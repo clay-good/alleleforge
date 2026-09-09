@@ -747,6 +747,13 @@ class HealthResponse(BaseModel):
     #: the operator's disk — and has no other way to learn that two deployments running
     #: the same code answer at very different speeds.
     scan_reuse: tuple[str, ...] = ()
+    #: Whether every `/api/*` call except this one needs an `X-API-Token` header. The
+    #: served page is not exempt from the gate and cannot guess it: on a token-protected
+    #: deployment it loaded, showed this deployment's capabilities, and answered every
+    #: action with `401 missing or invalid API token` — accurate, and unactionable in a
+    #: browser, which cannot set a header by itself. Health is the one endpoint the gate
+    #: lets through, so it is the only place the page can learn that it needs to ask.
+    auth_required: bool = False
     #: Why a *configured* source is not loaded, keyed by source name; empty when every
     #: configured source loaded. Without it `gnomad_loaded: false` means either "the
     #: operator configured none" or "the operator configured one and it could not be

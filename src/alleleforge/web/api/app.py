@@ -821,6 +821,8 @@ def create_app(
             vep_enabled=app.state.effect is not None,
             trained_models=tuple(sorted(app.state.trained_models)),
             scan_reuse=_reuse_names(app.state),
+            # Never the token itself, only that one is required.
+            auth_required=bool(api_token),
             # The names, not a flag: a client picks one per request and has no other way
             # to discover what this deployment's bedGraph contains.
             # `_*_LOAD_ERROR` was recorded for each optional source and read by

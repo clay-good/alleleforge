@@ -12,6 +12,64 @@ const submitBtn = document.getElementById("submit");
 
 let lastRequest = null; // the last design request body, for the download buttons.
 
+// The token this deployment requires, if it requires one. `null` on an open deployment,
+// which is the default and the documented local one.
+let apiToken = null;
+
+/**
+ * `fetch` for this deployment's API, carrying the token when one is needed.
+ *
+ * The gate is a header, and a browser cannot set one by itself: a token-protected
+ * deployment served this page, showed its capabilities from the one endpoint the gate
+ * lets through, and then answered every action with `401 missing or invalid API token`
+ * — accurate, and nothing a person in a browser can act on. Every call goes through
+ * here so a new one cannot be added that skips the header.
+ */
+function apiFetch(path, init = {}) {
+  const headers = { ...(init.headers || {}) };
+  if (apiToken) {
+    headers["X-API-Token"] = apiToken;
+  }
+  return fetch(path, { ...init, headers });
+}
+
+/**
+ * Reveal the token field when the deployment needs one, and remember what is typed.
+ *
+ * `sessionStorage`, not `localStorage`: the token is the operator's secret, and holding
+ * it for the tab rather than the browser profile is the smaller promise. It never
+ * reaches anything but this same origin.
+ */
+function setUpAuth(required) {
+  const panel = document.getElementById("auth");
+  const input = document.getElementById("api-token");
+  if (!required) {
+    panel.hidden = true;
+    return;
+  }
+  panel.hidden = false;
+  try {
+    apiToken = sessionStorage.getItem("alleleforge-api-token") || null;
+  } catch {
+    apiToken = null; // storage can be disabled; the field still works for this page.
+  }
+  if (apiToken) {
+    input.value = apiToken;
+  }
+  input.addEventListener("input", () => {
+    apiToken = input.value.trim() || null;
+    try {
+      if (apiToken) {
+        sessionStorage.setItem("alleleforge-api-token", apiToken);
+      } else {
+        sessionStorage.removeItem("alleleforge-api-token");
+      }
+    } catch {
+      /* storage disabled; the token still applies to this page's requests. */
+    }
+  });
+}
+
 function readForm() {
   const populations = document.getElementById("populations").value.trim();
   const max = document.getElementById("max").value;
@@ -58,7 +116,7 @@ async function design(event) {
   setStatus("Designing… (resolving variant, routing chemistries, scoring, off-target)");
 
   try {
-    const res = await fetch("/api/design?format=html", {
+    const res = await apiFetch("/api/design?format=html", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -90,7 +148,7 @@ async function download(format, filename, mime) {
     setStatus("Run a design first — there is nothing to download yet.", true);
     return;
   }
-  const res = await fetch(`/api/design?format=${format}`, {
+  const res = await apiFetch(`/api/design?format=${format}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(lastRequest),
@@ -112,6 +170,8 @@ async function checkHealth() {
   try {
     const res = await fetch("/api/health");
     const h = await res.json();
+    // Before anything else: without the token every other call on this page is a 401.
+    setUpAuth(Boolean(h.auth_required));
     const ref = h.reference_loaded ? "reference loaded" : "no reference configured";
     // Which optional data sources this deployment has. A browser user cannot supply
     // them — they are operator-configured — so the status line is the only place they
@@ -329,7 +389,7 @@ async function awaitJob(jobId, onState) {
   while (Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, delay));
     delay = Math.min(delay * 1.5, 2000);
-    const res = await fetch(`/api/jobs/${jobId}`);
+    const res = await apiFetch(`/api/jobs/${jobId}`);
     if (!res.ok) {
       return { error: `job ${jobId} could not be polled (${res.status})` };
     }
@@ -365,7 +425,7 @@ async function runBatch(event) {
     // front of the server closes an idle request long before that, so the blocking
     // endpoint fails exactly on the cohorts this panel exists for. `/api/jobs/batch`
     // returns immediately with an id and the poll below carries the state.
-    const submitted = await fetch("/api/jobs/batch", {
+    const submitted = await apiFetch("/api/jobs/batch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -427,7 +487,7 @@ async function downloadBatchTsv() {
   // Asked of the endpoint rather than assembled here: the column set and its order are
   // the shared ones, and a second implementation in the browser is exactly how two
   // tables of the same numbers come to disagree about their columns.
-  const res = await fetch("/api/batch?format=tsv", {
+  const res = await apiFetch("/api/batch?format=tsv", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(lastBatchRequest),

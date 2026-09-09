@@ -134,6 +134,27 @@ by hand.
 - **THEN** the two results describe the same run — same items, in the same order, with the
   same totals
 
+### Requirement: A gated deployment is usable from the page
+
+When an API token is configured, the health endpoint SHALL report that a token is
+required, and SHALL NOT report the token. The served page SHALL offer a way to supply it
+and SHALL send it on every gated call.
+
+A browser cannot add a request header by itself, so a page served by a gated deployment is
+inert without this: it renders, reads the capabilities health reports, and answers every
+action with 401. Health is the endpoint the gate exempts, which makes it the only place
+the page can learn that it must ask.
+
+#### Scenario: A gated deployment
+- **WHEN** the health endpoint of a token-configured deployment is queried
+- **THEN** it reports that authentication is required, and its response does not contain
+  the token
+
+#### Scenario: An open deployment
+- **WHEN** no token is configured
+- **THEN** health reports that authentication is not required, and the page shows no
+  token field
+
 ### Requirement: A refusal is a sentence
 
 A refusal this service raises SHALL reach the client as the sentence that explains it, not
