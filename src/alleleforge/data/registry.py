@@ -77,6 +77,7 @@ class DatasetDescriptor(DatasetVersion):
             sha256=self.sha256,
             citation=self.citation,
             redistributable=self.redistributable,
+            bundled=self.bundled,
         )
 
 

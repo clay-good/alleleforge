@@ -24,7 +24,7 @@ from alleleforge.report.oligos import (
 from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import AlleleOutcome, Chemistry
 from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE, Prediction
-from alleleforge.types.provenance import Provenance
+from alleleforge.types.provenance import DatasetVersion, Provenance
 from alleleforge.types.sequence import GenomicInterval
 
 #: The research-use disclaimer that leads every rendered report.
@@ -719,6 +719,22 @@ def _reference_shape(provenance: Provenance) -> str:
     )
 
 
+def _dataset_origin(dataset: DatasetVersion) -> str:
+    """Return the parenthetical saying where a dataset's pinned bytes live.
+
+    Three origins, and the pin means something different in each. A caller-supplied file
+    is on the reader's own disk. A *bundled* one ships in the package, and its digest is
+    of that shipped file — which for the CFD matrix is a conversion of the artifact at
+    `source_url`, so a reader who hashed the URL would find a mismatch and read it as
+    tampering. Anything else is a registry fetch, where the URL and the digest agree.
+    """
+    if dataset.caller_supplied:
+        return " (supplied by the caller)"
+    if dataset.bundled:
+        return " (bundled; the hash is of the file that ships)"
+    return ""
+
+
 def provenance_lines(provenance: Provenance | None) -> list[str]:
     """Return the provenance footer as plain-text lines, one fact per line.
 
@@ -761,10 +777,7 @@ def provenance_lines(provenance: Provenance | None) -> list[str]:
         # identically, the two read as one kind of pin.
         lines.append(
             "datasets: "
-            + ", ".join(
-                f"{d.name} {d.version}" + (" (supplied by the caller)" if d.caller_supplied else "")
-                for d in provenance.datasets
-            )
+            + ", ".join(f"{d.name} {d.version}" + _dataset_origin(d) for d in provenance.datasets)
         )
     if provenance.tools:
         lines.append("tools: " + ", ".join(f"{t.name} {t.version}" for t in provenance.tools))

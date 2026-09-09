@@ -175,7 +175,11 @@ def test_the_rendered_provenance_marks_a_caller_supplied_dataset(tmp_path: Path)
     )
     (line,) = [ln for ln in provenance_lines(provenance) if ln.startswith("datasets:")]
     assert "clinvar sha256:abc (supplied by the caller)" in line, line
-    assert "doench-2016-cfd 2016," in line or line.endswith("doench-2016-cfd 2016"), line
+    # The bundled row is marked too, and differently: its pin is the hash of the file
+    # that ships, which is not the artifact at its `source_url`. What this test is for is
+    # that the origins do not print *identically* — it used to assert the bundled row
+    # printed bare, which was a restatement of a two-origin world rather than the rule.
+    assert "doench-2016-cfd 2016 (bundled" in line, line
     assert "doench-2016-cfd 2016 (supplied" not in line, line
 
 

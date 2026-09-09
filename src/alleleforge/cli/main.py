@@ -2403,15 +2403,22 @@ def offtarget(
         raise typer.Exit(ExitCode.MISSING_DATA)
 
 
-def _check(kind: str, artifact: str, status: str) -> dict[str, str]:
-    """One artifact-integrity row: what it is, which one, and what was found.
+def _check(kind: str, artifact: str, status: str, origin: str = "") -> dict[str, str]:
+    """One artifact-integrity row: what it is, which one, what was found, and from where.
 
     Every row used to print the word "checkpoint", datasets included — while the line
     above them counted models and datasets separately, leaving a reader to work out
     which of the rows were which. A model and a dataset fail for different reasons and
     have different remedies.
+
+    ``origin`` is its own key rather than a suffix on ``status`` because ``status`` is a
+    *machine value*: three places compare it to ``"ok"`` — the re-hashed count, the
+    "nothing was established" note, and the list of what went unchecked — and it is
+    published in ``--json``. Writing ``"ok (bundled)"`` into it made the note say nothing
+    had been re-hashed on the line directly under a row saying it had. A word that is
+    read by code is not a place to put a word for a reader.
     """
-    return {"kind": kind, "artifact": artifact, "status": status}
+    return {"kind": kind, "artifact": artifact, "status": status, "origin": origin}
 
 
 @app.command()
@@ -2614,7 +2621,13 @@ def verify(
                 continue
             ds_actual = hashlib.sha256(ds_path.read_bytes()).hexdigest()
             if ds_actual == ds.sha256:
-                checks.append(_check("dataset", label, "ok"))
+                # Say *which* artifact matched. A bundled dataset's pin is the hash of
+                # the file that ships, which need not be the artifact at `source_url` —
+                # for the CFD matrix it is a conversion of it — so a bare `ok` beside a
+                # URL invites a reader to check the wrong bytes and read tampering.
+                checks.append(
+                    _check("dataset", label, "ok", origin="bundled" if ds.bundled else "")
+                )
             else:
                 checks.append(_check("dataset", label, "MISMATCH"))
                 problems.append(
@@ -2644,7 +2657,11 @@ def verify(
         f"provenance: aforge {prov.alleleforge_version}, seed {prov.seed}, "
         f"{len(prov.models)} model(s), {len(prov.datasets)} dataset(s)"
     ]
-    human += [f"  {c['kind']} {c['artifact']}: {c['status']}" for c in checks]
+    human += [
+        f"  {c['kind']} {c['artifact']}: {c['status']}"
+        + (f" ({c['origin']})" if c.get("origin") else "")
+        for c in checks
+    ]
     if problems:
         human.append("PROBLEMS:")
         human += [f"  - {p}" for p in problems]

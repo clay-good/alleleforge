@@ -43,6 +43,14 @@ class DatasetVersion(BaseModel):
             cannot, because the bytes live on the caller's own disk. Reporting the two
             identically made "we could not find it here" indistinguishable from "you
             have not fetched it yet", and only the second has a remedy.
+        bundled: Whether these bytes ship inside the installed package. It answers the
+            question ``sha256`` alone cannot: *what is this the hash of?* For a bundled
+            dataset it is the hash of the vendored file, which need not be — and for the
+            CFD matrix is not — the artifact at ``source_url``: that URL serves CRISPOR's
+            upstream pickle, and the shipped JSON is a conversion of it, recording both
+            digests in its own ``_provenance.sources``. A reader auditing a run from this
+            block would otherwise fetch the URL, hash it, and read the mismatch as
+            tampering — the one conclusion the pin exists to make impossible.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -55,6 +63,7 @@ class DatasetVersion(BaseModel):
     citation: str | None = None
     redistributable: bool = False
     caller_supplied: bool = False
+    bundled: bool = False
 
 
 class ModelCheckpoint(BaseModel):

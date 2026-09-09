@@ -698,6 +698,7 @@
     "provenance": {
       "datasets": [
         {
+          "bundled": true,
           "caller_supplied": false,
           "citation": "Doench et al., Nat Biotechnol 2016 (CFD; Suppl. Table 19)",
           "license": "published data (Doench et al. 2016); redistributed via CRISPOR/CRISPRitz",
@@ -763,5 +764,5 @@
     "variant": "chr2:65:A>G"
   },
   "n_candidates": 4,
-  "sha256": "abac015ce2b962e59d62520ca98ab5b9fbb729936463ae61635af0b173ced477"
+  "sha256": "94c0c9f78c6a5b3a01c0069d1337f77ecc669bcaf70866b41125573621c2962b"
 }
