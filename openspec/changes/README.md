@@ -13119,3 +13119,45 @@ demotion to B.**
 your claims are written in — link, fence, import, invocation, sentence — not the claims
 you happen to remember.**
 
+## Round 405 — the documented install produced a CLI that could not say its own version
+
+Followed the install table in the deployment guide, in a clean venv:
+
+```
+$ pip install "alleleforge[cli]"
+$ aforge --version
+ModuleNotFoundError: No module named 'pyfaidx'
+```
+
+Not one command worked. `--help`, `data list`, `bench list`, `resolve` — every one dies
+before the argument parser sees the line, including all the ones that touch no sequence.
+The install table lists genome access as a *separate row to add*, so this is precisely the
+promise it breaks.
+
+`cli.main` imports `design`, which reaches `genome/reference.py`, which had
+`from pyfaidx import Fasta` at module scope.
+
+The project had already met this. `genome/__init__.py` defers its `reference` re-exports,
+and its comment says why: `aforge bench run` failing on a `[cli]` install with a raw
+`ModuleNotFoundError`. That fix was made at the *package boundary* — and ten modules import
+`alleleforge.genome.reference` directly, which walks straight past it. A deferral that only
+works if every future caller writes the import a particular way is not a deferral.
+
+I first fixed all ten call sites with `TYPE_CHECKING` blocks, then reverted them: deferring
+`from pyfaidx import Fasta` into the function that opens a FASTA fixes every path at once
+and cannot be undone by a caller. One file changed. The ten-file version also *looked*
+right, which is the trap — it was a correct change at the wrong layer.
+
+`test_core_install_stays_light.py` had a note excluding `alleleforge.benchmark` from its
+subpackage list, calling the remainder "a refactor rather than a correction". It was one
+import statement. Nine subpackages joined the list, and the CLI entry point is now checked
+against the genome stack by name.
+
+**Lesson: install the package the way the documentation says and run the thing it gives
+you. Three thousand tests pass against a source tree with every extra installed; the
+documented install had never been executed once.**
+
+**And when the same defect returns, ask what layer the previous fix was made at. Both
+fixes here were correct. Only one was at the layer where the property holds without
+anyone's cooperation.**
+
