@@ -1262,10 +1262,18 @@ flowchart LR
 ```
 
 > [!IMPORTANT]
-> **Local, private, no egress.** All compute is local and user-controlled. The app makes **no outbound
-> network call** and transmits **no sequence data externally** — a guarantee enforced by a test that fails
-> if any socket connects during a design request. The served frontend says so prominently and loads no
-> third-party scripts.
+> **Local, private, no egress by default.** All compute is local and user-controlled: the app makes **no
+> outbound network call** and transmits **no sequence data externally** — a guarantee enforced by a test
+> that fails if any socket connects during a design request. The served frontend says so prominently and
+> loads no third-party scripts.
+>
+> The one exception is **consequence annotation**, and it is doubly opt-in: the operator enables it
+> (`ALLELEFORGE_VEP`) because their server makes the request, and the client asks for it per request
+> (`annotate_consequence`) because the variant is theirs. A deployment with it enabled says so in its
+> OpenAPI description, in `GET /api/health` (`vep_enabled`), and on the page's banner, which changes to
+> *"Compute is local, but this deployment can send a variant off it."* The guarantee above is the default
+> and not an absolute, and a privacy sentence a reader checks before pasting a patient variant has to say
+> which it is.
 
 | Method & path | Purpose |
 |---|---|

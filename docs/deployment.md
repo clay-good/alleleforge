@@ -108,10 +108,14 @@ interface and replace the served vanilla-JS frontend with a production Next.js +
 JBrowse 2 frontend behind the unchanged API.
 
 !!! important "Local, private, no egress"
-    All compute is local and user-controlled. The app makes **no outbound network
-    call** and transmits **no sequence data externally** — a guarantee enforced by
-    a test that fails if any socket connects during a design request. The served
-    frontend loads no third-party scripts.
+    By default all compute is local and user-controlled: the app makes **no outbound
+    network call** and transmits **no sequence data externally** — a guarantee enforced
+    by a test that fails if any socket connects during a design request. The served
+    frontend loads no third-party scripts. The one exception is **consequence annotation**, doubly opt-in: the operator
+    enables it (`ALLELEFORGE_VEP`) because their server makes the request, and the
+    client asks per request (`annotate_consequence`) because the variant is theirs; a
+    deployment with it on says so in its OpenAPI description, in `GET /api/health`
+    (`vep_enabled`), and on the page's banner.
 
 ## Concurrency & scaling
 

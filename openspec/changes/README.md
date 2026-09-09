@@ -16223,3 +16223,41 @@ already careful.** "~1x, and that is worth stating plainly" is the voice of some
 correcting an overclaim, so the next reader — me, twice this session — skims it as
 settled. The tell was never in the wording. It was a constant in a module, three files
 away, whose value the paragraph asserted the opposite of.
+
+## Round 473 — the sentence a reader checks before pasting a patient variant
+
+Last round's lesson said prose written honestly is the hardest to re-read. The README's
+`> [!NOTE]` blocks are exactly that, so I read them all against the code. Four hold. The
+fifth is the highest-stakes claim in the document:
+
+> **Local, private, no egress.** All compute is local and user-controlled. The app makes
+> **no outbound network call** and transmits **no sequence data externally** — a guarantee
+> enforced by a test that fails if any socket connects during a design request.
+
+Consequence annotation sends the chromosome, position and both alleles to Ensembl's public
+VEP server.
+
+The page already knew. `app.js` rewrites its banner when `vep_enabled` is set, and the
+comment beside it is the whole argument: *"The disclaimer promised that no sequence data
+leaves this deployment. That is the sentence a reader checks before pasting a patient
+variant, and enabling the VEP annotation makes it false."* The OpenAPI description branches
+the same way, on the same reasoning. Someone did this properly for the two surfaces a
+client sees at runtime.
+
+They did not do it for the prose. The README, `SPEC.md`, `docs/api/web.md`,
+`docs/deployment.md`, and — worst — the serving module's own docstring, which lists the
+claim among **"two invariants from the specification"**. Five artifacts asserting an
+absolute that the shipped code makes conditional, two of them written after the page was
+fixed.
+
+I found two by reading and three by writing the guard, which is the part worth recording:
+the check is keyed to the *capability*, not the wording. While `DesignRequest` carries
+`annotate_consequence`, any paragraph making the claim must name the exception in the same
+block. Remove the feature and the guard stops asking. Its first run pointed at three files
+I had not thought to open.
+
+**Lesson: a guarantee is a claim about every configuration, and a feature flag is a
+configuration.** The privacy sentence was true of the default deployment and false of one
+an operator can switch on with an environment variable — and the artifacts that got it
+right were the two rendered *at runtime*, where the flag's value is in hand. Every artifact
+written ahead of time got it wrong, because at writing time there is only the default.

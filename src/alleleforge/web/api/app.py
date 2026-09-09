@@ -8,9 +8,17 @@ in-process async job queue with a status endpoint.
 
 Two invariants from the specification:
 
-* **All compute is local and user-controlled.** The app makes no outbound
-  network call and transmits no sequence data externally; the served frontend
-  states this prominently.
+* **All compute is local and user-controlled**, with one gated exception. By
+  default the app makes no outbound network call and transmits no sequence data
+  externally, and the served frontend states that prominently. Consequence
+  annotation is the exception and is doubly opt-in: the operator enables it
+  (``ALLELEFORGE_VEP``) because their server makes the request, and the client
+  asks for it per request (``annotate_consequence``), because the variant is
+  theirs. A deployment with it enabled says so in its OpenAPI description, in
+  ``GET /api/health`` (``vep_enabled``), and on the page's own banner — all three
+  of which state what *this* deployment does rather than what the default one
+  does. Stating the invariant without the exception is how a sentence a reader
+  checks before pasting a patient variant becomes false.
 * **The reference genome is supplied by the deployment.** Pass a
   :class:`ReferenceGenome` to :func:`create_app`, or set
   ``ALLELEFORGE_REFERENCE_FASTA``. Endpoints that need it return ``503`` until

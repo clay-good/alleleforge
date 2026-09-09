@@ -704,7 +704,9 @@ deployment.
 - `src/alleleforge/web/frontend/`: a Next.js + React app implementing the journey — variant entry (all input
   forms) → eligible chemistries → ranked candidate menu with interactive Plotly efficiency intervals and
   outcome distributions → an **ancestry-stratified off-target browser** with embedded JBrowse 2 → oligo/report
-  export. Prominent research-use disclaimer; state that no sequence data is transmitted externally.
+  export. Prominent research-use disclaimer; state that no sequence data is transmitted externally
+  by default, and that the one exception — consequence annotation (`ALLELEFORGE_VEP` plus a
+  per-request `annotate_consequence`) — changes that sentence on the deployments that enable it.
 - `docker-compose.yml`: one-command local deploy of api + frontend + worker, wired to a local cache volume.
 
 **Defaults & decisions.** Backend FastAPI; frontend Next.js (Streamlit acceptable for a v0 internal preview).
