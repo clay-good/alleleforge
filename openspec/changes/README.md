@@ -13967,3 +13967,50 @@ check that it still covers what exists.**
 **And measure before calling it a defect.** The honest report here is "a guard was blind,
 and the thing it was blind to was fine". Shipping the fix on the second half alone would
 have been a wrong story about a right change.
+
+## Round 421 — the third time, on the guard that was written for the first two
+
+Following R420's lesson — *when a guard stays green through a change in its subject, ask
+what population it enumerates* — I read the populations of all nineteen guards in this
+repository that carry an allowance list. Most derive theirs from a runtime object
+(`model_fields`, `__all__`, `pkgutil.walk_packages`, the router, a click group), which is
+the right kind. `test_api_docs_cover_the_package` in particular is exemplary: population
+from `walk_packages`, allowance checked in both directions.
+
+One was interesting for the reason R420 was.
+`test_the_page_can_take_away_every_format_the_api_renders` opens:
+
+> The one rendering the page could not give you was the one it was showing you.
+
+Its own docstring already records this happening twice — once for the single-variant
+panel, once for the cohort panel, and it says so: *"a guard written against one of two
+panels is a guard against half the defect"*. Then R419 added a third panel, which rendered
+a result and offered no way to keep it, and this guard was silent.
+
+Not because it is wrong. Its population is *formats the API serves under `?format=`*, and
+`/api/offtarget` serves one shape and takes no format parameter, so the panel is correctly
+outside it. That is the right population for the question it asks and the wrong one for
+the question underneath it: **can a reader take away what the page just showed them?**
+
+So the panel gets a Download JSON, and the guard gets a section that asks the second
+question off the *panels* rather than off the format enums — every `<section id="panel-…">`
+in the markup must record a download surface, that surface must exist, and every button in
+it must have a handler. Both directions mutation-verified: removing `#ot-actions` fails it,
+and adding an unrecorded panel fails it.
+
+The download serializes the response the panel is already holding rather than re-asking
+the endpoint. The other two panels re-fetch with `?format=`, which is right for them — the
+server owns the column set. Here there is no second rendering to ask for, and re-POSTing
+would re-run a search that on a real genome is minutes and need not return the same thing
+if the deployment's sources changed underneath it.
+
+Verified in a browser: the button is hidden until a search succeeds, hidden again while
+the next one runs, absent after a refusal, and produces a 3,588-byte `application/json`
+blob carrying all thirteen response fields — the disclaimer, the search description and
+both ancestry tables included. Clicking it with nothing held says
+*"Search a spacer first — there is nothing to download yet."*
+
+**Lesson: a guard's population answers one question, and the reason it was written is
+usually a bigger one.** Read the docstring's first line — the *why* — and ask whether the
+enumeration actually covers that, or covers a proxy for it that happened to be convenient.
+Three panels have now been caught by the same sentence, and the third was caught by nothing.
