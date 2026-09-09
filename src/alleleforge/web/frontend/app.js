@@ -10,7 +10,9 @@ const reportFrame = document.getElementById("report");
 const actions = document.getElementById("actions");
 const submitBtn = document.getElementById("submit");
 
-let lastRequest = null; // the last design request body, for the download buttons.
+let lastRequest = null; // the last design request body, for the fallback path.
+let lastDesignJobId = null; // the job that produced what is on screen: every download
+                            // is a rendering of *that* run, not of a new one.
 
 // The token this deployment requires, if it requires one. `null` on an open deployment,
 // which is the default and the documented local one.
@@ -116,14 +118,34 @@ async function design(event) {
   setStatus("Designing… (resolving variant, routing chemistries, scoring, off-target)");
 
   try {
-    const res = await apiFetch("/api/design?format=html", {
+    // Submitted as a job, then rendered from the finished job — the shape the cohort
+    // panel already uses. The alternative, and what this did, is to POST the whole
+    // design again for every download: the report on screen was one run, the PDF a
+    // second, the JSON a third, the menu a fourth. On a real genome the off-target scan
+    // is the expensive part of each of them, and two artifacts a reader saves side by
+    // side were never guaranteed to be the same run.
+    const submitted = await apiFetch("/api/jobs/design", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+    if (!submitted.ok) {
+      const detail = await submitted.json().catch(() => ({ detail: submitted.statusText }));
+      setStatus(`Error ${submitted.status}: ${detail.detail || submitted.statusText}`, true);
+      return;
+    }
+    const jobId = (await submitted.json()).job_id;
+    const finished = await awaitJob(jobId, (state) => {
+      setStatus(`Designing… (${state}: resolving variant, routing chemistries, scoring, off-target)`);
+    });
+    if (finished.error) {
+      setStatus(`Error: ${finished.error}`, true);
+      return;
+    }
+    lastDesignJobId = jobId;
+    const res = await apiFetch(`/api/jobs/${jobId}/result?format=html`);
     if (!res.ok) {
-      const detail = await res.json().catch(() => ({ detail: res.statusText }));
-      setStatus(`Error ${res.status}: ${detail.detail || res.statusText}`, true);
+      setStatus(`Error ${res.status}: the finished design could not be rendered`, true);
       return;
     }
     reportFrame.srcdoc = await res.text();
@@ -148,11 +170,23 @@ async function download(format, filename, mime) {
     setStatus("Run a design first — there is nothing to download yet.", true);
     return;
   }
-  const res = await apiFetch(`/api/design?format=${format}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(lastRequest),
-  });
+  // A rendering of the run already on screen, not a new one. The job store is bounded
+  // and does not survive a restart, so a lost result falls back to designing again —
+  // announced, because it is a second run and the file will not match the first on its
+  // timestamp.
+  let rebuilt = false;
+  let res = lastDesignJobId
+    ? await apiFetch(`/api/jobs/${lastDesignJobId}/result?format=${format}`)
+    : new Response(null, { status: 404 });
+  if (res.status === 404) {
+    rebuilt = true;
+    setStatus("The server no longer holds that run — designing it again for this file…");
+    res = await apiFetch(`/api/design?format=${format}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(lastRequest),
+    });
+  }
   if (!res.ok) {
     setStatus(`Download failed: ${res.status}`, true);
     return;
@@ -164,6 +198,12 @@ async function download(format, filename, mime) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+  if (rebuilt) {
+    setStatus(
+      "Downloaded a freshly designed file — the run this page shows is no longer on the " +
+        "server, so it comes from a new run of the same request.",
+    );
+  }
 }
 
 async function checkHealth() {

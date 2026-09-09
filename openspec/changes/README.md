@@ -15892,3 +15892,43 @@ becomes true.
 test of that function checked what it *did* — which endpoint, in which order, behind which
 status code — and none could see what the screen said when it stopped. The check that
 found it was clicking the button.
+
+## Round 464 — one design, five runs
+
+The previous round's lesson sent me through the page's other progress messages, all of
+which resolve properly. What did not survive the reading was two functions down:
+
+```js
+async function download(format, filename, mime) {
+  const res = await apiFetch(`/api/design?format=${format}`, { method: "POST", … });
+```
+
+Every download button re-posted **the whole design**. The report on screen was one run;
+the PDF was a second, the JSON a third, the menu a fourth, the HTML a fifth. On the toy
+contig used for this session's checks that is 90 ms apiece and invisible. On a real genome
+the off-target scan is the expensive part of each one, and this project's own note says a
+300-variant cohort takes minutes — a single design against hg38 is not free either.
+
+The cost is the smaller half. Two files a reader saves side by side came from **different
+invocations**: the PDF on the desk and the JSON beside it agreed on their numbers by
+determinism rather than by identity, and disagreed at minimum on their timestamps. The
+round that moved the cohort panel onto the job route wrote the reason down —
+"spending the entire run again to format a result already sitting in the browser" — and
+left a scope line beside it: *"a single design finishes in seconds and renders its own
+HTML"*, which is true of the render and was never the whole cost.
+
+The panel now submits to `POST /api/jobs/design`, polls with the same `awaitJob` the
+cohort uses, and renders the frame and every download from `GET /api/jobs/<id>/result`.
+Driven in a browser against a live server: four download clicks, four job-result GETs,
+zero `POST /api/design`, one job id throughout. Restart the server and click again and the
+fallback fires, says so, and closes with the caveat that this file comes from a second run.
+
+Two guards failed on the change, both correctly, and both are the reason to trust it: the
+endpoint-coverage guard because `POST /api/jobs/design` was recorded as *deliberately* not
+reached by the page, and the cohort guard because it pinned the old scope line. An excuse
+that outlives its gap is a false record, and both said so the moment the gap closed.
+
+**Lesson: a scope line is an argument, and arguments get weaker while nobody re-reads
+them.** "A single design finishes in seconds" was written about the initial render and
+quietly did duty for four buttons that did not exist yet. The question that finds this
+class is not "is this fast enough?" but *"how many times does one user action run this?"*

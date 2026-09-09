@@ -61,6 +61,17 @@ def test_the_status_line_says_what_the_job_is_doing() -> None:
     assert "state" in body, body
 
 
-def test_the_single_design_still_uses_the_direct_call() -> None:
-    """Scope: a single design finishes in seconds and renders its own HTML."""
-    assert '"/api/design?format=html"' in _body_of("design")
+def test_the_single_design_is_submitted_as_a_job_too() -> None:
+    """The scope line moved, and for a reason that round did not weigh.
+
+    This read "a single design finishes in seconds and renders its own HTML", which is
+    true of the *render* and was never the whole cost: each download button then posted
+    the entire design again, so looking at the report and saving the PDF, the JSON, the
+    menu and the HTML ran it five times — and no two saved files were guaranteed to come
+    from the same run. Submitting once and rendering every artifact from the finished job
+    fixes both, and is the shape the cohort panel already uses.
+    """
+    body = _body_of("design")
+    assert "/api/jobs/design" in body, body
+    assert "awaitJob(" in body, body
+    assert '"/api/design?format=html"' not in body, body

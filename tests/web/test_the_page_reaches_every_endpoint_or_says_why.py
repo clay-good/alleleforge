@@ -42,10 +42,6 @@ _NOT_ON_THE_PAGE: dict[str, str] = {
     "menu it renders already states the resolved locus, its class and what ClinVar says "
     "— which is what `resolve` is for. A separate 'explain this variant' button would "
     "restate the header of the result the same click already produces",
-    "POST /api/jobs/design": "decision: a single design finishes in seconds, which is "
-    "why the job path was built for the cohort and not for it. The page posts the "
-    "synchronous `/api/design` and holds the connection for the duration a browser is "
-    "happy to wait; `/api/jobs/batch` is where the page uses the job machinery",
     "GET /api/data": "decision: the registry is an operator's inventory, and the "
     "page reports the part a client can act on — which sources this deployment actually "
     "loaded — from `/api/health`, beside the controls those sources enable",
