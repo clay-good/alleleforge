@@ -13408,3 +13408,70 @@ before this change (0.45–0.95x) and is a larger one after (0.24–0.86x), beca
 protects is now entirely in C. This is the exact shape of the FM-index auto-engage defect
 an earlier round fixed — *the number was in the script's output and the decision was in the
 prose*. The README's `kmer` row said "scan-level ~1x today"; it now states the measurement.
+
+## Round 411 — the number was in the script's output and the decision was in the prose
+
+R410 flagged this and did not act on it. Acting on it.
+
+`scripts/native_speedup.py` prints, and has printed for a long time:
+
+```
+off-target scan (both strands)
+  high-stringency (mismatches=1)
+    brute force :    29.89 ms
+    seeded      :    68.16 ms  (0.4x)
+```
+
+`scan_sequence(seed=True)` was the default, so every high-stringency scan paid it. This
+is the exact shape of the FM-index auto-engage defect an earlier round fixed, in the same
+script's output, one section further down.
+
+The prefilter's saving is the anchors it skips; its cost is its own `O(n)` pass over the
+sequence. Three rounds have measured it and each found the saving smaller: ~2–4x when the
+`MIN_SELECTIVE_K` threshold was calibrated, then 0.94–1.12x once the per-anchor alignment
+got cheaper, and now a loss — because R410 moved the PAM test from a per-anchor Python
+slice and memo lookup to one compiled regex scan, leaving the prefilter pruning a single
+native `evaluate_anchor` call. Deciding not to make that call costs more than making it.
+
+1 Mb, one guide, no bulges, three runs each, brute force / seeded, in ms:
+
+| crate | mm=0 | mm=1 | mm=2 | mm=3 |
+|---|---|---|---|---|
+| built | 48 / 139 | 45 / 156 | 39 / 167 | 58 / 157 |
+| not built | 60 / 226 | 80 / 212 | 69 / 292 | 81 / 282 |
+
+I expected the "not built" row to flip — a pure-Python `_evaluate` is 13x slower, so the
+prefilter should have earned its keep there. It does not. Measuring the guess is the only
+reason I know that.
+
+The previous comment on `MIN_SELECTIVE_K` left one repair open: *"making it pay again
+would mean attacking the prefix-sum construction, not this constant."* `covered_prefix`
+builds two Python lists of length n+1 to represent, at mm=1, **nine** seed intervals. So I
+built the version with no `O(n)` pass at all — sort the seed positions, `bisect` per
+anchor — and measured that too: 0.79–1.65x with the crate, 1.82–2.66x without. Still a
+loss almost everywhere. The open repair is now closed with a number rather than left as a
+plausible next step.
+
+End to end, `aforge offtarget` over 20 Mb at `--mismatches 1 --dna-bulges 0 --rna-bulges 0`:
+**5.89 / 6.50 / 5.90 s → 3.42 / 3.18 / 2.83 s**, byte-identical JSON. The off-target test
+suite fell from 9.0s to 3.7s as a side effect.
+
+Opt-in, not deleted. The prefilter is a *proven superset* by pigeonhole, and that
+exactness is the reason to keep it reachable and parity-tested. What is removed is the
+assumption that it is free.
+
+`SPEC_V2.md` carried two claims about it and both had expired. The speedup, above. And the
+ordering rule — *"the seed must run before the PAM check to prune"* — which R410 violated
+without noticing, in a comment that said the order "is a performance question only". That
+was right about the *results* and wrong about the spec: the rule described a per-anchor
+Python PAM test that R410 deleted. Both are now recorded as expired with the measurement
+that expired them, rather than quietly dropped.
+
+**Lesson: when a round flags a finding for "the next round", the next round is the one to
+spend on it — the flag is the cheapest it will ever be to act on, and the measurement is
+already done.**
+
+**And a benchmark script nobody reads is a test that always fails silently.** This
+project's own script printed `0.4x` for a default-on code path, in the same output where
+an earlier round found `SLOWER` for a different default-on code path. Read the script's
+output every time you change the thing it measures.
