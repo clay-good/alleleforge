@@ -15833,3 +15833,29 @@ defence is an alarm attached to the code that made it false.** Nobody was carele
 someone described the state accurately, someone else made it obsolete two hundred rounds
 later, and the sentence sat in the release spec. Grepping prose for "not yet" is a
 one-round fix; wiring the phrase to the dispatchers is what makes the next one impossible.
+
+## Round 462 — opening the thing I had only asserted on
+
+Round 365's lesson, found through the new index: *"an artifact nobody has opened is
+unexamined however many tests read its bytes."* The artifact this session changed and
+never opened is the leaderboard, so: render one and look at it.
+
+It reads correctly. An unrankable submission is listed and not ranked, the empty ranked
+table says "No ranked submission", the reason is spelled out. And one thing is missing
+that no substring assertion would have noticed: the entry's **ECE and out-of-distribution
+share are gone**. That submission ran. It measured a calibration error of 0.2000 and
+disclaimed none of its ten predictions. Rendering it as a sentence beneath the table
+qualified the entry by discarding what it had established — the opposite of the reason for
+listing it at all.
+
+The fix keeps the earlier round's argument intact. Unranked entries do not join the ranked
+table: appending them underneath would be an ordering, and the claim is that they cannot
+be ordered. They get their own table — model, submitter, ECE, OOD, split, and why there is
+no rank — under a heading that says so. Two tables, no implied comparison, nothing thrown
+away. `_UNRANKED_NOTE`, the sentence that replaced the row, is gone with it.
+
+**Lesson: a substring assertion tests that something is present, never that nothing is
+missing.** Every check written for that rendering passed before and after — "Not ranked"
+was in the page, the reason was in the page — because a test can only look for what its
+author thought to name. Opening the page took two minutes and asked the one question the
+tests structurally cannot: *is this what the reader should see?*

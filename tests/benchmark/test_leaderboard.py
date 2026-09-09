@@ -101,6 +101,12 @@ def test_a_result_with_no_primary_value_is_listed_and_not_ranked(fixed_ts: datet
     for rendered in (lb.render_markdown(), lb.render_html()):
         assert "Not ranked" in rendered, rendered
         assert "constant value" in rendered, rendered
+        # Listed *with its numbers*. A submission whose primary metric is undefined still
+        # measured a calibration error and an out-of-distribution share, and qualifying
+        # the entry must not mean discarding what it did establish.
+        ece = result.metrics["ece"]
+        assert ece is not None and f"{ece:.4f}" in rendered, (ece, rendered)
+        assert f"0/{result.n_test}" in rendered, rendered
 
 
 def test_submission_requires_model_card(fixed_ts: datetime) -> None:
@@ -476,3 +482,33 @@ def test_scores_on_different_metrics_are_not_ranked_against_each_other(
     # Each metric heads its own table rather than one column labelled with the other.
     assert "| Rank | Model | Submitter | spearman ↑ |" in md
     assert "| Rank | Model | Submitter | auroc ↑ |" in md
+
+
+def test_the_unranked_table_is_separate_from_the_ranked_one(fixed_ts: datetime) -> None:
+    """Listed, not ordered — and the distinction has to survive the rendering.
+
+    Appending an unrankable entry under the ranked rows would be an ordering, and the
+    claim is that it cannot be ordered. A separate table keeps both halves: no implied
+    rank, and the measurements it *does* have still on the page.
+    """
+    import re
+
+    result = _baseline_result("cas9-efficiency", fixed_ts)
+    board = Leaderboard()
+    board.add(
+        Submission(
+            submitter="alleleforge", model=_model(), results=(result,), submitted_at=fixed_ts
+        )
+    )
+    html = board.render_html()
+    tables = re.findall(r"<table>.*?</table>", html, re.S)
+    assert len(tables) == 2, f"expected a ranked and an unranked table, got {len(tables)}"
+    ranked, unranked = tables
+    assert "Rank" in ranked and "No ranked submission" in ranked
+    assert "Rank" not in unranked, "the unranked table offers a rank column"
+    assert "crispr-bench-baseline" in unranked
+    assert "Why" in unranked
+
+    markdown = board.render_markdown()
+    assert "| Model | Submitter | ECE ↓ | OOD ↓ | Split | Why |" in markdown, markdown
+    assert "| Rank | Model | Submitter | spearman" in markdown, markdown

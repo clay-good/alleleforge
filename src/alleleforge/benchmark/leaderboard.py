@@ -293,13 +293,6 @@ def _context_lines() -> list[str]:
     ]
 
 
-#: Said beside the table a row could not join. A leaderboard's job is to order things,
-#: so the one thing it must never do quietly is include something it could not order.
-_UNRANKED_NOTE = (
-    "Not ranked: {model} has no {metric} on this split, so there is no number to place it by. Why:"
-)
-
-
 def _fmt_primary(entry: LeaderboardEntry) -> str:
     """Render a primary value, or the word for its absence."""
     return "—" if entry.primary_value is None else f"{entry.primary_value:.4f}"
@@ -516,11 +509,25 @@ class Leaderboard:
                 if not ranked:
                     lines.append("| — | _no ranked submission_ | | | | | |")
                 lines.append("")
-                for e in unranked.get(group, ()):
-                    lines.append(
-                        f"**{_md_cell(_UNRANKED_NOTE.format(model=e.model_name, metric=metric))}** "
-                        f"{_md_cell(e.primary_undefined_reason or '')}"
-                    )
+                # A separate table, not extra rows: appending them under the ranked
+                # ones would be an ordering, and the whole claim is that these cannot be
+                # ordered. But they are listed *with their numbers* — a submission whose
+                # primary metric is undefined still measured a calibration error and an
+                # OOD share, and the first version of this dropped both to print a
+                # sentence, qualifying the entry by discarding what it did establish.
+                absent = unranked.get(group, ())
+                if absent:
+                    lines.append("**Not ranked** — no value for this group's metric.")
+                    lines.append("")
+                    lines.append("| Model | Submitter | ECE ↓ | OOD ↓ | Split | Why |")
+                    lines.append("| :--- | :--- | ---: | ---: | :--- | :--- |")
+                    for e in absent:
+                        lines.append(
+                            f"| {_md_cell(e.model_name)} | {_md_cell(e.submitter)} | "
+                            f"{_fmt_ece(e.ece)} | {_fmt_ood(e)} | "
+                            f"{_md_cell(e.split_version)}{_synthetic_mark(e)} | "
+                            f"{_md_cell(e.primary_undefined_reason or 'not stated')} |"
+                        )
                     lines.append("")
         return "\n".join(lines)
 
@@ -567,12 +574,29 @@ class Leaderboard:
                 if not ranked:
                     parts.append('<tr><td colspan="7">No ranked submission.</td></tr>')
                 parts.append("</tbody></table>")
-                for e in unranked.get(group, ()):
-                    note = _UNRANKED_NOTE.format(model=e.model_name, metric=group.primary_metric)
-                    reason_text = e.primary_undefined_reason or ""
+                absent = unranked.get(group, ())
+                if absent:
                     parts.append(
-                        f'<p class="warn"><strong>{_html_cell(note)}</strong> '
-                        f"{_html_cell(reason_text)}</p>"
+                        '<p class="warn"><strong>Not ranked</strong> — no value for this '
+                        "group's metric, so there is no number to place these by. Their "
+                        "other measurements stand.</p>"
                     )
+                    parts.append(
+                        "<table><thead><tr><th>Model</th><th>Submitter</th><th>ECE</th>"
+                        '<th title="share of test predictions the model self-flagged '
+                        'out-of-distribution">OOD</th><th>Split</th><th>Why</th>'
+                        "</tr></thead><tbody>"
+                    )
+                    for e in absent:
+                        reason_text = e.primary_undefined_reason or "not stated"
+                        parts.append(
+                            f"<tr><td>{_html_cell(e.model_name)}</td>"
+                            f"<td>{_html_cell(e.submitter)}</td>"
+                            f"<td>{_fmt_ece(e.ece)}</td><td>{_fmt_ood(e)}</td>"
+                            f"<td>{_html_cell(e.split_version)}"
+                            + ("<strong> (synthetic)</strong>" if e.dataset_is_synthetic else "")
+                            + f"</td><td>{_html_cell(reason_text)}</td></tr>"
+                        )
+                    parts.append("</tbody></table>")
         parts.append("</body></html>")
         return "\n".join(parts)
