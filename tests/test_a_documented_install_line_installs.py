@@ -47,12 +47,28 @@ _DOCUMENTS = ("README.md", "CONTRIBUTING.md", "docs/deployment.md", "docs/exampl
 
 
 def _install_lines() -> list[tuple[str, str]]:
-    """Return ``(document, line)`` for every `pip install` the docs show."""
+    """Return ``(document, line)`` for every `pip install` inside a fenced block.
+
+    Fenced, not every line that begins with the words. Prose *cites* commands — the
+    README explains that the from-source line "used to be spelled out here as
+    ``pip install -e ".[core,genome,variant,cli,ml,dev]"``, which could not succeed" — and
+    a citation of a broken command is the opposite of an instruction to run it. Today that
+    sentence happens to wrap with a backtick first, so a line-prefix reader misses it by
+    luck; one reflow and this guard would fail on the paragraph explaining why it exists.
+
+    A reader runs what is in the code block. That is the population.
+    """
     found: list[tuple[str, str]] = []
     for name in _DOCUMENTS:
+        inside = False
         for line in (_ROOT / name).read_text(encoding="utf-8").splitlines():
-            stripped = line.strip()
-            if stripped.startswith("pip install") or stripped.startswith("$ pip install"):
+            if line.lstrip().startswith("```"):
+                inside = not inside
+                continue
+            if not inside:
+                continue
+            stripped = line.strip().removeprefix("$ ")
+            if stripped.startswith("pip install"):
                 found.append((name, stripped))
     return found
 
@@ -117,3 +133,55 @@ def test_a_flagged_extra_still_exists_and_is_still_documented(extra: str) -> Non
     assert extra in _declared_extras(), f"{extra} is flagged but no longer declared"
     readme = (_ROOT / "README.md").read_text(encoding="utf-8")
     assert f"`{extra}`" in readme, f"{extra} is no longer described in the README's table"
+
+
+# --- and the set of extras, which the same sweep put in question ---------------
+
+
+#: Extras no CI job installs, with the reason that is a decision rather than an accident.
+#: Found by asking, after two extras turned out to be uninstallable, which ones anything
+#: installs at all: an extra no workflow names is an extra no run exercises.
+_NOT_INSTALLED_BY_CI: dict[str, str] = {
+    "cas9-rs3": "the trained Rule Set 3 stack (lightgbm + sglearn). CI is weight-free by "
+    "design — a stated project principle — and the tests that would need it carry the "
+    "`real_weights` marker, which `conftest.py` skips unless ALLELEFORGE_REAL_WEIGHTS is "
+    "set. Resolution is checked by hand: `pip install --dry-run` gives 22 wheels and no "
+    "source build",
+    "variant": "hgvs, which needs PostgreSQL client headers — see "
+    "_NEEDS_A_SYSTEM_LIBRARY. Installing it in CI would put libpq on every runner for a "
+    "capability no shell exposes",
+}
+
+
+def _extras_installed_by_ci() -> set[str]:
+    workflows = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted((_ROOT / ".github" / "workflows").glob("*.yml"))
+    )
+    installed: set[str] = set()
+    for match in re.finditer(r'pip install[^\n"]*"\.\[([^\]]+)\]"', workflows):
+        installed |= {e.strip() for e in match.group(1).split(",")}
+    assert installed, "no extras parsed from the workflows — this check would be vacuous"
+    return installed
+
+
+def test_every_extra_is_installed_by_ci_or_recorded() -> None:
+    """An extra nothing installs is an extra nothing tests, which is how the last two
+    uninstallable ones went unnoticed."""
+    untested = sorted(_declared_extras() - _extras_installed_by_ci() - set(_NOT_INSTALLED_BY_CI))
+    assert not untested, (
+        f"no CI job installs {untested}, so nothing would notice if they stopped "
+        "resolving. Install them in a workflow, or record the reason in "
+        "_NOT_INSTALLED_BY_CI."
+    )
+
+
+def test_no_recorded_reason_outlives_its_extra() -> None:
+    stale = sorted(set(_NOT_INSTALLED_BY_CI) - _declared_extras())
+    assert not stale, f"reasons recorded for extras pyproject no longer declares: {stale}"
+
+
+def test_no_recorded_reason_excuses_an_extra_ci_does_install() -> None:
+    """The reverse direction: an excuse that stopped being true reads as a decision."""
+    covered = sorted(set(_NOT_INSTALLED_BY_CI) & _extras_installed_by_ci())
+    assert not covered, f"recorded as uninstalled by CI, but a workflow installs them: {covered}"
