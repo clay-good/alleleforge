@@ -15614,3 +15614,50 @@ out to audit was correct, twice over, and the defect came from mistyping a coord
 a tool whose central discipline is coordinate conventions — a path no test exercised because
 no test makes that mistake. Two of my three leads were my own misreadings; checking them
 cost less than one round and would have cost a false entry in this log.
+
+## Round 456 — the input the tool blamed the genome for
+
+Round 455 ended on "the useful part of running the product is the typos", so this round
+made the typos deliberately: fifteen malformed variants through `aforge resolve`, and
+every refusal read.
+
+Most are exemplary. Position `0` and a negative position explain the 1-based convention;
+past-the-end names the contig length in both conventions; an rsID and a ClinVar accession
+name the flag *and* the Python constructor that would supply the database; a bare `1:` is
+reconciled to `chr1:`; a lowercase variant is accepted. `chr1:15000:C>C` — a variant that
+changes nothing — designs zero candidates and says exactly why: *"the requested edit does
+not change the sequence (the reference and desired alleles are identical), so there is
+nothing to write."*
+
+One went through that should not have. `chr1:15000:C>N` resolved, designed 200 candidates
+under the default intent, and under `--intent install` came back with:
+
+    prime: eligible but no actionable candidate enumerated —
+      … the RT template spans an assembly gap (N) (200) …
+
+on a contig of pure ACGT. There is no gap. The `N` was in the user's own input, and the
+tool sent them to check their FASTA.
+
+The parser admits `ACGTN` in both alleles, and for a **ref** that is right — a VCF record
+at an assembly gap says `N`, and the reference-base check compares it against the genome
+like any other allele. An **alt** is the sequence an edit *writes*: no oligo carries an
+ambiguous base, no editor installs one, no outcome distribution has it as a category.
+Every other IUPAC code was already refused one layer up as an unrecognized variant, so
+`N` was the single ambiguity code that got in, on the one side where writing is the whole
+meaning of the allele. It is refused now, naming what it is and where `N` remains
+legitimate — and with it gone, the enumerator's "spans an assembly gap" note is true
+again.
+
+Two alarms died before they became entries, which is the other half of this method. The
+pegRNA RTT is identical for `C>A` and `C>T`, and matches the reference exactly — which
+looked, for twenty minutes, like a reagent that writes nothing. It is correct: the default
+intent is **correct**, meaning the patient carries the alt and the edit installs the
+*reference* allele, so the RTT is reference by construction and the alt only places the
+guide. `--intent install` writes the alt, and does. The repo's own
+`test_correct_intent_rtt_encodes_reference` says so in its name.
+
+**Lesson: when a refusal names a cause, check that the cause is in the data and not in the
+input.** "The RT template spans an assembly gap" is a true statement about the RT template
+and a false one about the genome, and the difference is invisible from inside the function
+that raises it — it sees an `N` and cannot know which side of the request it arrived on.
+The place to reject an impossible allele is where the request is still a request.

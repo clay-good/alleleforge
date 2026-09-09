@@ -675,6 +675,35 @@ def _validate_ref(variant: Variant, reference: ReferenceGenome) -> None:
         )
 
 
+def _reject_ambiguous_alt(variant: Variant) -> None:
+    """Refuse an alt allele carrying ``N``: it is the sequence to be *written*.
+
+    `N` is legitimate in a **ref** — a VCF record at an assembly gap says so, and the
+    reference-base check compares it against the genome like any other allele. In an
+    **alt** it is not a base anyone can write: no oligo carries it, no editor installs
+    it, and no outcome distribution has it as a category. The parser admits `ACGTN` in
+    both, so `chr1:15000:C>N` resolved, designed, and then failed inside the pegRNA
+    enumerator — which reported *"the RT template spans an assembly gap (N)"*, sending a
+    reader to check their FASTA for a gap that is not there. The `N` was in their input.
+
+    Every other IUPAC code is already refused one layer up, by the parser, as an
+    unrecognized variant; this makes `N` consistent with them on the side where writing
+    is what the allele means.
+
+    Raises:
+        ValueError: If the alt allele contains ``N``.
+    """
+    if "N" in variant.alt:
+        raise ValueError(
+            f"alt allele {variant.alt!r} contains N, which is not a base that can be "
+            "written: the alt is the sequence an edit installs, and no oligo, editor or "
+            "outcome distribution can carry an ambiguous base. N in the *ref* is fine — "
+            "that is what a VCF record at an assembly gap looks like. Name the base you "
+            "want installed, or use a knock-out intent if the point is to disrupt rather "
+            "than to write."
+        )
+
+
 def _working_interval(
     variant: Variant, window: int, reference: ReferenceGenome | None
 ) -> GenomicInterval:
@@ -801,6 +830,7 @@ def resolve(
             f"endpoint: lift before sending the request."
         )
     variant = variant.model_copy(update={"build": build})
+    _reject_ambiguous_alt(variant)
     if reference is not None:
         # A resolved variant is a position *in this reference*, so it is named the way
         # this reference names it. Contig-style reconciliation already makes the lookup
