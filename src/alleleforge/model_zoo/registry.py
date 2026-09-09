@@ -26,6 +26,7 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Callable
 from enum import StrEnum
+from functools import cache
 from pathlib import Path
 
 import yaml
@@ -338,7 +339,34 @@ class ModelRegistry:
         return card.to_checkpoint()
 
 
-#: The default registry, populated from the bundled cards on first use.
+@cache
+def _bundled_cards() -> tuple[ModelCard, ...]:
+    """Parse the bundled model cards once, and hold them.
+
+    The comment that used to sit above :func:`default_registry` said the registry was
+    "populated from the bundled cards on first use". It was populated on *every* use:
+    seventeen YAML files read and parsed per call, and a single `design()` calls it six
+    times — through the efficiency, outcome and prime scorers, and again when the run
+    collects its model checkpoints for provenance. Profiling one design put **78% of its
+    wall clock in `yaml.safe_load`** over static files that ship inside the package and
+    cannot change while the process runs. A three-hundred-variant cohort spent minutes
+    re-reading the same seventeen files.
+
+    `ModelCard` is frozen, so the parsed cards are safe to share; `default_registry`
+    still returns a fresh :class:`ModelRegistry` around them, so a caller that registers
+    a card into the object it was handed cannot affect the next caller — the isolation
+    that was previously a side effect of the waste.
+
+    :meth:`ModelRegistry.from_cards_dir` with an explicit directory stays uncached: it
+    is the path a caller uses precisely because they have their own cards.
+    """
+    return tuple(ModelCard.from_yaml(path) for path in sorted(CARDS_DIR.glob("*.yaml")))
+
+
 def default_registry() -> ModelRegistry:
-    """Return a registry built from the bundled model cards."""
-    return ModelRegistry.from_cards_dir()
+    """Return a registry built from the bundled model cards.
+
+    The cards are read once per process (:func:`_bundled_cards`); the registry object
+    is new each call, so it is the caller's to mutate.
+    """
+    return ModelRegistry({card.name: card for card in _bundled_cards()})
