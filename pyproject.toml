@@ -110,7 +110,7 @@ dev = [
 [project.scripts]
 # The CLI command is `aforge` (Phase 12 implements it). Falls back to invoking
 # `python -m alleleforge` while the Typer app is being built out.
-aforge = "alleleforge.cli.main:app"
+aforge = "alleleforge.cli:run"
 
 [project.urls]
 Homepage = "https://github.com/clay-good/alleleforge"

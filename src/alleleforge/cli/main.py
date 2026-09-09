@@ -139,6 +139,11 @@ _EXTRA_FOR_MODULE: dict[str, str] = {
     "sglearn": "cas9-rs3",
     "fastapi": "web",
     "uvicorn": "web",
+    # The command is *written* in typer, so an import failure here never reaches
+    # `_missing_dependency` — it happens before this module loads. The entry point is
+    # `alleleforge.cli:main`, which answers for it; this row is what keeps the two
+    # namings of the extra from drifting apart.
+    "typer": "cli",
 }
 
 
