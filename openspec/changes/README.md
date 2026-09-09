@@ -12986,3 +12986,33 @@ synchronous one.**
 **And `isinstance(x, TheOnlyTypeSoFar)` in a serializer is a silent-drop waiting for a
 second type. Grep for isinstance checks that gate whether a result is returned at all.**
 
+## Round 401 — finishing R400 into the fourth audience
+
+R400 added `POST /api/jobs/batch` because a cohort held one connection for three and a
+half minutes. The served page was still calling the blocking endpoint.
+
+That is the worse half of the same defect. A Python or `curl` caller can raise a timeout,
+retry, or watch the process; a browser cannot. `runBatch()` was one
+`fetch("/api/batch")`, and when the browser or a proxy gives up the user gets
+`Request failed: TypeError: Failed to fetch` — the least informative failure in the
+system, on the panel that is the project's flagship. For the entire run the status line
+said `Designing N variant(s)…`, which is also all it said one second in.
+
+The page submits and polls now, with backoff and a deadline. The deadline matters for a
+reason the job manager already documents about itself: an in-memory store loses in-flight
+records on restart, so a page polling a forgotten id would otherwise report "running"
+until the tab was closed.
+
+Verified by driving it: `POST /api/jobs/batch → 202`, `GET /api/jobs/{id} → 200`, table
+rendered, no console errors. The static guards pin the shape of the call, because
+`node --check` is the only JavaScript execution this project's CI has.
+
+**Lesson: when a capability lands in the API, ask which audience most needed it, not which
+one is easiest to wire. The browser is the client least able to hold a request open and
+the only one with no way to retry by hand — so it is the audience an async path exists
+for, and it was the one left on the blocking call.**
+
+**Two rounds, one defect: R400 was "the mechanism is missing", R401 was "the mechanism is
+not used where it matters". Finding the first without asking the second leaves the user-
+visible half of the bug in place.**
+
