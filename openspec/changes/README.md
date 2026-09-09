@@ -13016,3 +13016,37 @@ for, and it was the one left on the blocking call.**
 not used where it matters". Finding the first without asking the second leaves the user-
 visible half of the bug in place.**
 
+## Round 402 — the guard listed four files, and the fifth was the one that mattered
+
+R397 found that `pydantic.ValidationError` subclasses `ValueError`, so every boundary
+printing `str(exc)` printed the framework's whole report. It fixed four files and wrote a
+guard over exactly those four. `web/api/app.py` was not among them, so five rounds later:
+
+```
+POST /api/offtarget  {"spacer": "GCTACACGACCTATAATGAA", "pam": "XYZ"}
+{"detail": "1 validation error for PAM\npattern\n  Value error, PAM has non-IUPAC
+ characters: ['X', 'Z'] [type=value_error, input_value='XYZ', input_type=str]\n
+ For further information visit https://errors.pydantic.dev/2.13/v/value_error"}
+```
+
+That is the *worst* place for it. A CLI user sees the mess and reads past it; an HTTP
+client parses `detail` and shows it to someone. R397's own lesson was "a hand-patched call
+site is a class defect fixed too narrowly" — and its fix was a list of four call sites.
+
+Two changes, not one. The list gained the file, and the check gained `str(exc)` alongside
+`{exc}`: the leak in `app.py` was written as `detail=str(exc)`, a spelling the original
+regex could not see even if the file had been listed. A guard whose subject is "this class
+of mistake" should match the class, not the spelling that happened to be in front of the
+author.
+
+Kept deliberately: FastAPI's own request-schema 422, the structured
+`[{"type", "loc", "msg"}]` body. That is a published contract a generated client parses;
+flattening it to prose would be the same mistake in the other direction.
+
+**Lesson: when a fix is "apply this helper at every site", the guard must enumerate the
+sites from the code, or it pins the four you were looking at. Ask what the check would say
+about a file you did not open — here, nothing at all.**
+
+**And an error-rendering defect is worst where the reader is a program. Rank the surfaces
+by who parses the text, not by who is easiest to reach.**
+
