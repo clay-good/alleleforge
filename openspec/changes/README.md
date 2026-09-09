@@ -13698,3 +13698,59 @@ notices — and start with the gate whose name says it is the definition of done
 **And when a round adds a better statistic because the old one could not express the
 finding, the test named after that finding is the first thing to update.** It was not,
 and it went on asserting the old one for a long time.
+
+## Round 416 — `aforge offtarget '>chr1'` scanned a pasted FASTA header and scored it
+
+Two instruments this round. The first was a mutation battery: twelve user-facing numbers
+(`specificity_score`, `worst_score`, `expected_burden`, `ancestry_expected_burden`,
+`n_sites`, `interval_width`, `effective_matrix`, …) each replaced with a constant, full
+suite run for each. **Every one was caught, 3 to 30 failures apiece.** No hole. Recorded
+so the next round does not repeat it.
+
+The second was R405's method, untried for ten rounds: install the package the way the
+documentation says and run it. A clean 3.11 venv, `pip install ".[cli]"`, then `[cli,genome]`.
+The R405 fix holds — `data`, `bench`, `resolve` and `--help` all work on `[cli]` alone, and
+the FASTA path names the extra that provides it and exits 3. R408/R409's `verify` work
+behaves correctly on a real install, tamper included.
+
+Then I typed a bad spacer.
+
+```
+$ aforge offtarget '>chr1' --reference-fasta ref.fa
+spacer >chr1 / PAM NGG: 0 site(s), worst score 0.000, specificity 0.026 ...
+  search: ... the spacer is ambiguous at position(s) 1, 3, 4, 5, which cannot be
+  scored ... a sub-threshold tail of 5072 further in-budget placement(s) ...
+$ echo $?
+0
+```
+
+A pasted FASTA header, scanned as a five-base spacer, given a specificity number over a
+five-thousand-placement tail, exit 0. `>` and `1` are not ambiguity codes and not bases;
+they were called ambiguous because `_sanitize` folds everything outside `ACGTN` to `N`.
+`POST /api/offtarget` accepted the same string. So did a digit typed for a base, a space
+from a wrapped paste, a trailing hyphen, and RNA — every one `specificity 1.000`, exit 0.
+
+The asymmetry is what makes it plain: **`--pam NZZ` is refused by name, in the same
+command, on the same alphabet rule.** `PAM` validates its pattern. The spacer went to
+`search()` as a bare `str`. And `Spacer` and `DNASequence`, which refuse all six of these,
+are constructed from spacers elsewhere in that same module.
+
+Fixed in `_spacer_str` — the one function `search()` puts every caller through — and not
+in the two shells, which is R405's lesson: *a check at a shell is one the next caller
+walks past*. Both shells already turn a `ValueError` from `search()` into their own
+refusal, so one change gave the CLI a usage error and the API a 422 carrying the same
+sentence. The refusal names the offending characters and the three things that usually
+produce them.
+
+The IUPAC ambiguity codes stay accepted. They are what the "ambiguous at position(s)"
+disclosure exists for, and refusing them would delete a real capability to fix a typo.
+
+**Lesson: when one argument of a call is validated and its neighbour is not, that is the
+finding — you do not need to guess whether the rule matters, because the code beside it
+already decided that it does.** Query: for each validated input, find its siblings on the
+same call.
+
+**And the disclosure machinery can launder a defect.** The output was not silent: it said
+the spacer was ambiguous and that a low score is not evidence of safety. Every sentence
+was produced correctly by machinery earlier rounds built. They made a refusal look like a
+caveat, which is why nobody had noticed in the earlier runs of this same command.
