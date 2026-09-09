@@ -13195,3 +13195,55 @@ those could have reached a notebook.
 gate you assembled from memory is a gate with your blind spots in it, and the member you
 drop is the slow one — which is the one that covers what the fast ones cannot.**
 
+## Round 407 — 78% of a design was re-reading seventeen files that never change
+
+R406 found nothing by probing surfaces, so this round profiled one instead. `cProfile`
+over three `design()` calls:
+
+```
+0.836s  design
+0.651s  └─ default_registry ->  ModelRegistry.from_cards_dir -> ModelCard.from_yaml (306x)
+0.625s     └─ yaml.safe_load
+```
+
+Seventy-eight percent of a design, inside `yaml.safe_load`, over seventeen model cards
+that ship inside the package. One `design()` calls `default_registry()` six times — the
+efficiency scorer, the outcome scorer, the prime scorer, and again when the run collects
+its model checkpoints for provenance — so a single design parsed 102 files.
+
+The comment sitting directly above the function:
+
+```python
+#: The default registry, populated from the bundled cards on first use.
+def default_registry() -> ModelRegistry:
+    return ModelRegistry.from_cards_dir()
+```
+
+"On first use" is exactly what it did not do. The same shape as R394 and R404: a true-
+sounding sentence next to code that does something else, and nobody had reason to check
+because nothing was *wrong* — only slow.
+
+Measured properly, same command and inputs, three runs each, alternating:
+
+| | user CPU (300-variant cohort) |
+|---|---|
+| before | 21.28 / 21.96 / 20.67 s |
+| after | 6.91 / 6.81 / 7.10 s |
+
+Byte-identical output. A single design: ~279 ms → ~32 ms. The test suite fell from about
+five minutes to 82 seconds, which is the same waste seen from the other end.
+
+The isolation that mattered came free and had to be kept deliberately: every caller used
+to get a fresh registry because building one was expensive. `ModelCard` is frozen, so the
+*cards* are shared, and `default_registry()` still wraps them in a new `ModelRegistry` — a
+caller registering into the object it was handed cannot reach the next caller.
+`from_cards_dir(dir)` stays uncached, since an explicit directory is the reason someone
+calls it.
+
+**Lesson: when probing surfaces stops finding defects, profile one. "Correct but wasteful"
+is invisible to every guard in this repository, and the waste here was 78% of the
+project's central operation.**
+
+**And a property that holds by accident of an inefficiency becomes a bug the moment you
+fix the inefficiency. Before optimising, ask what the slow path was quietly guaranteeing.**
+
