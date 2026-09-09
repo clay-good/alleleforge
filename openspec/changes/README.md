@@ -14395,3 +14395,57 @@ the gate still could not run for anyone who followed the instructions.
 **And when a round's finding recurs immediately in a sibling, stop fixing instances and ask
 what class of check is missing.** R427 was `test`, R428 was `docs`. There were four more
 members and no reason to think they were different.
+
+## Round 430 — a guard named for the defect, with the defect outside its population
+
+R427 revealed that `core` had never been installed in CI, so the Parquet export had never
+run there. Exercising it: `aforge design --format parquet` writes 50 rows × 37 columns,
+reads back through polars, and — checked cell by cell against the TSV of the same run —
+**agrees on all 1,850 values**. All five `--format` options behave correctly on a minimal
+install: four write, `parquet` refuses with `install alleleforge[core]` and exit 4. No
+defect on the surface itself.
+
+The defect was one layer under it. Pinning that cell-for-cell agreement, I mutated the
+writers to check the new test bit, and one mutation went through the *entire suite*:
+
+```
+"worst_ancestry_score": 0.0 if worst is None else round(worst.worst_score, 4)
+                        ^^^ was None
+3291 passed, 4 skipped
+```
+
+An **unmeasured** worst-case off-target score, in the two machine-readable tables a
+pipeline filters on, exported as `0.0` — the most reassuring value a worst-case column can
+hold. A filter `worst_ancestry_score < 0.2` passes every candidate whose ancestry axis was
+never measured. This is the project's most-repeated defect class, and there is a test file
+named for it: `test_an_unmeasured_axis_never_renders_as_a_number.py`, whose first line is
+*"No off-target-derived field may show a value when nothing was searched."*
+
+Its population:
+
+```python
+_OFFTARGET_FIELDS = sorted(f for f in CandidateReport.model_fields if "offtarget" in f)
+```
+
+Its docstring defends that derivation — *"derived from `CandidateReport` rather than
+written out, so an off-target field added later is covered the day it appears. That is the
+part a hand-written test misses"* — and it is derived **by name**. The flat exports call
+the two ancestry columns `worst_ancestry` and `worst_ancestry_score`. Off-target-derived,
+and neither name contains the substring. The rename is where the coverage was lost.
+
+The file now also checks the *export columns*, from a fixture pair that differs only in
+whether a search ran — and the searched half carries ancestry frequencies, because without
+a population source `worst_ancestry_score` is `None` even when searched and the column
+would not be in the population at all. Three checks keep the list honest: every listed
+column must be filled by the searched fixture, none may carry a value in the unsearched
+one, and no column that tells the two fixtures apart may be missing from the list. That
+last one is what would have found the ancestry pair without anyone thinking of them.
+
+**Lesson: a population derived by *name* is a population derived by hand, with extra
+steps.** The docstring was right that a written-out list goes stale and wrong that its
+substring rule was the alternative — the two fields it missed were renamed on their way
+into the table, which is the ordinary thing for an export layer to do.
+
+**And this is the third round running where a passing guard was the finding** (R420, R421,
+now R430). The pattern that produces them is the same each time: change something the
+guard is named for, and check whether it goes red.
