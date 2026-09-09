@@ -156,6 +156,35 @@ def _carries_a_prediction(artifact: Any) -> bool:
     return False
 
 
+def _chemistries_with_no_named_model(artifact: Any, models: Any) -> list[str]:
+    """Return the chemistries on ``artifact``'s menu that ``models`` names nothing for.
+
+    :func:`_carries_a_prediction` only catches an *emptied* list. But a checkpoint is
+    tagged with the chemistry it scored and every candidate states its own, so the
+    finer question is answerable: deleting the two prime cards from a prime-only menu
+    and leaving an unrelated base-editor one behind used to pass as "complete and
+    consistent", with a populated-looking block that named nothing for a single number
+    in the file.
+
+    Grouped by :func:`~alleleforge.design.designer.model_chemistry_group`, read off the
+    producer rather than restated here — the base vertical stamps one card, tagged
+    ``base_abe``, that covers CBE candidates too.
+    """
+    from alleleforge.design.designer import model_chemistry_group
+    from alleleforge.types.edit import Chemistry
+
+    named = {ck.chemistry for ck in models}
+    missing: set[str] = set()
+    for candidate in getattr(artifact, "candidates", ()):
+        chemistry = getattr(candidate, "chemistry", None)
+        if chemistry is None:
+            continue
+        chemistry = Chemistry(chemistry)
+        if not model_chemistry_group(chemistry) & named:
+            missing.add(chemistry.value)
+    return sorted(missing)
+
+
 def _registered_matrices_the_result_names(artifact: Any) -> set[str]:
     """Return the *registered* scoring matrices ``artifact``'s candidates were scored by.
 
@@ -2406,8 +2435,8 @@ def verify(
     non-zero on incomplete provenance or an artifact hash mismatch.
 
     "Names every model and dataset the result used" is checked *against the result*,
-    not taken on trust: a result carrying predictions must name a model, and a scoring
-    matrix a candidate says it was scored by must appear in ``datasets``. Both were
+    not taken on trust: a menu must name a model for each chemistry it ranks, and a
+    scoring matrix a candidate says it was scored by must appear in ``datasets``. Both were
     once verifiable from the provenance block alone, which meant deleting a row passed
     — and deleting the matrix row also emptied ``--cache-dir``'s work, since that row
     is the artifact it re-hashes.
@@ -2503,6 +2532,15 @@ def verify(
             "provenance names no model, but the result carries model-derived "
             "predictions — nothing here says what produced them"
         )
+    elif artifact is not None:
+        # And the same question one level finer, since an emptied list is not the only
+        # way to lose the models that matter: a block naming a model for some *other*
+        # chemistry looks populated and says nothing about the candidates on the menu.
+        for chemistry in _chemistries_with_no_named_model(artifact, prov.models):
+            problems.append(
+                f"the result ranks {chemistry} candidates, but provenance names no "
+                f"{chemistry} model — nothing here says what scored them"
+            )
 
     # The same cross-check for the dataset half of the same sentence. The models check
     # above only catches an *emptied* list; a scoring matrix can be checked by name,

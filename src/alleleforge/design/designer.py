@@ -80,6 +80,21 @@ from alleleforge.variant.resolver import (
 #: Chemistries served by the base-editor vertical (one call covers both).
 _BASE_CHEMISTRIES = frozenset({Chemistry.BASE_ABE, Chemistry.BASE_CBE})
 
+
+def model_chemistry_group(chemistry: Chemistry) -> frozenset[Chemistry]:
+    """Return the chemistries that share one set of model checkpoints with ``chemistry``.
+
+    :func:`_collect_model_checkpoints` groups its three contributors this way — the base
+    vertical is one call covering ABE and CBE, and the single card it stamps is tagged
+    ``base_abe``. So "does provenance name a model for this candidate's chemistry" cannot
+    be answered by comparing the two labels directly: a genuine CBE candidate is scored
+    by a checkpoint tagged ABE, and a checker that did not know it would refuse real
+    output. Stated here so `aforge verify` reads the grouping off the same place the
+    producer does rather than restating it.
+    """
+    return _BASE_CHEMISTRIES if chemistry in _BASE_CHEMISTRIES else frozenset({chemistry})
+
+
 #: A zero-argument chemistry runner returning that chemistry's candidates.
 _Runner = Callable[[], list[DesignCandidate]]
 

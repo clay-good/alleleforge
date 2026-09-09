@@ -15,6 +15,13 @@ for. The bare `.provenance.json` sidecar carries no such evidence and is unaffec
 cannot be cross-checked, and pretending otherwise would refuse three of the four output
 formats.
 
+Emptying the list is not the only way to lose the models that matter, and the check that
+caught it only caught that. A block naming a model for some *other* chemistry looks
+populated: deleting the two prime cards from a prime-only menu and leaving the unrelated
+base-editor one behind reported "1 model(s)" and "complete and consistent", with nothing
+named against a single number in the file. A checkpoint is tagged with the chemistry it
+scored and every candidate states its own, so the finer question is answerable too.
+
 The dataset half of the same sentence had the same hole, and a worse consequence. The
 help says `verify` "confirms the block names every model *and dataset* the result used",
 and every candidate says which scoring matrix produced its off-target numbers — so the
@@ -34,7 +41,12 @@ from typer.testing import CliRunner
 
 from alleleforge.cli.main import ExitCode, app
 from alleleforge.data.registry import DEFAULT_REGISTRY
+from alleleforge.design.base_editor import base_editor_model_checkpoints
+from alleleforge.design.cas9 import cas9_model_checkpoints
+from alleleforge.design.designer import model_chemistry_group
+from alleleforge.design.prime import prime_model_checkpoints
 from alleleforge.offtarget.scoring import APPROX_CFD_MATRIX_ID, PUBLISHED_CFD_MATRIX_ID
+from alleleforge.types.edit import Chemistry
 
 
 @pytest.fixture
@@ -250,3 +262,92 @@ def test_a_mixed_matrix_label_still_demands_the_published_half(
     code, output = _verify(mixed)
     assert code != ExitCode.OK, output
     assert PUBLISHED_CFD_MATRIX_ID in output, output
+
+
+# --- the model half, one level finer: a populated block that names nothing relevant ---
+
+
+def _base_editor_row() -> dict[str, object]:
+    """The real card the base vertical stamps, as it appears in a provenance block.
+
+    Synthesized rather than taken from a run: the point of the tests below is a block
+    that *looks* populated while naming nothing for the candidates, and which unrelated
+    model a given variant happens to record is not a property worth depending on.
+    """
+    (checkpoint,) = base_editor_model_checkpoints()
+    assert checkpoint.chemistry == Chemistry.BASE_ABE.value
+    return checkpoint.model_dump(mode="json")
+
+
+def test_dropping_only_the_models_that_scored_it_is_refused(report: Path, tmp_path: Path) -> None:
+    payload = json.loads(report.read_text())
+    ranked = {c["chemistry"] for c in payload["candidates"]}
+    assert ranked == {Chemistry.PRIME.value}, ranked
+    payload["provenance"]["models"] = [
+        m for m in payload["provenance"]["models"] if m["chemistry"] != Chemistry.PRIME.value
+    ] + [_base_editor_row()]
+    tampered = tmp_path / "no-prime-model.json"
+    tampered.write_text(json.dumps(payload))
+
+    code, output = _verify(tampered)
+    assert code != ExitCode.OK, output
+    assert "complete and consistent" not in output
+    assert "names no prime model" in output, output
+
+
+def test_a_base_editor_candidate_is_covered_by_the_card_the_vertical_stamps(
+    report: Path, tmp_path: Path
+) -> None:
+    """The negative case, and the reason the check groups instead of comparing labels.
+
+    The base vertical is one call covering ABE and CBE, and stamps a single card tagged
+    `base_abe`. Real runs do rank `base_cbe` candidates against exactly that card — a
+    159-run sweep produced sixteen of them — so a checker comparing the two labels
+    directly would refuse genuine output.
+    """
+    assert Chemistry.BASE_CBE in model_chemistry_group(Chemistry.BASE_ABE)
+    payload = json.loads(report.read_text())
+    assert payload["candidates"], "need a candidate to relabel"
+    for candidate in payload["candidates"]:
+        candidate["chemistry"] = Chemistry.BASE_CBE.value
+    payload["provenance"]["models"] = [_base_editor_row()]
+    cbe = tmp_path / "cbe.json"
+    cbe.write_text(json.dumps(payload))
+
+    code, output = _verify(cbe)
+    assert code == ExitCode.OK, output
+
+
+def test_the_grouping_matches_the_checkpoints_the_producer_stamps() -> None:
+    """`verify` reads the grouping off `designer`; this pins that it is the real one.
+
+    Every chemistry the designer can run must stamp checkpoints tagged inside its own
+    group. If a vertical were retagged, or a new chemistry added whose card carries a
+    different tag, the cross-check above would start refusing real output — so the
+    correspondence is checked rather than assumed.
+    """
+    for chemistry, checkpoints in (
+        (Chemistry.CAS9_NUCLEASE, cas9_model_checkpoints()),
+        (Chemistry.PRIME, prime_model_checkpoints()),
+        (Chemistry.BASE_ABE, base_editor_model_checkpoints()),
+        (Chemistry.BASE_CBE, base_editor_model_checkpoints()),
+    ):
+        group = {c.value for c in model_chemistry_group(chemistry)}
+        assert checkpoints, f"{chemistry.value} stamps no checkpoint"
+        tags = {ck.chemistry for ck in checkpoints}
+        assert tags <= group, f"{chemistry.value}: {tags} outside {group}"
+
+
+def test_an_emptied_list_still_gets_the_message_written_for_it(
+    report: Path, tmp_path: Path
+) -> None:
+    """Both checks answer "what produced these numbers"; only one should speak at a time."""
+    payload = json.loads(report.read_text())
+    payload["provenance"]["models"] = []
+    tampered = tmp_path / "empty-models.json"
+    tampered.write_text(json.dumps(payload))
+
+    code, output = _verify(tampered)
+    assert code != ExitCode.OK, output
+    assert "names no model" in output
+    assert "names no prime model" not in output, output
