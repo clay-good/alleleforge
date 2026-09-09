@@ -16186,3 +16186,40 @@ it is the one that sells the feature.** The module comment, the flag, the harnes
 and the CHANGELOG all agreed. The README — the page a prospective user reads to decide
 whether this tool is fast — carried the superseded claim in a table cell, four words long,
 next to a neighbour that had been corrected for exactly the same reason.
+
+## Round 472 — the sibling flag, in the same paragraph
+
+Last round's query — a decision recorded in the code, contradicted by the page that sells
+the feature — has exactly one other place to look, because there are exactly two flags of
+that shape:
+
+    SEED_PREFILTER_AUTO_ENGAGES = False    (offtarget/_search.py)
+    FM_INDEX_AUTO_ENGAGES        = False    (offtarget/engine.py)
+
+The README's k-mer note said the prefilter "**auto-engages only when the seed is
+selective** (`k ≥ 5`, i.e. high-stringency / low edit-budget scans)". It does not
+auto-engage at any budget. And it closed with "the prefilter stays because it is exact and
+**free**" — while the comment that sets the flag ends, in as many words: *"What is removed
+is the assumption that it is free."*
+
+The paragraph was not careless. It has a whole section headed "Its scan-level payoff is
+currently ~1x, and that is worth stating plainly", with six configurations and a hit-set
+equality claim. It was written at the moment the prefilter went from a win to a wash, and
+the code went on past it: measured again, the prefilter is a **loss** at every mismatch
+budget (1 Mb, one guide, brute force/seeded: 48/139 to 58/157 with the crate, 60/226 to
+81/282 without), the one repair left open was tried and measured (0.79–1.65x with the
+crate), and the flag went off. The README kept the honest-sounding paragraph from the
+previous state.
+
+The prose now carries the code's numbers and the code's conclusion, including what keeps
+the path alive: it is a proven superset by the pigeonhole bound and parity-tested, which
+is a reason to keep it available and not a reason to run it.
+
+The guard from last round is keyed per flag now — each set of claims is checked only while
+its own flag is off — so it covers both and inverts correctly if either is turned back on.
+
+**Lesson: prose that was written honestly is the hardest to re-read, because it reads as
+already careful.** "~1x, and that is worth stating plainly" is the voice of someone
+correcting an overclaim, so the next reader — me, twice this session — skims it as
+settled. The tell was never in the wording. It was a constant in a module, three files
+away, whose value the paragraph asserted the opposite of.

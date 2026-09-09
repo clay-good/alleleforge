@@ -1,4 +1,4 @@
-"""The code turned the FM-index off by default; the README kept calling it the path.
+"""The code turned two paths off by default; the README kept calling them the path.
 
 `FM_INDEX_AUTO_ENGAGES = False` carries the reason in the source: the threshold "turned
 the *default* configuration 2.7x slower at exactly the genome scale the tool exists for",
@@ -12,9 +12,15 @@ scrupulous about being a net cost, and telling a reader to build the crate "for 
 genome-scale path" — when the reason to build it is the per-anchor kernels the *linear*
 scan calls a million times over 2 Mb.
 
-This is the alarm, derived rather than spelled out: while the engine's auto-engage flag is
-off, no document may describe that path as the default. Flip the flag back and the guard
-inverts with it.
+The k-mer prefilter's prose had the same shape and a sharper version of it: the README
+said it "**auto-engages only when the seed is selective** (`k ≥ 5` …)" when
+`SEED_PREFILTER_AUTO_ENGAGES = False` means it never auto-engages at all, and that "the
+prefilter stays because it is exact and **free**" when the module comment ends with the
+sentence "What is removed is the assumption that it is free."
+
+This is the alarm, derived rather than spelled out and keyed per flag: while an
+auto-engage flag is off, no document may describe that path as the default. Flip a flag
+back and its half of the guard inverts with it.
 """
 
 from __future__ import annotations
@@ -24,37 +30,53 @@ from pathlib import Path
 
 import pytest
 
+from alleleforge.offtarget._search import SEED_PREFILTER_AUTO_ENGAGES
 from alleleforge.offtarget.engine import FM_INDEX_AUTO_ENGAGES
 from tests.prose import prose_text
 from tests.test_readme_documents_the_cli import _prose_files
 
 _ROOT = Path(__file__).resolve().parents[1]
 
-#: Phrases that assert the FM-index is what a default run uses.
-_DEFAULT_CLAIMS = (
-    "the genome-scale search is the fm-index",
-    "the fm-index remains the genome-scale path",
-    "build it for the genome-scale path",
-)
+#: Phrases that assert an opt-in path is what a default run uses, per flag. Each entry
+#: is checked only while its flag is off, so flipping a flag back inverts the guard
+#: instead of needing an edit here.
+_DEFAULT_CLAIMS: dict[str, tuple[str, ...]] = {
+    "FM_INDEX_AUTO_ENGAGES": (
+        "the genome-scale search is the fm-index",
+        "the fm-index remains the genome-scale path",
+        "build it for the genome-scale path",
+    ),
+    "SEED_PREFILTER_AUTO_ENGAGES": (
+        "auto-engages only when the seed is selective",
+        "the prefilter stays because it is exact and free",
+    ),
+}
+
+_FLAGS = {
+    "FM_INDEX_AUTO_ENGAGES": FM_INDEX_AUTO_ENGAGES,
+    "SEED_PREFILTER_AUTO_ENGAGES": SEED_PREFILTER_AUTO_ENGAGES,
+}
 
 
-def test_the_engine_does_not_auto_engage_it() -> None:
-    """The premise. If this flips, the claims below become sayable again."""
-    assert FM_INDEX_AUTO_ENGAGES is False
+@pytest.mark.parametrize("flag", sorted(_FLAGS))
+def test_the_engine_does_not_auto_engage_it(flag: str) -> None:
+    """The premise. If one flips, that flag's claims become sayable again."""
+    assert _FLAGS[flag] is False
 
 
-def test_no_document_calls_the_opt_in_path_the_default() -> None:
-    if FM_INDEX_AUTO_ENGAGES:  # pragma: no cover - the flag is off today
-        pytest.skip("the FM-index auto-engages again; these claims are true")
+@pytest.mark.parametrize("flag", sorted(_DEFAULT_CLAIMS))
+def test_no_document_calls_the_opt_in_path_the_default(flag: str) -> None:
+    if _FLAGS[flag]:  # pragma: no cover - both flags are off today
+        pytest.skip(f"{flag} is on again; those claims are true")
     offenders: list[str] = []
     for path in _prose_files():
         text = prose_text(path).lower()
-        for claim in _DEFAULT_CLAIMS:
+        for claim in _DEFAULT_CLAIMS[flag]:
             if claim in text:
                 offenders.append(f"{path.relative_to(_ROOT)}: {claim!r}")
     assert not offenders, (
-        "`FM_INDEX_AUTO_ENGAGES` is False — the engine reaches this path only when asked "
-        f"— and these documents present it as the default: {offenders}"
+        f"`{flag}` is False — the engine reaches that path only when asked — and these "
+        f"documents present it as the default: {offenders}"
     )
 
 

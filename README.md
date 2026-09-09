@@ -517,18 +517,21 @@ attribute a site's burden to a population that merely shows a trace, sub-thresho
 > seed-and-extend prefilter (native Rust kernel + pure-Python fallback): by the pigeonhole bound, any
 > in-budget alignment shares an exact length-`k` seed with the spacer, so anchors whose window contains
 > no seed can be skipped without ever dropping a hit (an exhaustive randomized test pins seeded ≡
-> brute-force). It **auto-engages only when the seed is selective** (`k ≥ 5`, i.e. high-stringency / low
-> edit-budget scans) and is a transparent no-op at the default ≤4-mismatch+bulge budget, where the linear
-> scan with native per-anchor kernels is the default path and the FM-index is opt-in.
+> brute-force). It **does not auto-engage at any budget** (`SEED_PREFILTER_AUTO_ENGAGES`) and is reached
+> by asking: `scan_sequence(seed=True)`. The default path at every size is the linear scan with native
+> per-anchor kernels; the FM-index is opt-in too.
 >
-> **Its scan-level payoff is currently ~1x, and that is worth stating plainly.** The prefilter once measured
-> ~2–4x on a high-stringency scan; since then the per-anchor work it prunes got roughly 50x cheaper (see the
-> off-target scan entries in [`CHANGELOG.md`](CHANGELOG.md)), so its own `O(n)` cost — building seed
-> positions and the covered-index prefix sum — now cancels the saving. Re-measured across six
-> mismatch/bulge configurations with repeats: **0.94–1.12x**, i.e. neutral within noise, with hit sets
-> identical in every case. The kernel's own lookup is still **~5–7x** native-over-Python; what changed is
-> what there was left to prune. The prefilter stays because it is exact and free, not because it is
-> currently fast. See [`SPEC_V2.md`](SPEC_V2.md) R2 and
+> **It is a net cost now, and that is worth stating plainly.** The prefilter once measured ~2–4x on a
+> high-stringency scan; since then the per-anchor work it prunes got roughly 50x cheaper (see the
+> off-target scan entries in [`CHANGELOG.md`](CHANGELOG.md)), so its own `O(n)` pass — building seed
+> positions and the covered-index prefix sum — now costs more than it saves. Measured at 1 Mb, one guide,
+> no bulges, three runs each, hit sets identical throughout (brute force / seeded, milliseconds): with the
+> crate built **48/139** at `mm=0` through **58/157** at `mm=3`; without it **60/226** through **81/282**.
+> The one repair left open — replacing the prefix sum with a `bisect` over the seed positions, which has no
+> `O(n)` pass at all — was measured too: 0.79–1.65x with the crate, 1.82–2.66x without. Still a loss almost
+> everywhere. The kernel's own lookup is still **~5–7x** native-over-Python; what changed is what there was
+> left to prune. The prefilter stays because it is a *proven superset* (pigeonhole) and stays parity-tested;
+> what is removed is the assumption that it is free. See [`SPEC_V2.md`](SPEC_V2.md) R2 and
 > [`scripts/native_speedup.py`](scripts/native_speedup.py).
 
 > [!NOTE]
