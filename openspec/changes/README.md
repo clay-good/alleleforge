@@ -14604,3 +14604,66 @@ attempting a fetch, and was being printed as the conclusion.
 
 **And a test that restates the implementation will be the only thing that fails when the
 implementation is corrected** — which reads exactly like a regression, and is the opposite.
+
+## Round 434 — the pin said what the bytes hash to, not what they are
+
+R433 stopped the tool advertising an impossible fetch. The provenance a *reader* audits
+still paired the two:
+
+```json
+"source_url": ".../CFD_Scoring/mismatch_score.pkl",
+"sha256": "9134bbd7…"
+```
+
+Fetch that URL, hash it, and you get `c58e9c1a…`. The URL serves CRISPOR's upstream
+pickle; the digest pins the vendored JSON conversion that ships in the package. The only
+conclusion the pin offers for a mismatch is tampering — the one conclusion it exists to
+make impossible.
+
+`DatasetVersion.bundled` answers what `sha256` alone cannot: *what is this the hash of?*
+It follows `caller_supplied` exactly, added for the same kind of reason one row over —
+that pin cannot be re-hashed by the tool because the bytes are on the caller's disk; this
+one can, but not from the URL printed beside it.
+
+Three surfaces say it, because a machine-readable record a human cannot read is half a
+record:
+
+| surface | before | after |
+|---|---|---|
+| provenance JSON | `sha256` alone | `"bundled": true` |
+| the footer every render shares | `doench-2016-cfd 2016` | `… (bundled; the hash is of the file that ships)` |
+| `aforge verify --cache-dir` | `dataset …: ok` | `dataset …: ok (bundled)` |
+
+A test reads the upstream digest out of the shipped file's own `_provenance.sources` and
+asserts it still differs from the pinned one, so a future vendoring that made the two
+artifacts identical revisits this reasoning instead of leaving it standing. Another checks
+the three origins — bundled, caller-supplied, registry fetch — do not print identically,
+which is the defect in its general form.
+
+Schemas regenerated (49), golden updated, all three mutations verified with caches cleared.
+
+**The blast radius, and the bug I shipped into the gate before catching it.** Writing
+`"ok (bundled)"` into the check row's `status` broke three things at once: `status` is a
+*machine value* — the re-hashed count, the "nothing was established" note, and the list of
+what went unchecked all compare it to `"ok"`, and it is published in `--json`. The result
+was `verify` printing `dataset doench-2016-cfd.2016: ok (bundled)` and, on the very next
+line, "nothing was re-hashed". The origin is its own key now, rendered only for the reader.
+**A word that is read by code is not a place to put a word for a reader.**
+
+One existing test also had to change, and the change is the interesting part. It asserted
+the bundled row printed *bare* — a restatement of a two-origin world, not of the rule its
+own docstring states ("printing both pins the same way makes them one kind"). There are
+three origins now, and what the test is for is that they do not print identically.
+
+**Two process notes, both mine.** A multi-step edit script that raises partway writes
+*nothing*, so an earlier edit I believed had landed had not — the footer kept its old text
+while I moved on. Check that each edit took, not that the script printed `ok`.
+
+And the fixture for the `verify` test first used `"ACGT" * 500` as a reference: no PAM
+anywhere, so nothing was scanned, no matrix was recorded, and `verify` reported *zero*
+datasets — the test would have passed on a run with nothing in it, which is R413's lesson
+arriving in my own test.
+
+**Lesson: a hash is only a check if the reader knows what it is a hash of.** `sha256`
+beside `source_url` reads as one claim and was two, and the tool was the only party that
+knew which.
