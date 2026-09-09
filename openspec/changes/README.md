@@ -13809,3 +13809,54 @@ to find it is to run the same input twice in two spellings and diff the output.
 a model card's known-failure-modes text. That is R190's trap exactly — "a name appearing
 proves nothing" — and I had the rule written down and walked into it anyway. The finding
 only appeared once I read the run's own `in_distribution` field instead of the page.
+
+## Round 418 — the one shell pair with no parity guard
+
+R417 ended by fuzzing the CLI's string inputs. This round started by running the same
+input two ways against `resolve` and `offtarget` — bare and `chr`-prefixed contigs,
+upper and lower case, `chrom:pos:ref>alt` against `g.` HGVS, a region with and without a
+strand suffix — and found nothing: all equivalent, byte-identical output, `source`
+correctly the only difference between a coordinate and an HGVS input. Recorded so the
+next round starts elsewhere.
+
+Then I looked at what the served page fetches:
+
+```
+PAGE  GET   /api/health           --  POST  /api/resolve
+PAGE  POST  /api/design           --  POST  /api/jobs/design
+PAGE  GET   /api/jobs/{job_id}    --  POST  /api/offtarget
+PAGE  POST  /api/batch            --  GET   /api/data
+PAGE  POST  /api/jobs/batch       --  GET   /api/data/{name}
+                                  --  GET   /api/bench
+```
+
+Five of eleven. This repository guards three shell pairs already — library to CLI,
+library to web *request fields*, benchmark library to `aforge bench` — each on the stated
+principle that a gap must be a decision rather than an oversight. The pair it never
+guarded is the API and the page it serves. `test_the_page_can_ask_for_what_the_api_accepts`
+checks the *fields* of two request models; nothing checked the *endpoints*, so an endpoint
+could be added with no page surface and no written reason, and the only way to notice was
+to read `app.js` and count.
+
+Writing the six reasons is the work. Five of them turn out to be decisions and are now
+recorded as such. One is not, and the allowance says so in those words:
+
+> **GAP, not a decision:** `aforge offtarget` is a first-class command and this is a
+> first-class endpoint, and checking a spacer you already hold is the commonest
+> off-target question. The page can only run the search inside a design, so the one
+> audience with no terminal cannot ask it.
+
+The guard requires each reason to begin `decision:` or `GAP,`, and to be longer than a
+line. That is the part I would have skipped: an allowance list is exactly where a gap goes
+to look like a choice, and the only thing that stops it is being made to write which one
+it is. Four of the five checks here are about keeping the *list* honest rather than the
+code — no reason may outlive its endpoint, no reason may excuse an endpoint the page
+actually reaches, and the reader must find at least one real `fetch` or it is measuring
+nothing.
+
+**Lesson: count your shell pairs.** Library→CLI, library→API, API→page, CLI→docs. This
+project had guards for three of them and had been finding "capability unreachable from a
+shell" defects for a hundred rounds — in the one pair with no guard.
+
+**And make an allowance list state its own kind.** `decision:` and `GAP,` cost one word
+each and turn a list that reads as coverage into a list that reads as a backlog.
