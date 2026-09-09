@@ -277,6 +277,25 @@ def _cohort_notes(
             # The case this exists for: every row is below, and there are none.
             note += " — this table is empty because the run had nothing left to design"
         notes.append(note)
+    # Whether the safety columns are empty because nothing was found or because nothing
+    # was looked for. Every off-target cell of an unsearched item is blank, which reads
+    # from the outside like a clean result — the distinction this project spends its
+    # effort on, missing from the file a cohort is forwarded in. The rows already carry
+    # it: `offtarget_sources` is `None` when no report exists and `"reference-only"` when
+    # one does with no optional source.
+    designed = [r for r in rows if r.get("status") == "ok"]
+    unsearched = [r for r in designed if r.get("offtarget_sources") is None]
+    if designed and len(unsearched) == len(designed):
+        notes.append(
+            "no off-target search was run for any item: every off-target column below is "
+            "empty because nothing was looked for, not because nothing was found"
+        )
+    elif unsearched:
+        notes.append(
+            f"{len(unsearched)} of {len(designed)} designed item(s) had no off-target "
+            "search, so their off-target columns are empty for want of a search rather "
+            "than of a finding"
+        )
     # A cohort is triaged by sorting a column, and `best_efficiency` is the column people
     # sort. When the rows' best candidates span chemistries, that sort compares a
     # base-editor number with a prime number — outputs of different, mutually

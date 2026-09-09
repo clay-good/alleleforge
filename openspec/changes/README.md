@@ -15726,3 +15726,35 @@ did.** `1.0`-for-unmeasured is right, documented, and flagged per candidate. The
 one level up, in what the *aggregate* built from those defaults can support — and the
 place it showed was a sentence explaining the aggregate, written by someone who had
 already caught the smaller instance of exactly this in the same clause.
+
+## Round 459 — the same question, one document out
+
+Round 458 made the single-variant ranking say when the safety weight separated nothing.
+The cohort is the artifact that actually gets forwarded, and it had the same gap in a
+plainer form.
+
+`aforge batch --no-offtarget` writes a per-patient table whose `worst_offtarget`,
+`best_specificity` and `offtarget_sources` cells are blank on every row. Every one of
+those cells is right: a search that did not happen must not report `0.0` and `1.000`, and
+this project fixed that years of rounds ago. What a reader gets, though, is three empty
+safety columns across every patient and nothing at all saying whether that means *no
+off-targets were found* or *no search was run*. Those are opposite readings of the same
+blank.
+
+The note block is where this belongs, by its own argument: it already carries the
+reference genome, the coordinate convention, the seed, the intent and the pinned datasets,
+because "a row per patient with a bare `best_specificity` and no statement of which genome
+was searched is not interpretable". Whether the genome was searched at all is the same
+kind of fact, and the rows already hold the answer — `offtarget_sources` is `None` when no
+report exists and `"reference-only"` when one does with no optional source, a distinction
+drawn in an earlier round for exactly this reason.
+
+Three cases, as in the round before: none searched, some searched, all searched. And a
+*failed* item is deliberately not counted as an unsearched one — it never got as far as a
+search, and folding the two together would make a cohort with one failure read as a cohort
+nobody searched.
+
+**Lesson: a fact fixed per cell is not fixed per document.** Every individual blank in that
+table has been correct for a long time, and the file built out of them still could not be
+read. The query is not "is this value honest" but "what does a reader conclude from the
+page", and the answer changes when the same honest value fills every row.
