@@ -14106,3 +14106,50 @@ reassurance and is a statement that this has never run.
 **And the second-order question is the useful one.** "The install fails" has an obvious fix
 (add the system package). Asking *why the image wants that dependency at all* found that it
 wanted it for a capability the surface it ships cannot reach.
+
+## Round 424 — the same defect on the first command a contributor runs
+
+R423 found `variant` unbuildable in the Docker image. The obvious next question is where
+else that extra is named, and the answer is the README's install section — the first
+command a new contributor runs:
+
+```bash
+pip install -e ".[core,genome,variant,cli,ml,dev]"
+```
+
+Run in a clean venv:
+
+```
+Collecting psycopg2 (from hgvs>=1.5->alleleforge==0.1.0.dev0)
+  Error: pg_config executable not found.
+```
+
+Three facts make it certain nobody had run it:
+
+* **No CI job installs `variant`.** Every one uses `genome-light`; the release SBOM job
+  uses `[core,genome,cli,web,ml]`. It appears in no workflow.
+* **The project's own development virtualenv has neither `hgvs` nor `psycopg2`.**
+* `CONTRIBUTING.md` had already written the argument against exactly this — *"`make
+  install` rather than a hand-written `pip install -e \".[dev]\"` … It is the same extras
+  set CI installs, kept in one place"* — and the README carried a hand-written line
+  anyway, and it was the one that did not work.
+
+So the README now points at `make install` and shows the extras it expands to, and the
+extras table keeps `variant` with what it additionally costs: PostgreSQL client headers,
+`libpq-dev` or `libpq`, because psycopg2 has no wheel outside Windows. Documenting the
+cost rather than deleting the row — a capability removed from the record is a different
+mistake from one recorded with its price.
+
+The guard reads every fenced `pip install` in the README, CONTRIBUTING and the two docs
+pages, and refuses one that names an extra needing a system library. Named, not resolved:
+it has to fail offline and on the commit that puts the extra back. A second check ties the
+README's from-source line to the Makefile target, so the "kept in one place" CONTRIBUTING
+promises is checkable rather than asserted.
+
+**Lesson: when a dependency defect turns up in one artifact, grep for the dependency, not
+for the artifact.** R423 fixed the Dockerfile. The same extra was in the README, doing the
+same thing, to a more exposed reader.
+
+**And the strongest evidence that something has never run is usually already in the
+repository.** No workflow installs it; the dev venv does not have it. Neither fact needed a
+network or a container — both were one grep away, and either alone would have found this.
