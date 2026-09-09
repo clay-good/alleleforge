@@ -15384,3 +15384,34 @@ numbers the committed fixtures produce — a metric the baseline does not have.
 **Lesson: a documentation guard that checks resolution is checking spelling.** Four of them
 here, all green, on a page whose headline example refuses. Executing a documented command
 costs a test fixture; not executing it costs the first thing a new user tries.
+
+## Round 450 — the same guard, over the whole surface
+
+Round 449 executed the documented `aforge bench …` commands because one of them refused.
+Scoping a guard to the subcommand where the defect happened to appear is the version of
+this project's oldest mistake — a population chosen from the finding rather than from the
+question — so this round widened it to every documented invocation the guard can actually
+run.
+
+Fourteen of them, across five documents: `resolve`, `data list`, `data show`, and the
+`bench` group. Thirteen more name a reference genome, a cohort VCF, a gnomAD release or a
+run-config the reader supplies, and a test cannot invent an hg38. The rule that separates
+them is mechanical — an argument that looks like a path and that **no earlier command in
+the same file wrote** — which matters, because `bench leaderboard outcome.json
+offtarget.json` consumes files the two `bench run` lines above it produce, and a
+per-command rule would have called that unrunnable and skipped the one chain in the docs
+worth executing end to end.
+
+The skip rule is checked in both directions, because a rule that decides what is not
+tested is the most attractive place for a guard to quietly die: at least ten commands must
+run, at least one must be skipped, every skip must name the file it wants, and no command
+that reaches `--reference-fasta` may end up in the "ran" set. That last one is the honest
+part — if a future refactor made those runnable against a stub genome, the guard would be
+checking a fixture rather than the documented workflow, and it should have to say so.
+
+Verified by breaking it two ways: restoring the refusing `bench gap` example fails, and
+changing `aforge data show gnomad` to a dataset that does not exist fails with exit 3.
+
+**Lesson: when a guard is written because of one finding, its scope is usually the
+finding's, not the question's.** The question was "does a documented command work". The
+first answer covered one subcommand group, because that is where the broken one lived.
