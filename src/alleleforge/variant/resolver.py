@@ -568,9 +568,20 @@ def _off_by_one_remedy(variant: Variant, reference: ReferenceGenome) -> str:
             f"{variant.chrom}:{variant.pos + 2}:{variant.ref}>{variant.alt or '-'}"
         )
     if _ref_matches_at(variant, reference, variant.pos - 1):
+        # The mirror case, and it used to be the terse one: " — the asserted ref is one
+        # base left; try chr1:15000:C>A", printed under a header reading "reference
+        # mismatch at chr1:15000". The same digits twice, meaning two different loci —
+        # the header reports the position 0-based, as this tool prints them, and the
+        # suggestion is a 1-based input. So the sentence read "position 15000 is wrong;
+        # try position 15000", while the branch directly above explained the convention
+        # at length. A message about an off-by-one is the last place to leave one
+        # unexplained.
         return (
-            f" — the asserted ref is one base left; try "
-            f"{variant.chrom}:{variant.pos}:{variant.ref}>{variant.alt or '-'}"
+            f" — the asserted ref is one base left, at {variant.chrom}:{variant.pos} in "
+            f"1-based terms. This message reports the position 0-based, as AlleleForge "
+            f"prints them, while `chrom:pos:ref>alt` is read as a 1-based VCF record, so "
+            f"the two positions here are in different conventions even where the digits "
+            f"match; try {variant.chrom}:{variant.pos}:{variant.ref}>{variant.alt or '-'}"
         )
     return ""
 

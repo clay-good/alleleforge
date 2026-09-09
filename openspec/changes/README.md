@@ -15572,3 +15572,45 @@ should not be a fourth list.** The pattern was visible after the second and I ex
 list anyway; what made it obvious was writing down, in the third round's log entry, that
 the cheap standing check is "what markdown does this repository contain that no test
 opens" — and then not building it for a round.
+
+## Round 455 — two conventions, one set of digits
+
+Eighteen rounds of guards, so this one ran the product instead: design a variant on a
+throwaway contig, order the oligos, read every field. Two suspicions died on contact with
+the evidence, which is worth recording because both looked like findings.
+
+**The oligos.** `--vector-scheme lentiguide-bsmbi` changed nothing in the emitted oligos —
+every prime candidate kept `pegrna-gg-bsai`. That is documented behaviour (an sgRNA vector
+cannot receive a 3' extension), and the report says so *in the run*: "cloning vector
+'lentiguide-bsmbi' was requested but no candidate could use it; pegrna-gg-bsai was used
+instead, so the oligo hazard screen ran against that scheme's enzyme, not BsmBI." Nothing
+to fix.
+
+**The null columns.** `oligo_scheme` and `oligo_enzyme` read as `null` in the report JSON —
+because they are *TSV* column names and the JSON nests the whole scheme under
+`oligos.scheme`, enzyme and citation and overhangs included. My `.get()` was returning
+`None` for an absent key and I nearly wrote it up as a missing record.
+
+What the session did turn up came from a typo. Fumbling a position produced:
+
+    reference mismatch at chr1:15000: asserted ref 'C' but reference has 'G'
+      — the asserted ref is one base left; try chr1:15000:C>A
+
+"Position 15000 is wrong; try position 15000." Both numbers are real and they mean
+different loci: the header reports the position **0-based**, as this tool prints them, and
+the remedy is a **1-based** input. The sibling branch — the asserted ref one base *right* —
+explains the entire convention at length, because it is the case where a user pasted this
+tool's own printed variant back in and it has a round of its own. The mirror case got one
+clause and no convention, in the one message whose subject is a coordinate being off by
+one.
+
+Both branches state it now. The test does the thing that would have caught it: it extracts
+the variant each message suggests, **runs it**, and asserts it resolves to the base the
+caller asserted. A remedy that does not resolve is worse than no remedy, and a remedy
+printed in an unstated convention is one a careful reader will decline to trust.
+
+**Lesson: the useful part of running the product is the typos.** The oligo surface I set
+out to audit was correct, twice over, and the defect came from mistyping a coordinate into
+a tool whose central discipline is coordinate conventions — a path no test exercised because
+no test makes that mistake. Two of my three leads were my own misreadings; checking them
+cost less than one round and would have cost a false entry in this log.
