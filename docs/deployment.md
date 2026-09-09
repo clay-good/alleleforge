@@ -115,7 +115,9 @@ JBrowse 2 frontend behind the unchanged API.
     enables it (`ALLELEFORGE_VEP`) because their server makes the request, and the
     client asks per request (`annotate_consequence`) because the variant is theirs; a
     deployment with it on says so in its OpenAPI description, in `GET /api/health`
-    (`vep_enabled`), and on the page's banner.
+    (`vep_enabled`), and on the page's banner. A **trained model** the deployment has
+    enabled is the other path off the machine: an uncached checkpoint is fetched,
+    pinned and hash-verified, carrying no sequence data.
 
 ## Concurrency & scaling
 

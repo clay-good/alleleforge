@@ -37,13 +37,28 @@ _CLAIMS = (
     "makes **no outbound network call**",
 )
 
-#: What must appear near such a claim for it to be true of a configurable deployment.
-_EXCEPTION_MARKERS = ("vep", "annotate_consequence", "consequence annotation")
+#: The opt-in capabilities that take a deployment off the machine, and what a paragraph
+#: making the claim must name for each. Two, and they are different in kind: the first
+#: transmits the user's variant, the second fetches a pinned artifact and transmits
+#: nothing of theirs — so a document that warns about only one is either incomplete or
+#: over-warning, and both are worth catching.
+_EXCEPTIONS: dict[str, tuple[str, ...]] = {
+    "consequence annotation": ("vep", "annotate_consequence", "consequence annotation"),
+    "a trained-model checkpoint fetch": ("trained model", "checkpoint"),
+}
 
 
-def test_the_capability_that_makes_the_claim_conditional_exists() -> None:
-    """The premise: if this goes, the unconditional claim becomes true again."""
+def test_the_capabilities_that_make_the_claim_conditional_exist() -> None:
+    """The premise: if these go, the unconditional claim becomes true again."""
     assert "annotate_consequence" in DesignRequest.model_fields
+    # An enabled trained model whose checkpoint is not cached is fetched — the second
+    # way a request reaches the network.
+    import inspect
+
+    from alleleforge.model_zoo.registry import ModelRegistry
+
+    source = inspect.getsource(ModelRegistry)
+    assert "artifact_download_permitted" in source and "downloader" in source, source[:400]
 
 
 def _blocks(text: str) -> list[str]:
@@ -59,11 +74,12 @@ def test_a_no_egress_claim_names_its_exception(path: Path) -> None:
         lowered = block.lower()
         if not any(claim.lower() in lowered for claim in _CLAIMS):
             continue
-        if not any(marker in lowered for marker in _EXCEPTION_MARKERS):
-            offenders.append(block.strip()[:160])
+        for exception, markers in _EXCEPTIONS.items():
+            if not any(marker in lowered for marker in markers):
+                offenders.append(f"{exception}: {block.strip()[:120]}")
     assert not offenders, (
-        f"{path.name} states the no-egress guarantee without naming the one thing that "
-        f"can break it (consequence annotation): {offenders}"
+        f"{path.name} states the no-egress guarantee without naming something that can "
+        f"break it: {offenders}"
     )
 
 

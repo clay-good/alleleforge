@@ -16261,3 +16261,38 @@ configuration.** The privacy sentence was true of the default deployment and fal
 an operator can switch on with an environment variable — and the artifacts that got it
 right were the two rendered *at runtime*, where the flag's value is in hand. Every artifact
 written ahead of time got it wrong, because at writing time there is only the default.
+
+## Round 474 — the other way out
+
+Last round's lesson: a guarantee is a claim about every configuration, and a feature flag
+is a configuration. There are more flags than one.
+
+`ALLELEFORGE_TRAINED_MODELS` lets an operator enable a trained scorer; a request then picks
+one by name. If that checkpoint is not already cached, `ModelRegistry` fetches it —
+`artifact_download_permitted(consent)` is satisfied because the operator consented by
+enabling it, and the download happens **during the request**. So "the app makes no outbound
+network call" was false in a second way, and the round before this one named only the
+first.
+
+The two are not the same kind of exception, and flattening them into one warning would be
+its own dishonesty:
+
+- **Consequence annotation** sends the chromosome, position and both alleles to a public
+  server. It transmits the user's data.
+- **A trained-model checkpoint fetch** downloads a pinned, hash-verified artifact. It
+  transmits nothing of the user's.
+
+Both are outbound; only one is a privacy event. All five documents say so now, with the
+distinction intact.
+
+The part worth keeping is which artifacts were right without help. The page's banner and
+the OpenAPI description both claim only that **no sequence data** leaves the deployment —
+narrower than "no outbound network call", and *true under both exceptions*. Someone chose
+the precise claim for the two surfaces rendered at runtime. The prose reached for the
+stronger, rounder sentence, and the stronger sentence is the one that broke.
+
+**Lesson: the broadest true-sounding version of a guarantee is the one that will need
+retracting.** "No outbound network call" is more impressive than "no sequence data leaves
+this deployment" and strictly harder to keep — it is falsified by a hash-verified download
+that harms nobody. The narrower claim is the one that survived two features, and it is the
+one a reader actually needs.

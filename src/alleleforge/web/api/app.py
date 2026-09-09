@@ -18,7 +18,10 @@ Two invariants from the specification:
   ``GET /api/health`` (``vep_enabled``), and on the page's own banner — all three
   of which state what *this* deployment does rather than what the default one
   does. Stating the invariant without the exception is how a sentence a reader
-  checks before pasting a patient variant becomes false.
+  checks before pasting a patient variant becomes false. A **trained model** the
+  deployment has enabled is the other opt-in path off the machine: an uncached
+  checkpoint is fetched, pinned and hash-verified, and carries no sequence data —
+  worth keeping distinct from the first, which transmits the user's variant.
 * **The reference genome is supplied by the deployment.** Pass a
   :class:`ReferenceGenome` to :func:`create_app`, or set
   ``ALLELEFORGE_REFERENCE_FASTA``. Endpoints that need it return ``503`` until

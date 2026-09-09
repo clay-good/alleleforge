@@ -1271,8 +1271,9 @@ flowchart LR
 > (`ALLELEFORGE_VEP`) because their server makes the request, and the client asks for it per request
 > (`annotate_consequence`) because the variant is theirs. A deployment with it enabled says so in its
 > OpenAPI description, in `GET /api/health` (`vep_enabled`), and on the page's banner, which changes to
-> *"Compute is local, but this deployment can send a variant off it."* The guarantee above is the default
-> and not an absolute, and a privacy sentence a reader checks before pasting a patient variant has to say
+> *"Compute is local, but this deployment can send a variant off it."* A **trained model** this deployment has enabled is the other: if its checkpoint is not already cached, it is fetched — a pinned, hash-verified download that carries no sequence data off the machine. The two are worth
+> keeping apart: only the first transmits anything of the user's. The guarantee above is the default and
+> not an absolute, and a privacy sentence a reader checks before pasting a patient variant has to say
 > which it is.
 
 | Method & path | Purpose |

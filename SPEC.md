@@ -705,8 +705,10 @@ deployment.
   forms) → eligible chemistries → ranked candidate menu with interactive Plotly efficiency intervals and
   outcome distributions → an **ancestry-stratified off-target browser** with embedded JBrowse 2 → oligo/report
   export. Prominent research-use disclaimer; state that no sequence data is transmitted externally
-  by default, and that the one exception — consequence annotation (`ALLELEFORGE_VEP` plus a
-  per-request `annotate_consequence`) — changes that sentence on the deployments that enable it.
+  by default, and that the exceptions change that sentence on the deployments that enable them:
+  consequence annotation (`ALLELEFORGE_VEP` plus a per-request `annotate_consequence`) sends the
+  variant to a public server, and an enabled trained model fetches an uncached checkpoint (pinned,
+  hash-verified, no sequence data).
 - `docker-compose.yml`: one-command local deploy of api + frontend + worker, wired to a local cache volume.
 
 **Defaults & decisions.** Backend FastAPI; frontend Next.js (Streamlit acceptable for a v0 internal preview).
