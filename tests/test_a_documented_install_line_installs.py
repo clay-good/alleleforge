@@ -117,8 +117,16 @@ def test_the_readme_points_at_the_makefile_target_for_a_source_install() -> None
     """The single place CONTRIBUTING says the extras set lives."""
     readme = (_ROOT / "README.md").read_text(encoding="utf-8")
     makefile = (_ROOT / "Makefile").read_text(encoding="utf-8")
-    target = re.search(r'^install:.*\n\t(pip install -e "\.\[[^\]]+\]")', makefile, re.M)
-    assert target, "the Makefile no longer has an `install` target with a pip line"
+    lines: list[str] = []
+    for line in makefile.splitlines():
+        if lines and re.match(r"^[a-z][\w-]*:", line):
+            break
+        if lines or line.startswith("install:"):
+            lines.append(line)
+    block = "\n".join(lines)
+    assert block, "the Makefile no longer has an `install` target"
+    target = re.search(r'(pip install -e "\.\[[^\]]+\]")', block)
+    assert target, f"the `install` target no longer runs a pip install:\n{block}"
     assert "make install" in readme, "the README no longer points at `make install`"
     assert target.group(1) in readme, (
         f"the README does not show the extras `make install` uses ({target.group(1)}), so "

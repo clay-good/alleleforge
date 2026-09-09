@@ -256,7 +256,7 @@ pip install alleleforge            # once published to PyPI
 # From source: the same extras CI installs, kept in one place
 git clone https://github.com/clay-good/alleleforge
 cd alleleforge
-make install          # pip install -e ".[dev,core,cli,web,genome-light]"
+make install          # pip install -e ".[dev,docs,core,cli,web,genome-light]"
 ```
 
 The from-source line used to be spelled out here as
@@ -1471,7 +1471,7 @@ alleleforge/
 ## Development
 
 ```bash
-make install   # editable install with the dev, core, cli, web and genome-light extras
+make install   # editable install with the extras `make ci` needs
 make ci        # the whole gate: lint · type · test · docs · examples · reproduce
 make native    # build the Rust crate and run the suite against it
 ```
