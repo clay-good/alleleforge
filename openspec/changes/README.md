@@ -13303,3 +13303,46 @@ the sentence read as true for both — which is precisely why nobody checked the
 **And ask what the tamper check actually re-hashes. Here the answer was "one row", so
 deleting that row was a complete bypass, and the failure mode was a green exit code beside
 a NOTE truthfully reporting that nothing had been established.**
+
+## Round 409 — the half that had already been fixed was fixed at the wrong grain
+
+R408 fixed the dataset half of `verify`'s compound claim and closed with "run the negative
+case for each half separately". So I ran a *finer* negative case on the half that was
+already fixed.
+
+The model check is `not prov.models` — the emptied list. Delete only the models that
+actually scored the candidates and leave an unrelated one behind:
+
+```
+$ aforge verify prime-only-menu-with-prime-models-deleted.json
+provenance: aforge 0.1.0.dev0, seed 20240501, 1 model(s), 1 dataset(s)
+verified: provenance is complete and consistent
+```
+
+Every candidate on that menu is `prime`. The one surviving row is the base-editor card.
+The block *looks* populated — "1 model(s)" — and names nothing against a single number in
+the file. The evidence to catch it was there all along: a `ModelCheckpoint` carries the
+chemistry it scored, and every candidate states its own.
+
+The naive check is wrong, and a sweep said so before I shipped it. 159 real runs over 900
+loci: sixteen ranked `base_cbe` candidates while provenance named only `base_abe` and
+`prime` models. Not a defect — the base vertical is *one call* covering both, stamping one
+card tagged `base_abe`. A checker comparing the two labels directly would have refused
+genuine output on 10% of runs that produce a base-editing candidate.
+
+So the check groups, and reads the grouping off the producer:
+`designer.model_chemistry_group`, stated next to the `_BASE_CHEMISTRIES` that
+`_collect_model_checkpoints` already groups by. A test pins the correspondence in the
+direction that matters — every chemistry the designer can run stamps checkpoints tagged
+inside its own group — so retagging a vertical fails loudly instead of quietly turning the
+cross-check into a source of false refusals. After the fix: 159 runs, 0 refused.
+
+**Lesson: "we fixed that" is a claim about a grain, not about a property. The models check
+was added by a round that ran the negative case at the coarsest grain available — delete
+everything — and the finer version of the same edit walked straight through it a hundred
+rounds later.**
+
+**And before shipping a consistency check, run it over real output at volume. The
+false-positive case here was 10% of base-editing runs and it was invisible from the code:
+the card's chemistry tag and the candidate's chemistry are the same field name, the same
+enum, and not the same question.**
