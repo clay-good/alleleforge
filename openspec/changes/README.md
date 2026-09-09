@@ -16071,3 +16071,41 @@ they are about the shape of a run rather than the value of an expression.** Stre
 bounded memory, `O(1)` in the cohort size — these read as architecture, not as assertions,
 so they get a paragraph and no check. Every one of them has a premise that is a fact about
 an object, and the fact is what a future change breaks first.
+
+## Round 469 — the promise one store kept and the other made
+
+The architectural-claims sweep from last round, continued into `alleleforge.cache`:
+
+> **Atomic writes.** Each value is written to a temp file and then renamed into place, so
+> a crash or a concurrent writer can never leave a half-written entry a later read would
+> trust (the cohort's parallel path relies on this).
+
+Two findings. Nothing tested it — the property named as the reason a parallel cohort is
+safe had no check anywhere in the suite. And the *other* on-disk store, the FM-index
+cache, wrote its four files with `write_bytes` / `write_text`, in place, holding the
+artifact that is three orders of magnitude larger.
+
+The exposure is narrow and real. `build` skips a directory that already has `meta.json`,
+and writes that file last, so a crash mid-build leaves no marker and the next run rebuilds
+— a genuinely good publish-last design. What it does not survive is two runs sharing a
+cache dir and starting together: the second truncates `bwt.bin` while the first's
+`meta.json` is already in place, and a third process reading between them fails the length
+check and is told its cache is corrupt. Fail-closed, which is why this has never been a
+wrong answer — and a corruption report for a race is still a bug, in a message that tells
+the user to delete a several-gigabyte index that was fine.
+
+Every part is published temp-then-rename now, through one `_publish`, with the unique
+temp name per call rather than per path so two writers of identical content cannot collide
+on the temp file either. `meta.json` stays last for the reason it was already last.
+
+The test checks the property, not the implementation: no temp file survives a write in
+either store, every part of a built index exists afterwards, and the completeness marker
+is published last. The one part read off the source is the "no `write_bytes` in the
+builder" rule — because the race it prevents needs two processes and a millisecond window
+to observe, and a test that spawns them to catch it is a flake with a moral.
+
+**Lesson: when two components make the same promise, check both — the one that wrote the
+promise down is the more likely to be keeping it.** The docstring is in `cache.py`, which
+implements it correctly. The store that needed it most is in another module, written by
+someone reading a different page, and it is the larger of the two by a factor of a
+thousand.

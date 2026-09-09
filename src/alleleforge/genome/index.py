@@ -21,6 +21,8 @@ from __future__ import annotations
 import hashlib
 import json
 import mmap
+import os
+import uuid
 import warnings
 from dataclasses import dataclass
 from itertools import pairwise, product
@@ -63,6 +65,19 @@ _DEFAULT_OCC_RATE = 64
 
 #: Default sampling rate for the suffix array (locate step budget).
 _DEFAULT_SA_RATE = 32
+
+
+def _publish(path: Path, data: bytes) -> None:
+    """Write ``data`` to ``path`` atomically: a unique temp file, then a rename.
+
+    A reader therefore sees the whole file or none of it, never a prefix. The unique
+    name is per call rather than per path, so two writers of the same content — which is
+    the only way two writers of one content-addressed entry can differ — cannot collide
+    on the temp file and race each other's rename.
+    """
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    tmp.write_bytes(data)
+    tmp.replace(path)  # atomic on POSIX and Windows
 
 
 def native_fm_available() -> bool:
@@ -293,10 +308,26 @@ class FMIndex:
         sa_samples = {row: pos for row, pos in enumerate(suffix_array) if pos % sa_rate == 0}
 
         cache.mkdir(parents=True, exist_ok=True)
-        (cache / "bwt.bin").write_bytes(bwt.encode("latin-1"))
-        (cache / "occ.json").write_text(json.dumps(occ))
-        (cache / "sa.json").write_text(json.dumps({str(k): v for k, v in sa_samples.items()}))
-        (cache / "meta.json").write_text(
+        # Every part published temp-then-rename, and `meta.json` last. The sibling store
+        # in `alleleforge.cache` has written this way from the start, on the grounds that
+        # "a crash or a concurrent writer can never leave a half-written entry a later
+        # read would trust (the cohort's parallel path relies on this)" — and this one,
+        # holding the larger artifact by three orders of magnitude, wrote each file in
+        # place. Two runs sharing a cache dir and starting together is enough: the second
+        # truncates `bwt.bin` while the first's `meta.json` is already there, and a third
+        # process reading between them fails the length check and is told its cache is
+        # corrupt. Fail-closed, and a corruption report for a race is still a bug.
+        #
+        # `meta.json` stays last because `build` treats it as the marker of a complete
+        # directory, so a crash mid-build leaves no marker and the next run rebuilds.
+        _publish(cache / "bwt.bin", bwt.encode("latin-1"))
+        _publish(cache / "occ.json", json.dumps(occ).encode())
+        _publish(
+            cache / "sa.json",
+            json.dumps({str(k): v for k, v in sa_samples.items()}).encode(),
+        )
+        _publish(
+            cache / "meta.json",
             json.dumps(
                 {
                     "length": n,
@@ -305,7 +336,7 @@ class FMIndex:
                     "sa_rate": sa_rate,
                     "content_hash": content_hash,
                 }
-            )
+            ).encode(),
         )
 
     @classmethod
