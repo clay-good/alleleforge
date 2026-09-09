@@ -13533,3 +13533,60 @@ eleven sites.** A guard now fails if `str(DNASequence(` reappears anywhere outsi
 
 **And check the load before believing a benchmark.** Every timing rule I have written
 down assumed a quiet machine and none of them said to check. `uptime` first.
+
+## Round 413 — the strictest guard was pinning a run with nothing in it
+
+R412's lesson was to check the machine's load before trusting a benchmark. The machine was
+still at load average 33, so this round used an instrument that does not care.
+
+`scripts/reproduce.py` is the project's R0 honesty contract. Its docstring:
+
+> everything that defines the result — candidates, scores, intervals, outcomes,
+> off-targets — is kept
+
+Read the golden as content, which is a rule already in this log (R252) and which I had not
+applied to this file:
+
+```
+candidates 1   chemistries ['base_abe']   offtarget sites 0   pareto_front 1
+```
+
+The canonical scenario was a 20-nt protospacer between two 20-nt poly-T pads — 63 bases.
+One candidate cannot be ranked. One chemistry cannot be compared with another. The
+off-target block recorded a search over 63 bases that nominated nothing, so specificity,
+worst score, the matrix that scored it — every site-level number a reader acts on — sat
+outside the contract.
+
+I had cited this guard twice in the last three rounds. R410 and R411 both changed the
+off-target scan and both said "reproduce matches golden". Here is what that was worth:
+
+| mutation | old scenario | new scenario |
+|---|---|---|
+| PAM scanner consumes its match instead of looking ahead (drops every overlapping anchor; a guide reads safer than it is) | **exit 0** | exit 1 |
+| seed prefilter forced back on | exit 0 | exit 0 |
+
+The first row is the finding. The second is the control: the prefilter is a proven
+superset, results are identical either way, and a golden that flagged it would be
+flagging a non-defect.
+
+The scenario now has flanks that make prime editing eligible and a two-mismatch decoy of
+the protospacer with its own PAM. Four candidates, two chemistries, five nominated
+off-target sites, a three-member Pareto front — and the drift report showed it also picked
+up the cross-chemistry-efficiency caveat, the `--max-per-chemistry` truncation disclosure
+and the unresolved-tie note, none of which any golden had ever covered. Flanks are
+literals, not a seeded RNG, so the scenario cannot move with a Python version.
+
+A guard pins the coverage as a property — at least two candidates, at least two
+chemistries, a Pareto front that is a strict subset, at least one nominated site, and that
+site carrying a score and the matrix that produced it. It fails on all five against the
+old golden. `--update` is how a legitimate drift is accepted, and nothing else would have
+noticed a regeneration that quietly shrank the run back to one with nothing in it.
+
+**Lesson: a golden's *scenario* is a coverage decision, and nobody reviews it.** The
+digest, the canonicalization, the drift report and the CI wiring had all been fixed and
+re-fixed by earlier rounds. The sixty-three bases the whole apparatus was pointed at had
+never been questioned.
+
+**And "the reproducibility gate passed" is a claim about the scenario, not about the
+change.** When citing a fixture-based guard as evidence for a change, check that the
+fixture contains an instance of the thing you changed. Mine did not, twice.
