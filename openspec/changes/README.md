@@ -13641,3 +13641,60 @@ mutation and reverted an *uncommitted repair* in the same file, then read the re
 failure as a real one. Both times the file had work in it that only existed in the working
 tree. Copy the file aside before mutating it; `git checkout` restores HEAD, not the state
 you meant.
+
+## Round 415 — the definition of done checked that the numbers existed
+
+R413 found a golden whose scenario was too thin for its assertions to bite. The same
+question, asked of `tests/test_acceptance.py` — the SPEC §16 "definition of done", whose
+docstring says it proves "the *end-to-end contract a release must honor*" and that "the
+reference-bias finding is reproduced".
+
+Asked by mutation, on the numbers a user acts on:
+
+| mutation | acceptance suite |
+|---|---|
+| `specificity_score() -> 1.0` — every guide perfectly specific | **8 passed** |
+| `worst_score() -> 0.0` | **8 passed** |
+| `expected_burden() -> 0.0` | **8 passed** |
+| `ancestry_expected_burden() -> {}` | **8 passed** |
+| `ancestry_stratification() -> {}` | 1 failed |
+
+The full suite catches all five. The release gate reports the release is fine for four of
+them, including the first — a constant `1.0` for the most consequential number the tool
+prints.
+
+The reason is one word in the assertions. `assert report.ancestry_stratification() and
+report.worst_ancestry() is not None` asks whether the axis is *populated*. A constant
+populates it.
+
+The second half is sharper. On this scenario the numbers are:
+
+```
+ancestry_stratification()      afr 1.000   amr 1.000   nfe 1.000
+ancestry_expected_burden()     afr 0.105   amr 0.012   nfe 0.001
+```
+
+A CFD score is a property of the sequence, not of who carries it, so the frequency-blind
+per-ancestry worst score is *identical across ancestries* — asserting it is non-empty
+reproduces nothing. The frequency-weighted burden is the one that separates them by two
+orders of magnitude, and it is the reference-bias finding. An earlier round added
+`ancestry_expected_burden` for exactly this reason and wrote the reason down; the
+acceptance test for the finding was never updated, and kept asserting the presence of the
+statistic the project had already documented as unable to express it.
+
+The test now asserts values: specificity falls below 1.0 when a site is nominated, the
+worst score is positive, the frequency-weighted burden sits strictly between zero and it,
+and `afr > amr > nfe` with afr more than 100x nfe. It also asserts the frequency-blind
+figures are *all equal* — stated out loud, with a message telling a future reader to
+revisit the reasoning if that ever stops being true, because that equality is the whole
+argument for which statistic the finding lives in.
+
+All five mutations now fail the acceptance suite.
+
+**Lesson: "the axis is populated" and "the axis is right" are different assertions, and a
+constant satisfies the first.** Test a safety number by making it a lie and seeing who
+notices — and start with the gate whose name says it is the definition of done.
+
+**And when a round adds a better statistic because the old one could not express the
+finding, the test named after that finding is the first thing to update.** It was not,
+and it went on asserting the old one for a long time.
