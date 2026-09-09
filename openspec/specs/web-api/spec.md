@@ -125,6 +125,10 @@ does not need it.
 Both entry points SHALL run the cohort through one function, so the two doors cannot come
 to disagree about which configured sources a run was given.
 
+The served page SHALL use the submit-and-poll path for a cohort. The browser is the
+client least able to hold a request open, and it is the one audience with no way to retry
+by hand.
+
 #### Scenario: A cohort through either door
 - **WHEN** the same variants are sent to the blocking endpoint and submitted as a job
 - **THEN** the two results describe the same run — same items, in the same order, with the

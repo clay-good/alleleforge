@@ -312,6 +312,39 @@ function renderBatch(data) {
     </table>`;
 }
 
+/**
+ * Poll a submitted job until it is done or failed.
+ *
+ * Returns `{ result }` or `{ error }`. `onState` is called with the job's state on
+ * every poll that is still running, so the status line says something other than the
+ * same sentence for the whole run.
+ *
+ * The deadline is generous but finite: a page that polls forever on a server that has
+ * forgotten the job (a restart drops in-flight records, which the job manager's own
+ * docstring says) shows "running" until the tab is closed.
+ */
+async function awaitJob(jobId, onState) {
+  const deadline = Date.now() + 60 * 60 * 1000;
+  let delay = 250;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    delay = Math.min(delay * 1.5, 2000);
+    const res = await fetch(`/api/jobs/${jobId}`);
+    if (!res.ok) {
+      return { error: `job ${jobId} could not be polled (${res.status})` };
+    }
+    const status = await res.json();
+    if (status.state === "done") {
+      return { result: status.result };
+    }
+    if (status.state === "error") {
+      return { error: status.error || "the job failed without a reason" };
+    }
+    onState(status.state);
+  }
+  return { error: "the job did not finish within an hour" };
+}
+
 async function runBatch(event) {
   event.preventDefault();
   const body = readBatchForm();
@@ -327,18 +360,34 @@ async function runBatch(event) {
   batchStatus.textContent = `Designing ${body.variants.length} variant(s)…`;
 
   try {
-    const res = await fetch("/api/batch", {
+    // Submitted as a job, not held on one connection. A cohort is the long operation
+    // here — a three-hundred-variant run measured 3m 40s — and a browser or a proxy in
+    // front of the server closes an idle request long before that, so the blocking
+    // endpoint fails exactly on the cohorts this panel exists for. `/api/jobs/batch`
+    // returns immediately with an id and the poll below carries the state.
+    const submitted = await fetch("/api/jobs/batch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!res.ok) {
-      const detail = await res.json().catch(() => ({ detail: res.statusText }));
-      batchStatus.textContent = `Error ${res.status}: ${detail.detail || res.statusText}`;
+    if (!submitted.ok) {
+      const detail = await submitted.json().catch(() => ({ detail: submitted.statusText }));
+      batchStatus.textContent =
+        `Error ${submitted.status}: ${detail.detail || submitted.statusText}`;
       batchStatus.classList.add("error");
       return;
     }
-    lastBatch = await res.json();
+    const jobId = (await submitted.json()).job_id;
+    const finished = await awaitJob(jobId, (state) => {
+      batchStatus.textContent =
+        `Designing ${body.variants.length} variant(s) — ${state}…`;
+    });
+    if (finished.error) {
+      batchStatus.textContent = `Error: ${finished.error}`;
+      batchStatus.classList.add("error");
+      return;
+    }
+    lastBatch = finished.result;
     lastBatchRequest = body;
     renderBatch(lastBatch);
     batchActions.hidden = false;
