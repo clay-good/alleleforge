@@ -1291,7 +1291,15 @@ def design(
         Path | None, typer.Option(help="Run-config TOML (CLI flags override).")
     ] = None,
     as_json: Annotated[
-        bool, typer.Option("--json", help="Also print the ranked menu as JSON to stdout.")
+        bool,
+        typer.Option(
+            "--json",
+            help=(
+                "Print the ranked menu as JSON to stdout — the full outcome spectrum, "
+                "which the report truncates. With --out it accompanies the report; "
+                "without one it replaces it, since a stream carries one document."
+            ),
+        ),
     ] = False,
 ) -> None:
     """Design a ranked, multi-chemistry editing menu for a variant."""
@@ -1442,6 +1450,14 @@ def design(
             f"{menu.best.chemistry.value if menu.best else 'none'}"
         )
 
+    # `--json` prints the ranked menu, which is a *different document* from the report:
+    # the report truncates each candidate's outcome to the top alleles and says so, and
+    # tells the reader the full spectrum is on the menu, "`aforge design --json` writes
+    # it". Without `--out` the report is written to stdout as well, and two documents on
+    # one stream is what `test_a_json_stream_carries_only_json` exists to prevent — so
+    # the menu used to be dropped, silently, on exactly the command that note sends a
+    # reader to. Refusing is the honest form: the flag's help promises the menu, and a
+    # promise that cannot be kept here has a remedy the user can take.
     # `--render-candidates 0` means "draw them all"; typer has no natural way to
     # spell `None` on the command line, and 0 candidates is not a render anyone wants.
     cap = DEFAULT_RENDER_CANDIDATES if render_candidates is None else (render_candidates or None)
@@ -1477,13 +1493,21 @@ def design(
         out.write_bytes(rendered)
         sidecar = _write_provenance_sidecar(out, menu)
         _echo_err(f"wrote {out}" + (f" and {sidecar}" if sidecar else ""))
+    elif as_json:
+        # The caller asked for the ranked menu and gave nowhere to put the report, and a
+        # stream cannot carry both (`test_a_json_stream_carries_only_json`). The menu is
+        # the document they named; the report on stdout is the default they did not. It
+        # used to resolve the other way and *silently*, so `aforge design VARIANT --json`
+        # — the exact command every truncated outcome table points a reader at for the
+        # withheld alleles — printed the truncation instead of the full spectrum.
+        pass
     elif fmt in (OutputFormat.json, OutputFormat.tsv):
         typer.echo(rendered.decode())
     else:
         _echo_err(f"error: --format {fmt.value} requires --out")
         raise typer.Exit(ExitCode.USAGE)
 
-    if as_json and out is not None:
+    if as_json:
         typer.echo(menu.model_dump_json(indent=2))
 
 

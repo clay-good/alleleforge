@@ -189,15 +189,18 @@ def test_design_config_toml(runner: CliRunner, prime_fasta: Path, tmp_path: Path
             str(prime_fasta),
             "--config",
             str(cfg),
-            "--json",
         ],
     )
     assert result.exit_code == 0
-    menu = json.loads(result.stdout)
-    assert menu["intent"] == "install"
+    # The *report* — `--format json` is the default and prints it to stdout. This used
+    # to pass `--json` and call the result `menu`, which is the confusion that flag
+    # caused: `--json` asks for the ranked menu, and `intent` is a report field the menu
+    # does not carry. The two things this checks are both on the report.
+    report = json.loads(result.stdout)
+    assert report["intent"] == "install"
     # max_per_chemistry from the config must actually cap the menu, not be ignored.
     per_chem: dict[str, int] = {}
-    for cand in menu["candidates"]:
+    for cand in report["candidates"]:
         per_chem[cand["chemistry"]] = per_chem.get(cand["chemistry"], 0) + 1
     assert all(n <= 2 for n in per_chem.values())
 
