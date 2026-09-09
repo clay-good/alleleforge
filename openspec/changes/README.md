@@ -14922,3 +14922,48 @@ missing, why it was not free, and what would have to come with it. Re-reading th
 the project has already written down for *not* doing something is a cheaper way to find
 the next chunk of work than looking for something nobody has thought about, and the
 deferral even specifies the acceptance criteria.
+
+## Round 440 — the fix's own edge, and a 404 nobody could act on
+
+Two rounds ago the cohort panel's **Download TSV** stopped re-designing the whole cohort
+and started asking the finished job for its table. That is the right shape and it moved
+the button onto a store the job manager's own docstring describes plainly: bounded,
+in-memory, "a restart loses in-flight job state". Terminal records are evicted past a cap
+too. So a result can be gone while the cohort is still rendered on the page — and the
+button's answer to that was `Download failed: 404`.
+
+Which is worse than what it replaced. The old button was wasteful; this one was a dead
+end, and the JSON download beside it kept working (that one is a client-side blob), so a
+reader got two buttons disagreeing about whether their run still existed.
+
+Re-running is genuinely the only way to get the table once the record is gone, so the
+button does that — **behind the 404, and after saying so**:
+
+> The server no longer holds that run — designing it again to build the table…
+
+Saying so is the part that matters. The point of the change was never that re-running is
+forbidden; it was that spending the cohort's whole runtime again should not happen
+silently on the common path. A fallback that fires only when the cheap path is impossible,
+and announces itself, keeps that. The guard was rewritten to match: `/api/batch` may
+appear in that function, but only *after* the job-result fetch and only inside a `404`
+branch, with a status write before it. An unconditional re-POST fails it, as does a silent
+one.
+
+The endpoint's `404` was the other half. "unknown job 'a3f…'" is true and useless: a caller
+here has usually just watched that job finish. It now names the second possibility — the
+store keeps the most recent finished jobs and does not survive a restart — and what
+follows from it.
+
+Two things measured rather than assumed while doing this. Re-running the same cohort
+produces a byte-identical table except for the `started` timestamp, so the fallback is a
+real substitute and not a second, differently-numbered answer. And the new route is behind
+the same API token as the run itself — a result carries the cohort's variants, so a new
+route must not be a new door; that is now pinned by a test rather than by the fact that
+the middleware happens to match on prefix.
+
+**Lesson: a change that moves work onto a store inherits that store's failure modes, and
+the docstring naming them is not a substitute for handling them.** The job manager said in
+so many words that its records do not survive a restart. That sentence had been true and
+harmless for as long as the records were only a polling envelope. Making them the source
+of a user-facing artifact turned a documented property into a defect, three lines away
+from the code that read it, in the same round that read it.

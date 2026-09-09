@@ -15,6 +15,12 @@ be held open that long. The answer was in the job store the entire time.
 
 `GET /api/jobs/{id}/result?format=…` renders a *finished* job's stored result in any format
 its synchronous twin offers. Nothing is recomputed.
+
+The store is bounded and in-memory, though — it keeps the most recent finished jobs and
+does not survive a restart — so a result can be gone while the cohort is still on the
+page. That is the one case where re-running is the only way to get the table, and the page
+does it behind a `404`, having said so first: this button's whole point is not spending the
+run twice, and doing it silently would be the old behaviour wearing a new URL.
 """
 
 from __future__ import annotations
@@ -106,7 +112,37 @@ async def test_a_job_offers_only_the_formats_its_own_kind_has(client: httpx.Asyn
 async def test_an_unfinished_or_unknown_job_has_no_result(client: httpx.AsyncClient) -> None:
     unknown = await client.get("/api/jobs/nosuchjob/result")
     assert unknown.status_code == 404, unknown.text
-    assert "nosuchjob" in unknown.json()["detail"]
+    detail = unknown.json()["detail"]
+    assert "nosuchjob" in detail
+    # A caller here has usually just watched this job finish: the store keeps the most
+    # recent finished jobs and does not survive a restart, so "unknown" alone leaves them
+    # holding an id with nothing to do about it.
+    assert "retained" in detail and "again" in detail, detail
+
+
+@pytest.mark.anyio
+async def test_a_result_is_behind_the_same_token_as_the_run(reference) -> None:
+    """The result carries the cohort's variants; a new route must not be a new door."""
+    from alleleforge.web.api.app import create_app
+
+    app = create_app(reference=reference, api_token="secret")
+    headers = {"X-API-Token": "secret"}
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        submitted = await client.post(
+            "/api/jobs/batch", json={"variants": ["chr2:71:A>C"]}, headers=headers
+        )
+        assert submitted.status_code == 202, submitted.text
+        job_id = submitted.json()["job_id"]
+        for _ in range(600):
+            status = (await client.get(f"/api/jobs/{job_id}", headers=headers)).json()
+            if status["state"] in ("done", "error"):
+                break
+        assert status["state"] == "done", status
+
+        assert (await client.get(f"/api/jobs/{job_id}/result?format=tsv")).status_code == 401
+        allowed = await client.get(f"/api/jobs/{job_id}/result?format=tsv", headers=headers)
+        assert allowed.status_code == 200, allowed.text
 
 
 @pytest.mark.anyio
@@ -133,8 +169,29 @@ def test_the_page_downloads_the_cohort_table_from_the_job_it_already_ran() -> No
     source = "\n".join(
         line for line in body.group(1).splitlines() if not line.lstrip().startswith("//")
     )
-    assert "/api/batch" not in source, (
-        "the TSV button re-POSTs the whole cohort to the blocking endpoint the panel "
-        "already decided it could not hold a connection to"
-    )
     assert "/result?format=tsv" in source, source
+    # `/api/batch` may still appear, but only *after* the job result has been asked for
+    # and only behind a 404 — the store keeps the most recent finished jobs and does not
+    # survive a restart, so re-running is the last resort rather than the first move. The
+    # ordering is the whole claim: reaching for the blocking endpoint first is what this
+    # button stopped doing.
+    if "/api/batch" in source:
+        assert source.index("/result?format=tsv") < source.index("/api/batch"), source
+        assert "404" in source[: source.index("/api/batch")], (
+            "the cohort is re-designed unconditionally rather than only when the "
+            "finished run is gone"
+        )
+
+
+def test_the_page_says_so_before_it_re_runs_a_cohort_it_lost() -> None:
+    """The fallback is minutes of work nobody asked for; it must not happen in silence."""
+    body = re.search(r"async function downloadBatchTsv\(\)\s*\{(.*?)\n\}", _APP_JS, re.S)
+    assert body is not None, "downloadBatchTsv is gone; this guard needs rewriting"
+    source = body.group(1)
+    if "/api/batch" not in source:
+        pytest.skip("the page no longer falls back to re-running the cohort")
+    before = source[: source.index("/api/batch")]
+    assert "batchStatus.textContent" in before, (
+        "the cohort is re-designed with no word to the reader about why the download "
+        "is suddenly taking minutes"
+    )

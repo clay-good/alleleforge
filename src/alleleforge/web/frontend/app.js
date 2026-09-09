@@ -262,6 +262,7 @@ const batchSubmit = document.getElementById("batch-submit");
 
 let lastBatch = null; // the last batch response, for the JSON download.
 let lastBatchJobId = null; // the job that produced it: the server can still render it.
+let lastBatchRequest = null; // the body that produced it, for when the job is gone.
 
 function readBatchForm() {
   const variants = document
@@ -452,6 +453,7 @@ async function runBatch(event) {
     }
     lastBatch = finished.result;
     lastBatchJobId = jobId;
+    lastBatchRequest = body;
     renderBatch(lastBatch);
     batchActions.hidden = false;
     batchStatus.textContent =
@@ -496,9 +498,26 @@ async function downloadBatchTsv() {
   // exactly on the cohorts this panel exists for" — spending the entire run again (a
   // 300-variant cohort measured 3m 40s) to format a result already on this page, over a
   // connection this panel had already concluded it could not hold open that long.
-  const res = await apiFetch(`/api/jobs/${lastBatchJobId}/result?format=tsv`);
+  let res = await apiFetch(`/api/jobs/${lastBatchJobId}/result?format=tsv`);
+  if (res.status === 404) {
+    // The job store keeps the most recent finished jobs and does not survive a restart,
+    // so a result can be gone while the cohort is still on this page. Re-running it is
+    // the only way to get the table then — but say so, because it is minutes of work the
+    // reader did not ask for, and on a large cohort the blocking endpoint may not
+    // survive it. Silently spending the run again is what this button stopped doing.
+    batchStatus.textContent =
+      "The server no longer holds that run — designing it again to build the table…";
+    batchStatus.classList.remove("error");
+    res = await apiFetch("/api/batch?format=tsv", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(lastBatchRequest),
+    });
+  }
   if (!res.ok) {
-    batchStatus.textContent = `Download failed: ${res.status}`;
+    batchStatus.textContent =
+      `Download failed: ${res.status}. The finished run is no longer on the server, and ` +
+      "re-designing the cohort did not complete — run it again from the form above.";
     batchStatus.classList.add("error");
     return;
   }

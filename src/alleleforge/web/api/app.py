@@ -1098,7 +1098,18 @@ def create_app(
         jobs: JobManager = request.app.state.jobs
         record = jobs.get(job_id)
         if record is None:
-            raise HTTPException(status_code=404, detail=f"unknown job {job_id!r}")
+            # Two situations, indistinguishable from here: the id was never submitted to
+            # this server, or its record has gone. Saying only "unknown" leaves a caller
+            # holding a job id they watched finish with nothing to do about it, so the
+            # message names the second case and what follows from it.
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    f"unknown job {job_id!r} — it was never submitted here, or its result "
+                    "is no longer retained: the store keeps the most recent finished jobs "
+                    "and does not survive a restart. Submit the run again to get it."
+                ),
+            )
         if record.state is not JobState.DONE:
             # 409, not 404: the job exists and this is a question about *when*, which is
             # what `GET /api/jobs/{id}` answers. A failed job carries its reason here too,
