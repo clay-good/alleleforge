@@ -37,6 +37,7 @@ from alleleforge.offtarget.scoring import CfdScorer, OffTargetScorer, mit_score
 from alleleforge.types.guide import PAM, Spacer
 from alleleforge.types.offtarget import OffTargetReport, OffTargetSite, ScoreMethod, SiteOrigin
 from alleleforge.types.sequence import (
+    IUPAC_ALPHABET,
     CoordinateSystem,
     DNASequence,
     GenomicInterval,
@@ -103,10 +104,40 @@ def low_stringency_pam(pam: PAM) -> PAM:
 
 
 def _spacer_str(spacer: Spacer | DNASequence | str) -> str:
-    """Return the bare 5'->3' spacer string from any accepted form."""
+    """Return the bare 5'->3' spacer string, refusing one outside the IUPAC alphabet.
+
+    A `Spacer` and a `DNASequence` are validated by construction; a bare ``str`` was
+    not, and both shells hand this one. So `--pam NZZ` was refused by name while
+    ``aforge offtarget '>chr1'`` — a pasted FASTA header — was *scanned*, reported as
+    "ambiguous at position(s) 1, 3, 4, 5" (``>``, ``h``, ``r``, ``1`` are not ambiguity
+    codes, they are not bases) and given ``specificity 0.026`` over a 5,072-placement
+    sub-threshold tail. `POST /api/offtarget` accepted the same string. A safety number
+    computed from a typo and printed without a refusal is the failure this project keeps
+    finding, and here the alphabet rule was enforced on one argument of the same call
+    and not the other.
+
+    Validated here rather than in each shell: `search` is the one door every caller
+    goes through, and a check at the shells is one a future caller can walk past.
+    ``N`` and the other IUPAC ambiguity codes stay accepted — they are what the
+    "ambiguous at position(s)" disclosure exists for.
+
+    Raises:
+        ValueError: If ``spacer`` holds a character outside the IUPAC alphabet. Both
+            shells already turn this into their own refusal.
+    """
     if isinstance(spacer, Spacer):
         return str(spacer.sequence)
-    return str(spacer)
+    if isinstance(spacer, DNASequence):
+        return str(spacer)
+    text = str(spacer)
+    stray = sorted(set(text.upper()) - IUPAC_ALPHABET)
+    if stray:
+        raise ValueError(
+            f"spacer has non-IUPAC characters: {stray} — a spacer is DNA (ACGT plus the "
+            "IUPAC ambiguity codes); check for a pasted FASTA header, a stray space or "
+            "a digit"
+        )
+    return text
 
 
 def _scores(hit: Hit, scorer: OffTargetScorer) -> tuple[float, float | None]:
