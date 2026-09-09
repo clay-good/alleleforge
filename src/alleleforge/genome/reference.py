@@ -21,12 +21,15 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-from pyfaidx import Fasta
+from typing import TYPE_CHECKING, Any
 
 from alleleforge.config import DOWNLOAD_REMEDY, artifact_download_permitted, get_settings
-from alleleforge.errors import ChecksumError, ConsentError, ReferenceIndexError
+from alleleforge.errors import (
+    ChecksumError,
+    ConsentError,
+    MissingDependencyError,
+    ReferenceIndexError,
+)
 from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import (
     CoordinateSystem,
@@ -159,6 +162,37 @@ class FetchResult:
         return self.left_pad > 0 or self.right_pad > 0
 
 
+def _fasta_reader() -> Any:
+    """Return `pyfaidx.Fasta`, or refuse in words if the extra is not installed.
+
+    Imported here rather than at module scope for two reasons, and the second is the
+    one that bites. `pyfaidx` belongs to the optional `genome` extra, and this module
+    is on the import path of `design`, `report`, `viz` and `benchmark` — so a
+    module-level import made `pip install "alleleforge[cli]"`, the documented CLI
+    install, produce an `aforge` that could not print its own `--version`: every
+    command died with `ModuleNotFoundError: No module named 'pyfaidx'` before the
+    argument parser ran, including the ones that touch no sequence at all.
+
+    `genome/__init__` already defers its `reference` re-exports for exactly this, and
+    ten modules imported this submodule directly and walked past that. Deferring the
+    dependency itself is the fix that does not depend on every future caller
+    remembering.
+
+    And when a caller does open a reference without the extra, it now says which
+    install gives it, instead of raising a `ModuleNotFoundError` from three frames down.
+    """
+    try:
+        from pyfaidx import Fasta
+    except ImportError as exc:  # pragma: no cover - exercised only without the extra
+        raise MissingDependencyError(
+            "reading a reference FASTA needs the optional 'pyfaidx' dependency "
+            "(pip install 'alleleforge[genome-light]', or 'alleleforge[genome]' for the "
+            "full genome stack). Commands that touch no sequence — `data`, `bench`, "
+            "`resolve` without a reference — work without it."
+        ) from exc
+    return Fasta
+
+
 def _verify_sha256(path: Path, expected: str) -> str:
     """Hash ``path`` and raise :class:`ChecksumError` on mismatch.
 
@@ -214,8 +248,9 @@ class ReferenceGenome:
         self.path = Path(path)
         self.build = build
         self.dataset_version = dataset_version
+        fasta_reader = _fasta_reader()
         try:
-            self._fasta = Fasta(str(self.path), sequence_always_upper=True, rebuild=False)
+            self._fasta = fasta_reader(str(self.path), sequence_always_upper=True, rebuild=False)
         except OSError as exc:
             # pyfaidx writes `<fasta>.fai` beside the FASTA when none exists. With a
             # read-only reference directory — which this project's own compose file

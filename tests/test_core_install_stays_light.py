@@ -43,19 +43,32 @@ _OPTIONAL_ROOTS = (
     "click",
 )
 
-#: Subpackages a documented extra must reach without the *genome* stack.
+#: Subpackages a documented extra must reach without *any* optional stack.
 #: `pip install alleleforge[cli]` does not install pyfaidx, so a command that needs no
 #: reference genome must not require it to import.
-_LIGHT_SUBPACKAGES = ("alleleforge.data", "alleleforge.model_zoo")
+_LIGHT_SUBPACKAGES = (
+    "alleleforge.data",
+    "alleleforge.model_zoo",
+    # These joined the list when the deferral was finished. `alleleforge.benchmark` was
+    # excluded here with a note calling the rest "a refactor rather than a correction":
+    # its chain reached `viz.figures`, which builds a fixture FASTA. The chain is gone —
+    # ten modules imported `genome.reference` directly for an *annotation*, walking past
+    # the deferral `genome/__init__` already had, and `viz.figures` now imports it inside
+    # the one function that constructs one.
+    "alleleforge.benchmark",
+    "alleleforge.design",
+    "alleleforge.enumerate",
+    "alleleforge.genome",
+    "alleleforge.offtarget",
+    "alleleforge.report",
+    "alleleforge.scoring",
+    "alleleforge.variant",
+    "alleleforge.viz",
+)
 
-#: `alleleforge.benchmark` is *not* here yet, deliberately. Its chain reaches
-#: `viz.figures`, which builds a fixture FASTA and needs `ReferenceGenome` at runtime,
-#: so making the whole benchmark stack genome-free is a refactor rather than a
-#: correction. Two links were removed (the `enumerate` modules annotate with
-#: `ReferenceGenome` and now import it under `TYPE_CHECKING`; `genome/__init__` defers
-#: its `reference` re-exports), and the user-visible defect — `aforge bench` dying with
-#: a raw `ModuleNotFoundError` where every sibling command explains itself — is fixed
-#: and pinned in `tests/cli/test_bench_reports_a_missing_dependency.py`.
+#: The stack a `[cli]` install does not have. `alleleforge.cli.main` legitimately loads
+#: typer — that is what `[cli]` installs — so it is checked against these alone.
+_GENOME_ROOTS = ("pyfaidx", "pysam", "cyvcf2", "mappy", "pyliftover", "hgvs")
 
 _PROBE = (
     "import sys, alleleforge\n"
@@ -99,3 +112,43 @@ def test_the_probe_would_notice_a_heavy_import() -> None:
     probe = _PROBE.replace("import sys, alleleforge", "import sys, alleleforge, typer")
     proc = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, check=True)
     assert "typer" in proc.stdout
+
+
+def test_the_cli_entry_point_imports_without_the_genome_stack() -> None:
+    """`pip install "alleleforge[cli]"` must produce an `aforge` that runs.
+
+    It did not. Every command — `--version`, `--help`, `data list`, `bench list` —
+    died with `ModuleNotFoundError: No module named 'pyfaidx'` before the argument
+    parser saw the line, because `cli.main` imports `design`, which reached
+    `genome.reference` and its module-level `from pyfaidx import Fasta`. The install
+    table in the deployment guide lists genome access as a separate row to *add*,
+    which is exactly the promise this breaks.
+
+    Checked against the genome stack only: typer is what `[cli]` installs.
+    """
+    probe = (
+        "import sys, alleleforge.cli.main\n"
+        'roots = {m.split(".")[0] for m in sys.modules}\n'
+        f"print(','.join(sorted(roots & set({_GENOME_ROOTS!r}))))\n"
+    )
+    proc = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True)
+    assert proc.returncode == 0, proc.stderr
+    loaded = [m for m in proc.stdout.strip().split(",") if m]
+    assert not loaded, (
+        f"importing the CLI pulled in the genome stack: {loaded}. Every `aforge` command "
+        "then requires it, including the ones that read no sequence."
+    )
+
+
+def test_opening_a_reference_without_pyfaidx_says_which_install_gives_it() -> None:
+    """The one thing that does need it must refuse in words, not from three frames down."""
+    from alleleforge.errors import MissingDependencyError
+    from alleleforge.genome import reference as reference_module
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setitem(sys.modules, "pyfaidx", None)
+        with pytest.raises(MissingDependencyError) as excinfo:
+            reference_module._fasta_reader()
+    message = str(excinfo.value)
+    assert "pyfaidx" in message, message
+    assert "alleleforge[genome" in message, message
