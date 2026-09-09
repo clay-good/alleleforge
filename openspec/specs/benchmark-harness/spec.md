@@ -51,21 +51,43 @@ attributed to the scorer by name.
 
 ### Requirement: Metrics treat non-finite inputs as degenerate
 
-Every ranking/correlation/calibration metric SHALL treat a non-finite input value — `NaN`
-**or** `±inf` — as degenerate and return the metric's **worst** value, never a **perfect**
-score and never a non-JSON-serializable `NaN` or a crash. A `NaN` slips every `<= 0` / `==`
-guard, and an `inf` sorts as the largest value and satisfies those guards too, so both would
-otherwise let a corrupt or overflowing prediction top the leaderboard. The degenerate value
-is direction-aware: for a higher-is-better metric (correlation, ROC/PR-AUC) the worst value
-is `0.0` (and ECE returns `null`); for the lower-is-better distribution divergence
-`kl_divergence`, `0.0` is *perfect*, so a non-finite mass SHALL instead return `+inf` (the
-worst), which the finite-headline validator then rejects rather than crowns.
+Every metric SHALL treat an input that determines no value — a non-finite `NaN`/`±inf`, a
+constant series, a single-class fold, an empty fold — as degenerate, and SHALL never return
+a **perfect** score, a non-JSON-serializable `NaN`, or a crash. A `NaN` slips every
+`<= 0` / `==` guard, and an `inf` sorts as the largest value and satisfies those guards too,
+so both would otherwise let a corrupt or overflowing prediction top the leaderboard.
+
+The degenerate answer is **undefined (`None`)**, not a bounded worst value. This spec used
+to require the worst value for the higher-is-better metrics — `0.0` for correlation and
+ROC/PR-AUC — on the reasoning that a degenerate evaluation should not flatter itself. It
+does not flatter itself, and it is not honest either: `0.0` on a leaderboard is a **rank**,
+and on AUROC it is the *worst possible score* rather than a statement that nothing was
+measured. The shipped reference baseline predicts one constant, so its Spearman is
+undefined on every fold, and `0.0` was published as its measured score, ranked first, and
+subtracted from another `0.0` to state a generalization gap.
+
+The exception is `kl_divergence`, which is lower-is-better and unbounded above: a
+non-finite mass SHALL return `+inf` — its worst value — which the finite-headline validator
+then rejects rather than crowns, because there is no `None` path through a per-example
+divergence that the fold mean could carry.
+
+The degenerate answers, one line per metric, checked against the code by
+`tests/benchmark/test_the_spec_states_the_degenerate_answers.py`:
+
+- `spearman`: undefined
+- `pearson`: undefined
+- `roc_auc`: undefined
+- `pr_auc`: undefined
+- `expected_calibration_error`: undefined
+- `interval_calibration_error`: undefined
+- `topk_accuracy`: `0.0`
+- `kl_divergence`: `+inf`
 
 #### Scenario: Infinite score is not perfect
 - **WHEN** a scorer emits an `inf` (or `NaN`) point estimate that reaches a metric
-- **THEN** `spearman`/`pearson`/`roc_auc`/`pr_auc` return the degenerate `0.0` and
-  `expected_calibration_error` returns undefined — the corrupt prediction never scores as
-  perfect, the result stays JSON-serializable, and no metric crashes
+- **THEN** `spearman`/`pearson`/`roc_auc`/`pr_auc` and `expected_calibration_error` return
+  undefined — the corrupt prediction never scores as perfect, the result stays
+  JSON-serializable, and no metric crashes
 
 #### Scenario: Non-finite distribution mass is worst, not perfect
 - **WHEN** a distribution scorer emits a non-finite mass (`inf`/`NaN`) that reaches
@@ -249,20 +271,26 @@ benchmark is for.
 
 ### Requirement: A degenerate evaluation cannot flatter itself
 
-A metric computed over a degenerate input SHALL NOT report a value that would rank
-better than a real evaluation. Metrics with a bounded worst value (correlation,
-AUROC, accuracy) SHALL fail toward it. A metric in `LOWER_IS_BETTER` that is
-unbounded above has no such value and SHALL be reported as undefined (`None`)
-rather than as its optimum.
+A metric computed over a degenerate input SHALL NOT report a value that would rank better
+than a real evaluation, and SHALL NOT report a value at all. Over an **empty fold** every
+metric of every task kind SHALL be `None`.
 
-#### Scenario: Empty distribution evaluation
-- **WHEN** a distribution task is evaluated over zero examples
-- **THEN** `kl` is `None` — not `0.0`, which `LOWER_IS_BETTER` would rank first —
-  matching `ece`, which is computed on the same empty inputs
+This requirement used to say that metrics with a bounded worst value — "correlation, AUROC,
+accuracy" — SHALL fail toward it, and that only an unbounded lower-is-better metric has no
+such value. Failing toward a bound is a property worth having for a metric read on its own,
+and the wrong one for a metric read on a board, where the bound is a rank. A fold with
+nothing in it produced an accuracy of `0.0` ("got every one wrong") and an AUROC of `0.0`
+("perfectly wrong") about a model nobody measured.
+
+#### Scenario: Empty fold, any kind
+- **WHEN** a task of any kind is evaluated over zero examples
+- **THEN** every metric in its battery is `None`, including `kl` — which `LOWER_IS_BETTER`
+  would otherwise rank first — and `top1`, which would otherwise read as a failed
+  prediction rather than an absent one
 
 #### Scenario: Non-empty evaluation
 - **WHEN** the same task is evaluated over at least one example
-- **THEN** `kl` is a finite number, so the two cases are distinguishable
+- **THEN** the battery carries numbers, so the two cases are distinguishable
 
 ### Requirement: The leaderboard reports each model's out-of-distribution share
 

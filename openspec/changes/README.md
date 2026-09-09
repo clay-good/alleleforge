@@ -15264,3 +15264,51 @@ argument for the old behaviour is documented — in this project, at length, in 
 file — and the next reader will find that argument rather than the round that overturned
 it. Fixing the code and leaving the reasoning behind is how a defect gets reintroduced by
 someone doing their homework.
+
+## Round 447 — the spec still required what the code had stopped doing
+
+Round 446's lesson was to grep for whatever was written to defend an overturned
+convention. Doing that found the biggest remaining piece of it, and it was not a comment:
+
+> The degenerate value is direction-aware: for a higher-is-better metric (correlation,
+> ROC/PR-AUC) the worst value is `0.0` … `spearman`/`pearson`/`roc_auc`/`pr_auc` return
+> the degenerate `0.0`
+
+That is `openspec/specs/benchmark-harness/spec.md`, two rounds after the code stopped
+doing it — a **SHALL**, in the document this project treats as its contract. A second
+requirement said metrics with a bounded worst value "SHALL fail toward it", which is the
+argument round 445 spent a whole round dismantling.
+
+The reason it drifted is the interesting half. `test_the_shipped_specs_describe_the_shipped_cli`
+has held the CLI spec to the real CLI for hundreds of rounds — every shipped command has
+to appear in a capability spec, every documented exit code has to exist. **No test in this
+repo referenced `benchmark-harness/spec.md` at all.** One spec was executable and the rest
+were prose, and the prose one is where the contradiction grew.
+
+The fix is not "update the spec". It is to make this requirement checkable, in the way the
+project makes populations checkable everywhere else: the spec now carries one
+machine-readable line per metric —
+
+    - `spearman`: undefined
+    - `roc_auc`: undefined
+    - `topk_accuracy`: `0.0`
+    - `kl_divergence`: `+inf`
+
+— and a test calls each metric with an input that determines no value and holds the stated
+answer to the returned one. Both directions: a metric dropped from the spec's list fails,
+and so does one dropped from the test's calls, so neither side can shrink quietly. The
+degenerate *inputs* are written out rather than derived, because "what determines no value"
+is different for each metric — a constant series for a correlation, a single-class fold for
+AUROC — and that difference is the part worth stating.
+
+Two exceptions survive and are now stated as exceptions rather than as the rule.
+`kl_divergence` answers `+inf` for a non-finite mass: it is lower-is-better and unbounded
+above, and a per-example divergence has no `None` path the fold mean could carry.
+`topk_accuracy` answers `0.0` for an empty pair because it is a per-example *indicator* —
+a model that predicted nothing did not get this example right — while the fold mean over
+zero examples is `None`. Different questions, different answers, and both said out loud.
+
+**Lesson: a spec that nothing executes is documentation, and documentation drifts.** This
+repo already knew that — it built a guard for the CLI spec and never built one for any
+other. The tell was available without reading a word of either document: `grep -l
+benchmark-harness tests/` returns nothing.

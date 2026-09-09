@@ -50,11 +50,11 @@ def _has_nonfinite(*seqs: Sequence[float]) -> bool:
     value, so ``spearman``/``roc_auc``/``pr_auc`` rank corrupt input as a
     **perfect** 1.0; ``pearson`` returns a non-JSON-serializable ``NaN`` (its
     ``inf - inf`` mean gap is NaN); and ``expected_calibration_error`` *crashes*
-    with ``OverflowError`` when it bins ``int(inf * n_bins)``. Both cases invert
-    the module's "degenerate inputs return 0.0 rather than NaN, so results stay
-    JSON-serializable" contract, so both must be caught. ``NaN`` is reachable via a
-    corrupt label; ``inf`` via a scorer whose point estimate overflows — the
-    ``Prediction`` contract admits ``value=inf`` with an ``(lo, inf)`` interval.
+    with ``OverflowError`` when it bins ``int(inf * n_bins)``. All three invert this
+    module's contract — a degenerate input is answered with ``None``, never a perfect
+    score, a ``NaN`` that will not serialize, or a crash — so all must be caught. ``NaN``
+    is reachable via a corrupt label; ``inf`` via a scorer whose point estimate overflows
+    — the ``Prediction`` contract admits ``value=inf`` with an ``(lo, inf)`` interval.
     """
     return any(not math.isfinite(v) for seq in seqs for v in seq)
 
@@ -225,7 +225,13 @@ def topk_accuracy(
     """Return 1.0 if the observed mode is in the predicted top-``k``, else 0.0.
 
     The "mode" is the highest-mass category of ``observed``; ties broken by
-    category name for determinism. Returns ``0.0`` if either side is empty.
+    category name for determinism.
+
+    Returns ``0.0`` — not ``None`` — if either side is empty, and this is the one place
+    in the module where a degenerate input still has a value: top-1 is a per-example
+    indicator, and a model that predicted nothing did not get this example right. The
+    *fold mean* over zero examples is undefined, and :func:`_distribution_metrics` reports
+    that as ``None``; the two are different questions and the answers differ accordingly.
     """
     if not predicted or not observed:
         return 0.0
