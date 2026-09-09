@@ -16332,3 +16332,41 @@ session's changes — including the bounded-memory sentence a round made testabl
 the principle.** Nine downstream mentions had been softened to the truth by people writing
 about the mechanism; the requirement kept the aspirational form because nobody re-reads a
 numbered principle. The place a claim is *defined* is the last place it gets corrected.
+
+## Round 476 — the differentiator, stated as something the default does
+
+Last round's lesson: the place a claim is defined is the last place it gets corrected. So
+this round read the rest of `SPEC.md`'s numbered principles against the code. Principle 3
+is the project's differentiator:
+
+> **Population-aware by default.** … AlleleForge searches population variation by default
+> and stratifies results by ancestry.
+
+Nothing of gnomAD ships. `design()` takes `gnomad=None`. A scan with no population source
+is reference-only, and the code says so at every turn — the report's search description,
+`offtarget_sources: reference-only`, and a warning when ancestries were requested that
+nothing could answer. The README carries a whole note headed "The three safety inputs are
+opt-in files, and the scan is reference-only without them", written by someone who had
+thought about exactly this.
+
+There is a charitable reading: given a source, the scan uses it *without being asked
+again* — population-awareness is not a mode you switch on — and that is true, and it is the
+design. There is also the plain reading, which is what a reader takes away: a default run
+covers population variation. That one is false, and it is false about the single claim this
+tool exists to make.
+
+Both defining documents — `SPEC.md` and `CONTRIBUTING.md`, the two places a contributor
+learns what the project is for — now state the distinction: population-aware as a
+**behaviour**, not as a shipped **dataset**; nothing of gnomAD ships; without a source a
+scan is reference-only and must say so; an empty ancestry breakdown means *not measured*,
+never *clean*. The guard is derived from the default value in `design()`'s signature.
+
+That makes three defining statements corrected in three rounds — a privacy guarantee, a
+reproducibility requirement, and now the differentiator — each stated absolutely in the
+document that defines it while every implementing surface was careful.
+
+**Lesson: a principle is written to be inspiring, and an inspiring sentence is an
+unqualified one.** Nobody adds "when a source is present" to a design principle; it reads
+as hedging. But the qualification is the engineering, and the surfaces that had to *do* the
+thing all carry it. When the code is more careful than the mission statement, the mission
+statement is the defect.

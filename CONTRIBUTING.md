@@ -13,8 +13,11 @@ Before proposing a change, read the relevant phase. Two principles override pers
 
 - **Honest uncertainty.** No scorer returns a bare float; every numeric prediction carries a calibrated
   interval. Do not add code paths that emit point estimates without an uncertainty contract.
-- **Population-aware by default.** Off-target analysis is ancestry-stratified; a single global number hides
-  exactly the disparities we exist to surface.
+- **Population-aware by default — as behaviour, not as a shipped dataset.** Off-target analysis is
+  ancestry-stratified; a single global number hides exactly the disparities we exist to surface. Given a
+  population source the scan uses it without being asked again; nothing of gnomAD ships, so without
+  `--gnomad` (or a haplotype panel, or a patient VCF) a scan is **reference-only** and must say so. An
+  empty ancestry breakdown means *not measured*, never *clean*.
 
 ## Development setup
 

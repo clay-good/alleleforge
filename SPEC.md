@@ -111,9 +111,15 @@ of candidate guide designs**, with a population-aware off-target profile for eac
    guide enumeration, and scoring are all downstream of "what is the variant and what design addresses it."
 2. **Honest uncertainty.** Every numeric prediction ships with a calibrated interval. A confident wrong
    answer is worse than a wide honest one. No scorer returns a bare float.
-3. **Population-aware by default.** Reference-genome-only off-target analysis is a known blind spot: a minor
-   allele can create a *de novo* PAM that a reference-only scan misses. AlleleForge searches population
-   variation by default and stratifies results by ancestry.
+3. **Population-aware as the default *behaviour*, not as a default *dataset*.** Reference-genome-only
+   off-target analysis is a known blind spot: a minor allele can create a *de novo* PAM that a
+   reference-only scan misses. So when a population source is present, the scan uses it without being
+   asked again and stratifies by ancestry — population-awareness is not a mode you switch on. What is not
+   claimed: that a bare install searches population variation. gnomAD, a haplotype panel and a patient VCF
+   are files the deployment supplies (`--gnomad`, `--haplotypes`, `--patient-vcf`); none ships, and without
+   them every scan is reference-only and **says so** — in the report's search description, in
+   `offtarget_sources`, and in a warning when ancestries were requested that nothing could answer. The
+   distinction is the whole point: an empty ancestry breakdown means *not measured*, never *clean*.
 4. **Wrap, don't rebuild.** Integrate the best existing tools behind one typed interface; add new ML only at
    genuine coverage gaps.
 5. **Reproducible to the byte.** Pinned environments, versioned datasets (DVC), deterministic seeds, and
