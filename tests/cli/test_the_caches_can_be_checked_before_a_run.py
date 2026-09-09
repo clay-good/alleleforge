@@ -254,3 +254,39 @@ def test_a_namespace_that_stores_no_checksum_is_not_a_failure(warm: Path) -> Non
     rows = [c for c in payload["checks"] if c["kind"] == "legacy/v1"]  # type: ignore[union-attr]
     assert [c["status"] for c in rows] == ["unverifiable"], rows
     assert code == ExitCode.OK
+
+
+def test_the_sweep_says_what_the_stores_weigh(warm: Path) -> None:
+    """Nothing evicts these, and nothing said how big they had got.
+
+    Both cross-run caches are content-addressed and append-only *by design* — a changed
+    input is a new key, which is what makes a stale hit impossible and also means the old
+    entry stays forever. An FM-index over a whole genome runs to several gigabytes per
+    contig-strand, and editing the reference mints a new one beside the old. The right
+    correctness trade, and the wrong thing to leave invisible in a tool whose caches a
+    user opts into with a flag.
+    """
+    code, payload = _verify()
+    held = payload["held_bytes"]
+    assert isinstance(held, dict) and held, payload
+    assert sum(held.values()) > 0
+    assert code == ExitCode.OK
+
+    result = runner.invoke(app, ["cache", "verify"])
+    assert "holding" in result.stdout, result.stdout
+    assert "Nothing evicts these" in result.stdout, result.stdout
+    assert "safe" in result.stdout, result.stdout
+
+
+def test_an_empty_cache_dir_claims_no_disk(cache_dir: Path) -> None:
+    """The floor: a sentence about disk use must not appear when nothing is on disk."""
+    result = runner.invoke(app, ["cache", "verify"])
+    assert result.exit_code == ExitCode.OK, result.output
+    assert "holding" not in result.stdout, result.stdout
+
+
+def test_the_sizes_are_the_stores_that_exist(warm: Path) -> None:
+    """A store reported with bytes must be a directory the sweep would also check."""
+    _, payload = _verify()
+    for store in payload["held_bytes"]:  # type: ignore[union-attr]
+        assert (warm / store).is_dir(), store

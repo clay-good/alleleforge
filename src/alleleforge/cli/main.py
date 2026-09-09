@@ -2780,6 +2780,38 @@ app.add_typer(cache_app)
 _CACHE_FAILURES = frozenset({"CORRUPT", "UNREADABLE", "MISMATCH"})
 
 
+def _held_bytes(root: Path) -> dict[str, int]:
+    """Return the bytes each on-disk store under ``root`` holds, largest first.
+
+    **Nothing evicts these.** Both cross-run caches are content-addressed and append-only
+    by design — a changed input is a new key, which is what makes a stale hit impossible
+    and also means the old entry stays forever. An FM-index over a whole genome runs to
+    several gigabytes per contig-strand, and editing the reference mints a new one beside
+    the old rather than replacing it. That is the right correctness trade and the wrong
+    thing to leave invisible, so the sweep that already walks these files reports what
+    they weigh.
+    """
+    sizes: dict[str, int] = {}
+    for store in ("caches", "fm_index", "data", "models"):
+        directory = root / store
+        if not directory.is_dir():
+            continue
+        total = sum(path.stat().st_size for path in directory.rglob("*") if path.is_file())
+        if total:
+            sizes[store] = total
+    return dict(sorted(sizes.items(), key=lambda item: -item[1]))
+
+
+def _si_bytes(count: int) -> str:
+    """Render a byte count the way a person reads a disk."""
+    size = float(count)
+    for unit in ("B", "KiB", "MiB", "GiB"):
+        if size < 1024 or unit == "GiB":
+            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} GiB"  # pragma: no cover - the loop returns first
+
+
 def _hashed(kind: str, artifact: str, path: Path, expected: str) -> dict[str, str]:
     """Re-hash one pinned artifact at ``path`` against ``expected``.
 
@@ -2909,6 +2941,7 @@ def cache_verify(
     # Keeping them out of the pass set is the same distinction `verify` draws — a run
     # that established nothing about an artifact must not close with the sentence a run
     # that established something closes with.
+    held = _held_bytes(cache_root)
     failed = [c for c in checks if c["status"] in _CACHE_FAILURES]
     unchecked = [c for c in checks if c["status"] in ("unpinned", "not-cached", "unverifiable")]
     examined = [c for c in checks if c not in unchecked]
@@ -2937,7 +2970,19 @@ def cache_verify(
         )
     for c in failed:
         human.append(f"  {c['artifact']}: {c['origin']}")
-    _emit({"cache_dir": str(cache_root), "checks": checks}, as_json=as_json, human="\n".join(human))
+    if held:
+        listed = ", ".join(f"{store} {_si_bytes(size)}" for store, size in held.items())
+        human.append(
+            f"  holding {_si_bytes(sum(held.values()))} on disk ({listed}). Nothing "
+            "evicts these: every store here is content-addressed, so a changed input is "
+            "a new key and the old entry stays. Deleting any of them is safe — the next "
+            "run recomputes or re-fetches what it needs."
+        )
+    _emit(
+        {"cache_dir": str(cache_root), "checks": checks, "held_bytes": held},
+        as_json=as_json,
+        human="\n".join(human),
+    )
     if failed:
         raise typer.Exit(ExitCode.UNAVAILABLE)
 

@@ -1032,8 +1032,10 @@ one run is reused by the next.
 | **Embeddings** | sequence hash, scoped per backbone identity | `CachedEmbedder.persistent(embedder)` | content-addressed; two backbones never collide |
 | **Off-target** | spacer · PAM · budget · thresholds · reference (build + contig lengths) · regions | `search(..., cache=OffTargetCache())` | **only** the default-scorer, reference-only case is cached — gnomAD/haplotype/patient or a custom scorer bypasses it, so a danger scan is never served stale |
 
-A wrong off-target report is a missed danger, so the off-target cache refuses to key anything it
-cannot fully capture: a changed budget/PAM/threshold/reference is a new key, and any
+**Nothing evicts these.** Content-addressing is what makes a stale hit impossible and also means an
+old entry is never replaced, only joined by a new one — `aforge cache verify` reports what each store
+weighs, and deleting any of them is safe. A wrong off-target report is a missed danger, so the
+off-target cache refuses to key anything it cannot fully capture: a changed budget/PAM/threshold/reference is a new key, and any
 population/haplotype/patient augmentation skips the cache entirely.
 
 ---

@@ -15967,3 +15967,35 @@ counted are the same size.** The original cap was right about the risk and wrong
 unit, and stayed right-looking for as long as the records were envelopes. Every round that
 puts something bigger into an existing store should re-read the sentence that says the
 store is bounded — and check which noun it bounds.
+
+## Round 466 — the other store, and which noun it bounds
+
+Round 465 bounded the in-memory job store in bytes after finding that its cap counted
+records. The same question, asked of the stores on disk, has a blunter answer: **they have
+no cap at all.**
+
+`ContentAddressedCache` has `put`, `get`, `__len__` and no eviction. Neither does the
+FM-index cache. That is not an oversight — it is the direct consequence of the property
+both are built on. Content-addressing is what makes a stale hit impossible: a changed
+input is a new key. It is therefore also what guarantees the old entry is never replaced,
+only joined. Round 441 wrote the correctness half down approvingly — "a genome edited in
+place is correctly a different key rather than silently the same one" — without the other
+half, which is that the superseded index stays on disk forever.
+
+And these are not small. The index module's own docstring: hg38 "is ~3.1 Gb of sequence,
+so a single-strand FM-index built this way is on the order of several gigabytes on disk".
+Per contig, per strand. A user who re-downloads their reference has just doubled that, and
+nothing anywhere says so.
+
+No eviction policy is being invented here — choosing what to delete from a cache whose
+whole promise is that a hit is exact needs a rule this project does not have, and a
+"clear" command is a destructive action nobody asked for. What was missing is visibility.
+The sweep already walks every one of these files, so it now reports what each store
+weighs, that nothing evicts them, and that deleting any of them is safe because the next
+run recomputes or re-fetches. The README and the CLI reference say the same.
+
+**Lesson: an append-only store is a design decision that costs disk, and the cost belongs
+next to the promise.** The safety argument for content-addressing has been written down
+three times in this repository, carefully, by people who were right. Not once did it
+mention that the mechanism guaranteeing freshness is the same one guaranteeing unbounded
+growth. A property worth a paragraph of defence is worth a sentence about its bill.
