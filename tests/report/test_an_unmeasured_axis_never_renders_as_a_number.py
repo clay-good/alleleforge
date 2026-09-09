@@ -1,4 +1,4 @@
-"""No off-target-derived field may show a value when nothing was searched.
+"""No field may show a value for something that was never computed.
 
 `0.0` in a worst-case column and `1.0` in a specificity column are the *reassuring*
 values. A candidate that was never off-target-searched must not produce either, on any
@@ -17,6 +17,15 @@ contains the substring, so both sat outside every check in this file. Turning an
 `worst_ancestry_score` into `0.0` — the most reassuring value a worst-case column can hold,
 in the two tables a pipeline filters on — left the whole suite green: 3,291 passed.
 
+The same question, asked of the *prediction* columns rather than the search ones, gave the
+same answer. Twelve of them are renamed or derived on the way into the table —
+`efficiency_low`, `in_distribution`, `calibrated`, and the bystander and p_intended
+variants — and `_row`'s own comment says what depends on it: the columns are blank for an
+absent prediction, "which is the difference between 'no interval was computed' and 'the
+interval is zero-width'". Making an absent prediction render `in_distribution: True`,
+`calibrated: True`, `efficiency_low: 0.0` or `efficiency_high: 1.0` — the reassuring value
+in each case — left 3,294 tests passing, one mutation at a time and two together.
+
 The safety *score* is the deliberate exception, documented in `ranking._safety`: an
 unsearched candidate scores 1.0 because penalising an unmeasured axis is a policy this
 project has no basis for. What makes that honest is the `offtarget-not-searched` flag
@@ -28,7 +37,7 @@ from __future__ import annotations
 from alleleforge.report.builder import CandidateReport, build_report
 from alleleforge.report.export import report_to_json, report_to_tsv
 from alleleforge.types.candidate import DesignCandidate, RankedMenu
-from alleleforge.types.edit import Chemistry
+from alleleforge.types.edit import AlleleOutcome, Chemistry, EditOutcome
 from alleleforge.types.guide import PAM, Guide, Spacer
 from alleleforge.types.offtarget import (
     OffTargetReport,
@@ -36,6 +45,7 @@ from alleleforge.types.offtarget import (
     ScoreMethod,
     SiteOrigin,
 )
+from alleleforge.types.prediction import Prediction, UncertaintyMethod
 from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
 
 #: Fields of the rendered candidate that describe the off-target search.
@@ -203,3 +213,149 @@ def test_the_row_says_the_axis_was_not_measured() -> None:
     """The safety score is 1.0 by policy; the flag beside it is what makes that honest."""
     rendered = build_report(_unsearched_menu()).candidates[0]
     assert "offtarget-not-searched" in rendered.flags
+
+
+# --- the same rule for a prediction that was never computed ----------------------
+
+
+def _unpredicted_menu() -> RankedMenu:
+    """A candidate carrying no efficiency, outcome or bystander prediction.
+
+    Not hypothetical: `_row` is written for it — every prediction column is `None if
+    <prediction> is None else ...` — and its comment says the blank is "the difference
+    between 'no interval was computed' and 'the interval is zero-width'".
+    """
+    guide = Guide(
+        spacer=Spacer(sequence=DNASequence("ACGTAACGTTACGTAACGTT")),
+        pam=PAM(pattern="NGG"),
+        pam_sequence=DNASequence("TGG"),
+        placement=GenomicInterval(chrom="chr1", start=10, end=30, strand=Strand.PLUS),
+        cut_site=27,
+    )
+    candidate = DesignCandidate(
+        chemistry=Chemistry.CAS9_NUCLEASE,
+        guide=guide,
+        efficiency=None,
+        p_intended=None,
+        bystander_burden=None,
+        offtarget=None,
+        flags=("offtarget-not-searched",),
+        rationale="nothing was predicted",
+    )
+    return RankedMenu(candidates=(candidate,), rationale="fixture")
+
+
+def _predicted_menu() -> RankedMenu:
+    """The same candidate with all three predictions present."""
+    guide = Guide(
+        spacer=Spacer(sequence=DNASequence("ACGTAACGTTACGTAACGTT")),
+        pam=PAM(pattern="NGG"),
+        pam_sequence=DNASequence("TGG"),
+        placement=GenomicInterval(chrom="chr1", start=10, end=30, strand=Strand.PLUS),
+        cut_site=27,
+    )
+    prediction = Prediction[float](
+        value=0.5,
+        interval=(0.35, 0.65),
+        interval_level=0.80,
+        method=UncertaintyMethod.HEURISTIC,
+        in_distribution=True,
+        calibrated=False,
+    )
+    candidate = DesignCandidate(
+        chemistry=Chemistry.CAS9_NUCLEASE,
+        guide=guide,
+        efficiency=prediction,
+        # `p_intended` reaches the report only through `outcome` — the builder reads
+        # `candidate.outcome.p_intended` — so a fixture with the prediction and no
+        # outcome leaves all five p_intended columns blank and silently drops them
+        # from the population below.
+        outcome=EditOutcome(
+            alleles=(
+                AlleleOutcome(allele="intended", probability=0.6, is_intended=True),
+                AlleleOutcome(allele="indel", probability=0.4, is_intended=False),
+            )
+        ),
+        p_intended=prediction,
+        bystander_burden=prediction,
+        offtarget=None,
+        flags=("offtarget-not-searched",),
+        rationale="everything was predicted",
+    )
+    return RankedMenu(candidates=(candidate,), rationale="fixture")
+
+
+def test_the_two_prediction_fixtures_differ() -> None:
+    """Or the completeness check below has nothing to derive a population from."""
+    assert _tsv_row(_predicted_menu()) != _tsv_row(_unpredicted_menu())
+
+
+#: Flat-export columns whose value comes from a prediction. Written out for the same
+#: reason `_SEARCH_DERIVED_COLUMNS` is: deriving the population as "filled when predicted
+#: and empty when not" is circular — a writer that starts filling a column *without* a
+#: prediction drops that column out of its own population, and the check it should have
+#: failed never runs on it.
+_PREDICTION_DERIVED_COLUMNS: tuple[str, ...] = (
+    "efficiency",
+    "efficiency_low",
+    "efficiency_high",
+    "in_distribution",
+    "calibrated",
+    "bystander_burden",
+    "bystander_burden_low",
+    "bystander_burden_high",
+    "bystander_burden_in_distribution",
+    "bystander_burden_calibrated",
+    "p_intended",
+    "p_intended_low",
+    "p_intended_high",
+    "p_intended_in_distribution",
+    "p_intended_calibrated",
+)
+
+
+def test_every_listed_prediction_column_is_one_a_prediction_fills() -> None:
+    """A column listed here that no prediction populates is a line nobody is checking."""
+    predicted = _tsv_row(_predicted_menu())
+    unfilled = sorted(c for c in _PREDICTION_DERIVED_COLUMNS if predicted.get(c, "") == "")
+    assert not unfilled, f"listed as prediction-derived but empty when predicted: {unfilled}"
+
+
+def test_the_prediction_list_covers_every_column_a_prediction_changes() -> None:
+    """Completeness, derived — the half that finds a column nobody thought of."""
+    predicted = _tsv_row(_predicted_menu())
+    unpredicted = _tsv_row(_unpredicted_menu())
+    differing = {
+        column
+        for column, value in predicted.items()
+        if value != "" and unpredicted.get(column, "") == ""
+    }
+    missing = sorted(differing - set(_PREDICTION_DERIVED_COLUMNS) - set(_SEARCH_DERIVED_COLUMNS))
+    assert not missing, f"filled by a prediction and not listed as prediction-derived: {missing}"
+
+
+def test_no_column_a_prediction_fills_carries_a_value_without_one() -> None:
+    """`in_distribution: True` for something never predicted is the reassuring value."""
+    unpredicted = _tsv_row(_unpredicted_menu())
+    for column in _PREDICTION_DERIVED_COLUMNS:
+        assert unpredicted.get(column, "") == "", (
+            f"{column} rendered {unpredicted[column]!r} for a candidate with no "
+            "prediction — indistinguishable from a computed one"
+        )
+
+
+def test_the_prediction_columns_include_the_flags_a_reader_trusts() -> None:
+    """Named explicitly: these four are booleans, so an invented value is a *claim*
+    about the evidence rather than an obviously-odd number."""
+    predicted = _tsv_row(_predicted_menu())
+    unpredicted = _tsv_row(_unpredicted_menu())
+    for column in (
+        "in_distribution",
+        "calibrated",
+        "p_intended_in_distribution",
+        "bystander_burden_calibrated",
+    ):
+        assert predicted[column] != "", f"{column} is empty even with a prediction"
+        assert unpredicted[column] == "", (
+            f"{column} says {unpredicted[column]!r} about a prediction that does not exist"
+        )
