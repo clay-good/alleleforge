@@ -55,6 +55,54 @@ def hash_parts(*parts: Any) -> str:
     return hashlib.sha256(blob.encode()).hexdigest()
 
 
+def stored_entries(root: str | Path) -> list[tuple[str, Path]]:
+    """Return every content-addressed entry under ``root``, as ``(namespace, path)``.
+
+    Namespace-agnostic on purpose. The caches live at ``<root>/caches/<namespace>/<shard>``
+    and the namespace is chosen by whoever constructed the store — ``offtarget/v2``,
+    ``embeddings/v2/stub-0``, whatever the next one is. A sweep that names the namespaces
+    it knows about checks the caches someone remembered, which is how the integrity sweep
+    shipped covering the off-target reports and not the embeddings beside them.
+
+    Args:
+        root: The cache dir (the parent of ``caches/``).
+
+    Returns:
+        One ``(namespace, payload path)`` pair per stored entry, sorted, with temp files
+        and checksum sidecars excluded.
+    """
+    base = Path(root) / "caches"
+    if not base.is_dir():
+        return []
+    entries: list[tuple[str, Path]] = []
+    for path in base.rglob("*"):
+        if not path.is_file() or path.name.endswith((".tmp", _SUM_SUFFIX)):
+            continue
+        # The shard directory is `digest[:2]`, so the namespace is everything above it.
+        namespace = path.parent.parent.relative_to(base).as_posix()
+        entries.append((namespace, path))
+    return sorted(entries)
+
+
+def entry_status(path: Path) -> tuple[str, str]:
+    """Return ``(status, detail)`` for one stored entry, checked against its sidecar.
+
+    A namespace opened with ``verify=False`` writes no sidecar, so a *missing* one here is
+    "unverifiable", not corruption — the distinction matters because the read path of a
+    verifying namespace treats the same absence as a failure, and a sweep cannot tell
+    which namespace an on-disk directory belonged to. An entry whose sidecar disagrees
+    with its bytes is corrupt either way.
+    """
+    sidecar = path.with_name(path.name + _SUM_SUFFIX)
+    if not sidecar.exists():
+        return ("unverifiable", "no checksum sidecar: this namespace does not verify")
+    expected = sidecar.read_text().strip()
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    if actual == expected:
+        return ("ok", "")
+    return ("CORRUPT", f"expected {expected[:12]}…, got {actual[:12]}…")
+
+
 class ContentAddressedCache:
     """A sharded, atomically-written disk key/value store under the cache dir.
 
@@ -165,22 +213,6 @@ class ContentAddressedCache:
     def put_json(self, digest: str, obj: Any) -> None:
         """Write ``obj`` as JSON for ``digest``."""
         self.put_text(digest, json.dumps(obj, separators=(",", ":")))
-
-    def digests(self) -> list[str]:
-        """Return every stored digest in this namespace, sorted.
-
-        The store had no way to enumerate itself, so nothing could *proactively* check
-        what it holds: an entry's checksum was re-checked only when a run happened to
-        read it, which means a corrupted cache announces itself in the middle of the
-        design that needed it rather than when someone asks.
-        """
-        if not self.root.exists():
-            return []
-        return sorted(
-            path.name
-            for path in self.root.rglob("*")
-            if path.is_file() and not path.name.endswith((".tmp", _SUM_SUFFIX))
-        )
 
     def __len__(self) -> int:
         """Return the number of cached entries (scans the namespace)."""

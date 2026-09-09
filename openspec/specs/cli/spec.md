@@ -201,9 +201,14 @@ dataset cache and the checkpoint cache hold pinned *artifacts* it was given, alo
 datasets that ship inside the installed package. The CLI SHALL expose `aforge cache
 verify`, which checks every entry in all four and exits non-zero naming any that fails.
 
-A pinned artifact that is not on this disk, and an artifact carrying no pin, SHALL be
-reported as not checked and counted apart from the passes. Neither is a failure — almost
-none of the registry ships or is downloaded by default — and neither is a pass.
+The content-addressed namespaces SHALL be read off disk rather than named in the command:
+a sweep with a hand-written population checks the caches someone remembered, and the first
+version named the off-target reports and walked past the embeddings cache beside them.
+
+A pinned artifact that is not on this disk, an artifact carrying no pin, and an entry in a
+namespace that stores no checksum SHALL be reported as not checked and counted apart from
+the passes. None is a failure — almost none of the registry ships or is downloaded by
+default, and a store opened without verification writes no sidecar — and none is a pass.
 
 Each store already knew how to detect a corrupted entry and neither could be *asked*: the
 report cache re-checks its checksum only when a design happens to read that entry, and

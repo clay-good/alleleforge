@@ -165,10 +165,6 @@ class OffTargetCache:
         """Cache ``report`` under ``signature``."""
         self._store.put_text(signature, report.model_dump_json())
 
-    def digests(self) -> list[str]:
-        """Return every stored entry's digest, sorted — for a proactive integrity sweep."""
-        return self._store.digests()
-
     def __len__(self) -> int:
         """Return the number of cached reports."""
         return len(self._store)

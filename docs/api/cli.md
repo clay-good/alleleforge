@@ -25,7 +25,7 @@ pip install "alleleforge[cli]"
 | `aforge verify` | Re-check a result's (or a sidecar's) provenance: completeness always, artifact re-hashing with `--cache-dir`. |
 | `aforge data list` | List every registered dataset with its version and license. |
 | `aforge data show` | Show one dataset's full provenance descriptor. |
-| `aforge cache verify` | Check the four on-disk stores a run trusts — the off-target report cache, the FM-index cache, and the pinned dataset and checkpoint caches. `--deep` adds the index reconstruction, the only check that catches an index altered without changing its length. Artifacts that are unpinned or not on this disk are reported as not checked, counted apart from the passes. |
+| `aforge cache verify` | Check the four on-disk stores a run trusts — the off-target report cache, the FM-index cache, and the pinned dataset and checkpoint caches. `--deep` adds the index reconstruction, the only check that catches an index altered without changing its length. The content-addressed namespaces are read off disk rather than named, so a store the command has never heard of is still swept. Artifacts that are unpinned, absent from this disk, or in a namespace that stores no checksum are reported as not checked, counted apart from the passes. |
 | `aforge bench list` | List the [CRISPR-Bench](benchmark.md) tasks, their datasets, and primary metrics. |
 | `aforge bench run` | Score the reference baseline on a task's frozen test split. |
 | `aforge bench gap` | Measure the drop from an in-context fold to a held-out one — whether the score transfers. |

@@ -2840,31 +2840,23 @@ def cache_verify(
     what to do with a corrupt entry is the operator's call, and both stores are
     content-addressed, so deleting the named directory or file is always safe.
     """
-    from alleleforge.cache import CacheIntegrityError
+    from alleleforge.cache import entry_status, stored_entries
     from alleleforge.config import get_settings
     from alleleforge.data.registry import DEFAULT_REGISTRY
     from alleleforge.genome.index import FMIndex, FMIndexIntegrityError
     from alleleforge.model_zoo.registry import default_registry
-    from alleleforge.offtarget.cache import OffTargetCache
 
     state: GlobalState = ctx.obj
     cache_root = state.cache_dir if state.cache_dir is not None else get_settings().cache_dir
     checks: list[dict[str, str]] = []
 
-    reports = OffTargetCache(root=cache_root)
-    for digest in reports.digests():
-        try:
-            reports.get(digest)
-        except CacheIntegrityError as exc:
-            checks.append(_check("offtarget-report", digest, "CORRUPT", reason(exc)))
-        except Exception as exc:  # noqa: BLE001 - an unreadable entry is a failed entry
-            checks.append(
-                _check(
-                    "offtarget-report", digest, "UNREADABLE", f"{type(exc).__name__}: {reason(exc)}"
-                )
-            )
-        else:
-            checks.append(_check("offtarget-report", digest, "ok"))
+    # Every content-addressed namespace on disk, not the ones this command remembers.
+    # The first version named `offtarget` and so walked straight past the embeddings
+    # cache sitting beside it — which is the store that had checksum sidecars first, and
+    # the reason the off-target one was found to be missing them.
+    for namespace, path in stored_entries(cache_root):
+        status, detail = entry_status(path)
+        checks.append(_check(namespace, path.name, status, detail))
 
     index_root = cache_root / "fm_index"
     for meta in sorted(index_root.glob("*/meta.json")) if index_root.is_dir() else []:
@@ -2918,7 +2910,7 @@ def cache_verify(
     # that established nothing about an artifact must not close with the sentence a run
     # that established something closes with.
     failed = [c for c in checks if c["status"] in _CACHE_FAILURES]
-    unchecked = [c for c in checks if c["status"] in ("unpinned", "not-cached")]
+    unchecked = [c for c in checks if c["status"] in ("unpinned", "not-cached", "unverifiable")]
     examined = [c for c in checks if c not in unchecked]
     width = max((len(c["artifact"]) for c in examined), default=0)
     human = [f"cache dir: {cache_root}"]
@@ -2929,9 +2921,11 @@ def cache_verify(
         # Listed by count, not one line each: two dozen unpinned model cards would bury
         # the rows that carry an answer.
         absent = sum(1 for c in unchecked if c["status"] == "not-cached")
+        unverifiable = sum(1 for c in unchecked if c["status"] == "unverifiable")
         human.append(
             f"  NOTE: {len(unchecked)} artifact(s) were not checked — {absent} pinned but "
-            f"not on this disk, {len(unchecked) - absent} carrying no pin at all. Almost "
+            f"not on this disk, {len(unchecked) - absent - unverifiable} carrying no pin "
+            f"at all, {unverifiable} in a cache namespace that stores no checksum. Almost "
             "none of the registry ships or is downloaded by default; `aforge data list` "
             "says which, and `--json` lists every row."
         )

@@ -27,6 +27,12 @@ same defect it was written to fix.
 it did not check rather than printing "ok". So does a pinned artifact that is not on this
 disk, and an unpinned one: "nothing was checked" is not a pass and is counted apart from
 one.
+
+The content-addressed namespaces are read off disk rather than named in the command. The
+first version named `offtarget` and walked straight past the **embeddings** cache sitting
+beside it — the store that had checksum sidecars first, and the one whose existence is the
+reason the off-target cache was found to be missing them. A sweep with a hand-written
+population checks the caches someone remembered.
 """
 
 from __future__ import annotations
@@ -98,7 +104,10 @@ def test_a_clean_cache_verifies(warm: Path) -> None:
     checks = payload["checks"]
     assert isinstance(checks, list) and checks, payload
     kinds = {check["kind"] for check in checks}
-    assert kinds == {"offtarget-report", "fm-index", "dataset", "checkpoint"}, kinds
+    # The content-addressed namespaces are read off disk, not named here, so the kind is
+    # whatever the store called itself.
+    assert {"fm-index", "dataset", "checkpoint"} <= kinds, kinds
+    assert any(kind.startswith("offtarget/") for kind in kinds), kinds
     assert not [c for c in checks if c["status"] in {"CORRUPT", "UNREADABLE", "MISMATCH"}], checks
     assert code == ExitCode.OK
 
@@ -116,7 +125,7 @@ def test_an_edited_report_entry_is_named(warm: Path) -> None:
 
     code, payload = _verify()
     corrupt = [c for c in payload["checks"] if c["status"] == "CORRUPT"]  # type: ignore[union-attr]
-    assert [c["kind"] for c in corrupt] == ["offtarget-report"], payload
+    assert [c["kind"] for c in corrupt] == ["offtarget/v2"], payload
     assert code == ExitCode.UNAVAILABLE
 
 
@@ -199,3 +208,49 @@ def test_an_unchecked_artifact_is_not_reported_as_a_pass(warm: Path) -> None:
 
     result = runner.invoke(app, ["cache", "verify"])
     assert "were not checked" in result.stdout, result.stdout
+
+
+def test_every_namespace_on_disk_is_swept(warm: Path, tmp_path: Path) -> None:
+    """A namespace this command has never heard of must still be checked."""
+    from alleleforge.cache import ContentAddressedCache
+
+    ContentAddressedCache("embeddings/v2/stub-0", root=warm, verify=True).put_text("a" * 64, "[]")
+    invented = ContentAddressedCache("something/nobody/named/yet", root=warm, verify=True)
+    invented.put_text("b" * 64, "{}")
+
+    _, payload = _verify()
+    kinds = {c["kind"] for c in payload["checks"]}  # type: ignore[union-attr]
+    assert "embeddings/v2/stub-0" in kinds, kinds
+    assert "something/nobody/named/yet" in kinds, kinds
+
+
+def test_a_corrupt_entry_in_any_namespace_fails_the_sweep(warm: Path) -> None:
+    """The point of sweeping them: the check does not depend on knowing the store."""
+    from alleleforge.cache import ContentAddressedCache
+
+    store = ContentAddressedCache("embeddings/v2/stub-0", root=warm, verify=True)
+    store.put_text("c" * 64, "[0.5]")
+    payload = warm / "caches" / "embeddings" / "v2" / "stub-0" / "cc" / ("c" * 64)
+    payload.write_text("[0.9]")
+
+    code, body = _verify()
+    corrupt = [c for c in body["checks"] if c["status"] == "CORRUPT"]  # type: ignore[union-attr]
+    assert [c["kind"] for c in corrupt] == ["embeddings/v2/stub-0"], body
+    assert code == ExitCode.UNAVAILABLE
+
+
+def test_a_namespace_that_stores_no_checksum_is_not_a_failure(warm: Path) -> None:
+    """A `verify=False` store writes no sidecar; its absence there is not corruption.
+
+    The sweep cannot tell which namespace an on-disk directory belonged to, so it must
+    not treat "no sidecar" as the read path of a verifying store does. It is counted as
+    unchecked, which is the honest third answer.
+    """
+    from alleleforge.cache import ContentAddressedCache
+
+    ContentAddressedCache("legacy/v1", root=warm).put_text("d" * 64, "{}")
+
+    code, payload = _verify()
+    rows = [c for c in payload["checks"] if c["kind"] == "legacy/v1"]  # type: ignore[union-attr]
+    assert [c["status"] for c in rows] == ["unverifiable"], rows
+    assert code == ExitCode.OK

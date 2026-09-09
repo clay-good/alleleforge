@@ -15126,3 +15126,39 @@ command exists, and the honest next question is not "what else is unreachable" b
 does the thing I just shipped not cover, while sounding like it does". A sweep's failure
 mode is not a wrong answer; it is a confident one over a population smaller than its name
 implies.
+
+## Round 444 — the sweep asked one store for its entries
+
+Round 443 widened `aforge cache verify` from two stores to four and closed with the
+lesson: point the round's query at the round's own output. Doing that once more found the
+version of the same defect that no amount of widening fixes.
+
+The sweep asked `OffTargetCache` for its digests. That is a hand-written population of
+one, and one directory over sits the **embeddings** cache — the store that had checksum
+sidecars first, and whose existence is the entire reason round 441 noticed the off-target
+cache was missing them. The sweep walked past it. Three rounds of work about
+content-addressed integrity, and the store that was already doing it right was the one not
+being checked.
+
+Adding `embeddings` to the list would have been the wrong fix, for the reason this file
+keeps recording: a guard whose population is hand-maintained checks what someone
+remembered. `stored_entries(root)` walks `<cache>/caches/**` and derives the namespace
+from the path, because the on-disk contract — namespace directory, two-hex shard, digest
+filename, optional `.sum` sidecar — is a property of `ContentAddressedCache` and not of
+any particular caller. A namespace nobody has invented yet is swept the day it appears.
+
+One asymmetry had to be handled honestly. A store opened with `verify=False` writes no
+sidecar, and the *read* path of a verifying store treats a missing sidecar as an integrity
+failure — deliberately, so `rm *.sum` cannot defeat the gate. A sweep cannot tell from
+disk which kind of store a directory belonged to, so it cannot apply either rule. It
+reports `unverifiable` and counts it with the other things it did not check, which is the
+third answer this command has now needed three times: not a pass, not a failure, "nothing
+was established here".
+
+`OffTargetCache.digests()` and `ContentAddressedCache.digests()`, added two rounds ago for
+the sweep, are gone with it — dead the moment the population stopped being a list.
+
+**Lesson: when a population must not be hand-maintained, derive it from the *contract*,
+not from the callers.** "Ask each store for its entries" still requires knowing every
+store. The on-disk layout is the thing all of them share, and it is what a person holding
+a suspect cache directory can see too.
