@@ -14730,3 +14730,45 @@ truncated report and, in its simplest form, did nothing.
 **And when a guard exists to prevent a real problem, the fix is rarely to delete it** — it
 is to replace silence with a sentence. The stream really cannot carry two documents; the
 user really did ask for one of them.
+
+## Round 436 — every command the product names, run
+
+R435 found a defect by following an instruction the report printed. Mechanising that: pull
+every `aforge …` out of the string literals in `src/` — the messages the tool actually
+prints — and run each one.
+
+Fourteen mentions, seven distinct commands. All of them work. So does the three-route
+refusal that is the sharpest of them, checked route by route:
+
+| the build-mismatch refusal offers | result |
+|---|---|
+| `aforge lift <locus> --chain <file> --from hg19 --to hg38` | runs, exactly as printed |
+| `Liftover.from_chain_file(...)` from Python | reachable from `alleleforge.genome`, lifts |
+| "Over HTTP there is no lift endpoint" | true — R418's guard records it |
+
+And the PDF, which nothing in this session had read: faithful to the HTML, same
+disclosures, same caveats. Its em-dashes looked like gaps in my extraction and are not —
+the file encodes them as `0x97` under a declared `/WinAnsiEncoding`, which is correct, with
+a comment in the writer explaining the choice. My extractor was wrong, not the PDF.
+
+So: no defect. What the round leaves behind is the check, because command references have
+**three** populations and only two were guarded. `--help` text is covered by
+`test_help_text_names_real_flags`; the documentation by
+`test_a_documented_command_survives_a_shell`. The third is the one a user meets at the
+worst moment — the remedy inside a refusal — and nothing looked at it. A rename of
+`--chain`, `--from` or `--to` would leave the one instruction a stuck user gets pointing at
+something that does not exist.
+
+It is honest about its reach. It catches the name being wrong; it would **not** have caught
+R435, where the command existed, ran, exited zero and produced the wrong document. Nothing
+static would. The cheap half is still worth having.
+
+**A note on the guard's first run.** It reported `aforge bench … --out` as a flag that does
+not exist — because it read one word after `aforge` and checked `--out` against the `bench`
+*group*. `bench run` is two words and does have it. A guard whose first output is a false
+positive is one that gets weakened rather than obeyed, so the reader now takes the longest
+matching command path.
+
+**Lesson: count the populations of a claim before writing the guard for one of them.**
+"Names a real command" is asserted in help, in docs, and in messages. Two had checks. The
+third is the one printed to someone who is already stuck.
