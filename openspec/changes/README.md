@@ -1,5 +1,9 @@
 # Change proposals — bulletproofing & enhancement
 
+> **Looking for a round?** [`ROUNDS.md`](ROUNDS.md) is one row per round — its title and
+> the lesson it was written to leave behind — generated from this file. This one is the
+> narrative and the evidence; that one is the way in.
+
 These proposals harden and enhance AlleleForge's existing features. Each was derived from
 a close reading of the current code (with `file:line` evidence in its `proposal.md`) and
 targets a real gap between what a capability *claims* and what it currently *guarantees*.
@@ -15758,3 +15762,34 @@ nobody searched.
 table has been correct for a long time, and the file built out of them still could not be
 read. The query is not "is this value honest" but "what does a reader conclude from the
 page", and the answer changes when the same honest value fills every row.
+
+## Round 460 — a megabyte with no way in
+
+This file is the project's primary knowledge artifact: four hundred and fifty-odd rounds,
+each with its evidence, its measurements, and what it ruled out. It is also a megabyte of
+prose in one document, and the only way to answer "has anyone looked at cache integrity?"
+or "what did we decide about degenerate metrics?" was a full-text search over a narrative
+that quotes its own historical mistakes verbatim — so the matches include the wrong
+answers on purpose.
+
+`ROUNDS.md` is one row per round: its title, and the first sentence of the **Lesson** it
+was written to leave behind, which is the line each round exists to produce. Seventy-five
+kilobytes against a thousand, and readable top to bottom.
+
+Three properties earn it its place:
+
+- **Generated, not written.** `scripts/round_index.py`, with a `--check` mode. A
+  hand-maintained index of a document that grows every round is a list that goes stale by
+  construction — the failure this month's guards were caught by four separate times.
+- **Quoted, not paraphrased.** A test asserts every rendered lesson appears verbatim in
+  the round it came from. An index that summarises is a second source of truth about what
+  a round decided, and the first thing to disagree with the log.
+- **Honest about its gaps.** Sixteen early rounds predate the habit of closing with a
+  lesson and render as an em dash, and a test fails if the share of rounds without one
+  ever rises above a tenth — at which point the column has stopped being a table of
+  contents and become a list of titles.
+
+**Lesson: an artifact that only its author can navigate is an artifact with one reader.**
+This log has been written for four hundred rounds on the explicit theory that the lessons
+are the product, and the lessons were unreachable without reading the stories around them.
+The index took one round; the value it unlocks was accumulated by all the others.
