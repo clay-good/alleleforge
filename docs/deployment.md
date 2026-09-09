@@ -129,6 +129,15 @@ matter for an operator:
 - **The async job queue is per-process.** `POST /api/jobs/design` schedules an
   in-process `asyncio` task; a job submitted to one process is only visible to
   that process. This is exactly right for the default single-process deployment.
+- **A finished job's result is held in memory until it is evicted**, so it can be
+  re-rendered in any format without designing again — which is what the served page
+  relies on to make one click of *Design edits* one run. The store is bounded twice:
+  by record count (1000) and by the bytes those results hold (256 MiB), evicting
+  oldest-finished-first and never an in-flight job. Both bounds matter because a
+  finished design keeps the ranked menu *and* its report — 1.25 MiB of JSON for a
+  200-candidate menu — so a count alone permits well over a gigabyte. Size them with
+  `create_app(jobs=JobManager(max_jobs=…, max_result_bytes=…))` for a deployment whose
+  menus are larger or whose memory is tighter.
 
 To scale out, run multiple `uvicorn --workers N` (or replicas): each is a separate
 process with **its own reference** (memory scales with N × genome size — size the

@@ -811,6 +811,7 @@ def create_app(
     trained_models: Iterable[str] | None = None,
     settings: Settings | None = None,
     api_token: str | None = None,
+    jobs: JobManager | None = None,
 ) -> FastAPI:
     """Build the AlleleForge FastAPI application.
 
@@ -825,6 +826,12 @@ def create_app(
             ``None``, one is opened when ``ALLELEFORGE_OFFTARGET_CACHE`` is set.
         genome_index: A persistent memory-mapped FM-index over the reference. If
             ``None``, one is built at startup when ``ALLELEFORGE_GENOME_INDEX`` is set.
+        jobs: The async job store. A finished job's result is held in memory so it can
+            be re-rendered in any format without designing again — which is what the
+            served page relies on to make one click of *Design edits* one run — so its
+            bounds are an operator's memory decision: pass
+            ``JobManager(max_jobs=..., max_result_bytes=...)`` to size them. Defaults to
+            a store bounded at 1000 records and 256 MiB of retained results.
         trained_models: Which trained-model opt-ins this deployment permits, named by
             the request field that asks for one (``"trained_efficiency"``, ...). If
             ``None``, read from ``ALLELEFORGE_TRAINED_MODELS``. Each is a consent-gated
@@ -907,7 +914,7 @@ def create_app(
     # — the provenance-reproducibility spec requires the config file to apply to web runs,
     # not only the seed. A bare Settings() would read env vars but silently skip the file.
     app.state.settings = settings or Settings.load()
-    app.state.jobs = JobManager()
+    app.state.jobs = jobs if jobs is not None else JobManager()
 
     @app.exception_handler(RequestValidationError)
     async def _validation_error(request: Request, exc: RequestValidationError) -> Response:

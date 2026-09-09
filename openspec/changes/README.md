@@ -15932,3 +15932,38 @@ that outlives its gap is a false record, and both said so the moment the gap clo
 them.** "A single design finishes in seconds" was written about the initial render and
 quietly did duty for four buttons that did not exist yet. The question that finds this
 class is not "is this fast enough?" but *"how many times does one user action run this?"*
+
+## Round 465 — a thousand of what?
+
+Last round moved every design the served page runs into the job store. This round asked
+what that store now holds, and measured it before saying anything:
+
+    menu JSON  :  523.5 KiB
+    report JSON:  756.1 KiB
+    retained per finished design job: 1.25 MiB   (200 candidates, a 30 kb contig)
+
+`JobManager` evicts oldest-terminal-first past **1000 records**, on the stated reasoning
+that "a long-lived server would otherwise grow `_jobs` without bound". That sentence was
+written when a record held a polling envelope. It is a bound on the *number* of things
+kept and says nothing about what one weighs — and at 1.25 MiB apiece, a thousand of them
+is over a gigabyte, on the default deployment, reachable by a single user clicking Design
+edits.
+
+Both bounds apply now: 1000 records **and** 256 MiB of retained results, whichever is hit
+first, evicting oldest-finished-first and never an in-flight job. The size is measured once
+when the work completes, by introspection — anything exposing `model_dump_json`, and any
+dataclass by summing its fields, which is exactly the shape of both finished-result types.
+The manager schedules opaque callables and must not learn what a design is; the cost is one
+extra serialization pass per job, in the worker thread, after the work is done.
+
+The round also caught itself. Writing the deployment note, I documented
+`create_app(jobs=JobManager(...))` — a parameter that did not exist. That is the same
+defect this session has found in three other people's prose, produced by me, in the edit
+that was documenting the fix. The parameter exists now, with a test, because an operator
+whose menus are larger or whose memory is tighter has no other way to say so.
+
+**Lesson: a cap is a claim about a resource, and a count only bounds memory if the things
+counted are the same size.** The original cap was right about the risk and wrong about the
+unit, and stayed right-looking for as long as the records were envelopes. Every round that
+puts something bigger into an existing store should re-read the sentence that says the
+store is bounded — and check which noun it bounds.

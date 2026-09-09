@@ -21,6 +21,7 @@ functions that run entirely on local data.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -33,6 +34,18 @@ from alleleforge.web.api.models import JobState
 #: ``_jobs`` without bound; only *terminal* (done/error) records are evicted, so an
 #: in-flight job is never dropped.
 DEFAULT_MAX_JOBS = 1000
+
+#: Default cap on the bytes those retained records hold.
+#:
+#: A count is not a bound on memory. A finished design job keeps the ranked menu *and*
+#: the report built from it — measured at **1.25 MiB** of JSON for a 200-candidate menu
+#: on a small contig — so a thousand of them is over a gigabyte, and the served page now
+#: submits every single-variant design through this store. The count cap was written when
+#: a record held a polling envelope; it says nothing about what one weighs.
+#:
+#: 256 MiB is roughly two hundred results of that size. Both bounds apply: whichever is
+#: reached first evicts oldest-terminal-first, and neither ever drops an in-flight job.
+DEFAULT_MAX_RESULT_BYTES = 256 * 1024 * 1024
 
 #: Default cap on concurrently in-flight (pending/running) jobs. Each job spawns a
 #: worker thread, so an uncapped submission path is a thread-pool amplifier; past
@@ -53,6 +66,9 @@ class JobRecord:
     progress: float = 0.0
     result: Any = None
     error: str | None = None
+    #: Bytes this record's result holds, measured once when it finishes. Zero until then,
+    #: and zero for a result that carries no serializable payload.
+    result_bytes: int = 0
 
 
 class JobManager:
@@ -64,6 +80,7 @@ class JobManager:
         max_jobs: int = DEFAULT_MAX_JOBS,
         max_in_flight: int = DEFAULT_MAX_IN_FLIGHT,
         max_job_seconds: float | None = None,
+        max_result_bytes: int = DEFAULT_MAX_RESULT_BYTES,
     ) -> None:
         """Initialise an empty, size- and concurrency-bounded job store.
 
@@ -73,6 +90,9 @@ class JobManager:
                 never evicted.
             max_in_flight: Maximum concurrently in-flight (pending/running) jobs;
                 :meth:`submit` raises :class:`JobCapacityError` past this cap.
+            max_result_bytes: Maximum bytes the retained results may hold together.
+                Evicted oldest-terminal-first like ``max_jobs``, and applied alongside
+                it: whichever bound is reached first evicts.
             max_job_seconds: Optional per-job wall-clock limit. A job that exceeds
                 it is marked ``ERROR`` (a soft timeout: the worker thread cannot be
                 cancelled, so it runs to completion in the background, but its
@@ -86,30 +106,67 @@ class JobManager:
             raise ValueError(f"max_jobs must be positive; got {max_jobs}")
         if max_in_flight < 1:
             raise ValueError(f"max_in_flight must be positive; got {max_in_flight}")
+        if max_result_bytes < 1:
+            raise ValueError(f"max_result_bytes must be positive; got {max_result_bytes}")
         if max_job_seconds is not None and max_job_seconds <= 0:
             raise ValueError(f"max_job_seconds must be positive; got {max_job_seconds}")
         self._jobs: dict[str, JobRecord] = {}
         self._tasks: set[asyncio.Task[None]] = set()
         self._max_jobs = max_jobs
+        self._max_result_bytes = max_result_bytes
         self._max_in_flight = max_in_flight
         self._max_job_seconds = max_job_seconds
         self._in_flight = 0
+
+    @staticmethod
+    def _measure(result: Any) -> int:
+        """Return the bytes ``result`` holds, as the length of its JSON.
+
+        Introspective on purpose: the manager schedules opaque callables and must not
+        learn what a design or a cohort is. Anything exposing `model_dump_json` is
+        measured; a dataclass is measured by summing over its fields, which is what a
+        finished design (menu + report) and a finished cohort (report + response) are.
+        Serialization is not free — it is one extra pass, once, in the worker thread
+        after the work is done, and it is the only honest way to bound a store whose
+        contents this module cannot see.
+        """
+        dump = getattr(result, "model_dump_json", None)
+        if callable(dump):
+            return len(dump())
+        if dataclasses.is_dataclass(result) and not isinstance(result, type):
+            return sum(
+                JobManager._measure(getattr(result, field.name))
+                for field in dataclasses.fields(result)
+            )
+        return 0
+
+    def retained_bytes(self) -> int:
+        """Return the bytes the retained results hold."""
+        return sum(record.result_bytes for record in self._jobs.values())
 
     def get(self, job_id: str) -> JobRecord | None:
         """Return the record for ``job_id``, or ``None`` if unknown."""
         return self._jobs.get(job_id)
 
+    def _over_budget(self) -> bool:
+        """Return whether either bound is exceeded."""
+        return len(self._jobs) > self._max_jobs or self.retained_bytes() > self._max_result_bytes
+
     def _evict(self) -> None:
-        """Evict oldest terminal records until the store is within its cap.
+        """Evict oldest terminal records until the store is within both caps.
 
         Only ``DONE``/``ERROR`` records are removed, oldest-submitted first (dict
         insertion order), so an unbounded backlog of finished jobs cannot leak
         memory while a running or pending job is always retained.
+
+        Two caps, because a count is not a bound on memory: a finished design keeps the
+        ranked menu and the report built from it, over a megabyte for an ordinary menu,
+        and the count cap was written when a record held a polling envelope.
         """
-        if len(self._jobs) <= self._max_jobs:
+        if not self._over_budget():
             return
         for jid, record in list(self._jobs.items()):
-            if len(self._jobs) <= self._max_jobs:
+            if not self._over_budget():
                 break
             if record.state in (JobState.DONE, JobState.ERROR):
                 del self._jobs[jid]
@@ -144,6 +201,7 @@ class JobManager:
                     )
                 else:
                     record.result = await asyncio.to_thread(work)
+                record.result_bytes = self._measure(record.result)
                 record.progress = 1.0
                 record.state = JobState.DONE
             except TimeoutError:
