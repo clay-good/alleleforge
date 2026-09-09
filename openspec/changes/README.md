@@ -14153,3 +14153,46 @@ same thing, to a more exposed reader.
 **And the strongest evidence that something has never run is usually already in the
 repository.** No workflow installs it; the dev venv does not have it. Neither fact needed a
 network or a container — both were one grep away, and either alone would have found this.
+
+## Round 425 — running my own query against my own guard
+
+R424 ended by writing down a query: *for each optional extra, grep the workflows and the
+dev venv — an extra nothing installs is an extra nothing tests.* Running it:
+
+| extra | installed by a CI job |
+|---|---|
+| cli, core, dev, docs, genome, genome-light, ml, web | yes |
+| `variant` | no — fixed in R424 |
+| `cas9-rs3` | **no** |
+
+`cas9-rs3` is the stack behind the project's one fully-wired real model, the trained Rule
+Set 3 the readiness assessment calls "R0 closed for that model". Nothing installs it, so
+nothing would notice if it stopped resolving — the exact condition that let the last two
+uninstallable extras sit. Checked by hand: `pip install --dry-run` gives 22 wheels and no
+source build. **It is fine.** And it is CI-free for a stated reason — CI is weight-free by
+design and the tests that need it carry the `real_weights` marker — so the entry is now
+recorded with that reason rather than being an accident that happens to be harmless.
+
+Then the more useful half. R424's guard docstring says it reads *"every fenced `pip
+install`"*; its implementation read every line starting with those words. The README's own
+paragraph explaining the R424 fix cites the broken command:
+
+> The from-source line used to be spelled out here as `pip install -e
+> ".[core,genome,variant,cli,ml,dev]"`, which **could not succeed**
+
+Today that line begins with a backtick, so the guard misses it by where the paragraph
+happens to wrap. One reflow and a guard would fail on the paragraph explaining why the
+guard exists — and the "fix" would be to delete the explanation. A citation of a broken
+command is the opposite of an instruction to run it; a reader runs what is in the code
+block, and that is now the population.
+
+Verified in three directions: a bad extra inside a fence fails, the same text in prose
+does not, and an extra CI does not install without a recorded reason fails.
+
+**Lesson: run the query you just wrote down, against the round you just shipped.** Both
+findings here are mine from one round earlier — a guard whose docstring and code disagreed,
+and a set I had only half-audited.
+
+**And a guard that can fail on the prose describing it is worse than no guard**, because
+the cheapest way to make it pass is to delete the explanation. When a check reads
+documentation, scope it to the part a reader executes.
