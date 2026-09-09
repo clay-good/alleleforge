@@ -135,18 +135,30 @@ def conformal_coverage_figure() -> str:
 def task_ece_figure() -> str:
     """Render the per-task calibration-error (ECE) figure across CRISPR-Bench."""
     rows = task_calibration_table()
-    categories = tuple(str(r["task"]) for r in rows)
-    values = tuple(round(float(r["ece"]), 4) for r in rows)
+    # ECE is `None` when there were too few scorable predictions to estimate
+    # reliability, and its own table has carried that for as long as it has existed.
+    # This figure called `float()` on it, so the one chart in the set whose subject is
+    # honest calibration would have crashed on an honestly-absent calibration — and had
+    # it not crashed, a bar at zero on this chart reads as *perfectly calibrated*.
+    measured = [r for r in rows if r["ece"] is not None]
+    absent = sorted(str(r["task"]) for r in rows if r["ece"] is None)
+    categories = tuple(str(r["task"]) for r in measured)
+    values = tuple(round(float(r["ece"]), 4) for r in measured)
+    missing_note = (
+        ""
+        if not absent
+        else f" No ECE for {', '.join(absent)}: too few scorable predictions to estimate it."
+    )
     return bar_chart(
         title="Per-task calibration error (ECE) — CRISPR-Bench baseline",
         subtitle=(
             "Expected calibration error per task on the frozen weight-free splits. "
-            "Dashed: the flag threshold." + _benchmark_data_note(rows)
+            f"Dashed: the flag threshold.{missing_note}" + _benchmark_data_note(rows)
         ),
         categories=categories,
         series=(Series("ECE", values, PALETTE[3]),),
         y_label="Expected calibration error",
-        y_max=max(0.4, *values),
+        y_max=max(0.4, *values, 0.0),
         reference_lines=(ReferenceLine(ECE_THRESHOLD, f"flag ≥ {ECE_THRESHOLD:g}"),),
     )
 

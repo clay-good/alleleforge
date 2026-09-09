@@ -48,6 +48,17 @@ __all__ = [
 ]
 
 
+def _cell(value: Any) -> str:
+    """Render one table value: the number, or the word for its absence.
+
+    A metric can be undefined — a correlation over constant predictions, calibration
+    with no scorable pair — and `None` is what the table row carries. Printing that
+    repr in a column of numbers says nothing a reader can act on, in the document this
+    project offers as its calibration evidence.
+    """
+    return "undefined" if value is None else str(value)
+
+
 def render_markdown(
     tasks: list[dict[str, Any]], generalization: list[dict[str, Any]], demo: list[dict[str, Any]]
 ) -> str:
@@ -78,11 +89,22 @@ def render_markdown(
         "|---|---|---|---:|---:|---:|---|",
     ]
     for r in tasks:
+        # An absent value prints as the word, not as a bare `None` in a column of
+        # numbers. This is the artifact a reader treats as the project's calibration
+        # evidence; a Python repr in a value cell reads as a bug, and a reader who
+        # decides it is one has learned nothing about why there is no number.
         lines.append(
             f"| {r['task']} | {r['kind']} | {r['primary_metric']} | "
-            f"{r['primary_value']} | {r['ece']} | {r['n_test']} | "
+            f"{_cell(r['primary_value'])} | {_cell(r['ece'])} | {r['n_test']} | "
             f"{'synthetic' if r['synthetic'] else 'real'} |"
         )
+    unmeasured = [r for r in tasks if r["primary_value"] is None]
+    if unmeasured:
+        lines.append("")
+        for r in unmeasured:
+            lines.append(
+                f"- **{r['task']}: no {r['primary_metric']}.** {r['primary_undefined_reason']}"
+            )
     lines += [
         "",
         "## Cross-cell-type generalization gap",

@@ -15312,3 +15312,37 @@ zero examples is `None`. Different questions, different answers, and both said o
 repo already knew that — it built a guard for the CLI spec and never built one for any
 other. The tell was available without reading a word of either document: `grep -l
 benchmark-harness tests/` returns nothing.
+
+## Round 448 — the consumers written before the absence existed
+
+Making a value nullable is not one change. It is one change plus every place that reads
+it, and the places that read it were all written when it could not be null.
+
+Round 445 gave `primary_value` and the ranking metrics a `None`. Two consumers of the same
+tables had no concept of it:
+
+- **The calibration study's per-task table** rendered the cell with an f-string, so a
+  reader of `docs/`'s calibration evidence — the document that opens by declaring every
+  number in it synthetic — got `| cas9-efficiency | regression | spearman | None | …`. A
+  Python repr in a column of numbers is not a statement about measurement; it reads as a
+  bug, and a reader who decides it is one has learned nothing about why the number is
+  missing. It prints `undefined` now and carries the reason under the table, which is what
+  the generalization table three lines below it already did.
+- **`task_ece_figure`** called `float()` on the ECE. ECE has been `None`-able since it was
+  written ("kept distinct from a genuine 0.0 so an empty run is not scored as perfectly
+  calibrated") — so the one chart in the set whose subject is honest calibration would
+  have raised `TypeError` on an honestly-absent calibration. And had it not raised, the
+  bar would have been drawn at zero, which on *that* chart reads as perfectly calibrated:
+  the exact claim the `None` exists to avoid.
+
+Neither fires on the shipped fixtures, which define every ECE — which is precisely how a
+consumer comes to be written without the case, and why both tests punch a hole in the real
+table rather than hoping for one. Each has a floor test asserting the ordinary table still
+renders every task, so dropping every bar cannot pass.
+
+**Lesson: widening a type is a fan-out, and the compiler only catches the half that is
+typed.** `mypy --strict` passed the whole time: `task_calibration_table` returns
+`list[dict[str, Any]]`, and `Any` is where a type checker stops arguing. The places that
+needed changing were exactly the places that had turned a typed value into an untyped row
+— a dict for a table, a dict for a figure — and the query that finds them is not "what
+does the type say" but "who reads this column".
