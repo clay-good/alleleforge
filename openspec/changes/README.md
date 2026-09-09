@@ -14866,3 +14866,59 @@ the two shells' format enums passed the whole time, because both shells did offe
 format — on their synchronous route. Parity between shells is not parity between the doors
 within a shell, and the async door is not a lesser copy of the blocking one; it is the one
 the hard case has to use.
+
+## Round 439 — the table a pipeline reads had only the format a person reads
+
+The per-candidate flat table has had two encodings for months: `--format tsv` and
+`--format parquet`, "one table in two encodings, same columns in the same order". The
+**cohort** table had only the TSV.
+
+That is the wrong way round. The per-candidate table is the one a human scrolls — fifty
+rows for one variant, read to pick a guide. The cohort table is one row per patient,
+hundreds of rows, and its whole reason to exist is being loaded by something that is not a
+person. The encoding built for pipelines was missing from the table pipelines read.
+
+It had been deferred on the record, with the price named. `BatchFormat`'s docstring:
+
+> No `parquet` yet, deliberately … Adding it means a new writer plus the guard that its
+> columns match the TSV's in order — two tables of the same numbers disagreeing about
+> their columns is a defect this project has already had once — which is a feature, not
+> the reachability fix this enum is part of.
+
+An honest deferral, and this round pays it. `cohort_to_parquet` ships with the guard, and
+the guard is structural rather than a second list to keep in step: `COHORT_COLUMNS` and
+`COHORT_COLUMN_TYPES` are module constants, the TSV header is built from the first and the
+Parquet schema from both, so an adjacent swap cannot happen in one and not the other. The
+column list used to live inside `cohort_to_tsv`'s body — which is where the *existing*
+guard scraped it from, with `assert len(cols) > 8, "this check would be vacuous"`. Moving
+it tripped that assertion rather than passing on an empty parse, which is the whole reason
+that line is in the file.
+
+Three rendering decisions had to agree across the encodings, and each has a test:
+
+- **Types are declared, not inferred.** The per-design writer learned this the hard way —
+  `bystander_burden` null for every prime candidate and a float on the one base editor at
+  rank 341, so the documented `--format parquet` died on an ordinary mixed-chemistry
+  design. A cohort has exactly that shape, longer.
+- **Numbers stay numbers.** The TSV rounds to four places for a reader; Parquet keeps the
+  float, and a null item stays null rather than becoming a substituted zero.
+- **`offtarget_sources`.** `{}` is "searched, reference-only" and `None` is "not searched".
+  Both encodings render them apart, because collapsing them is precisely the thing this
+  project spends its effort not doing.
+
+Reachable from both shells the same day it existed: `aforge batch --summary-parquet` and
+`POST /api/batch?format=parquet`, with a cross-shell column check. The served page keeps
+its TSV button and records Parquet as a deliberate absence with the reason the
+single-variant panel already gives — a browser download of a columnar binary opens in
+nothing the browser has, and the TSV beside it carries the same columns in the same order.
+
+Two stale statements fell out of it, both caught by guards written for that purpose: the
+endpoint's own summary still said "JSON or TSV", and a test asserted the enum was exactly
+`{json, tsv}`. Both were true when written, which is what a recorded deferral is for.
+
+**Lesson: a deferral that names its price is a work item, not a decision.** This one sat
+in a docstring for rounds, and it was neither wrong nor forgotten — it said what was
+missing, why it was not free, and what would have to come with it. Re-reading the reasons
+the project has already written down for *not* doing something is a cheaper way to find
+the next chunk of work than looking for something nobody has thought about, and the
+deferral even specifies the acceptance criteria.

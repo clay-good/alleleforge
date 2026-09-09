@@ -36,7 +36,7 @@ from fastapi.staticfiles import StaticFiles
 
 from alleleforge._version import __version__
 from alleleforge.config import Settings
-from alleleforge.design.cohort_summary import cohort_rows, cohort_to_tsv
+from alleleforge.design.cohort_summary import cohort_rows, cohort_to_parquet, cohort_to_tsv
 from alleleforge.errors import ChecksumError, ConsentError, MissingDependencyError, reason
 from alleleforge.model_zoo.registry import LicenseError
 from alleleforge.report.builder import (
@@ -83,15 +83,17 @@ class BatchFormat(StrEnum):
     per-patient table a pipeline reads, which was CLI-only until the summary moved into
     the library.
 
-    No `parquet` yet, deliberately: the design endpoint offers one because
-    `report_to_parquet` exists, and there is no cohort equivalent. Adding it means a new
-    writer plus the guard that its columns match the TSV's in order — two tables of the
-    same numbers disagreeing about their columns is a defect this project has already had
-    once — which is a feature, not the reachability fix this enum is part of.
+    `parquet` was deferred once, deliberately, on the grounds that adding it meant a new
+    writer plus the guard that its columns match the TSV's in order. Both now exist:
+    `cohort_to_parquet` writes from the same declared column list the TSV's header is
+    built from. A cohort is the result that actually goes into a dataframe — hundreds of
+    rows, one per patient — so this is the table that most wanted the typed encoding, and
+    it was the one that had only the text form.
     """
 
     json = "json"
     tsv = "tsv"
+    parquet = "parquet"
 
 
 class DesignFormat(StrEnum):
@@ -133,6 +135,18 @@ def _report_parquet_bytes(report: DesignReport) -> bytes:
     except MissingDependencyError as exc:
         # 501, not 500: the deployment did not install the optional writer. The
         # message already names the extra to install, and a client can act on it.
+        raise HTTPException(status_code=501, detail=reason(exc)) from exc
+
+
+def _cohort_parquet_bytes(rows: list[dict[str, Any]], provenance: Any) -> bytes:
+    """Return the cohort Parquet export as bytes, for the same reason as the design one."""
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            return Path(
+                cohort_to_parquet(rows, Path(tmp) / "cohort.parquet", provenance)
+            ).read_bytes()
+    except MissingDependencyError as exc:
+        # 501, not 500: the deployment did not install the optional writer.
         raise HTTPException(status_code=501, detail=reason(exc)) from exc
 
 
@@ -683,10 +697,17 @@ def _render_cohort(finished: FinishedCohort, fmt: BatchFormat) -> BatchResponse 
     """Render a finished cohort as the JSON envelope or the flat per-patient table."""
     if fmt is BatchFormat.json:
         return finished.response
+    rows = cohort_rows(finished.cohort)
+    provenance = finished.cohort.provenance
+    if fmt is BatchFormat.parquet:
+        return Response(
+            _cohort_parquet_bytes(rows, provenance),
+            media_type="application/vnd.apache.parquet",
+        )
     # The same table `aforge batch --summary-tsv` writes, from the same library
     # function, so the two shells cannot describe one run differently.
     return Response(
-        cohort_to_tsv(cohort_rows(finished.cohort), finished.cohort.provenance),
+        cohort_to_tsv(rows, provenance),
         media_type="text/tab-separated-values; charset=utf-8",
     )
 
@@ -1159,7 +1180,7 @@ def create_app(
         request: Request,
         fmt: Annotated[BatchFormat, Query(alias="format")] = BatchFormat.json,
     ) -> BatchResponse | Response:
-        """Design a whole cohort in one run (JSON or TSV; failures isolated).
+        """Design a whole cohort in one run (JSON, TSV, or Parquet; failures isolated).
 
         Blocking: it returns when the whole cohort has been designed. A cohort is the
         long operation this project is built for — hundreds of variants, minutes of

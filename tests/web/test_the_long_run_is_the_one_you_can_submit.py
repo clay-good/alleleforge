@@ -81,12 +81,20 @@ async def test_the_endpoint_is_in_the_schema(client: httpx.AsyncClient) -> None:
 
 
 @pytest.mark.anyio
-async def test_the_batch_description_does_not_offer_a_format_it_refuses(
+async def test_the_batch_description_offers_no_format_it_refuses(
     client: httpx.AsyncClient,
 ) -> None:
-    """It advertised Parquet in the text a client reads before writing the request."""
+    """It advertised Parquet in the text a client reads before writing the request.
+
+    The mismatch was resolved the other way in the end: the writer was built, so the
+    description may name Parquet — but only while the endpoint answers to it. The check
+    is that the two agree, not which way.
+    """
     operation = (await client.get("/openapi.json")).json()["paths"]["/api/batch"]["post"]
     text = f"{operation.get('summary', '')} {operation.get('description', '')}"
-    assert "arquet" not in text, text
-    refused = await client.post("/api/batch?format=parquet", json={"variants": _VARIANTS})
-    assert refused.status_code == 422, refused.text
+    served = await client.post("/api/batch?format=parquet", json={"variants": _VARIANTS})
+    if "arquet" in text:
+        assert served.status_code == 200, served.text
+        assert served.content.startswith(b"PAR1"), served.content[:16]
+    else:
+        assert served.status_code == 422, "offered nowhere in the text, but served"

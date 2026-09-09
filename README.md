@@ -1000,7 +1000,8 @@ the `batch` subcommand auto-detects a VCF (cyvcf2 fast path) vs a one-variant-pe
 # Whole-VCF cohort → resumable run, durable per-sample menus, a per-item TSV summary
 aforge batch cohort.vcf.gz --reference-fasta hg38.fa --intent correct \
     --gnomad gnomad.sites.tsv.gz --populations afr,eur,eas \
-    --manifest run.jsonl --output-dir menus/ --summary-tsv summary.tsv --max-workers 8
+    --manifest run.jsonl --output-dir menus/ --summary-tsv summary.tsv \
+    --summary-parquet summary.parquet --max-workers 8
 # Summary columns: best_chemistry · best_efficiency · best_bystander_burden · worst_offtarget · best_specificity · n_candidates
 # `worst_offtarget` is empty when the search was skipped or an item produced no candidates — that is "not measured", not "clean".
 ```
@@ -1149,7 +1150,7 @@ flowchart LR
 | `aforge resolve <input>` | Normalize any input form; show the canonical variant + class. `--clinvar` / `--dbsnp` name the release a `VCV…` accession or an `rs…` rsID is looked up in (supplied by you; never downloaded), and the release is pinned by content hash under `resolved_from`. `--vep` adds the predicted molecular consequence (opt-in: it sends the variant to Ensembl's public VEP API). |
 | `aforge design <input>` | Variant → ranked, multi-chemistry menu rendered to JSON/TSV/Parquet/HTML/PDF, or the ranked menu itself with `--format menu` — the only form carrying each candidate's full outcome spectrum, where every other format shows the top alleles and says what it withheld (`--format`; TSV and Parquet are one table in two encodings, same columns in the same order, each carrying the disclaimer, reference build and coordinate convention). `--clinvar` / `--dbsnp` accept an accession or an rsID as the variant, carrying ClinVar's classification into the menu rationale — the reason to type an accession rather than the coordinates it stands for; `--allow-ng` / `--allow-spry` offer the SpCas9-NG and SpRY PAM-flexible fallbacks when no NGG guide is actionable; `--trained-efficiency` / `--trained-outcome` / `--trained-base-outcome` / `--trained-prime` swap in the consent-gated trained models; `--vep` annotates the menu with the variant's predicted consequence (opt-in: it sends the variant to Ensembl's public VEP API). |
 | `aforge lift <locus>… --chain <file> --from <build> --to <build>` | Lift loci to another assembly, in the same locus form `--region` accepts. An unmappable locus prints `UNMAPPED` and exits non-zero rather than being dropped. |
-| `aforge batch <vcf\|list>` | Cohort design over a VCF (cyvcf2 fast path) or variant list — streaming, resumable, failure-isolated. `--clinvar` / `--dbsnp` apply to every item, so a cohort can be a list of accessions. `--vep` annotates each item's consequence (opt-in: it sends every variant to Ensembl's public VEP API); `--cache` and `--genome-index` let a cohort reuse the reference scan its items share. |
+| `aforge batch <vcf\|list>` | Cohort design over a VCF (cyvcf2 fast path) or variant list — streaming, resumable, failure-isolated. `--clinvar` / `--dbsnp` apply to every item, so a cohort can be a list of accessions. `--vep` annotates each item's consequence (opt-in: it sends every variant to Ensembl's public VEP API); `--cache` and `--genome-index` let a cohort reuse the reference scan its items share. `--summary-tsv` / `--summary-parquet` write the flat per-patient table — one row per person, the same columns in the same order in both encodings, each carrying the disclaimer, the reference build and the seed. |
 | `aforge offtarget <spacer>` | Standalone population/haplotype-aware off-target search. `--scorer cfd|mit|cfd-cas12a` selects the specificity scorer. `--cache` reuses an identical reference scan across runs; `--genome-index` anchors PAMs through a persistent memory-mapped FM-index. Both are opt-in and neither changes a result. |
 
 > [!IMPORTANT]
@@ -1262,7 +1263,7 @@ flowchart LR
 | `POST /api/jobs/design` → `GET /api/jobs/{job_id}` | Async job submit + status/progress/result |
 | `POST /api/jobs/batch` → `GET /api/jobs/{job_id}` | The same, for a whole cohort — the operation that actually takes minutes, and the one the async path did not cover |
 | `GET /api/jobs/{job_id}/result` | A finished job's result in any format its blocking twin offers (`?format=` — design: `json\|menu\|html\|pdf\|tsv\|parquet`; cohort: `json\|tsv`), rendered from the stored result rather than recomputed. Without it the client whose run is long enough to need a job was the one who could not have the PDF, the flat table, or the untruncated menu |
-| `POST /api/batch` | Cohort design over a variant list; per-item summaries + provenance, failures isolated |
+| `POST /api/batch` | Cohort design over a variant list; per-item summaries + provenance, failures isolated. `?format=json\|tsv\|parquet` — the flat per-patient table in either encoding, the same columns in the same order as `aforge batch --summary-tsv` / `--summary-parquet` |
 | `POST /api/offtarget` | Standalone population-aware off-target search — full report plus the aggregate summary (site count, worst-case, specificity) |
 | `GET /api/data` · `/api/data/{name}` | Inspect the dataset registry |
 | `GET /api/bench` | List the CRISPR-Bench tasks, datasets, and primary metrics |

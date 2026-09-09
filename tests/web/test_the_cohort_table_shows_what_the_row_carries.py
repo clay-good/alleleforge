@@ -93,11 +93,17 @@ def test_the_header_and_the_cells_stay_the_same_width() -> None:
 
 
 def _tsv_columns() -> list[str]:
-    """Return the TSV's column list, in order, from the writer that emits it."""
-    from alleleforge.design import cohort_summary
+    """Return the flat cohort table's column list, in order, from the writer's own source.
 
-    source = __import__("inspect").getsource(cohort_summary.cohort_to_tsv)
-    cols = re.findall(r'^\s{8}"(\w+)",', source, re.M)
+    This used to scrape the list out of `cohort_to_tsv`'s body, which is where it lived.
+    It is now `COHORT_COLUMNS`, a module constant, because the Parquet encoding writes the
+    same columns in the same order and a second hand-written list is exactly how two
+    tables of the same numbers come to disagree. The scraper's own "this would be vacuous"
+    assertion is what said so when the list moved, rather than passing on an empty parse.
+    """
+    from alleleforge.design.cohort_summary import COHORT_COLUMNS
+
+    cols = list(COHORT_COLUMNS)
     assert len(cols) > 8, f"parsed {cols} — this check would be vacuous"
     return cols
 

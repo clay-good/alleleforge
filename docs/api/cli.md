@@ -74,9 +74,11 @@ aforge --seed 20240501 design 'chr2:71:A>C' --reference-fasta hg38.fa --config r
 
 # Cohort design: a whole VCF (cyvcf2 fast path) or a one-variant-per-line list.
 # Streaming + resumable (--manifest), durable per-sample menus (--output-dir),
-# a per-item TSV summary, and a per-worker reference for the parallel path.
+# a per-item summary (TSV and/or Parquet), and a per-worker reference for the
+# parallel path.
 aforge batch cohort.vcf.gz --reference-fasta hg38.fa --intent correct \
-    --manifest run.jsonl --output-dir menus/ --summary-tsv summary.tsv --max-workers 8
+    --manifest run.jsonl --output-dir menus/ --summary-tsv summary.tsv \
+    --summary-parquet summary.parquet --max-workers 8
 
 # Standalone population-aware off-target for a spacer
 aforge offtarget GACGGAGGCTAAGCGTCGCAA --reference-fasta hg38.fa --pam NGG --json
@@ -160,6 +162,11 @@ comment-skipping reader (`polars.read_csv(..., comment_prefix="#")`,
 `pandas.read_csv(..., comment="#")`, `read.delim(..., comment.char="#")`) gets exactly
 the table it got before. A reader that skips nothing sees a different first line, so
 `schema_version` — which leads every row for this purpose — is `14`.
+
+`--summary-parquet` writes the cohort summary as Parquet: the same columns in the same
+order as `--summary-tsv`, typed rather than stringified, with the `#` note block as
+file-level metadata keyed `note_NN`. A cohort is the result that goes into a dataframe,
+so this is the encoding most of its readers want.
 
 `--format parquet --out menu.parquet` writes the same table for a batch consumer.
 Parquet has no comment lines, so it carries the same notes as file-level key/value

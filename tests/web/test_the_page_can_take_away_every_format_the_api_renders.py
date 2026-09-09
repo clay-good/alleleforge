@@ -50,9 +50,12 @@ _NOT_ON_THE_PAGE: dict[str, str] = {
 }
 
 
-#: Cohort renderings the panel legitimately does not offer, with the reason. Empty
-#: today: `/api/batch` serves JSON and TSV and the panel offers both.
-_NOT_ON_THE_COHORT_PANEL: dict[str, str] = {}
+#: Cohort renderings the panel legitimately does not offer, with the reason.
+_NOT_ON_THE_COHORT_PANEL: dict[str, str] = {
+    "parquet": "the same reason as the per-candidate one above — a binary columnar file "
+    "for a pipeline, which reads it from the API or the CLI, and the TSV button beside "
+    "it carries the same columns in the same order",
+}
 
 
 def _downloadable() -> set[str]:

@@ -44,6 +44,7 @@ from alleleforge.data.haplotypes import Haplotype
 # command bodies already use.
 from alleleforge.design.cohort_summary import cohort_reference_shape_suffix as _shape_suffix
 from alleleforge.design.cohort_summary import cohort_rows as _batch_rows
+from alleleforge.design.cohort_summary import cohort_to_parquet as _batch_parquet
 from alleleforge.design.cohort_summary import cohort_to_tsv as _batch_tsv
 from alleleforge.errors import MissingDependencyError, reason
 from alleleforge.types.provenance import DatasetVersion
@@ -1752,6 +1753,16 @@ def batch(
     summary_tsv: Annotated[
         Path | None, typer.Option(help="Write a per-item TSV summary here.")
     ] = None,
+    summary_parquet: Annotated[
+        Path | None,
+        typer.Option(
+            help=(
+                "Write the same per-item summary here as Parquet — the same columns in "
+                "the same order, typed, with the TSV's `#` notes as file-level metadata. "
+                "A cohort is the result that goes into a dataframe."
+            )
+        ),
+    ] = None,
     config: Annotated[
         Path | None, typer.Option(help="Run-config TOML (CLI flags override).")
     ] = None,
@@ -1931,20 +1942,20 @@ def batch(
         raise typer.Exit(ExitCode.USAGE) from exc
 
     rows = _batch_rows(report)
+    counts = {
+        "total": report.total,
+        "succeeded": report.succeeded,
+        "failed": report.failed,
+        "skipped": report.skipped,
+    }
     if summary_tsv is not None:
-        summary_tsv.write_text(
-            _batch_tsv(
-                rows,
-                report.provenance,
-                counts={
-                    "total": report.total,
-                    "succeeded": report.succeeded,
-                    "failed": report.failed,
-                    "skipped": report.skipped,
-                },
-            ),
-            encoding="utf-8",
-        )
+        summary_tsv.write_text(_batch_tsv(rows, report.provenance, counts=counts), encoding="utf-8")
+    if summary_parquet is not None:
+        try:
+            _batch_parquet(rows, summary_parquet, report.provenance, counts=counts)
+        except MissingDependencyError as exc:
+            _echo_err(f"error: {reason(exc)}")
+            raise typer.Exit(ExitCode.UNAVAILABLE) from exc
     if state.verbose:
         _echo_err(f"designed {report.succeeded}/{report.total} (skipped {report.skipped})")
 
@@ -2019,6 +2030,8 @@ def batch(
     typer.echo("\n".join(lines))
     if summary_tsv is not None:
         _echo_err(f"wrote {summary_tsv}")
+    if summary_parquet is not None:
+        _echo_err(f"wrote {summary_parquet}")
     # Per-item isolation is the feature: every item runs, the manifest is complete, and
     # one bad variant does not abandon the other four hundred. Reporting *success* for
     # a run that failed items is not part of that — a script or a CI job driving this

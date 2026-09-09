@@ -16,8 +16,11 @@ from alleleforge.design.cohort import (
     design_many,
 )
 from alleleforge.design.cohort_summary import (
+    COHORT_COLUMN_TYPES,
+    COHORT_COLUMNS,
     cohort_reference_shape_suffix,
     cohort_rows,
+    cohort_to_parquet,
     cohort_to_tsv,
 )
 from alleleforge.design.designer import design
@@ -41,8 +44,11 @@ from alleleforge.design.routing import (
 )
 
 __all__ = [
+    "COHORT_COLUMNS",
+    "COHORT_COLUMN_TYPES",
     "cohort_reference_shape_suffix",
     "cohort_rows",
+    "cohort_to_parquet",
     "cohort_to_tsv",
     "PRIME_MAX_EDIT",
     "PRIME_MAX_TEMPLATED_EDIT",
