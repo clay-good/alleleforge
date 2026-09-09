@@ -13161,3 +13161,37 @@ documented install had never been executed once.**
 fixes here were correct. Only one was at the layer where the property holds without
 anyone's cooperation.**
 
+## Round 406 — a sweep with no findings, and a gate I had been running short
+
+R405's method — install it the documented way and run the result — worked well enough to
+be worth finishing rather than abandoning after one hit. Every documented install, in a
+clean venv, and every documented surface I could reach:
+
+| Probe | Result |
+|---|---|
+| `pip install alleleforge` + all nine README Python blocks | clean; the five `NameError`s are the documented fragment style, no `ImportError` |
+| `pip install "alleleforge[web]"` + `uvicorn …app:app` + a reference | serves, designs, health honest |
+| `pip install "alleleforge[cli,genome]"` + `aforge batch cohort.vcf` | the VCF cohort input — the flagship, never run here before — designs 3 of 3 |
+| `aforge offtarget --gnomad --populations` with a variant that creates a PAM | the population-only site is found, and `expected burden by ancestry` reads afr 0.3000 / amr 0.0200 / nfe 0.0010 while `worst score by ancestry` reads 1.000 / 1.000 / 1.000 — R391's whole argument, visible in one run |
+| `aforge lift` with a real chain, then its output into `--region` | lifts, reports `UNMAPPED` rather than dropping, exits non-zero, and pipes back in with or without the strand suffix |
+
+No defect. Recorded so the next round starts somewhere else.
+
+The finding of the round is about me. `make ci` is `lint type test docs examples reproduce`.
+I had been running lint, type, test and docs every round for fifteen rounds, and never
+`examples` — the nbmake job that executes the four notebooks. The Makefile comment above
+that target says, in as many words: *"`examples` is here because it was once missing and a
+change that passed lint, types, tests, docs and reproduce still broke a notebook — a gate
+is only as good as its least convenient member, and the member most likely to be left out
+is the slow one that catches a different class of failure."* I left out exactly that one,
+having read past the comment explaining why not to.
+
+Run retroactively over everything from R391 on: `make examples` green, `scripts/reproduce.py`
+matches the golden. Nothing shipped broken — by luck, since fifteen rounds changed the
+rationale text, the export schema, an error renderer and the CLI's import graph, and any of
+those could have reached a notebook.
+
+**Lesson: read the repo's own gate target at the start of a session and run all of it. A
+gate you assembled from memory is a gate with your blind spots in it, and the member you
+drop is the slow one — which is the one that covers what the fast ones cannot.**
+
