@@ -10,6 +10,13 @@ The field list is derived from `CandidateReport` rather than written out, so an 
 field added later is covered the day it appears. That is the part a hand-written test
 misses: the invariant is not about today's seven columns.
 
+Derived **by name**, though — `"offtarget" in field` — which is a proxy for the real
+population, not the population. The two ancestry columns the flat exports carry are called
+`worst_ancestry` and `worst_ancestry_score`; they are off-target-derived and neither name
+contains the substring, so both sat outside every check in this file. Turning an unmeasured
+`worst_ancestry_score` into `0.0` — the most reassuring value a worst-case column can hold,
+in the two tables a pipeline filters on — left the whole suite green: 3,291 passed.
+
 The safety *score* is the deliberate exception, documented in `ranking._safety`: an
 unsearched candidate scores 1.0 because penalising an unmeasured axis is a policy this
 project has no basis for. What makes that honest is the `offtarget-not-searched` flag
@@ -23,6 +30,12 @@ from alleleforge.report.export import report_to_json, report_to_tsv
 from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import Chemistry
 from alleleforge.types.guide import PAM, Guide, Spacer
+from alleleforge.types.offtarget import (
+    OffTargetReport,
+    OffTargetSite,
+    ScoreMethod,
+    SiteOrigin,
+)
 from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
 
 #: Fields of the rendered candidate that describe the off-target search.
@@ -45,6 +58,114 @@ def _unsearched_menu() -> RankedMenu:
         rationale="no search was run",
     )
     return RankedMenu(candidates=(candidate,), rationale="fixture")
+
+
+def _searched_menu() -> RankedMenu:
+    """The same candidate, with a search that ran *and* carried ancestry frequencies.
+
+    The ancestry half matters: without a population source `worst_ancestry_score` is
+    `None` even on a searched candidate, so a population built from a plain searched
+    report would not contain the columns this file exists for.
+    """
+    guide = Guide(
+        spacer=Spacer(sequence=DNASequence("ACGTAACGTTACGTAACGTT")),
+        pam=PAM(pattern="NGG"),
+        pam_sequence=DNASequence("TGG"),
+        placement=GenomicInterval(chrom="chr1", start=10, end=30, strand=Strand.PLUS),
+        cut_site=27,
+    )
+    site = OffTargetSite(
+        locus=GenomicInterval(chrom="chr1", start=500, end=520, strand=Strand.PLUS),
+        mismatches=2,
+        score=0.42,
+        score_method=ScoreMethod.CFD,
+        origin=SiteOrigin.POPULATION,
+        populations=("afr", "nfe"),
+        frequency=0.05,
+        ancestries={"afr": 0.09, "nfe": 0.001},
+        causal_allele="chr1:505:T>G",
+        pam_sequence="TGG",
+    )
+    candidate = DesignCandidate(
+        chemistry=Chemistry.CAS9_NUCLEASE,
+        guide=guide,
+        offtarget=OffTargetReport(
+            spacer="ACGTAACGTTACGTAACGTT",
+            pam="NGG",
+            sites=(site,),
+            searched_bases=4000,
+            resolved_bases=4000,
+            scorer="CFD",
+            score_matrix="doench-2016-cfd",
+            available_populations=("afr", "nfe"),
+            maf_threshold=0.001,
+        ),
+        rationale="a search that found something",
+    )
+    return RankedMenu(candidates=(candidate,), rationale="fixture")
+
+
+def _tsv_row(menu: RankedMenu) -> dict[str, str]:
+    lines = [
+        line for line in report_to_tsv(build_report(menu)).splitlines() if not line.startswith("#")
+    ]
+    return dict(zip(lines[0].split("\t"), lines[1].split("\t"), strict=True))
+
+
+#: Flat-export columns whose value comes from the off-target search. Written out, and kept
+#: honest by the three checks below rather than by trust: a column here must be populated
+#: on the searched fixture, must be empty on the unsearched one, and no column that tells
+#: the two fixtures apart may be missing from the list.
+_SEARCH_DERIVED_COLUMNS: tuple[str, ...] = (
+    "n_offtarget_sites",
+    "offtarget_specificity",
+    "offtarget_expected_burden",
+    "offtarget_scorer",
+    "offtarget_matrix",
+    "offtarget_scorer_citation",
+    "offtarget_search",
+    "worst_ancestry",
+    "worst_ancestry_score",
+)
+
+
+def test_every_listed_column_is_one_a_search_actually_fills() -> None:
+    """A column listed here that no search populates is a line nobody is checking."""
+    searched = _tsv_row(_searched_menu())
+    unfilled = sorted(c for c in _SEARCH_DERIVED_COLUMNS if searched.get(c, "") == "")
+    assert not unfilled, (
+        f"listed as search-derived but empty even after a search with ancestry data: {unfilled}"
+    )
+
+
+def test_the_list_covers_every_column_the_search_changes() -> None:
+    """Completeness, derived: any column that tells the two fixtures apart belongs here.
+
+    This is what would have caught the ancestry pair without anyone thinking of them.
+    """
+    searched = _tsv_row(_searched_menu())
+    unsearched = _tsv_row(_unsearched_menu())
+    differing = {
+        column
+        for column, value in searched.items()
+        if value != "" and unsearched.get(column, "") == ""
+    }
+    missing = sorted(differing - set(_SEARCH_DERIVED_COLUMNS))
+    assert not missing, (
+        f"these columns are filled by a search and absent without one, and are not listed "
+        f"as search-derived: {missing}"
+    )
+
+
+def test_no_column_a_search_fills_carries_a_value_when_none_ran() -> None:
+    """The same rule over the columns a pipeline actually reads, renames included."""
+    unsearched = _tsv_row(_unsearched_menu())
+    for column in _SEARCH_DERIVED_COLUMNS:
+        assert unsearched.get(column, "") == "", (
+            f"{column} rendered {unsearched[column]!r} for a candidate that was never "
+            "searched. A reader cannot tell it from a measured result, and in a "
+            "worst-case column the unmeasured value is the reassuring one."
+        )
 
 
 def test_the_field_list_is_not_empty() -> None:
