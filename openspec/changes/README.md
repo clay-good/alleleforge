@@ -15661,3 +15661,32 @@ input.** "The RT template spans an assembly gap" is a true statement about the R
 and a false one about the genome, and the difference is invisible from inside the function
 that raises it — it sees an `N` and cannot know which side of the request it arrived on.
 The place to reject an impossible allele is where the request is still a request.
+
+## Round 457 — the meta-guard had the defect it was built to prevent
+
+Round 454 built the check that no document goes unread, after three rounds of finding
+guards with too-narrow file lists. Its population came from `git ls-files "*.md"`.
+
+The four example notebooks carry eleven kilobytes of reader-facing markdown — the
+coordinate-convention warning, the population-search explanation, the next-steps sections
+— in `markdown` cells inside JSON. `test_examples_teach_the_contract` reads only their
+*code* cells. Every prose guard calls `read_text()`, which on a `.ipynb` returns JSON. So
+a notebook was unread twice over, and the guard written to notice that could not, because
+it had chosen its population by file extension.
+
+`tests.prose.prose_text` unwraps a notebook's markdown cells and passes everything else
+through, the notebooks join the prose corpus, and the meta-guard asks git for `*.md` *and*
+`*.ipynb`. Code cells stay out on purpose: the gate already executes them with `pytest
+--nbmake`, which is a stronger check than reading them, and a link checker scanning code
+as prose would read a commented-out `aforge design …` as a documented command.
+
+The sweep over the newly-visible prose is clean — one flag citation, `--region`, which
+exists on both commands that could mean it. As in the two rounds before, the value is the
+constraint rather than a fix.
+
+**Lesson: a guard that generalizes over a population still has a population.** "Every
+document" turned out to mean "every file whose name ends in `.md`", chosen without
+deciding it — the same unexamined narrowing, one level up, in the round whose entire
+subject was unexamined narrowing. The question that would have caught it is the one the
+guard exists to ask, asked about itself: *what does this repository contain that this
+check does not open?*

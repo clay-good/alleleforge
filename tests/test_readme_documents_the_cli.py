@@ -24,6 +24,7 @@ import pytest
 from typer.main import get_command
 
 from alleleforge.cli.main import app
+from tests.prose import prose_text
 
 _ROOT = Path(__file__).resolve().parents[1]
 
@@ -55,9 +56,9 @@ def test_every_cli_command_is_named_in_the_docs() -> None:
     names = _command_names()
     assert names, "no commands discovered — the introspection above is wrong, not the docs"
 
-    prose = (_ROOT / "README.md").read_text()
+    prose = prose_text(_ROOT / "README.md")
     for path in (_ROOT / "docs").rglob("*.md"):
-        prose += path.read_text()
+        prose += prose_text(path)
 
     missing = [name for name in names if f"aforge {name}" not in prose]
     assert not missing, f"CLI commands documented nowhere: {missing}"
@@ -89,9 +90,9 @@ def test_the_cli_reference_lists_every_command_in_its_own_table() -> None:
 @pytest.mark.parametrize("removed", ["verify", "offtarget"])
 def test_the_check_would_notice_a_missing_command(removed: str) -> None:
     """Guard the guard: the assertion above must depend on the prose, not pass blindly."""
-    prose = (_ROOT / "README.md").read_text().replace(f"aforge {removed}", "")
+    prose = prose_text(_ROOT / "README.md").replace(f"aforge {removed}", "")
     for path in (_ROOT / "docs").rglob("*.md"):
-        prose += path.read_text().replace(f"aforge {removed}", "")
+        prose += prose_text(path).replace(f"aforge {removed}", "")
     assert f"aforge {removed}" not in prose
     assert removed in _command_names()
 
@@ -125,6 +126,10 @@ def _prose_files() -> list[Path]:
         *sorted((_ROOT / "specs").glob("*.md")),
         *sorted((_ROOT / "openspec" / "specs").rglob("*.md")),
         *sorted((_ROOT / "src").rglob("README.md")),
+        # The example notebooks carry reader-facing markdown cells — the
+        # coordinate-convention warning among them — which `read_text()` on a `.ipynb`
+        # would have handed these checks as JSON. `prose_text` unwraps them.
+        *sorted((_ROOT / "examples").glob("*.ipynb")),
     ]
     # The corpus is the thing every check in this file scans, and a check that scans
     # nothing reports nothing broken. Neutralizing this helper left five of the six
@@ -147,7 +152,7 @@ def test_every_local_link_in_the_prose_resolves() -> None:
     broken: list[str] = []
     checked = 0
     for path in _prose_files():
-        text = path.read_text()
+        text = prose_text(path)
         targets = set(re.findall(r"\]\((?!https?:|mailto:|#)([^)#]+)", text))
         targets |= set(
             re.findall(
@@ -171,7 +176,7 @@ def test_every_module_path_the_prose_cites_is_importable() -> None:
     import importlib
     import re
 
-    prose = "\n".join(p.read_text() for p in _prose_files())
+    prose = "\n".join(prose_text(p) for p in _prose_files())
     cited = sorted(set(re.findall(r"`(alleleforge(?:\.[a-z_]+)+)`", prose)))
     assert len(cited) > 10, f"only {len(cited)} module paths were found; the scan is not working"
     broken: list[str] = []
@@ -223,7 +228,7 @@ def _documented_commands() -> list[tuple[Path, str]]:
 
     out: list[tuple[Path, str]] = []
     for path in _prose_files():
-        for block in re.findall(r"```(?:bash|console|sh)\n(.*?)```", path.read_text(), re.S):
+        for block in re.findall(r"```(?:bash|console|sh)\n(.*?)```", prose_text(path), re.S):
             for line in block.replace("\\\n", " ").splitlines():
                 line = line.strip().removeprefix("$ ").strip()
                 if line.startswith("aforge "):

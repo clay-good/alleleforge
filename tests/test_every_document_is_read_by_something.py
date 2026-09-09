@@ -12,6 +12,12 @@ recorded here with the reason it is not.**
 
 It cannot say a document is checked *well*; the guards above it do that. It says a
 document is not invisible, which is the failure mode that keeps recurring.
+
+Its own first version asked git for `*.md` — a population taken from a file extension —
+so the four example notebooks, eleven kilobytes of reader-facing markdown cells wrapped in
+JSON, were invisible to the check written to stop documents being invisible. They are
+covered now, through `tests.prose.prose_text`, which unwraps a notebook's markdown cells;
+its code cells are executed by the gate, which is stronger than reading them.
 """
 
 from __future__ import annotations
@@ -41,16 +47,26 @@ _DELIBERATELY_UNREAD: dict[str, str] = {
 _ARCHIVED = ("openspec/changes/archive/",)
 
 
-def _tracked_markdown() -> list[str]:
-    """Return every tracked `.md` path, from git rather than a glob.
+def _tracked_documents() -> list[str]:
+    """Return every tracked document path, from git rather than a glob.
 
     A glob would sweep up an untracked scratch file and demand a guard for it; the
     question is about the documents this repository publishes.
+
+    `.ipynb` as well as `.md`: this guard's first version asked git for `*.md`, taking
+    its population from a file extension — so the four example notebooks, eleven
+    kilobytes of reader-facing markdown cells inside JSON, were invisible to the check
+    written to stop documents being invisible.
     """
     listed = subprocess.run(
-        ["git", "ls-files", "*.md"], cwd=_ROOT, capture_output=True, text=True, check=True
+        ["git", "ls-files", "*.md", "*.ipynb"],
+        cwd=_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.split()
-    assert len(listed) > 50, f"git listed {len(listed)} markdown files; this would be vacuous"
+    assert len(listed) > 50, f"git listed {len(listed)} documents; this would be vacuous"
+    assert any(name.endswith(".ipynb") for name in listed), "no notebooks listed"
     return sorted(listed)
 
 
@@ -64,7 +80,7 @@ def test_every_tracked_document_is_read() -> None:
     read = _read_by_a_guard()
     unread = [
         path
-        for path in _tracked_markdown()
+        for path in _tracked_documents()
         if path not in read and path not in _DELIBERATELY_UNREAD and not path.startswith(_ARCHIVED)
     ]
     assert not unread, (
@@ -75,7 +91,7 @@ def test_every_tracked_document_is_read() -> None:
 
 def test_the_recorded_exceptions_still_exist() -> None:
     """An exemption for a file that is gone hides the next one."""
-    tracked = set(_tracked_markdown())
+    tracked = set(_tracked_documents())
     stale = sorted(name for name in _DELIBERATELY_UNREAD if name not in tracked)
     assert not stale, f"_DELIBERATELY_UNREAD names files this repository no longer has: {stale}"
 
@@ -88,7 +104,7 @@ def test_an_exception_is_not_also_read() -> None:
 
 def test_the_archive_is_the_only_bulk_exclusion() -> None:
     """The prefix rule must stay narrow enough to be a statement about history."""
-    tracked = _tracked_markdown()
+    tracked = _tracked_documents()
     archived = [path for path in tracked if path.startswith(_ARCHIVED)]
     assert archived, "nothing matches the archive prefix; the layout moved"
     assert len(archived) < len(tracked), "the archive rule covers everything"
