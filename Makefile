@@ -6,8 +6,8 @@ help: ## Show this help.
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
-install: ## Editable install with the dev + genome extras.
-	pip install -e ".[dev,cli,web,genome-light]"
+install: ## Editable install with the extras the gate needs.
+	pip install -e ".[dev,core,cli,web,genome-light]"
 
 lint: ## Ruff lint + format check, and parse the served page's script.
 	ruff check src tests scripts examples

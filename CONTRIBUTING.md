@@ -31,8 +31,11 @@ make native    # builds the wheel, installs it, runs the suite against it
 ```
 
 `make install` rather than a hand-written `pip install -e ".[dev]"`: `dev` alone leaves
-out the FASTA reader and the web server, so the gate you are about to run cannot pass. It
-is the same extras set CI installs, kept in one place.
+out the FASTA reader, the web server and the tabular stack, so the gate you are about to
+run cannot pass. It is the same extras set CI installs, kept in one place — and that is
+now checked rather than asserted: `core` was missing from both for a long time, and
+`pytest` could not *collect* the suite without it, so no test ran at all
+([`test_the_gate_can_run_from_the_documented_install.py`](tests/test_the_gate_can_run_from_the_documented_install.py)).
 
 There is no conda *environment* file. `conda/meta.yaml` is a bioconda-style packaging
 recipe — it describes how to publish the released package, not how to set up a checkout —
