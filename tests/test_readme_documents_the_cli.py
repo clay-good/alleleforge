@@ -114,10 +114,16 @@ def _prose_files() -> list[Path]:
     files = [
         _ROOT / "README.md",
         _ROOT / "CONTRIBUTING.md",
+        _ROOT / "CODE_OF_CONDUCT.md",
+        _ROOT / "RELEASE.md",
+        _ROOT / "SECURITY.md",
         _ROOT / "SPEC.md",
         _ROOT / "SPEC_V2.md",
+        _ROOT / "openspec" / "AGENTS.md",
+        _ROOT / "openspec" / "project.md",
         *sorted((_ROOT / "docs").rglob("*.md")),
         *sorted((_ROOT / "specs").glob("*.md")),
+        *sorted((_ROOT / "openspec" / "specs").rglob("*.md")),
         *sorted((_ROOT / "src").rglob("README.md")),
     ]
     # The corpus is the thing every check in this file scans, and a check that scans

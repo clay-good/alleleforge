@@ -15533,3 +15533,42 @@ and never ranked.
 Three rounds have now found one — the spec sweep, the env-var check before it, and these
 four. The cheap standing check is not "is this list right" but "what markdown does this
 repository contain that no test opens".
+
+## Round 454 — the list is the defect
+
+Three rounds running, the finding was the same shape and the fix was the same edit:
+
+- 451: the specification sweep read `openspec/specs/` and not `specs/`.
+- 452 (in passing): six PDF extractors, four handling an escape and two not.
+- 453: the link, module-path, command and snippet checks read `README.md` + `docs/`, and
+  not the `CONTRIBUTING.md` whose broken Contributor Covenant link the link checker's own
+  docstring cites as its first catch — found through the README's copy of the promise.
+
+Editing a fourth list would have been the fourth instance of the same round. The list is
+the defect: it is written once, by someone looking at the files in front of them, and
+inherited by every check that comes after.
+
+So: **every markdown file this repository tracks is opened by some test, or is recorded
+with the reason it is not.** The corpora are read off the guards themselves rather than
+restated, so a document joins the covered set the moment any of them takes it on. `git
+ls-files` supplies the population — a glob would sweep up an untracked scratch file and
+demand a guard for it, and the question is about what this repository publishes.
+
+It is deliberately weak about *quality*: it cannot say a document is checked well, only
+that it is not invisible. That is the failure mode that kept recurring, and the guards
+above it are what check the content.
+
+Five documents joined the prose corpus rather than the exception list — `RELEASE.md`,
+`SECURITY.md`, `CODE_OF_CONDUCT.md`, `openspec/AGENTS.md`, `openspec/project.md` — and
+their links all resolve. Two exceptions are recorded with reasons: `CHANGELOG.md`, which
+has its own structural guard, and the audit log, which quotes historical mistakes verbatim
+on purpose and would fail a check against today's code *by design*. The archived change
+folders are excluded as a prefix, with a test that the prefix stays narrower than the whole
+repository — an exclusion rule that grows to cover its population is the most comfortable
+place for this defect to come back.
+
+**Lesson: when three rounds fix the same shape by editing three lists, the fourth round
+should not be a fourth list.** The pattern was visible after the second and I extended a
+list anyway; what made it obvious was writing down, in the third round's log entry, that
+the cheap standing check is "what markdown does this repository contain that no test
+opens" — and then not building it for a round.
