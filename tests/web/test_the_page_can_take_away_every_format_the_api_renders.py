@@ -19,12 +19,22 @@ Its first version checked the single-variant panel only, and the cohort panel �
 downloads a different enum from a different row — turned out to have the same gap for the
 same reason: the TSV round added a button to one panel and not the other. A guard written
 against one of two panels is a guard against half the defect, so both are checked here.
+
+Then a *third* panel arrived, and the guard was silent about it — the same shape a third
+time. "Check a spacer" rendered a result and offered no way to keep it, and this guard
+could not say so, because its population is *formats the API serves under `?format=`* and
+`/api/offtarget` serves one shape and takes no format parameter. That is the right
+population for the question it asks and the wrong one for the question underneath it,
+which is: **can a reader take away what the page just showed them?** The last section here
+asks that one, off the panels rather than off the format enums.
 """
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
+
+import pytest
 
 from alleleforge.web.api.app import BatchFormat, DesignFormat
 
@@ -117,3 +127,43 @@ def test_the_reader_is_told_the_frame_is_not_the_whole_report() -> None:
     assert note and "Download HTML" in note.group(1), (
         "the note should point at the rendering that can be read at full height"
     )
+
+
+# --- the question underneath the format enums --------------------------------
+
+
+#: Every results panel, mapped to the element that must offer a way to keep the result.
+#: A panel that renders something a reader would want and offers no download is the
+#: defect at the top of this file, and it has now happened three times — each time to a
+#: panel the previous guard's population did not include.
+_RESULT_PANELS: dict[str, str] = {
+    "panel-single": "actions",
+    "panel-batch": "batch-actions",
+    "panel-offtarget": "ot-actions",
+}
+
+
+def _panels_in_the_markup() -> set[str]:
+    return set(re.findall(r'<section id="(panel-[\w-]+)"', _INDEX))
+
+
+def test_every_panel_is_accounted_for() -> None:
+    """The population is the panels the page has, not the ones this list remembers."""
+    unlisted = sorted(_panels_in_the_markup() - set(_RESULT_PANELS))
+    assert not unlisted, (
+        f"these panels exist and no download surface is recorded for them: {unlisted}. "
+        "A panel that renders a result a reader would want to keep must offer one."
+    )
+    stale = sorted(set(_RESULT_PANELS) - _panels_in_the_markup())
+    assert not stale, f"recorded for panels that no longer exist: {stale}"
+
+
+@pytest.mark.parametrize("panel", sorted(_RESULT_PANELS))
+def test_every_panel_offers_a_way_to_keep_its_result(panel: str) -> None:
+    actions = _RESULT_PANELS[panel]
+    assert f'id="{actions}"' in _INDEX, f"{panel} records {actions}, which the markup lacks"
+    section = _INDEX.split(f'id="{actions}"', 1)[1].split("</section>", 1)[0]
+    buttons = re.findall(r'<button id="([\w-]+)"', section)
+    assert buttons, f"{actions} holds no download button"
+    for button in buttons:
+        assert f'"{button}"' in _APP_JS, f"{button} has no handler in app.js"

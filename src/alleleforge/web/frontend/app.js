@@ -519,6 +519,12 @@ async function downloadBatchTsv() {
 const otForm = document.getElementById("offtarget-form");
 const otStatus = document.getElementById("ot-status");
 const otResults = document.getElementById("ot-results");
+const otActions = document.getElementById("ot-actions");
+//: The response the panel is displaying, kept so the download is exactly what the
+//: API served rather than a second serialization built here — and so taking it away
+//: does not re-run the search, which on a real genome is minutes and may not return
+//: the same thing if the deployment's sources changed underneath it.
+let lastOffTarget = null;
 
 function otNumber(id) {
   const value = document.getElementById(id).value.trim();
@@ -581,7 +587,24 @@ function ancestryTable(worst, burden) {
   );
 }
 
+function downloadOffTarget() {
+  if (!lastOffTarget) {
+    otStatus.textContent = "Search a spacer first — there is nothing to download yet.";
+    otStatus.classList.add("error");
+    return;
+  }
+  const blob = new Blob([JSON.stringify(lastOffTarget, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "alleleforge-offtarget.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function renderOffTarget(data) {
+  lastOffTarget = data;
+  otActions.hidden = false;
   const burden =
     data.expected_burden === null || data.expected_burden === undefined
       ? "—"
@@ -611,6 +634,8 @@ function renderOffTarget(data) {
 async function runOffTarget(event) {
   event.preventDefault();
   otResults.innerHTML = "";
+  otActions.hidden = true;
+  lastOffTarget = null;
   otStatus.textContent = "Searching…";
   otStatus.classList.remove("error");
   try {
@@ -639,6 +664,7 @@ document.getElementById("tab-single").addEventListener("click", () => showTab("s
 document.getElementById("tab-batch").addEventListener("click", () => showTab("batch"));
 document.getElementById("tab-offtarget").addEventListener("click", () => showTab("offtarget"));
 otForm.addEventListener("submit", runOffTarget);
+document.getElementById("ot-download-json").addEventListener("click", downloadOffTarget);
 document.getElementById("batch-download-json").addEventListener("click", downloadBatch);
 document.getElementById("batch-download-tsv").addEventListener("click", downloadBatchTsv);
 document

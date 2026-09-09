@@ -419,6 +419,16 @@
         </form>
 
         <section id="ot-status" class="status" aria-live="polite"></section>
+
+        <!-- Every other panel lets a reader take the result away; this one rendered a
+             result and offered no way to keep it, which is the defect
+             `test_the_page_can_take_away_every_format_the_api_renders` was written for
+             one round earlier: "the one rendering the page could not give you was the
+             one it was showing you". -->
+        <section id="ot-actions" class="actions" hidden>
+          <button id="ot-download-json" type="button">Download JSON</button>
+        </section>
+
         <div id="ot-results"></div>
       </section>
     </main>
