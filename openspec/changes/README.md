@@ -13590,3 +13590,54 @@ never been questioned.
 **And "the reproducibility gate passed" is a claim about the scenario, not about the
 change.** When citing a fixture-based guard as evidence for a change, check that the
 fixture contains an instance of the thing you changed. Mine did not, twice.
+
+## Round 414 — fourteen tests named "every candidate" pass when there are none
+
+R413's finding was that a fixture's *scenario* is a coverage decision nobody reviews. The
+same question, asked mechanically of the test suite: which tests assert nothing when the
+thing under test produces nothing?
+
+An AST pass over `tests/` for functions whose every assertion sits inside a loop, filtered
+to loops over a *computed* candidate collection, produced fourteen. Then the measurement —
+mutate all three design verticals to `return []`, the empty menu this project has actually
+shipped once:
+
+```
+149 failed, 693 passed
+```
+
+and every one of the fourteen was in the 693:
+
+| | |
+|---|---|
+| `test_every_candidate_has_outcome_and_offtarget` | passed |
+| `test_every_candidate_has_all_axes` | passed |
+| `test_every_candidate_axes_populated` | passed |
+| `test_completeness_property` | passed |
+| ...and ten more | passed |
+
+The suite catches an empty menu loudly. These fourteen — the ones whose *names* claim to
+guard the per-candidate contract, including the one literally called
+`test_completeness_property` — report that the contract holds.
+
+`for c in candidates: assert ...` over an empty list runs zero assertions and exits
+green. "My assertions never ran" is the one failure a passing test cannot report.
+
+Each now binds the collection and asserts it is non-empty first; all fourteen fail under
+the same mutation. And the grep that found them is now a test, deliberately narrow: it
+looks only at loops over a computed candidate collection, because a loop over a fixed
+registry (`TASKS`, `FIGURES`, `VECTOR_SCHEMES`) is exhaustive by construction and is not
+the shape that went wrong. Its own reader is checked in both directions — it must
+recognise the broken shape and accept the repaired one — so a guard that silently stopped
+matching anything would fail rather than pass.
+
+**Lesson: "every X has property P" is two claims, and the test usually only makes one.**
+Whenever a test's body is a loop, ask what it asserts when the loop does not run — and
+whether the empty case is a state the system can actually reach. Here it was, and the
+project had reached it.
+
+**A note on my own error, twice in one session.** I ran `git checkout <file>` to undo a
+mutation and reverted an *uncommitted repair* in the same file, then read the resulting
+failure as a real one. Both times the file had work in it that only existed in the working
+tree. Copy the file aside before mutating it; `git checkout` restores HEAD, not the state
+you meant.
