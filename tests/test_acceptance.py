@@ -200,6 +200,31 @@ def test_reference_bias_case_reproduced(make_reference: MakeRef) -> None:
     assert site.ancestries["afr"] == max(site.ancestries.values())
     assert report.ancestry_stratification() and report.worst_ancestry() is not None
 
+    # The aggregate safety numbers must *respond* to that site, not merely exist.
+    # Presence was all this test asked for, and presence is satisfied by a constant:
+    # replacing `specificity_score` with `return 1.0` — every guide perfectly specific,
+    # the most consequential number the tool prints — left this whole acceptance suite
+    # green, as did zeroing `worst_score`, `expected_burden` and
+    # `ancestry_expected_burden`. The definition of done checked that the axes were
+    # populated, not that they meant anything.
+    assert report.specificity_score() < 1.0, "a nominated off-target left specificity perfect"
+    assert report.worst_score() > 0.0
+    assert 0.0 < report.expected_burden() < report.worst_score()
+
+    # And the finding itself, on the statistic that can express it. The frequency-blind
+    # per-ancestry worst score is *identical* across ancestries here — a CFD score is a
+    # property of the sequence, not of who carries it — so asserting it is non-empty
+    # reproduces nothing. The frequency-weighted burden is the number this scenario
+    # exists to produce, and it separates the ancestries by two orders of magnitude.
+    worst_by_ancestry = report.ancestry_stratification()
+    assert len(set(worst_by_ancestry.values())) == 1, (
+        "the frequency-blind statistic distinguished ancestries; if that is now real, "
+        f"this test's reasoning needs revisiting: {worst_by_ancestry}"
+    )
+    burden = report.ancestry_expected_burden()
+    assert burden["afr"] > burden["amr"] > burden["nfe"] > 0.0, burden
+    assert burden["afr"] > 100 * burden["nfe"], burden
+
 
 # --- §16.3: prime editing unifies all four axes ---------------------------------
 
