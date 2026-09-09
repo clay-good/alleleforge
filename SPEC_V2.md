@@ -127,11 +127,16 @@ scorer records the backbone `ModelCheckpoint`.
 
 ## R2 — Native kernels wired to the hot paths  ◐ in progress
 
-**Context.** v0.1.0 ships the native **FM-index** (`bwt`) with a Python-parity
-test, but it is opt-in and not yet on a production hot path. The spec layout also
-reserves `kmer` and `haplotype` kernels. R2 implements them **and wires them into
-the call sites that need them**, so the native build delivers real speedups — not
-dead code.
+**Context.** v0.1.0 shipped the native **FM-index** (`bwt`) with a Python-parity test
+and nothing calling it from a production path. That half is done: the reference scan now
+dispatches to the native per-anchor evaluator and bulged-alignment kernels from its
+innermost loop — twice per PAM-positive anchor, about a million times over 2 Mb — resolved
+once at import so the availability check itself stays out of the loop, and pinned
+byte-identical to the Python path by parity tests, so an unbuilt crate changes a scan's
+*speed* and not its results. Building the crate is still opt-in (`pip install maturin &&
+maturin develop`); being *used once built* is not. The spec layout also reserves `kmer`
+and `haplotype` kernels. R2 finishes them **and wires them into the call sites that need
+them**, so the native build delivers real speedups — not dead code.
 
 **Deliverables.**
 - **True-linear suffix-array construction — SA-IS (◐ landed).** `bwt.rs` builds

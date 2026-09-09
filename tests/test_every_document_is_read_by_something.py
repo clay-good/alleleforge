@@ -40,6 +40,10 @@ _DELIBERATELY_UNREAD: dict[str, str] = {
     "openspec/changes/README.md": "the audit log, guarded by `test_round_log_is_navigable`. "
     "It quotes historical mistakes verbatim on purpose, so checking its prose against "
     "today's code would fail by design",
+    "openspec/changes/ROUNDS.md": "generated from the audit log and checked byte-for-byte "
+    "against its generator by `test_the_round_index_matches_the_log`, which is stricter "
+    "than a prose sweep. Its rows quote the log, so it inherits the same reason the log "
+    "itself is excluded",
 }
 
 #: Directory prefixes whose contents are historical records rather than descriptions of

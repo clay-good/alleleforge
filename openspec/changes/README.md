@@ -15793,3 +15793,43 @@ Three properties earn it its place:
 This log has been written for four hundred rounds on the explicit theory that the lessons
 are the product, and the lessons were unreachable without reading the stories around them.
 The index took one round; the value it unlocks was accumulated by all the others.
+
+## Round 461 — the index earning its keep, on the first query
+
+The round index shipped last round exists to make a question like "what has this project
+deferred and never come back to?" answerable. So that was the first query: grep the
+lessons for deferral language, over four hundred and fifty rounds, in one line.
+
+It returned, among others, round 270: *"'not yet implemented' in docs is a claim with an
+expiry date and no alarm on it."* That round put an alarm on the web endpoints —
+`test_the_docs_do_not_call_a_working_endpoint_unimplemented`. Nothing else got one.
+
+Sweeping the prose for the same shape found `SPEC_V2.md`, on the native crate:
+
+> v0.1.0 ships the native **FM-index** (`bwt`) with a Python-parity test, but it is
+> opt-in and **not yet on a production hot path**.
+
+That is no longer true, and not marginally. `offtarget/_search.py` resolves
+`_NATIVE_REMOVED_BASE` and `_NATIVE_EVALUATE` at import — explicitly "so the availability
+check itself has to stay out of the loop", because each runs "twice per PAM-positive
+anchor -- a million times over 2 Mb" — and the scan's innermost loop calls them whenever
+the crate is built. That *is* the production hot path of this project's differentiator.
+Building the crate remains opt-in; being used once built is not, and the sentence
+conflated the two.
+
+The alarm is derived rather than listed: the guard reads the module-level `_NATIVE_*`
+dispatchers out of `_search.py`, asserts each is actually called, and then asserts no
+document in the prose corpus claims the kernels are unwired. A third kernel wired in
+tomorrow is covered without anyone remembering this file exists.
+
+The round's own meta-guard also caught the round before it. `ROUNDS.md` was generated,
+gated and committed — in that order — so the gate ran while the file was still untracked
+and `git ls-files` could not see it. The first run after the commit failed with "1
+document no test opens". It is recorded now with its reason: it is checked byte-for-byte
+against its generator, which is stricter than a prose sweep.
+
+**Lesson: a claim that was true when written is the hardest kind to catch, and the only
+defence is an alarm attached to the code that made it false.** Nobody was careless here:
+someone described the state accurately, someone else made it obsolete two hundred rounds
+later, and the sentence sat in the release spec. Grepping prose for "not yet" is a
+one-round fix; wiring the phrase to the dispatchers is what makes the next one impossible.
