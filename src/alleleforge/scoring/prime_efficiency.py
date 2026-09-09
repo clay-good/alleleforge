@@ -32,6 +32,31 @@ from alleleforge.types.sequence import GenomicInterval
 #: Cell contexts PRIDICT2.0 is trained on; anything else is out-of-distribution.
 PRIDICT_TRAINING_CONTEXTS = frozenset({"HEK293T", "K562"})
 
+#: The same set, folded for comparison against what a user types. `--cell-context
+#: hek293t` used to read as out-of-distribution: an exact, case-sensitive membership
+#: test against the set above. That is not a cosmetic difference — an out-of-distribution
+#: efficiency is ranked on its *lower interval bound* rather than its point estimate
+#: (see `CAVEAT_FLAGS["ood"]`), so a lower-case cell line name silently changed both the
+#: honesty flag and the order of the menu, with nothing saying why. Derived rather than
+#: written out, so a context added to the public set above cannot be left out of here.
+_TRAINING_CONTEXTS_FOLDED = frozenset(context.upper() for context in PRIDICT_TRAINING_CONTEXTS)
+
+
+def in_training_distribution(cell_context: str | None) -> bool:
+    """Return whether ``cell_context`` is one PRIDICT2.0 was trained on.
+
+    ``None`` — no context asked for — is in-distribution: the caller made no claim, so
+    there is nothing to be outside of. Otherwise the comparison ignores surrounding
+    whitespace and case, because ``hek293t`` and ``HEK293T`` are the same cell line and
+    only one of them was spelled the way the constant happens to be. Internal spacing is
+    *not* normalized: ``HEK 293T`` is a different string, and guessing which cell line a
+    user meant is worse than flagging it.
+    """
+    if cell_context is None:
+        return True
+    return cell_context.strip().upper() in _TRAINING_CONTEXTS_FOLDED
+
+
 #: Optimal PBS length (nt) for the baseline geometry term.
 _OPTIMAL_PBS = 13
 
@@ -129,7 +154,7 @@ class PridictScorer:
             tracks, interval, track = chromatin
             signal = tracks.signal(track, interval)
             value = min(0.99, value * (1.0 + 0.1 * math.tanh(signal)))  # open chromatin helps
-        in_dist = cell_context is None or cell_context in PRIDICT_TRAINING_CONTEXTS
+        in_dist = in_training_distribution(cell_context)
         notes = [NOMINAL_INTERVAL_NOTE]
         # The logit's features are PBS/RTT length, nick-to-edit distance, PBS GC and
         # the epegRNA motif — there is no edit-size or edit-class term. Two designs
