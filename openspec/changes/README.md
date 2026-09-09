@@ -13247,3 +13247,59 @@ project's central operation.**
 **And a property that holds by accident of an inefficiency becomes a bug the moment you
 fix the inefficiency. Before optimising, ask what the slow path was quietly guaranteeing.**
 
+
+## Round 408 — the tamper contract was defeated by deleting a row, not editing bytes
+
+`aforge verify` is the honesty mechanism for provenance: "turns provenance from a record
+into a checkable contract". Its help sentence is
+
+> it confirms the block names every model **and dataset** the result used
+
+I ran the negative case for that sentence against a real run. Emptying `models` is caught —
+R-earlier added exactly that cross-check. Emptying `datasets` was not:
+
+```
+provenance: aforge 0.1.0.dev0, seed 20240501, 3 model(s), 0 dataset(s)
+verified: provenance is complete and consistent
+```
+
+The result being verified names the dataset that scored it, on every candidate:
+`candidates[*].offtarget_matrix = "doench-2016-cfd"`. The evidence was sitting in the same
+file, in a field that exists for exactly this reason, and nothing read it.
+
+The consequence is worse than a missing label. Under `--cache-dir` the CFD matrix is the
+*only* artifact this repository actually re-hashes — the three baseline models are all
+`unpinned`. So deleting the row does not just hide the dataset, it empties the byte check
+and leaves it saying so in a NOTE while exiting zero:
+
+```
+$ aforge verify tampered.json --cache-dir cache
+  NOTE: --cache-dir was given but nothing was re-hashed (3 artifact(s) unpinned, ...).
+verified: provenance is complete and consistent          # exit 0
+```
+
+A tamper contract you defeat by *deleting a row* rather than editing bytes is not a tamper
+contract.
+
+The producer side had the rule written down already. `_collect_datasets`:
+
+> Only matrices the registry knows are recorded — the length-relative approximation is
+> code, has no bytes to pin, and is already named per site and per candidate.
+
+So the check is the producer's own rule read back: a matrix a candidate names, that the
+registry knows, must appear in `datasets`. Matching on registry membership rather than on
+the label is what keeps the negative case working — a table that fell back even once reads
+`"published + approximation"`, and demanding the approximation appear in `datasets` would
+refuse every such result. Split on `" + "`, keep what the registry knows, ignore the rest.
+
+Both artifact shapes are covered, duck-typed as the model check already is: a `DesignReport`
+candidate carries the reconciled label on `offtarget_matrix`, a `RankedMenu`'s carries the
+report and reconciles on demand.
+
+**Lesson: when a command states a compound claim ("every model *and* dataset"), run the
+negative case for each half separately. One half had been made true by an earlier round and
+the sentence read as true for both — which is precisely why nobody checked the other.**
+
+**And ask what the tamper check actually re-hashes. Here the answer was "one row", so
+deleting that row was a complete bypass, and the failure mode was a green exit code beside
+a NOTE truthfully reporting that nothing had been established.**
