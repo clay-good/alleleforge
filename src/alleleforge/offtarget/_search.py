@@ -17,7 +17,9 @@ each is evaluated independently; a single site is not given both at once.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field, replace
+from functools import cache
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
@@ -438,6 +440,39 @@ def _seed_filter(
     return covered_prefix(len(seq), positions, k)
 
 
+#: The bases a PAM character class may name. Today this intersection removes nothing —
+#: every `IUPAC_EXPAND` value is already a set of concrete bases, which is *why* an ``N``
+#: in a scanned window matches no pattern code, exactly as the loop's separate
+#: `"N" not in pam_seq` test required. It is kept as the guard for that property rather
+#: than as live filtering: an expansion that grew to include ``N`` would otherwise put
+#: ``N`` in a class and start admitting windows over unknown bases, which is a silently
+#: larger hit set, not an error. `test_the_pam_gate_is_the_same_gate` pins the property.
+_CONCRETE_BASES = frozenset("ACGT")
+
+
+@cache
+def _pam_anchor_scanner(pattern: str) -> re.Pattern[str]:
+    """Return a compiled scanner finding every anchor whose window matches ``pattern``.
+
+    The scan used to ask this question per anchor, in Python: slice a window, look it up
+    in a memo, `continue` on a miss. At the default budget the k-mer prefilter does not
+    apply (`seed_length(20, 6)` falls under `MIN_SELECTIVE_K`), so that ran once per
+    position per strand — four million dict lookups and four million slices for a 2 Mb
+    scan, before a single alignment was evaluated. The question is a regular one, so the
+    regex engine can answer it for the whole sequence in C.
+
+    Each pattern code becomes the character class of the bases it admits, all of which
+    are concrete — so the ``N`` exclusion the loop wrote out separately falls out of the
+    classes instead of being a second test to remember. The whole thing is a
+    **lookahead**, because PAM windows overlap — ``AGGG`` holds a match at 0 and another
+    at 1 — and a consuming match would skip the second.
+    """
+    classes = "".join(
+        f"[{''.join(sorted(IUPAC_EXPAND[code] & _CONCRETE_BASES))}]" for code in pattern
+    )
+    return re.compile(f"(?=({classes}))")
+
+
 def _scan_one_strand(
     spacer: str,
     seq: str,
@@ -464,25 +499,20 @@ def _scan_one_strand(
         else None
     )
     hits: list[tuple[int, int, str, int, int, int, str, str]] = []
-    pam_ok: dict[str, bool] = {}
-    for pam_at in range(len(spacer) - 1, len(seq) - pam_len + 1):
+    # The PAM check comes first now that it costs one C-level scan for the whole
+    # sequence rather than a slice and a lookup per anchor. It was second because it
+    # used to be the expensive one, and the prefilter — which does not apply at the
+    # default budget anyway — was the cheap way to avoid it. Both are pure filters, so
+    # the order is a performance question only.
+    for match in _pam_anchor_scanner(pam.pattern).finditer(seq, max(0, len(spacer) - 1)):
+        pam_at = match.start()
         if covered is not None:
-            # Skip before the PAM check: no exact seed in the widest protospacer
-            # window (ungapped/DNA-bulge/RNA-bulge) -> provably no in-budget hit.
+            # No exact seed in the widest protospacer window (ungapped/DNA-bulge/
+            # RNA-bulge) -> provably no in-budget hit.
             lo = max(0, pam_at - (n + 1))
             if covered[pam_at] - covered[lo] == 0:
                 continue
-        pam_seq = seq[pam_at : pam_at + pam_len]
-        ok = pam_ok.get(pam_seq)
-        if ok is None:
-            # Windows are drawn from the sanitized ACGTN alphabet, so the distinct
-            # ones are few (5**pam_len) while the anchors are many. Decide each
-            # distinct window once instead of re-walking the IUPAC codes per base
-            # at every position.
-            ok = "N" not in pam_seq and pam.matches(pam_seq)
-            pam_ok[pam_seq] = ok
-        if not ok:
-            continue
+        pam_seq = match.group(1)
         result = _evaluate(
             spacer,
             seq,

@@ -283,7 +283,7 @@ pure-Python fallback and a byte-identical parity test, and each wired into its h
 | Kernel | What it does | Hot path | Parity test | Speedup |
 |---|---|---|---|:---:|
 | `bwt` | FM-index `build`/`count`/`locate`/`pam_sites` | reference scan (PAM seed-and-extend) | [`test_native.py`](tests/genome/test_native.py) | genome-scale |
-| `kmer` | exact length-`k` seed positions | seed prefilter (high-stringency scans) | [`test_kmer.py`](tests/offtarget/test_kmer.py) | ~5–7x lookup; scan-level ~1x today |
+| `kmer` | exact length-`k` seed positions | seed prefilter (high-stringency scans) | [`test_kmer.py`](tests/offtarget/test_kmer.py) | ~5–7x lookup; scan-level a **net cost** (0.24–0.86x, 1 Mb, one guide) — the prefilter's own O(n) Python prefix sum now exceeds what it saves. Measured, not gated; `scripts/native_speedup.py` prints the pair. |
 | `haplotype` | apply a haplotype's variant set to a window | haplotype walk (stage 3 materialization) | [`test_haplotype_kernel.py`](tests/offtarget/test_haplotype_kernel.py) | ~4x |
 | `align` | best single-base removal within a mismatch budget | the scan's innermost alignment (two calls per PAM anchor) | [`test_native_align_parity.py`](tests/offtarget/test_native_align_parity.py) | ~43% off a whole scan |
 
