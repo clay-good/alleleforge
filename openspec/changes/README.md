@@ -16512,3 +16512,37 @@ stale-entry checks, a second entry point that had only the weak form. The reason
 themselves were never anything but prose, and one of them had been describing a field that
 did not exist. A checked list of unchecked sentences reads as maintained, which is worse
 than an unchecked list, because it is where nobody looks.
+
+## Round 481 — the same disagreement, one layer down
+
+Round 480 fixed the web API calling every genome hg38. The library it is supposed to be a
+thin shell over had its own copy, and the round that fixed the shell is exactly the round
+most likely to walk past it — which is round 478's lesson, so this one went looking.
+
+`design(build=...)` says which assembly the input's coordinates are in. A
+`ReferenceGenome` carries the assembly it *is*. Both could be given, they could disagree,
+and the disagreement was resolved silently in two different directions at once:
+`_resolve_input` used the argument — which is the whole of what a ClinVar or dbSNP lookup
+keys on — and the provenance recorded `reference.build or build`, the reference's. So a
+run asked for in one assembly came back stamped with another.
+
+The default made the reverse case worse. `build` defaulted to the string `"hg38"`, so a
+caller who labelled their genome mm39 and never touched `build` was resolving against
+"hg38" on every call. It defaults to `None` now, meaning "whatever the reference is", and
+a stated build the reference contradicts raises, naming both — the same shape as
+`chromatin_track` without `encode_tracks`: two inputs that only mean something together,
+and a combination the library answered instead of refusing.
+
+Under it, `canonical_assembly` had a smaller version of the same fault. The lookup
+lowercases, so every *aliased* name compared case-insensitively; the fallback returned the
+name as written, so `GRCh38.p14` and `grch38.p14` — one assembly, spelled by two tools —
+compared unequal, and `assembly_matches` returning False is read everywhere as "these
+coordinates are in different assemblies". The alias table is also hand-written, so the
+builds it must cover are now derived from `BUILTIN_BUILDS`, and a check fails on any alias
+key that is capitalized, since the lowercasing lookup can never reach one.
+
+**Lesson: fix the shell, then look under it.** The web fix was found by making a guard's
+excuses executable, and it stopped at the HTTP boundary because that is where the guard
+looks. The library had the same defect with a wider blast radius — every Python caller,
+every cohort, the CLI's own resolution path — and no shell-parity check could ever have
+seen it, because both shells agreed.

@@ -41,9 +41,15 @@ _ASSEMBLY_ALIASES: dict[str, str] = {
 
 
 def canonical_assembly(name: str) -> str:
-    """Return a naming-independent key for a genome assembly name."""
-    key = name.strip().lower()
-    return _ASSEMBLY_ALIASES.get(key, name.strip())
+    """Return a naming-independent key for a genome assembly name.
+
+    Case-independent for an *unaliased* name too. The lookup lowercases, so the aliased
+    names have always compared case-insensitively; the fallback returned the name as
+    written, so `GRCh38.p14` and `grch38.p14` — one assembly, spelled by two tools —
+    compared unequal, and every caller of :func:`assembly_matches` reads that as "these
+    coordinates are in different assemblies".
+    """
+    return _ASSEMBLY_ALIASES.get(name.strip().lower(), name.strip().lower())
 
 
 def assembly_matches(a: str, b: str) -> bool:

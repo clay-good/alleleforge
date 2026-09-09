@@ -66,7 +66,7 @@ from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import Chemistry, EditIntent
 from alleleforge.types.provenance import DatasetVersion, ModelCheckpoint, Provenance
 from alleleforge.types.sequence import GenomicInterval
-from alleleforge.types.variant import ClinicalSignificance, Variant
+from alleleforge.types.variant import ClinicalSignificance, Variant, assembly_matches
 from alleleforge.variant.effect import EffectPredictor, Impact
 from alleleforge.variant.hgvs_adapter import HgvsAdapter
 from alleleforge.variant.resolver import (
@@ -97,6 +97,31 @@ def model_chemistry_group(chemistry: Chemistry) -> frozenset[Chemistry]:
 
 #: A zero-argument chemistry runner returning that chemistry's candidates.
 _Runner = Callable[[], list[DesignCandidate]]
+
+
+def _agreed_build(build: str | None, reference: ReferenceGenome) -> str:
+    """Return the build to resolve in, refusing one the reference contradicts.
+
+    A reference carries the assembly it is, and ``build`` says which assembly the input's
+    coordinates are in. When both are given and they disagree, exactly one of them is
+    wrong and nothing downstream can tell which: the provenance took the reference's
+    label, so a run asked for in one assembly came back stamped with another — and the
+    same `chr7:5,530,601` is a different base in the two.
+
+    Omitting ``build`` adopts the reference's label, which is why the default is ``None``
+    rather than ``"hg38"``: a caller who labelled their genome mm39 and never touched
+    ``build`` was resolving against the string "hg38".
+    """
+    label = reference.build
+    if build is None:
+        return label or "hg38"
+    if label and not assembly_matches(build, label):
+        raise ValueError(
+            f"build={build!r} was given for a reference labelled {label!r}; one of the "
+            "two is wrong, and the same coordinate is a different base in two "
+            "assemblies. Pass the build the reference is, or a reference for that build"
+        )
+    return build
 
 
 def _resolve_input(
@@ -167,7 +192,7 @@ def design(
     cell_context: str | None = None,
     run_offtarget: bool = True,
     max_candidates_per_chemistry: int | None = None,
-    build: str = "hg38",
+    build: str | None = None,
     clinvar: ClinVarLookup | None = None,
     dbsnp: DbSnpLookup | None = None,
     hgvs: HgvsAdapter | None = None,
@@ -235,7 +260,9 @@ def design(
         allow_spry: Fall back to SpRY (NRN/NYN) guides when neither NGG
             nor NG yields one. Off by default, for the same reason.
         max_candidates_per_chemistry: Cap candidates kept from each chemistry.
-        build: Reference build the input is expressed in.
+        build: Reference build the input is expressed in. Defaults to the
+            label the reference carries; stating a different one is a
+            ``ValueError``, not a run relabelled to the reference's.
         clinvar: ClinVar DB (needed for accession inputs).
         dbsnp: dbSNP DB (needed for rsID inputs).
         hgvs: HGVS adapter (needed for ``c.``/``p.`` inputs).
@@ -262,6 +289,7 @@ def design(
             "required together (or pass neither for an unadjusted run)"
         )
     cfg = settings or get_settings()
+    build = _agreed_build(build, reference)
     resolved = _resolve_input(
         inp,
         reference=reference,
@@ -471,7 +499,7 @@ def design(
     provenance = Provenance.capture(
         alleleforge_version=__version__,
         seed=cfg.seed,
-        reference_build=reference.build or build,
+        reference_build=build,
         timestamp=timestamp,
         models=_collect_model_checkpoints(
             eligible,
