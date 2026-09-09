@@ -14772,3 +14772,50 @@ matching command path.
 **Lesson: count the populations of a claim before writing the guard for one of them.**
 "Names a real command" is asserted in help, in docs, and in messages. Two had checks. The
 third is the one printed to someone who is already stuck.
+
+## Round 437 — the report told a browser user to open a terminal
+
+R435 fixed `aforge design --json` so it delivers the ranked menu the truncation note points
+at. This round used the served page as a user, and the note is *rendered into the HTML the
+page displays*:
+
+> showing 3 of 4 predicted alleles … the full spectrum is on the ranked menu, not in the
+> report export — **`aforge design --json`** writes it
+
+To the audience the README describes as "users who will not touch a terminal".
+
+Worse than a wrong pointer: there was nowhere for it to point. **No HTTP route returned the
+menu.** Not `/api/design?format=json|tsv|html|pdf|parquet`, not `POST /api/jobs/design`'s
+result — every one is built from a `DesignReport`, which is where the truncation happens.
+Checked by driving the page in a browser and capturing what "Download JSON" actually
+writes: `outcome_top: 3` of `n_outcome_alleles: 4`. The library had the whole thing all
+along; three shells could not reach it and the fourth was told to use one of the others.
+
+`format=menu` returns the ranked menu — uncapped, untruncated — and the page has a
+**Download full menu** button. Verified in a browser end to end: the file carries
+`intended`, `scaffold_incorporation`, `partial_rtt` and `indel`, the last being the one the
+report withholds. Which byproducts a pegRNA produces is the question an outcome table
+exists to answer.
+
+The two documents stay distinct on purpose. The report is the richer *presentation* — it
+carries the intent, the weights, the rendered rationale — and the menu the richer *data*.
+That is why this is a second download rather than a change to the first, and why the
+endpoint returns the menu as a `Response`: the `response_model=DesignReport` would
+otherwise reshape it into exactly the thing it is not, and every check would still pass.
+
+Adding the format to one shell made the shell-parity guard fail, and it was right to.
+`test_the_two_shells_offer_the_same_output_formats` compares `OutputFormat` against
+`DesignFormat` and said only the web API could produce `menu`. The CLI *could* produce the
+menu — `--json`, fixed the round before — but only onto stdout, and only as a side channel
+next to `--format`. So it was the one output of this command with nowhere on disk to land
+and no provenance sidecar: `aforge design VARIANT --format menu --out menu.json` did not
+exist. It does now, written and sidecar'd like every other format, with `--json` kept as
+its stdout shorthand. The guard did not find a missing feature; it found a capability
+spelled two different ways in two shells, which is the same defect wearing a smaller hat.
+
+**Lesson: a remedy is written for whoever reads it, and the same string is read by
+different audiences on different surfaces.** `aforge design --json` is a fine instruction
+in a terminal, in a downloaded file, in a PDF a collaborator opens. Inside a page whose
+reason for existing is that its reader has no terminal, it is the one place it cannot be
+followed — and the fix was not to reword it but to notice that the thing it pointed at was
+unreachable from three of the four shells.

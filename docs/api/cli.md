@@ -40,6 +40,8 @@ confirmation — go to stderr, so `aforge design ... --out report.json --json > 
 yields a file a parser accepts. On `design`, `--json` prints the *ranked menu*, which is
 the only surface carrying each candidate's full outcome spectrum: `--format json` writes
 the report, whose per-candidate allele list is the same handful the HTML and PDF show.
+`--format menu --out menu.json` writes that same menu to a file, with the provenance
+sidecar every written format gets; `--json` is its stdout shorthand.
 
 ## Exit codes
 

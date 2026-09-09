@@ -711,6 +711,11 @@ class OutputFormat(StrEnum):
     html = "html"
     pdf = "pdf"
     parquet = "parquet"
+    #: The ranked menu itself, not the report built from it. The report truncates
+    #: each candidate's outcome spectrum and points the reader at the menu for the
+    #: rest; this is that document, as a file you can name rather than a stream you
+    #: have to redirect.
+    menu = "menu"
 
 
 #: Shared by every command that can reuse a reference scan, so the two flags read the
@@ -1480,8 +1485,10 @@ def design(
             typer.echo(menu.model_dump_json(indent=2))
         return
 
-    if fmt is OutputFormat.json:
-        rendered: bytes = report_to_json(report).encode()
+    if fmt is OutputFormat.menu:
+        rendered: bytes = menu.model_dump_json(indent=2).encode()
+    elif fmt is OutputFormat.json:
+        rendered = report_to_json(report).encode()
     elif fmt is OutputFormat.tsv:
         rendered = report_to_tsv(report).encode()
     elif fmt is OutputFormat.html:
@@ -1501,7 +1508,7 @@ def design(
         # — the exact command every truncated outcome table points a reader at for the
         # withheld alleles — printed the truncation instead of the full spectrum.
         pass
-    elif fmt in (OutputFormat.json, OutputFormat.tsv):
+    elif fmt in (OutputFormat.json, OutputFormat.tsv, OutputFormat.menu):
         typer.echo(rendered.decode())
     else:
         _echo_err(f"error: --format {fmt.value} requires --out")

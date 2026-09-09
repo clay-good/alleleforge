@@ -35,7 +35,7 @@ auto-generated at `/openapi.json`.
 |---|---|
 | `GET /api/health` | Liveness, the disclaimer, and which data sources this deployment loaded: the reference, the population sites, the haplotype panel, and the accessibility track names a request may choose from — plus `source_errors`, the reason a *configured* source failed to load, so a broken mount is not reported as a deliberate absence. |
 | `POST /api/resolve` | Normalize any input form to a canonical variant. |
-| `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf\|tsv\|parquet` — the same set `aforge design --format` offers. |
+| `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf\|tsv\|parquet\|menu` — the same set `aforge design --format` offers. `menu` returns the ranked menu itself rather than the report built from it, which is the only form carrying each candidate's *full* outcome spectrum; every other format truncates it and says so. |
 | `POST /api/jobs/design` | Submit an async design job (`202`, returns a job id). |
 | `POST /api/jobs/batch` | Submit an async **cohort** job (`202`, returns a job id). A cohort is the long operation — a 300-variant run takes minutes — so this is the door a client behind a proxy timeout should use; `POST /api/batch` blocks until the whole cohort is designed. Both run the same cohort through the same function. |
 | `GET /api/jobs/{job_id}` | Poll an async job: `state` (`pending` → `running` → `done` / `error`, an enum in the schema so a generated client can switch on it), a three-valued `progress`, and the result or the failure reason. |

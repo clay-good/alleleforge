@@ -95,12 +95,21 @@ class BatchFormat(StrEnum):
 class DesignFormat(StrEnum):
     """Renderings the design endpoint can return.
 
-    The same set `aforge design --format` offers. The two flat tables are the surface a
-    *pipeline* reads, and they were CLI-only (Parquet, Python-only) — so the one
-    audience that cannot open an HTML page was the one the HTTP shell had nothing for.
+    The same set `aforge design --format` offers, plus `menu` — the ranked menu itself.
+    The two flat tables are the surface a *pipeline* reads, and they were CLI-only
+    (Parquet, Python-only) — so the one audience that cannot open an HTML page was the one
+    the HTTP shell had nothing for.
+
+    `menu` exists for the same reason one level down. Every rendering above is built from
+    a `DesignReport`, which truncates each candidate's outcome to the top alleles and says
+    so — and the sentence it says it in names `aforge design --json`, a *terminal* command,
+    printed to the audience this HTTP surface exists for because they have no terminal. No
+    route returned the full spectrum: not any `format`, not the async job result. The
+    library had it all along.
     """
 
     json = "json"
+    menu = "menu"
     html = "html"
     pdf = "pdf"
     tsv = "tsv"
@@ -566,8 +575,8 @@ def _regions(regions: list[Region] | None) -> list[GenomicInterval] | None:
         raise HTTPException(status_code=422, detail=reason(exc)) from exc
 
 
-def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
-    """Resolve + design + build a report for a design request (or ``4xx``)."""
+def _design_to_menu_and_report(request: Request, req: DesignRequest) -> tuple[Any, DesignReport]:
+    """Resolve + design, returning both the ranked menu and the report built from it."""
     from alleleforge.design.designer import design as run_design
 
     reference = _require_reference(request)
@@ -602,7 +611,13 @@ def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
         **_trained_scorers(request, req),
     )
     scheme = scheme_by_name(req.vector_scheme) if req.vector_scheme else None
-    return build_report(menu, variant=str(resolved.variant), intent=intent.value, scheme=scheme)
+    report = build_report(menu, variant=str(resolved.variant), intent=intent.value, scheme=scheme)
+    return menu, report
+
+
+def _design_to_report(request: Request, req: DesignRequest) -> DesignReport:
+    """Resolve + design + build a report for a design request (or ``4xx``)."""
+    return _design_to_menu_and_report(request, req)[1]
 
 
 #: Request paths that never require the API token (liveness must stay probeable).
@@ -896,8 +911,13 @@ def create_app(
         request: Request,
         fmt: Annotated[DesignFormat, Query(alias="format")] = DesignFormat.json,
     ) -> DesignReport | Response:
-        """Design a ranked, multi-chemistry menu (JSON, HTML, PDF, TSV, or Parquet)."""
-        report = _design_to_report(request, req)
+        """Design a ranked, multi-chemistry menu (JSON, menu, HTML, PDF, TSV, or Parquet)."""
+        menu, report = _design_to_menu_and_report(request, req)
+        if fmt is DesignFormat.menu:
+            # The ranked menu, uncapped and untruncated — the document the report's own
+            # withheld-alleles note points at. Returned as a Response so the DesignReport
+            # response_model does not reshape it into the very thing it is not.
+            return Response(menu.model_dump_json(indent=2), media_type="application/json")
         # 0 means "draw them all"; the JSON body is never capped either way.
         cap = (
             DEFAULT_RENDER_CANDIDATES

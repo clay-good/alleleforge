@@ -673,6 +673,13 @@ document
 document
   .getElementById("download-json")
   .addEventListener("click", () => download("json", "alleleforge-report.json", "application/json"));
+document
+  .getElementById("download-menu")
+  .addEventListener("click", () =>
+    // The uncapped, untruncated ranked menu — every candidate's full outcome spectrum,
+    // which the report shows the top few of.
+    download("menu", "alleleforge-menu.json", "application/json"),
+  );
 
 document
   .getElementById("download-html")
