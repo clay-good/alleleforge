@@ -14251,3 +14251,57 @@ it was one import too late to see the first of them.
 **And an entry point named after a sibling submodule is a bug that passes every test you
 would think to write** — because the script resolves first. The test that finds it is the
 one that imports the submodule on purpose.
+
+## Round 427 — the gate could not run from the documented install
+
+The sdist is published to PyPI and never installed by CI, so R423's instrument applies:
+build it, install it, run what it ships. It ships `tests/`, so I ran them.
+
+```
+ERROR tests/report/test_the_parquet_schema_is_declared_not_guessed.py
+ModuleNotFoundError: No module named 'polars'
+!!!!! Interrupted: 1 error during collection !!!!!
+```
+
+Not one test ran. Then the same thing from the repository itself, in a clean venv built
+with exactly `make install`'s extras — same result. **`pytest` cannot collect the suite
+from the documented install.** One `import polars as pl` at module scope, in one file, and
+`core` was in neither `make install` (`[dev,cli,web,genome-light]`) nor any CI job that
+runs tests. At module scope it fails *collection*, which stops everything — a broken gate
+rather than one red test.
+
+Then the guard I wrote for it found a second one. The `rust` job installs its own set and,
+by a deliberate decision with eleven lines of comment explaining it, runs **the whole
+suite** — "not `-m native` … that is the configuration the docs recommend for real work".
+It installed `[dev,genome-light]`. Fifty-six test files import `typer` at module scope and
+seventeen import `fastapi`. That job could not collect the suite either, for two more
+extras, and its comment is a careful argument for running something that was not running.
+
+Why it stayed invisible: the development virtualenv on this machine has `polars` — and
+**not** `pyarrow` or `numpy`, the other two members of the same extra. That is the
+signature of a package installed by hand to make something pass, rather than by the
+documented command. Every local run has been using a set nobody can reproduce.
+
+`CONTRIBUTING.md` already states the property, as the reason `make install` exists:
+
+> `dev` alone leaves out the FASTA reader and the web server, so **the gate you are about
+> to run cannot pass**. It is the same extras set CI installs, kept in one place.
+
+Both halves were false. The guard makes both checkable, and derives what it needs rather
+than listing it: `cli.main._EXTRA_FOR_MODULE` already maps every optional import to the
+extra that provides it — the CLI needs that map to turn an `ImportError` into an install
+line — so "a test imports this at module scope, therefore the gate needs that extra" comes
+out of a table the project already maintains for another reason.
+
+Verified the way the finding was found: a clean venv, `pip install -e ".[dev,core,cli,web,
+genome-light]"`, `pytest` → **3,210 passed**. And it immediately failed R424's guard,
+which requires the README to show the Makefile's exact line — the drift I had just created,
+caught by the round before it.
+
+**Lesson: an import at module scope in a test is not a test dependency, it is a *collection*
+dependency.** One of them, in one file, took the entire suite down on every environment
+except the one drifted machine that never saw it.
+
+**And a virtualenv with one member of a three-package extra is a warning sign.** `polars`
+without `pyarrow` or `numpy` is not something an install produces; it is something a person
+does to get past an error. The environment that makes your gate pass is part of the gate.
