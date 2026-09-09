@@ -14014,3 +14014,51 @@ both ancestry tables included. Clicking it with nothing held says
 usually a bigger one.** Read the docstring's first line — the *why* — and ask whether the
 enumeration actually covers that, or covers a proxy for it that happened to be convenient.
 Three panels have now been caught by the same sentence, and the third was caught by nothing.
+
+## Round 422 — the cross-check's anchor was checked against its own arithmetic
+
+`CasOffinderAdapter` exists to say "these two engines disagree". Everything it reports
+hangs on one coordinate: Cas-OFFinder gives the leftmost coordinate of the whole
+protospacer+PAM match, AlleleForge records the *protospacer* start, and on the minus
+strand the PAM sits at the low-coordinate end — so `reference_loci` shifts a minus-strand
+locus down by `pam_len`. Get it wrong and **every** minus-strand site is flagged as a
+two-way disagreement, by the tool whose whole purpose is flagging disagreements.
+
+What tested it:
+
+```python
+report = _report(_site(1000, SiteOrigin.REFERENCE, strand=Strand.MINUS))
+assert CasOffinderAdapter.reference_loci(report) == {("chr2", 997, Strand.MINUS)}
+```
+
+A site built in the test with `start=1000`, and the assertion that 997 comes out. That
+checks `1000 - 3 == 997`. It does not check that 997 is *where the match is*, and it never
+sees a site the engine produced — so a bulged alignment, whose protospacer is 21 or 19
+bases rather than 20, was outside it entirely.
+
+The binary is not installable here, so real Cas-OFFinder parity stays out of reach. It is
+not faked: inventing another tool's output to test against would be worse than the gap.
+But the property parity *depends on* is checkable from the reference itself. At the
+coordinate `reference_loci` reports, read the bases: the window must be exactly
+`len(protospacer) + 3` long and the PAM must sit at the 3' end **as read on that site's
+strand** — the last three bases on the plus strand, the reverse complement of the first
+three on the minus. That is ground truth from the FASTA, not the shift restated.
+
+The fixture plants an exact plus-strand match, a one-mismatch minus-strand match and a
+two-mismatch plus-strand match, and the engine finds four sites — one of them a
+21-base minus-strand bulged alignment, which is the case the old test could not produce.
+Two premise tests keep it honest: both strands must appear, and more than one protospacer
+length must appear, or the shift and the bulge are never exercised.
+
+The adapter turned out to be **correct**. Three mutations confirm the new test would have
+said otherwise: dropping the shift, applying it to both strands, and applying it to the
+plus strand instead each fail it.
+
+**Lesson: a test that builds its own input and asserts the arithmetic is a restatement of
+the code, not a check on it.** The tell is that you could derive the expected value by
+reading the implementation. Feed the real producer's output in, and get the expected value
+from something the implementation does not touch — here, the bases in the FASTA.
+
+**And when the external reference is genuinely unavailable, find the property it would
+have verified and check *that*.** "Blocked on a binary we cannot install" was true and
+complete for parity, and false for the coordinate convention parity rests on.
