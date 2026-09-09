@@ -995,7 +995,9 @@ report = design_many(
     iter_vcf("cohort.vcf.gz"),     # streams a VCF: one record per concrete ALT, multi-allelic split,
                                    # symbolic/spanning alleles skipped, non-PASS dropped by default
     reference=hg38, intent=EditIntent.INSTALL,
-    manifest_path="run.jsonl",     # resume point: a re-run skips items already recorded
+    manifest_path="run.jsonl",     # resume point: a re-run skips items already recorded — and
+                                   # refuses a manifest opened under different result-determining
+                                   # inputs, or says so when the manifest cannot be checked
     output_dir="menus/",           # durable per-sample menu JSON (survives the run)
     on_result=print,               # stream results → O(1) memory in cohort size
 )

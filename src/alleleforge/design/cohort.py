@@ -32,6 +32,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import warnings
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
@@ -369,6 +370,48 @@ def _render(key: str, value: Any) -> str:
     return repr(value)
 
 
+#: The provenance key carrying why a resume could not be checked. Not a `_RESUME_CRITICAL`
+#: key: it describes this run's *reading* of the manifest, not an input that decides a
+#: result, so a later run must not refuse to resume because an earlier one said it.
+RESUME_UNVERIFIED = "resume_unverified"
+
+
+def _unverified_resume(manifest_path: Path, provenance: dict[str, Any]) -> str | None:
+    """Return why this resume could not be checked against the manifest, or ``None``.
+
+    :func:`_refuse_a_mismatched_resume` compares the manifest's `_run` header against
+    this run and refuses a difference. It compares *what is there*: a manifest written
+    before the header existed has none, and one written by an older version can be
+    missing a key — and in both cases the guard returned quietly, which is the case it
+    was written for. A pre-header manifest stays resumable on purpose (making it
+    unusable would strand real work), so what was missing was not a refusal but the
+    sentence saying the check did not run.
+    """
+    if not manifest_path.exists():
+        return None  # A fresh manifest: there is no earlier run to mix with.
+    with manifest_path.open(encoding="utf-8") as fh:
+        # The first line only. A manifest is one line per completed item and can be
+        # large; nothing here needs more than "is there anything in it".
+        if not fh.readline().strip():
+            return None
+    header = _run_header(manifest_path)
+    if not header:
+        return (
+            f"resumed items from {manifest_path.name}, which records no `_run` header: "
+            "what they were designed under is unknown, so this run could not check that "
+            "it matches. Re-run with resume disabled to design every item under these "
+            "inputs"
+        )
+    missing = [key for key in _RESUME_CRITICAL if key not in header]
+    if missing:
+        return (
+            f"resumed items from {manifest_path.name}, whose header records no "
+            f"{', '.join(missing)}: this run could not check that they match "
+            f"({', '.join(f'{k}={provenance.get(k)!r}' for k in missing)})"
+        )
+    return None
+
+
 def _refuse_a_mismatched_resume(manifest_path: Path, provenance: dict[str, Any]) -> None:
     """Refuse to resume a manifest opened under different result-determining inputs.
 
@@ -526,6 +569,12 @@ def design_many(
     }
     if manifest is not None and resume:
         _refuse_a_mismatched_resume(manifest, provenance)
+        # The refusal above only fires on a difference it can see. When it cannot see,
+        # the run says so rather than reporting a skipped item as verified work.
+        unverified = _unverified_resume(manifest, provenance)
+        if unverified is not None:
+            provenance[RESUME_UNVERIFIED] = unverified
+            warnings.warn(unverified, stacklevel=2)
     done = _read_done_ids(manifest) if (manifest is not None and resume) else set()
     if manifest is not None and not manifest.exists():
         from alleleforge.report.builder import COORDINATE_NOTE, RESEARCH_USE_DISCLAIMER

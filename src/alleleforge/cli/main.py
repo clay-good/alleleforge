@@ -1797,7 +1797,7 @@ def batch(
     fast path; anything else is read as a one-variant-per-line list.
     """
     try:
-        from alleleforge.design.cohort import design_many
+        from alleleforge.design.cohort import RESUME_UNVERIFIED, design_many
     except ImportError as exc:
         _missing_dependency(exc)
     from alleleforge.types.edit import Chemistry, EditIntent
@@ -1974,6 +1974,10 @@ def batch(
         except MissingDependencyError as exc:
             _echo_err(f"error: {reason(exc)}")
             raise typer.Exit(ExitCode.UNAVAILABLE) from exc
+    # Not behind --verbose: a skipped item reads as work already done, and this is the
+    # run saying it could not confirm what that work was designed under.
+    if report.provenance.get(RESUME_UNVERIFIED):
+        _echo_err(f"warning: {report.provenance[RESUME_UNVERIFIED]}")
     if state.verbose:
         _echo_err(f"designed {report.succeeded}/{report.total} (skipped {report.skipped})")
 

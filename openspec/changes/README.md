@@ -16576,3 +16576,40 @@ sentence: the web labelled every genome hg38 because nothing made the operator s
 `design()` took the reference's label only when the caller had supplied one. When a check
 needs a fact, ask whether the dangerous case is precisely the one where the fact is
 missing — and find the property that is always there instead.
+
+## Round 483 — the guard that could not see, and did not say so
+
+Round 482's lesson — a guard conditioned on metadata is inert on the input that lacks it —
+pointed at the cohort resume check. `_refuse_a_mismatched_resume` compares the manifest's
+`_run` header against this run and refuses a difference, which is what stops a cohort
+being a silent mixture of two runs: resume keys on `item_id`, so the same accession
+against a second ClinVar release is "already done".
+
+    header = _run_header(manifest_path)
+    if not header:
+        return
+
+A manifest written before the header existed has none. One written by an older version can
+be missing a critical key, and the comparison is `if key in header`. Both cases are the
+run whose provenance nobody recorded — the run this check exists for — and both returned
+quietly.
+
+Unlike the two rounds before it, the answer here is not to refuse. A round introducing the
+header decided that a pre-header manifest must stay resumable, with a test saying so, and
+that is right: stranding real work is worse than the risk. What was missing was never the
+refusal. It was the sentence saying the check did not run. A skipped item reads as work
+already done, and `skipped: 14` on a summary is indistinguishable from fourteen verified
+skips.
+
+So the run says which: `provenance["resume_unverified"]`, carried by the summary TSV, the
+cohort JSON and the web batch response; a `UserWarning` for a Python caller; and a stderr
+line from `aforge batch`, unconditional rather than under `--verbose`. It is deliberately
+not a `_RESUME_CRITICAL` key — a run saying "I could not check this" must not make every
+later resume of that manifest a refusal.
+
+**Lesson: when a check cannot run, that is a result.** The two rounds before this one
+found a check inert on its risky input and made it fire. This one had the same shape and a
+prior decision saying the inert case must keep working — and the fix was not to overrule
+the decision but to stop the silence, which is the part nobody had defended. "Refuse" and
+"proceed" are not the only two options; "proceed, and say what you could not establish" is
+the one this project's whole thesis is built on.
