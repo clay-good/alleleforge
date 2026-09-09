@@ -183,6 +183,30 @@ def test_the_page_downloads_the_cohort_table_from_the_job_it_already_ran() -> No
         )
 
 
+def test_the_progress_line_is_not_the_last_thing_the_reader_sees() -> None:
+    """A "…designing it again" message must not outlive the download it describes.
+
+    Driving this in a browser — run a cohort, restart the server, click Download TSV —
+    the file arrived and the status line still read "The server no longer holds that run
+    — designing it again to build the table…". A progress message left standing after the
+    work finished reads as work still running. It also has something to say that the
+    ordinary path does not: this table came from a *second* run, so it is not the same
+    document as the JSON downloaded from the first.
+    """
+    body = re.search(r"async function downloadBatchTsv\(\)\s*\{(.*?)\n\}", _APP_JS, re.S)
+    assert body is not None, "downloadBatchTsv is gone; this guard needs rewriting"
+    source = body.group(1)
+    if "/api/batch" not in source:
+        pytest.skip("the page no longer falls back to re-running the cohort")
+    assert "a.click()" in source, source
+    after = source[source.index("a.click()") :]
+    assert "batchStatus.textContent" in after, (
+        "nothing tells the reader the download finished; the progress line is the last "
+        "message left on screen"
+    )
+    assert "new run" in after, after
+
+
 def test_the_page_says_so_before_it_re_runs_a_cohort_it_lost() -> None:
     """The fallback is minutes of work nobody asked for; it must not happen in silence."""
     body = re.search(r"async function downloadBatchTsv\(\)\s*\{(.*?)\n\}", _APP_JS, re.S)

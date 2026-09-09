@@ -15859,3 +15859,36 @@ missing.** Every check written for that rendering passed before and after — "N
 was in the page, the reason was in the page — because a test can only look for what its
 author thought to name. Opening the page took two minutes and asked the one question the
 tests structurally cannot: *is this what the reader should see?*
+
+## Round 463 — driving the page the changes were for
+
+Two rounds of this session rewired what the cohort panel's **Download TSV** button does,
+and both were verified by asserting on `app.js`'s source and on the API. Round 462's
+lesson — an artifact nobody has opened is unexamined — applies to a button as much as to a
+rendered page, so: serve the app, drive it, watch the network.
+
+Both paths hold up.
+
+    normal      GET /api/jobs/<id>/result?format=tsv          (one request, no re-run)
+    after a     GET /api/jobs/<id>/result?format=tsv  → 404
+    restart     POST /api/batch?format=tsv                    (the fallback, announced)
+
+The first is the whole point of round 438: the table comes from the finished job, and a
+300-variant cohort is not designed twice to be formatted once. The second is round 440's
+edge, and the file arrives.
+
+What only a browser showed: after the fallback succeeded, the status line still read *"The
+server no longer holds that run — designing it again to build the table…"*. The download
+had happened. A progress message left standing after the work finishes reads as work still
+running, and the reader's next move is to wait for something that already ended.
+
+It now closes with a sentence the ordinary path has no need for: **these rows come from a
+second run of the same cohort**, so the table is not the same document as the JSON already
+downloaded from the first. That is a real caveat — the two files disagree on their
+`started` timestamp at minimum — and the only moment it can be said is the moment it
+becomes true.
+
+**Lesson: a progress message is a promise that something else will replace it.** Every
+test of that function checked what it *did* — which endpoint, in which order, behind which
+status code — and none could see what the screen said when it stopped. The check that
+found it was clicking the button.

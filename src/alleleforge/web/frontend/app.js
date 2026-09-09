@@ -499,7 +499,9 @@ async function downloadBatchTsv() {
   // 300-variant cohort measured 3m 40s) to format a result already on this page, over a
   // connection this panel had already concluded it could not hold open that long.
   let res = await apiFetch(`/api/jobs/${lastBatchJobId}/result?format=tsv`);
+  let rebuilt = false;
   if (res.status === 404) {
+    rebuilt = true;
     // The job store keeps the most recent finished jobs and does not survive a restart,
     // so a result can be gone while the cohort is still on this page. Re-running it is
     // the only way to get the table then — but say so, because it is minutes of work the
@@ -527,6 +529,16 @@ async function downloadBatchTsv() {
   a.download = "alleleforge-cohort.tsv";
   a.click();
   URL.revokeObjectURL(url);
+  if (rebuilt) {
+    // The "designing it again…" line is a progress message and must not be the last
+    // thing left on screen after the file has arrived. It also has something to say
+    // that the ordinary path does not: this table came from a *second* run, so it is
+    // not the same document as the JSON already downloaded from the first.
+    batchStatus.textContent =
+      "Downloaded a freshly designed table — the run this page shows is no longer on " +
+      "the server, so these rows come from a new run of the same cohort.";
+    batchStatus.classList.remove("error");
+  }
 }
 
 
