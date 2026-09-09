@@ -14449,3 +14449,54 @@ into the table, which is the ordinary thing for an export layer to do.
 **And this is the third round running where a passing guard was the finding** (R420, R421,
 now R430). The pattern that produces them is the same each time: change something the
 guard is named for, and check whether it goes red.
+
+## Round 431 — the same hole across twelve more columns, and a trap in my own method
+
+R430 found an unmeasured *ancestry* score exportable as `0.0` with the suite green, because
+the guard's population was derived from field **names** and the export renames. So: which
+other columns are renamed on the way into the table? An AST pass over `_row` says nineteen,
+of which twelve are the prediction family — `efficiency_low`, `in_distribution`,
+`calibrated`, and the bystander and p_intended variants.
+
+Every one of them takes the same mutation, and the full suite passes each time:
+
+| an absent prediction renders | suite |
+|---|---|
+| `in_distribution: True` | 3,294 passed |
+| `calibrated: True` | 3,294 passed |
+| `efficiency_low: 0.0` | 3,294 passed |
+| `efficiency_high: 1.0` | 3,294 passed |
+| `p_intended_in_distribution: True` | 3,294 passed |
+| `bystander_burden_calibrated: True` | 3,294 passed |
+
+`in_distribution: True` for something never predicted is a *claim about the evidence*, not
+an odd-looking number: it says the model was asked and answered inside its training
+distribution. And `_row`'s own comment states the property that was unguarded — the columns
+are blank for an absent prediction, "which is the difference between 'no interval was
+computed' and 'the interval is zero-width'".
+
+The file that owns this now carries a prediction fixture pair and the same three-check
+shape R430 introduced. Its title generalises with it: *"No field may show a value for
+something that was never computed."*
+
+**A trap in my own method, worth more than the finding.** Restoring a mutated source file
+with `cp` leaves a `__pycache__` whose `.pyc` is *newer* than the restored `.py`, so the
+next run can still execute the mutation. It cost me a false result — a test failing against
+code that was already correct — and it means any mutation result taken without clearing the
+cache is unreliable. R430's headline mutation was re-run with caches cleared and still
+fails correctly; the battery above was run with a clear between every step.
+
+**And a circular population, caught by a mutation that should have failed and did not.**
+My first version derived the prediction columns as "filled when predicted, empty when not".
+Under the very mutation it exists to catch, the column becomes non-empty when unpredicted —
+so it drops out of its own population and the assertion never runs on it. Both column lists
+are written out now, each with a companion check that nothing in the list is dead and
+nothing outside it distinguishes the two fixtures.
+
+**Lesson: when a defect comes from a *rename*, enumerate the renames.** `_row` maps model
+attributes to column names; nineteen of thirty-seven differ, and the guard's substring rule
+covered none of the differing ones by construction.
+
+**And a population defined as "the columns that differ" cannot check whether a column
+should differ.** If the property under test is "X must be empty here", X's membership in
+the population must not depend on X being empty here.
