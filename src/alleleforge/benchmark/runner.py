@@ -331,15 +331,16 @@ def _distribution_metrics(
             correct.append(1 if mode == true_mode else 0)
     n = len(kls)
     return {
-        # KL is in LOWER_IS_BETTER, so 0.0 is its *best* value, not a neutral one:
-        # an evaluation over zero examples would otherwise post a perfect
-        # divergence and top the leaderboard. Every other metric here can fail
-        # pessimistically toward a bounded worst value (a correlation or an AUROC
-        # of 0.0, an accuracy of 0.0); KL is unbounded above, so it has no
-        # pessimistic value to fall back to and must say "undefined" instead —
-        # which is what `ece`, computed on the same empty inputs, already does.
+        # Nothing measured over zero examples is a measurement. KL was the first to
+        # say so, on the argument that it is unbounded above and so has no pessimistic
+        # value to fall back to — while "a correlation or an AUROC of 0.0, an accuracy
+        # of 0.0" was offered as an acceptable pessimistic answer for the others. That
+        # argument does not survive contact with a leaderboard: those values are ranks,
+        # not neutral fillers, and the correlations and AUCs now return `None` too.
+        # Top-1 was the last row in this file still reporting a fraction over an empty
+        # sum as `0.0`, which on an accuracy reads as "got every one wrong".
         "kl": sum(kls) / n if n else None,
-        "top1": sum(top1s) / n if n else 0.0,
+        "top1": sum(top1s) / n if n else None,
         "ece": expected_calibration_error(confidences, correct),
     }
 

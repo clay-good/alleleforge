@@ -15232,3 +15232,35 @@ tests named `..._returns_zero` pinned it. Nothing about it was an oversight exce
 question it was answering: "does this stay JSON-serializable" instead of "is this a number
 someone will rank on". The tell was in the same dict, in a comment saying the opposite for
 the neighbouring metric.
+
+## Round 446 — the comment that defended the thing just removed
+
+Round 445's own file had the counter-argument written in it. `_distribution_metrics`
+returns `None` for KL over an empty fold, and says why:
+
+> KL is in LOWER_IS_BETTER, so 0.0 is its *best* value, not a neutral one … Every other
+> metric here can fail pessimistically toward a bounded worst value (a correlation or an
+> AUROC of 0.0, an accuracy of 0.0); KL is unbounded above, so it has no pessimistic value
+> to fall back to and must say "undefined" instead.
+
+Correct about KL, and it justifies exactly what the previous round deleted. "Fails
+pessimistically" is a reasonable property for a metric read on its own and the wrong one
+for a metric read on a board: `0.0` there is a rank, and on AUROC it is the worst possible
+*score* rather than a statement that nothing was measured. A stale justification is worse
+than no comment — it is an argument for putting the defect back.
+
+One line of the battery was still living under it. `top1` averaged an empty sum to `0.0`,
+which on an accuracy reads as "got every one wrong" for a fold with nothing in it.
+
+The round's real product is the invariant rather than the line: **over an empty fold, every
+metric of every task kind is `None`.** Checked through `evaluate_fold` — the shared
+primitive both the runner and the generalization gap go through — so a metric added to any
+battery is covered the day it appears, rather than inheriting whatever degenerate-input
+convention its author happened to pick. Its floor test asserts a populated fold still
+reports numbers, because an all-`None` battery would satisfy the invariant perfectly.
+
+**Lesson: when a convention is overturned, grep for what was written to defend it.** The
+argument for the old behaviour is documented — in this project, at length, in the same
+file — and the next reader will find that argument rather than the round that overturned
+it. Fixing the code and leaving the reasoning behind is how a defect gets reintroduced by
+someone doing their homework.

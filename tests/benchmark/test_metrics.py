@@ -221,12 +221,18 @@ def test_interval_calibration_error() -> None:
 def test_an_empty_distribution_evaluation_reports_kl_as_undefined() -> None:
     """KL is LOWER_IS_BETTER, so 0.0 is its *best* value, not a neutral one.
 
-    Every other metric in this suite can fail pessimistically toward a bounded
-    worst value — a correlation or an AUROC of 0.0, an accuracy of 0.0 — and does
-    so deliberately, so a degenerate evaluation cannot flatter itself. KL is
-    unbounded above and has no such value: averaging zero divergences to 0.0 posts
-    a *perfect* score, and `LOWER_IS_BETTER` would rank that submission first.
-    `ece`, computed from the same empty inputs, already returns None; KL must too.
+    Averaging zero divergences to 0.0 posts a *perfect* score, and `LOWER_IS_BETTER`
+    would rank that submission first. `ece`, computed from the same empty inputs,
+    already returned None; KL had to too.
+
+    This docstring used to defend the rest of the battery — "every other metric in this
+    suite can fail pessimistically toward a bounded worst value — a correlation or an
+    AUROC of 0.0, an accuracy of 0.0 — and does so deliberately, so a degenerate
+    evaluation cannot flatter itself". Not flattering itself is not the same as being
+    honest: on a ranked board those values are ranks, and `0.0` on an AUROC is the worst
+    possible *score* rather than a statement that nothing was measured. All of them are
+    `None` now, top-1 included, and
+    `test_an_empty_fold_measures_nothing.py` holds the whole battery to it.
     """
     from alleleforge.benchmark.leaderboard import LOWER_IS_BETTER
     from alleleforge.benchmark.runner import _distribution_metrics
@@ -235,8 +241,7 @@ def test_an_empty_distribution_evaluation_reports_kl_as_undefined() -> None:
     empty = _distribution_metrics([], [])
     assert empty["kl"] is None
     assert empty["ece"] is None
-    # top1 is higher-is-better, so 0.0 there is the pessimistic end and correct.
-    assert empty["top1"] == 0.0
+    assert empty["top1"] is None
 
 
 def test_a_non_empty_distribution_evaluation_still_reports_a_number() -> None:
