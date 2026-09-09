@@ -10,6 +10,12 @@ guarantees that matter when the input is a whole VCF rather than three rows:
   then released, so peak memory does not grow with the cohort size. Pass
   ``on_result`` to consume results as they complete and keep the run truly
   ``O(1)`` in the number of variants.
+
+  The claim is a statement about what a finished run still points at, so that is what
+  is checked: `test_a_cohort_holds_summaries_not_menus` walks the returned report and
+  fails if any ranked menu, candidate or off-target report is reachable from it. A
+  per-item summary is ~540 bytes of JSON — a 300-variant cohort retains about 160 KiB
+  of results — against 1.25 MiB for a single retained menu.
 * **Resumable.** Every completed item is appended to a JSONL **run manifest**; a
   re-run with the same manifest **skips items already recorded**, so an
   interrupted cohort resumes where it stopped instead of recomputing.

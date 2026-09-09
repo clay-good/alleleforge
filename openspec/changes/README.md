@@ -16037,3 +16037,37 @@ point the argument in that docstring needs redoing, and the test says so in as m
 free" is a timing statement and untestable here. "An entry is a few hundred bytes and holds
 no sequence" is the fact that makes it true, it is exact, and it is the thing a future
 change would break first.
+
+## Round 468 — the guarantee that made the cohort possible
+
+Round 467's lesson — when you cannot test the claim, test the premise it rests on — has an
+obvious next target. `design_many`'s docstring opens with the guarantee that justifies the
+whole cohort path:
+
+> **Streaming, bounded memory.** … each ranked menu is summarized (and optionally written
+> to disk) and then released, so peak memory does not grow with the cohort size.
+
+`CohortItemResult`'s first line says the same: "The compact outcome of one cohort item
+(never the full menu)." Two load-bearing statements, in the two most-read places, and
+nothing in the suite checked either.
+
+Peak memory is not testable here — it is a property of a run on a machine, and this repo's
+notes are explicit that such measurements are not baselines. The premise is exact: **no
+ranked menu, candidate or off-target report may be reachable from a finished
+`CohortRunReport`.** So the test walks the report's object graph — dataclasses, pydantic
+models, dicts, sequences, cycle-safe — and fails if one of the heavy types is in it. Its
+companion smuggles a menu into a summary and asserts the walker notices, because a
+traversal that finds nothing proves nothing about the traversal.
+
+Retaining a menu is the one change that would falsify the guarantee. It is also a change
+someone would make for a good reason — *keep the menu, the TSV needs the site rows* — and
+it would stay invisible until a three-hundred-variant run against hg38, on someone else's
+machine, at which point the symptom is a memory graph and not a failing test. The numbers
+say why it matters: a per-item summary is ~540 bytes of JSON, so a 300-variant cohort
+retains about 160 KiB of results; one retained menu is 1.25 MiB.
+
+**Lesson: the biggest claims in a codebase are the ones nobody wrote a test for, because
+they are about the shape of a run rather than the value of an expression.** Streaming,
+bounded memory, `O(1)` in the cohort size — these read as architecture, not as assertions,
+so they get a paragraph and no check. Every one of them has a premise that is a fact about
+an object, and the fact is what a future change breaks first.
