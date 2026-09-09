@@ -62,6 +62,7 @@ from alleleforge.report.html import render_html
 from alleleforge.report.oligos import scheme_by_name
 from alleleforge.report.pdf import render_pdf
 from alleleforge.types.sequence import GenomicInterval
+from alleleforge.types.variant import assembly_matches
 from alleleforge.web.api.jobs import JobCapacityError, JobManager
 from alleleforge.web.api.models import (
     BatchItemResult,
@@ -170,6 +171,19 @@ def _cohort_parquet_bytes(rows: list[dict[str, Any]], provenance: Any) -> bytes:
 _REFERENCE_LOAD_ERROR: str | None = None
 
 
+def _reference_build_from_env() -> str:
+    """Return the assembly the served FASTA is, from ``ALLELEFORGE_REFERENCE_BUILD``.
+
+    ``ALLELEFORGE_REFERENCE_FASTA`` says which *file* to serve and nothing said which
+    *assembly* it is, so the label was the literal ``"hg38"`` — on every deployment,
+    including the T2T-CHM13 and mouse ones this library supports everywhere else. The
+    label is not decoration: it is stamped into every report's provenance, it is what
+    the off-target engine compares a prebuilt index against, and it is what a reader of
+    a finished design has to trust when they ask which genome the coordinates are in.
+    """
+    return os.environ.get("ALLELEFORGE_REFERENCE_BUILD", "").strip() or "hg38"
+
+
 def _load_reference_from_env() -> Any | None:
     """Load a reference genome from ``ALLELEFORGE_REFERENCE_FASTA`` if set."""
     global _REFERENCE_LOAD_ERROR
@@ -180,7 +194,7 @@ def _load_reference_from_env() -> Any | None:
     try:
         from alleleforge.genome.reference import ReferenceGenome
 
-        return ReferenceGenome(Path(path), build="hg38")
+        return ReferenceGenome(Path(path), build=_reference_build_from_env())
     except (OSError, ImportError) as exc:
         # `ImportError` as well as `OSError`: "the operator's environment is not what
         # the app needs" is one situation with two exception types. A missing `.fai`
@@ -360,6 +374,36 @@ def _effect(request: Request, annotate: bool) -> Any | None:
             ),
         )
     return predictor
+
+
+def _served_build(request: Request) -> str:
+    """Return the assembly this deployment serves."""
+    reference = request.app.state.reference
+    label = getattr(reference, "build", None) if reference is not None else None
+    return str(label) if label else _reference_build_from_env()
+
+
+def _request_build(request: Request, asked: str | None) -> str:
+    """Return the build to resolve in, refusing one this deployment does not serve.
+
+    A client that omits it gets the served assembly, which is the only honest default:
+    the coordinates are checked against the operator's FASTA whatever label the request
+    carried. A client that *states* a different one is refused rather than answered,
+    because the same `chr7:5,530,601` is a different base in two assemblies and the
+    request would otherwise come back labelled with an assembly nobody consulted.
+    """
+    served = _served_build(request)
+    if asked is None or assembly_matches(asked, served):
+        return served
+    raise HTTPException(
+        status_code=422,
+        detail=(
+            f"this deployment serves {served}, and the request asks for {asked}. The "
+            "same coordinate is a different base in two assemblies; lift the variant "
+            "over, or send it to a deployment serving that build. `GET /api/health` "
+            "reports `reference_build`."
+        ),
+    )
 
 
 def _resolve(request: Request, variant: str, build: str, *, annotate: bool = False) -> Any:
@@ -609,7 +653,8 @@ def _design_to_menu_and_report(request: Request, req: DesignRequest) -> tuple[An
     reference = _require_reference(request)
     intent, chemistries, weights = _design_options(req.intent, req.chemistries, req.weights)
 
-    resolved = _resolve(request, req.variant, "hg38", annotate=req.annotate_consequence)
+    build = _request_build(request, req.build)
+    resolved = _resolve(request, req.variant, build, annotate=req.annotate_consequence)
     settings: Settings = request.app.state.settings
     tracks = _chromatin_tracks(request, req.chromatin_track)
     menu = run_design(
@@ -970,6 +1015,11 @@ def create_app(
             status="ok",
             version=__version__,
             reference_loaded=app.state.reference is not None,
+            reference_build=(
+                getattr(app.state.reference, "build", None)
+                if app.state.reference is not None
+                else None
+            ),
             gnomad_loaded=app.state.gnomad is not None,
             haplotypes_loaded=bool(app.state.haplotypes),
             vep_enabled=app.state.effect is not None,
@@ -1009,7 +1059,8 @@ def create_app(
         """Normalize any input form to a canonical variant."""
         from alleleforge.design.designer import _reference_snapshot
 
-        resolved = _resolve(request, req.variant, req.build, annotate=req.annotate_consequence)
+        build = _request_build(request, req.build)
+        resolved = _resolve(request, req.variant, build, annotate=req.annotate_consequence)
         v = resolved.variant
         effect = resolved.effect
         rec = resolved.reference_recommendation
@@ -1151,6 +1202,10 @@ def create_app(
         from alleleforge.design.cohort import design_many
 
         reference = _require_reference(request)
+        # For the refusal only: `design_many` reads the build off the reference, so a
+        # request stating a different assembly would otherwise be answered in silence
+        # under the served one — the same 422 the single-variant route gives.
+        _request_build(request, req.build)
         intent, chemistries, weights = _design_options(req.intent, req.chemistries, req.weights)
         settings: Settings = request.app.state.settings
         # The same configured sources the single-variant endpoint uses. Wiring them there

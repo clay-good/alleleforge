@@ -39,7 +39,7 @@ auto-generated at `/openapi.json`.
 
 | Method & path | Purpose |
 |---|---|
-| `GET /api/health` | Liveness, the disclaimer, and which data sources this deployment loaded: the reference, the population sites, the haplotype panel, and the accessibility track names a request may choose from — plus `source_errors`, the reason a *configured* source failed to load, so a broken mount is not reported as a deliberate absence. |
+| `GET /api/health` | Liveness, the disclaimer, and which data sources this deployment loaded: the reference (and `reference_build`, the assembly it is), the population sites, the haplotype panel, and the accessibility track names a request may choose from — plus `source_errors`, the reason a *configured* source failed to load, so a broken mount is not reported as a deliberate absence. |
 | `POST /api/resolve` | Normalize any input form to a canonical variant. |
 | `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf\|tsv\|parquet\|menu` — the same set `aforge design --format` offers. `menu` returns the ranked menu itself rather than the report built from it, which is the only form carrying each candidate's *full* outcome spectrum; every other format truncates it and says so. |
 | `POST /api/jobs/design` | Submit an async design job (`202`, returns a job id). |
@@ -59,7 +59,11 @@ The data a run reads is supplied by the deployment, never by the request: a
 client-supplied filesystem path would be a server-side file-read primitive. The reference
 genome (`create_app(reference=...)` or `ALLELEFORGE_REFERENCE_FASTA`) gates the endpoints
 that need it with a `503` until it is configured, so the service starts cleanly without
-one. The population sites (`ALLELEFORGE_GNOMAD_TSV`), the phased-haplotype panel
+one. `ALLELEFORGE_REFERENCE_BUILD` says which assembly that FASTA is — it defaults to
+`hg38`, it is reported as `reference_build`, and it is stamped into every result's
+provenance, so a deployment serving T2T-CHM13 or mm39 must set it. A request may state
+its own `build`: matching the served assembly (in any spelling) is answered, and any
+other is a `422`, because the same coordinate is a different base in two assemblies. The population sites (`ALLELEFORGE_GNOMAD_TSV`), the phased-haplotype panel
 (`ALLELEFORGE_HAPLOTYPES`) and the accessibility tracks (`ALLELEFORGE_ENCODE_TRACKS`) are
 optional in the same way: without them a scan is reference-only whatever ancestry labels a
 request carries, which is why `GET /api/health` reports what is loaded.

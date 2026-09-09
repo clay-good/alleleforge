@@ -1296,6 +1296,8 @@ docker compose up --build          # → http://localhost:8000  ·  /docs for Op
 
 # Or run directly
 pip install "alleleforge[web]"
+# ALLELEFORGE_REFERENCE_BUILD says which assembly that FASTA is (default hg38); it is
+# reported as `reference_build` on /api/health and stamped into every result's provenance.
 ALLELEFORGE_REFERENCE_FASTA=hg38.fa uvicorn alleleforge.web.api.app:app --port 8000
 
 # Cohort design over HTTP: post a variant list, get per-item summaries + provenance

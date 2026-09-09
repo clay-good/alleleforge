@@ -44,6 +44,9 @@ _NOT_IN_PAGE: dict[str, str] = {
     "render_candidates": "shapes the embedded render only, and the page states what a "
     "cap withheld; it changes no result",
     "variant": "the required text input, read by name",
+    "build": "the page talks to one deployment, and the only build it could send is "
+    "the one being served — any other is a 422 by construction; the status line names "
+    "the served assembly instead, which is the fact a reader of the box actually needs",
 }
 
 

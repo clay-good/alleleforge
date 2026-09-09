@@ -212,7 +212,13 @@ async function checkHealth() {
     const h = await res.json();
     // Before anything else: without the token every other call on this page is a 401.
     setUpAuth(Boolean(h.auth_required));
-    const ref = h.reference_loaded ? "reference loaded" : "no reference configured";
+    // Which assembly, not just whether one is loaded. The box takes a coordinate, and
+    // a coordinate without an assembly is not a locus: chr7:5,530,601 is a different
+    // base in hg38 than in T2T-CHM13. This page is the one audience that cannot read
+    // /api/health for itself.
+    const ref = h.reference_loaded
+      ? `reference loaded${h.reference_build ? ` (${h.reference_build})` : ""}`
+      : "no reference configured";
     // Which optional data sources this deployment has. A browser user cannot supply
     // them — they are operator-configured — so the status line is the only place they
     // can learn whether the ancestry labels they typed can be honoured at all. A

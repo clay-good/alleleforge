@@ -75,10 +75,15 @@ class ResolveRequest(BaseModel):
             "and names the coordinate form."
         ),
     )
-    build: str = Field(
-        default="hg38",
+    build: str | None = Field(
+        default=None,
         max_length=MAX_BUILD_LEN,
-        description="Reference build the input is expressed in.",
+        description=(
+            "Reference build the input coordinates are expressed in. Defaults to "
+            "whatever assembly this deployment serves, reported as `reference_build` by "
+            "`GET /api/health`; stating a different one is a 422, because the same "
+            "coordinate is a different base in two assemblies."
+        ),
     )
     annotate_consequence: bool = Field(
         default=False,
@@ -169,6 +174,16 @@ class DesignRequest(BaseModel):
             "ClinVar accession, a dbSNP rsID or a coding/protein HGVS string needs a "
             "lookup database this deployment has no way to supply — the 422 says so "
             "and names the coordinate form."
+        ),
+    )
+    build: str | None = Field(
+        default=None,
+        max_length=MAX_BUILD_LEN,
+        description=(
+            "Reference build the input coordinates are expressed in. Defaults to "
+            "whatever assembly this deployment serves, reported as `reference_build` by "
+            "`GET /api/health`; stating a different one is a 422, because the same "
+            "coordinate is a different base in two assemblies."
         ),
     )
     intent: IntentStr = Field(
@@ -315,6 +330,16 @@ class BatchRequest(BaseModel):
         min_length=1,
         max_length=MAX_BATCH_VARIANTS,
         description="Variant input forms (ClinVar / rsID / HGVS / coords).",
+    )
+    build: str | None = Field(
+        default=None,
+        max_length=MAX_BUILD_LEN,
+        description=(
+            "Reference build the input coordinates are expressed in. Defaults to "
+            "whatever assembly this deployment serves, reported as `reference_build` by "
+            "`GET /api/health`; stating a different one is a 422, because the same "
+            "coordinate is a different base in two assemblies."
+        ),
     )
     intent: IntentStr = Field(
         default="correct", description="correct | knock_out | install | revert."
@@ -717,6 +742,12 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     reference_loaded: bool
+    #: The assembly this deployment serves, when a reference is loaded. A client sends
+    #: coordinates, and a coordinate without an assembly is not a locus — the same
+    #: `chr7:5,530,601` is a different base in hg38 and in T2T-CHM13. Nothing said which
+    #: one the operator mounted, and the label the results carried was the constant
+    #: "hg38" whatever the FASTA was.
+    reference_build: str | None = None
     #: Whether a population allele-frequency source is configured. Without one every scan
     #: this deployment runs is reference-only, whatever ancestry labels a request asks
     #: for — a client cannot supply the source and had no way to find that out.

@@ -35,6 +35,11 @@ aforge design 'chr2:71:A>C' --reference-fasta /data/hg38.fa --intent install
 
 # Web: supply it once via env var (or create_app(reference=...))
 export ALLELEFORGE_REFERENCE_FASTA=/data/hg38.fa
+    # Which assembly that FASTA is. Only a label — and the label goes into every
+    # report's provenance and decides which requests are answered, since a client
+    # stating a different build gets a 422 rather than an answer under this one.
+    # `GET /api/health` reports it as `reference_build`.
+    export ALLELEFORGE_REFERENCE_BUILD=hg38
     # Optional, and the difference between a population-aware deployment and a
     # reference-only one: without it a request's `populations` is accepted and the
     # ancestry breakdown comes back empty. `GET /api/health` reports `gnomad_loaded`.
@@ -173,6 +178,7 @@ look up.
 |---|---|---|
 | Reference build | `ALLELEFORGE_REFERENCE` | `hg38` |
 | Reference FASTA (web) | `ALLELEFORGE_REFERENCE_FASTA` | _none (503 until set)_ |
+| Assembly that FASTA is (web) | `ALLELEFORGE_REFERENCE_BUILD` | `hg38` |
 | Population sites TSV (web) | `ALLELEFORGE_GNOMAD_TSV` | _none (every scan reference-only)_ |
 | Haplotype panel TSV (web) | `ALLELEFORGE_HAPLOTYPES` | _none (no haplotype-aware pass)_ |
 | Accessibility tracks (web) | `ALLELEFORGE_ENCODE_TRACKS` | _none (no chromatin adjustment)_ |

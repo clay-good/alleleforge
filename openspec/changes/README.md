@@ -16473,3 +16473,42 @@ modules from the imports is what stops the list going stale, but it does not jus
 keeping two of them out of the exceptions — that justification is the sentence "no shell
 calls these", which was true, unwritten and one commit from being false. When a derivation
 lets you exclude part of the population, the exclusion is the thing to make executable.
+
+## Round 480 — every genome this deployment served was called hg38
+
+Round 479's lesson was that when a derivation lets you exclude part of a population, the
+exclusion is the thing to make executable. `test_shells_expose_the_library.py` is the
+project's largest instance of that shape: it derives `design()`'s parameters and then
+excuses the ones a shell does not offer, each with a prose reason nobody checks. Making
+those reasons executable — every identifier one cites must resolve to a request field, a
+`design()` parameter, a `create_app()` argument or another allowance — took one line of
+regex and immediately caught this:
+
+    "build": "the request's `build` field",
+
+`DesignRequest` has no `build` field. It never had one. `POST /api/design` resolved every
+request against the string literal `"hg38"`, and `_load_reference_from_env` labelled the
+operator's FASTA `build="hg38"` whatever file it was. The allowance had made the gap look
+like a decision for as long as it had existed.
+
+That label is stamped into every report's provenance, it is what the off-target engine
+compares a prebuilt genome index against, and it is what makes a coordinate a locus:
+`chr7:5,530,601` is a different base in hg38 than in T2T-CHM13. A deployment serving
+T2T-CHM13, mm39 or hg19 — all of which this library supports everywhere else, and the CLI
+has taken `--build` for since it shipped — returned designs stamped hg38, to a client with
+no field to state a build in and no way to ask which one was being served.
+
+`ALLELEFORGE_REFERENCE_BUILD` (default `hg38`) now says which assembly the mounted FASTA
+is; `/api/health` reports it as `reference_build`; the served page names it beside
+"reference loaded", since the browser is the one audience that cannot read health for
+itself; and `DesignRequest`, `BatchRequest` and `ResolveRequest` all take a `build` — the
+served assembly in any spelling (`GRCh38` and `hg38` are one assembly) is answered, and
+any other is a 422 naming both, rather than an answer relabelled under an assembly nobody
+consulted.
+
+**Lesson: the reason beside a gap is load-bearing, and it is the part nobody runs.** Six
+rounds of this file have hardened *which* parameters are excused — both directions,
+stale-entry checks, a second entry point that had only the weak form. The reasons
+themselves were never anything but prose, and one of them had been describing a field that
+did not exist. A checked list of unchecked sentences reads as maintained, which is worse
+than an unchecked list, because it is where nobody looks.

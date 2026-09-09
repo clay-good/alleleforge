@@ -40,7 +40,6 @@ _NOT_IN_WEB: dict[str, str] = {
     "reference": "the server's own reference genome, configured at startup",
     "settings": "server-side; a client does not choose the server's configuration",
     "timestamp": "test-only hook for a reproducible provenance stamp",
-    "build": "the request's `build` field",
     # File-backed, exactly like `gnomad` below — the CLI supplies them with
     # `--clinvar`/`--dbsnp`, and over HTTP a client-supplied server path would be a
     # file-read primitive. The refusal says so and names the coordinate form.
@@ -158,6 +157,60 @@ def test_the_web_api_exposes_every_design_parameter_or_says_why() -> None:
         f"design() accepts these and DesignRequest cannot request them: {missing}. Add "
         "the field, or record it in _NOT_IN_WEB with the reason."
     )
+
+
+def _cited(reason: str) -> set[str]:
+    """Return the identifiers a reason names in backticks."""
+    return {tok for tok in re.findall(r"`([a-z][a-z0-9_]{2,})`", reason)}
+
+
+def test_an_allowance_reason_names_things_that_exist() -> None:
+    """A reason is a claim, and a claim in a comment is the kind that goes stale.
+
+    Every entry here excuses a gap by naming what covers it instead — "asked for by the
+    request field `trained_efficiency`", "exposed under `max_per_chemistry`". Those names
+    were checked by nobody, and `build` sat here reading "the request's `build` field"
+    while `DesignRequest` had no such field and the API resolved every request against a
+    hardcoded assembly. The exclusion was the whole defect and the list looked maintained.
+
+    So: every identifier an allowance cites must resolve to a request field, a `design()`
+    parameter, a `create_app()` argument, or another allowance in the same dict.
+    """
+    import inspect as _inspect
+
+    from alleleforge.web.api.app import create_app
+
+    known = (
+        set(DesignRequest.model_fields)
+        | _design_parameters()
+        | set(_inspect.signature(create_app).parameters)
+    )
+    unknown = {
+        f"{dict_name}[{param!r}]": sorted(_cited(reason) - known - set(allowances))
+        for dict_name, allowances in (("_NOT_IN_CLI", _NOT_IN_CLI), ("_NOT_IN_WEB", _NOT_IN_WEB))
+        for param, reason in allowances.items()
+        if _cited(reason) - known - set(allowances)
+    }
+    assert not unknown, (
+        f"these allowance reasons name something that does not exist: {unknown}. Either "
+        "the name is wrong or the thing it points a reader to is gone — and in both "
+        "cases the gap is no longer excused."
+    )
+    # A floor: a regex that matches nothing would pass every assertion above.
+    assert _cited(_NOT_IN_WEB["max_candidates_per_chemistry"]) == {"max_per_chemistry"}
+
+
+def test_an_allowance_reason_names_a_variable_the_server_reads() -> None:
+    """The other half of a reason: the environment variable it points an operator at."""
+    source = (_ROOT / "src" / "alleleforge" / "web" / "api" / "app.py").read_text()
+    cited = {
+        var
+        for reason in _NOT_IN_WEB.values()
+        for var in re.findall(r"\bALLELEFORGE_[A-Z_]+\b", reason)
+    }
+    assert cited, "no environment variable cited — this check would be vacuous"
+    unread = sorted(var for var in cited if f'os.environ.get("{var}"' not in source)
+    assert not unread, f"an allowance tells an operator to set {unread}, and the app never reads it"
 
 
 def test_the_recorded_exceptions_are_real_parameters() -> None:
