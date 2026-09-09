@@ -599,6 +599,15 @@ def _cas9_empty_reason(allow_ng: bool, allow_spry: bool) -> str:
     return reason
 
 
+#: The marker every unexpected-failure note carries, so a *shell* can tell a run that
+#: degraded around a defect from one that simply found nothing. The notes are prose in
+#: the menu's rationale and there is no structured field for them, so this constant is
+#: the seam: `_run_chemistry` writes it and `aforge design` reads it to decide its exit
+#: code, and `test_a_defect_note_is_the_marker_the_shell_reads` pins the two together so
+#: rewording the note cannot silently un-fail the command.
+DEFECT_NOTE = "ERROR — unexpected"
+
+
 def _run_chemistry(
     label: str,
     runner: _Runner,
@@ -630,7 +639,7 @@ def _run_chemistry(
         return []
     except Exception as exc:  # noqa: BLE001 - a defect is surfaced, not swallowed as "no design"
         notes.append(
-            f"{label}: ERROR — unexpected {type(exc).__name__}: {reason(exc)} "
+            f"{label}: {DEFECT_NOTE} {type(exc).__name__}: {reason(exc)} "
             "(a defect, not 'no design')"
         )
         return []

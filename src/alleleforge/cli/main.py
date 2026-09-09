@@ -46,6 +46,7 @@ from alleleforge.design.cohort_summary import cohort_reference_shape_suffix as _
 from alleleforge.design.cohort_summary import cohort_rows as _batch_rows
 from alleleforge.design.cohort_summary import cohort_to_parquet as _batch_parquet
 from alleleforge.design.cohort_summary import cohort_to_tsv as _batch_tsv
+from alleleforge.design.designer import DEFECT_NOTE
 from alleleforge.errors import MissingDependencyError, reason
 from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import GenomicInterval
@@ -1517,6 +1518,20 @@ def design(
 
     if as_json:
         typer.echo(menu.model_dump_json(indent=2))
+
+    # A chemistry's vertical that hits an *unexpected* exception is recorded as a defect
+    # note and contributes no candidates, rather than crashing the whole design — that
+    # graceful degradation is deliberate, and the rationale says so where a reader looks.
+    # Reporting *success* for it is not part of it. `aforge batch` already draws this
+    # line ("a script or a CI job driving this had no way to tell without re-parsing the
+    # summary"), and `design` did not: a corrupted `--cache` entry, now refused rather
+    # than served, took the whole prime vertical out of a menu and exited 0.
+    if DEFECT_NOTE in (menu.rationale or ""):
+        _echo_err(
+            "error: a chemistry failed with an unexpected error and contributed no "
+            "candidates; the menu was written and its rationale names the failure"
+        )
+        raise typer.Exit(ExitCode.UNAVAILABLE)
 
 
 #: VCF path suffixes routed through the cyvcf2 fast path; anything else is a

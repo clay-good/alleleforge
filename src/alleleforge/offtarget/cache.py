@@ -116,14 +116,48 @@ def search_signature(
 
 
 class OffTargetCache:
-    """A cross-run store of reference :class:`OffTargetReport`s, keyed by signature."""
+    """A cross-run store of reference :class:`OffTargetReport`s, keyed by signature.
+
+    Entries are **verified on read**. The key protects against serving the answer to a
+    different question; nothing protected against serving a different answer to this one.
+    Content-addressing says the inputs match — it says nothing about whether the bytes on
+    disk are still the bytes that were written, and this store holds the safety finding
+    itself. Measured on a two-site scan, editing the cached JSON's site list to `[]`:
+
+        cold   2 sites, worst score 1.000
+        warm   0 sites, worst score 0.000
+
+    A perfect-match off-target became "clean", silently, on the opt-in flag whose whole
+    promise is that it changes no result. The embedding cache in this same codebase has
+    verified its bytes since it grew a checksum sidecar — the *input to a score*, while
+    the finding was unguarded. A truncated file would have raised on parse; an edit that
+    stays valid JSON, or a flipped bit inside a number, would not.
+
+    A failed check raises :class:`~alleleforge.cache.CacheIntegrityError` rather than
+    recomputing. Recomputing would give the right answer and hide that a store the run
+    trusted has been altered, which is the more important thing to say — and `--cache` is
+    opt-in, so declining it always leaves a working run.
+    """
+
+    #: Namespace version. Bump when the on-disk contract changes — v2 adds the checksum
+    #: sidecar, which entries written under v1 do not have. A new namespace leaves the
+    #: old entries unreferenced (inert) instead of failing every read closed on the
+    #: missing sidecar, which is what a bare `verify=True` would have done to every cache
+    #: already on a user's disk.
+    NAMESPACE_VERSION = "v2"
 
     def __init__(self, *, root: str | Path | None = None) -> None:
         """Open the off-target report cache under ``root`` (default: the cache dir)."""
-        self._store = ContentAddressedCache("offtarget", root=root)
+        self._store = ContentAddressedCache(
+            f"offtarget/{self.NAMESPACE_VERSION}", root=root, verify=True
+        )
 
     def get(self, signature: str) -> OffTargetReport | None:
-        """Return the cached report for ``signature``, or ``None`` on a miss."""
+        """Return the cached report for ``signature``, or ``None`` on a miss.
+
+        Raises:
+            CacheIntegrityError: If the entry's bytes do not match its checksum.
+        """
         text = self._store.get_text(signature)
         return OffTargetReport.model_validate_json(text) if text is not None else None
 

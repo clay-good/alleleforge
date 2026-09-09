@@ -52,7 +52,7 @@ Distinct, meaningful exit codes make the CLI scriptable:
 | `0` | success |
 | `2` | usage / input error (bad flag, unparseable variant, bad intent) |
 | `3` | missing data (reference FASTA or config file not found, unknown dataset or split) |
-| `4` | an unavailable model or feature |
+| `4` | an unavailable model or feature; a cohort with failed items; a design in which a chemistry hit an unexpected error (the output is still written, and its rationale names the failure) |
 
 ## Examples
 

@@ -14967,3 +14967,65 @@ so many words that its records do not survive a restart. That sentence had been 
 harmless for as long as the records were only a polling envelope. Making them the source
 of a user-facing artifact turned a documented property into a defect, three lines away
 from the code that read it, in the same round that read it.
+
+## Round 441 — the cache key was guarded and the cache bytes were not
+
+Round 440's lesson was that a change inherits the failure modes of the store it moves work
+onto. That query, pointed at the oldest store in the project, found this.
+
+`OffTargetCache` opens with "Safety first. A wrong off-target report is a missed danger",
+and everything after that sentence is about the **key**: only cache when the result is a
+pure function of the reference; fold the on-target locus in; identify the FASTA by path,
+size and mtime because build-plus-contig-lengths is a shape and not an identity. All of it
+correct, all of it about serving the answer to a *different question*.
+
+Nothing was about serving a *different answer to this one*. Content-addressing says the
+inputs match. It says nothing about whether the bytes on disk are still the bytes that
+were written. Measured, on a two-site scan, editing the cached JSON's site list to `[]`:
+
+    cold   2 sites, worst score 1.000
+    warm   0 sites, worst score 0.000
+
+A perfect-match off-target became a clean guide, silently, on the opt-in flag whose whole
+promise is that it changes no result. A truncated file would have raised on parse; an edit
+that stays valid JSON, or a flipped bit inside a float, would not.
+
+The machinery already existed and was already in use — one directory away.
+`ContentAddressedCache(verify=True)` writes a checksum sidecar and re-checks the payload
+on read, and its own docstring says why: "for namespaces holding artifacts a
+corrupted-on-disk entry must never be served silently". The **embedding** cache turns it
+on. The embedding cache holds an *input to a score*; this one holds the finding. The
+guarded and unguarded stores were the wrong way round.
+
+`offtarget/v2`, versioned exactly as the embedding cache versions its namespace: entries
+written before this have no sidecar, and `get_bytes` fails closed on a missing one, so a
+bare `verify=True` would have turned every cache already on a user's disk into an error. A
+new namespace leaves them unreferenced and inert.
+
+Two consequences, both worth the round on their own.
+
+**An existing test proved reuse by poisoning.** `--cache`'s liveness check edited a stored
+entry and asserted the poisoned answer came back, which is exactly the behaviour just
+made impossible. Rewritten to re-checksum what it poisons: the gate exists against a
+damaged or edited file, not against a writer who re-signs what they wrote, and a run that
+serves a re-signed entry is still a run that read the store. The refusal gets its own two
+tests — an edited payload, and a deleted sidecar, because `rm *.sum` must not be a way
+around the gate.
+
+**And the refusal exited 0.** A chemistry's vertical that raises an unexpected exception is
+recorded as a defect note and contributes nothing, rather than crashing the design. That is
+deliberate and the rationale says it plainly where a reader looks. But `aforge design`
+returned 0 for it, so the new fail-closed produced a zero-candidate report and a successful
+exit — the corrupt cache refused, correctly, and the shell said nothing a script could
+read. `aforge batch` has drawn this line for failed items since it was written ("a script
+or a CI job driving this had no way to tell without re-parsing the summary"); `design` had
+not. It does now, keeping the written menu, because the run happened and its rationale
+explains itself.
+
+**Lesson: an audit finds what its own framing is about.** Every word already written about
+this cache's safety was about the key, and the key is genuinely the harder half — three
+rounds of real findings live there. That is exactly why nobody looked at the bytes: the
+question "is this the right entry?" had been asked so thoroughly that "is this entry
+intact?" read as already answered. The tell was structural and visible without any of this
+reasoning — one store in the codebase verifies and one does not, and the one that does
+holds the less dangerous thing.

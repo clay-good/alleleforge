@@ -10,10 +10,18 @@ invocation of `aforge offtarget` while a library caller paid once.
 `--cache` and `--genome-index` expose them. Neither may change a result, so these check
 identity of output as well as reuse of work — and the cache check poisons a stored entry
 to prove the read path is live rather than quietly recomputing.
+
+The poisoning had to be re-done properly once the store started verifying its bytes. An
+edited payload is now *refused*, which is the whole point of the checksum, so it can no
+longer stand in for "the read path is live". A poisoned entry whose sidecar is updated to
+match still can: the gate exists against a damaged or edited file, not against a writer
+who re-checksums what they wrote, and a run that served the re-signed entry is a run that
+read the store. Both halves are checked below.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 from pathlib import Path
@@ -21,6 +29,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from alleleforge.cache import CacheIntegrityError
 from alleleforge.cli.main import app
 from alleleforge.offtarget.cache import OffTargetCache
 
@@ -73,25 +82,75 @@ def test_a_cached_run_reports_what_an_uncached_one_does(fasta: Path, cache_dir: 
     assert again == plain, "the second cached run changed the report"
 
 
+def _the_only_entry(cache_dir: Path) -> Path:
+    """Return the single stored payload (not its checksum sidecar)."""
+    store = cache_dir / "caches" / "offtarget"
+    entries = [
+        path for path in store.rglob("*") if path.is_file() and not path.name.endswith(".sum")
+    ]
+    assert len(entries) == 1, entries
+    return entries[0]
+
+
 def test_the_second_run_reads_the_store_rather_than_rescanning(
     fasta: Path, cache_dir: Path
 ) -> None:
-    """Poison the stored entry: if the run still rescans, the flag reuses nothing."""
+    """Poison the stored entry, sidecar and all: if the run rescans, the flag reuses nothing."""
     _run(fasta, "--cache")
     cache = OffTargetCache()
     assert len(cache) == 1, f"one reference scan should have been stored, found {len(cache)}"
 
-    store = cache_dir / "caches" / "offtarget"
-    entries = [path for path in store.rglob("*") if path.is_file()]
-    assert len(entries) == 1, entries
-    poisoned = json.loads(entries[0].read_text(encoding="utf-8"))
+    entry = _the_only_entry(cache_dir)
+    poisoned = json.loads(entry.read_text(encoding="utf-8"))
     poisoned["sites"] = []
-    entries[0].write_text(json.dumps(poisoned), encoding="utf-8")
+    payload = json.dumps(poisoned).encode()
+    entry.write_bytes(payload)
+    # Re-checksummed, so this is a *stored* wrong answer rather than a damaged one: the
+    # integrity gate is not the thing under test here, reuse is.
+    entry.with_name(entry.name + ".sum").write_text(hashlib.sha256(payload).hexdigest())
 
     served = json.loads(_run(fasta, "--cache"))
     assert served["sites"] == [], (
         "the poisoned entry was not served, so --cache recomputed instead of reusing"
     )
+
+
+def test_an_edited_entry_is_refused_rather_than_served(fasta: Path, cache_dir: Path) -> None:
+    """The gate the sidecar exists for, on the store that holds the safety finding.
+
+    Content-addressing says the *inputs* match; it says nothing about whether the bytes
+    are still the bytes that were written. Edited to drop its sites, a two-site scan came
+    back as a clean guide — the most reassuring output the system can produce, on the
+    opt-in flag whose whole promise is that it changes no result.
+    """
+    honest = json.loads(_run(fasta, "--cache"))
+    assert honest["sites"], "the fixture nominates nothing; this check would be vacuous"
+
+    entry = _the_only_entry(cache_dir)
+    edited = json.loads(entry.read_text(encoding="utf-8"))
+    edited["sites"] = []
+    entry.write_text(json.dumps(edited), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        ["offtarget", _SPACER, "--reference-fasta", str(fasta), "--cache", "--json"],
+    )
+    assert result.exit_code != 0, result.output
+    assert isinstance(result.exception, CacheIntegrityError), result.exception
+
+
+def test_a_missing_checksum_is_refused_too(fasta: Path, cache_dir: Path) -> None:
+    """Otherwise `rm *.sum` defeats the gate and the entry is served unverified."""
+    _run(fasta, "--cache")
+    entry = _the_only_entry(cache_dir)
+    entry.with_name(entry.name + ".sum").unlink()
+
+    result = runner.invoke(
+        app,
+        ["offtarget", _SPACER, "--reference-fasta", str(fasta), "--cache", "--json"],
+    )
+    assert result.exit_code != 0, result.output
+    assert isinstance(result.exception, CacheIntegrityError), result.exception
 
 
 def test_without_the_flag_nothing_is_stored(fasta: Path, cache_dir: Path) -> None:
