@@ -25,7 +25,7 @@ import pytest
 from typer.testing import CliRunner
 
 from alleleforge.cli.main import app
-from alleleforge.data.registry import DEFAULT_REGISTRY
+from alleleforge.data.registry import DEFAULT_REGISTRY, dataset_status
 from alleleforge.errors import ChecksumError
 
 
@@ -37,9 +37,19 @@ def rows() -> list[dict[str, object]]:
 
 
 def test_the_table_says_which_rows_can_be_fetched(rows: list[dict[str, object]]) -> None:
+    """The table must agree with `dataset_status`, not with a copy of its formula.
+
+    This used to re-derive the answer as `bool(sha256 and source_url)` — the exact
+    expression `dataset_status` held at the time. `dataset_status`'s own docstring says
+    why that is the wrong shape: four surfaces answer this question and "each one that
+    derived it separately got a different answer". The test was a fifth. When the
+    definition was corrected — a *bundled* row needs no fetch and `resolve` never
+    attempts one for it — the surface and the single source moved together and only the
+    copy disagreed.
+    """
     for row in rows:
-        descriptor = DEFAULT_REGISTRY.get(str(row["name"]))
-        assert row["fetchable"] == bool(descriptor.sha256 and descriptor.source_url), row["name"]
+        expected = dataset_status(str(row["name"]), DEFAULT_REGISTRY.get(str(row["name"])))
+        assert row["fetchable"] == expected["fetchable"], row["name"]
 
 
 def test_an_unfetchable_row_does_not_offer_a_fetch() -> None:

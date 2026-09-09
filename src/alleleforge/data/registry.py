@@ -317,6 +317,13 @@ DEFAULT_REGISTRY = DatasetRegistry(
         # real pinned sha256 of the shipped file — the 240 mismatch weights are
         # byte-identical across two independent tools (CRISPOR, CRISPRitz); see the
         # file's own `_provenance` block for the cross-verification record.
+        #
+        # `sha256` is the digest of that vendored JSON, and `source_url` points at
+        # CRISPOR's upstream `mismatch_score.pkl`, which is a *different artifact* — the
+        # JSON is a conversion of it. Fetching the URL and checking it against `sha256`
+        # therefore cannot succeed, which is why `dataset_status` does not call this row
+        # fetchable and `resolve` reads the bundled bytes. The upstream digest is not
+        # guessed at: the shipped file records it under `_provenance.sources`.
         "doench-2016-cfd": DatasetDescriptor(
             name="doench-2016-cfd",
             version="2016",
@@ -360,7 +367,14 @@ def dataset_status(name: str, descriptor: DatasetDescriptor) -> dict[str, bool]:
         "bundled": descriptor.bundled,
         "cached": cached,
         "available": descriptor.bundled or cached,
-        "fetchable": bool(descriptor.sha256 and descriptor.source_url),
+        # "a fetch would work", not "the two fields that a fetch needs are both set".
+        # A bundled row has neither need nor path: `resolve` returns the packaged bytes
+        # and never reaches the downloader. Saying otherwise mattered for the one row
+        # this distinguishes, whose `source_url` serves the upstream pickle while its
+        # `sha256` pins the vendored JSON conversion — a reader who took `fetchable` at
+        # its word and checked the URL against the digest would read the mismatch as
+        # tampering. The status a surface prints now agrees with what `resolve` does.
+        "fetchable": bool(descriptor.sha256 and descriptor.source_url) and not descriptor.bundled,
     }
 
 
