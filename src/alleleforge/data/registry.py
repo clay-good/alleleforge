@@ -172,6 +172,24 @@ class DatasetRegistry:
                 downloaded artifact fails verification.
         """
         desc = self.get(name)
+        # A bundled dataset ships inside the installed package, with the very bytes the
+        # descriptor pins. `resolve` went straight to the cache and never looked, so the
+        # one dataset whose correct copy is always present was the one it could not
+        # produce: on a fresh install it raised `ConsentError` telling the reader to
+        # download something the wheel already contains, and where a previous fetch had
+        # left the *upstream* artifact in the cache — a Python pickle saved under the
+        # `.json` filename, because `source_url` serves CRISPOR's `mismatch_score.pkl`
+        # while `sha256` pins the vendored conversion — it raised `ChecksumError`
+        # permanently. `aforge verify --cache-dir` had already been fixed for exactly
+        # this, at the call site, with a comment saying a bundled dataset "is never in
+        # the cache". Fixing it there and not here is what left the primary accessor
+        # broken; the bytes are still verified, so this is a shorter path to the same
+        # guarantee, not a way around it.
+        bundled = desc.bundled_file()
+        if bundled is not None and bundled.is_file():
+            if desc.sha256 is not None:
+                _verify_sha256(bundled, desc.sha256)
+            return bundled, desc.dataset_version()
         path = self.cache_path(name, cache_dir=cache_dir)
         if not path.exists():
             if not artifact_download_permitted(consent):
