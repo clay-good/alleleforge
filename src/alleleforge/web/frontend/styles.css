@@ -107,6 +107,11 @@ iframe { width: 100%; height: 1400px; border: 1px solid var(--line); border-radi
    different cause, and its docstring claimed "the page has no other horizontal overflow
    at that width" — true when written, false once the table grew columns. */
 #batch-results { overflow-x: auto; }
+/* Same reason as #batch-results: a table's content does not shrink, so without a
+   scrolling ancestor a wide one pans the whole document at a phone width —
+   overflow propagates. The two tables here fit 375px today (measured: 335 and 298
+   against a 375 viewport); the rule is for the column that gets added next. */
+#ot-results { overflow-x: auto; }
 table.results { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.5rem; }
 table.results th, table.results td {
   text-align: left;

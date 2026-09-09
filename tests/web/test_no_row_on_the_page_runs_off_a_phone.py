@@ -84,6 +84,20 @@ _SCROLLING_TABLE_CONTAINERS: dict[str, str] = {
     "table.results": "#batch-results",
 }
 
+#: Elements the page writes a `<table>` into, mapped to the same containers.
+#:
+#: The check below used to enumerate tables from the *stylesheet* — every rule matching
+#: `table…`. That is the wrong population, and the round that added the off-target panel
+#: proved it: two new tables, written into `#ot-results` with no rule of their own, were
+#: invisible to a guard whose whole subject is tables. They happened to fit (measured at
+#: 375px: 335 and 298), so nothing was broken — but a guard that cannot see an element is
+#: not protecting it, and the next column would have gone unnoticed. The population is now
+#: the markup that emits a table, which is what the rule is actually about.
+_TABLE_TARGETS: dict[str, str] = {
+    "batchResults": "#batch-results",
+    "otResults": "#ot-results",
+}
+
 
 def _rules() -> dict[str, str]:
     """Return {selector: declarations} for every rule in the stylesheet."""
@@ -114,6 +128,45 @@ def test_every_table_scrolls_inside_its_own_box() -> None:
             "Overflow propagates: a visible overflow on any ancestor moves the document, "
             "not the table."
         )
+
+
+def _elements_given_a_table() -> set[str]:
+    """Return the JS variables the page assigns table markup to, via `innerHTML`."""
+    source = (
+        Path(__file__).resolve().parents[2] / "src" / "alleleforge" / "web" / "frontend" / "app.js"
+    ).read_text(encoding="utf-8")
+    found = set()
+    for match in re.finditer(r"(\w+)\.innerHTML\s*=(.*?);\n", source, re.S):
+        if "<table" in match.group(2) or "table(" in match.group(2):
+            found.add(match.group(1))
+    return found
+
+
+def test_every_element_the_page_writes_a_table_into_scrolls() -> None:
+    """The population is the markup, not the stylesheet.
+
+    A table with no CSS rule of its own is still a table, and still does not shrink.
+    """
+    rules = _rules()
+    targets = _elements_given_a_table()
+    assert targets, "no innerHTML assignment carrying a table found — this would be vacuous"
+    for target in sorted(targets):
+        container = _TABLE_TARGETS.get(target)
+        assert container is not None, (
+            f"`{target}.innerHTML` is given a table and no container is recorded for it. "
+            "Record it in _TABLE_TARGETS with the element that scrolls."
+        )
+        body = rules.get(container)
+        assert body is not None, f"{container} is recorded for {target} but has no rule"
+        assert "overflow-x: auto" in body, (
+            f"{container} receives a table and does not scroll ({body.strip()})."
+        )
+
+
+def test_the_recorded_table_targets_still_receive_tables() -> None:
+    """An entry for an element that no longer renders a table hides the next one."""
+    stale = sorted(set(_TABLE_TARGETS) - _elements_given_a_table())
+    assert not stale, f"recorded as receiving a table, but no longer does: {stale}"
 
 
 def test_the_recorded_containers_are_real_selectors() -> None:
