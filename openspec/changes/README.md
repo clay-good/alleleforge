@@ -16546,3 +16546,33 @@ excuses executable, and it stopped at the HTTP boundary because that is where th
 looks. The library had the same defect with a wider blast radius — every Python caller,
 every cohort, the CLI's own resolution path — and no shell-parity check could ever have
 seen it, because both shells agreed.
+
+## Round 482 — the check that fired only when it was not needed
+
+Round 481's lesson was to look under a shell fix, and the build work led here. The
+off-target engine guards the seam between a `genome_index` and a `reference`: the index
+anchors PAMs over its own sequence while the engine reads bases and coordinates from the
+reference, so an index of a different genome produces hits that are silently in the wrong
+place. The guard read:
+
+    if genome_index is not None and reference.build is not None and genome_index.build is not None:
+
+Two of those three conditions are about *labels*. An index built from an unlabelled FASTA,
+or constructed directly, passed straight through — and an index whose genome nobody wrote
+down is the one most likely to be the wrong genome. The check was live exactly where the
+operator had been careful enough to name both sides.
+
+A contig length is recorded per index, costs nothing to compare, and depends on no name:
+chr1 is 248,956,422 bases in hg38, 249,250,621 in hg19 and 248,387,328 in T2T-CHM13.
+`GenomeIndex.disagreement_with(reference)` returns why the two cannot be the same genome
+or `None`, the engine raises on it after the label comparison, and a Python caller holding
+an index and a FASTA can ask it directly rather than starting a search to find out. An
+index covering a subset of contigs is not a disagreement — that is a supported thing to
+build — but a contig it carries at another length is.
+
+**Lesson: a guard conditioned on metadata is inert on the input that lacks it, which is
+the input it was written for.** Both of the earlier rounds in this arc are the same
+sentence: the web labelled every genome hg38 because nothing made the operator say, and
+`design()` took the reference's label only when the caller had supplied one. When a check
+needs a fact, ask whether the dangerous case is precisely the one where the fact is
+missing — and find the property that is always there instead.

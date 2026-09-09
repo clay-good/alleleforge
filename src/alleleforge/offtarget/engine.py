@@ -506,11 +506,22 @@ def search(
     # PAMs over the index's sequence while reading bases/coordinates from this
     # reference — silently wrong hits. Fail closed when both builds are known and
     # disagree (content-addressing guards the FM cache, but not this consumer seam).
-    if genome_index is not None and reference.build is not None and genome_index.build is not None:
-        if not assembly_matches(genome_index.build, reference.build):
+    if genome_index is not None:
+        if reference.build is not None and genome_index.build is not None:
+            if not assembly_matches(genome_index.build, reference.build):
+                raise ValueError(
+                    f"genome_index was built for assembly {genome_index.build!r} but the "
+                    f"reference is {reference.build!r}; a mismatched index yields silently "
+                    "wrong coordinates"
+                )
+        # The label comparison above fails *open* whenever either side is unlabelled,
+        # which is exactly the index nobody wrote the genome down for. Contig lengths
+        # are recorded and cost nothing to compare, and they do not depend on a name.
+        disagreement = genome_index.disagreement_with(reference)
+        if disagreement is not None:
             raise ValueError(
-                f"genome_index was built for assembly {genome_index.build!r} but the reference "
-                f"is {reference.build!r}; a mismatched index yields silently wrong coordinates"
+                f"genome_index does not index this reference: {disagreement}; a mismatched "
+                "index yields silently wrong coordinates"
             )
     kw: SearchBudget = {
         "mismatches": mismatches,

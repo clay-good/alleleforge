@@ -680,6 +680,37 @@ class GenomeIndex:
         """Return PAM-anchored protospacer placements on ``contig``'s plus strand."""
         return self._plus[contig].pam_sites(pam, spacer_length)
 
+    def disagreement_with(self, reference: ReferenceGenome) -> str | None:
+        """Return why this index cannot be the index of ``reference``, or ``None``.
+
+        Independent of what either side is *labelled*. The consumer seam between an
+        index and a reference was guarded by comparing build names, which fails open
+        whenever either name is missing — an index built from an unlabelled FASTA, or
+        one constructed directly — and that is the case where a mismatch is most likely,
+        since nobody wrote down which genome it was.
+
+        The indexed sequence's length is recorded per contig and costs nothing to
+        compare, and two assemblies do not share a contig length: chr1 is 248,956,422
+        bases in hg38, 249,250,621 in hg19 and 248,387,328 in T2T-CHM13. A contig the
+        index does not carry is not a disagreement — an index may cover a subset — but a
+        contig it carries at another length is a different genome, whatever it is called.
+        """
+        for chrom, fm in self._plus.items():
+            if chrom not in reference.contigs:
+                return (
+                    f"the index carries contig {chrom!r}, which this reference does not "
+                    f"have (it has {', '.join(sorted(reference.contigs)[:5])}...)"
+                )
+            # `length` counts the sentinel the BWT appends, so it is one past the bases.
+            indexed = fm.length - 1
+            actual = reference.contig_length(chrom)
+            if indexed != actual:
+                return (
+                    f"the index has {indexed:,} bases of {chrom!r} and this reference has "
+                    f"{actual:,}; they are different genomes whatever they are labelled"
+                )
+        return None
+
     def close(self) -> None:
         """Release every contig's memory map."""
         for fm in (*self._plus.values(), *self._minus.values()):

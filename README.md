@@ -327,6 +327,10 @@ strands) to disk and **memory-maps** it, so a genome index is built once, **surv
 takes it directly — `search(spacer, pam, reference=ref, genome_index=gi)` — anchoring PAMs through the
 persistent index instead of rebuilding one per call, with hits identical to the per-call path
 (parity-tested) and the memory-mapped query path validated at scale on a downsampled chromosome in CI.
+An index of the wrong genome would anchor PAMs over one sequence while reading coordinates from
+another, so the engine refuses the pair: build labels when both are known, and — because an index
+nobody wrote the genome down for is the likeliest mismatch — the recorded contig lengths, which no
+two assemblies share. `gi.disagreement_with(reference)` asks the same question from Python.
 
 ---
 
