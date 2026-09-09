@@ -13754,3 +13754,58 @@ same call.
 the spacer was ambiguous and that a low score is not evidence of safety. Every sentence
 was produced correctly by machinery earlier rounds built. They made a refusal look like a
 caveat, which is why nobody had noticed in the earlier runs of this same command.
+
+## Round 417 — `--cell-context hek293t` was out of distribution
+
+R416's lesson was "for each validated input, find its siblings on the same call". This
+round ran that over every string-typed CLI input — nine commands, thirty-odd options —
+and typed junk into each.
+
+Most are solid. `--intent`, `--chemistry` and `--vector-scheme` refuse an unknown value
+and list the valid ones; `--weights` explains its format; `--regions` refuses a
+non-locus; `--pam` and `--scorer` accept any case. One behaved differently:
+
+```
+--cell-context HEK293T   in_distribution=True    ood flag: no
+--cell-context hek293t   in_distribution=False   ood flag: yes
+```
+
+The check was an exact, case-sensitive membership test against
+`PRIDICT_TRAINING_CONTEXTS = {"HEK293T", "K562"}`. A user who typed the cell line in
+lower case, or pasted it with a stray space, got every candidate flagged out of
+distribution.
+
+That flag is not cosmetic, and the project says so in its own words —
+`CAVEAT_FLAGS["ood"]`:
+
+> the efficiency prediction is out of distribution for this model — it is ranked on its
+> **lower interval bound**, and the point estimate should not be trusted
+
+So the case of a cell line name silently changed an honesty flag *and the order of the
+menu*. The only signal was a three-letter flag that names no cell context.
+
+This is the whole family's odd one out. The others either refuse loudly or normalize;
+this one neither refused nor accepted — it answered a different question and said nothing
+about having done so. That is what made it invisible: `hek293t` and `NOT_A_CELL_LINE`
+produced byte-identical output, so a typo was indistinguishable from a genuine
+out-of-distribution request.
+
+The comparison now folds case and strips surrounding whitespace, against a set derived
+from the public one so a context added there cannot be left out of the check. `HEK 293T`
+stays out of distribution on purpose: internal spacing is a different string, and
+guessing which cell line a user meant is worse than flagging it.
+
+The test asserts the *menu*, not the flag — two spellings of the same cell line produce
+byte-identical candidates, and `HeLa` still produces different ones — because the flag was
+only how the defect was visible; the harm was the discounting and the reordering.
+
+**Lesson: an input that neither refuses nor normalizes is worse than one that does either.**
+A refusal is actionable and a normalization is invisible in the right way. The third
+behaviour — quietly answering a different question — is the one to hunt for, and the way
+to find it is to run the same input twice in two spellings and diff the output.
+
+**A near-miss worth recording.** My first probe grepped the rendered output for
+"cell context" and found the phrase for *every* value, including none at all. It lives in
+a model card's known-failure-modes text. That is R190's trap exactly — "a name appearing
+proves nothing" — and I had the rule written down and walked into it anyway. The finding
+only appeared once I read the run's own `in_distribution` field instead of the page.
