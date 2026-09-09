@@ -112,3 +112,44 @@ def test_same_length_tampering_still_needs_verify(cache: Path) -> None:
     assert sorted(fm.locate("ACGTACGT")) != [0, 49, 98, 147]
     with pytest.raises(FMIndexIntegrityError):
         fm.verify()
+
+
+def _sprinkle_unknown_bases(cache: Path) -> None:
+    """Rewrite every 11th base of the BWT as an out-of-alphabet character.
+
+    Sparse on purpose. Replacing *every* base leaves the search matching nothing, so the
+    LF walk is never entered and the corruption goes unexercised — which is the same
+    reason the whole class is hard to notice: a badly corrupted index looks empty, and
+    an empty result reads as a clean guide.
+    """
+    bwt = cache / "bwt.bin"
+    data = bytearray(bwt.read_bytes())
+    for position in range(0, len(data), 11):
+        if data[position] in b"ACGT":
+            data[position] = ord("Z")
+    bwt.write_bytes(bytes(data))
+
+
+def test_a_bwt_character_the_tables_do_not_know_is_named_as_corruption(cache: Path) -> None:
+    """The failure a corrupt index actually produced in a run: `KeyError: 'T'`.
+
+    Tampering that keeps the length passes every cheap check, so the first thing that
+    notices is the LF walk itself — and what it did was fail a dict lookup ten frames
+    down in `_locate_row`, for a condition this module has a named error and a one-line
+    remedy for. The alphabet of the text is exactly the keys of `c_table`, so a BWT
+    character the rank tables do not count cannot occur in an index built here.
+    """
+    _sprinkle_unknown_bases(cache)
+    fm = FMIndex.load(cache)  # loads: every structural fact still holds
+    with pytest.raises(FMIndexIntegrityError, match="rank tables do not count"):
+        fm.locate("ACGTACGT")
+
+
+def test_the_corruption_message_names_the_remedy(cache: Path) -> None:
+    """A caller here has a broken cache and needs to be told what to do about it."""
+    _sprinkle_unknown_bases(cache)
+    with pytest.raises(FMIndexIntegrityError) as caught:
+        FMIndex.load(cache).locate("ACGTACGT")
+    message = str(caught.value)
+    assert "rebuild" in message.lower(), message
+    assert "aforge cache verify" in message, message

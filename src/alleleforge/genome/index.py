@@ -415,13 +415,41 @@ class FMIndex:
         return (lo, hi)
 
     def _locate_row(self, row: int) -> int:
-        """Walk LF from ``row`` to a sampled suffix and return its text position."""
+        """Walk LF from ``row`` to a sampled suffix and return its text position.
+
+        Raises:
+            FMIndexIntegrityError: If the walk reads a character the rank tables do
+                not know, or fails to reach a sampled suffix. Both are impossible in an
+                index this module built and both mean the cached bytes have changed.
+        """
         steps = 0
         r = row
         while r not in self._sa_samples:
             c = self._char_at(r)
+            # A BWT character the tables never counted cannot occur in an index built
+            # here: the alphabet of the text is exactly the keys of `c_table`. Altering
+            # a few bytes of `bwt.bin` in place — which every cheap check passes, since
+            # the length is unchanged — used to surface as a bare `KeyError: 'T'` from
+            # a dict lookup ten frames down, for a condition this module has a named
+            # error and a one-line remedy for.
+            if c not in self.c_table or c not in self._occ:
+                raise FMIndexIntegrityError(
+                    f"cached FM-index {self.content_hash[:12]}… is corrupt: its BWT "
+                    f"holds {c!r}, which its own rank tables do not count. Rebuild it "
+                    "(pass rebuild=True, or delete the directory); `aforge cache "
+                    "verify --deep` checks every cached index."
+                )
             r = self.c_table[c] + self._rank(c, r)
             steps += 1
+            if steps > self.length:
+                # LF is a permutation, so this walk reaches a sampled suffix in at most
+                # `sa_rate` steps. A corrupted table can close it into a cycle instead,
+                # and a hang is a worse failure than a wrong answer.
+                raise FMIndexIntegrityError(
+                    f"cached FM-index {self.content_hash[:12]}… is corrupt: the LF walk "
+                    f"from row {row} never reached a sampled suffix. Rebuild it (pass "
+                    "rebuild=True, or delete the directory)."
+                )
         return (self._sa_samples[r] + steps) % self.length
 
     def verify(self) -> None:

@@ -166,6 +166,22 @@ class ContentAddressedCache:
         """Write ``obj`` as JSON for ``digest``."""
         self.put_text(digest, json.dumps(obj, separators=(",", ":")))
 
+    def digests(self) -> list[str]:
+        """Return every stored digest in this namespace, sorted.
+
+        The store had no way to enumerate itself, so nothing could *proactively* check
+        what it holds: an entry's checksum was re-checked only when a run happened to
+        read it, which means a corrupted cache announces itself in the middle of the
+        design that needed it rather than when someone asks.
+        """
+        if not self.root.exists():
+            return []
+        return sorted(
+            path.name
+            for path in self.root.rglob("*")
+            if path.is_file() and not path.name.endswith((".tmp", _SUM_SUFFIX))
+        )
+
     def __len__(self) -> int:
         """Return the number of cached entries (scans the namespace)."""
         if not self.root.exists():

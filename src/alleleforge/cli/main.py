@@ -2766,6 +2766,106 @@ def verify(
 
 data_app = typer.Typer(name="data", help="Inspect the dataset registry.", no_args_is_help=True)
 
+cache_app = typer.Typer(
+    name="cache",
+    help="Inspect and check the on-disk stores a run reuses work from.",
+    no_args_is_help=True,
+)
+app.add_typer(cache_app)
+
+
+@cache_app.command("verify")
+def cache_verify(
+    ctx: typer.Context,
+    deep: Annotated[
+        bool,
+        typer.Option(
+            "--deep",
+            help=(
+                "Also reconstruct each cached FM-index from its BWT and compare the "
+                "result to the content hash recorded at build time. This is the only "
+                "check that catches an index altered in place without changing its "
+                "length, and it costs a full pass over the index — minutes on a "
+                "whole-genome one. Without it the indexes get their cheap structural "
+                "checks only."
+            ),
+        ),
+    ] = False,
+    as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Check the integrity of the caches this machine would serve results from.
+
+    Two stores hold work a run reuses instead of recomputing, and a run trusts both:
+    the cross-run **off-target report** cache (written by `aforge offtarget --cache`) and
+    the persistent **FM-index** cache (written by `aforge offtarget --genome-index`). Each
+    already knows how to detect a corrupted entry — the
+    report cache re-checks a checksum sidecar, the index reconstructs its text and
+    compares a content hash — but both only did so when a design happened to read that
+    entry. So a damaged cache announced itself in the middle of the run that needed it,
+    and `FMIndex.verify()`, the only check that catches an index altered without
+    changing its length, was reachable from Python and from no shell at all.
+
+    Exits non-zero if any entry fails, naming it. Nothing is repaired or deleted here:
+    what to do with a corrupt entry is the operator's call, and both stores are
+    content-addressed, so deleting the named directory or file is always safe.
+    """
+    from alleleforge.cache import CacheIntegrityError
+    from alleleforge.config import get_settings
+    from alleleforge.genome.index import FMIndex, FMIndexIntegrityError
+    from alleleforge.offtarget.cache import OffTargetCache
+
+    state: GlobalState = ctx.obj
+    cache_root = state.cache_dir if state.cache_dir is not None else get_settings().cache_dir
+    checks: list[dict[str, str]] = []
+
+    reports = OffTargetCache(root=cache_root)
+    for digest in reports.digests():
+        try:
+            reports.get(digest)
+        except CacheIntegrityError as exc:
+            checks.append(_check("offtarget-report", digest, "CORRUPT", reason(exc)))
+        except Exception as exc:  # noqa: BLE001 - an unreadable entry is a failed entry
+            checks.append(
+                _check(
+                    "offtarget-report", digest, "UNREADABLE", f"{type(exc).__name__}: {reason(exc)}"
+                )
+            )
+        else:
+            checks.append(_check("offtarget-report", digest, "ok"))
+
+    index_root = cache_root / "fm_index"
+    for meta in sorted(index_root.glob("*/meta.json")) if index_root.is_dir() else []:
+        entry = meta.parent
+        try:
+            index = FMIndex.load(entry)
+            if deep:
+                index.verify()
+        except FMIndexIntegrityError as exc:
+            checks.append(_check("fm-index", entry.name, "CORRUPT", reason(exc)))
+        except Exception as exc:  # noqa: BLE001 - an unloadable index is a failed index
+            checks.append(
+                _check("fm-index", entry.name, "UNREADABLE", f"{type(exc).__name__}: {reason(exc)}")
+            )
+        else:
+            checks.append(_check("fm-index", entry.name, "ok" if deep else "ok (structure only)"))
+
+    failed = [c for c in checks if not c["status"].startswith("ok")]
+    human = [f"cache dir: {cache_root}"]
+    human += [f"  {c['kind']:18s} {c['artifact'][:16]:16s} {c['status']}" for c in checks]
+    if not checks:
+        human.append("  nothing cached here — neither store holds an entry to check.")
+    if not deep and any(c["kind"] == "fm-index" for c in checks):
+        human.append(
+            "  NOTE: the FM-indexes got their structural checks only. An index altered "
+            "in place without changing its length still reads as intact — pass --deep "
+            "to reconstruct and re-hash it."
+        )
+    for c in failed:
+        human.append(f"  {c['artifact']}: {c['origin']}")
+    _emit({"cache_dir": str(cache_root), "checks": checks}, as_json=as_json, human="\n".join(human))
+    if failed:
+        raise typer.Exit(ExitCode.UNAVAILABLE)
+
 
 @app.command()
 def lift(

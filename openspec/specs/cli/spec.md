@@ -11,8 +11,9 @@ meaningful exit codes. The library is the source of truth; the CLI is a shell.
 ### Requirement: A stable subcommand surface with meaningful exit codes
 
 The CLI SHALL expose `resolve`, `design`, `batch`, `offtarget`, `verify`, `lift`, and the
-`data` and `bench` sub-apps, and SHALL use distinct exit codes: `0` success, `2` usage,
-`3` missing data, `4` unavailable dependency.
+`data`, `cache` and `bench` sub-apps, and SHALL use distinct exit codes:
+`0` success, `2` usage, `3` missing data, `4` unavailable dependency or a failed
+integrity check.
 
 #### Scenario: Missing dependency
 - **WHEN** `batch` is given a VCF but the VCF backend is not installed
@@ -191,6 +192,33 @@ four" are both short of "verified", and only the first was ever said out loud.
 #### Scenario: Some artifacts unpinned or absent from the cache
 - **WHEN** `--cache-dir` is given and only some of the listed artifacts can be re-hashed
 - **THEN** the output states how many of how many were re-hashed and names the rest
+
+### Requirement: A cache subcommand checks the stores a run reuses work from
+
+Two on-disk stores hold work a run reuses instead of recomputing, and a run trusts both:
+the cross-run off-target report cache and the persistent FM-index cache. The CLI SHALL
+expose `aforge cache verify`, which checks every entry in both and exits non-zero naming
+any that fails.
+
+Each store already knew how to detect a corrupted entry and neither could be *asked*: the
+report cache re-checks its checksum only when a design happens to read that entry, and
+the index's reconstruct-and-re-hash check — the only one that catches an alteration which
+leaves the length intact, and therefore the only one that catches an index reporting
+positions that are not occurrences — was a Python method with no shell able to call it.
+
+Because that reconstruction is `O(n)` it SHALL be opt-in (`--deep`), and a run without it
+SHALL state that the indexes got their structural checks only, rather than reporting them
+as verified. Nothing SHALL be repaired or deleted: both stores are content-addressed, so
+removing a named entry is always safe, and which entries to remove is the operator's call.
+
+#### Scenario: An altered cache entry
+- **WHEN** `aforge cache verify` finds an entry whose bytes no longer match its checksum
+- **THEN** it names the entry and exits non-zero
+
+#### Scenario: An index altered without changing its length
+- **WHEN** the run is made without `--deep`
+- **THEN** the index rows say the structural checks alone were run, and the output names
+  `--deep` as the check that would catch it
 
 ### Requirement: A standalone off-target report says whose specificity it is
 

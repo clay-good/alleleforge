@@ -23,9 +23,34 @@ import pytest
 
 README = Path(__file__).resolve().parents[1] / "README.md"
 
-#: Every command group the CLI exposes, so a flag mentioned anywhere is looked for
-#: everywhere before being called missing.
-COMMANDS = ("", "resolve", "design", "batch", "offtarget", "verify", "lift", "data", "bench")
+
+def _command_paths() -> list[tuple[str, ...]]:
+    """Every command path the CLI exposes, read off the app rather than restated here.
+
+    This was a hand-written tuple of group names plus a hard-coded sweep of `data list`
+    and `data show`, so a new group made the guard fail on the README that documented it,
+    and no `bench` subcommand's flags were ever looked at. A guard that has to be edited
+    whenever the thing it guards grows is a guard that reports the growth as the defect.
+    """
+    from alleleforge.cli.main import app
+
+    def named(command: object) -> str:
+        name = getattr(command, "name", None)
+        if name:
+            return str(name)
+        return command.callback.__name__.replace("_", "-")
+
+    paths: list[tuple[str, ...]] = [()]
+    paths += [(named(command),) for command in app.registered_commands]
+    for group in app.registered_groups:
+        name = group.name or group.typer_instance.info.name
+        paths.append((str(name),))
+        paths += [(str(name), named(sub)) for sub in group.typer_instance.registered_commands]
+    return paths
+
+
+#: Every top-level command and group the CLI exposes.
+COMMANDS = tuple(sorted({path[0] if path else "" for path in _command_paths()}))
 
 #: `--flag`-shaped strings in the README that belong to other tools or are anchor links.
 #: Each is listed with its owner, so this cannot become a bucket for a real stale flag.
@@ -50,10 +75,8 @@ def _help(*args: str) -> str:
 @pytest.fixture(scope="module")
 def cli_flags() -> set[str]:
     flags: set[str] = set()
-    for command in COMMANDS:
-        flags |= set(re.findall(r"--[a-z0-9][a-z0-9-]*", _help(*([command] if command else []))))
-    for sub in ("list", "show"):
-        flags |= set(re.findall(r"--[a-z0-9][a-z0-9-]*", _help("data", sub)))
+    for path in _command_paths():
+        flags |= set(re.findall(r"--[a-z0-9][a-z0-9-]*", _help(*path)))
     return flags
 
 

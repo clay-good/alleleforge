@@ -15029,3 +15029,63 @@ question "is this the right entry?" had been asked so thoroughly that "is this e
 intact?" read as already answered. The tell was structural and visible without any of this
 reasoning — one store in the codebase verifies and one does not, and the one that does
 holds the less dangerous thing.
+
+## Round 442 — the check that catches it was a Python method
+
+Round 441 turned the off-target report cache's checksum on. This round asked the obvious
+next question — who can *run* a check? — and found the same shape one directory over,
+already written down.
+
+`tests/genome/test_a_corrupt_index_cache_is_refused.py` measures what a tampered FM-index
+does:
+
+    clean     : count(ACGTACGT) = 6   locate = [0, 49, 98, 147]
+    truncated : loaded without complaint; count = 0   locate = []
+    tampered  : loaded without complaint; count = 5   locate = [98, 147, 165, 196]
+
+The truncation reads as a spotless guide. The one-byte tamper is worse in kind: it drops a
+real occurrence *and* reports two positions that are not occurrences at all, so a scan
+nominates off-target loci that do not exist. That file ends by saying `verify()` "remains
+the deliberate, opt-in check for same-length tampering, and is now the documented way to
+get it".
+
+Documented, and unreachable. `FMIndex.verify()` is a Python method. No command called it,
+`aforge verify` re-hashes only the artifacts a *result* names (an index is not one of
+them, since it changes no result), and this project's most productive query for four
+hundred rounds has been "what can the library do that no shell can reach". The answer here
+was a safety check, in a tool whose README describes its audience as people who will not
+touch a terminal — and whose other audience is told to use one.
+
+`aforge cache verify` sweeps both stores a run reuses work from. The report cache gets its
+sidecar re-checked without waiting for a design to happen to read that entry; the indexes
+get their structural checks, and `--deep` adds the reconstruction. `--deep` is opt-in
+because it is `O(n)` — minutes over hg38 — and a sweep without it **says so** rather than
+printing "ok": the indexes are reported as `ok (structure only)`, with a note naming the
+check that did not run and what it would have caught. "Nothing checked" gets its own
+sentence for the same reason. Nothing is repaired or deleted: both stores are
+content-addressed, so removing a named entry is always safe, and which to remove is not
+the tool's decision.
+
+Two things fell out of building it.
+
+**`KeyError: 'T'`.** Running a design against a same-length-tampered index produced a bare
+dict-lookup failure ten frames down in `_locate_row` — for a condition this module has a
+named error class and a one-line remedy for. The alphabet of an indexed text is exactly the
+keys of `c_table`, so a BWT character the rank tables do not count cannot occur in an index
+built here; the walk now says that, names the index, and points at the new command. A
+corrupted table can also close the LF walk into a cycle, which hung; that is bounded now,
+because a hang is a worse failure than a wrong answer.
+
+**A guard that reported growth as the defect.** `test_the_readme_describes_the_real_cli`
+kept a hand-written tuple of command groups and a hard-coded sweep of `data list` / `data
+show`. Adding a group made it fail on the README that correctly documented the group, and
+no `bench` subcommand's flags had ever been looked at — so a README flag belonging only to
+`aforge bench run` was one rename away from an invisible break. It now reads the command
+tree off the app.
+
+**Lesson: "reachable" is a property of the shells, and a *verifier* is the last thing that
+should be Python-only.** The library-versus-shell query is usually run against features —
+what can a user not ask the tool to compute? Run it against the *checks* instead: every
+integrity check, every honesty mechanism, every `verify`-shaped method, and ask which of
+them a person holding a suspect cache directory could actually run. A check nobody can
+invoke is a check nobody runs.
