@@ -14500,3 +14500,57 @@ covered none of the differing ones by construction.
 **And a population defined as "the columns that differ" cannot check whether a column
 should differ.** If the property under test is "X must be empty here", X's membership in
 the population must not depend on X being empty here.
+
+## Round 432 — the one dataset that ships in the wheel was the one `resolve()` could not produce
+
+The prediction surfaces first: HTML, PDF and the JSON export were checked for R431's defect
+and are honest — an unpredicted candidate renders no efficiency line at all, and every
+prediction field is `null`. The hole was only ever in the flat exports, and it is closed.
+
+Then a probe of the consent gate — block the socket, call every fetch entry point at default
+settings — turned up something that needed no mocking at all:
+
+```
+>>> DEFAULT_REGISTRY.resolve("doench-2016-cfd")
+ChecksumError: checksum mismatch for ~/.cache/alleleforge/data/doench-2016-cfd/cfd_matrix.json:
+  got c58e9c1a…, expected 9134bbd7…
+```
+
+Real state on this machine, dated three days before this session. The cached file is a
+**Python pickle** stored under the name `cfd_matrix.json`, and the reason is in the row:
+`source_url` serves CRISPOR's upstream `mismatch_score.pkl` while `sha256` pins the
+*vendored JSON conversion*. Those two can never agree, so any fetch of this dataset poisons
+the cache permanently.
+
+`doench-2016-cfd` is the only registry row that is both `bundled` and pinned, and it is the
+matrix behind every specificity number the tool prints. `resolve()` went straight to the
+cache and never looked at the bundled copy, so it had two failure modes and no success mode
+on a machine that had not fetched:
+
+| state | what `resolve()` did |
+|---|---|
+| fresh install, offline | `ConsentError: … is not cached; … Source: …/mismatch_score.pkl` |
+| after any fetch | `ChecksumError`, permanently |
+
+The correct bytes were present throughout — the file in `site-packages` hashes to exactly
+the pinned digest.
+
+**The fix already existed one call site away.** `aforge verify --cache-dir` was repaired for
+this in an earlier round, with a comment reading *"a bundled dataset ships inside the
+installed package and is never in the cache, so looking there reported `not-cached` for the
+one dataset whose bytes are always available to hash"*. It was fixed **at the caller**.
+`resolve()`, which every other caller goes through, kept the bug — the same shape as the
+`pyfaidx` import fixed at the package boundary while ten modules imported the submodule
+directly.
+
+`resolve()` now returns the bundled file when there is one, after checksumming it against
+the same pinned digest. Non-bundled rows are untouched and still refuse an unconsented
+fetch. A poisoned cache no longer shadows the wheel.
+
+**Lesson: when a fix's comment explains a general fact about the system, it is in the wrong
+place.** "A bundled dataset ships inside the installed package and is never in the cache" is
+not a fact about `verify`. Anything true of the *data* belongs where the data is resolved.
+
+**And a development machine's stale cache is evidence, not noise.** This one was three days
+old and would have been invisible in CI forever, because CI starts cold and never fetches —
+the two states that hide the two symptoms.
