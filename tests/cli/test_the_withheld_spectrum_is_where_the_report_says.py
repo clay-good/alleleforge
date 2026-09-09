@@ -49,7 +49,12 @@ def _variant(reference: Path) -> str:
 
 
 def test_the_note_still_names_this_command() -> None:
-    """The test is about a promise; if the wording moves, so must this."""
+    """The test is about a promise; if the wording moves, so must this.
+
+    The note names every route to the menu, not one — it is rendered into artifacts read
+    by a terminal user, a Python caller, an HTTP client and a browser, and it once named
+    only the first two.
+    """
     assert "--json" in WITHHELD_ALLELES_NOTE, WITHHELD_ALLELES_NOTE
     assert "ranked menu" in WITHHELD_ALLELES_NOTE
 

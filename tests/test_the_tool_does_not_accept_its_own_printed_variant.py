@@ -24,7 +24,6 @@ surprise is, rather than in the footer's general note about loci.
 
 from __future__ import annotations
 
-import re
 from html import escape
 from pathlib import Path
 
@@ -37,6 +36,7 @@ from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.report.builder import VARIANT_POSITION_NOTE, build_report
 from alleleforge.report.html import render_html
 from alleleforge.report.pdf import render_pdf
+from tests.pdf_text import pdf_text
 
 #: A contig whose base at 0-based 1017 is `T` and whose base at 1016 is `A`, so the
 #: paste-back lands on a mismatch rather than silently succeeding.
@@ -98,9 +98,8 @@ def test_both_human_renders_warn_beside_the_variant(fasta: Path) -> None:
     # The PDF writer hard-wraps to its column width, so the note spans two text runs.
     # Reassembled from the `(...) Tj` payloads rather than matched as a fragment, so a
     # truncated or paraphrased note fails instead of passing on its first clause.
-    runs = re.findall(r"\((.*?)\) Tj", render_pdf(report).decode("latin-1", errors="ignore"))
-    prose = " ".join(run.replace("\\(", "(").replace("\\)", ")") for run in runs)
-    assert VARIANT_POSITION_NOTE in prose
+    prose = pdf_text(render_pdf(report))
+    assert VARIANT_POSITION_NOTE in prose, prose[:400]
 
 
 def test_a_report_with_no_variant_carries_no_note(fasta: Path) -> None:

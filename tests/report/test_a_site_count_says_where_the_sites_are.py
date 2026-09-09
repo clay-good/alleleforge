@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json
 import random
-import re
 from pathlib import Path
 
 import pytest
@@ -37,6 +36,7 @@ from alleleforge.report.export import menu_to_json, report_to_json
 from alleleforge.report.html import render_html
 from alleleforge.report.pdf import render_pdf
 from alleleforge.types.edit import EditIntent
+from tests.pdf_text import pdf_text
 
 _SPACER = "ACCTGAAGACTTACGCATAC"
 
@@ -83,8 +83,7 @@ def test_both_renders_say_where_the_sites_are(searched: tuple[object, object]) -
     html = render_html(report).replace("&#x27;", "'").replace("&gt;", ">")
     assert "the site rows" in html, "the HTML never says where the sites are"
 
-    runs = re.findall(r"\((.*?)\) Tj", render_pdf(report).decode("cp1252", errors="ignore"))
-    prose = " ".join(" ".join(runs).split())
+    prose = pdf_text(render_pdf(report))
     assert NOMINATED_SITES_NOTE in prose, prose[:400]
 
 

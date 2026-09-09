@@ -31,6 +31,7 @@ from alleleforge.types.edit import Chemistry
 from alleleforge.types.guide import PAM, Guide, Spacer
 from alleleforge.types.prediction import Prediction, UncertaintyMethod
 from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
+from tests.pdf_text import pdf_text
 
 _MARKER = "not from a trained model"
 
@@ -68,8 +69,7 @@ def test_an_untrained_estimate_is_marked_on_both_renders() -> None:
     assert _MARKER in render_html(report)
     # Reassembled from the text runs: the writer hard-wraps to the measured column, so
     # a raw-bytes substring check is an assertion about where the line happens to break.
-    runs = re.findall(r"\((.*?)\) Tj", render_pdf(report).decode("cp1252", errors="ignore"))
-    assert _MARKER in " ".join(" ".join(runs).split())
+    assert _MARKER in pdf_text(render_pdf(report))
 
 
 def test_a_trained_estimate_is_left_unadorned() -> None:

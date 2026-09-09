@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import re
-
 from alleleforge.report.builder import build_report
 from alleleforge.report.pdf import render_pdf
 from alleleforge.types.candidate import RankedMenu
+from tests.pdf_text import pdf_text
 
 
 def test_pdf_is_well_formed(prime_menu: RankedMenu) -> None:
@@ -67,9 +66,7 @@ def test_pdf_escape_keeps_winansi_punctuation() -> None:
 
 def _pdf_prose(pdf: bytes) -> str:
     """Return the PDF's text with its hard wrapping undone, for prose assertions."""
-    runs = re.findall(r"\((.*?)\) Tj", pdf.decode("cp1252", errors="ignore"))
-    joined = " ".join(run.replace("\\(", "(").replace("\\)", ")") for run in runs)
-    return " ".join(joined.split())
+    return pdf_text(pdf)
 
 
 def test_pdf_includes_ancestry_offtarget(ancestry_menu: RankedMenu) -> None:

@@ -19,7 +19,6 @@ either ever changes the note becomes wrong and this fails.
 from __future__ import annotations
 
 import json
-import re
 
 import pytest
 
@@ -28,6 +27,7 @@ from alleleforge.report.export import menu_to_json, report_to_json
 from alleleforge.report.html import render_html
 from alleleforge.report.pdf import render_pdf
 from alleleforge.types.candidate import RankedMenu
+from tests.pdf_text import pdf_text
 
 
 @pytest.fixture
@@ -61,13 +61,8 @@ def test_both_renders_send_the_reader_to_the_menu(truncating_report: object) -> 
     # The PDF hard-wraps to its column width, so the sentence is reassembled from the
     # text runs rather than matched as a fragment. Before this round the PDF said the
     # count and nothing about where the rest went, so it is pinned whole.
-    # cp1252, not latin-1: the writer encodes the note's em dash as 0x97, which is an
-    # em dash in cp1252 and an unprintable control character in latin-1.
-    text = render_pdf(truncating_report).decode("cp1252", errors="ignore")
-    runs = re.findall(r"\((.*?)\) Tj", text)
-    prose = " ".join(run.replace("\\(", "(").replace("\\)", ")") for run in runs)
-    prose = " ".join(prose.split())
-    assert WITHHELD_ALLELES_NOTE in prose
+    prose = pdf_text(render_pdf(truncating_report))
+    assert WITHHELD_ALLELES_NOTE in prose, prose[:400]
 
 
 def test_the_note_does_not_call_the_report_export_lossless() -> None:

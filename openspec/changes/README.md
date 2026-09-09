@@ -15459,3 +15459,44 @@ today, all of them real.
 **Lesson: a guard's file list is a decision, and it is usually made once, in passing.**
 Nothing about `test_the_specs_name_real_things` was wrong except the constant at the top,
 and that constant was written by someone looking at one directory.
+
+## Round 452 — the remedy shipped and the sentence did not
+
+Round 437 found that the report tells a browser user to run `aforge design --json`, built
+them a route (`format=menu`, a **Download full menu** button), and closed with the lesson
+that "a remedy is written for whoever reads it, and the same string is read by different
+audiences on different surfaces".
+
+It did not change the string.
+
+`RANKED_MENU_SOURCE` is rendered into the HTML report, the PDF, and the note blocks both
+flat exports carry. It named two routes — `aforge design --json` and `menu_to_json`, a
+terminal and a Python API — for four audiences, and the fourth is the one the whole round
+was about. The sentence displayed inside the served page still sent its reader somewhere
+they could not go, with the button that would have taken them there rendered a few hundred
+pixels below it.
+
+It now names one route per surface: the CLI format, the HTTP format, the page's button,
+and the library function. Each is pinned by a test to a thing that exists — an
+`OutputFormat` member, a `DesignFormat` member, a button in the markup *with a handler*,
+and an importable function — because a note listing four routes is four ways to be stale
+instead of two.
+
+Adding a parenthesis to that sentence broke a test, which found the round's second half.
+Six test modules reassemble the rendered page's prose from its `(...) Tj` payloads, each
+with its own copy of the regex. Four unescaped PDF's `\(` and `\)`; two did not. That is
+invisible until an emitted string contains a parenthesis — and the research-use disclaimer
+printed on every render contains "(e.g. GUIDE-seq / CHANGE-seq / amplicon sequencing)", so
+those two extractors were already mangling the sentence they exist to protect. The shared
+regex had a second bug all six carried: `(a \) b) Tj` is one run, and a non-greedy match
+that stops at the escaped paren splits it into text that reads plausibly and is not what
+the page says.
+
+One extractor now, in `tests/pdf_text.py`, with tests for both cases and for the
+disclaimer surviving a real render.
+
+**Lesson: a round that builds a remedy has to change what points at the old one.** The
+capability, the button and the guard all landed; the sentence — the actual finding, the
+thing a person reads — was the one artifact left behind, because it was already "about"
+the right subject. Six copies of a helper diverging in the same direction is the ordinary
+version of this; a fix that leaves its own motivating text stale is the interesting one.

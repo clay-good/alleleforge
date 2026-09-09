@@ -18,8 +18,6 @@ recoverable and a truncated one is not — and the guards check that it reassemb
 
 from __future__ import annotations
 
-import re
-
 import pytest
 
 from alleleforge.report.builder import build_report
@@ -28,6 +26,7 @@ from alleleforge.report.pdf import _TEXT_W, _rule, _text_width, _wrap, oligo_lin
 from alleleforge.types.candidate import RankedMenu
 from alleleforge.types.guide import HDRDonor
 from alleleforge.types.sequence import DNASequence
+from tests.pdf_text import pdf_runs
 
 
 def _donor_block(nt: int) -> list[str]:
@@ -82,10 +81,7 @@ def test_wrapping_measures_rather_than_counts() -> None:
 
 def test_the_whole_document_fits(prime_menu: RankedMenu) -> None:
     """End to end, on every text run the writer actually emits."""
-    text = render_pdf(build_report(prime_menu, with_oligos=True)).decode("cp1252", errors="ignore")
-    runs = [
-        run.replace("\\(", "(").replace("\\)", ")") for run in re.findall(r"\((.*?)\) Tj", text)
-    ]
+    runs = pdf_runs(render_pdf(build_report(prime_menu, with_oligos=True)))
     assert runs, "no text runs in the PDF"
     over = [(round(_text_width(r), 1), r[:40]) for r in runs if _text_width(r) > _TEXT_W]
     assert not over, over

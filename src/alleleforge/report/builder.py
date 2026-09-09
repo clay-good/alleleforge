@@ -594,9 +594,18 @@ EXPORT_FORMAT_NAMES: tuple[str, ...] = ("JSON", "TSV", "Parquet", "HTML", "PDF")
 #: Where the per-item detail a report *summarises* actually lives. The report is a
 #: summary by design; `report_to_json` serializes that summary, so "the lossless export"
 #: is the ranked menu one level up and not the file `--format json` writes.
+#: Every route is named because this sentence is rendered into four artifacts read by
+#: different people. It used to name `aforge design --json` and `menu_to_json` — a
+#: terminal and a Python API — and it is displayed, among other places, inside the served
+#: page, to the audience the README describes as "users who will not touch a terminal".
+#: A round fixed that by giving the browser a route (`format=menu`, and a **Download full
+#: menu** button) and left the sentence pointing at the two it already had, which is the
+#: same defect one layer up: the remedy existed and the text still sent the reader
+#: somewhere they could not go.
 RANKED_MENU_SOURCE = (
-    "on the ranked menu, not in the report export — `aforge design --json` writes it, "
-    "and `menu_to_json` returns it"
+    "on the ranked menu, not in the report export — `aforge design --format menu` writes "
+    "it (`--json` prints it), `POST /api/design?format=menu` returns it, the served "
+    "page's *Download full menu* button saves it, and `menu_to_json` returns it"
 )
 
 WITHHELD_ALLELES_NOTE = f"the full spectrum is {RANKED_MENU_SOURCE}"
