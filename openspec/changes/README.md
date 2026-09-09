@@ -15346,3 +15346,41 @@ typed.** `mypy --strict` passed the whole time: `task_calibration_table` returns
 needed changing were exactly the places that had turned a typed value into an untyped row
 — a dict for a table, a dict for a figure — and the query that finds them is not "what
 does the type say" but "who reads this column".
+
+## Round 449 — "it exists" is the cheap half
+
+Round 448's query — who reads this column — run one more time, out to the surfaces that
+are not code. The docs read it too.
+
+`docs/api/benchmark.md` documented:
+
+    aforge bench gap cas9-efficiency        # does the score survive a held-out cell type?
+
+which now exits `2`. The reference baseline predicts one constant, its rank correlation is
+undefined on both folds, and a gap is a subtraction. The refusal is right; the example is a
+reader's first contact with the benchmark, and it fails.
+
+This repo has four guards over the docs — every command the prose invokes exists, every
+flag it names exists, every local link resolves, every module path is importable — and
+none of them could see this, because all four check that a name *resolves*. Whether the
+command works is a different question and, for a small fixture-backed subcommand group,
+a cheap one: every `aforge bench …` invocation in `docs/` and the README is now executed.
+In file order, in one directory, because that is how a reader follows a code block — the
+leaderboard line consumes the result files the `run` lines above it wrote, and checking it
+alone would only ever prove that a missing input is an error.
+
+A command documented as refusing is still allowed. It has to declare its exit code in the
+guard and be explained in the prose beside it, so "this refuses, and here is why" stays a
+documented behaviour rather than a silent breakage. The allowance is empty today, which is
+the better resolution here: `bench gap cas9-efficiency` moved out of the fenced examples
+and into a paragraph that explains what the harness does with a model it cannot rank —
+`spearman=undefined`, `primary_value: null` with a reason, a leaderboard row listed and not
+ranked, and no gap to report. That paragraph is more useful than the command was.
+
+Two smaller consumers in the same sweep: the Python snippet printed `result.primary_value`
+without mentioning it can be `None`, and the preprint listed "baseline Spearman" among the
+numbers the committed fixtures produce — a metric the baseline does not have.
+
+**Lesson: a documentation guard that checks resolution is checking spelling.** Four of them
+here, all green, on a page whose headline example refuses. Executing a documented command
+costs a test fixture; not executing it costs the first thing a new user tries.

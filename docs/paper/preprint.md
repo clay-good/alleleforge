@@ -302,8 +302,9 @@ canonicalized digest is diffed against a committed golden manifest
 asserted.
 
 > **Plumbing, not science.** The per-task metric values produced by the committed
-> synthetic fixtures (e.g. baseline Spearman, KL, AUROC, and ECE in the calibration
-> report) verify the *machinery* — the metric battery, the cross-context split
+> synthetic fixtures (baseline KL, AUROC and ECE in the calibration report — the
+> baseline's Spearman is *undefined*, since it predicts one constant, and is reported
+> that way rather than as a zero) verify the *machinery* — the metric battery, the cross-context split
 > mechanics, and the generalization-gap computation — and are explicitly **not**
 > model-quality results. Real numbers require real weights (§4.2).
 

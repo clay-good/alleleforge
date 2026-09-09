@@ -38,6 +38,9 @@ task = get_task("cas9-efficiency")
 split, dataset = load_split("cas9-efficiency")        # frozen, hash-verified on read
 scorer = build_baseline(task, split, dataset)         # or any Scorer of your own
 result = run_benchmark(scorer, task, split=split, dataset=dataset)
+# `primary_value` is None when the metric is undefined for this run — the baseline
+# predicts one constant, so a rank correlation over it does not exist. Check before
+# formatting; `result.primary_undefined_reason` says what would have produced a number.
 print(result.primary_metric, result.primary_value, result.metrics["ece"])
 assert result.verify_signature()                       # content-addressed result
 ```
@@ -46,10 +49,18 @@ From the CLI:
 
 ```bash
 aforge bench list                       # the five tasks, datasets, and metrics
-aforge bench run cas9-efficiency        # score the reference baseline
+aforge bench run cas9-outcome           # score the reference baseline
 aforge bench run pe-efficiency --out result.json --json
-aforge bench gap cas9-efficiency        # does the score survive a held-out cell type?
+aforge bench gap cas9-outcome           # does the score survive a held-out cell type?
 ```
+
+The reference baseline predicts one constant, so on the two **regression** tasks its rank
+correlation is undefined — `aforge bench run cas9-efficiency` prints
+`spearman=undefined` and says why, the result records `primary_value: null` with a
+`primary_undefined_reason`, and the leaderboard lists that row without ranking it. There
+is no gap to report either, so `aforge bench gap cas9-efficiency` refuses and names the
+fold. That is the harness behaving correctly on a deliberately trivial model; the examples
+above use tasks where the baseline can be measured.
 
 `bench gap` answers the question the test split alone cannot: a single number says how
 the model does on the contexts the benchmark happens to hold out, not whether it
