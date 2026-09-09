@@ -13475,3 +13475,61 @@ already done.**
 project's own script printed `0.4x` for a default-on code path, in the same output where
 an earlier round found `SLOWER` for a different default-on code path. Read the script's
 output every time you change the thing it measures.
+
+## Round 412 — two frozen models and two validations to reverse a string
+
+Re-profiling `design()` after R410/R411 put the off-target scan back in proportion and
+left this in view:
+
+```
+14967 calls  pydantic validate_python
+ 9012 calls  DNASequence.__init__
+ 9012 calls  _validate_alphabet
+```
+
+Three designs. Three thousand `DNASequence` constructions each. A grep found why:
+
+```
+$ grep -rn "str(DNASequence(" src/alleleforge/ | wc -l
+11
+```
+
+`str(DNASequence(x).reverse_complement())`, in the three enumerators, the genome index
+and the off-target scan — twice in the scan, once of them over a whole contig. Construct
+a frozen pydantic model, validate the alphabet, translate, construct a *second* model,
+validate the alphabet *again*, and discard both to return the string you started with.
+
+The second validation was already provably redundant, and the project already knew it:
+`_COMPLEMENT` maps the IUPAC alphabet onto itself, pinned by
+`test_every_validated_base_has_a_complement`, which exists because `str.translate` leaves
+an unmapped character unchanged where the model raises.
+
+The first validation is *not* redundant, and that same comment is the reason. So the
+helper validates once and translates once — and the validation moved from `set(upper) -
+IUPAC_ALPHABET` to the `translate` substitution `_sanitize` already uses, with the table
+derived from `IUPAC_ALPHABET` rather than written out, because a literal that lost a base
+would not raise, it would *accept* one.
+
+| per `design()`, 20 kb reference | before | after |
+|---|---:|---:|
+| `DNASequence.__init__` | 3,004 | 778 |
+| pydantic `validate_python` | 4,989 | 2,763 |
+| Python calls | 172,721 | 163,482 |
+
+Interleaved minimum over fifteen alternating runs: 20 nt reverse complement 4.46 µs →
+0.42 µs; 2 Mb 15.05 ms → 10.20 ms.
+
+**These are call counts because the wall clock was worthless.** Mid-round the machine's
+load average was 21 — other work on the same host — and the first A/B I ran produced
+`before 95–167 ms, after 69–177 ms` and a 2 Mb scan swinging 0.49–1.07 s where it had
+measured 0.15–0.23 s an hour earlier. Nothing in that table means anything. Profile call
+counts are exact under contention, and an interleaved minimum of many alternating runs is
+about as robust as a timing gets, so the round is reported on those.
+
+**Lesson: when the same eleven-word expression appears eleven times, the question is not
+whether it is correct but what it costs — and the fix belongs behind one name, not at
+eleven sites.** A guard now fails if `str(DNASequence(` reappears anywhere outside
+`sequence.py`.
+
+**And check the load before believing a benchmark.** Every timing rule I have written
+down assumed a quiet machine and none of them said to check. `uptime` first.
