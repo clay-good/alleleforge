@@ -14554,3 +14554,53 @@ not a fact about `verify`. Anything true of the *data* belongs where the data is
 **And a development machine's stale cache is evidence, not noise.** This one was three days
 old and would have been invisible in CI forever, because CI starts cold and never fetches —
 the two states that hide the two symptoms.
+
+## Round 433 — `fetchable` meant "the two fields a fetch needs are set"
+
+R432 stopped `resolve()` from being broken by the pkl-versus-JSON mismatch. The row that
+caused it still advertised the fetch:
+
+```
+$ aforge data show doench-2016-cfd
+sha256: 9134bbd7…
+source_url: …/CFD_Scoring/mismatch_score.pkl
+fetchable: True
+```
+
+`dataset_status` computed it as `bool(descriptor.sha256 and descriptor.source_url)` — a
+*structural* test. Both fields are set here and the fetch can never succeed: the URL serves
+CRISPOR's upstream pickle, the digest pins the vendored JSON conversion of it. The shipped
+file records both hashes itself, under `_provenance.sources`, so the project already knew
+they differ — `c58e9c1a…` for the pickle, which is exactly the hash of the poisoned cache
+entry R432 found.
+
+A reader who took `fetchable: True` at its word would fetch the URL, check it against the
+pinned digest, find a mismatch, and reasonably read it as tampering. That reader is the
+audience `aforge verify`'s hash contract exists for.
+
+Since R432 a bundled row has neither need nor path for a fetch, so the flag now means what
+its name says, and the new test pins it against *behaviour*: for every registered dataset,
+`fetchable` must agree with whether `resolve()` actually reaches the downloader, measured by
+injecting one that records the attempt. A second test reads the upstream digest out of the
+shipped file and asserts it still differs from the pinned one — so if a future vendoring
+made the two artifacts identical, the reasoning is revisited rather than left standing.
+
+**And the change broke a test, in the most instructive way available.**
+`test_the_table_says_which_rows_can_be_fetched` asserted
+
+```python
+row["fetchable"] == bool(descriptor.sha256 and descriptor.source_url)
+```
+
+the exact expression `dataset_status` held. That function's own docstring says why that is
+the wrong shape: *"four surfaces answer this question … each one that derived it separately
+got a different answer."* The test was a fifth derivation, and when the definition was
+corrected the surface and the single source moved together while only the copy disagreed.
+It now compares the table against `dataset_status`.
+
+**Lesson: a flag named for a capability must be computed from whether the capability works,
+not from whether its inputs are present.** `sha256 and source_url` is the precondition for
+attempting a fetch, and was being printed as the conclusion.
+
+**And a test that restates the implementation will be the only thing that fails when the
+implementation is corrected** — which reads exactly like a regression, and is the opposite.
