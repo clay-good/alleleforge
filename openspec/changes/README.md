@@ -14348,3 +14348,50 @@ document. Both now read the target block to the next target, comments included.
 **Lesson: "can the documented install run the documented gate" is one question with one
 answer per gate member.** R427 answered it for `test` and I stopped there, because that
 was where the failure was. The other five members were the same question, unasked.
+
+## Round 429 — a CI job for the question no CI job could ask
+
+First, the verification R427 and R428 owed. A clean venv, `pip install -e` with exactly
+`make install`'s extras, then `make ci`:
+
+```
+make ci exit=0
+reproduced: sha256=c23f… matches golden
+```
+
+The whole gate — lint, type, test, docs, examples, reproduce — runs from the documented
+install. It did not before this session.
+
+**A flake, recorded so a later round does not chase it as a defect.** One earlier run of
+`make ci` failed at `examples` with `AssertionError: assert self.km is not None` inside an
+nbclient atexit callback. Every notebook had passed; an exception in an `atexit` handler
+is re-raised after the handlers finish, so the process exits non-zero with nothing wrong.
+`make examples` alone passed three times for three, and the failing run was at load average
+16–33. Upstream kernel-cleanup race under load, not this repository — and not something to
+"fix" speculatively.
+
+Then the structural point. Two rounds found the same defect twice, and CI could not have
+found either, for a reason that is worth naming: **every CI job installs its own subset and
+runs one member.** That is right for parallelism and blind to the question CONTRIBUTING
+actually makes a promise about — *can the command we tell a newcomer to run, run the gate we
+tell them to run?* No job asks it, because no job builds the environment the question is
+about.
+
+So there is one now: `gate`, which runs `make install` and then `make ci`, and nothing else.
+It duplicates work on purpose. The other jobs give a fast per-member signal; this one answers
+a question about the environment rather than about the code, and it would have caught both
+defects the first time either shipped.
+
+`test_gate_mirrors_ci` needed an entry for it, and the entry is the interesting part —
+mirroring it locally would be circular, since it *is* `make ci`. A second test pins the job
+to exactly `make install` and `make ci`: narrowing it to install extras by hand, or to run
+one member, would turn it into another per-member job and silently retire the only check of
+the contributor path. Both mutations verified.
+
+**Lesson: a per-member gate cannot see a whole-environment defect, no matter how many
+members it has.** Nine jobs, a guard that pins job-to-target mapping *and* the commands, and
+the gate still could not run for anyone who followed the instructions.
+
+**And when a round's finding recurs immediately in a sibling, stop fixing instances and ask
+what class of check is missing.** R427 was `test`, R428 was `docs`. There were four more
+members and no reason to think they were different.
