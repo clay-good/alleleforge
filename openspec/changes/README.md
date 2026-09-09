@@ -13084,3 +13084,38 @@ and a page that assumes none — and nothing that reads either file alone can se
 contains the words for the opposite choice, put there by the person who made the right
 one.**
 
+## Round 404 — the safe path was documented at an address that did not exist
+
+Continuing R403's method: read the deployment guide as instructions and try them.
+
+> `alleleforge.web.api.serve()` additionally *refuses* a non-loopback bind without a
+> token. Running `uvicorn` against the module-level `app`, as above, binds the socket
+> itself and cannot consult that guard.
+
+```
+>>> from alleleforge.web.api import serve
+ImportError: cannot import name 'serve' from 'alleleforge.web.api'
+```
+
+`serve` is in `alleleforge.web.api.app`; the package exported only `create_app`. The
+guard itself works — `resolve_serve_token` refuses `0.0.0.0` and `192.168.1.10` without a
+token and returns cleanly for loopback. It was the *address* that was wrong, in the one
+sentence steering a reader away from the unguarded alternative. Follow the advice, hit an
+`AttributeError`, use the `uvicorn` line above it: precisely the outcome the sentence is
+there to prevent.
+
+The documentation has four guards. Every CLI command the prose invokes exists; every flag
+it names exists; every local link resolves; every symbol a ```python fence *imports* is
+importable. Four checks, four syntaxes — and a dotted path written in a *sentence* is a
+fifth. One regex over the prose, outside code fences, found this and nothing else, which is
+the good outcome: one real defect, no backlog.
+
+**Lesson: the sentence that tells a reader which of two paths is the safe one is
+load-bearing, and it is prose, so no guard was reading it. When documentation recommends A
+over B for a safety reason, check that A works — the failure mode is silent
+demotion to B.**
+
+**And after four documentation guards, the fifth was still there. Enumerate the SYNTAXES
+your claims are written in — link, fence, import, invocation, sentence — not the claims
+you happen to remember.**
+
