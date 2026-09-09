@@ -2774,6 +2774,33 @@ cache_app = typer.Typer(
 app.add_typer(cache_app)
 
 
+#: Statuses `aforge cache verify` treats as a failure. Everything else is either a pass
+#: or an explicit "nothing was checked" — which is not the same thing and is counted
+#: separately rather than folded into either.
+_CACHE_FAILURES = frozenset({"CORRUPT", "UNREADABLE", "MISMATCH"})
+
+
+def _hashed(kind: str, artifact: str, path: Path, expected: str) -> dict[str, str]:
+    """Re-hash one pinned artifact at ``path`` against ``expected``.
+
+    A missing file is `ok (not cached)`, not a failure: almost nothing in the registry
+    ships or is downloaded by default, so absence is the ordinary state of most of the
+    list — and reporting it as corruption would make the sweep's failures unreadable. It
+    is still counted and stated, because "not checked" is not "checked and intact".
+    """
+    if not path.is_file():
+        return _check(kind, artifact, "not-cached", str(path))
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    if actual == expected:
+        return _check(kind, artifact, "ok")
+    return _check(
+        kind,
+        artifact,
+        "MISMATCH",
+        f"{path}: expected {expected[:12]}…, got {actual[:12]}…",
+    )
+
+
 @cache_app.command("verify")
 def cache_verify(
     ctx: typer.Context,
@@ -2795,15 +2822,19 @@ def cache_verify(
 ) -> None:
     """Check the integrity of the caches this machine would serve results from.
 
-    Two stores hold work a run reuses instead of recomputing, and a run trusts both:
-    the cross-run **off-target report** cache (written by `aforge offtarget --cache`) and
-    the persistent **FM-index** cache (written by `aforge offtarget --genome-index`). Each
+    Four stores under the cache dir hold bytes a run trusts. Two hold **work** it reuses
+    instead of recomputing: the cross-run **off-target report** cache (written by `aforge
+    offtarget --cache`) and the persistent **FM-index** cache (written by `aforge
+    offtarget --genome-index`). Two hold **artifacts** it was given: the **dataset** cache
+    and the **checkpoint** cache, each pinned by a checksum recorded in a descriptor or a
+    model card, plus the datasets that ship inside the installed package. Each store
     already knows how to detect a corrupted entry — the
     report cache re-checks a checksum sidecar, the index reconstructs its text and
     compares a content hash — but both only did so when a design happened to read that
-    entry. So a damaged cache announced itself in the middle of the run that needed it,
-    and `FMIndex.verify()`, the only check that catches an index altered without
-    changing its length, was reachable from Python and from no shell at all.
+    entry — a dataset and a checkpoint are re-hashed on every resolve, which is stricter
+    still and just as reactive. So a damaged cache announced itself in the middle of the
+    run that needed it, and `FMIndex.verify()`, the only check that catches an index
+    altered without changing its length, was reachable from Python and from no shell.
 
     Exits non-zero if any entry fails, naming it. Nothing is repaired or deleted here:
     what to do with a corrupt entry is the operator's call, and both stores are
@@ -2811,7 +2842,9 @@ def cache_verify(
     """
     from alleleforge.cache import CacheIntegrityError
     from alleleforge.config import get_settings
+    from alleleforge.data.registry import DEFAULT_REGISTRY
     from alleleforge.genome.index import FMIndex, FMIndexIntegrityError
+    from alleleforge.model_zoo.registry import default_registry
     from alleleforge.offtarget.cache import OffTargetCache
 
     state: GlobalState = ctx.obj
@@ -2849,11 +2882,59 @@ def cache_verify(
         else:
             checks.append(_check("fm-index", entry.name, "ok" if deep else "ok (structure only)"))
 
-    failed = [c for c in checks if not c["status"].startswith("ok")]
+    # The two artifact stores. A pinned dataset or checkpoint is re-hashed on every
+    # resolve already, so this adds no new *rule* — only the ability to ask before a run
+    # rather than finding out during one. A file that is simply absent is not a failure:
+    # almost nothing ships, and "not cached" is the ordinary state of most of this list.
+    for name in DEFAULT_REGISTRY.names:
+        descriptor = DEFAULT_REGISTRY.get(name)
+        if descriptor.sha256 is None:
+            checks.append(_check("dataset", name, "unpinned", "no checksum to check"))
+            continue
+        # Bundled bytes live in the installed package, never in the cache — checking the
+        # cache path for them is how a dataset that is always present came to be reported
+        # unavailable once already.
+        bundled = descriptor.bundled_file()
+        path = (
+            bundled
+            if bundled is not None
+            else DEFAULT_REGISTRY.cache_path(name, cache_dir=cache_root / "data")
+        )
+        checks.append(_hashed("dataset", name, path, descriptor.sha256))
+
+    zoo = default_registry()
+    for name in zoo.names:
+        card = zoo.get(name)
+        if card.checkpoint_sha256 is None:
+            checks.append(_check("checkpoint", name, "unpinned", "no checksum to check"))
+            continue
+        path = cache_root / "models" / f"{card.name}.{card.version}.ckpt"
+        checks.append(
+            _hashed("checkpoint", f"{card.name}.{card.version}", path, card.checkpoint_sha256)
+        )
+
+    # "unpinned" and "not-cached" are neither passes nor failures: nothing was checked.
+    # Keeping them out of the pass set is the same distinction `verify` draws — a run
+    # that established nothing about an artifact must not close with the sentence a run
+    # that established something closes with.
+    failed = [c for c in checks if c["status"] in _CACHE_FAILURES]
+    unchecked = [c for c in checks if c["status"] in ("unpinned", "not-cached")]
+    examined = [c for c in checks if c not in unchecked]
+    width = max((len(c["artifact"]) for c in examined), default=0)
     human = [f"cache dir: {cache_root}"]
-    human += [f"  {c['kind']:18s} {c['artifact'][:16]:16s} {c['status']}" for c in checks]
-    if not checks:
-        human.append("  nothing cached here — neither store holds an entry to check.")
+    human += [f"  {c['kind']:18s} {c['artifact']:{width}s} {c['status']}" for c in examined]
+    if not examined:
+        human.append("  nothing to check here — no store holds an entry with a pin.")
+    if unchecked:
+        # Listed by count, not one line each: two dozen unpinned model cards would bury
+        # the rows that carry an answer.
+        absent = sum(1 for c in unchecked if c["status"] == "not-cached")
+        human.append(
+            f"  NOTE: {len(unchecked)} artifact(s) were not checked — {absent} pinned but "
+            f"not on this disk, {len(unchecked) - absent} carrying no pin at all. Almost "
+            "none of the registry ships or is downloaded by default; `aforge data list` "
+            "says which, and `--json` lists every row."
+        )
     if not deep and any(c["kind"] == "fm-index" for c in checks):
         human.append(
             "  NOTE: the FM-indexes got their structural checks only. An index altered "

@@ -15,8 +15,18 @@ the cross-run off-target report cache (`--cache`) and the persistent FM-index ca
   every load, which makes it exactly the kind of thing a *command* is for. There was no
   command. It was a Python method, in a tool whose users are told to use a CLI.
 
-`aforge cache verify` sweeps both stores. `--deep` adds the index reconstruction, and the
-run without it says in so many words what it did not check, rather than printing "ok".
+`aforge cache verify` sweeps them. Four stores under the cache dir hold bytes a run
+trusts — two hold *work* (the report cache, the index cache) and two hold *artifacts* it
+was given (the dataset cache and the checkpoint cache, plus the datasets that ship inside
+the package). The artifact halves are re-hashed on every resolve, which is stricter than
+the work halves and just as reactive: a damaged file announces itself in the middle of the
+run that needed it. The first version of this command swept two of the four, which is the
+same defect it was written to fix.
+
+`--deep` adds the index reconstruction, and the run without it says in so many words what
+it did not check rather than printing "ok". So does a pinned artifact that is not on this
+disk, and an unpinned one: "nothing was checked" is not a pass and is counted apart from
+one.
 """
 
 from __future__ import annotations
@@ -88,8 +98,8 @@ def test_a_clean_cache_verifies(warm: Path) -> None:
     checks = payload["checks"]
     assert isinstance(checks, list) and checks, payload
     kinds = {check["kind"] for check in checks}
-    assert kinds == {"offtarget-report", "fm-index"}, kinds
-    assert all(check["status"].startswith("ok") for check in checks), checks
+    assert kinds == {"offtarget-report", "fm-index", "dataset", "checkpoint"}, kinds
+    assert not [c for c in checks if c["status"] in {"CORRUPT", "UNREADABLE", "MISMATCH"}], checks
     assert code == ExitCode.OK
 
 
@@ -139,7 +149,53 @@ def test_the_shallow_run_states_what_it_did_not_check(warm: Path) -> None:
 
 
 def test_an_empty_cache_is_not_a_silent_pass(cache_dir: Path) -> None:
-    """Nothing checked is not the same sentence as everything checked."""
+    """Nothing checked is not the same sentence as everything checked.
+
+    An empty cache dir is not an empty sweep: the bundled dataset ships inside the
+    package and is hashed wherever the run happens, and everything else is reported as
+    not checked with a count, rather than as a clean bill of health.
+    """
     result = runner.invoke(app, ["cache", "verify"])
     assert result.exit_code == ExitCode.OK, result.output
-    assert "nothing cached" in result.stdout, result.stdout
+    assert "were not checked" in result.stdout, result.stdout
+    assert "doench-2016-cfd" in result.stdout, result.stdout
+
+
+def test_a_tampered_checkpoint_is_named(warm: Path) -> None:
+    """The artifact half of the sweep, on the store whose bytes decide a score."""
+    models = warm / "models"
+    models.mkdir(parents=True, exist_ok=True)
+    (models / "rule-set-3.1.0.ckpt").write_bytes(b"not the weights that were pinned")
+
+    code, payload = _verify()
+    mismatched = [c for c in payload["checks"] if c["status"] == "MISMATCH"]  # type: ignore[union-attr]
+    assert [c["kind"] for c in mismatched] == ["checkpoint"], payload
+    assert "expected" in mismatched[0]["origin"], mismatched
+    assert code == ExitCode.UNAVAILABLE
+
+
+def test_the_bundled_dataset_is_checked_where_it_actually_lives(warm: Path) -> None:
+    """Bundled bytes are in the installed package, never in the cache.
+
+    Looking for them under the cache dir is how the one dataset that is always present
+    came to be reported unavailable once already — so the sweep must find and hash the
+    shipped file, not report it as absent.
+    """
+    _, payload = _verify()
+    row = next(
+        c
+        for c in payload["checks"]  # type: ignore[union-attr]
+        if c["kind"] == "dataset" and c["artifact"] == "doench-2016-cfd"
+    )
+    assert row["status"] == "ok", row
+
+
+def test_an_unchecked_artifact_is_not_reported_as_a_pass(warm: Path) -> None:
+    """ "unpinned" and "not cached" are neither passes nor failures, and are counted apart."""
+    code, payload = _verify()
+    statuses = {c["status"] for c in payload["checks"]}  # type: ignore[union-attr]
+    assert "unpinned" in statuses, statuses
+    assert code == ExitCode.OK
+
+    result = runner.invoke(app, ["cache", "verify"])
+    assert "were not checked" in result.stdout, result.stdout

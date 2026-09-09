@@ -15089,3 +15089,40 @@ what can a user not ask the tool to compute? Run it against the *checks* instead
 integrity check, every honesty mechanism, every `verify`-shaped method, and ask which of
 them a person holding a suspect cache directory could actually run. A check nobody can
 invoke is a check nobody runs.
+
+## Round 443 — the sweep swept two of four
+
+Round 442's own command was the next thing to point round 442's question at.
+
+`aforge cache verify` opened with "the on-disk stores a run reuses work from" and checked
+two: the off-target report cache and the FM-index cache. Under the same cache dir sit two
+more that a run trusts at least as hard — the **dataset** cache and the **checkpoint**
+cache, plus the datasets that ship inside the installed package. Those hold the CFD
+scoring matrix and the trained weights: not work that could be recomputed, but artifacts
+whose bytes decide a number.
+
+They were not unguarded. Both re-hash on every resolve against a checksum pinned in a
+descriptor or a model card, which is *stricter* than either work cache. They were guarded
+**reactively**, which is precisely the property this command exists to fix: a damaged
+checkpoint announces itself in the middle of the run that needed it. A sweep that reports
+"ok" while not looking at the two stores with the strongest pins is the defect it was
+written to fix, one round later, in itself.
+
+Building the extension forced a distinction the first version had blurred. Almost none of
+the registry ships or is downloaded by default, so most rows are for artifacts that are
+simply not here, and twenty-odd model cards carry no pin at all. Rendering those as `ok
+(not cached)` and `ok (unpinned)` made "nothing was checked" read as "checked and intact"
+— the same sentence `aforge verify` was corrected for a hundred rounds ago ("re-hashed
+nothing" and "re-hashed one of four" are both short of "verified"). They are now their own
+statuses, excluded from the pass set, listed by count rather than one noisy line each, and
+summarised in a sentence that says what was *not* established.
+
+The table also stopped truncating names to sixteen characters, a width chosen for hex
+digests and inherited by `cas9-efficiency-` and `pridict2-baselin`.
+
+**Lesson: point the round's own query at the round's own output.** The query that found
+442 — "which checks can a person actually run?" — answers differently the moment a new
+command exists, and the honest next question is not "what else is unreachable" but "what
+does the thing I just shipped not cover, while sounding like it does". A sweep's failure
+mode is not a wrong answer; it is a confident one over a population smaller than its name
+implies.

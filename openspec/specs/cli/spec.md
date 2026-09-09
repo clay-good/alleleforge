@@ -195,10 +195,15 @@ four" are both short of "verified", and only the first was ever said out loud.
 
 ### Requirement: A cache subcommand checks the stores a run reuses work from
 
-Two on-disk stores hold work a run reuses instead of recomputing, and a run trusts both:
-the cross-run off-target report cache and the persistent FM-index cache. The CLI SHALL
-expose `aforge cache verify`, which checks every entry in both and exits non-zero naming
-any that fails.
+Four stores under the cache dir hold bytes a run trusts: the cross-run off-target report
+cache and the persistent FM-index cache hold *work* it reuses instead of recomputing; the
+dataset cache and the checkpoint cache hold pinned *artifacts* it was given, alongside the
+datasets that ship inside the installed package. The CLI SHALL expose `aforge cache
+verify`, which checks every entry in all four and exits non-zero naming any that fails.
+
+A pinned artifact that is not on this disk, and an artifact carrying no pin, SHALL be
+reported as not checked and counted apart from the passes. Neither is a failure — almost
+none of the registry ships or is downloaded by default — and neither is a pass.
 
 Each store already knew how to detect a corrupted entry and neither could be *asked*: the
 report cache re-checks its checksum only when a design happens to read that entry, and
@@ -214,6 +219,10 @@ removing a named entry is always safe, and which entries to remove is the operat
 #### Scenario: An altered cache entry
 - **WHEN** `aforge cache verify` finds an entry whose bytes no longer match its checksum
 - **THEN** it names the entry and exits non-zero
+
+#### Scenario: A pinned artifact that is not on this disk
+- **WHEN** the sweep runs against a cache holding none of the optional datasets
+- **THEN** those rows say nothing was checked, counted separately from the passes
 
 #### Scenario: An index altered without changing its length
 - **WHEN** the run is made without `--deep`
