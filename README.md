@@ -1218,8 +1218,11 @@ aforge --seed 20240501 design 'chr2:71:A>C' \
 
 The accessible front door for users who will not touch a terminal: a **FastAPI** backend that exposes the
 library over HTTP, and a **dependency-free served single-page frontend** that drives the variant-first
-journey in the browser — with a **single-variant** tab and a **cohort (batch)** tab that posts a variant
-list to `/api/batch` and renders the per-item summary table. The app is a thin async layer with **no
+journey in the browser — with a **single-variant** tab, a **cohort (batch)** tab that posts a variant
+list to `/api/batch` and renders the per-item summary table, and a **check a spacer** tab that posts to
+`/api/offtarget` for the guide someone already holds. Every endpoint the API exposes is reachable from
+the page or carries a written reason
+([`test_the_page_reaches_every_endpoint_or_says_why.py`](tests/web/test_the_page_reaches_every_endpoint_or_says_why.py)). The app is a thin async layer with **no
 business logic of its own** — it validates each request with a pydantic model, calls the same functions the
 Python API and CLI use, and returns a Phase 1 / Phase 11 schema-validated response, with OpenAPI
 auto-generated at `/docs`.
@@ -1271,7 +1274,7 @@ curl -s localhost:8000/api/batch -H 'content-type: application/json' \
 
 The async job worker is **in-process** (the default deployment is single-user and local), so no broker or
 separate worker container is needed; a multi-user deployment can swap in a real broker behind the same
-`JobManager` interface. The served vanilla-JS frontend (single-variant + cohort tabs) ships inside the
+`JobManager` interface. The served vanilla-JS frontend (single-variant, cohort and spacer tabs) ships inside the
 wheel and is exercised end to end by the API tests; a production Next.js + JBrowse 2 frontend can replace
 it behind the same API unchanged.
 

@@ -244,7 +244,7 @@ async function checkHealth() {
 // --- tabs -------------------------------------------------------------------
 
 function showTab(name) {
-  for (const tab of ["single", "batch"]) {
+  for (const tab of ["single", "batch", "offtarget"]) {
     const isActive = tab === name;
     document.getElementById(`tab-${tab}`).classList.toggle("active", isActive);
     document.getElementById(`tab-${tab}`).setAttribute("aria-selected", String(isActive));
@@ -291,14 +291,17 @@ function readBatchForm() {
   };
 }
 
+// Everything rendered through innerHTML below is built from *user input*: a cohort's
+// `item_id` is a raw line from the pasted variant list, `error` is an exception message
+// that quotes it back, and the off-target panel echoes the spacer and the ancestry
+// labels. All of those were once inserted unescaped, and a line like
+// `<img src=x onerror=...>` executed in the page. Escape at the boundary — and in one
+// place, because two panels with two escapers is one escaper that will fall behind.
+const esc = (v) =>
+  String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const cell = (v) => (v === null || v === undefined ? "—" : esc(v));
+
 function renderBatch(data) {
-  // Everything here is interpolated into innerHTML, and a cohort row is built from
-  // *user input*: `item_id` is a raw line from the pasted variant list, and `error` is
-  // an exception message that quotes it back. Both were inserted unescaped, so a line
-  // like `<img src=x onerror=...>` executed in the page. Escape at the boundary.
-  const esc = (v) =>
-    String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  const cell = (v) => (v === null || v === undefined ? "—" : esc(v));
   const rows = data.items
     .map((it) => {
       const s = it.summary || {};
@@ -505,10 +508,137 @@ async function downloadBatchTsv() {
   URL.revokeObjectURL(url);
 }
 
+
+// --- off-target (check a spacer) --------------------------------------------
+//
+// The page could only run an off-target search *inside* a design. `aforge offtarget`
+// is a first-class command and `POST /api/offtarget` a first-class endpoint, so the one
+// audience with no terminal could not ask the commonest off-target question: here is a
+// guide I already have — where else does it cut?
+
+const otForm = document.getElementById("offtarget-form");
+const otStatus = document.getElementById("ot-status");
+const otResults = document.getElementById("ot-results");
+
+function otNumber(id) {
+  const value = document.getElementById(id).value.trim();
+  return value === "" ? undefined : Number(value);
+}
+
+function otBody() {
+  const populations = document
+    .getElementById("ot-populations")
+    .value.split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const scorer = document.getElementById("ot-scorer").value.trim();
+  const chrom = document.getElementById("ot-chrom").value.trim();
+  const start = otNumber("ot-start");
+  const end = otNumber("ot-end");
+  // Built from four fields rather than parsed from one string: the API takes a
+  // structured locus, and a text box here would mean a second coordinate parser.
+  // Sent only when all three parts are given — a half-filled locus is a mistake, and
+  // silently dropping it would leave the guide counted against itself with no sign.
+  const onTarget =
+    chrom && start !== undefined && end !== undefined
+      ? { chrom, start, end, strand: document.getElementById("ot-strand").value }
+      : null;
+  const body = {
+    spacer: document.getElementById("ot-spacer").value.trim(),
+    pam: document.getElementById("ot-pam").value.trim() || "NGG",
+    mismatches: otNumber("ot-mismatches"),
+    dna_bulges: otNumber("ot-dna-bulges"),
+    rna_bulges: otNumber("ot-rna-bulges"),
+    cfd_threshold: otNumber("ot-cfd"),
+    mit_threshold: otNumber("ot-mit"),
+    maf: otNumber("ot-maf"),
+    populations: populations.length ? populations : null,
+    scorer: scorer || null,
+    on_target: onTarget,
+  };
+  return body;
+}
+
+function ancestryTable(worst, burden) {
+  // Both, side by side, and never only the first. A CFD score is a property of the
+  // sequence and not of who carries it, so the per-ancestry *worst score* is usually
+  // identical across ancestries — it is the frequency-weighted burden that carries the
+  // reference-bias finding this search exists to reproduce. Showing the worst score
+  // alone reads as "risk is spread evenly", which is the opposite of the finding.
+  const names = [...new Set([...Object.keys(worst || {}), ...Object.keys(burden || {})])].sort();
+  if (!names.length) return "";
+  const rows = names
+    .map(
+      (a) =>
+        `<tr><td>${esc(a)}</td><td>${cell(worst?.[a]?.toFixed?.(3))}</td>` +
+        `<td>${cell(burden?.[a]?.toFixed?.(4))}</td></tr>`,
+    )
+    .join("");
+  return (
+    "<table><caption>By ancestry</caption><thead><tr><th>ancestry</th>" +
+    "<th>worst score</th><th>expected burden</th></tr></thead>" +
+    `<tbody>${rows}</tbody></table>`
+  );
+}
+
+function renderOffTarget(data) {
+  const burden =
+    data.expected_burden === null || data.expected_burden === undefined
+      ? "—"
+      : data.expected_burden.toFixed(4);
+  const onTarget = data.on_target_excluded
+    ? ""
+    : "<p class=\"warn\">The on-target locus was <strong>not</strong> excluded, so the " +
+      "guide's own site is counted against it. Give it above to exclude it.</p>";
+  otResults.innerHTML =
+    `<h3>Spacer ${esc(data.report.spacer)} / PAM ${esc(data.report.pam)}</h3>` +
+    "<table><tbody>" +
+    `<tr><th>sites</th><td>${cell(data.n_sites)}</td></tr>` +
+    `<tr><th>worst score</th><td>${cell(data.worst_score?.toFixed?.(3))}</td></tr>` +
+    `<tr><th>specificity</th><td>${cell(data.specificity?.toFixed?.(3))}</td></tr>` +
+    `<tr><th>expected burden</th><td>${esc(burden)}</td></tr>` +
+    `<tr><th>scoring matrix</th><td>${cell(data.effective_matrix)}</td></tr>` +
+    "</tbody></table>" +
+    onTarget +
+    ancestryTable(data.ancestry_stratification, data.ancestry_expected_burden) +
+    // Every number above is conditional on the budget and the cut-offs, and the
+    // sentence that states them travels with the result on every other surface.
+    `<p class="note">${esc(data.search_description)}</p>` +
+    `<p class="note">${esc(data.coordinate_system)}</p>` +
+    `<p class="disclaimer">${esc(data.disclaimer)}</p>`;
+}
+
+async function runOffTarget(event) {
+  event.preventDefault();
+  otResults.innerHTML = "";
+  otStatus.textContent = "Searching…";
+  otStatus.classList.remove("error");
+  try {
+    const res = await apiFetch("/api/offtarget", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(otBody()),
+    });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({ detail: res.statusText }));
+      otStatus.textContent = `Error ${res.status}: ${detail.detail || res.statusText}`;
+      otStatus.classList.add("error");
+      return;
+    }
+    renderOffTarget(await res.json());
+    otStatus.textContent = "";
+  } catch (err) {
+    otStatus.textContent = `Request failed: ${err}`;
+    otStatus.classList.add("error");
+  }
+}
+
 form.addEventListener("submit", design);
 batchForm.addEventListener("submit", runBatch);
 document.getElementById("tab-single").addEventListener("click", () => showTab("single"));
 document.getElementById("tab-batch").addEventListener("click", () => showTab("batch"));
+document.getElementById("tab-offtarget").addEventListener("click", () => showTab("offtarget"));
+otForm.addEventListener("submit", runOffTarget);
 document.getElementById("batch-download-json").addEventListener("click", downloadBatch);
 document.getElementById("batch-download-tsv").addEventListener("click", downloadBatchTsv);
 document

@@ -34,6 +34,13 @@
               aria-controls="panel-single" type="button">Single variant</button>
       <button id="tab-batch" class="tab" role="tab" aria-selected="false"
               aria-controls="panel-batch" type="button">Cohort (batch)</button>
+      <!-- The third question this tool answers, and the one the page could not ask.
+           `aforge offtarget` is a first-class command and `POST /api/offtarget` a
+           first-class endpoint; the page could only run the search *inside* a design,
+           so a user holding a spacer already — the commonest off-target question there
+           is — had to leave the browser. -->
+      <button id="tab-offtarget" class="tab" role="tab" aria-selected="false"
+              aria-controls="panel-offtarget" type="button">Check a spacer</button>
     </div>
 
     <main>
@@ -313,6 +320,106 @@
         </section>
 
         <div id="batch-results"></div>
+      </section>
+
+      <section id="panel-offtarget" role="tabpanel" aria-labelledby="tab-offtarget" hidden>
+        <form id="offtarget-form" aria-label="Search a spacer for off-targets">
+          <div class="field">
+            <label for="ot-spacer">Spacer (5'&rarr;3')</label>
+            <input id="ot-spacer" name="spacer" type="text" required
+                   spellcheck="false" placeholder="GACCATGCAACCTTGAACGT" />
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="ot-pam">PAM</label>
+              <input id="ot-pam" name="pam" type="text" value="NGG" spellcheck="false" />
+            </div>
+            <div class="field">
+              <label for="ot-populations">Populations</label>
+              <input id="ot-populations" name="populations" type="text"
+                     placeholder="afr,amr,nfe" />
+            </div>
+            <div class="field">
+              <label for="ot-scorer">Scorer</label>
+              <input id="ot-scorer" name="scorer" type="text" placeholder="cfd" />
+            </div>
+          </div>
+
+          <!-- The budgets and cut-offs every reported number is conditional on. The
+               same guide yields two sites at a 0.20 CFD cut-off and fifteen at 0.05,
+               so a page that showed the counts without offering these would be showing
+               a number nobody could compare with another run. -->
+          <details class="advanced">
+            <summary>Search budget and cut-offs</summary>
+            <div class="row">
+              <div class="field">
+                <label for="ot-mismatches">Mismatches</label>
+                <input id="ot-mismatches" type="number" min="0" value="4" />
+              </div>
+              <div class="field">
+                <label for="ot-dna-bulges">DNA bulges</label>
+                <input id="ot-dna-bulges" type="number" min="0" value="1" />
+              </div>
+              <div class="field">
+                <label for="ot-rna-bulges">RNA bulges</label>
+                <input id="ot-rna-bulges" type="number" min="0" value="1" />
+              </div>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label for="ot-cfd">CFD cut-off</label>
+                <input id="ot-cfd" type="number" min="0" max="1" step="0.01" value="0.2" />
+              </div>
+              <div class="field">
+                <label for="ot-mit">MIT cut-off</label>
+                <input id="ot-mit" type="number" min="0" max="1" step="0.01" value="0.1" />
+              </div>
+              <div class="field">
+                <label for="ot-maf">Min allele frequency</label>
+                <input id="ot-maf" type="number" min="0" max="1" step="0.0001" value="0.001" />
+              </div>
+            </div>
+            <!-- Four inputs rather than one `chr2:1000-1020(+)` box. The API takes this
+                 locus as a structured object, so a text box would need a coordinate
+                 parser here — a second one, which is exactly how two surfaces come to
+                 accept different spellings — and it would hide the convention. These
+                 say 0-based half-open on the label, where a reader sees it. -->
+            <fieldset class="field">
+              <legend>On-target locus (excluded from the count)</legend>
+              <div class="row">
+                <div class="field">
+                  <label for="ot-chrom">Contig</label>
+                  <input id="ot-chrom" type="text" spellcheck="false" placeholder="chr2" />
+                </div>
+                <div class="field">
+                  <label for="ot-start">Start (0-based)</label>
+                  <input id="ot-start" type="number" min="0" placeholder="1000" />
+                </div>
+                <div class="field">
+                  <label for="ot-end">End (exclusive)</label>
+                  <input id="ot-end" type="number" min="0" placeholder="1020" />
+                </div>
+                <div class="field">
+                  <label for="ot-strand">Strand</label>
+                  <select id="ot-strand">
+                    <option value="+">+</option>
+                    <option value="-">&minus;</option>
+                  </select>
+                </div>
+              </div>
+            </fieldset>
+            <small>0-based half-open, as in a BED file &mdash; a genome browser reads the
+                   same locus as 1-based inclusive. Leave it blank and the guide's own
+                   perfect match is nominated against it, which caps the specificity; the
+                   result says so rather than quietly excluding it.</small>
+          </details>
+
+          <button type="submit" id="ot-submit">Search</button>
+        </form>
+
+        <section id="ot-status" class="status" aria-live="polite"></section>
+        <div id="ot-results"></div>
       </section>
     </main>
 

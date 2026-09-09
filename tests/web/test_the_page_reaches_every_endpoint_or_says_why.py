@@ -55,11 +55,6 @@ _NOT_ON_THE_PAGE: dict[str, str] = {
     "GET /api/bench": "decision: the benchmark registry is a leaderboard surface, not a "
     "design one. The page designs; `aforge bench` and the published board are where the "
     "task table is read",
-    "POST /api/offtarget": "GAP, not a decision: `aforge offtarget` is a first-class "
-    "command and this is a first-class endpoint, and checking a spacer you already hold "
-    "is the commonest off-target question. The page can only run the search inside a "
-    "design, so the one audience with no terminal cannot ask it. Recorded here so the "
-    "next endpoint added is not lost the same way; the panel is worth building",
 }
 
 

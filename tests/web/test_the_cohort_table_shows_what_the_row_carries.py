@@ -69,8 +69,18 @@ def test_the_allowances_name_real_row_keys() -> None:
 
 
 def test_the_header_and_the_cells_stay_the_same_width() -> None:
-    """A column added to one and not the other shifts every heading after it."""
-    header = re.findall(r"<th>([^<]*)</th>", _APP_JS)
+    """A column added to one and not the other shifts every heading after it.
+
+    Scoped to the cohort table's own `<thead>`. It used to scrape every `<th>` in
+    `app.js`, which was correct only while the cohort table was the only table on the
+    page — so the round that added the off-target panel, with a summary table and an
+    ancestry table of its own, broke this check without touching the cohort at all. The
+    guard now reads the header it is actually about.
+    """
+    thead = re.search(r"<thead>(.*?)</thead>", _APP_JS, re.S)
+    assert thead, "could not find the cohort table header"
+    header = re.findall(r"<th>([^<]*)</th>", thead.group(1))
+    assert len(header) > 6, f"parsed {header} — this check would be vacuous"
     row = re.search(r'return `<tr class="\$\{it\.status\}">(.*?)</tr>`', _APP_JS, re.S)
     assert row, "could not find the cohort row template"
     leading = len(re.findall(r"<td>", row.group(1)))
