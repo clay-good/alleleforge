@@ -16296,3 +16296,39 @@ retracting.** "No outbound network call" is more impressive than "no sequence da
 this deployment" and strictly harder to keep — it is falsified by a hash-verified download
 that harms nobody. The narrower claim is the one that survived two features, and it is the
 one a reader actually needs.
+
+## Round 475 — the principle that required the impossible
+
+Last round's lesson — the broadest true-sounding version of a guarantee is the one that
+will need retracting — pointed at the reproducibility claim, which this project makes in
+about ten places. Nine of them are careful: "re-derivable from **config + seed**",
+"reproducible from **its inputs**", "`scripts/reproduce.py` re-derives the canonical run
+from config + seed". The tenth is `SPEC.md`, numbered principle 5:
+
+> A result must be re-derivable from its provenance block.
+
+`Provenance` has eight fields and none of them is the variant. Nor does the config
+snapshot: `build_report` says so where it records one — *"recorded verbatim (no provenance
+fallback — the config snapshot carries no variant field)"*. The block records how a run was
+configured and, deliberately, not what was asked of it. A bare `.provenance.json` sidecar
+— the artifact `aforge verify` accepts, and the only machine-readable provenance a TSV,
+Parquet, HTML or PDF run leaves behind — cannot be re-derived from.
+
+The design is right and the sentence was wrong. Keeping a patient variant out of a file
+whose whole purpose is being handed to someone else is a good decision, made on purpose,
+and it is exactly what makes the broad claim false. The principle now states what a
+re-derivation needs and where the missing half lives: the variant is in the result — a
+column in the flat tables, the header of the rendered ones — not in the sidecar.
+
+The guard is derived, as the last three have been: while `Provenance` has no variant
+field, no document may claim re-derivability from the block alone. Add the field and it
+stops asking.
+
+Two clean probes on the way here, worth not re-running: every other re-derivability claim
+in the repository is already narrow, and the example notebooks' prose is current with this
+session's changes — including the bounded-memory sentence a round made testable.
+
+**Lesson: the strongest statement of a principle is usually in the document that states
+the principle.** Nine downstream mentions had been softened to the truth by people writing
+about the mechanism; the requirement kept the aspirational form because nobody re-reads a
+numbered principle. The place a claim is *defined* is the last place it gets corrected.

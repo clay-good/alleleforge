@@ -117,7 +117,11 @@ of candidate guide designs**, with a population-aware off-target profile for eac
 4. **Wrap, don't rebuild.** Integrate the best existing tools behind one typed interface; add new ML only at
    genuine coverage gaps.
 5. **Reproducible to the byte.** Pinned environments, versioned datasets (DVC), deterministic seeds, and
-   content-hashed model checkpoints. A result must be re-derivable from its provenance block.
+   content-hashed model checkpoints. A result must be re-derivable from its provenance block **plus the
+   variant it was designed for** — the block records *how* a run was configured (seed, reference build,
+   intent, weights, the pinned datasets and checkpoints it touched) and deliberately not *what* was asked
+   of it. The result carries the variant at its top level; a bare `.provenance.json` sidecar does not, and
+   keeping a patient variant out of a file that gets passed around is the reason.
 6. **Three audiences, one core.** The library is the source of truth; CLI and web are thin shells. No
    business logic lives in the CLI or web layers.
 7. **Typed and tested.** `mypy --strict`, `ruff`, and property-based tests on all core logic. Sequence
