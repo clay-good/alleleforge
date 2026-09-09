@@ -253,11 +253,19 @@ refuses any `null`-hash fetch by design.
 # Core library (light: pydantic types, config, model-card parsing — no torch/numpy)
 pip install alleleforge            # once published to PyPI
 
-# From source, with the optional groups you need
+# From source: the same extras CI installs, kept in one place
 git clone https://github.com/clay-good/alleleforge
 cd alleleforge
-pip install -e ".[core,genome,variant,cli,ml,dev]"
+make install          # pip install -e ".[dev,cli,web,genome-light]"
 ```
+
+The from-source line used to be spelled out here as
+`pip install -e ".[core,genome,variant,cli,ml,dev]"`, which **could not succeed**: `variant`
+is `hgvs`, `hgvs` requires `psycopg2`, and psycopg2 publishes Windows wheels only, so
+everywhere else pip builds it from source and stops at `Error: pg_config executable not
+found`. No CI job installs `variant`, so nothing noticed. `make install` is the set the
+gate actually runs against — which is what `CONTRIBUTING.md` already told contributors to
+use, for exactly this reason.
 
 ### Optional dependency groups
 
@@ -265,7 +273,7 @@ pip install -e ".[core,genome,variant,cli,ml,dev]"
 |---|---|---|
 | `core` | polars, pyarrow, numpy | tabular I/O |
 | `genome` | pyfaidx, pysam, cyvcf2, mappy, pyliftover | reference access, indexing (Phase 2) |
-| `variant` | hgvs | HGVS resolution (Phase 4) |
+| `variant` | hgvs | `c.`/`p.` HGVS resolution (Phase 4). **Needs PostgreSQL client headers**: `hgvs` requires `psycopg2`, which has no wheel outside Windows — install `libpq-dev` (Debian) or `libpq` (Homebrew) first. Coordinates and genomic `g.` need none of this and work on every install. |
 | `cli` | typer | the `aforge` command-line interface (Phase 12) |
 | `web` | fastapi, uvicorn, httpx | the web API + served frontend (Phase 13) |
 | `ml` | torch, transformers, lightning, scikit-learn | real embedding backbones (Phase 6+); the uncertainty core needs none of these |
