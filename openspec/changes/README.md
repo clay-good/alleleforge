@@ -16109,3 +16109,41 @@ promise down is the more likely to be keeping it.** The docstring is in `cache.p
 implements it correctly. The store that needed it most is in another module, written by
 someone reading a different page, and it is the larger of the two by a factor of a
 thousand.
+
+## Round 470 — four probes, four clean, and one number not touched
+
+The last two rounds' query — the same promise made in two places, and claims whose premise
+is checkable — pointed at four things. All four hold. Recorded so the next round does not
+re-run them.
+
+**Is a caller's scorer contract-checked in the *design* path, or only in the benchmark?**
+`run_benchmark` wraps every scorer call in `ensure_prediction`; the design verticals wrap
+the efficiency scorer and call `predictor.predict(...)` bare. The gap closes one level
+down: `DesignCandidate.efficiency` and `.p_intended` are typed `Prediction[float] | None`,
+and pydantic refuses a bare float on both — checked by construction, not by inspection. A
+rogue predictor cannot land a naked number on a candidate.
+
+**Is the readiness report honest about the native crate?** It says "the compiled extension
+is importable and current here", and the reason to doubt it is that *importable is not
+current*: an extension built before a kernel existed imports fine, reports the same
+version, and makes that kernel's parity module skip. The script already knows — it checks
+for each kernel by name and prints "stale here (no …), so those parity tests skip"
+otherwise. Someone had this thought before me and wrote the answer into the code.
+
+**Is the extension actually built in this environment?** Yes — align, evaluate and FM
+kernels all report available, so this session's measurements ran the native path, and the
+`# pragma: no cover - native not built in CI` markers are about CI and not about here.
+
+**Do the README's speedup numbers still hold?** `scripts/native_speedup.py` reports
+bulged alignment 18.7x (README: ~10x), per-anchor evaluation 8.9x (~9x), haplotype 4.1x
+(~4x), contig fold 13.5x/38.0x (~13x/~19x). **No number was changed**, because the machine
+was at load average 19–21 and this repository's own notes say cross-run timings under load
+are not baselines. The README already says the right thing — "wall-clock is
+hardware-dependent — run the script rather than trusting these numbers" — and editing a
+figure upward from a loaded run would be the exact mistake that line exists to prevent.
+
+**Lesson: a clean probe is a result, and the load average is part of it.** Two of these
+four were checked because a previous round's lesson said to; both were already handled, by
+someone who had the same thought and wrote it into the code rather than into a log. The
+fourth was measurable and I declined to measure it, which is the same discipline pointed at
+myself: a number I cannot stand behind is worse than the number already there.
