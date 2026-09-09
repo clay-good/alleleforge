@@ -100,7 +100,11 @@ print(board.render_markdown())
 
 - **Hosting:** a static leaderboard (`Leaderboard.render_html()`), HuggingFace
   Spaces / Polaris compatible, displaying each entry's accuracy metric,
-  calibration (ECE), and split version.
+  calibration (ECE), the share of its predictions it self-flagged
+  out-of-distribution, and split version. An entry whose primary metric is
+  **undefined** — a correlation over constant predictions, an AUROC over a
+  single-class fold — is listed with the reason and never ranked: a rank is a
+  claim that one model beat another, and there is no number to support it.
 - **External submissions:** accepted with a model card; results must verify their
   signatures. Ranks never cross a **comparison group** — the
   `(primary_metric, split_version, dataset_is_synthetic)` triple a score was

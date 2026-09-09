@@ -27,7 +27,18 @@ from pathlib import Path
 import pytest
 
 _ROOT = Path(__file__).resolve().parents[1]
-_DOCS = [_ROOT / "README.md", *sorted((_ROOT / "docs").rglob("*.md"))]
+#: Every prose surface with a Python block, not the two this check started with. The
+#: package README under `src/` is linked from the top-level one and carries the
+#: submission snippet a would-be leaderboard entrant copies first.
+_DOCS = [
+    _ROOT / "README.md",
+    _ROOT / "CONTRIBUTING.md",
+    _ROOT / "SPEC.md",
+    _ROOT / "SPEC_V2.md",
+    *sorted((_ROOT / "docs").rglob("*.md")),
+    *sorted((_ROOT / "specs").glob("*.md")),
+    *sorted((_ROOT / "src").rglob("README.md")),
+]
 _FENCE = re.compile(r"```python\n(.*?)```", re.S)
 
 

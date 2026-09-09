@@ -102,7 +102,24 @@ _ALLOWED_MISSING_LINKS: dict[str, str] = {}
 
 
 def _prose_files() -> list[Path]:
-    files = [_ROOT / "README.md", *sorted((_ROOT / "docs").rglob("*.md"))]
+    """Every prose surface a reader can reach, not the two this file started with.
+
+    `README.md` + `docs/` was the population of the round that wrote these checks. The
+    question — does a link resolve, is a cited module importable, does a documented
+    command exist — has a wider one: `CONTRIBUTING.md`, the two root specs, the seven
+    planning documents in `specs/`, and the package README the top-level README links to.
+    `openspec/changes/README.md` stays out: it is the audit log, and it quotes historical
+    mistakes on purpose.
+    """
+    files = [
+        _ROOT / "README.md",
+        _ROOT / "CONTRIBUTING.md",
+        _ROOT / "SPEC.md",
+        _ROOT / "SPEC_V2.md",
+        *sorted((_ROOT / "docs").rglob("*.md")),
+        *sorted((_ROOT / "specs").glob("*.md")),
+        *sorted((_ROOT / "src").rglob("README.md")),
+    ]
     # The corpus is the thing every check in this file scans, and a check that scans
     # nothing reports nothing broken. Neutralizing this helper left five of the six
     # tests here green, so the floor belongs at the source rather than in each caller.

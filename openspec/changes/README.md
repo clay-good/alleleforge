@@ -15500,3 +15500,36 @@ capability, the button and the guard all landed; the sentence — the actual fin
 thing a person reads — was the one artifact left behind, because it was already "about"
 the right subject. Six copies of a helper diverging in the same direction is the ordinary
 version of this; a fix that leaves its own motivating text stale is the interesting one.
+
+## Round 453 — README plus docs, chosen once
+
+Round 451 found `test_the_specs_name_real_things` reading one of two spec directories.
+The same question, asked of the other prose guards, gives the same answer: the link
+checker, the module-path checker, the documented-command checker and the snippet-import
+checker all scan `README.md` + `docs/**`.
+
+That corpus excludes `CONTRIBUTING.md`, `SPEC.md`, `SPEC_V2.md`, the seven planning
+documents in `specs/`, and `src/alleleforge/benchmark/README.md` — which the top-level
+README links to, and which carries the submission snippet a would-be leaderboard entrant
+copies first. The link checker's own docstring cites a break it found in `CONTRIBUTING.md`
+("`CONTRIBUTING.md` and the README both told a contributor to read a Contributor Covenant
+that was not in the repository"), a file it does not read: it caught that one through the
+README's copy of the same promise.
+
+Widening it finds nothing broken — 53 links, 6 documented symbols, all resolving. That is
+the honest outcome and worth recording rather than dressing up: the value is the standing
+constraint, not a fix. The same guard's own docstring says as much about its first run
+("Sweeping them today finds nothing, which is why this exists").
+
+One real correction fell out of reading the newly-covered file. `src/alleleforge/benchmark/README.md`
+describes the launch plan's board as "displaying each entry's accuracy metric, calibration
+(ECE), and split version" — which has been three of four since the out-of-distribution
+share was added *specifically* because "a score alone puts a model that stood behind every
+prediction on the same row as one that self-flagged most of them", and is now missing the
+newer case besides: an entry whose primary metric is undefined is listed with its reason
+and never ranked.
+
+**Lesson: the file list at the top of a guard is written once and inherited forever.**
+Three rounds have now found one — the spec sweep, the env-var check before it, and these
+four. The cheap standing check is not "is this list right" but "what markdown does this
+repository contain that no test opens".
