@@ -16442,3 +16442,34 @@ walk and no registry left in it.
 command, and the command's own hundred lines went where the previous defect had been,
 inverted. Fixing a class of defect puts you in exactly the frame of mind that produces one
 — you are building the *remedy*, and the remedy does not feel like a candidate.
+
+## Round 479 — the guard whose population was a list, again
+
+Round 478's lesson was that the round which fixes a class is the round most likely to
+reproduce it, so this round went at the newest guard I had written: the privacy check from
+rounds 473–474, which asserts that any document claiming AlleleForge sends nothing over
+the network names the two exceptions. It knew the exceptions from a hand-written dict —
+consequence annotation, and a trained-model checkpoint fetch. Which is the defect this
+project has now found nine times: a population someone enumerated once by looking at what
+was in front of them, correct on the day and inherited forever.
+
+What cannot go stale is which modules can reach the network at all, because that is a
+property of the imports. Four do: `variant/effect.py` (VEP), `model_zoo/registry.py`
+(checkpoints), `data/registry.py` (the consent-gated dataset fetch) and
+`genome/reference.py` (`ReferenceGenome.from_build`). The first two are request-time and
+are the two exceptions already named. The other two are library conveniences a Python
+caller invokes deliberately — and that is a *claim*, not an observation, so it is now a
+test: no module under `cli/` or `web/` may call `from_build(` or `from_registry(`. The day
+a shell does, a served request can reach the network by a third route and the privacy
+statement is wrong; the guard says so at the moment of the change rather than at the moment
+someone reads the sentence.
+
+Both halves were mutation-tested: a module importing `urllib.request` under `src/` fails
+the first, a `from_build(` in the CLI fails the second, and the dict is checked in both
+directions so a module that stops reaching the network cannot be left recorded.
+
+**Lesson: a derived population is not the same as a checked claim.** Deriving the four
+modules from the imports is what stops the list going stale, but it does not justify
+keeping two of them out of the exceptions — that justification is the sentence "no shell
+calls these", which was true, unwritten and one commit from being false. When a derivation
+lets you exclude part of the population, the exclusion is the thing to make executable.

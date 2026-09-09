@@ -47,6 +47,28 @@ _EXCEPTIONS: dict[str, tuple[str, ...]] = {
     "a trained-model checkpoint fetch": ("trained model", "checkpoint"),
 }
 
+#: Every module that can reach the network, and what it is. Derived below and compared
+#: against this, so a fifth one cannot appear without a decision being recorded here.
+#:
+#: Two are reachable from a served request and are therefore exceptions to the no-egress
+#: claim. Two are library conveniences a Python caller invokes deliberately — neither the
+#: CLI nor the web app calls them, which `test_no_shell_reaches_a_library_only_fetch`
+#: checks rather than assumes, because the day one does the privacy statement changes.
+_NETWORK_MODULES: dict[str, str] = {
+    "alleleforge/variant/effect.py": "request-time: the VEP annotation, which sends the "
+    "variant — the first exception",
+    "alleleforge/model_zoo/registry.py": "request-time: an enabled trained model whose "
+    "checkpoint is not cached — the second exception",
+    "alleleforge/data/registry.py": "library-only: a consent-gated dataset fetch a Python "
+    "caller asks for; the design path resolves only the bundled CFD matrix, which never "
+    "leaves the wheel",
+    "alleleforge/genome/reference.py": "library-only: `ReferenceGenome.from_build`, which "
+    "a Python caller invokes to fetch a genome; the app and the CLI take a local FASTA",
+}
+
+#: Symbols whose only job is to fetch something over the network on demand.
+_LIBRARY_ONLY_FETCHES = ("from_build(", "from_registry(")
+
 
 def test_the_capabilities_that_make_the_claim_conditional_exist() -> None:
     """The premise: if these go, the unconditional claim becomes true again."""
@@ -98,3 +120,48 @@ def test_the_page_still_conditions_its_banner() -> None:
     )
     assert "vep_enabled" in app_js, app_js[:200]
     assert "transmission" in app_js, "the banner is no longer rewritten for a VEP deployment"
+
+
+def _network_modules() -> set[str]:
+    """Return every module under `src/` that imports a network client."""
+    clients = ("urllib.request", "import httpx", "import requests", "urlopen(")
+    found = set()
+    for path in sorted((_ROOT / "src").rglob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        if any(client in text for client in clients):
+            found.add(str(path.relative_to(_ROOT / "src")))
+    return found
+
+
+def test_every_network_capable_module_is_accounted_for() -> None:
+    """The population is derived, so a fifth path cannot appear unrecorded.
+
+    The two exceptions above are a hand-written list, which is the shape this project has
+    repeatedly found going stale. What cannot go stale is *which modules can reach the
+    network at all* — that is a property of the imports.
+    """
+    found = _network_modules()
+    assert found, "no network-capable module found; the scan is broken"
+    unaccounted = sorted(found - set(_NETWORK_MODULES))
+    assert not unaccounted, (
+        f"these modules can reach the network and no decision is recorded for them: "
+        f"{unaccounted}. Add each to _NETWORK_MODULES saying whether a served request "
+        "can reach it — and if it can, the no-egress claim needs a third exception."
+    )
+    stale = sorted(set(_NETWORK_MODULES) - found)
+    assert not stale, f"_NETWORK_MODULES names modules that no longer reach the network: {stale}"
+
+
+def test_no_shell_reaches_a_library_only_fetch() -> None:
+    """The claim that keeps two of the four out of the exception list."""
+    offenders: list[str] = []
+    for shell in ("cli", "web"):
+        for path in sorted((_ROOT / "src" / "alleleforge" / shell).rglob("*.py")):
+            text = path.read_text(encoding="utf-8")
+            for symbol in _LIBRARY_ONLY_FETCHES:
+                if symbol in text:
+                    offenders.append(f"{path.relative_to(_ROOT)}: {symbol}")
+    assert not offenders, (
+        "a shell calls a fetch that was recorded as library-only, so a request can now "
+        f"reach the network by a third route: {offenders}"
+    )
