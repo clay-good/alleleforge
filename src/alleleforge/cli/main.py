@@ -35,6 +35,7 @@ from typing import Annotated, Any, NoReturn, TypeVar
 import typer
 
 from alleleforge._version import __version__
+from alleleforge.cache_sweep import FAILURES
 from alleleforge.config import DEFAULT_REFERENCE, DEFAULT_SEED
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
@@ -2779,29 +2780,7 @@ app.add_typer(cache_app)
 #: Statuses `aforge cache verify` treats as a failure. Everything else is either a pass
 #: or an explicit "nothing was checked" — which is not the same thing and is counted
 #: separately rather than folded into either.
-_CACHE_FAILURES = frozenset({"CORRUPT", "UNREADABLE", "MISMATCH"})
-
-
-def _held_bytes(root: Path) -> dict[str, int]:
-    """Return the bytes each on-disk store under ``root`` holds, largest first.
-
-    **Nothing evicts these.** Both cross-run caches are content-addressed and append-only
-    by design — a changed input is a new key, which is what makes a stale hit impossible
-    and also means the old entry stays forever. An FM-index over a whole genome runs to
-    several gigabytes per contig-strand, and editing the reference mints a new one beside
-    the old rather than replacing it. That is the right correctness trade and the wrong
-    thing to leave invisible, so the sweep that already walks these files reports what
-    they weigh.
-    """
-    sizes: dict[str, int] = {}
-    for store in ("caches", "fm_index", "data", "models"):
-        directory = root / store
-        if not directory.is_dir():
-            continue
-        total = sum(path.stat().st_size for path in directory.rglob("*") if path.is_file())
-        if total:
-            sizes[store] = total
-    return dict(sorted(sizes.items(), key=lambda item: -item[1]))
+_CACHE_FAILURES = FAILURES
 
 
 def _si_bytes(count: int) -> str:
@@ -2812,27 +2791,6 @@ def _si_bytes(count: int) -> str:
             return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
         size /= 1024
     return f"{size:.1f} GiB"  # pragma: no cover - the loop returns first
-
-
-def _hashed(kind: str, artifact: str, path: Path, expected: str) -> dict[str, str]:
-    """Re-hash one pinned artifact at ``path`` against ``expected``.
-
-    A missing file is `ok (not cached)`, not a failure: almost nothing in the registry
-    ships or is downloaded by default, so absence is the ordinary state of most of the
-    list — and reporting it as corruption would make the sweep's failures unreadable. It
-    is still counted and stated, because "not checked" is not "checked and intact".
-    """
-    if not path.is_file():
-        return _check(kind, artifact, "not-cached", str(path))
-    actual = hashlib.sha256(path.read_bytes()).hexdigest()
-    if actual == expected:
-        return _check(kind, artifact, "ok")
-    return _check(
-        kind,
-        artifact,
-        "MISMATCH",
-        f"{path}: expected {expected[:12]}…, got {actual[:12]}…",
-    )
 
 
 @cache_app.command("verify")
@@ -2874,76 +2832,20 @@ def cache_verify(
     what to do with a corrupt entry is the operator's call, and both stores are
     content-addressed, so deleting the named directory or file is always safe.
     """
-    from alleleforge.cache import entry_status, stored_entries
+    from alleleforge.cache_sweep import held_bytes, verify_stores
     from alleleforge.config import get_settings
-    from alleleforge.data.registry import DEFAULT_REGISTRY
-    from alleleforge.genome.index import FMIndex, FMIndexIntegrityError
-    from alleleforge.model_zoo.registry import default_registry
 
     state: GlobalState = ctx.obj
     cache_root = state.cache_dir if state.cache_dir is not None else get_settings().cache_dir
-    checks: list[dict[str, str]] = []
+    # The sweep is the library's; this command renders it and picks an exit code. It was
+    # written here first, which left a Python caller — or the web API, or a deployment's
+    # own health check — holding a suspect cache directory with no way to ask.
+    checks = [
+        _check(check.kind, check.artifact, check.status, check.detail)
+        for check in verify_stores(cache_root, deep=deep)
+    ]
 
-    # Every content-addressed namespace on disk, not the ones this command remembers.
-    # The first version named `offtarget` and so walked straight past the embeddings
-    # cache sitting beside it — which is the store that had checksum sidecars first, and
-    # the reason the off-target one was found to be missing them.
-    for namespace, path in stored_entries(cache_root):
-        status, detail = entry_status(path)
-        checks.append(_check(namespace, path.name, status, detail))
-
-    index_root = cache_root / "fm_index"
-    for meta in sorted(index_root.glob("*/meta.json")) if index_root.is_dir() else []:
-        entry = meta.parent
-        try:
-            index = FMIndex.load(entry)
-            if deep:
-                index.verify()
-        except FMIndexIntegrityError as exc:
-            checks.append(_check("fm-index", entry.name, "CORRUPT", reason(exc)))
-        except Exception as exc:  # noqa: BLE001 - an unloadable index is a failed index
-            checks.append(
-                _check("fm-index", entry.name, "UNREADABLE", f"{type(exc).__name__}: {reason(exc)}")
-            )
-        else:
-            checks.append(_check("fm-index", entry.name, "ok" if deep else "ok (structure only)"))
-
-    # The two artifact stores. A pinned dataset or checkpoint is re-hashed on every
-    # resolve already, so this adds no new *rule* — only the ability to ask before a run
-    # rather than finding out during one. A file that is simply absent is not a failure:
-    # almost nothing ships, and "not cached" is the ordinary state of most of this list.
-    for name in DEFAULT_REGISTRY.names:
-        descriptor = DEFAULT_REGISTRY.get(name)
-        if descriptor.sha256 is None:
-            checks.append(_check("dataset", name, "unpinned", "no checksum to check"))
-            continue
-        # Bundled bytes live in the installed package, never in the cache — checking the
-        # cache path for them is how a dataset that is always present came to be reported
-        # unavailable once already.
-        bundled = descriptor.bundled_file()
-        path = (
-            bundled
-            if bundled is not None
-            else DEFAULT_REGISTRY.cache_path(name, cache_dir=cache_root / "data")
-        )
-        checks.append(_hashed("dataset", name, path, descriptor.sha256))
-
-    zoo = default_registry()
-    for name in zoo.names:
-        card = zoo.get(name)
-        if card.checkpoint_sha256 is None:
-            checks.append(_check("checkpoint", name, "unpinned", "no checksum to check"))
-            continue
-        path = cache_root / "models" / f"{card.name}.{card.version}.ckpt"
-        checks.append(
-            _hashed("checkpoint", f"{card.name}.{card.version}", path, card.checkpoint_sha256)
-        )
-
-    # "unpinned" and "not-cached" are neither passes nor failures: nothing was checked.
-    # Keeping them out of the pass set is the same distinction `verify` draws — a run
-    # that established nothing about an artifact must not close with the sentence a run
-    # that established something closes with.
-    held = _held_bytes(cache_root)
+    held = held_bytes(cache_root)
     failed = [c for c in checks if c["status"] in _CACHE_FAILURES]
     unchecked = [c for c in checks if c["status"] in ("unpinned", "not-cached", "unverifiable")]
     examined = [c for c in checks if c not in unchecked]

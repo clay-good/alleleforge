@@ -16409,3 +16409,36 @@ findings came from executing the product and reading what it printed —
 `calibrated=False`, `offtarget_sources: reference-only`, a provenance block with no
 variant, an OpenAPI description that branches on `vep_enabled`. The code was right every
 time. Reading it would have confirmed the principles; running it contradicted them.
+
+## Round 478 — the sweep only a shell could run
+
+The last of the numbered principles, and the one that turned the audit back on this
+session's own work. Principle 6:
+
+> **Three audiences, one core.** The library is the source of truth; CLI and web are thin
+> shells. No business logic lives in the CLI or web layers.
+
+`aforge cache verify` — built four rounds ago, by me — lived entirely in `cli/main.py`:
+the walk over every content-addressed namespace, the FM-index load and its optional
+reconstruction, the re-hash of every pinned dataset and checkpoint, the three-way
+pass/failure/nothing-established distinction. A hundred lines of decisions about what
+counts as intact, in a shell.
+
+Which means a Python caller holding a suspect cache directory could not ask. Neither could
+the web API, nor a deployment writing its own health check. That is exactly the class this
+project calls its most productive query — a capability one audience has that another
+cannot reach — and the round that introduced it was *the round that closed the same gap
+for `FMIndex.verify()`*. I moved a check out of Python-only and into a command, and left
+the command's own logic Python-unreachable.
+
+`alleleforge.cache_sweep` holds it now: `verify_stores(root, deep=...)` returning
+`CacheCheck` rows that know whether they failed and whether anything was established, plus
+`held_bytes(root)`. The command renders them and picks an exit code, which is a shell's
+whole job — and a test reads the command's body to assert there is no `hashlib`, no store
+walk and no registry left in it.
+
+**Lesson: the round that fixes a class is the round most likely to reproduce it.** Round
+442's entire subject was a check that only Python could run. It shipped the fix as a
+command, and the command's own hundred lines went where the previous defect had been,
+inverted. Fixing a class of defect puts you in exactly the frame of mind that produces one
+— you are building the *remedy*, and the remedy does not feel like a candidate.

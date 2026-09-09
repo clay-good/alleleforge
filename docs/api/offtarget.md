@@ -44,3 +44,10 @@ served once population, haplotype or patient augmentation is present.
 The dependency-free, content-addressed store the search cache is built on.
 
 ::: alleleforge.cache
+
+### Checking what is on disk
+
+The sweep behind `aforge cache verify`, in the library so a Python caller, the web API or
+a deployment's own health check can ask the same question the CLI asks.
+
+::: alleleforge.cache_sweep

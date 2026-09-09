@@ -23,7 +23,7 @@ not the real published models the README compares against. Build scientific subs
 - **The framework itself**: typed core, honest uncertainty contract, reproducible-
   to-the-byte runs, content-addressed benchmark harness, consent/license/checksum
   model-zoo gate, CLI + web + native Rust parity. All verified green:
-  - `ruff` clean; `mypy --strict` clean (**103** source files)
+  - `ruff` clean; `mypy --strict` clean (**104** source files)
   - the full suite passes, with coverage above the **85%** gate. No absolute test
     count is stated here: it changes with almost every commit, so a number written
     down is a number already wrong, and "the suite passes" is the claim that matters.
