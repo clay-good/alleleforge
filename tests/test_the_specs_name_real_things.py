@@ -39,7 +39,13 @@ import alleleforge
 from alleleforge.cli.main import app
 
 _ROOT = Path(__file__).resolve().parents[1]
-_SPECS = _ROOT / "openspec" / "specs"
+
+#: **Both** specification directories. This read `openspec/specs` alone, which is the
+#: population of the round that wrote it rather than of the question it asks: `specs/`
+#: holds seven more requirement documents — the readiness assessment, the model- and
+#: scorer-integration plans, the distribution plan — and they cite the same identifiers
+#: with the same authority and, by this file's own description, the same readership.
+_SPEC_DIRS = (_ROOT / "openspec" / "specs", _ROOT / "specs")
 
 #: Backticked tokens that look like identifiers and are not: DNA and PAM motifs, VCF
 #: column values, literal output strings (`UNMAPPED` is what `lift` prints), and the
@@ -65,11 +71,46 @@ _NOT_IDENTIFIERS = {
     # A PDF font encoding named by the reporting spec to say that the document
     # information dictionary is *not* written in it.
     "WinAnsiEncoding",
+    # Upstream PRIDICT2 symbols, named by the integration spec to describe the code
+    # AlleleForge would have to call. They are deliberately not ours.
+    "DeepPrimeGuideRNA",
+    "PRIDICT2_0_editing_Score_deep_HEK",
+    "pred_runs_df",
+    "use_trained_weights",
+    "edit_pos",
+    "edit_type",
+    # Third-party packages the distribution plan names as dependencies or as things
+    # deliberately not taken on.
+    "biopython",
+    "biotoolsSchema",
+    "clippy",
+    "libomp",
+    "packaging",
+    "perbase",
+    "prettytable",
+    "seqfold",
+    "tqdm",
+    # A literal spacer in an integration example, and the run identifier of an
+    # upstream tool's output frame.
+    "ACACACACACTTAGAATCTG",
+    "run_id",
+    # Base-editor *names* — data this tool carries as strings, in the same category as
+    # the PAM motifs above, not classes.
+    "ABE8e",
+    "ABEmax",
+    "BE4max",
 }
 
 
+def _spec_files() -> list[Path]:
+    """Every specification document, from both directories."""
+    files = [p for d in _SPEC_DIRS for p in sorted(d.rglob("*.md"))]
+    assert len(files) > 20, f"found {len(files)} spec files; the layout moved"
+    return files
+
+
 def _spec_text() -> str:
-    return "".join(p.read_text() for p in sorted(_SPECS.rglob("spec.md")))
+    return "".join(p.read_text(encoding="utf-8") for p in _spec_files())
 
 
 def _public_names() -> set[str]:
@@ -117,11 +158,54 @@ def test_the_sweep_is_not_vacuous() -> None:
     assert "--gnomad" in _cli_flags()
 
 
+#: Flags a spec names in order to say the tool does **not** have them, with the reason.
+#: Distinct from a stale citation, and the distinction is the whole point of recording it.
+_FLAGS_DELIBERATELY_ABSENT: dict[str, str] = {
+    "--timestamp": "the readiness assessment names it to say a user must not be able "
+    "to forge a run's clock; `timestamp` exists as a parameter so tests can pin "
+    "provenance",
+}
+
+
 def test_every_flag_the_specs_name_exists() -> None:
     named = set(re.findall(r"`(--[a-z][a-z0-9-]+)`", _spec_text()))
     assert named, "no flags parsed out of the specs"
-    missing = sorted(named - _cli_flags())
+    missing = sorted(named - _cli_flags() - set(_FLAGS_DELIBERATELY_ABSENT))
     assert not missing, f"the specs require CLI flags that do not exist: {missing}"
+
+
+def test_a_flag_recorded_as_absent_is_still_absent() -> None:
+    """An exemption that outlives the gap is a false record, not a no-op."""
+    shipped = sorted(set(_FLAGS_DELIBERATELY_ABSENT) & _cli_flags())
+    assert not shipped, (
+        f"the specs say these flags should not exist and they do: {shipped}. Either the "
+        "flag was added deliberately and the spec must be updated, or it should not be "
+        "there."
+    )
+
+
+def test_every_test_a_spec_cites_exists() -> None:
+    """A requirement that names its own proof must name a proof that exists.
+
+    Specs cite tests as evidence — "(`test_no_shipped_trained_prime_scorer_satisfies_the
+    _override_protocol`) now fails" — and this repo renames tests as it sharpens what
+    they claim. A citation left behind points a reader at nothing, in the document that
+    exists to say what has been established.
+    """
+    cited = set(re.findall(r"`?(test_[a-z0-9_]{8,})`?", _spec_text()))
+    assert cited, "no test citations parsed out of the specs; this check would be vacuous"
+    files = sorted((_ROOT / "tests").rglob("test_*.py"))
+    # A citation may name a test *function* or the *file* that holds a group of them;
+    # both are how this repo refers to its own evidence.
+    defined = {path.stem for path in files} | set(
+        re.findall(
+            r"^def (test_[a-z0-9_]+)",
+            "".join(path.read_text(encoding="utf-8") for path in files),
+            re.M,
+        )
+    )
+    missing = sorted(cited - defined)
+    assert not missing, f"the specs cite tests that no longer exist: {missing}"
 
 
 def test_every_class_or_enum_the_specs_name_exists() -> None:

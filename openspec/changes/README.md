@@ -15415,3 +15415,47 @@ changing `aforge data show gnomad` to a dataset that does not exist fails with e
 **Lesson: when a guard is written because of one finding, its scope is usually the
 finding's, not the question's.** The question was "does a documented command work". The
 first answer covered one subcommand group, because that is where the broken one lived.
+
+## Round 451 — one of the two spec directories
+
+Round 450's lesson, pointed at this repo's own guards: which of them has a population
+narrower than the question it asks?
+
+`test_the_specs_name_real_things` sweeps every backticked identifier in the capability
+specs and checks it names something real. Its docstring says why it exists — "the same
+check the CLI help text got … pointed at the documents with the most authority and the
+least readership" — and it reads `openspec/specs/` only. There is a second directory.
+`specs/` holds seven more requirement documents: the readiness assessment, the model-,
+base-outcome-, cas9-outcome- and PRIDICT2-integration plans, the cross-check scope
+decision, the distribution plan. Same authority, same readership, and four thousand lines
+the sweep had never seen.
+
+Extending it finds no stale citation, which is the good outcome and not the point. What it
+does surface is a set of exemptions worth having written down, because each one is a
+distinction the next reader would otherwise have to re-derive:
+
+- **Upstream symbols.** `DeepPrimeGuideRNA`, `pred_runs_df`, `PRIDICT2_0_editing_Score_deep_HEK`
+  are PRIDICT2's, named by an integration spec to describe the code AlleleForge would have
+  to call. They are deliberately not ours.
+- **Packages.** `tqdm`, `seqfold`, `libomp`, `prettytable` — named by the distribution plan
+  as dependencies or as things deliberately *not* taken on.
+- **Data that looks like code.** `ABE8e`, `ABEmax`, `BE4max` are editor *names*, in the
+  same category as the PAM motifs the guard already exempts.
+- **`--timestamp`**, which is the interesting one. The readiness assessment names it in
+  order to say the tool must *not* have it: "`timestamp` exists so tests can pin
+  provenance; `--timestamp` would only let a user forge a run's clock." A spec naming a
+  flag that should not exist is not a stale citation, and the two must not share a bucket
+  — so it is recorded as deliberately absent, with a companion check that it *stays*
+  absent. An exemption that outlives its gap is a false record; this one fails the day
+  someone ships the flag.
+
+And one new check the sweep suggested. Specs cite tests as their evidence —
+"(`test_no_shipped_trained_prime_scorer_satisfies_the_override_protocol`) now fails" — and
+this repo renames tests constantly as it sharpens what they claim. A citation left behind
+points a reader at nothing, in the document whose job is to say what has been established.
+Every `test_…` a spec names now has to resolve to a test function or a test file; four do
+today, all of them real.
+
+**Lesson: a guard's file list is a decision, and it is usually made once, in passing.**
+Nothing about `test_the_specs_name_real_things` was wrong except the constant at the top,
+and that constant was written by someone looking at one directory.
