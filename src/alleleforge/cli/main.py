@@ -156,6 +156,35 @@ def _carries_a_prediction(artifact: Any) -> bool:
     return False
 
 
+def _registered_matrices_the_result_names(artifact: Any) -> set[str]:
+    """Return the *registered* scoring matrices ``artifact``'s candidates were scored by.
+
+    The mirror of :func:`_carries_a_prediction` for datasets. `design()` records a
+    scoring matrix in provenance under one explicit rule — "only matrices the registry
+    knows are recorded", because the length-relative approximation is code with no bytes
+    to pin — and every candidate names the matrix its off-target table was actually
+    scored by. So the result carries the evidence for the rule, and `verify` can check it
+    instead of taking `datasets` on trust.
+
+    Duck-typed across the two shapes `verify` accepts, exactly as the model check is: a
+    `DesignReport`'s candidates carry the reconciled label on `offtarget_matrix`, a
+    `RankedMenu`'s carry the report itself and reconcile on demand. A mixed table's label
+    joins both identities with ``" + "``, so split before matching.
+    """
+    from alleleforge.data.registry import DEFAULT_REGISTRY
+
+    names: set[str] = set()
+    for candidate in getattr(artifact, "candidates", ()):
+        label = getattr(candidate, "offtarget_matrix", None)
+        if label is None:
+            report = getattr(candidate, "offtarget", None)
+            label = report.effective_matrix() if report is not None else None
+        if label is None:
+            continue
+        names.update(part.strip() for part in label.split(" + "))
+    return {name for name in names if name in DEFAULT_REGISTRY}
+
+
 #: Every "wrote <path>" confirmation goes to **stderr**, not stdout. It is a status
 #: message about a side effect, and stdout is a data stream: `aforge design --out x.json
 #: --json > menu.json` used to interleave the line with the ranked-menu JSON and produce
@@ -2376,6 +2405,13 @@ def verify(
     *and pinned dataset* found there against the hash recorded in provenance. Exits
     non-zero on incomplete provenance or an artifact hash mismatch.
 
+    "Names every model and dataset the result used" is checked *against the result*,
+    not taken on trust: a result carrying predictions must name a model, and a scoring
+    matrix a candidate says it was scored by must appear in ``datasets``. Both were
+    once verifiable from the provenance block alone, which meant deleting a row passed
+    — and deleting the matrix row also emptied ``--cache-dir``'s work, since that row
+    is the artifact it re-hashes.
+
     Takes either shape `design` produces: the full result JSON, or the bare
     `<out>.provenance.json` sidecar written beside it. For `design --format` tsv, html
     and pdf the sidecar is the only machine-readable provenance a run leaves behind, so
@@ -2467,6 +2503,20 @@ def verify(
             "provenance names no model, but the result carries model-derived "
             "predictions — nothing here says what produced them"
         )
+
+    # The same cross-check for the dataset half of the same sentence. The models check
+    # above only catches an *emptied* list; a scoring matrix can be checked by name,
+    # because every candidate says which one scored its off-target table. Dropping the
+    # `doench-2016-cfd` row — one edit, in the same obvious place — used to verify clean
+    # *and* silently defeat `--cache-dir`, since the matrix is the one artifact that
+    # actually gets re-hashed: no row, nothing to re-hash, "verified".
+    if artifact is not None:
+        recorded = {ds.name for ds in prov.datasets}
+        for matrix in sorted(_registered_matrices_the_result_names(artifact) - recorded):
+            problems.append(
+                f"the result was scored by the dataset {matrix!r}, which provenance "
+                "does not name — so its bytes cannot be re-hashed"
+            )
 
     checks: list[dict[str, str]] = []
     if cache_dir is not None:
