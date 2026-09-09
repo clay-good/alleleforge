@@ -53,6 +53,7 @@ def test_pareto_flag_matches_menu(prime_menu: RankedMenu) -> None:
 
 def test_every_candidate_axes_populated(prime_menu: RankedMenu) -> None:
     report = build_report(prime_menu)
+    assert report.candidates, "no candidate to check the contract on"
     for c in report.candidates:
         assert c.efficiency is not None
         assert c.outcome_top  # at least one outcome allele
@@ -62,6 +63,7 @@ def test_every_candidate_axes_populated(prime_menu: RankedMenu) -> None:
 
 def test_candidate_carries_aggregate_specificity(prime_menu: RankedMenu) -> None:
     report = build_report(prime_menu)
+    assert report.candidates, "no candidate to check the contract on"
     for c in report.candidates:
         assert c.offtarget_specificity is not None
         assert 0.0 < c.offtarget_specificity <= 1.0

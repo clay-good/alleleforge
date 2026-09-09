@@ -451,6 +451,7 @@ async def test_design_response_menu_is_phase1_valid(client: httpx.AsyncClient) -
     res = await client.post("/api/design", json=DESIGN_BODY)
     data = res.json()
     # rebuild a minimal menu check: candidate efficiency intervals are present
+    assert data["candidates"], "no candidate to check the contract on"
     for c in data["candidates"]:
         assert c["efficiency"]["interval_level"] == 0.80
 

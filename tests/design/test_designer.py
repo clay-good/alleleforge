@@ -74,6 +74,7 @@ def test_completeness_property(make_reference: MakeRef) -> None:
     ref = _abe_ref(make_reference)
     rv = _resolve(ref, 25, "G")
     menu = design(rv, reference=ref, intent=EditIntent.INSTALL)
+    assert menu.candidates, "no candidate to check the contract on"
     for c in menu.candidates:
         assert c.efficiency is not None
         assert c.outcome is not None and c.outcome.alleles

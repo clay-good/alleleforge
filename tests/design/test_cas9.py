@@ -72,7 +72,9 @@ def test_every_candidate_has_all_axes(make_reference: MakeRef) -> None:
     # The Phase 10 completeness property, checked on the cas9 path: efficiency,
     # outcome, and off-target are all populated.
     ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
-    for c in _design(ref, EditIntent.KNOCK_OUT):
+    candidates = _design(ref, EditIntent.KNOCK_OUT)
+    assert candidates, "no candidate to check the contract on"
+    for c in candidates:
         assert c.efficiency is not None
         assert c.efficiency.interval[0] <= c.efficiency.value <= c.efficiency.interval[1]
         assert c.efficiency.interval_level == 0.80
@@ -127,7 +129,9 @@ def test_offtarget_excludes_the_guides_own_on_target(make_reference: MakeRef) ->
 
 def test_run_offtarget_false_skips(make_reference: MakeRef) -> None:
     ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
-    for c in _design(ref, EditIntent.KNOCK_OUT, run_offtarget=False):
+    candidates = _design(ref, EditIntent.KNOCK_OUT, run_offtarget=False)
+    assert candidates, "no candidate to check the contract on"
+    for c in candidates:
         assert c.offtarget is None
 
 
@@ -165,7 +169,9 @@ def test_precise_intent_candidates_carry_an_hdr_donor(make_reference: MakeRef) -
 def test_knock_out_candidates_carry_no_donor_and_no_donor_flags(make_reference: MakeRef) -> None:
     """A disruption intent wants the break itself; a template would be noise."""
     ref = make_reference({"chr2": PAD + SPACER + "TGG" + PAD})
-    for candidate in _design(ref, EditIntent.KNOCK_OUT):
+    candidates = _design(ref, EditIntent.KNOCK_OUT)
+    assert candidates, "no candidate to check the contract on"
+    for candidate in candidates:
         assert candidate.hdr_donor is None
         assert not any(f.startswith("hdr-donor:") for f in candidate.flags)
         assert "outcome-is-nhej-spectrum" not in candidate.flags

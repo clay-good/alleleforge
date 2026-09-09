@@ -92,7 +92,9 @@ def test_ood_honesty_surfaced(make_reference: MakeRef) -> None:
 
 
 def test_run_offtarget_false(make_reference: MakeRef) -> None:
-    for c in _design(make_reference, run_offtarget=False):
+    candidates = _design(make_reference, run_offtarget=False)
+    assert candidates, "no candidate to check the contract on"
+    for c in candidates:
         assert c.offtarget is None
 
 
@@ -154,9 +156,11 @@ def test_uncovered_locus_is_a_no_op(make_reference: MakeRef) -> None:
     # the baseline — no penalty for missing data, and no false "adjusted" label.
     base = _eff_by_pegrna(_design(make_reference, run_offtarget=False))
     empty = EncodeTracks({("atac", "chr2"): [_Segment(start=5000, end=5100, value=9.0)]})
-    for c in _design(
+    candidates = _design(
         make_reference, encode_tracks=empty, chromatin_track="atac", run_offtarget=False
-    ):
+    )
+    assert candidates, "no candidate to check the contract on"
+    for c in candidates:
         assert c.pegrna is not None and c.efficiency is not None
         assert c.efficiency.value == base[c.pegrna.model_dump_json()]
         assert "chromatin-adjusted" not in c.rationale

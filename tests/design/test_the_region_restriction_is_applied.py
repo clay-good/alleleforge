@@ -109,7 +109,9 @@ def test_an_unrestricted_run_searches_the_whole_contig(
 ) -> None:
     """The premise: without a region the scan really does cover everything."""
     contig_bases = scenario[4]
-    for candidate in _menu(scenario, None).candidates:
+    candidates = _menu(scenario, None).candidates
+    assert candidates, "no candidate to check the premise on"
+    for candidate in candidates:
         assert candidate.offtarget is not None
         assert candidate.offtarget.searched_bases == contig_bases
 

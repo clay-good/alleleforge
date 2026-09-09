@@ -44,7 +44,9 @@ def test_end_to_end_yields_ranked_candidates(make_reference: MakeRef) -> None:
 
 def test_every_candidate_has_outcome_and_offtarget(make_reference: MakeRef) -> None:
     ref, rv = _abe_case(make_reference)
-    for c in design_base_editor(rv, EditIntent.INSTALL, reference=ref):
+    candidates = design_base_editor(rv, EditIntent.INSTALL, reference=ref)
+    assert candidates, "no candidate to check the contract on"
+    for c in candidates:
         assert c.efficiency is not None  # target-editing activity (P target edited)
         assert c.outcome is not None and c.outcome.alleles
         assert isinstance(c.offtarget, OffTargetReport)
@@ -77,7 +79,9 @@ def test_bystander_burden_persisted_as_calibrated_prediction(make_reference: Mak
     # SPEC §8: bystander_burden is a calibrated Prediction and must survive on the
     # candidate (structured), not only in the human-readable flags/rationale.
     ref, rv = _abe_case(make_reference)
-    for c in design_base_editor(rv, EditIntent.INSTALL, reference=ref):
+    candidates = design_base_editor(rv, EditIntent.INSTALL, reference=ref)
+    assert candidates, "no candidate to check the contract on"
+    for c in candidates:
         assert c.bystander_burden is not None
         assert c.bystander_burden.value >= 0.0
         assert (
@@ -96,7 +100,9 @@ def test_ranked_by_exact_intended(make_reference: MakeRef) -> None:
 
 def test_run_offtarget_false(make_reference: MakeRef) -> None:
     ref, rv = _abe_case(make_reference)
-    for c in design_base_editor(rv, EditIntent.INSTALL, reference=ref, run_offtarget=False):
+    candidates = design_base_editor(rv, EditIntent.INSTALL, reference=ref, run_offtarget=False)
+    assert candidates, "no candidate to check the contract on"
+    for c in candidates:
         assert c.offtarget is None
 
 

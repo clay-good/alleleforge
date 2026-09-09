@@ -110,7 +110,9 @@ def test_a_table_that_mixes_enzymes_says_so_per_row(tmp_path: Path) -> None:
 
 def test_no_oligos_leaves_both_columns_empty(nuclease_menu: object) -> None:
     """No screen ran, so no enzyme cleared anything — not a reassuring default."""
-    for row in _rows(build_report(nuclease_menu, with_oligos=False)):
+    rows = _rows(build_report(nuclease_menu, with_oligos=False))
+    assert rows, "no row to check the empty columns on"
+    for row in rows:
         assert row["oligo_scheme"] == ""
         assert row["oligo_enzyme"] == ""
         assert row["oligo_warnings"] == ""
