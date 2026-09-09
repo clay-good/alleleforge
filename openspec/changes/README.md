@@ -13346,3 +13346,65 @@ rounds later.**
 false-positive case here was 10% of base-editing runs and it was invisible from the code:
 the card's chemistry tag and the candidate's chemistry are the same field name, the same
 enum, and not the same question.**
+
+## Round 410 — four million Python questions with a regular answer
+
+R408 and R409 were audit rounds; this one changed instrument and profiled the scan, which
+R407's registry fix had left as the dominant cost. A 2 Mb `scan_sequence`:
+
+```
+0.765s  _scan_one_strand      (tottime)
+0.225s  {method 'get' of 'dict' objects}   4,000,246 calls
+0.072s  aforge_native.evaluate_anchor        249,630 calls
+```
+
+Four million dict lookups. The loop asked "does the window at this anchor match the PAM?"
+once per position per strand — slice three characters, look them up in a memo, `continue`
+on a miss — and the answer was no sixteen times in seventeen. The memo was a real
+optimization of the wrong thing: it made each *distinct* window cheap while leaving the
+per-*anchor* cost, and the anchors are the many ones.
+
+The prefilter that could have skipped this does not apply at the default budget:
+`seed_length(20, 4 + 1 + 1)` falls below `MIN_SELECTIVE_K`, so `_seed_filter` returns
+`None` and every anchor reaches the check.
+
+"Does this window match an IUPAC pattern" is a *regular* question, so the regex engine
+answers it for the whole sequence in C: one compiled lookahead, one `finditer`.
+
+| | 2 Mb scan (alternating, 3 runs each) | `aforge offtarget`, 20 Mb |
+|---|---|---|
+| before | 0.36 / 0.51 / 0.56 s | 6.70 / 5.65 / 5.37 s |
+| after | 0.15 / 0.23 / 0.21 s | 2.84 / 3.17 / 3.64 s |
+
+Byte-identical JSON in both.
+
+Two things make the translation exact rather than approximate, and neither would have
+raised if I had got it wrong:
+
+* **The lookahead.** PAM windows overlap — `AGGG` holds an `NGG` match at 0 *and* at 1 —
+  and a consuming match resumes past the first. Fewer anchors, fewer sites, a guide that
+  looks safer than it is.
+* **`N`.** The old loop tested `"N" not in pam_seq` separately. The classes make that
+  unnecessary because no `IUPAC_EXPAND` value contains `N` — a property of a table in
+  another module. My first comment claimed the intersection `& _CONCRETE_BASES` was what
+  excluded `N`; a mutation run said otherwise (removing it changed nothing), so the
+  comment is now accurate and the property it actually rests on is pinned in the test.
+
+The old loop lives on verbatim in the test file as the oracle: ten PAM patterns (including
+`R`/`Y`/`V`/`B` codes, not just `NGG`), five budgets, N-containing and short sequences,
+1,600 differential cases, zero divergences — plus an exhaustive window-level check against
+`PAM.matches` for every pattern.
+
+**Lesson: a memo on the expensive half of a two-part cost can hide that the cheap half is
+the one running N times.** Each distinct PAM window was decided once, which is the
+optimization the comment describes and defends; the four million *lookups* to reach that
+decision were never counted.
+
+**Finding for the next round, not acted on here.** `scripts/native_speedup.py` prints
+`seeded 68.16ms vs brute force 29.89ms (0.4x)` for the high-stringency pair. Measured
+properly at 1 Mb, one guide, alternating: the seed prefilter was **already** a net loss
+before this change (0.45–0.95x) and is a larger one after (0.24–0.86x), because its own
+`covered_prefix` builds two Python lists of length n+1 and loops over n while the path it
+protects is now entirely in C. This is the exact shape of the FM-index auto-engage defect
+an earlier round fixed — *the number was in the script's output and the decision was in the
+prose*. The README's `kmer` row said "scan-level ~1x today"; it now states the measurement.
