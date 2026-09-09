@@ -14667,3 +14667,66 @@ arriving in my own test.
 **Lesson: a hash is only a check if the reader knows what it is a hash of.** `sha256`
 beside `source_url` reads as one claim and was two, and the tool was the only party that
 knew which.
+
+## Round 435 — reading the report as a scientist, and following its own instruction
+
+Twenty-seven rounds of mechanical queries; this one just rendered a report and read it.
+
+Most of it holds up under that treatment. The routing block says which chemistries
+declined and why, the tie disclosure is prominent and correct ("the top 50 candidates are
+within the leader's own efficiency uncertainty of each other … choose on the reagent, not
+the rank"), the off-target line volunteers that one placement was excluded as the guide's
+own locus and that the count and specificity are over what remained, and the caveat is
+typeset as a hazard rather than a footnote.
+
+Then the outcome table, which shows three alleles of four and says where the fourth is:
+
+> showing 3 of 4 predicted alleles (0.95 of the probability mass); the full spectrum is on
+> the ranked menu, not in the report export — **`aforge design --json` writes it**
+
+So I ran that. It printed the report — three alleles of four — and no menu.
+
+```python
+if as_json and out is not None:
+    typer.echo(menu.model_dump_json(indent=2))
+```
+
+`--json`'s own help says *"Also print the ranked menu as JSON to stdout"*, unconditionally.
+The guard drops it whenever `--out` is absent, which is the simplest form of the command
+the note names. The reader gets what they already had, with nothing saying the document
+they asked for was withheld.
+
+**The guard had a real reason.** Without `--out` the report goes to stdout too, and two
+JSON documents on one stream is exactly what `test_a_json_stream_carries_only_json` exists
+to prevent. Dropping one of them silently is not the way out of that.
+
+My first fix was to refuse, naming both remedies. The gate answered that: **twelve existing
+tests** run `design … --json` with no `--out` and parse stdout, so a refusal turns a working
+invocation into an error. Reading them showed what `--json` had come to mean in practice —
+"print JSON to stdout", which the default `--format json` already does — and that only one
+of the twelve wanted a field the menu lacks. So the fix is the other resolution: without
+`--out`, the menu *replaces* the report on stdout. The caller named the menu; the report
+there is the default they did not ask for. One document on the stream, and the flag's
+promise kept on the command the note prints.
+
+The one test that then failed read `menu["intent"]` — a report field — from a variable it
+had named `menu`. Its own naming is the confusion the flag caused; it wanted the report,
+and both things it checks are on the report, so it no longer passes `--json`. The flag's
+help now says which document you get and when.
+
+The allele withheld in the fixture is an `indel` byproduct. Which byproducts a pegRNA
+produces is the question the outcome table exists to answer.
+
+**A false alarm first, worth recording.** My initial check ran `design --json > file` with
+no `--out`, got report-shaped JSON, and I nearly wrote up "the note names a command that
+cannot deliver". The note is *right*; the command was broken in one invocation. Re-running
+it with `--out` showed the menu arriving correctly on stdout, which is what turned a wrong
+finding into the real one.
+
+**Lesson: follow the instructions your own output gives.** Every truncation note, every
+"see X for the full Y", is a command someone will run. This one had been printed on every
+truncated report and, in its simplest form, did nothing.
+
+**And when a guard exists to prevent a real problem, the fix is rarely to delete it** — it
+is to replace silence with a sentence. The stream really cannot carry two documents; the
+user really did ask for one of them.
