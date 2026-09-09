@@ -52,7 +52,12 @@ from alleleforge.types.guide import (
     Spacer,
     ThreePrimeMotif,
 )
-from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
+from alleleforge.types.sequence import (
+    DNASequence,
+    GenomicInterval,
+    Strand,
+    reverse_complement,
+)
 from alleleforge.variant.resolver import ResolvedVariant
 
 if TYPE_CHECKING:
@@ -91,7 +96,7 @@ _SEED_LENGTH = 10
 
 def _rc(seq: str) -> str:
     """Return the reverse complement of ``seq``."""
-    return str(DNASequence(seq).reverse_complement())
+    return reverse_complement(seq)
 
 
 def _required_alleles(resolved: ResolvedVariant, intent: EditIntent) -> tuple[str, str]:

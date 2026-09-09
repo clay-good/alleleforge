@@ -26,7 +26,12 @@ from pydantic import BaseModel, ConfigDict
 from alleleforge.enumerate._reasons import note, summarize
 from alleleforge.types.edit import Chemistry, EditIntent
 from alleleforge.types.guide import DEFAULT_SPACER_LENGTH, PAM, BaseEditWindow, Spacer
-from alleleforge.types.sequence import DNASequence, GenomicInterval, Strand
+from alleleforge.types.sequence import (
+    DNASequence,
+    GenomicInterval,
+    Strand,
+    reverse_complement,
+)
 from alleleforge.types.variant import VariantClass
 from alleleforge.variant.resolver import ResolvedVariant
 
@@ -199,12 +204,12 @@ def _windows_for_editor(
             )
             concrete_pam = pam_window
         else:
-            rc_pam = str(DNASequence(pam_window).reverse_complement())
+            rc_pam = reverse_complement(pam_window)
             proto_end = k + pam_len + spacer_length
             if proto_end > len(template) or "N" in rc_pam or not editor.pam.matches(rc_pam):
                 note(tally, "ambiguous" if "N" in rc_pam else "no-pam")
                 continue
-            spacer = str(DNASequence(template[k + pam_len : proto_end]).reverse_complement())
+            spacer = reverse_complement(template[k + pam_len : proto_end])
             gproto = offset + k + pam_len  # genomic protospacer start (plus coords)
             # minus protospacer position of a plus coordinate: mirror the span.
             ppos = (gproto + spacer_length) - target_pos

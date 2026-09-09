@@ -36,6 +36,7 @@ from alleleforge.types.sequence import (
     DNASequence,
     GenomicInterval,
     Strand,
+    reverse_complement,
 )
 
 if TYPE_CHECKING:
@@ -588,7 +589,7 @@ class GenomeIndex:
                     )
                 )
             )
-            rc = str(DNASequence(seq).reverse_complement())
+            rc = reverse_complement(seq)
             # prefer_native=False forces the on-disk + memory-mapped path; the
             # native SA-IS kernel still accelerates the build inside _build_to_disk.
             plus[chrom] = FMIndex.build(

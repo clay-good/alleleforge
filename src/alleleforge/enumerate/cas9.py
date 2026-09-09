@@ -38,7 +38,13 @@ from alleleforge.types.guide import (
     HDRDonor,
     Spacer,
 )
-from alleleforge.types.sequence import CoordinateSystem, DNASequence, GenomicInterval, Strand
+from alleleforge.types.sequence import (
+    CoordinateSystem,
+    DNASequence,
+    GenomicInterval,
+    Strand,
+    reverse_complement,
+)
 from alleleforge.variant.resolver import ResolvedVariant
 
 if TYPE_CHECKING:
@@ -157,13 +163,13 @@ def _enumerate_window(
                     )
                 )
         # Minus strand: the PAM reads NGG on the minus strand, i.e. revcomp here.
-        rc_window = str(DNASequence(window).reverse_complement())
+        rc_window = reverse_complement(window)
         proto_end = k + pam_len + spacer_length
         if proto_end <= len(sequence) and pam.matches(rc_window) and "N" not in rc_window:
             proto_plus = sequence[k + pam_len : proto_end]
             placement = frame.interval(k + pam_len, proto_end, Strand.MINUS)
             if "N" not in proto_plus and placement is not None:
-                spacer = str(DNASequence(proto_plus).reverse_complement())
+                spacer = reverse_complement(proto_plus)
                 guides.append(
                     Guide(
                         spacer=Spacer(sequence=DNASequence(spacer)),
@@ -360,7 +366,7 @@ def guide_context(
         raise ValueError(f"guide {guide.spacer.sequence} is absent from the sequence being scored")
     plus = plus[max(0, at - low_pad) : at + len(anchor) + high_pad]
     if placement.strand is Strand.MINUS:
-        return str(DNASequence(plus).reverse_complement())
+        return reverse_complement(plus)
     return plus
 
 
@@ -396,7 +402,7 @@ def _pam_matches(guide: Guide, lo: int, plus: str) -> bool:
         pam_seq = plus[start : start + pam_len]
     else:
         end = placement.start - lo
-        pam_seq = str(DNASequence(plus[end - pam_len : end]).reverse_complement())
+        pam_seq = reverse_complement(plus[end - pam_len : end])
     return len(pam_seq) == pam_len and guide.pam.matches(pam_seq)
 
 
@@ -409,7 +415,7 @@ def _seed_intact(guide: Guide, lo: int, plus: str) -> bool:
         proto = plus[start : start + len(spacer)]
     else:
         end = placement.end - lo
-        proto = str(DNASequence(plus[end - len(spacer) : end]).reverse_complement())
+        proto = reverse_complement(plus[end - len(spacer) : end])
     seed_len = min(_SEED_LENGTH, len(spacer), len(proto))
     # The Cas9 seed is the PAM-proximal end — the 3' end of the 5'->3' spacer.
     return proto[-seed_len:] == spacer[-seed_len:]

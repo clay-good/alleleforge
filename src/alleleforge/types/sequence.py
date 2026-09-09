@@ -52,6 +52,37 @@ _COMPLEMENT = {
 #: than an error.
 _COMPLEMENT_TABLE = str.maketrans(_COMPLEMENT)
 
+#: Deletes every in-alphabet base, so `seq.translate(...)` leaves exactly the characters
+#: that are not IUPAC. Derived from :data:`IUPAC_ALPHABET` rather than written out, for
+#: the reason `offtarget._search._DROP_INDEX_ALPHABET` gives: a literal table that lost a
+#: base would not raise, it would accept a base the model is supposed to reject.
+_DROP_IUPAC_ALPHABET = str.maketrans("", "", "".join(sorted(IUPAC_ALPHABET)))
+
+
+def reverse_complement(sequence: str) -> str:
+    """Return the IUPAC reverse complement of ``sequence``, validating it once.
+
+    The string form of :meth:`DNASequence.reverse_complement`, and the one eleven call
+    sites actually wanted: they wrote ``str(DNASequence(x).reverse_complement())``, which
+    builds two frozen models and validates the alphabet twice to do a `translate` and a
+    reverse. On the off-target scan's whole-contig complement that is two validations of
+    a multi-megabyte string per scan.
+
+    The second validation was always redundant — `_COMPLEMENT` maps the IUPAC alphabet
+    onto itself, which `test_every_validated_base_has_a_complement` pins — and the first
+    is kept, because dropping it is the documented trap beside `_COMPLEMENT_TABLE`:
+    `translate` passes an unmapped character through unchanged where the model raises.
+
+    Raises:
+        ValueError: If ``sequence`` holds a character outside the IUPAC alphabet.
+    """
+    upper = sequence.upper()
+    stray = upper.translate(_DROP_IUPAC_ALPHABET)
+    if stray:
+        raise ValueError(f"non-IUPAC characters in sequence: {sorted(set(stray))}")
+    return upper.translate(_COMPLEMENT_TABLE)[::-1]
+
+
 #: For each IUPAC code, the concrete bases it can match. Drives PAM matching.
 IUPAC_EXPAND = {
     "A": frozenset("A"),
@@ -111,11 +142,17 @@ class DNASequence(BaseModel):
     @field_validator("sequence")
     @classmethod
     def _validate_alphabet(cls, value: str) -> str:
-        """Upper-case and reject any non-IUPAC character."""
+        """Upper-case and reject any non-IUPAC character.
+
+        `translate` rather than a set difference: this runs once per `DNASequence`, and
+        the design path builds three thousand of them per variant while the off-target
+        scan builds two over a whole contig. Both forms answer "is anything outside the
+        alphabet here"; only one of them builds a set of the string to do it.
+        """
         upper = value.upper()
-        bad = set(upper) - IUPAC_ALPHABET
-        if bad:
-            raise ValueError(f"non-IUPAC characters in sequence: {sorted(bad)}")
+        stray = upper.translate(_DROP_IUPAC_ALPHABET)
+        if stray:
+            raise ValueError(f"non-IUPAC characters in sequence: {sorted(set(stray))}")
         return upper
 
     def __len__(self) -> int:

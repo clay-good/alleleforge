@@ -28,7 +28,7 @@ from alleleforge import _native
 from alleleforge.offtarget._kmer import covered_prefix, seed_length, seed_positions
 from alleleforge.types.guide import PAM
 from alleleforge.types.offtarget import SiteOrigin
-from alleleforge.types.sequence import IUPAC_EXPAND, DNASequence, Strand
+from alleleforge.types.sequence import IUPAC_EXPAND, DNASequence, Strand, reverse_complement
 
 if TYPE_CHECKING:
     from alleleforge.genome.index import FMIndex
@@ -713,7 +713,7 @@ def scan_sequence(
         if fm_plus is None:
             fm_plus = FMIndex.build(seq, cache_dir=fm_cache_dir, in_memory=True)
         if fm_minus is None:
-            rc_seq = str(DNASequence(seq).reverse_complement())
+            rc_seq = reverse_complement(seq)
             fm_minus = FMIndex.build(rc_seq, cache_dir=fm_cache_dir, in_memory=True)
     else:
         fm_plus = fm_minus = None
@@ -755,7 +755,7 @@ def scan_sequence(
                 rna_bulges=rnab,
             )
         )
-    rc = str(DNASequence(seq).reverse_complement())
+    rc = reverse_complement(seq)
 
     def _minus() -> list[tuple[int, int, str, int, int, int, str, str]]:
         if fm_minus is not None:
