@@ -13921,3 +13921,49 @@ than not writing it, because the list then reads as coverage to everyone includi
 **And build the page against its own guard.** The parity check found my first shape wrong
 in under a second — not because the code was broken, but because it was written in a form
 nothing could read. That is the same property the guard exists to protect.
+
+## Round 420 — a guard about tables could not see two tables
+
+R419 added a panel with two tables to a page whose phone-width guard is *about tables*.
+The suite stayed green. Asking why is this round.
+
+`test_every_table_scrolls_inside_its_own_box` enumerates its subjects from the
+**stylesheet** — every rule matching `table…` — and requires each to sit in a container
+with `overflow-x: auto`. The two new tables carry no CSS rule of their own, so the guard
+never saw them. Its population was "tables the stylesheet styles"; its subject is "tables
+that can outgrow the viewport", and those are not the same set.
+
+Measured first, because the guard's own docstring is a story about measuring: at 375×812
+the two tables are 335px and 298px against a 375px viewport, and `document.scrollWidth`
+is 375. **Nothing was broken.** That is the whole point — an element a guard cannot see is
+not protected by it, whether or not it happens to be fine today, and the next column is
+what the guard exists for.
+
+So `#ot-results` now scrolls, and the rule is load-bearing rather than decorative. Forcing
+a fourteen-column table into it, in a browser at 375px:
+
+| | table width | `document.scrollWidth` |
+|---|---:|---:|
+| with `overflow-x: auto` | 2,023 | **375** |
+| with `overflow-x: visible` | 2,023 | **2,043** |
+
+Overflow propagates: without the container the whole document pans, not the table.
+
+The guard now reads its population from the markup — every element the page assigns
+table HTML to via `innerHTML` — and requires a recorded, scrolling container for each,
+with the reverse check that an entry whose element no longer renders a table is stale. The
+stylesheet-based check stays: a table *with* a rule is still a table, and the two
+populations overlap without either containing the other.
+
+Both directions are mutation-verified: dropping `#ot-results { overflow-x: auto }` fails
+it, and adding a second element that renders a table without recording it fails it.
+
+**Lesson: when a guard stays green through a change squarely in its subject, the guard is
+the finding.** Not "it passed, good" — ask what population it enumerates and whether the
+new thing is in it. This is the same defect as R244's speedup script timing four kernels
+of six, and R419's `<th>` scrape assuming one table: **an explicit population needs a
+check that it still covers what exists.**
+
+**And measure before calling it a defect.** The honest report here is "a guard was blind,
+and the thing it was blind to was fine". Shipping the fix on the second half alone would
+have been a wrong story about a right change.
