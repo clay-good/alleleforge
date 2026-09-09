@@ -504,15 +504,23 @@ def design_many(
     """
     if max_workers > 1 and reference_factory is None:
         raise ValueError("parallel cohort runs (max_workers > 1) require a reference_factory")
-    if max_workers > 1 and reference_factory is not None:
-        # Open once here so the `.fai` exists before any worker opens the FASTA. The
-        # docstring above asks the caller to do this, and both callers in this tree do
-        # -- but a documented precondition whose violation is a *race* is a bad trade:
-        # it fails non-deterministically, only under parallelism, and reports
-        # `KeyError: unknown contig 'chr2'`, which names the one thing that is not
-        # wrong. The contig is there; the index was mid-write when a second thread read
-        # it. One extra open makes the precondition unnecessary rather than documented.
-        reference_factory().close()
+    # Open once here so the `.fai` exists before any worker opens the FASTA. The
+    # docstring above asks the caller to do this, and both callers in this tree do
+    # -- but a documented precondition whose violation is a *race* is a bad trade:
+    # it fails non-deterministically, only under parallelism, and reports
+    # `KeyError: unknown contig 'chr2'`, which names the one thing that is not
+    # wrong. The contig is there; the index was mid-write when a second thread read
+    # it. One extra open makes the precondition unnecessary rather than documented.
+    #
+    # That open also describes the run. A factory-backed cohort recorded *no* run-wide
+    # genome — not its build, not its shape, not its file identity — on the grounds that
+    # a factory's reference is per-worker, so a parallel `aforge batch` wrote a cohort
+    # summary that could not say which genome the cohort was screened against while the
+    # identical serial run could, and three of the seven inputs a resume compares were
+    # `None` on both sides. The reference the workers open is one file; opening it here
+    # says what it is.
+    probe = reference_factory() if reference_factory is not None else None
+    described = reference if reference is not None else probe
     if reference is None and reference_factory is None:
         raise ValueError("design_many needs a reference or a reference_factory")
     # `design_kwargs` is forwarded verbatim to every item — and, with `max_workers > 1`,
@@ -543,14 +551,14 @@ def design_many(
         # `af design` records for the same seed. Fall back to the singleton only
         # when no settings were passed (matching design()'s own default).
         "seed": (design_kwargs.get("settings") or get_settings()).seed,
-        "reference_build": _build_name(reference, reference_factory),
+        "reference_build": None if described is None else described.build,
         # The build is a *label*; two different FASTAs both carrying "hg38" give
         # different off-target verdicts. The per-item menus record the genome's shape
         # (see `_reference_snapshot`); the run header recorded only the name, so a
         # cohort summary could not say which genome the whole cohort was screened
         # against. `None` under the parallel path, where the reference is opened
         # per worker and there is no run-wide one to describe.
-        "reference": None if reference is None else _reference_snapshot(reference),
+        "reference": None if described is None else _reference_snapshot(described),
         # The snapshot pins contig names and lengths, deliberately and by its own
         # statement — it is a *shareable* descriptor, so it cannot carry a local path
         # and cannot afford to hash a genome. Two FASTAs of one shape therefore have one
@@ -558,7 +566,7 @@ def design_many(
         # genome's report for another. A resume decision is local to this machine, so it
         # can compare more: an opaque digest of the file's identity, which leaks no path
         # into an artifact and still tells the two files apart.
-        "reference_file": _reference_file_digest(reference),
+        "reference_file": _reference_file_digest(described),
         "intent": intent.value,
         # The result-determining *data* this run was given, named up front rather than
         # observed at the end: a resume has to compare them before it decides what to
@@ -567,6 +575,8 @@ def design_many(
         "inputs": _input_descriptors(design_kwargs),
         "started_at": datetime.now(UTC).isoformat(),
     }
+    if probe is not None:
+        probe.close()
     if manifest is not None and resume:
         _refuse_a_mismatched_resume(manifest, provenance)
         # The refusal above only fires on a difference it can see. When it cannot see,
@@ -766,15 +776,6 @@ def _run_windowed(
             for fut in finished:
                 record(fut.result())
                 _submit_next()
-
-
-def _build_name(
-    reference: ReferenceGenome | None, factory: Callable[[], ReferenceGenome] | None
-) -> str | None:
-    """Return the reference build name without forcing a factory open."""
-    if reference is not None:
-        return reference.build
-    return None  # a factory's build is per-worker; recorded per item, not run-wide
 
 
 def _safe_name(item_id: str) -> str:

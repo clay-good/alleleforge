@@ -102,10 +102,15 @@ def test_the_summary_states_the_fact(
     assert needle in notes, f"the cohort summary omits the {fact}"
 
 
-def test_the_parallel_path_says_why_it_has_no_run_wide_reference(
+def test_the_parallel_path_names_the_same_genome_the_serial_one_does(
     runner: CliRunner, cohort: tuple[Path, Path], tmp_path: Path
 ) -> None:
-    """`reference build None` would read as a missing value, not a located one."""
+    """A `--max-workers` run used to record no run-wide genome at all.
+
+    Its summary said "reference build: not recorded run-wide", which is honest about a
+    gap that did not need to exist: the reference factory is opened once before any
+    worker starts, so the run has a genome to describe and now describes it.
+    """
     fasta, inputs = cohort
     out = tmp_path / "par.tsv"
     result = runner.invoke(
@@ -126,5 +131,6 @@ def test_the_parallel_path_says_why_it_has_no_run_wide_reference(
     assert result.exit_code == 0, result.output + result.stderr
     notes = " ".join(ln for ln in out.read_text().splitlines() if ln.startswith("#"))
     assert "reference build None" not in notes
-    assert "not recorded run-wide" in notes
-    assert "each item's own result records the genome it used" in notes
+    assert "not recorded run-wide" not in notes
+    assert "reference build hg38" in notes
+    assert "contig" in notes and "bases" in notes

@@ -16613,3 +16613,33 @@ prior decision saying the inert case must keep working — and the fix was not t
 the decision but to stop the silence, which is the part nobody had defended. "Refuse" and
 "proceed" are not the only two options; "proceed, and say what you could not establish" is
 the one this project's whole thesis is built on.
+
+## Round 484 — the genome a parallel run would not name
+
+Round 483's lesson — when a check cannot run, that is a result — led to the neighbouring
+lines. `_refuse_a_mismatched_resume` compares seven result-determining inputs, and three of
+them are about the reference: its build, its shape, and an opaque digest of the file's
+identity. All three were `None` for every factory-backed run:
+
+    "reference": None if reference is None else _reference_snapshot(reference),
+
+`design_many` requires a `reference_factory` for `max_workers > 1`, because a pyfaidx
+handle is not thread-safe to share, and the CLI passes *only* the factory in that case. So
+`aforge batch --max-workers 4` wrote a cohort summary whose notes read "reference build:
+not recorded run-wide" while the identical serial run named the genome and its shape — and
+a resume of that manifest compared `None` against `None` three times, on exactly the two
+keys that tell two same-shaped FASTAs apart. Resuming a cohort against a different genome
+is the case the guard was written for.
+
+Nothing about that was necessary. The factory is opened once before any worker starts
+already, deliberately, so the `.fai` exists before the workers race to build it. That open
+is now what the header is built from: the workers still get their own handles, and the run
+says what genome they are handles to. A `_build_name` helper whose whole job was to return
+`None` "without forcing a factory open" is gone, and the two tests that pinned the absence
+now assert the parallel and serial runs describe the same genome.
+
+**Lesson: an implementation constraint is not a fact about the world.** "A pyfaidx handle
+is not thread-safe to share" is true, and the conclusion drawn from it — that a parallel
+run has no genome to name — is not. The gap had a note explaining it, a helper documenting
+it and two tests pinning it, which is what a considered decision looks like from the
+inside; three rounds of machinery grew around a sentence nobody re-derived.

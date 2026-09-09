@@ -241,8 +241,12 @@ def test_parallel_matches_sequential(
         cohort, reference_factory=ref_factory, intent=EditIntent.INSTALL, max_workers=2
     )
     assert (par.succeeded, par.failed) == (seq.succeeded, seq.failed)
-    # A factory run cannot name one run-wide build (it is per worker thread).
-    assert par.provenance["reference_build"] is None
+    # A factory run describes the same genome the sequential one does: the factory is
+    # opened once up front anyway (to pre-build the `.fai` before the workers race for
+    # it), and that open is what the run header is built from. It used to record no
+    # build, no shape and no file identity at all.
+    assert par.provenance["reference_build"] == seq.provenance["reference_build"]
+    assert par.provenance["reference"] == seq.provenance["reference"]
     by_id = {r.item_id: r for r in par.items}
     for r in seq.items:
         assert by_id[r.item_id].status == r.status
