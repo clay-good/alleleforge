@@ -15999,3 +15999,41 @@ next to the promise.** The safety argument for content-addressing has been writt
 three times in this repository, carefully, by people who were right. Not once did it
 mention that the mechanism guaranteeing freshness is the same one guaranteeing unbounded
 growth. A property worth a paragraph of defence is worth a sentence about its bill.
+
+## Round 467 — pricing my own defence
+
+Round 466 ended on "a property worth a paragraph of defence is worth a sentence about its
+bill", which points squarely at something this session introduced: round 441 turned on a
+checksum re-check for **every read** of the off-target cache, argued for it at length, and
+never said what it costs.
+
+Measured before claiming:
+
+    a stored report            521 B median, 880 B largest  (six real entries)
+    warm hit, verified          0.08 ms
+    the scan it replaces        3.69 ms                     (30 kb contig, 44x)
+
+(Minimum of 25 runs on a machine at load 13, so the ratio is the finding and the absolutes
+are not. A synthetic sweep puts verification itself at ~19 µs on 2 KiB — a few microseconds
+on a real 520-byte entry.)
+
+So the check is free at the scale it protects, and the reason is a property of *what gets
+cached*: the report holds the nominated sites, not the genome they were found in. The
+ratio also improves with the reference rather than degrading — the hit is `O(entry)`, the
+scan is `O(genome)`.
+
+The number is now in the docstring that argues for the check, and in `--cache`'s help,
+next to the two other facts a user opting in deserves: the store never evicts, and `aforge
+cache verify` says what it holds.
+
+The test that came with it does **not** measure time. This repo's own notes are explicit
+that cross-run timings are not baselines, and a perf assertion on a shared machine is a
+flake with a moral. What is checkable exactly is the *premise*: a cached report must stay
+small and must not carry reference sequence. Cache the searched bases or every
+sub-threshold placement and the hash goes from free to a fraction of the scan — at which
+point the argument in that docstring needs redoing, and the test says so in as many words.
+
+**Lesson: when you cannot test the claim, test the premise it rests on.** "Verification is
+free" is a timing statement and untestable here. "An entry is a few hundred bytes and holds
+no sequence" is the fact that makes it true, it is exact, and it is the thing a future
+change would break first.

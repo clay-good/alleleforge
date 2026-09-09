@@ -726,7 +726,9 @@ _CACHE_HELP = (
     "Reuse an identical reference scan from a previous run, and record this one for "
     "the next. The engine consults the store only when the result is a pure function "
     "of the reference — the default scorer and no --gnomad/--haplotypes/--patient-vcf "
-    "— so an augmented scan is always computed fresh."
+    "— so an augmented scan is always computed fresh. Cached reports are checksummed "
+    "and re-checked on read, which costs microseconds against a scan of milliseconds "
+    "and upwards; the store never evicts, and `aforge cache verify` says what it holds."
 )
 _GENOME_INDEX_HELP = (
     "Anchor PAMs through a persistent, memory-mapped FM-index of the reference "
