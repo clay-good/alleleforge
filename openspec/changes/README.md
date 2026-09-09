@@ -14062,3 +14062,47 @@ from something the implementation does not touch — here, the bases in the FAST
 **And when the external reference is genuinely unavailable, find the property it would
 have verified and check *that*.** "Blocked on a binary we cannot install" was true and
 complete for parity, and false for the coordinate convention parity rests on.
+
+## Round 423 — the container image could not have been built
+
+R405's instrument was "install it the way the documentation says and run the result". The
+one documented install never tried that way is the container. The daemon is unavailable
+here, so I ran the image's own line instead:
+
+```
+$ pip install ".[core,variant,cli,web,genome-light]"
+ERROR: Failed to build 'psycopg2'
+```
+
+The chain is mechanical. `variant` is `hgvs>=1.5`; `hgvs` requires `psycopg2`
+unconditionally, not behind an extra; and psycopg2 publishes **Windows wheels only** —
+2.9.12 ships six `win_amd64` wheels and an sdist, nothing else. On `python:3.12-slim` pip
+therefore builds it from source, which needs `libpq-dev` and a compiler, and slim has
+neither.
+
+Nothing would have caught it. `release.yml` says of itself: *"Never runs on a normal push
+— only on a tag — so it is inert until v0.1.0 is tagged."* The docker job lives there, and
+builds `linux/amd64,linux/arm64` under QEMU. The first person to meet this would have been
+whoever cut the first release, in the slowest possible build.
+
+The interesting half is that `variant` was buying the image nothing. `hgvs` is the
+projector for `c.`/`p.` HGVS input, and this project already records that the web API
+cannot reach it — `_NOT_IN_WEB["hgvs"]: "resolved server-side from the request's variant
+string"`. Verified against a venv built from the corrected extras: `/api/resolve`,
+`/api/design` and `/api/offtarget` all answer 200 for coordinates, bare contigs and
+genomic `g.`, and a `c.` request still returns the refusal naming the missing library. The
+alternative fix — `libpq-dev` in the builder — carries a Postgres client into an image that
+never speaks to Postgres, to enable a capability the API has no route to.
+
+The guard names `variant` rather than deriving the wheel situation from PyPI, deliberately:
+it has to fail offline and on the commit that reintroduces the extra, not only when an
+index is reachable. A second test asserts the *reason* still holds — if the web API ever
+exposes `hgvs`, the trade needs re-deciding rather than silently standing.
+
+**Lesson: an artifact built only on a release tag is an artifact nobody has built.** The
+CI file said so in its own comment — "inert until v0.1.0 is tagged" — which reads as
+reassurance and is a statement that this has never run.
+
+**And the second-order question is the useful one.** "The install fails" has an obvious fix
+(add the system package). Asking *why the image wants that dependency at all* found that it
+wanted it for a capability the surface it ships cannot reach.
