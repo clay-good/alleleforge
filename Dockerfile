@@ -14,7 +14,17 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 COPY pyproject.toml README.md ./
 COPY src ./src
-RUN pip install ".[core,variant,cli,web,genome-light]"
+# `variant` is deliberately absent. It exists for `c.`/`p.` HGVS input, which needs a
+# projector from the `hgvs` package — and `hgvs` requires `psycopg2`, which publishes
+# **Windows wheels only**, so on `python:3.12-slim` pip builds it from source and the
+# image build fails for want of `libpq-dev` and a compiler. The API cannot reach that
+# capability anyway: `hgvs` is recorded as web-unexposed in
+# `tests/test_shells_expose_the_library.py::_NOT_IN_WEB` ("resolved server-side from
+# the request's variant string"), coordinates and genomic `g.` need no projector, and
+# a `c.` request still gets the refusal that names the missing library. Adding
+# libpq-dev to carry a Postgres client into an image that never speaks to Postgres
+# would be the wrong half of the trade.
+RUN pip install ".[core,cli,web,genome-light]"
 
 # --- runtime: copy the venv, run uvicorn ------------------------------------
 FROM python:3.12-slim AS runtime
