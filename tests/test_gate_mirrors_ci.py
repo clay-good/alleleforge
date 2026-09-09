@@ -35,6 +35,11 @@ ROOT = Path(__file__).resolve().parents[1]
 NOT_MIRRORED = {
     "security": "advisory in CI (pip-audit / cargo audit run with `|| true`)",
     "rust": "needs the compiled crate; `make native` covers it on demand",
+    # Mirroring this one would be circular: it *is* `make ci`, run after `make install`
+    # in one environment. It exists because every other job installs its own subset, so
+    # nothing asked whether the command CONTRIBUTING gives a newcomer can run the gate
+    # it gives them — and twice it could not.
+    "gate": "runs `make install` then `make ci` itself; a mirror of it would be `make ci`",
 }
 
 #: CI job id -> the `make` target that runs the same commands.
@@ -239,4 +244,20 @@ def test_no_document_tells_a_contributor_to_maturin_develop() -> None:
     assert not offenders, (
         f"these tell a contributor to run `maturin develop`: {offenders}. Point at "
         "`make native`, which builds a wheel and installs that, as CI does."
+    )
+
+
+def test_the_gate_job_runs_the_contributor_path_whole() -> None:
+    """The job exists to answer one question, and only these two steps answer it.
+
+    Narrowing it to a subset — installing extras by hand here, or running one member —
+    would make it another per-member job and silently retire the only check that the
+    documented install can run the documented gate.
+    """
+    jobs = yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml").read_text())["jobs"]
+    assert "gate" in jobs, "the end-to-end gate job is gone"
+    commands = [step.get("run") for step in jobs["gate"]["steps"] if step.get("run")]
+    assert commands == ["make install", "make ci"], (
+        "the gate job must run exactly `make install` then `make ci` — anything else "
+        f"and it stops being the contributor path: {commands}"
     )

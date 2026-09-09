@@ -10,6 +10,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  gate:
+    # The contributor path, end to end, in one environment: `make install` then
+    # `make ci`. Every other job installs its own subset and runs one member, which is
+    # right for parallelism and blind to the thing this catches — whether the command
+    # CONTRIBUTING tells a newcomer to run can run the gate it tells them to run.
+    #
+    # It could not, twice, and neither was visible here. `make install` omitted `core`,
+    # so one `import polars` at module scope made `pytest` fail at *collection* and no
+    # test ran; and it omitted `docs`, so `make docs` died with "mkdocs: No such file or
+    # directory". Both were masked by a developer machine that had the packages from
+    # some earlier hand-install. This job has no such history.
+    #
+    # Deliberately duplicated work. The other jobs give a fast, parallel, per-member
+    # signal; this one answers a question none of them can, because the question is
+    # about the environment rather than about the code.
+    name: Gate (make install && make ci)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: make install
+      - run: make ci
+
   lint:
     name: Lint (ruff)
     runs-on: ubuntu-latest
