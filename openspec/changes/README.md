@@ -17712,3 +17712,31 @@ missed — the privacy exceptions, the shell-parity allowances, and now the surf
 that says "this needs asking on a schedule" is exactly the file to check for a list, since
 its author was thinking about the question and not about where the question's inputs come
 from.
+
+## Round 518 — the subpackage every install has
+
+Round 517's lesson said the guard against a stale population usually has one, so this round
+swept the suite for module-level lists that *are* populations. One stood out:
+
+    _LIGHT_SUBPACKAGES = ("alleleforge.data", "alleleforge.model_zoo", ... )   # eleven
+
+The package has fourteen subpackages. Two of the three missing are deliberate — `cli` loads
+typer and `web` loads fastapi, which is what their extras install, and each is checked
+against the stacks it should *not* pull. The third is **`alleleforge.types`**: the core
+model layer, the one subpackage every install has, and the one whose accidental heavy
+import would break `pip install alleleforge` outright rather than one extra's worth of it.
+
+It was never checked, and it passes — the good outcome, and a coincidence rather than a
+guarantee, since nothing would have failed on the day it stopped. The population comes from
+`pkgutil.iter_modules` now, with the two exceptions recorded and their reasons required to
+name a test this file actually defines, because an excuse that points at a check nobody
+kept is the same silence one layer along.
+
+Mutation-checked by putting `import polars` in `types/sequence.py`: the whole
+parametrization goes red, including the entry that did not exist before this round.
+
+**Lesson: the thing everything depends on is the thing nobody lists.** `types` is imported
+by every other subpackage, which is exactly why it is absent from a list assembled by
+thinking about what each *entry point* needs — it is not an entry point, it is the floor
+under all of them. When a population is written by hand, the omission is rarely at the
+edges; it is the member so obvious that naming it felt redundant.

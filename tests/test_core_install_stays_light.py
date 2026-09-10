@@ -15,8 +15,10 @@ what it loaded.
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -43,28 +45,37 @@ _OPTIONAL_ROOTS = (
     "click",
 )
 
-#: Subpackages a documented extra must reach without *any* optional stack.
-#: `pip install alleleforge[cli]` does not install pyfaidx, so a command that needs no
-#: reference genome must not require it to import.
-_LIGHT_SUBPACKAGES = (
-    "alleleforge.data",
-    "alleleforge.model_zoo",
-    # These joined the list when the deferral was finished. `alleleforge.benchmark` was
-    # excluded here with a note calling the rest "a refactor rather than a correction":
-    # its chain reached `viz.figures`, which builds a fixture FASTA. The chain is gone —
-    # ten modules imported `genome.reference` directly for an *annotation*, walking past
-    # the deferral `genome/__init__` already had, and `viz.figures` now imports it inside
-    # the one function that constructs one.
-    "alleleforge.benchmark",
-    "alleleforge.design",
-    "alleleforge.enumerate",
-    "alleleforge.genome",
-    "alleleforge.offtarget",
-    "alleleforge.report",
-    "alleleforge.scoring",
-    "alleleforge.variant",
-    "alleleforge.viz",
-)
+#: Subpackages that must import without *any* optional stack, and the two that carry
+#: their own reason not to. `pip install alleleforge[cli]` does not install pyfaidx, so a
+#: command that needs no reference genome must not require it to import.
+#:
+#: The list used to be written out, and was missing `alleleforge.types` — the core model
+#: layer, the one subpackage every install has and the one whose accidental `import
+#: numpy` would break a plain `pip install alleleforge` outright. It is derived now, so a
+#: new subpackage is checked the day it appears.
+_HAS_ITS_OWN_EXTRA: dict[str, str] = {
+    "alleleforge.cli": "loads typer, which is what `[cli]` installs; checked against the "
+    "genome stack alone by `test_the_cli_entry_point_imports_without_the_genome_stack`",
+    "alleleforge.web": "loads fastapi, which is what `[web]` installs",
+}
+
+
+def _light_subpackages() -> tuple[str, ...]:
+    """Return every subpackage that must import with no optional dependency at all."""
+    import pkgutil
+
+    import alleleforge
+
+    found = tuple(
+        f"alleleforge.{module.name}"
+        for module in pkgutil.iter_modules(alleleforge.__path__)
+        if module.ispkg and f"alleleforge.{module.name}" not in _HAS_ITS_OWN_EXTRA
+    )
+    assert len(found) >= 10, found
+    return found
+
+
+_LIGHT_SUBPACKAGES = _light_subpackages()
 
 #: The stack a `[cli]` install does not have. `alleleforge.cli.main` legitimately loads
 #: typer — that is what `[cli]` installs — so it is checked against these alone.
@@ -152,3 +163,23 @@ def test_opening_a_reference_without_pyfaidx_says_which_install_gives_it() -> No
     message = str(excinfo.value)
     assert "pyfaidx" in message, message
     assert "alleleforge[genome" in message, message
+
+
+def test_the_excused_subpackages_still_exist() -> None:
+    """An excuse must not outlive the subpackage it excuses, or the test it points at."""
+    import pkgutil
+
+    import alleleforge
+
+    present = {
+        f"alleleforge.{module.name}" for module in pkgutil.iter_modules(alleleforge.__path__)
+    }
+    stale = sorted(set(_HAS_ITS_OWN_EXTRA) - present)
+    assert not stale, f"excuses recorded for subpackages that no longer exist: {stale}"
+
+    source = Path(__file__).read_text(encoding="utf-8")
+    for subpackage, reason in _HAS_ITS_OWN_EXTRA.items():
+        for cited in re.findall(r"`(test_\w+)`", reason):
+            assert f"def {cited}(" in source, (
+                f"the excuse for {subpackage} points at {cited}, which this file does not define"
+            )
