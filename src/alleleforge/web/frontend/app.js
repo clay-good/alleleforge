@@ -721,9 +721,9 @@ function renderOffTarget(data) {
     // reference-only. Above the paragraph and in the hazard style, because at the end
     // of a seven-clause sentence it is present and not seen — the same reason the CLI
     // puts it in brackets on its headline.
-    (data.build_mismatch
-      ? `<p class="err">${esc(data.build_mismatch)} — a build mismatch, not an absence of population risk</p>`
-      : "") +
+    (data.headline_notes || [])
+      .map((note) => `<p class="err">${esc(note)}</p>`)
+      .join("") +
     // Every number above is conditional on the budget and the cut-offs, and the
     // sentence that states them travels with the result on every other surface.
     `<p class="note">${esc(data.search_description)}</p>` +

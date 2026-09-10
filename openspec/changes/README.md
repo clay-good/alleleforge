@@ -18655,3 +18655,41 @@ rounds put this fact into the report, the cohort table and the page's table, eac
 satisfied that the information was present. Present in the sixth clause of a sentence a
 reader skims is where facts go to be technically disclosed. The test is not whether a
 grep finds it — it is whether the reader who needs it is looking there.
+
+## Round 548 — the other four clauses
+
+547 elevated the build mismatch out of the search description and onto the headline. It is
+one of **five** clauses in that sentence a caller can act on:
+
+    NO SEQUENCE WAS SEARCHED …
+    the query is N nt, outside the range a guide has …
+    the spacer is ambiguous at position(s) … pushing scores DOWN …
+    every one of the N gnomad record(s) … assert a reference base this genome does not have
+    no supplied source carries data for … requested but not examined …
+
+Each says *the caller supplied something that will not do what they think*; the other seven
+or eight clauses describe what the scan did, and belong exactly where they are. So 547 was
+542's lesson unlearned one round after writing it down: it fixed the instance in front of
+me and left the set.
+
+`headline_notes()` is the set, built from the model's fields — never by parsing the
+description, so the two cannot drift — and both shells read that one function. The
+paragraph is untouched: elevating a fact must not move it, because the description is what
+travels inside a written artifact while a headline is a terminal and a screen.
+
+**The guard needed the same treatment, and needed it twice.** Its first version exercised
+the two notes this round was about, and a mutation deleting the other three left it green.
+Its second version derives the population from the function's own `notes.append` calls and
+requires a test per kind — which promptly failed at 4-of-5 and found that the build-mismatch
+case was named for the assertion it makes rather than the kind it covers. A guard for a set,
+checked against one member, is a guard for the member someone had in mind.
+
+`OffTargetResponse.build_mismatch`, added one round ago, is replaced by `headline_notes`
+rather than kept beside it: two mechanisms for one job is the defect this round exists to
+fix, and it is unreleased.
+
+**Lesson: writing the lesson down is not the same as applying it, and the round most likely
+to forget is the one that wrote it.** 542 concluded that fixing an instance is not fixing a
+rule. 547, five rounds later, fixed an instance. The gap is not knowledge; it is that the
+finding arrives as a single vivid case and the generalization has to be *looked for* while
+the case is still the interesting thing.

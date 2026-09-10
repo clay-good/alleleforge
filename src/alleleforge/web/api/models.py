@@ -19,7 +19,7 @@ from alleleforge.types.offtarget import (
     AGGREGATE_PRECISION,
     ANCESTRY_BURDEN_PRECISION,
     OffTargetReport,
-    build_mismatch_note,
+    headline_notes,
     published,
 )
 from alleleforge.types.sequence import GenomicInterval, Strand
@@ -671,16 +671,16 @@ class OffTargetResponse(BaseModel):
             "accordingly; supply `on_target` to drop it."
         )
     )
-    build_mismatch: str | None = Field(
-        default=None,
+    headline_notes: list[str] = Field(
+        default_factory=list,
         description=(
-            "Set when a supplied population or haplotype source holds records asserting "
-            "a reference base this genome does not have — a file for another assembly. "
-            "The full sentence is in `search_description`, at the end of a paragraph "
-            "that also carries the budgets and cut-offs; this is the same fact short "
-            "enough to put beside the numbers it invalidates, because it is the only "
-            "one of those clauses the caller can act on. `null` when every supplied "
-            "record agreed with the reference."
+            "Everything in this report the caller can act on, each short enough to put "
+            "beside the numbers it qualifies: nothing was searched, the query is not a "
+            "guide length, the spacer is ambiguous, a supplied source is for another "
+            "assembly, an ancestry was requested that no source carries. The full "
+            "sentences are in `search_description`, at the end of a paragraph that also "
+            "carries the budgets and cut-offs — where they are present and not seen. "
+            "Empty when the run has nothing to warn about."
         ),
     )
     search_description: str = Field(
@@ -765,7 +765,7 @@ class OffTargetResponse(BaseModel):
             specificity=round(report.specificity_score(), AGGREGATE_PRECISION),
             expected_burden=None if burden is None else round(burden, AGGREGATE_PRECISION),
             on_target_excluded=on_target_excluded,
-            build_mismatch=build_mismatch_note(report),
+            headline_notes=list(headline_notes(report)),
             search_description=report.search_description(),
             ancestry_stratification={
                 ancestry: round(value, AGGREGATE_PRECISION)

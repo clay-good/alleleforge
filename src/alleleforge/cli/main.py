@@ -52,7 +52,7 @@ from alleleforge.errors import AnnotationServiceError, MissingDependencyError, r
 from alleleforge.types.offtarget import (
     AGGREGATE_PRECISION,
     ANCESTRY_BURDEN_PRECISION,
-    build_mismatch_note,
+    headline_notes,
 )
 from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import GenomicInterval
@@ -2754,12 +2754,12 @@ def offtarget(
     on_target_note = (
         "" if locus is not None else "  [on-target locus NOT excluded; pass --on-target]"
     )
-    # The other clause with a remedy, elevated for the same reason: a supplied source
-    # built against another assembly contributes nothing, so the specificity above is
-    # reference-only, and the full sentence sits at the end of a paragraph that also
-    # carries the mismatch budget, the cut-offs and the PAM broadening.
-    mismatch = build_mismatch_note(report)
-    mismatch_note = f"  [{mismatch}]" if mismatch else ""
+    # Everything else in this report the caller can act on, elevated for the same reason
+    # as the on-target locus above: the full sentences sit in a paragraph that also
+    # carries the mismatch budget, the cut-offs and the PAM broadening, and a reader
+    # skims that paragraph. `headline_notes` builds them from the model's own fields, so
+    # the headline and the paragraph cannot disagree.
+    mismatch_note = "".join(f"  [{note}]" for note in headline_notes(report))
     burden_note = (
         f", expected burden {report.expected_burden():.3f} (frequency-weighted)"
         if report.is_frequency_weighted()

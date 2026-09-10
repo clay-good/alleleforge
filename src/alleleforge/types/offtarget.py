@@ -588,6 +588,49 @@ class OffTargetReport(BaseModel):
         return ancestry, strata[ancestry]
 
 
+def headline_notes(report: OffTargetReport) -> tuple[str, ...]:
+    """Return the short forms of everything in this report a caller can act on.
+
+    :meth:`OffTargetReport.search_description` is one sentence carrying a dozen clauses.
+    Most describe what the scan *did* — the mismatch budget, the reporting cut-offs, the
+    sub-threshold tail, the PAM broadening — and are exactly where they belong, because a
+    reader consults them to interpret a number. A few say **the caller supplied something
+    that will not do what they think**, and those were in the same neutral paragraph, in
+    the sixth clause of a sentence a reader skims.
+
+    Built from the model's fields, never by parsing the description, so the two cannot
+    disagree — and the description is not modified: it is what travels inside a written
+    artifact, while these are for a terminal and a screen. Each is held short for the
+    same reason a headline that repeats the paragraph is a headline nobody reads.
+
+    Deliberately excluded: an *inert* source (supplied, in scope, contributed nothing).
+    That is the ordinary outcome of a region with no common variants — nothing to act on
+    — while the mismatch below is the same shape with a cause the caller can fix. The
+    difference is worth the exclusion note: it is the one judgement call in this list.
+    """
+    notes: list[str] = []
+    if report.searched_bases == 0 and report.sites == ():
+        notes.append("NO SEQUENCE WAS SEARCHED — this is an empty result, not a clean one")
+    low, high = GUIDE_SPACER_RANGE
+    if report.spacer and not low <= len(report.spacer) <= high:
+        notes.append(
+            f"the query is {len(report.spacer)} nt, not a guide length — this is a "
+            "sequence search, not an off-target profile"
+        )
+    if report.ambiguous_spacer_positions:
+        listed = ", ".join(str(p) for p in report.ambiguous_spacer_positions)
+        notes.append(f"the spacer is ambiguous at position(s) {listed}, which pushes scores DOWN")
+    mismatch = build_mismatch_note(report)
+    if mismatch is not None:
+        notes.append(mismatch)
+    if report.unbacked_populations:
+        notes.append(
+            f"not examined for {', '.join(report.unbacked_populations)} — no supplied "
+            "source carries them"
+        )
+    return tuple(notes)
+
+
 def build_mismatch_note(report: OffTargetReport) -> str | None:
     """Return a short note for a source whose records are for another assembly.
 
