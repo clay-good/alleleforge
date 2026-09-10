@@ -17072,3 +17072,32 @@ checker are all pattern matches over text, and between them they cover a great d
 none of them could ever have found this, because the defect was not in the characters. The
 same is true of every check written over *documentation* rather than over *behaviour*:
 when the artifact under test is an input, the check has to be an execution.
+
+## Round 498 — the inputs a reader submits
+
+Round 497's lesson: when the artifact under test is an input, the check has to be an
+execution. The page's placeholders were the first population; there are two more, and
+neither had ever been run.
+
+**The `curl` bodies.** Four of them, in `README.md` and `docs/api/web.md`. Every request
+model in this API sets `extra="forbid"`, which is the right choice — a misspelled field is
+a 422 naming it rather than a 200 describing a different run — and it means a *renamed*
+field turns a documented body into a refusal for the reader who copied it. `DesignRequest`
+gained `build` and `trained_*`, and lost nothing only by luck, in the last dozen rounds.
+
+**The `config.toml`.** `_load_config` warns on a key it does not recognise and then
+ignores it. Both halves are right, and together they mean a documented key that stopped
+existing produces a warning nobody reads and a run that silently does not do what the
+reader asked. So the documented config is run through `aforge design --config`, no
+"unknown config key" may appear, and every key it sets has to show up in the result's own
+`config_snapshot` — which is the artifact that claims the run can be reconstructed from
+it.
+
+Both populations are clean today. That is the good outcome and not the point: the
+constraint is what stops the next field rename from reaching a reader's terminal.
+
+**Lesson: the check for a document is a *use* of the document.** Reading a document for
+names that still exist is a spell-check; the question a reader has is whether the thing
+works when they do what it says. Three rounds in a row now — a command nobody invoked, a
+placeholder nobody typed, a body nobody posted — and each was found by doing the thing the
+document describes rather than by reading it more carefully.
