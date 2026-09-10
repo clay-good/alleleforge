@@ -25,6 +25,7 @@ import hashlib
 from collections.abc import Callable
 from pathlib import Path
 
+from alleleforge._fetch import download_verified
 from alleleforge.config import DOWNLOAD_REMEDY, artifact_download_permitted, get_settings
 from alleleforge.errors import ChecksumError, ConsentError, MissingDependencyError
 from alleleforge.types.provenance import DatasetVersion
@@ -209,9 +210,12 @@ class DatasetRegistry:
                     f"dataset {desc.name!r} names no source_url, so it cannot be "
                     "fetched; supply the file in the cache directory instead"
                 )
-            path.parent.mkdir(parents=True, exist_ok=True)
-            (downloader or _default_downloader)(desc.source_url, path)
-            _verify_sha256(path, desc.sha256)
+            download_verified(
+                desc.source_url,
+                path,
+                downloader=downloader or _default_downloader,
+                verify=lambda tmp: _verify_sha256(tmp, str(desc.sha256)),
+            )
         elif desc.sha256 is None:
             # A cached but *unpinned* dataset must fail closed exactly like the
             # download path (which refuses an unverifiable artifact) — a file at the

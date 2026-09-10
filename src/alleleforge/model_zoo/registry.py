@@ -31,6 +31,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from alleleforge._fetch import download_verified
 from alleleforge.config import DOWNLOAD_REMEDY, artifact_download_permitted
 from alleleforge.errors import ChecksumError, ConsentError, MissingDependencyError
 from alleleforge.types.provenance import ModelCheckpoint
@@ -269,9 +270,12 @@ class ModelRegistry:
                     f"model {name!r} pins no source_url, so its checkpoint cannot be "
                     "fetched; supply the file in the cache directory instead"
                 )
-            path.parent.mkdir(parents=True, exist_ok=True)
-            (downloader or _default_downloader)(card.source_url, path)
-            _verify_sha256(path, card.checkpoint_sha256)
+            download_verified(
+                card.source_url,
+                path,
+                downloader=downloader or _default_downloader,
+                verify=lambda tmp: _verify_sha256(tmp, str(card.checkpoint_sha256)),
+            )
         elif card.checkpoint_sha256 is None:
             # A cached but *unpinned* checkpoint must fail closed exactly like the
             # download path (which refuses to fetch an unverifiable artifact) — an

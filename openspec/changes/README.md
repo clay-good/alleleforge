@@ -18126,3 +18126,37 @@ test exercises.** Every other input this tool takes is a file or a string it own
 hands a locus to a public REST service mid-run, and nothing in the suite could fail when
 that service does, because nothing in the suite calls it — `_default_fetch` is marked
 `pragma: no cover - network`. The uncovered line was the one with no error handling in it.
+
+## Round 531 — the blip that bricks a checkpoint
+
+530's lesson: the network is the part no test exercises, and the uncovered line was the one
+with no error handling. Taking that literally — sixty `pragma: no cover` markers in this
+package, three of them on network calls — the other two are the registry downloaders, and
+they share a worse defect than the one 530 fixed:
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    (downloader or _default_downloader)(url, path)
+    _verify_sha256(path, expected)
+
+The download writes straight to the cache path and is verified afterwards. A connection
+that drops half way leaves a truncated file at exactly the path the *next* run tests with
+`path.exists()`. That run skips the download, re-hashes what is there, and raises
+`ChecksumError` — the message this project reserves for **an artifact that was tampered
+with**. It raises it again on every subsequent run, and never retries the download.
+
+So one dropped connection costs a pinned checkpoint permanently, and tells the user their
+cache was corrupted rather than that their download failed. The two registries are the same
+twenty lines twice, so both had it.
+
+Now: download to a sibling `.partial-<pid>`, verify *that*, `os.replace` into place only on
+success. `os.replace` within a directory is atomic, so a concurrent reader sees the old file
+or the new one and never a partial write — which is the half that "clean up on failure"
+alone does not give you, and the half a mutation test caught me getting wrong: removing the
+temporary file entirely still passed three of the four checks, because the cleanup handler
+was deleting the cache path itself.
+
+**Lesson: the failure a cache must survive is not a bad artifact, it is a half-written
+one.** Every guard here checks that a *wrong* artifact is refused, and both registries do
+that correctly. None asked what is left on disk when the fetch does not finish — and the
+answer was a file indistinguishable, to every later run, from a deliberately corrupted one.
+Verify-then-publish, never publish-then-verify.
