@@ -19361,3 +19361,32 @@ cases. The docstring now cites the test instead of the confidence.
 unchecked.** It reads like a description of the code around it — and it is a description of
 code somewhere else. Fourteen "by construction"s, thirteen of them local and fine; the one
 that pointed across a module boundary is the one that needed a test.
+
+## Round 571 — the attack, not the hash
+
+The README's design-decisions table says a published benchmark number "cannot be silently
+edited (each result carries a `signature`)". The machinery behind that is thoroughly
+tested: `verify_signature` hashes the whole model, and a test asserts the reproducibility
+digest changes when `dataset_is_synthetic` flips.
+
+None of it does what a reader would do to check the sentence: open the JSON, change a
+number, and run the command. So:
+
+    $ python -c "…; d['metrics']['ece'] = 0.01; …"
+    $ aforge bench leaderboard edited.json
+    error: inadmissible submission: result for task 'cas9-efficiency' fails signature
+    verification; it was edited after signing                              [exit 2]
+
+It holds, including for the edit that matters most — flipping `dataset_is_synthetic` from
+`True` to `False`, which touches no number and turns a toy into an apparent measurement.
+Every bundled corpus is a synthetic stand-in; that flag is what says so.
+
+The distance between the two kinds of evidence is small in mechanism and large in meaning.
+A digest test says two dicts hash differently. This says an attacker who edits the file gets
+told no, by the command, with the task named — because a board aggregates many results and
+"one of these is forged" is not actionable.
+
+**Lesson: test the attack, not the primitive.** A hash function that works is not a
+tamper-evidence property; it becomes one only where something *compares* the hash and
+refuses. The gap between those is exactly one call site, and it is the call site that can be
+missing.
