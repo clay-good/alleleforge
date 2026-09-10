@@ -5436,6 +5436,10 @@ acceptance.
   automatically) and a packaging test that guards the marker — plus the bundled
   model cards, benchmark splits, and web frontend — against silent removal.
 
+### Fixed
+
+- **A genome handed to `aforge batch` as the cohort is refused by name.** `aforge batch genome.fa --reference-fasta genome.fa` — the two path arguments transposed, one keystroke from the correct command — read the reference as a list of variants: 2,001 FASTA lines became 2,001 cohort items, every one of them failed, and the terminal filled with whole 1,000-base sequence lines quoted back as `unrecognized variant input`. Nothing in that output named the mistake; the exit code and the `2001 requested — 0 ok` summary both describe a cohort that happens to be bad rather than an argument in the wrong slot. The file says what it is on its first line, so a cohort argument beginning with `>` is now a usage error that names the flag the genome belongs to.
+
 ### Security
 
 - **A rejected request was echoed back at its own size.** Every string field on the web models is bounded —

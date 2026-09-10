@@ -17888,3 +17888,34 @@ found a form the tool advertised and could not read. This one typed a plausible 
 first four bases of a spacer — and found the tool answering confidently about a question
 nobody asked. Both are one command each, and neither is reachable by reading the code:
 what a wrong input produces is not written down anywhere in it.
+
+## Round 524 — the genome in the cohort slot
+
+Applying 523's lesson again — type the mistakes, not only the examples — this time to the
+one command that takes two paths:
+
+    $ aforge batch big.fa --reference-fasta big.fa
+    cohort: 2001 requested — 2001 designed (0 ok, 2001 failed)
+      ACGTACGTACGTACGT...  error  unrecognized variant input: 'ACGTACGT...'
+      [two thousand more, each a thousand bases wide]
+
+The two arguments transposed is one keystroke from the correct command. The tool took it
+literally: every line of the reference became a cohort item, every item failed, and the
+terminal filled with the genome quoted back at itself. Nothing in that output names the
+mistake. `2001 requested — 0 ok` describes a cohort that happens to be bad, and the exit
+code says the same; both are accurate and neither is the answer, which is "that is your
+reference — it goes in the other argument."
+
+`_read_variant_list` now reads the first non-blank line and refuses a `>` by name, naming
+`--reference-fasta` as where the file belongs. One comparison, before any work.
+
+**Not a heuristic on the extension.** `.fa`, `.fasta`, `.fna`, `.fa.gz` and no extension at
+all are all real; the *content* is unambiguous and costs one line to read. And the guard
+keys on a character no variant expression can start with, so the cohort direction is
+checked too: a comment, a blank line and `chr2:71:A>C` still read exactly as before.
+
+**Lesson: an argument in the wrong slot is a different error from a bad argument, and only
+one of the two has a remedy.** Every refusal this project has sharpened — a missing flag, a
+bad PAM, an unknown intent — answers "what you gave me is wrong". This one had to answer
+"what you gave me is right, and it is in the wrong place", which is invisible to any check
+on the value itself and only reachable by asking what *else* the file could be.

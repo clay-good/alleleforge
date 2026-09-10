@@ -1649,9 +1649,25 @@ def _is_vcf_path(path: Path) -> bool:
 
 
 def _read_variant_list(path: Path) -> list[str]:
-    """Read a one-variant-per-line list, skipping blanks and ``#`` comments."""
+    """Read a one-variant-per-line list, skipping blanks and ``#`` comments.
+
+    A FASTA is refused by name. `aforge batch genome.fa` — the two path arguments
+    transposed, which is one keystroke away from the correct command — read the genome as
+    a cohort: 2,001 "variants", every one of them failing, and the terminal filled with
+    whole 1,000-base sequence lines quoted back as unrecognized input. The tool knew what
+    the file was on its first line.
+    """
+    text = path.read_text()
+    first = next((line for line in text.splitlines() if line.strip()), "")
+    if first.startswith(">"):
+        _echo_err(
+            f"error: {path} looks like a FASTA (its first line starts with '>'), not a "
+            "cohort. The genome goes to --reference-fasta; this argument is a VCF or a "
+            "file with one variant per line."
+        )
+        raise typer.Exit(ExitCode.USAGE)
     out: list[str] = []
-    for raw in path.read_text().splitlines():
+    for raw in text.splitlines():
         line = raw.strip()
         if line and not line.startswith("#"):
             out.append(line)
