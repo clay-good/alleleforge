@@ -18727,3 +18727,39 @@ Also worth recording: the first attempt at extracting the function produced
 those tests do through a path that had been left holding the real body. It surfaced when I
 ran the command. A green suite after a mechanical refactor is not evidence the refactor
 worked.
+
+## Round 550 — the message was stricter than the code
+
+Crossing `search`'s float parameters with NaN / inf / -1 / 2 — a derived population against
+derived shapes, the method that has worked all session:
+
+    reject_non_finite → "a threshold must be a finite fraction in [0, 1]"
+    search(cfd_threshold=2) → accepted; 0 site(s)
+
+The sentence promises a range the check does not apply. That matters because of who reads
+it: someone whose input was rejected checks it against the message, finds `2` is not in
+`[0, 1]`, and corrects it — while someone whose input was *accepted* concludes it was in
+range. A refusal that states a stricter rule than it applies is worse than no message.
+
+**The obvious fix was wrong, and the suite said so.** Enforcing `[0, 1]` broke five tests
+that pass `mit_threshold=1.1` on purpose: nomination is an OR of two thresholds over scores
+in `[0, 1]`, so a value above 1 is the only way to express "nominate on CFD alone". The
+acceptance was never the bug. The bug was that an unreachable cut-off moves the numbers in
+silence — `0 site(s)` from a threshold nothing can clear reads exactly like a clean guide.
+
+So the message says what it enforces and names the legitimate use, and `headline_notes`
+gains the disclosure: both cut-offs above 1, or a MAF above 1, says the count is 0 because
+nothing was nominatable. The CLI clamps to `[0, 1]` and never reaches it; a Python caller
+and an API client do.
+
+**548's meta-guard fired, correctly, on the round after it was written.** Two new note kinds
+without two new tests. It also revealed its own scope error — it counted tests in *its own
+module*, so covering a kind in a neighbouring file failed it. The rule is "every kind has a
+test", not "every kind has a test here"; a guard scoped to one file reports on where its
+author was sitting.
+
+**Lesson: an error message is a specification, and it is the only one most readers will
+ever consult.** This project derives its populations, mutation-tests its guards and checks
+its prose against its code — and had a sentence, printed at the moment of maximum attention,
+describing a contract the code did not have. The check to run is not "does the message
+appear" but "if I obeyed this sentence exactly, would the code agree with me".

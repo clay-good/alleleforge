@@ -620,6 +620,26 @@ def headline_notes(report: OffTargetReport) -> tuple[str, ...]:
     if report.ambiguous_spacer_positions:
         listed = ", ".join(str(p) for p in report.ambiguous_spacer_positions)
         notes.append(f"the spacer is ambiguous at position(s) {listed}, which pushes scores DOWN")
+    # A cut-off outside the score range. Both criteria above 1 is how a caller turns
+    # nomination off, which is legitimate and produces `0 site(s)` — the most reassuring
+    # output this system can make. Below 0 is the mirror: every placement nominated. The
+    # aggregate stays honest either way (the sub-threshold tail is in the denominator),
+    # and the site *count* does not, so the count says which question it answered.
+    unreachable = [
+        f"{name} {value:g}"
+        for name, value in (("CFD", report.cfd_threshold), ("MIT", report.mit_threshold))
+        if value > 1.0
+    ]
+    if len(unreachable) == 2:
+        notes.append(
+            f"no site can clear either cut-off ({', '.join(unreachable)}) — the site "
+            "count is 0 because nothing was nominatable, not because nothing was found"
+        )
+    if report.maf_threshold is not None and report.maf_threshold > 1.0:
+        notes.append(
+            f"no allele can reach MAF {report.maf_threshold:g} — the population pass was "
+            "turned off by the cut-off, so this scan is reference-only"
+        )
     mismatch = build_mismatch_note(report)
     if mismatch is not None:
         notes.append(mismatch)

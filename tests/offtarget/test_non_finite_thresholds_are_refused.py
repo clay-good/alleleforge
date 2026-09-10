@@ -87,7 +87,7 @@ def test_population_search_refuses_a_non_finite_maf(
 def test_search_refuses_every_non_finite_fraction(
     name: str, value: float, population_reference: ReferenceGenome
 ) -> None:
-    with pytest.raises(ValueError, match=r"finite fraction") as excinfo:
+    with pytest.raises(ValueError, match=r"finite number") as excinfo:
         search(SPACER, NGG, reference=population_reference, **{name: value})
     # Naming the offending parameter is the point: a caller passing three fractions
     # cannot act on "a threshold must be finite".

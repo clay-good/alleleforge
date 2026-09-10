@@ -17,6 +17,7 @@ is a headline nobody reads.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -218,8 +219,12 @@ def test_every_kind_of_note_has_a_test() -> None:
         and isinstance(node.func, ast.Attribute)
         and node.func.attr == "append"
     )
+    # Across the package, not this module: the rule is "every kind has a test", and
+    # scoping it to one file made it fail the moment a kind was covered next door — which
+    # is a guard reporting on where its author happened to be sitting.
     tested = sum(
-        1 for name in globals() if name.startswith("test_") and name.endswith("_headline_note")
+        len(re.findall(r"^def (test_\w*_headline_note)\(", path.read_text(encoding="utf-8"), re.M))
+        for path in Path(__file__).parent.glob("test_*.py")
     )
     assert tested >= appends, (
         f"{appends} kinds of headline note are emitted and {tested} have a test named "
