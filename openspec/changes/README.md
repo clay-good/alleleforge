@@ -18623,3 +18623,35 @@ to a mapping is a change to every renderer of that mapping. Two of the three wer
 schema-checked and passed; the third had never been asked to render a key it did not know,
 and quietly did the worst available thing with it. The question to ask of a new field is not
 "does it serialize" but "who draws it, and what will they draw".
+
+## Round 547 — present is not seen
+
+Opened the page's spacer tab against a wrong-build gnomAD file. The disclosure 537 added is
+there — and it is the last clause of this:
+
+    over 60,000 bases; up to 4 mismatches, 1 DNA / 1 RNA bulges; sites reported at
+    CFD >= 0.2 or MIT >= 0.1; population alleles at MAF >= 0.001; a sub-threshold tail
+    of 2 further in-budget placement(s) …; the PAM was broadened from NGG to NRG …;
+    every one of the 2 gnomad record(s) in this region assert a reference base this
+    genome does not have — that is a build mismatch, not an absence of population risk
+
+Six clauses describing what the scan *did*, then one saying **you gave it the wrong file**.
+Only the last has a remedy, and it is in the same neutral paragraph style as the PAM
+broadening.
+
+The precedent was already in the same function's output: `aforge offtarget` lifts the *other*
+actionable clause — an unexcluded on-target locus, which caps specificity at 0.5 for a
+spotless guide — out of the paragraph and onto the headline in brackets. The build mismatch
+joins it. `OffTargetResponse.build_mismatch` carries the short form so the page renders it
+in the hazard style, above the paragraph.
+
+**The paragraph keeps the full sentence.** Elevating a fact must not move it: the
+description is what travels inside a written artifact, and a headline is a terminal and a
+screen. The note is held to being under a quarter of the paragraph's length, because a
+headline that repeats the paragraph is a headline nobody reads.
+
+**Lesson: a disclosure has a location, and "it is in the output" is not a location.** Three
+rounds put this fact into the report, the cohort table and the page's table, each time
+satisfied that the information was present. Present in the sixth clause of a sentence a
+reader skims is where facts go to be technically disclosed. The test is not whether a
+grep finds it — it is whether the reader who needs it is looking there.

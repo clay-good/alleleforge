@@ -49,7 +49,11 @@ from alleleforge.design.cohort_summary import cohort_to_parquet as _batch_parque
 from alleleforge.design.cohort_summary import cohort_to_tsv as _batch_tsv
 from alleleforge.design.designer import DEFECT_NOTE, INTEGRITY_NOTE
 from alleleforge.errors import AnnotationServiceError, MissingDependencyError, reason
-from alleleforge.types.offtarget import AGGREGATE_PRECISION, ANCESTRY_BURDEN_PRECISION
+from alleleforge.types.offtarget import (
+    AGGREGATE_PRECISION,
+    ANCESTRY_BURDEN_PRECISION,
+    build_mismatch_note,
+)
 from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import GenomicInterval
 from alleleforge.types.variant import Variant
@@ -2750,6 +2754,12 @@ def offtarget(
     on_target_note = (
         "" if locus is not None else "  [on-target locus NOT excluded; pass --on-target]"
     )
+    # The other clause with a remedy, elevated for the same reason: a supplied source
+    # built against another assembly contributes nothing, so the specificity above is
+    # reference-only, and the full sentence sits at the end of a paragraph that also
+    # carries the mismatch budget, the cut-offs and the PAM broadening.
+    mismatch = build_mismatch_note(report)
+    mismatch_note = f"  [{mismatch}]" if mismatch else ""
     burden_note = (
         f", expected burden {report.expected_burden():.3f} (frequency-weighted)"
         if report.is_frequency_weighted()
@@ -2759,7 +2769,7 @@ def offtarget(
         f"spacer {report.spacer} / PAM {report.pam}: {report.n_sites} site(s), "
         f"worst score {report.worst_score():.3f}, "
         f"specificity {report.specificity_score():.3f}{burden_note}{scorer_note}"
-        f"{on_target_note}",
+        f"{on_target_note}{mismatch_note}",
         # Every number on the line above is conditional on the budgets and cut-offs,
         # so print them under it rather than leaving "3 site(s)" to be read as absolute.
         f"  search: {report.search_description()}",

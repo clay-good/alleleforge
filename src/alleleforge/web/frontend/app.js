@@ -716,6 +716,14 @@ function renderOffTarget(data) {
     "</tbody></table>" +
     onTarget +
     ancestryTable(data.ancestry_stratification, data.ancestry_expected_burden) +
+    // The one clause of that sentence the caller can act on: a supplied source built
+    // against another assembly contributed nothing, so every number above is
+    // reference-only. Above the paragraph and in the hazard style, because at the end
+    // of a seven-clause sentence it is present and not seen — the same reason the CLI
+    // puts it in brackets on its headline.
+    (data.build_mismatch
+      ? `<p class="err">${esc(data.build_mismatch)} — a build mismatch, not an absence of population risk</p>`
+      : "") +
     // Every number above is conditional on the budget and the cut-offs, and the
     // sentence that states them travels with the result on every other surface.
     `<p class="note">${esc(data.search_description)}</p>` +

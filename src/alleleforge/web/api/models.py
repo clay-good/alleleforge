@@ -19,6 +19,7 @@ from alleleforge.types.offtarget import (
     AGGREGATE_PRECISION,
     ANCESTRY_BURDEN_PRECISION,
     OffTargetReport,
+    build_mismatch_note,
     published,
 )
 from alleleforge.types.sequence import GenomicInterval, Strand
@@ -670,6 +671,18 @@ class OffTargetResponse(BaseModel):
             "accordingly; supply `on_target` to drop it."
         )
     )
+    build_mismatch: str | None = Field(
+        default=None,
+        description=(
+            "Set when a supplied population or haplotype source holds records asserting "
+            "a reference base this genome does not have — a file for another assembly. "
+            "The full sentence is in `search_description`, at the end of a paragraph "
+            "that also carries the budgets and cut-offs; this is the same fact short "
+            "enough to put beside the numbers it invalidates, because it is the only "
+            "one of those clauses the caller can act on. `null` when every supplied "
+            "record agreed with the reference."
+        ),
+    )
     search_description: str = Field(
         description=(
             "What the search actually covered, and what it could not: the budgets and "
@@ -752,6 +765,7 @@ class OffTargetResponse(BaseModel):
             specificity=round(report.specificity_score(), AGGREGATE_PRECISION),
             expected_burden=None if burden is None else round(burden, AGGREGATE_PRECISION),
             on_target_excluded=on_target_excluded,
+            build_mismatch=build_mismatch_note(report),
             search_description=report.search_description(),
             ancestry_stratification={
                 ancestry: round(value, AGGREGATE_PRECISION)

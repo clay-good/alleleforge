@@ -588,6 +588,31 @@ class OffTargetReport(BaseModel):
         return ancestry, strata[ancestry]
 
 
+def build_mismatch_note(report: OffTargetReport) -> str | None:
+    """Return a short note for a source whose records are for another assembly.
+
+    The full sentence is already in :meth:`OffTargetReport.search_description`, at the end
+    of a paragraph that also carries the mismatch budget, the reporting cut-offs, the
+    sub-threshold tail and the PAM broadening. Every one of those describes *what the scan
+    did*; this one says **the caller supplied the wrong file**, and it is the only clause
+    with a remedy. `aforge offtarget` already elevates the other such clause — the
+    on-target locus — out of the paragraph and onto the headline in brackets, which is the
+    precedent this follows.
+
+    Returns:
+        A bracket-ready note, or ``None`` when every supplied record agreed with the
+        reference. Short on purpose: the paragraph keeps the full explanation, and a
+        headline that repeats it is a headline nobody reads.
+    """
+    parts = [
+        f"{name}: {count} of {report.sources_considered.get(name, count)} record(s) "
+        "are for another build"
+        for name, count in sorted(report.source_build_mismatch.items())
+        if count
+    ]
+    return "; ".join(parts) if parts else None
+
+
 def published(report: OffTargetReport) -> OffTargetReport:
     """Return ``report`` with every number rounded to the precision surfaces publish.
 
