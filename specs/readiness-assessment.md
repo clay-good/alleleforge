@@ -259,3 +259,52 @@ the day it shipped, because the CLI supplies the predictor at its own `resolve()
 call. Both call sites are the same pipeline and both now count. That is the third
 time in two rounds that a false positive here meant the rule was stated wrong rather
 than needing an exception.
+
+---
+
+## UPDATE 2026-09-10 — a session of forty-two rounds, and what it changed
+
+This file exists "so context is not lost across sessions". The rounds numbered 479–520 in
+[`openspec/changes/README.md`](../openspec/changes/README.md) are that context; each one is
+recorded there with its evidence. What follows is what a reader of *this* file needs.
+
+**Nothing in the TL;DR changed.** The headline scientific gap is where it was: the
+efficiency and outcome predictions are heuristic baselines, the real models are opt-in and
+weight-gated, and CRISPR-Bench's shipped fixtures are synthetic. That is data- and
+licence-blocked, not effort-blocked, and no round moved it.
+
+**What is materially different:**
+
+- **Assemblies are no longer assumed.** The web API stamped every genome `hg38` whatever
+  FASTA was mounted, and resolved every request against that literal;
+  `ALLELEFORGE_REFERENCE_BUILD` now says which assembly is served, `/api/health` reports it,
+  and a request stating a different one is a 422. `design(build=…)` defaults to the
+  reference's own label and refuses a build the reference contradicts. An off-target index
+  and a reference are checked against each other by contig length, so an *unlabelled* index
+  of the wrong genome is refused too.
+- **Three reachability gaps closed.** The model zoo has a shell (`aforge models list/show`,
+  `GET /api/models[/{name}]`) — seventeen cards carrying licence, intended use,
+  out-of-scope use and known failure modes, previously readable only from Python. The
+  licence gate they exist for is settable (`ALLELEFORGE_MODEL_USE`); it defaulted to
+  research with no way to say otherwise, so a commercial user loaded a research-only
+  checkpoint with no refusal. And a **VCF data line** is an input form on every surface,
+  which the served page's own placeholder had been offering, and no surface accepted.
+- **The off-target scan is several times faster, and parallel.** On a 2 Mb contig the scan
+  went 0.647s → 0.108s profiled (1,996,749 Python calls → 341) across four parity-pinned
+  steps, ending with the whole strand scan — anchoring included — inside the Rust kernel.
+  A ten-variant cohort issues 58 whole-genome scans where it issued 81, all distinct. And
+  the kernels release the GIL, so `--max-workers` delivers 1.75x / 2.92x / 3.98x on two,
+  four and eight workers where it delivered 1.6x on four.
+- **Provenance says less, and means it.** A model that was refused (licence, missing extra,
+  unverifiable checkpoint) is no longer stamped as having scored the run; a run scored
+  through a real sequence backbone now names it; a parallel cohort records the genome it
+  screened against, which it previously reported as unknown.
+- **Both shells publish one document.** A whole single-variant design — JSON, the flat TSV
+  with its note block, the rendered HTML — is now diffed between `aforge design` and
+  `POST /api/design`, and the off-target payload's *facts* between the two. Doing it found
+  the two surfaces publishing a score at two precisions, which is fixed in the library.
+
+**The honest summary is unchanged**: the engineering is production-grade and the scientific
+substance is still the gap. What these rounds bought is that fewer of the engineering's own
+claims are taken on trust — the parity, the reachability, the assembly labels and the
+performance promises each have a check that fails when they stop being true.

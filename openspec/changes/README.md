@@ -17803,3 +17803,29 @@ should not.
 missing from the artifact.** The marker constants existed because the CLI had nothing else
 to read — and the moment a second surface needed the same answer, prose could not carry it.
 A signal a program has to *recover* is a signal the producer never sent.
+
+## Round 521 — the file whose job is being current
+
+`specs/readiness-assessment.md` opens by saying it exists "so context is not lost across
+sessions", and a previous round found it to be "the stalest thing in the repository" —
+claiming test counts that were hundreds out of date. That round's fix was to *derive* the
+numbers it states, and the guard holds: source file count, notebook count, coverage gate,
+and an outright ban on an absolute suite-wide test count, which is the number nobody can
+keep true.
+
+Forty-two rounds is exactly the context that file exists to preserve, so it now carries a
+dated section for them: what did not change (the TL;DR — the scientific substance is still
+the gap, and it is data- and licence-blocked, not effort-blocked), and what did. Assemblies
+are no longer assumed anywhere. Three reachability gaps closed — the model zoo, the licence
+gate it exists for, and an input form the served page's own placeholder had been offering.
+The scan is several times faster and actually parallel. Provenance stops naming models that
+were refused. Both shells are diffed on whole documents rather than field by field.
+
+The section states one number the guard cannot derive — the profiled scan timing — with its
+method beside it, which is the standard this repository already holds timings to.
+
+**Lesson: a summary written at the end of an arc is a different artifact from the log kept
+during it.** The round log is complete and unreadable at this length: four hundred entries,
+each with its evidence, none of which answers "what is true now". The assessment answers
+that and cites the log for why. Both are necessary, and the second only gets written if
+someone decides the arc has ended — which is itself a judgement the log cannot make.
