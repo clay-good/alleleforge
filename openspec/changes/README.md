@@ -17829,3 +17829,30 @@ during it.** The round log is complete and unreadable at this length: four hundr
 each with its evidence, none of which answers "what is true now". The assessment answers
 that and cites the log for why. Both are necessary, and the second only gets written if
 someone decides the arc has ended — which is itself a judgement the log cannot make.
+
+## Round 522 — a gate cannot know what your run is for
+
+Round 521 wrote the summary; this round reads the front door against it. The README's
+principles table says:
+
+> **The default backbone is non-commercial, and the license gate enforces it** — Nucleotide
+> Transformer v2 (500M) is CC-BY-NC-SA-4.0 — loadable for research, *refused for commercial
+> use* at load time.
+
+Every word is true of the mechanism, and the sentence reads as a property of the tool:
+install AlleleForge, and a commercial use of a research-only model is refused. It cannot
+be. Nothing here can detect what a run is *for*. The gate refuses the use the **operator
+declares** — and until round 487 no shell could declare anything, so the refusal reached a
+Python caller who already knew to pass `use=ModelUse.COMMERCIAL` and nobody else. A reader
+of that sentence believed themselves protected by a check that never ran.
+
+Three documents said it that way: the principles table, the consent-gate section under it,
+and the preprint. All three now name `ALLELEFORGE_MODEL_USE` and say plainly that no tool
+can detect a commercial use. The guard reads the docs for any claim that the licence gate
+enforces or refuses, and requires it to name the declaration.
+
+**Lesson: a safety claim in the passive voice hides who has to act.** "Refused for
+commercial use" has no subject; the true sentence has two — the operator declares, and the
+gate refuses — and the missing one is the one holding the obligation. Round 487 gave the
+declaration a mechanism, and it took a separate pass to notice that three documents were
+still describing the world where it did not need one.

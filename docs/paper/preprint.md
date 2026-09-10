@@ -144,8 +144,9 @@ are **never vendored**; the CI default is a weight-free stub path so the entire
 suite runs without downloads, network, or a scientific stack.
 
 A swappable `SequenceEmbedder` backbone (default **Nucleotide Transformer v2
-(500M)**, CC-BY-NC-SA — loadable for research, refused for commercial use by the
-license gate) feeds the chemistry scorers. Uncertainty is produced by the
+(500M)**, CC-BY-NC-SA — loadable for research, refused by the license gate for the
+use an operator declares with `ALLELEFORGE_MODEL_USE=commercial`, since no tool can
+detect one) feeds the chemistry scorers. Uncertainty is produced by the
 `alleleforge.scoring.uncertainty` module (pure stdlib, hence CI-exercised on the
 stub):
 
