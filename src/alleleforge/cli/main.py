@@ -739,6 +739,26 @@ def _load_config(path: Path | None) -> dict[str, Any]:
     return cfg
 
 
+def _guarded_write(out: Path, write: Callable[[], object], *, flag: str) -> None:
+    """Perform a write that has already been checked for shape and permission.
+
+    The pre-checks in `_check_output_paths` are advisory — `os.access` can say yes under
+    ACLs, on a network filesystem, or as root — so every place that writes a named
+    output still has to survive the answer being wrong. Four commands write one; three
+    of them were guarded and `bench run`, `bench leaderboard` and the cohort summaries
+    were not, which is the shape of gap this project keeps finding: a rule applied to the
+    members of a set that were in front of someone.
+    """
+    try:
+        write()
+    except OSError as exc:
+        _echo_err(
+            f"error: could not write {flag} {out}: {reason(exc)}. The work finished; "
+            "only the write failed."
+        )
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
+
+
 def _write_artifact(out: Path, write: Callable[[], object], menu: Any) -> None:
     """Write the artifact and its sidecar, or refuse by name.
 
@@ -2275,10 +2295,20 @@ def batch(
         "skipped": report.skipped,
     }
     if summary_tsv is not None:
-        summary_tsv.write_text(_batch_tsv(rows, report.provenance, counts=counts), encoding="utf-8")
+        _guarded_write(
+            summary_tsv,
+            lambda: summary_tsv.write_text(
+                _batch_tsv(rows, report.provenance, counts=counts), encoding="utf-8"
+            ),
+            flag="--summary-tsv",
+        )
     if summary_parquet is not None:
         try:
-            _batch_parquet(rows, summary_parquet, report.provenance, counts=counts)
+            _guarded_write(
+                summary_parquet,
+                lambda: _batch_parquet(rows, summary_parquet, report.provenance, counts=counts),
+                flag="--summary-parquet",
+            )
         except MissingDependencyError as exc:
             _echo_err(f"error: {reason(exc)}")
             raise typer.Exit(ExitCode.UNAVAILABLE) from exc
@@ -3581,7 +3611,11 @@ def bench_run(
     )
 
     if out is not None:
-        out.write_text(result.model_dump_json(indent=2), encoding="utf-8")
+        _guarded_write(
+            out,
+            lambda: out.write_text(result.model_dump_json(indent=2), encoding="utf-8"),
+            flag="--out",
+        )
         _echo_err(f"wrote {out}")
     # The bundled fixtures are synthetic stand-ins and had always said so in a field
     # nothing read, so a Spearman over ten synthetic rows printed in exactly the shape
@@ -3892,7 +3926,7 @@ def bench_leaderboard(
 
     rendered = board.render_html() if fmt is LeaderboardFormat.html else board.render_markdown()
     if out is not None:
-        out.write_text(rendered, encoding="utf-8")
+        _guarded_write(out, lambda: out.write_text(rendered, encoding="utf-8"), flag="--out")
         _echo_err(f"wrote {out}")
     else:
         typer.echo(rendered)

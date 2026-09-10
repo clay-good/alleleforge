@@ -153,3 +153,63 @@ def test_a_writable_path_still_works(runner: CliRunner, genome: Path, tmp_path: 
     assert result.exit_code == ExitCode.OK, result.stderr
     assert out.is_file()
     assert out.with_suffix(out.suffix + ".provenance.json").is_file()
+
+
+def test_no_command_writes_a_named_output_unguarded() -> None:
+    """Four commands write a named output; three were guarded and one set was not.
+
+    The population is derived from the CLI's own source: every `write_text`/`write_bytes`
+    on something other than a local temporary must go through one of the two guarded
+    writers. A raw write is a `PermissionError` traceback waiting for the pre-check —
+    which is advisory — to be wrong, and this project's own deployment mounts a volume
+    read-only.
+    """
+    import ast
+
+    from alleleforge.cli import main as cli_main
+
+    source = ast.parse(Path(cli_main.__file__).read_text())
+    guarded_writers = {"_write_artifact", "_guarded_write", "_write_provenance_sidecar"}
+
+    # Every write that is lexically inside a call to a guarded writer — which is where a
+    # `lambda: path.write_text(...)` lives — or inside the writers themselves.
+    protected: set[int] = set()
+    for node in ast.walk(source):
+        inside = (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in guarded_writers
+        ) or (isinstance(node, ast.FunctionDef) and node.name in guarded_writers)
+        if inside:
+            protected |= {id(child) for child in ast.walk(node)}
+
+    offenders: list[str] = []
+    for node in ast.walk(source):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
+            continue
+        if node.func.attr not in {"write_text", "write_bytes"} or id(node) in protected:
+            continue
+        target = ast.unparse(node.func.value)
+        if target.startswith(("tmp", "_tmp")) or "TemporaryDirectory" in target:
+            continue
+        offenders.append(f"{target}.{node.func.attr}(...)")
+    assert not offenders, (
+        "these write a named output without a guarded writer, so a failed write is a "
+        f"traceback: {offenders}. Wrap them in `_guarded_write` or `_write_artifact`."
+    )
+
+
+def test_the_derivation_finds_the_writes_it_is_about() -> None:
+    """A scan that matched nothing would pass the check above for the wrong reason."""
+    import ast
+
+    from alleleforge.cli import main as cli_main
+
+    writes = [
+        node
+        for node in ast.walk(ast.parse(Path(cli_main.__file__).read_text()))
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr in {"write_text", "write_bytes"}
+    ]
+    assert len(writes) >= 4, writes

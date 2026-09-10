@@ -18485,3 +18485,30 @@ shape checks and the writability check answer different questions and neither im
 other; and an advisory answer — which is all the filesystem will give you before you try —
 cannot replace handling the real attempt. Moving a check earlier is worth doing and is never
 the whole of it.
+
+## Round 542 — the other three writes
+
+541 guarded `aforge design --out` and left the rest, which is 538's lesson unapplied twice
+in three rounds. Four commands write a named output; one was guarded.
+
+    aforge batch --summary-tsv / --summary-parquet     raw write
+    aforge bench run --out                             raw write
+    aforge bench leaderboard --out                     raw write
+
+Each is the same read-only mount and the same traceback, and `bench run` is the worst of
+them: it loads a split, verifies its integrity hash, builds a baseline and scores it, and
+then raises `PermissionError` at the user. The pre-check added in 541 covers all four
+already — but it is *advisory*, and a pre-check that made the handler unnecessary would be a
+pre-check that cannot be wrong, which no filesystem offers.
+
+**The guard is derived from the CLI's own AST**: a `write_text`/`write_bytes` on anything
+but a local temporary must be lexically inside a call to one of the guarded writers. It has
+a companion asserting the scan finds at least four writes, because a scan that matched
+nothing would pass for the wrong reason — the failure mode that made this repo's *first*
+version of this check flag its own lambdas and pass once they were excluded too broadly.
+
+**Lesson: "I fixed it" and "the rule now holds" are different claims, and only the second
+one needs a derivation.** Rounds 537, 539 and 541 each fixed the instance in front of them
+and left the set; each time the next round was the same finding one member along. The
+cost of deriving the population is one AST walk. The cost of not deriving it has now been
+three rounds.
