@@ -18982,3 +18982,30 @@ to the commit. Both are the same defect this project keeps finding in its own pr
 signal that exists and reaches nobody — and the fix is the same shape: make the gate's exit
 status the thing that decides, not the operator's attention. `make ci && git commit` is one
 character of difference and it is the whole of it.
+
+## Round 558 — running the sentence
+
+556 ran five remedies by hand and 555 fixed the one that was broken. Hand-running is not a
+check, so: four of them are a table now, and each row asserts the chain rather than the
+endpoint — the wrong command fails, **its message names the remedy**, and the remedy works.
+
+The middle assertion is the part that matters. A table of "this command works" goes stale
+the moment a message stops recommending it, and would then be testing something nobody is
+told to do. Tying each row to the token its refusal must contain means the message and the
+table fail together.
+
+The dbSNP row is the shape to copy: the refusal names the header it wants
+(`rsid  chrom  pos  ref  alt`), and the remedy builds a file with exactly that header and
+resolves an rsID through it. The message is not being checked for wording; it is being used
+as instructions.
+
+Five more remedies were followed by hand this round and worked — the unbacked-ancestry
+sentence naming which ancestries the source does carry, the empty-spacer refusal naming the
+protospacer form, the `--on-target` bracket, the sidecar `--cache-dir` note, and the
+integrity remedy (already a test). Ten in total across three rounds; nine sound.
+
+**Lesson: a table can be honest if each row is anchored to the thing that would make it
+stale.** The objection to a hand-written table is that it drifts from the code. The answer
+is not always to derive it — sometimes there is nothing to derive from, as here, where the
+input is an English sentence — but to make each row *fail* when its subject moves. A row
+that asserts only its own success is a row that will one day pass alone.
