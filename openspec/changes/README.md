@@ -16781,3 +16781,35 @@ provenance block that had never had a refusal to handle before — the honest fa
 existed only in the rationale, because until then nothing had failed for a reason the
 artifact was supposed to record. When you make a new failure possible, follow it through
 every artifact the run produces before calling the round finished.
+
+## Round 489 — the empty spreadsheet
+
+Round 488's lesson was to follow a new failure through every artifact the run produces.
+The licence refusal from round 487 reaches the HTML and the PDF, which render the menu
+rationale. It reaches the JSON, which carries the rationale string. It does not reach the
+two flat exports, and the reason is worth stating exactly: the TSV *has* a `rationale`
+column, and that column is per candidate. A run with no candidates writes a header row and
+stops.
+
+    # generated 2026-09-10T00:44:06Z
+    schema_version	rank	chemistry	locus	on_pareto_front	efficiency	...
+
+That file says "no design exists for this variant". What happened was that the prime
+vertical — the only eligible chemistry — was refused: `LicenseError: license
+'research-only' forbids commercial use of model 'deepprime'`. The two are the same
+spreadsheet, and telling them apart is the distinction this project exists to preserve.
+`DesignReport.rationale`'s own docstring had already named the failure mode: "without it a
+report can be empty with no explanation anywhere in it ... every renderer would otherwise
+drop it."
+
+The `#` block now carries the run's whole account when the table has no rows — there the
+rationale *is* the content — and, when it has rows, only the lines saying a chemistry
+could not run. That second case is the same defect in miniature: a skipped prime vertical
+is invisible among cas9 rows. `SKIP_NOTE` joins `DEFECT_NOTE` as a named marker with a
+test pinning it, since it now has a second reader.
+
+**Lesson: a per-row field cannot carry a fact about the run.** The TSV looked complete —
+it has a `rationale` column, a `caveats` column, a `flags` column — and every one of them
+is per candidate, so all three vanish in exactly the case where the reader most needs
+them. When checking whether a format carries a fact, ask which *cardinality* the fact has:
+a run-level truth stored per row is stored nowhere when there are no rows.

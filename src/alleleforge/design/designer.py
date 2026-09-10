@@ -648,6 +648,13 @@ def _cas9_empty_reason(allow_ng: bool, allow_spry: bool) -> str:
 #: rewording the note cannot silently un-fail the command.
 DEFECT_NOTE = "ERROR — unexpected"
 
+#: The marker on a note meaning "this chemistry did not run", for a *reader* rather than
+#: a shell: an expected failure — a licence refusal, a missing extra, an unverifiable
+#: checkpoint — is the difference between "no candidate exists" and "we did not look",
+#: which is the distinction this project exists to preserve. The flat exports read it to
+#: decide which rationale lines a table of rows must still carry.
+SKIP_NOTE = "skipped ("
+
 
 def _run_chemistry(
     label: str,
@@ -685,7 +692,7 @@ def _run_chemistry(
     try:
         result = runner()
     except _EXPECTED_DESIGN_FAILURES as exc:
-        notes.append(f"{label}: skipped ({type(exc).__name__}: {reason(exc)})")
+        notes.append(f"{label}: {SKIP_NOTE}{type(exc).__name__}: {reason(exc)})")
         if failed is not None:
             failed.update(chemistries)
         return []

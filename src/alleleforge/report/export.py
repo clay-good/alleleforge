@@ -315,6 +315,43 @@ def _export_notes(report: DesignReport) -> dict[str, str]:
     for index, line in enumerate(provenance_lines(report.provenance), start=1):
         if line:
             notes[f"provenance_{index}"] = _cell(line)
+    notes.update(_rationale_notes(report))
+    return notes
+
+
+def _rationale_notes(report: DesignReport) -> dict[str, str]:
+    """Return the rationale lines the flat table cannot do without.
+
+    `DesignReport.rationale` says "without it a report can be empty with no explanation
+    anywhere in it ... every renderer would otherwise drop it" — and these two renderers
+    dropped it. The TSV has a per-candidate `rationale` column, so a run with no
+    candidates wrote a header row and nothing else: a spreadsheet that reads as "no
+    design exists for this variant" when what happened may have been that the trained
+    model was refused by the licence gate, or its package was not installed.
+
+    Two cases, following the rule the rationale itself uses for declined chemistries:
+
+    * **No rows at all** — the rationale *is* the content, so all of it goes in.
+    * **Some rows** — only the lines saying a chemistry could not run. A prime vertical
+      that was skipped is invisible in a table of cas9 rows, and the reader has no way
+      to know a whole chemistry was never attempted.
+    """
+    # Local import: `alleleforge.design.cohort` imports this package at module scope,
+    # and the markers are one constant each.
+    from alleleforge.design.designer import DEFECT_NOTE, SKIP_NOTE
+
+    lines = [line.strip() for line in (report.rationale or "").splitlines() if line.strip()]
+    if not lines:
+        return {}
+    if report.candidates:
+        # Each stands alone among rows that succeeded, so each says what it is.
+        return {
+            f"rationale_{index}": _cell(f"a chemistry did not run — {line}")
+            for index, line in enumerate(lines, start=1)
+            if SKIP_NOTE in line or DEFECT_NOTE in line
+        }
+    notes = {"rationale_0": _cell("no candidates — the run's own account follows")}
+    notes.update({f"rationale_{index}": _cell(line) for index, line in enumerate(lines, start=1)})
     return notes
 
 
