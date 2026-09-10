@@ -15,7 +15,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from alleleforge.design.ranking import OBJECTIVES
 from alleleforge.report.builder import COORDINATE_SYSTEM, RESEARCH_USE_OFFTARGET
-from alleleforge.types.offtarget import OffTargetReport
+from alleleforge.types.offtarget import (
+    AGGREGATE_PRECISION,
+    ANCESTRY_BURDEN_PRECISION,
+    OffTargetReport,
+    published,
+)
 from alleleforge.types.sequence import GenomicInterval, Strand
 
 #: Maximum number of variants a single batch request may carry. Bounds the work a
@@ -675,16 +680,29 @@ class OffTargetResponse(BaseModel):
         reference: dict[str, Any] | None = None,
     ) -> OffTargetResponse:
         """Build the envelope from a report, computing its aggregate summary."""
+        # Rounded to the same places `aforge offtarget --json` reports, from the constant
+        # both read: the same guide came back `specificity 0.21` from one shell and
+        # `0.21004997798215197` from the other, which is one question with two answers for
+        # anything thresholding on it.
+        burden = report.expected_burden() if report.is_frequency_weighted() else None
         return cls(
-            report=report,
+            # The same rounding every other surface publishes: a site score is `0.8824`
+            # here as it is in `aforge offtarget --json` and in the TSV export.
+            report=published(report),
             n_sites=report.n_sites,
-            worst_score=report.worst_score(),
-            specificity=report.specificity_score(),
-            expected_burden=(report.expected_burden() if report.is_frequency_weighted() else None),
+            worst_score=round(report.worst_score(), AGGREGATE_PRECISION),
+            specificity=round(report.specificity_score(), AGGREGATE_PRECISION),
+            expected_burden=None if burden is None else round(burden, AGGREGATE_PRECISION),
             on_target_excluded=on_target_excluded,
             search_description=report.search_description(),
-            ancestry_stratification=report.ancestry_stratification(),
-            ancestry_expected_burden=report.ancestry_expected_burden(),
+            ancestry_stratification={
+                ancestry: round(value, AGGREGATE_PRECISION)
+                for ancestry, value in report.ancestry_stratification().items()
+            },
+            ancestry_expected_burden={
+                ancestry: round(value, ANCESTRY_BURDEN_PRECISION)
+                for ancestry, value in report.ancestry_expected_burden().items()
+            },
             effective_matrix=report.effective_matrix(),
             reference=reference,
         )

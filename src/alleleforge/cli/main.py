@@ -49,6 +49,7 @@ from alleleforge.design.cohort_summary import cohort_to_parquet as _batch_parque
 from alleleforge.design.cohort_summary import cohort_to_tsv as _batch_tsv
 from alleleforge.design.designer import DEFECT_NOTE
 from alleleforge.errors import MissingDependencyError, reason
+from alleleforge.types.offtarget import AGGREGATE_PRECISION, ANCESTRY_BURDEN_PRECISION
 from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import GenomicInterval
 from alleleforge.types.variant import Variant
@@ -2432,19 +2433,22 @@ def offtarget(
         # the off-target wording rather than the menu's.
         "disclaimer": RESEARCH_USE_OFFTARGET,
         "on_target_excluded": locus is not None,
-        "worst_score": round(report.worst_score(), 4),
-        "specificity": round(report.specificity_score(), 4),
+        "worst_score": round(report.worst_score(), AGGREGATE_PRECISION),
+        "specificity": round(report.specificity_score(), AGGREGATE_PRECISION),
         # Present only for a population-aware search: with reference sites alone the
         # burden is the unweighted score sum. When it is present it is the one number
         # here that tells a rare-variant off-target from a universal one.
         "expected_burden": (
-            round(report.expected_burden(), 4) if report.is_frequency_weighted() else None
+            round(report.expected_burden(), AGGREGATE_PRECISION)
+            if report.is_frequency_weighted()
+            else None
         ),
         "ancestry_stratification": {
-            a: round(v, 4) for a, v in report.ancestry_stratification().items()
+            a: round(v, AGGREGATE_PRECISION) for a, v in report.ancestry_stratification().items()
         },
         "ancestry_expected_burden": {
-            a: round(v, 6) for a, v in report.ancestry_expected_burden().items()
+            a: round(v, ANCESTRY_BURDEN_PRECISION)
+            for a, v in report.ancestry_expected_burden().items()
         },
         "sites": sites,
     }

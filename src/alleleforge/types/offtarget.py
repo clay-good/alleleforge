@@ -101,6 +101,24 @@ class OffTargetSite(BaseModel):
         return self
 
 
+#: Decimal places a *frequency* is published to — an allele frequency of 0.0001 is a real
+#: carrier rate and four places would round it away.
+FREQUENCY_PRECISION = 6
+
+#: Decimal places every surface reports an aggregate score to. The scores are ratios in
+#: `[0, 1]` computed from sums of per-site scores, so their last digits are float noise —
+#: the reproducibility audit rounds for the same reason ("a last-ULP difference across
+#: platforms is not a spurious failure"). It lives here, once, because the CLI rounded and
+#: the web did not: the same guide reported `specificity 0.21` from one shell and
+#: `0.21004997798215197` from the other, and a pipeline thresholding at 0.21 got two
+#: answers to one question.
+AGGREGATE_PRECISION = 4
+
+#: Ancestry burdens carry allele frequencies, which are small: 4 places would round a
+#: 0.0001 carrier frequency to nothing.
+ANCESTRY_BURDEN_PRECISION = 6
+
+
 class OffTargetReport(BaseModel):
     """An aggregated, ancestry-stratified off-target nomination report.
 
@@ -536,3 +554,42 @@ class OffTargetReport(BaseModel):
             return None
         ancestry = max(sorted(strata), key=lambda a: strata[a])
         return ancestry, strata[ancestry]
+
+
+def published(report: OffTargetReport) -> OffTargetReport:
+    """Return ``report`` with every number rounded to the precision surfaces publish.
+
+    A rendering rule, owned by the library because two surfaces were applying two of
+    them: `aforge offtarget --json` (and the TSV export, and the report) round a site
+    score to four places, and the HTTP response serialized the model as-is — so one guide
+    came back `0.8824` from one shell and `0.882353` from the other, with the same
+    difference on the aggregate specificity. A client filtering at a threshold got two
+    answers to one question, and neither surface was wrong on its own.
+
+    The stored model keeps full precision: this is what a *reader* is given, not what the
+    engine computed with.
+    """
+    sites = tuple(
+        site.model_copy(
+            update={
+                "score": round(site.score, AGGREGATE_PRECISION),
+                "mit_score": (
+                    None if site.mit_score is None else round(site.mit_score, AGGREGATE_PRECISION)
+                ),
+                "frequency": (
+                    None if site.frequency is None else round(site.frequency, FREQUENCY_PRECISION)
+                ),
+                "ancestries": {
+                    ancestry: round(value, FREQUENCY_PRECISION)
+                    for ancestry, value in site.ancestries.items()
+                },
+            }
+        )
+        for site in report.sites
+    )
+    return report.model_copy(
+        update={
+            "sites": sites,
+            "subthreshold_score_sum": round(report.subthreshold_score_sum, AGGREGATE_PRECISION),
+        }
+    )

@@ -268,9 +268,13 @@ async def test_offtarget(client: httpx.AsyncClient) -> None:
     report = OffTargetReport.model_validate(body["report"])  # Phase 1 schema-valid
     assert report.spacer == "ATATATATATATATATATAT"
     # The aggregate summary the CLI surfaces is present and consistent with the report.
+    # To the published precision: every surface now rounds a score to four places (the
+    # CLI's JSON and TSV always did, the API did not, and one guide came back `0.21` from
+    # one shell and `0.21004997798215197` from the other). Recomputing the aggregate from
+    # the *rounded* sites therefore lands within that precision rather than on it.
     assert body["n_sites"] == report.n_sites
-    assert body["worst_score"] == report.worst_score()
-    assert body["specificity"] == report.specificity_score()
+    assert body["worst_score"] == pytest.approx(report.worst_score(), abs=1e-4)
+    assert body["specificity"] == pytest.approx(report.specificity_score(), abs=1e-4)
     assert 0.0 < body["specificity"] <= 1.0
     # The honest effective matrix is surfaced alongside the nominal one.
     assert body["effective_matrix"] == report.effective_matrix()

@@ -17627,3 +17627,33 @@ saying "the web report has this field, and this caveat, and this disclaimer" can
 that it is a different document; only `==` between two whole artifacts can. When the claim
 is "these two things are the same", the test is a diff, and everything else is evidence
 for a claim nobody made.
+
+## Round 515 — two shells, two numbers, one guide
+
+Round 514's diff covered the design report. Extending it to the *off-target* surface —
+`aforge offtarget --json` against `POST /api/offtarget` — needed a different comparison,
+because the two payloads are shaped differently on purpose: the CLI flattens the search
+budget beside a `description`, the API nests it under `report` and calls the sentence
+`search_description`. Two envelopes over one set of facts, so the facts are what to compare.
+
+Comparing them found the facts disagreeing:
+
+    specificity   CLI 0.21      API 0.21004997798215197
+    a site score  CLI 0.8824    API 0.882353
+
+The CLI's JSON, the TSV export and the rendered report all round a published score to four
+places; the API serialized the model as it stood. Neither is wrong on its own, and a
+client thresholding at 0.21 gets two answers to one question depending on which shell it
+asked. This is the same shape as every parity finding in this project — a rule applied on
+one surface and not the other — except that here both surfaces looked right in isolation,
+which is why a dozen field-by-field tests could not see it.
+
+`published()` is the rule, in the library beside the scores it rounds, with the precision
+constants named once (four places for a score, six for a frequency — an allele frequency
+of 0.0001 is a real carrier rate and four places would round it away). The stored model
+keeps full precision: this is what a *reader* is given, not what the engine computed with.
+
+**Lesson: a number is not a fact until you say how many digits of it you publish.** The
+engine's float is exact and unpublishable; every surface had to choose, and choosing
+separately is how two of them disagree while both are correct. Precision is part of the
+contract, and it belongs where the contract lives.
