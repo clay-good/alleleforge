@@ -18955,3 +18955,23 @@ user to file a bug instead of deleting a file.
 remedies told me something because running them was the only way to know — the suite could
 not, the types could not, and reading them could not. The same four hours spent re-reading
 the code would have produced the same four "looks right" and no evidence.
+
+## Round 556a — the gate was red when I pushed
+
+Correction to the round above. Its `make ci` was run through
+`| grep -E "passed|FAILED|Success"` and the first matching lines — "All checks passed!"
+from ruff, "Success: no issues found" from mypy — scrolled the pytest result out of `head
+-4`. I read the green words and committed. The suite was failing.
+
+What it was failing on: the round added a `### Added` heading above the existing `### Fixed`
+in the Unreleased section, which already had an `### Added` two thousand lines up.
+`test_changelog_is_readable` refuses a repeated change type and an out-of-order one, and it
+was right on both counts — that file has grown 77 headings in the past by exactly this
+route. The bullet is merged under the existing heading now and the gate is green.
+
+**Lesson: a filtered view of a gate is not the gate.** Every round this session ran `make ci`
+through a grep, because the full output is thousands of lines — and the filter that made it
+readable is the filter that hid the failure, twice over: the pattern matched success lines
+from earlier steps, and `head` cut the one line that mattered. The full tail is four lines
+and I already print it after every push; the discipline is to read *that* before the commit,
+not after.
