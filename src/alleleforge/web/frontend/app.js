@@ -397,8 +397,21 @@ function renderBatch(data) {
         typeof s.best_specificity === "number" ? s.best_specificity.toFixed(3) : "—";
       const sources = s.offtarget_sources;
       const backed = sources && Object.keys(sources).length > 0;
+      // A `<source>:build-mismatch` entry is not a *source*. Rendering the keys alone
+      // put it in the list beside `gnomad`, so a file for the wrong assembly read as a
+      // second source that had contributed — the opposite of what the count says. It is
+      // a qualification of the source above it, carries a number, and is a hazard.
+      const basisText = (name) => {
+        const count = sources[name];
+        if (!name.endsWith(":build-mismatch")) {
+          return esc(name);
+        }
+        const of = sources[name.replace(":build-mismatch", "")];
+        const scope = typeof of === "number" ? ` of ${of}` : "";
+        return `<span class="err">${esc(count)}${scope} record(s) wrong build</span>`;
+      };
       const basis = backed
-        ? esc(Object.keys(sources).join(", "))
+        ? Object.keys(sources).map(basisText).join(", ")
         : '<span class="err">reference-only</span>';
       const flagged = Array.isArray(s.best_caveats) ? s.best_caveats : [];
       const caveats = flagged.length ? `<span class="err">${flagged.map(esc).join(", ")}</span>` : "—";

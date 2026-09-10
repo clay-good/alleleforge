@@ -18594,3 +18594,32 @@ scientific gap is exactly where the TL;DR says it is.
 The guard 521 built does its job — it would fail the moment a stated number rotted — and it
 cannot notice that the narrative beside the numbers describes a different codebase. A
 derivation keeps a claim honest; only writing keeps a document useful.
+
+## Round 546 — a qualification in the list of sources
+
+540 gave the cohort table a `<source>:build-mismatch` key, checked the TSV and the Parquet,
+and did not open the page. The page renders that cell as the mapping's **keys**:
+
+    OFF-TARGET BASIS
+    gnomad, gnomad:build-mismatch
+
+Two sources, both of which contributed — the exact opposite of what the number says, on the
+one surface with no terminal to fall back to, from a disclosure whose whole purpose is that
+"we could not look" must never read as "we looked".
+
+The count is the content. `1 of 1 record(s) wrong build`, in the hazard style the caveats
+column uses, not in the neutral list of sources that were read.
+
+Recorded, because it cost twenty minutes: the browser pane cached `app.js` across a reload,
+a forced reload and a **fresh tab**, so three consecutive verifications showed the old
+output and looked exactly like a fix that had not worked. `curl -I` proved the server was
+sending `etag`/`last-modified` correctly and `fetch('/app.js?v=2')` returned the new file —
+the page element was the stale one. A second port loaded it. **A verification that keeps
+showing the old answer is not necessarily a failed fix; check what the client is holding
+before you change the code again.**
+
+**Lesson: rendering is a surface, and a data shape crosses it without asking.** Adding a key
+to a mapping is a change to every renderer of that mapping. Two of the three were
+schema-checked and passed; the third had never been asked to render a key it did not know,
+and quietly did the worst available thing with it. The question to ask of a new field is not
+"does it serialize" but "who draws it, and what will they draw".

@@ -5438,6 +5438,8 @@ acceptance.
 
 ### Fixed
 
+- **The served page reads the build-mismatch qualification as one.** The cohort table's new `<source>:build-mismatch` entry says "two gnomAD records were found here and neither could be used"; the page's renderer prints the mapping's *keys*, so the cell read `gnomad, gnomad:build-mismatch` — two sources, both of which contributed, the exact opposite of what the number says, on the surface with no terminal to fall back to. It renders the count against the number considered (`1 of 1 record(s) wrong build`) in the same hazard style the caveats column uses. Found by opening the page, two rounds after the disclosure was added by someone who did not.
+
 - **A chain file with no chains is refused instead of reporting every locus as absent.** `pyliftover` parses any text and keeps whatever chain records it finds, so a file that is not a chain file — a frequency TSV one flag over, an HTML error page a download saved, a truncated `.gz` — built a liftover with zero chains and `aforge lift` answered `UNMAPPED` for every locus, then said "they are dropped, not approximated". Every word of that is also true of a locus with no genuine equivalent in the target build, which is what a reader would conclude: a wrong answer rather than a missing one, from the command whose whole job is to say where a locus lives in another assembly. `Liftover.from_chain_file` now refuses, naming what the silence would have meant and what a UCSC chain file for that direction is called.
 - **`aforge verify` names the file it rejected.** One path in, and the refusal left it out — fine reading one line in a terminal, useless in a CI log verifying forty artifacts in a loop.
 
