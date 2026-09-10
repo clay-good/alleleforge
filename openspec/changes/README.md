@@ -19094,3 +19094,37 @@ without either artifact changing.** "The context is in the summary TSV and the m
 header beside it" was true when written. It became false when a *new* fact started being
 discovered mid-run, which neither the header (written first) nor an optional file could
 carry. An exemption names a dependency; nothing was watching it.
+
+## Round 562 — the window, measured from outside
+
+Away from disclosures, into the arithmetic that decides where a reagent points. The ABE
+activity window is documented as protospacer positions 4-8, 1-based, PAM-distal = 1. Two
+tests already cover it: `_editable_positions` against a spacer string, and the enumerator at
+particular loci. Neither measures the **chain** — resolve a variant to a 0-based coordinate,
+place a protospacer against a PAM, apply a 1-based window to it — and a shift anywhere along
+that chain moves every reagent one base and changes nothing else a reader could notice.
+
+Built a contig with the protospacer at a known offset and an `AGG` behind it, put the
+correctable base at each protospacer position 1-10 in turn, and required the boundary to
+fall exactly between 3 and 4 and between 8 and 9. It does — on both strands.
+
+**Two things the round taught that were not the finding.**
+
+The first mutation I ran — shifting `_editable_positions`' range by one — **changed
+nothing**, and I nearly recorded the test as passing. That function does not decide
+eligibility; `window[0] <= ppos <= window[1]`, twenty lines above it, does.
+`_editable_positions` only finds *bystanders*, and a spacer holding one editable base has
+none. A mutation that survives is a question, not a nuisance: it said the test was pinning
+one of two window computations, and the unexercised one is the one that feeds
+`bystander_burden` — the expected number of unintended edits, which is a safety number.
+Both edges are pinned now.
+
+The second: my minus-strand probe asked for `C>G`, a transversion no base editor installs,
+because I complemented the plus-strand case instead of thinking about which base the editor
+acts on. And my first bystander probe placed a `G`, when a bystander is an adenine the
+reference *already has*. Both failures looked exactly like a defect in the enumerator.
+
+**Lesson: a mutation that survives is more informative than one that fails.** A failing
+mutation confirms what you already believed the test covered. A surviving one tells you the
+code under it is not the code you thought — here, that the function named "editable
+positions" does not decide which positions are editable.
