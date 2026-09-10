@@ -743,6 +743,20 @@ _GENOME_INDEX_HELP = (
 )
 
 
+def _echo_cache_usage(store: Any | None) -> None:
+    """Say how the off-target cache was used, when one was asked for.
+
+    `--cache` promises reuse and its output is identical whether or not any reuse
+    happened, so a key that stopped matching — a genome re-copied to a new path, a knob
+    the signature covers — looks exactly like a warm cache. Under `--verbose` only, and
+    never in the artifact: a cached run and a computed run must stay byte-identical
+    documents, which is the property `scripts/reproduce.py` checks.
+    """
+    usage = store.usage() if store is not None else None
+    if usage:
+        _echo_err(usage)
+
+
 def _reuse(reference: Any, *, cache: bool, index: bool) -> tuple[Any | None, Any | None]:
     """Build the off-target cache and genome index a run asked to reuse.
 
@@ -1509,6 +1523,7 @@ def design(
             f"{len(menu.candidates)} candidate(s); best: "
             f"{menu.best.chemistry.value if menu.best else 'none'}"
         )
+        _echo_cache_usage(store)
 
     # `--json` prints the ranked menu, which is a *different document* from the report:
     # the report truncates each candidate's outcome to the top alleles and says so, and
@@ -2032,6 +2047,7 @@ def batch(
         _echo_err(f"warning: {report.provenance[RESUME_UNVERIFIED]}")
     if state.verbose:
         _echo_err(f"designed {report.succeeded}/{report.total} (skipped {report.skipped})")
+        _echo_cache_usage(store)
 
     if as_json:
         from alleleforge.report.builder import COORDINATE_NOTE, RESEARCH_USE_DISCLAIMER
@@ -2282,13 +2298,14 @@ def offtarget(
         from alleleforge.genome.index import GenomeIndex
 
         index = GenomeIndex.build_genome(reference)
+    store = OffTargetCache() if reuse_cache else None
     try:
         report = search(
             spacer,
             PAM(pattern=pam),
             reference=reference,
             scorer=scorer_impl,
-            cache=OffTargetCache() if reuse_cache else None,
+            cache=store,
             genome_index=index,
             on_target=locus,
             mismatches=mismatches,
@@ -2510,6 +2527,8 @@ def offtarget(
             f"{carried}"
         )
     _emit(payload, as_json=as_json, human="\n".join(human_lines))
+    if state.verbose:
+        _echo_cache_usage(store)
     # A search that examined nothing exits non-zero, after saying so. The human line
     # already reads "NO SEQUENCE WAS SEARCHED -- this is not a clean result, it is an
     # empty one", and the exit code said 0, so a pipeline branching on `$?` saw a

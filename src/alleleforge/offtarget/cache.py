@@ -161,6 +161,15 @@ class OffTargetCache:
         self._store = ContentAddressedCache(
             f"offtarget/{self.NAMESPACE_VERSION}", root=root, verify=True
         )
+        #: How this store was used, for a caller that wants to say so. A cache that never
+        #: hits and one that always hits produce identical output, so `--cache` — a flag
+        #: whose entire promise is reuse — was unfalsifiable from the outside: a key that
+        #: stopped matching (a genome re-copied, a knob the signature covers) looked
+        #: exactly like a warm one. Counters, not a log line, because the library must
+        #: not decide how a shell reports; and not in the report, because a cached run
+        #: and a computed run have to remain byte-identical documents.
+        self.hits = 0
+        self.misses = 0
 
     def get(self, signature: str) -> OffTargetReport | None:
         """Return the cached report for ``signature``, or ``None`` on a miss.
@@ -169,11 +178,29 @@ class OffTargetCache:
             CacheIntegrityError: If the entry's bytes do not match its checksum.
         """
         text = self._store.get_text(signature)
-        return OffTargetReport.model_validate_json(text) if text is not None else None
+        if text is None:
+            self.misses += 1
+            return None
+        self.hits += 1
+        return OffTargetReport.model_validate_json(text)
 
     def put(self, signature: str, report: OffTargetReport) -> None:
         """Cache ``report`` under ``signature``."""
         self._store.put_text(signature, report.model_dump_json())
+
+    def usage(self) -> str | None:
+        """Return a one-line account of how this store was used, or ``None`` if unused.
+
+        Rendered by a shell, worded once here so the CLI, a Python caller and the web all
+        say the same thing about the same store.
+        """
+        if not (self.hits or self.misses):
+            return None
+        scans = "scan" if self.misses == 1 else "scans"
+        return (
+            f"off-target cache: {self.hits} reused, {self.misses} {scans} computed and "
+            f"stored ({len(self)} entr{'y' if len(self) == 1 else 'ies'} on disk)"
+        )
 
     def __len__(self) -> int:
         """Return the number of cached reports."""

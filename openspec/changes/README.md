@@ -17101,3 +17101,29 @@ names that still exist is a spell-check; the question a reader has is whether th
 works when they do what it says. Three rounds in a row now — a command nobody invoked, a
 placeholder nobody typed, a body nobody posted — and each was found by doing the thing the
 document describes rather than by reading it more carefully.
+
+## Round 499 — the flag you could not tell was working
+
+Back to running the product. `aforge offtarget --cache` twice over the same spacer and
+genome prints, both times, exactly the same three lines. That is by design: a cached run
+and a computed run must be byte-identical documents, which is the property
+`scripts/reproduce.py` exists to check. The consequence is that the flag whose entire
+promise is *reuse* gives no evidence of reuse, and `--verbose` said nothing either.
+
+A cache that never hits and a cache that always hits are the same run from outside. The
+ways a key legitimately stops matching are ordinary — a genome re-copied to a new path, a
+knob the signature covers, the namespace version bumped under the user by an upgrade —
+and the only symptom is that the second run is not faster, which nobody times.
+
+`OffTargetCache` counts its hits and misses and words the account once, in the library, so
+the three shells that accept `--cache` cannot describe the same store three ways. The
+shells print it under `--verbose` only, and it stays out of the artifact, because the
+byte-identity is the more important property and this is the reason it exists.
+
+**Lesson: an optimisation whose correctness requirement is "changes nothing observable"
+needs a second channel, or it cannot be observed at all.** Every guard on this cache is
+about it not changing the answer — the signature, the checksum sidecar, the refusal to
+recompute on a tampered entry — and each is right. Together they made a feature with no
+observable behaviour of its own, which a user cannot verify, cannot debug and cannot tell
+from a silent no-op. The channel has to be somewhere the reproducibility contract does not
+reach: stderr, under a flag, worded by the library.
