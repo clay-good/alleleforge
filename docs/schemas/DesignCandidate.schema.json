@@ -445,6 +445,14 @@
           "title": "Sites",
           "type": "array"
         },
+        "source_build_mismatch": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "default": {},
+          "title": "Source Build Mismatch",
+          "type": "object"
+        },
         "sources_considered": {
           "additionalProperties": {
             "type": "integer"

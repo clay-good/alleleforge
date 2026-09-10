@@ -182,6 +182,15 @@ class OffTargetReport(BaseModel):
     #: getting the check while the others did not is how the gap arose in the first
     #: place.
     sources_considered: dict[str, int] = {}
+    #: Records from a supplied source that assert a reference base this genome does not
+    #: have, per source. The enumerator has always skipped them — `return []  # the
+    #: variant's ref does not match this build; skip safely` — which is right, and was
+    #: silent. A whole gnomAD file for the wrong build is *records in the region* as far
+    #: as `sources_considered` can tell, so the "supplied but contributing nothing" note
+    #: could not fire, and the run read exactly like one whose file was fine and had
+    #: nothing to add. The patient-VCF path refuses the same mistake loudly at load; this
+    #: is the same statement for a source that is skipped per record instead.
+    source_build_mismatch: dict[str, int] = {}
     #: Ancestries the caller asked to stratify by that no supplied source carries data
     #: for. They contribute nothing and are dropped silently, while provenance records
     #: them among the populations considered — so a report can assert an ancestry was
@@ -334,6 +343,20 @@ class OffTargetReport(BaseModel):
                     "that would have worked — supply a population allele-frequency "
                     "source or a haplotype panel"
                 )
+        # A build mismatch first: it is a *different statement* from "nothing here", and
+        # the actionable one. An empty ancestry breakdown from a wrong-build file means
+        # the file was never read, not that the ancestries are clean.
+        mismatched = sorted((name, n) for name, n in self.source_build_mismatch.items() if n > 0)
+        for name, count in mismatched:
+            total = self.sources_considered.get(name, count)
+            # "every one of the 2" reads very differently from "1 of the 2": the first is
+            # a file for the wrong build, the second is one stale record in a good file.
+            how_many = f"every one of the {total}" if count >= total else f"{count} of the {total}"
+            coverage += (
+                f"; {how_many} {name} record(s) in this region assert a reference base "
+                "this genome does not have — that is a build mismatch, not an absence of "
+                "population risk, and those records were skipped"
+            )
         inert = sorted(name for name, n in self.sources_considered.items() if n == 0)
         if inert:
             # "in this region" alone attributed an empty contribution to the locus. The

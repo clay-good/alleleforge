@@ -16,6 +16,7 @@ populations — invisible to a reference-only scan.
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 
 from alleleforge.data.gnomad import PopulationFrequency
 from alleleforge.genome.reference import ReferenceGenome
@@ -99,6 +100,21 @@ def _strengthens(hit: Hit, prior: ReferenceBest | None, scorer: OffTargetScorer)
     return alt_score > prior_score or hit.edits < prior_edits
 
 
+@dataclass
+class SourceCounts:
+    """How a supplied variant source fared, for the report to state.
+
+    In the shape :class:`~alleleforge.variant.vcf.VcfIngestCounts` already uses: the
+    enumerator fills it as it consumes the stream, so it is complete by the time the
+    report is built and costs nothing when no caller asks.
+    """
+
+    #: Records whose asserted REF does not match this reference at that position.
+    #: Skipping them is right; skipping them silently is what made a whole gnomAD file
+    #: for the wrong build indistinguishable from one that simply had nothing to add.
+    build_mismatch: int = 0
+
+
 def _variant_window_hits(
     spacer: str,
     pam: PAM,
@@ -112,6 +128,7 @@ def _variant_window_hits(
     dna_bulges: int,
     rna_bulges: int,
     scorer: OffTargetScorer,
+    counts: SourceCounts | None = None,
 ) -> list[Hit]:
     """Return alt-allele hits the variant creates or strengthens vs. reference.
 
@@ -150,7 +167,12 @@ def _variant_window_hits(
     ref_seq = str(fetched.sequence)
     rel = pos - start
     if ref_seq[rel : rel + len(ref)].upper() != ref.upper():
-        return []  # the variant's ref does not match this build; skip safely
+        # Skipping is right — applying an ALT to a base the genome does not have builds
+        # a haplotype nobody carries. Counting it is what was missing: without that, a
+        # file for the wrong build contributes nothing and says nothing.
+        if counts is not None:
+            counts.build_mismatch += 1
+        return []
     alt_seq = _apply(ref_seq, rel, ref, alt)
 
     kw: SearchBudget = {
@@ -191,6 +213,7 @@ def enumerate_population_sites(
     dna_bulges: int = 1,
     rna_bulges: int = 1,
     scorer: OffTargetScorer | None = None,
+    counts: SourceCounts | None = None,
 ) -> list[tuple[Hit, SiteProvenance]]:
     """Enumerate off-target hits created or strengthened by population variants.
 
@@ -208,6 +231,8 @@ def enumerate_population_sites(
         scorer: The specificity scorer used to judge whether an alt hit strengthens
             a reference hit at the same placement (default :class:`CfdScorer`); pass
             the engine's primary scorer so nomination and reporting agree.
+        counts: Filled as the stream is consumed, so the report can state how many
+            records asserted a reference base this genome does not have.
 
     Returns:
         ``(hit, provenance)`` pairs with ``provenance.origin = POPULATION``.
@@ -240,6 +265,7 @@ def enumerate_population_sites(
             dna_bulges=dna_bulges,
             rna_bulges=rna_bulges,
             scorer=scorer,
+            counts=counts,
         )
         prov = SiteProvenance(
             origin=SiteOrigin.POPULATION,
@@ -262,6 +288,7 @@ def enumerate_patient_sites(
     dna_bulges: int = 1,
     rna_bulges: int = 1,
     scorer: OffTargetScorer | None = None,
+    counts: SourceCounts | None = None,
 ) -> list[tuple[Hit, SiteProvenance]]:
     """Enumerate off-target hits created or strengthened by a patient's variants.
 
@@ -285,6 +312,7 @@ def enumerate_patient_sites(
             dna_bulges=dna_bulges,
             rna_bulges=rna_bulges,
             scorer=scorer,
+            counts=counts,
         )
         prov = SiteProvenance(origin=SiteOrigin.PATIENT, causal_allele=str(var))
         out.extend((h, prov) for h in hits)

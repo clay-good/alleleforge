@@ -2586,6 +2586,10 @@ def offtarget(
             # script written against the CLI could not.
             "scanned_pam": report.scanned_pam,
             "sources_considered": dict(report.sources_considered),
+            # Records a source supplied that assert a base this genome does not have.
+            # Without it, "supplied 47, contributed 0" is a file for the wrong assembly
+            # and a file with nothing to say, spelled identically.
+            "source_build_mismatch": dict(report.source_build_mismatch),
             # The ancestries a caller asked to stratify by that no loaded source can
             # speak for. An empty ancestry breakdown reads as "no ancestry-specific risk
             # found"; this is what distinguishes that from "nothing was measured".

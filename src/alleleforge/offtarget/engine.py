@@ -32,6 +32,7 @@ from alleleforge.offtarget._search import Hit, SearchBudget, SiteProvenance, sca
 from alleleforge.offtarget.cache import OffTargetCache, search_signature
 from alleleforge.offtarget.haplotype import enumerate_haplotype_sites
 from alleleforge.offtarget.population import (
+    SourceCounts,
     enumerate_patient_sites,
     enumerate_population_sites,
 )
@@ -706,8 +707,14 @@ def search(
     unbacked = tuple(sorted(p for p in (populations or ()) if p not in backed))
 
     sources_considered: dict[str, int] = {}
+    # Records skipped because they assert a reference base this genome does not have.
+    # `sources_considered` counts records *found in the region*, which a whole file for
+    # the wrong build satisfies, so the "supplied but contributing nothing" note could
+    # not fire for the one case where it matters most.
+    build_mismatch: dict[str, int] = {}
     if gnomad is not None:
         sources_considered["gnomad"] = 0
+        gnomad_counts = SourceCounts()
         for region in search_regions:
             variants = gnomad.frequencies(region, populations=populations, maf=maf)
             sources_considered["gnomad"] += len(variants)
@@ -720,9 +727,12 @@ def search(
                     populations=populations,
                     maf=maf,
                     scorer=primary,
+                    counts=gnomad_counts,
                     **kw,
                 )
             )
+        if gnomad_counts.build_mismatch:
+            build_mismatch["gnomad"] = gnomad_counts.build_mismatch
 
     # Stage 3 — haplotype-aware evaluation.
     #
@@ -765,11 +775,23 @@ def search(
 
     # Stage 4 — optional patient-VCF personalization.
     if patient_vcf is not None:
+        # The same accounting as gnomAD above. `_load_patient_variants` already refuses a
+        # wrong-build VCF at load — but only on the CLI path, and only for variants it
+        # resolves; a caller handing `design()` a list of `Variant` reaches here directly.
+        patient_counts = SourceCounts()
         tagged.extend(
             enumerate_patient_sites(
-                sp, scan_pam, reference=reference, variants=patient_vcf, scorer=primary, **kw
+                sp,
+                scan_pam,
+                reference=reference,
+                variants=patient_vcf,
+                scorer=primary,
+                counts=patient_counts,
+                **kw,
             )
         )
+        if patient_counts.build_mismatch:
+            build_mismatch["patient-vcf"] = patient_counts.build_mismatch
 
     # Honor an explicit `regions` scope across *every* pass. The reference and
     # population passes iterate `search_regions` and so are already in-scope, but the
@@ -821,6 +843,7 @@ def search(
         searched_bases=total_bases,
         resolved_bases=resolved_bases,
         sources_considered=sources_considered,
+        source_build_mismatch=build_mismatch,
         ambiguous_spacer_positions=ambiguous_spacer_positions,
         scanned_pam=scan_pam.pattern,
         unbacked_populations=unbacked,

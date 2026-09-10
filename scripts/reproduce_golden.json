@@ -46,6 +46,7 @@
           "scorer": "CFD",
           "searched_bases": 226,
           "sites": [],
+          "source_build_mismatch": {},
           "sources_considered": {},
           "spacer": "GGTCTTCTGTGTTGTTCGCG",
           "subthreshold_placements": 0,
@@ -182,6 +183,7 @@
           "scorer": "CFD",
           "searched_bases": 226,
           "sites": [],
+          "source_build_mismatch": {},
           "sources_considered": {},
           "spacer": "GGTCTTCTGTGTTGTTCGCG",
           "subthreshold_placements": 0,
@@ -432,6 +434,7 @@
               "score_method": "cfd"
             }
           ],
+          "source_build_mismatch": {},
           "sources_considered": {},
           "spacer": "TTTAAACGTTTTTTTTTTTT",
           "subthreshold_placements": 0,
@@ -639,6 +642,7 @@
               "score_method": "cfd"
             }
           ],
+          "source_build_mismatch": {},
           "sources_considered": {},
           "spacer": "TTAAACGTTTTTTTTTTTTT",
           "subthreshold_placements": 1,
@@ -765,5 +769,5 @@
     "variant": "chr2:65:A>G"
   },
   "n_candidates": 4,
-  "sha256": "206a2c6f7e2f230a62085e9f14250b823619f67c180e9269dcd8427086f1c6f8"
+  "sha256": "586a15f748cb46528b72e8f1216fdc3bdb5e56f44d833fa8fab2517ed7c9ddd3"
 }

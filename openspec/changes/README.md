@@ -18315,3 +18315,36 @@ does not rediscover it.
 real, it found two gaps, and it has no honest mechanical form at this repo's granularity.
 The temptation after four rounds of successful derived populations is to derive everything;
 the check on that is whether the exceptions read as reasons or as apologies.
+
+## Round 537 — the skip that was right, and silent
+
+Reading the PDF a researcher gets, then chasing the one thing it could not tell me: whether
+the ancestries I asked for were *examined*. Following that into the population path:
+
+    if ref_seq[rel : rel + len(ref)].upper() != ref.upper():
+        return []  # the variant's ref does not match this build; skip safely
+
+The skip is right. Applying an ALT to a base the genome does not have builds a haplotype
+nobody carries. What it is not is **accounted for** — and `sources_considered`, the counter
+the honesty machinery reads, counts records *found in the region*. A whole gnomAD file for
+the wrong assembly satisfies that: 47 records in the region, 47 skipped, 0 contributed, and
+the report's own "supplied but contributing nothing in this region — an empty ancestry
+breakdown means 'not measured', not 'clean'" sentence never fires.
+
+So the run reads exactly like one whose file was fine and had nothing to add. Same
+specificity, same empty breakdown, same silence. That is this project's headline defect
+class — a real safety input inert on its consumed axis with everything green — sitting
+inside the machinery built to prevent it, because the counter counted the wrong noun.
+
+`source_build_mismatch` counts the skips, and the description distinguishes **every one of
+the 2** (a file for the wrong build) from **1 of the 2** (a stale row in a good file); the
+patient-VCF path gets the same, since its loud refusal at load covers only the CLI and only
+variants it resolves — a caller handing `design()` a list of `Variant` reaches the same
+skip.
+
+**Lesson: a guard that counts is only as honest as the noun it counts.** Three rounds of
+this cycle turned a hand-written list into a derived one and called that the fix. This one
+was already derived — a live count, filled during the scan, exactly where it should be —
+and still wrong, because "records considered" and "records usable" differ precisely in the
+case the count exists to catch. When a count is load-bearing for a claim, ask what it would
+read in the failure the claim is about.
