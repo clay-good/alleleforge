@@ -71,6 +71,7 @@ TIMED_KERNELS = {
     "evaluate_anchor": "per-anchor evaluation",
     "evaluate_anchors": "whole-scan evaluation (one crossing)",
     "scan_strand": "whole-strand scan (anchoring in the kernel)",
+    "resolved_base_count": "resolved-base count (once per sequence per search)",
 }
 
 
@@ -259,6 +260,20 @@ def _contig_fold(rng: random.Random) -> None:
         if all(b in _INDEX_ALPHABET for b in seq):
             return seq
         return "".join(b if b in _INDEX_ALPHABET else "N" for b in seq)
+
+    print("\nresolved-base count (once per sequence per search)")
+    from alleleforge.offtarget.engine import _NATIVE_RESOLVED_BASE_COUNT
+
+    counted = "".join(rng.choice("ACGTN") for _ in range(2_000_000))
+    eight_passes = _time(lambda: sum(counted.count(base) for base in "ACGTacgt"))
+    print(f"  eight str.count passes : {eight_passes * 1e3:8.2f} ms")
+    if _NATIVE_RESOLVED_BASE_COUNT is not None:
+        one_pass = _time(lambda: _NATIVE_RESOLVED_BASE_COUNT(counted))
+        print(
+            f"  native one pass        : {one_pass * 1e3:8.2f} ms  ({eight_passes / one_pass:.1f}x)"
+        )
+    else:
+        print("  native one pass        : (not built) - dispatch == python")
 
     print("\ncontig fold to the index alphabet (once per sequence per search)")
     for label, contig in (

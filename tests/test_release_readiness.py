@@ -63,7 +63,12 @@ def test_the_native_evidence_counts_marked_tests_not_the_word() -> None:
     native = next(c for c in release_readiness.criteria() if c.track == "R2")
     modules = next(line for line in native.evidence if line.startswith("parity modules:"))
     named = modules.removeprefix("parity modules:").split(",")
-    assert 0 < len(named) <= 8, f"implausible parity-module count: {modules}"
+    # An upper bound, not a pin: it exists because the first draft grepped for the
+    # substring and reported sixteen where there were four, so a *plausible* count is
+    # what it checks. Kernels are added — this arc added three — and the bound moves
+    # with them; what it must never do is drift back toward "every test that mentions
+    # the word".
+    assert 0 < len(named) <= 12, f"implausible parity-module count: {modules}"
     assert re.match(r"^\d+ test module", native.detail)
     assert str(len(named)) == native.detail.split()[0]
 

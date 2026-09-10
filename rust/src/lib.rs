@@ -229,6 +229,16 @@ fn scan_strand(
     evaluate::scan_strand(spacer, seq, pam, max_mm, dna_bulges, rna_bulges)
 }
 
+/// How many bases of a sequence are unambiguous A/C/G/T — the report's "searched" count.
+///
+/// One pass, no copy. The Python makes eight `str.count` passes over the contig and
+/// deliberately does not upper-case first (a copy of a chromosome is a quarter-gigabyte
+/// transient in a bounded-memory path); this keeps that and costs one pass.
+#[pyfunction]
+fn resolved_base_count(seq: &str) -> usize {
+    evaluate::resolved_base_count(seq)
+}
+
 /// Off-target seeding: reference offsets sharing an exact k-mer with `spacer`.
 #[pyfunction]
 fn kmer_seed_positions(sequence: &str, spacer: &str, k: usize) -> Vec<usize> {
@@ -260,6 +270,7 @@ fn aforge_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(evaluate_anchor, m)?)?;
     m.add_function(wrap_pyfunction!(evaluate_anchors, m)?)?;
     m.add_function(wrap_pyfunction!(scan_strand, m)?)?;
+    m.add_function(wrap_pyfunction!(resolved_base_count, m)?)?;
     m.add_function(wrap_pyfunction!(kmer_seed_positions, m)?)?;
     m.add_function(wrap_pyfunction!(haplotype_apply_variants, m)?)?;
     m.add_class::<NativeFmIndex>()?;

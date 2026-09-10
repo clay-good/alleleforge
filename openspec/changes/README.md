@@ -17313,3 +17313,30 @@ of the same finding at three depths — the wrapper around the call, the call it
 the loop around the call — and each time the profile named the *thing being called* while
 the cost was in the arriving. The question that found all three is the same one: how many
 times does this happen per unit of output?
+
+## Round 505 — the cost that grew by standing still
+
+The profile after round 504 has a new second place: `str.count`, eight calls, 0.124s of a
+2 Mb scan. That is `_resolved_base_count` — the number a report means by "over N bases",
+the unambiguous A/C/G/T of the region actually scanned, so an `N`-padded assembly gap
+cannot be counted as searched.
+
+Its docstring is a careful argument, with measurements, for exactly the code that is
+there: eight `str.count` passes rather than four over an upper-cased copy, because
+`sequence.upper()` on a chromosome is a ~250 MB transient in a path whose entire design is
+bounded memory (+20 MB peak, 140 ms vs 151 ms on 20 Mb), and both cases must be counted
+because the upper-casing on the way in is a `pyfaidx` default rather than an invariant of
+this repository. Every word of that is still true.
+
+What changed is the sentence it ends on: "negligible beside the scan". The scan is
+several times faster than it was when that was measured, and the eight passes had become
+about a fifth of it. The kernel does the same count in one pass and keeps the memory
+property — it reads bytes and allocates nothing — at about **7x**, and both cases stay
+counted on both paths.
+
+**Lesson: an optimisation changes the denominator of every argument that was settled
+against it.** Nothing about this function was wrong, and nobody had to be wrong for it to
+become the second-largest cost in the scan: it stood still while the thing it was compared
+against got three times faster. After a round that speeds something up, the conclusions
+that were reached by comparison with it are the ones to re-derive — and their comment
+usually says which they are, in a sentence like "negligible beside the scan".

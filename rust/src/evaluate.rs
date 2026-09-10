@@ -203,3 +203,23 @@ pub fn scan_strand(
     }
     hits
 }
+
+/// Count the unambiguous A/C/G/T bases of a sequence, in one pass and no copy.
+///
+/// Native counterpart of `alleleforge.offtarget.engine._resolved_base_count`, which
+/// makes eight `str.count` passes — both cases of four bases — over a whole contig. The
+/// Python does *not* upper-case first, deliberately: a copy of a chromosome is a
+/// quarter-gigabyte transient in a path whose design is explicitly bounded-memory. This
+/// keeps that property (it reads bytes and allocates nothing) and folds the eight passes
+/// into one, which matters more now the scan around it is several times faster than it
+/// was when eight passes were called negligible.
+///
+/// Both cases are counted for the same reason the Python counts them: the upper-casing
+/// on the way in is a `pyfaidx` default, not an invariant of this repository, and if it
+/// changed, a repeat-masked genome would report almost nothing as searchable.
+pub fn resolved_base_count(seq: &str) -> usize {
+    seq.as_bytes()
+        .iter()
+        .filter(|&&b| matches!(b, b'A' | b'C' | b'G' | b'T' | b'a' | b'c' | b'g' | b't'))
+        .count()
+}

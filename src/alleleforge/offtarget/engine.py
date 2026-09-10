@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 
+from alleleforge import _native
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.genome.index import GenomeIndex
@@ -208,6 +209,16 @@ def _to_site(
     )
 
 
+#: The one-pass native form of the count below, when the crate is built. Resolved once
+#: at import, like the scan's other kernels: this runs once per sequence per search, so
+#: the dispatch is not hot, but the pattern is the one every kernel here follows.
+_NATIVE_RESOLVED_BASE_COUNT = (
+    getattr(_native._ext, "resolved_base_count", None)  # type: ignore[attr-defined]
+    if _native.NATIVE_AVAILABLE
+    else None
+)
+
+
 def _resolved_base_count(sequence: str) -> int:
     """Return how many bases of ``sequence`` are unambiguous A/C/G/T.
 
@@ -228,7 +239,15 @@ def _resolved_base_count(sequence: str) -> int:
     It is a named function rather than an inline expression so it can be tested: with
     the reference normalizing case on the way out, no end-to-end fixture can reach the
     lowercase path.
+
+    The native kernel does the same count in one pass, also without copying, and is used
+    when the crate is built — "eight passes are negligible beside the scan" was measured
+    against a scan several rounds slower than today's, and the eight passes had grown to
+    a fifth of it.
     """
+    if _NATIVE_RESOLVED_BASE_COUNT is not None:  # pragma: no cover - native not built in CI
+        counted: int = _NATIVE_RESOLVED_BASE_COUNT(sequence)
+        return counted
     return sum(sequence.count(base) for base in "ACGTacgt")
 
 
