@@ -543,6 +543,14 @@ class BatchResponse(BaseModel):
     #: whose reader had to assume. A cohort is also the artifact most likely to be
     #: forwarded to someone who did not make the request.
     coordinate_system: str = COORDINATE_SYSTEM
+    #: The run-level notes that say the numbers are not what they look like: a population
+    #: source built for another assembly, items with no off-target search, a
+    #: cross-chemistry sort comparing two uncalibrated models. The TSV and the Parquet
+    #: have carried these in their note block since they shipped and the CLI prints them;
+    #: this envelope — the form an HTTP client actually consumes — had none, so a client
+    #: could only find a wrong-build source by scanning every row's `offtarget_sources`
+    #: for a `:build-mismatch` key. Empty when the run has nothing to qualify.
+    notes: tuple[str, ...] = ()
     disclaimer: str
 
 

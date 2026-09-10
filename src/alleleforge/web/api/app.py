@@ -47,7 +47,12 @@ from fastapi.staticfiles import StaticFiles
 
 from alleleforge._version import __version__
 from alleleforge.config import Settings
-from alleleforge.design.cohort_summary import cohort_rows, cohort_to_parquet, cohort_to_tsv
+from alleleforge.design.cohort_summary import (
+    cohort_headline_notes,
+    cohort_rows,
+    cohort_to_parquet,
+    cohort_to_tsv,
+)
 from alleleforge.errors import (
     AnnotationServiceError,
     ChecksumError,
@@ -1287,6 +1292,9 @@ def create_app(
                 for it in report.items
             ),
             provenance=report.provenance,
+            # The same function the CLI prints and the note block embeds, so the four
+            # renderings of one cohort cannot disagree about what it needs qualifying.
+            notes=tuple(cohort_headline_notes(cohort_rows(report))),
             disclaimer=RESEARCH_USE_DISCLAIMER,
         )
 

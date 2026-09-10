@@ -426,7 +426,11 @@ function renderBatch(data) {
       return `<tr class="${it.status}"><td>${esc(it.item_id)}</td><td>${cell(s.variant)}</td><td>${clinical}</td><td>${it.status}</td>${detail}</tr>`;
     })
     .join("");
-  batchResults.innerHTML = `
+  // The run-level notes, above the table rather than only inside the file a reader may
+  // never download: a wrong-build population source is a constant on every row, and
+  // nobody scans five hundred cells to notice a constant.
+  const notes = (data.notes || []).map((note) => `<p class="err">${esc(note)}</p>`).join("");
+  batchResults.innerHTML = notes + `
     <table class="results">
       <thead><tr><th>input</th><th>variant</th><th>ClinVar</th><th>status</th><th>best</th><th>efficiency</th>
         <th>bystander burden</th><th>worst off-target</th><th>specificity</th><th>off-target basis</th>

@@ -18763,3 +18763,37 @@ ever consult.** This project derives its populations, mutation-tests its guards 
 its prose against its code — and had a sentence, printed at the moment of maximum attention,
 describing a contract the code did not have. The check to run is not "does the message
 appear" but "if I obeyed this sentence exactly, would the code agree with me".
+
+## Round 551 — the fourth rendering
+
+549 gave the cohort's run-level notes to the terminal. A cohort has four renderings, and
+the one an HTTP client actually consumes had none:
+
+    POST /api/batch  ->  {total, succeeded, failed, items, provenance,
+                          coordinate_system, disclaimer}
+
+No notes. A client screening five hundred patients against a gnomAD file built for another
+assembly could find out only by scanning every row's `offtarget_sources` mapping for a
+`:build-mismatch` key it has no reason to look for. The envelope had the least excuse and
+the least disclosure.
+
+`BatchResponse.notes`, filled from the same `cohort_headline_notes` the CLI prints and the
+note block embeds, so the four cannot disagree; the page renders them above the table.
+The guard's population is `BatchFormat` — the API's own enumeration of cohort renderings —
+so a format added later fails until it carries them.
+
+**The first version of the guard tested the model instead of the wiring.** It constructed a
+`BatchResponse` with the notes and asserted they serialized — which they do, being a field.
+Deleting the line in `_cohort_response` that *fills* the field left it green. Only the
+version that posts to the endpoint fails, and the endpoint is the only part that had the
+defect. The other three mutations (the page, the TSV, the terminal) were caught first time;
+this one needed the test rewritten.
+
+Also fixed while there: the format sweep used `importorskip("pyarrow")` at the top of the
+loop, so an install without that one optional writer skipped the **whole** test — taking the
+TSV and JSON checks with it. Now only the Parquet branch is conditional.
+
+**Lesson: a test that builds the object under test has assumed the bug away.** The question
+a disclosure guard has to ask is not "does this field serialize" but "does the code path a
+caller takes put anything in it". The three surfaces I checked by *running* them were right
+first time; the one I checked by constructing a model was the one that stayed broken.
