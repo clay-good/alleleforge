@@ -11,7 +11,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from alleleforge.design.ranking import OBJECTIVES
 from alleleforge.report.builder import COORDINATE_SYSTEM, RESEARCH_USE_OFFTARGET
@@ -48,22 +48,47 @@ MAX_REGIONS = 1000
 MAX_POPULATIONS = 64
 MAX_CHEMISTRIES = 16
 
+
+def _not_blank(value: str) -> str:
+    """Refuse a field that was sent with an empty or whitespace-only value.
+
+    The CLI refuses `--cell-context ""` because `value or default` cannot tell an empty
+    string from an omitted flag, and an unset shell variable is how that empty string
+    usually arrives. The web models had the same hole with the same consequence and no
+    check: `{"cell_context": ""}` answered 200 with a design whose out-of-distribution
+    flag could never be raised, and `{"populations": [""]}` answered 200 with no
+    population analysis — a client that JSON-encodes an empty form field is the
+    browser's version of the unset variable. The library is the source of truth and the
+    two shells must not disagree about what they accept.
+    """
+    if not value.strip():
+        raise ValueError(
+            "this field was sent empty. Omit it to use the default; an empty string is "
+            "usually an unfilled form field or an unset variable, and it is not the "
+            "same request as not asking."
+        )
+    return value
+
+
+#: A string that, if present at all, must say something.
+NonBlank = AfterValidator(_not_blank)
+
 #: A variant input string bounded to :data:`MAX_VARIANT_LEN`, usable as a list item.
 VariantStr = Annotated[str, Field(max_length=MAX_VARIANT_LEN)]
 #: An ancestry/population label bounded so a huge list element can't slip the count cap.
-PopulationStr = Annotated[str, Field(max_length=MAX_BUILD_LEN)]
+PopulationStr = Annotated[str, Field(max_length=MAX_BUILD_LEN), NonBlank]
 #: A chemistry name bounded likewise.
-ChemistryStr = Annotated[str, Field(max_length=MAX_BUILD_LEN)]
+ChemistryStr = Annotated[str, Field(max_length=MAX_BUILD_LEN), NonBlank]
 
 #: An edit intent is one of four short words, and an unrecognized one is echoed back in
 #: the 422 (`unknown intent '...'`, so a caller can see their typo). Unbounded, that echo
 #: reflects whatever was sent: a 100 KB intent produced a 100 KB error response. Every
 #: other string on these models was already bounded; this was the one that was not.
-IntentStr = Annotated[str, Field(max_length=MAX_BUILD_LEN)]
+IntentStr = Annotated[str, Field(max_length=MAX_BUILD_LEN), NonBlank]
 
 #: A specificity-scorer name, bounded for the same reason as the intent above; the
 #: set of valid names lives in `scorer_for`, which raises with the list on a miss.
-ScorerStr = Annotated[str, Field(max_length=MAX_BUILD_LEN)]
+ScorerStr = Annotated[str, Field(max_length=MAX_BUILD_LEN), NonBlank]
 
 
 class ResolveRequest(BaseModel):
@@ -213,7 +238,7 @@ class DesignRequest(BaseModel):
             "practical. Sent as objects, the same shape a reported site's `locus` has."
         ),
     )
-    cell_context: str | None = Field(
+    cell_context: Annotated[str, NonBlank] | None = Field(
         default=None,
         max_length=MAX_CELL_CONTEXT_LEN,
         description=(
@@ -433,7 +458,7 @@ class BatchRequest(BaseModel):
             "practical, and a cohort run is the most expensive path there is."
         ),
     )
-    cell_context: str | None = Field(
+    cell_context: Annotated[str, NonBlank] | None = Field(
         default=None,
         max_length=MAX_CELL_CONTEXT_LEN,
         description=(

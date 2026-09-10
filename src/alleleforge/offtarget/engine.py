@@ -124,14 +124,27 @@ def _spacer_str(spacer: Spacer | DNASequence | str) -> str:
     "ambiguous at position(s)" disclosure exists for.
 
     Raises:
-        ValueError: If ``spacer`` holds a character outside the IUPAC alphabet. Both
-            shells already turn this into their own refusal.
+        ValueError: If ``spacer`` is empty, or holds a character outside the IUPAC
+            alphabet. Both shells already turn this into their own refusal.
     """
     if isinstance(spacer, Spacer):
         return str(spacer.sequence)
     if isinstance(spacer, DNASequence):
         return str(spacer)
     text = str(spacer)
+    if not text.strip():
+        # Round 523 chose to *label* a too-short query rather than refuse it: screening a
+        # seed sequence is a legitimate thing to ask for. An empty spacer is not that —
+        # there is nothing to screen. It matched at every position of the genome, so a
+        # blank field or an unset shell variable produced the most alarming report this
+        # tool can emit: thousands of "off-target sites", worst score 1.000, specificity
+        # 0.000. Refused, because no caveat makes that report mean anything.
+        raise ValueError(
+            "the spacer is empty — there is nothing to search for. Every position of "
+            "the genome matches an empty query, which is why this produced a specificity "
+            "of zero rather than an error. Supply the guide's protospacer (typically 20 "
+            "nt, 5'->3', without the PAM)."
+        )
     stray = sorted(set(text.upper()) - IUPAC_ALPHABET)
     if stray:
         raise ValueError(

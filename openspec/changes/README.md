@@ -18160,3 +18160,38 @@ one.** Every guard here checks that a *wrong* artifact is refused, and both regi
 that correctly. None asked what is left on disk when the fetch does not finish — and the
 answer was a file indistinguishable, to every later run, from a deliberately corrupted one.
 Verify-then-publish, never publish-then-verify.
+
+## Round 532 — the empty query that matched everything
+
+Six rounds of typing mistakes at the CLI; none at the other shell. Sending the same shapes
+to the HTTP API found two things, one of them the worst answer this tool has given in a
+while:
+
+    POST /api/offtarget {"spacer": ""}   ->   200
+    {"spacer": "", "sites": [ ...5,016 of them... ],
+     "worst_score": 1.0, "specificity": 0.0}
+
+Every position of a genome matches an empty query. `aforge offtarget ""` does the same. So
+a blank form field or an unset variable produces the most alarming report this tool can
+emit, about a guide that does not exist.
+
+523 faced the neighbouring case — a four-base query — and chose to **label, not refuse**,
+on the grounds that screening a seed sequence is a legitimate thing to ask for and refusing
+takes a decision away from someone who knows what they are doing. An empty spacer is not
+that. There is nothing to screen, no caveat makes the number mean anything, and nobody
+types it on purpose. Refused, at `_spacer_text` — the one door every caller passes.
+
+The second finding is a parity gap **529 opened**. That round taught the CLI that
+`--cell-context ""` is not `--cell-context` omitted. The request models have the identical
+`value or default` hole, and I did not look: `{"cell_context": ""}` answered 200 with a
+design whose out-of-distribution flag could never be raised, `{"populations": [""]}`
+answered 200 with no population analysis. A `NonBlank` validator now sits on the four
+string aliases and both `cell_context` fields.
+
+**Lesson: a fix applied to one shell is a parity bug until it is applied to the other, and
+the round that writes it is the round least likely to check.** Every one of 524-531 was a
+CLI round; 529's own note says the empty string arrives from an unset shell variable, which
+is a *CLI* story, and that framing is exactly what stopped me asking what a browser sends.
+The check that would have caught it is the one this project already believes in: the
+library is the source of truth, and a refusal that lives in only one shell is in the wrong
+place.
