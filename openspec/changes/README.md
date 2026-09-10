@@ -18693,3 +18693,37 @@ to forget is the one that wrote it.** 542 concluded that fixing an instance is n
 rule. 547, five rounds later, fixed an instance. The gap is not knowledge; it is that the
 finding arrives as a single vivid case and the generalization has to be *looked for* while
 the case is still the interesting thing.
+
+## Round 549 — absent, not buried
+
+547 and 548 were about a disclosure buried in a paragraph. This is the same fact one
+surface over, where there is no paragraph to be buried in:
+
+    $ aforge batch cohort.txt --reference-fasta hbb.fa --populations afr --gnomad wrong.tsv
+    cohort: 20 requested — 20 designed (20 ok, 0 failed)
+      chr11:2000:T>C  ok  best=prime  eff=0.63 [0.48,0.78]  n=252
+      [nineteen more]
+
+Nothing. The build-mismatch note, the "no off-target search was run" note and the
+cross-chemistry sorting caveat all live in the note block of the TSV — and `aforge batch`
+writes no file unless asked. **The ordinary way to run the command was the way that
+disclosed the least.**
+
+`cohort_headline_notes()` is the conditional half of that block; the provenance half — the
+disclaimer, the version, the build, the seed, the datasets, the clock — stays in the
+artifact, where a reader who kept the file needs it and a terminal that has just shown the
+run does not. To stderr, so the row table on stdout stays a table.
+
+**The guard is the rule, derived from the two runs.** A note the block carries for a
+qualified run and not for a clean one *is* conditional, by construction; every such note
+must reach the terminal. It found its own exception on the first run — `started <clock>`
+differs between any two runs and is provenance, not a note about this run being unusual —
+which is the one line a set difference would mistake for one, and is now normalized with
+that reason written down.
+
+Also worth recording: the first attempt at extracting the function produced
+`cohort_headline_notes` calling itself, and `pytest tests/design tests/cli` — 904 tests —
+**passed**. The recursion is only reached when a cohort actually renders its notes, which
+those tests do through a path that had been left holding the real body. It surfaced when I
+ran the command. A green suite after a mechanical refactor is not evidence the refactor
+worked.

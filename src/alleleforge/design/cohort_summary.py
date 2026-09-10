@@ -226,57 +226,34 @@ def _sources(value: Any) -> Any:
     return value
 
 
-def _cohort_notes(
-    rows: list[dict[str, Any]],
-    provenance: Any | None,
-    counts: Mapping[str, int] | None,
+def cohort_headline_notes(
+    rows: list[dict[str, Any]], counts: Mapping[str, int] | None = None
 ) -> list[str]:
-    """Return the note block both cohort encodings carry, in document order.
+    """Return the run-level notes that say the numbers are not what they look like.
 
-    The TSV writes these as leading `#` lines and the Parquet as file-level key/value
-    metadata. Building them once is what makes "the same table in two encodings" true
-    of the notes as well as the columns — and the notes are the half that says which
-    genome was searched and under which seed, without which a row per patient is not
-    interpretable.
+    These live in the note block of the TSV and the Parquet, which is the right home for
+    them — and was the *only* home they had. `aforge batch` without `--summary-tsv` prints
+    a headline and one row per patient to a terminal and writes no file, so a cohort
+    screened against a population source built for another assembly said nothing at all
+    about it: not buried in a paragraph, absent. The most common way to run the command
+    was the way that disclosed the least.
+
+    Separated from the provenance half of the block — the disclaimer, the version, the
+    build, the seed, the datasets, the clock — which is unconditional and belongs in an
+    artifact rather than on a terminal that has just shown the run.
+
+    Args:
+        rows: The per-item summary rows.
+        counts: The run's own tallies, accepted so a future note that needs them does not
+            change every caller.
+
+    Returns:
+        Zero notes for a run with nothing to qualify, which is what makes them worth
+        printing when there are any.
     """
     from alleleforge.design.ranking import CROSS_CHEMISTRY_NOTE
-    from alleleforge.report.builder import COORDINATE_NOTE, RESEARCH_USE_DISCLAIMER
 
-    # `CohortRunReport.provenance` is a plain dict assembled by the cohort runner,
-    # not the `Provenance` model a menu carries, so the notes are built from it
-    # directly rather than through `provenance_lines`.
-    run = provenance or {}
-    shape = run.get("reference")
-    notes = [
-        RESEARCH_USE_DISCLAIMER,
-        f"AlleleForge {run.get('alleleforge_version', __version__)}",
-        _reference_note(run.get("reference_build"), shape),
-        COORDINATE_NOTE,
-        f"seed {run.get('seed')}",
-        f"intent {run.get('intent')}",
-        f"started {run.get('started_at')}",
-    ]
-    # The datasets the run actually read, pinned by content hash — the same block every
-    # per-item menu carries. Without it this file named the genome and nothing else, so a
-    # cohort resolved through a ClinVar release could not say which release chose its
-    # loci, and one made population-aware by a gnomAD file could not say which file.
-    # Reported as "none recorded" rather than omitted: an absent line is indistinguishable
-    # from a run that consumed no pinned dataset, and those are different runs.
-    datasets = run.get("datasets")
-    if datasets is not None:
-        named = ", ".join(f"{d.get('name')} {d.get('version')}" for d in datasets)
-        notes.append(f"datasets: {named or 'none recorded'}")
-    if counts is not None:
-        requested = counts.get("total", 0) + counts.get("skipped", 0)
-        note = (
-            f"{requested} requested, {counts.get('total', 0)} designed "
-            f"({counts.get('succeeded', 0)} ok, {counts.get('failed', 0)} failed), "
-            f"{counts.get('skipped', 0)} already done (resume)"
-        )
-        if not rows and counts.get("skipped"):
-            # The case this exists for: every row is below, and there are none.
-            note += " — this table is empty because the run had nothing left to design"
-        notes.append(note)
+    notes: list[str] = []
     # Whether the safety columns are empty because nothing was found or because nothing
     # was looked for. Every off-target cell of an unsearched item is blank, which reads
     # from the outside like a clean result — the distinction this project spends its
@@ -325,6 +302,60 @@ def _cohort_notes(
     if len({r.get("best_chemistry") for r in rows if r.get("best_chemistry")}) > 1:
         notes.append(CROSS_CHEMISTRY_NOTE)
 
+    return [note for note in notes if note]
+
+
+def _cohort_notes(
+    rows: list[dict[str, Any]],
+    provenance: Any | None,
+    counts: Mapping[str, int] | None,
+) -> list[str]:
+    """Return the note block both cohort encodings carry, in document order.
+
+    The TSV writes these as leading `#` lines and the Parquet as file-level key/value
+    metadata. Building them once is what makes "the same table in two encodings" true
+    of the notes as well as the columns — and the notes are the half that says which
+    genome was searched and under which seed, without which a row per patient is not
+    interpretable.
+    """
+    from alleleforge.report.builder import COORDINATE_NOTE, RESEARCH_USE_DISCLAIMER
+
+    # `CohortRunReport.provenance` is a plain dict assembled by the cohort runner,
+    # not the `Provenance` model a menu carries, so the notes are built from it
+    # directly rather than through `provenance_lines`.
+    run = provenance or {}
+    shape = run.get("reference")
+    notes = [
+        RESEARCH_USE_DISCLAIMER,
+        f"AlleleForge {run.get('alleleforge_version', __version__)}",
+        _reference_note(run.get("reference_build"), shape),
+        COORDINATE_NOTE,
+        f"seed {run.get('seed')}",
+        f"intent {run.get('intent')}",
+        f"started {run.get('started_at')}",
+    ]
+    # The datasets the run actually read, pinned by content hash — the same block every
+    # per-item menu carries. Without it this file named the genome and nothing else, so a
+    # cohort resolved through a ClinVar release could not say which release chose its
+    # loci, and one made population-aware by a gnomAD file could not say which file.
+    # Reported as "none recorded" rather than omitted: an absent line is indistinguishable
+    # from a run that consumed no pinned dataset, and those are different runs.
+    datasets = run.get("datasets")
+    if datasets is not None:
+        named = ", ".join(f"{d.get('name')} {d.get('version')}" for d in datasets)
+        notes.append(f"datasets: {named or 'none recorded'}")
+    if counts is not None:
+        requested = counts.get("total", 0) + counts.get("skipped", 0)
+        note = (
+            f"{requested} requested, {counts.get('total', 0)} designed "
+            f"({counts.get('succeeded', 0)} ok, {counts.get('failed', 0)} failed), "
+            f"{counts.get('skipped', 0)} already done (resume)"
+        )
+        if not rows and counts.get("skipped"):
+            # The case this exists for: every row is below, and there are none.
+            note += " — this table is empty because the run had nothing left to design"
+        notes.append(note)
+    notes += cohort_headline_notes(rows, counts)
     return [note for note in notes if note]
 
 

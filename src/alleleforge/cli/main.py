@@ -43,6 +43,7 @@ from alleleforge.data.haplotypes import Haplotype
 # The cohort summary lives in the library: it is a product a Python caller and the
 # web API must be able to produce, not shell plumbing. Aliased to the names the
 # command bodies already use.
+from alleleforge.design.cohort_summary import cohort_headline_notes
 from alleleforge.design.cohort_summary import cohort_reference_shape_suffix as _shape_suffix
 from alleleforge.design.cohort_summary import cohort_rows as _batch_rows
 from alleleforge.design.cohort_summary import cohort_to_parquet as _batch_parquet
@@ -2412,6 +2413,13 @@ def batch(
         else:
             lines.append(f"  {r['item_id']}  error  {r['error']}")
     typer.echo("\n".join(lines))
+    # The run-level notes, which lived only in the note block of a file this command does
+    # not write unless asked. `aforge batch` with no `--summary-tsv` is the ordinary way
+    # to run it, and it was the way that disclosed the least: a cohort screened against a
+    # population file built for another assembly said nothing at all. To stderr, so the
+    # row table on stdout stays a table.
+    for note in cohort_headline_notes(rows, counts):
+        _echo_err(f"note: {note}")
     if summary_tsv is not None:
         _echo_err(f"wrote {summary_tsv}")
     if summary_parquet is not None:
