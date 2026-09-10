@@ -17370,3 +17370,33 @@ wins get small — they were still 1.7x at the last step — but when what remai
 itself. The three rounds before this one each found the cost one layer out from where the
 profile pointed; this one found nothing out there to move, which is the answer to the same
 question rather than the absence of one.
+
+## Round 507 — the same genome, scanned twice
+
+Round 506 said the profile had stopped naming this project's code — inside a single scan.
+A cohort asks a different question: a ten-variant run over the 2 Mb contig spends 8.4s of
+10.3s in `scan_strand`, so at that scale the cost is not how fast a scan is but **how many
+there are**.
+
+The prime vertical memoizes its merged off-target report under
+`(peg spacer, nicking spacer, peg placement, nicking placement)`, and that key is
+carefully argued: the report has each spacer's own locus excluded from it, so keying on
+the spacers alone could hand a pegRNA at one locus a report that excluded another and drop
+a genuine paralogous off-target. All true — of the *merged report*. The two scans it is
+built from each depend on one spacer and one excluded locus, and nothing memoized at that
+level. So a peg spacer paired with two different nicking guides was scanned twice, and a
+nicking guide shared across pegRNAs was scanned once per pegRNA.
+
+Measured before the fix: 1 of 6 scans on one locus, 4 of 10 on another, 1 of 4 on a third
+— and across the ten-variant cohort, **81 whole-genome scans where 56 distinct ones
+exist**. That count is deterministic and load-independent, which is why it is the claim;
+the wall clock followed it (10.3s to 8.8s in one pair of runs on a loaded machine).
+
+The finer memo is the pair key's own argument applied one factor down: `(spacer, excluded
+locus)` is exactly what a scan depends on, and the pair key is a product of two of them.
+
+**Lesson: a cache keyed on the composite hides the duplication in its parts.** The pair
+key was introduced to fix a correctness bug — a report keyed too loosely — and the fix
+made the key *wider*, which is the right direction for correctness and the wrong one for
+reuse. Whenever a memo's key is a tuple of several things, ask what the value is actually
+built from: if it is built from pieces, each piece is a cache someone is not keeping.

@@ -281,8 +281,26 @@ def design_prime(
     scorer: PrimeEfficiencyScorer = efficiency_scorer or PridictScorer()
     predictor = outcome_predictor or PrimeOutcomePredictor()
     cache: dict[_CacheKey, OffTargetReport] = {}
+    #: Scans already run in this design, keyed by exactly what a scan depends on: the
+    #: spacer, and the locus excluded from its own report. The merged-report cache above
+    #: is keyed on the *pair* (peg spacer, nicking spacer, both placements), so a peg
+    #: spacer paired with two different nicking guides was scanned twice, and a nicking
+    #: guide shared by several pegRNAs was scanned once per pegRNA — 1 of 6, 4 of 10 and
+    #: 1 of 4 scans on three measured loci were repeats of one already done in the same
+    #: run, each a whole-genome pass. The pair key is a product of two of these keys, so
+    #: memoizing at this level is the same reasoning one factor finer.
+    scans: dict[tuple[str, str | None], OffTargetReport] = {}
 
     def _search(spacer: Spacer, on_target: GenomicInterval | None) -> OffTargetReport:
+        key = (str(spacer.sequence), str(on_target) if on_target is not None else None)
+        hit = scans.get(key)
+        if hit is not None:
+            return hit
+        report = _run_search(spacer, on_target)
+        scans[key] = report
+        return report
+
+    def _run_search(spacer: Spacer, on_target: GenomicInterval | None) -> OffTargetReport:
         return offtarget_search(
             spacer,
             pam,
