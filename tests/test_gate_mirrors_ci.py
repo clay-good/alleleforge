@@ -33,7 +33,8 @@ ROOT = Path(__file__).resolve().parents[1]
 #: CI jobs deliberately absent from `make ci`, each with the reason it cannot be a
 #: blocking local gate. Anything not listed here must be mirrored.
 NOT_MIRRORED = {
-    "security": "advisory in CI (pip-audit / cargo audit run with `|| true`)",
+    "security": "advisory in CI: the job is `continue-on-error`, so a newly-published "
+    "advisory shows up without blocking an unrelated PR",
     "rust": "needs the compiled crate; `make native` covers it on demand",
     # Mirroring this one would be circular: it *is* `make ci`, run after `make install`
     # in one environment. It exists because every other job installs its own subset, so
@@ -41,6 +42,50 @@ NOT_MIRRORED = {
     # it gives them — and twice it could not.
     "gate": "runs `make install` then `make ci` itself; a mirror of it would be `make ci`",
 }
+
+
+def test_no_workflow_step_swallows_the_result_of_a_check() -> None:
+    """`|| true` turns a check into a green tick that means nothing.
+
+    The supply-chain job ran `pip-audit --strict --desc || true` and `cargo audit ||
+    true`. The intent was right — the advisory DBs move independently of this code, so a
+    newly-published advisory must not turn an unrelated PR red — and the mechanism was
+    not: the step exits 0 whatever the audit found, so a run that found advisories
+    reported a passing "Supply-chain audit" to anyone reading the checks list, which is
+    the one place a reader looks for exactly that answer.
+
+    `continue-on-error` says the same thing honestly: the finding shows as a failure, and
+    the workflow is not blocked by it. So no `run:` may discard an exit status.
+    """
+    offenders: list[str] = []
+    for workflow in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        spec = yaml.safe_load(workflow.read_text(encoding="utf-8"))
+        for job_id, job in (spec.get("jobs") or {}).items():
+            for step in job.get("steps", []):
+                command = step.get("run", "")
+                if "|| true" in command or re.search(r"\bset \+e\b", command):
+                    offenders.append(f"{workflow.name}:{job_id}: {command.strip()}")
+    assert not offenders, (
+        f"these CI steps discard the result of the command they run: {offenders}. A job "
+        "that cannot fail reports a green check for a check that did not pass — mark the "
+        "job `continue-on-error: true` instead, which is non-blocking and visible."
+    )
+
+
+def test_an_unmirrored_advisory_job_is_marked_non_blocking() -> None:
+    """The other half: a job excused from the local gate as "advisory" must say so to CI.
+
+    `NOT_MIRRORED` records why a job is not in `make ci`. For `security` the reason is
+    that it is advisory — and a job claiming that while blocking the workflow, or while
+    swallowing its own exit status, is excused on a premise nothing checks.
+    """
+    spec = yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml").read_text())
+    security = spec["jobs"]["security"]
+    assert security.get("continue-on-error") is True, (
+        "the `security` job is excused from `make ci` for being advisory; mark it "
+        "`continue-on-error: true` so CI treats it that way too"
+    )
+
 
 #: CI job id -> the `make` target that runs the same commands.
 JOB_TO_TARGET = {

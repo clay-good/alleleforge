@@ -132,21 +132,28 @@ jobs:
   security:
     name: Supply-chain audit (pip-audit · cargo audit)
     runs-on: ubuntu-latest
+    # Advisory, not blocking — and *visibly* so. `|| true` inside the steps made a run
+    # that found advisories report a green check, which is a passing audit that never
+    # audited anything a reader can act on. `continue-on-error` keeps an unrelated PR
+    # from turning red on a newly-published advisory (the reason this is advisory) while
+    # letting the finding show up as a failure in the checks list. Tighten to blocking
+    # before the v1.0 tag.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - uses: dtolnay/rust-toolchain@stable
-      # Audit the installed Python environment against the PyPI advisory DB, and
-      # the Rust crate against RustSec. Both are non-blocking informational gates
-      # for now (|| true): the advisory DBs move independently of our code, so a
-      # newly-published advisory must not turn an unrelated PR red — Dependabot
-      # opens the remediation PR. Tighten to blocking before the v1.0 tag.
+      # Audit the installed Python environment against the PyPI advisory DB, and the
+      # Rust crate against RustSec. The advisory DBs move independently of our code, so
+      # a newly-published advisory must not block an unrelated PR — Dependabot opens the
+      # remediation PR — but it must be *visible*, which is what the job-level
+      # `continue-on-error` above does and what `|| true` did not.
       - run: pip install -e ".[dev,core,cli,web,genome-light]" pip-audit
-      - run: pip-audit --strict --desc || true
+      - run: pip-audit --strict --desc
       - run: cargo install cargo-audit --locked
-      - run: cargo audit || true
+      - run: cargo audit
         working-directory: rust
 
   rust:

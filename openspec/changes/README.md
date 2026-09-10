@@ -16971,3 +16971,35 @@ where the reasoning is missing.** The recipe restates the entry point, the depen
 and the Python floor — three facts pyproject already holds. Two of the three had a guard.
 The third had a comment in the *original* saying why it is what it is, and a copy with no
 comment at all, which is precisely the copy that drifted.
+
+## Round 495 — the audit that could not fail
+
+Round 494's lesson was that a duplicated declaration is a claim two things agree, and the
+copy is where the reasoning is missing. Running that over the CI workflow against the
+Makefile's gate turned up something better than a drift:
+
+    - run: pip-audit --strict --desc || true
+    - run: cargo audit || true
+
+Both exit 0 whatever they find. The job is called "Supply-chain audit (pip-audit · cargo
+audit)" and reports a green tick on a run that found advisories — in the checks list,
+which is the one place a reader looks for exactly that answer. The Makefile and a test
+allowance both record the job as "advisory in CI (`|| true`)", so the *decision* was
+documented three times and the mechanism it was implemented with was never examined.
+
+The decision is right: the advisory databases move independently of this code, and a
+newly-published CVE in a transitive dependency must not turn an unrelated PR red —
+Dependabot opens the remediation PR. `continue-on-error: true` on the job says exactly
+that and says it honestly: the finding renders as a failure, and the workflow is not
+blocked by it. Same non-blocking behaviour, opposite signal.
+
+Two guards, both derived: no `run:` step in any workflow may discard its command's exit
+status (`|| true`, `set +e`), and a job excused from the local gate *for being advisory*
+must actually be marked advisory to CI.
+
+**Lesson: check the mechanism, not the decision — a well-argued decision is where nobody
+looks twice.** Three artifacts recorded "advisory, on purpose", and each reader who
+checked stopped there, because the reasoning is sound and the reader is looking for
+mistakes. What none of them said is what `|| true` does to the check mark, and the
+distance between "non-blocking" and "always green" is the whole difference between an
+audit and a decoration.
