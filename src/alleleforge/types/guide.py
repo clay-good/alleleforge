@@ -224,7 +224,20 @@ class PegRNA(BaseModel):
         rtt_homology_3prime: Homology length (nt) the RTT places 3' of the edit.
         nicking_guide: Optional PE3/PE3b nicking guide.
         placement: The pegRNA protospacer's genomic interval, if placed.
-        nick_site: 0-based genomic coordinate of the pegRNA-induced nick, if placed.
+        nick_site: 0-based genomic coordinate of the pegRNA-induced nick, if placed —
+            the first base **downstream of the cut along the protospacer's own strand**,
+            which is not the same plus-strand index on both strands. SpCas9 cuts three
+            bases 5' of the PAM, so for a protospacer at ``[s, e)``:
+
+            * plus: the cut is between ``e - 4`` and ``e - 3``; ``nick_site`` is ``e - 3``
+              and the RTT is written into ``[nick_site, nick_site + len(rtt))``.
+            * minus: the cut is between ``s + 2`` and ``s + 3``; ``nick_site`` is ``s + 2``
+              and the RTT is written into ``[nick_site - len(rtt) + 1, nick_site + 1)`` —
+              downward, because that is the direction the minus strand reads.
+
+            Both are "the base the new 3' end starts from", and a reader who assumes the
+            plus-strand span on a minus-strand pegRNA reconstructs the wrong window.
+            :mod:`tests.design.test_the_prime_rtt_writes_what_it_says` pins both.
     """
 
     model_config = ConfigDict(frozen=True)

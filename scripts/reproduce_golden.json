@@ -23,7 +23,7 @@
         "flags": [
           "epegRNA:tevopreQ1",
           "pe3",
-          "nick-distance:+52nt",
+          "nick-distance:+51nt",
           "both-nicks-searched",
           "ngrna-pol3-terminator",
           "ngrna-no-5prime-g"
@@ -98,7 +98,7 @@
         "pegrna": {
           "nick_site": 53,
           "nicking_guide": {
-            "nick_offset": 52,
+            "nick_offset": 51,
             "placement": {
               "chrom": "chr2",
               "coordinate_system": "0-based-half-open",
@@ -162,7 +162,7 @@
         "flags": [
           "epegRNA:tevopreQ1",
           "pe3",
-          "nick-distance:+52nt",
+          "nick-distance:+51nt",
           "both-nicks-searched",
           "ngrna-pol3-terminator",
           "ngrna-no-5prime-g"
@@ -237,7 +237,7 @@
         "pegrna": {
           "nick_site": 53,
           "nicking_guide": {
-            "nick_offset": 52,
+            "nick_offset": 51,
             "placement": {
               "chrom": "chr2",
               "coordinate_system": "0-based-half-open",
@@ -774,5 +774,5 @@
     "variant": "chr2:65:A>G"
   },
   "n_candidates": 4,
-  "sha256": "9f0bf9f3b0dace03d220bf01fc368311b8b5362a4b307dcae87f4507231f8b69"
+  "sha256": "92ea0ff88fa3921fec8533671c8107cb70d2f5da96f6e49b976f93330f48c60a"
 }

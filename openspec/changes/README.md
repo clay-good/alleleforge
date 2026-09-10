@@ -19158,3 +19158,44 @@ reagent. Every field this file checks would be identical.
 plus-strand-only check on this geometry passes whether the minus-strand arithmetic is right,
 wrong, or copied. What made the check real was that the two strands produce different
 numbers from the same protospacer, so the test can require them to disagree.
+
+## Round 564 — one protospacer, two nicks
+
+563 pinned the pegRNA's nick against SpCas9 geometry on both strands, and a mutation of the
+*nicking guide's* nick arithmetic survived it. Following that survivor:
+
+    chr1:160-180(-)   as a pegRNA:        nick 162
+                      as a nicking guide: nick 163
+
+    chr1:35-55(+)     as a pegRNA:        nick  52
+                      as a nicking guide: nick  51
+
+One protospacer, one enzyme, two answers — and in **opposite directions** on the two
+strands, which is why no aggregate ever looked wrong. The two computations index opposite
+sides of the cut: the pegRNA takes the first base 3' of it along the protospacer's own
+strand, the nicking-guide search took the base on the other side.
+
+`nick_offset` is the difference of the two, so it was wrong by one everywhere. That number
+is not decoration:
+
+* it is printed as `nick-distance:+Nnt`, and the code's own comment calls it "the one
+  number the literature says to choose between [two PE3 candidates] by";
+* it decides `close-nick` — two nicks close enough to act as a staggered double-strand
+  break, the outcome prime editing exists to avoid;
+* it gates admission to the 40-90 nt optimal window, so a guide at either boundary was
+  admitted or excluded wrongly.
+
+The fix is one term. The check that makes it stay fixed is the one that found it: **a
+protospacer is a protospacer** — the same twenty bases with the same PAM, cut by the same
+enzyme, must nick at the same coordinate whichever role they are playing. Nothing compared
+the two roles before, because nothing had a reason to think they were the same computation.
+
+An existing test pinned the old number (`nick_offset == 4` for its fixture; now 3). It was
+an observation of the defect, recorded faithfully, which is what a pinned constant is for —
+and why the reason for the change is written next to it.
+
+**Lesson: when one quantity is computed in two places, compare the places, not the
+values.** Both computations passed every test aimed at them: the pegRNA's nick is right, the
+guide's search finds guides at plausible distances, the offsets fall in the documented
+window. The defect is only visible in the *relationship*, and the relationship had no test
+because each side looked finished.

@@ -138,7 +138,22 @@ def _select_nicking_guide(
         proto_hi = proto_lo + spacer_length
         if proto_hi > len(start) or "N" in start[proto_lo:proto_hi]:
             continue
-        nick_local = proto_lo + cut_offset  # nick on the opposite strand (frame coords)
+        # The nick on the opposite strand, in frame coordinates, under the *same*
+        # convention the pegRNA's own nick uses: the first base 3' of the cut along the
+        # strand that reads the protospacer.
+        #
+        # This guide reads high frame index -> low, with its PAM at `[k, proto_lo)`, so
+        # the three bases 5' of the PAM are `proto_lo`, `proto_lo + 1`, `proto_lo + 2`,
+        # the cut falls between `proto_lo + 2` and `proto_lo + 3`, and the base the new
+        # 3' end starts from is `proto_lo + cut_offset - 1`. It read `proto_lo +
+        # cut_offset`, which is the base on the *other* side of the cut — so one
+        # protospacer nicked at two different bases depending on whether it was being
+        # enumerated as a pegRNA or selected as a nicking guide, and `nick_offset` (a
+        # difference of the two) was wrong by one in opposite directions on the two
+        # strands. That number is the PE3 design parameter the literature says to choose
+        # a nicking guide by; it also decides the `close-nick` caveat and admission to
+        # the optimal offset window.
+        nick_local = proto_lo + cut_offset - 1
         offset = nick_local - pegrna_nick_local
         placement = frame.interval(proto_lo, proto_hi, Strand.MINUS)
         if placement is None:

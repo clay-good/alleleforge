@@ -316,10 +316,17 @@ def test_the_pe3_nick_distance_is_shown_not_just_computed(make_reference: MakeRe
         # The close-nick annotation tracks the number rather than being decorative.
         assert ("close-nick" in c.flags) is (abs(offset) < CLOSE_NICK_NT)
 
-    # This fixture's only PE3 nick sits 4 nt from the pegRNA nick — two opposite-strand
+    # This fixture's only PE3 nick sits 3 nt from the pegRNA nick — two opposite-strand
     # nicks that close are a staggered double-strand break, which is exactly the
     # outcome the chemistry is chosen to avoid, and it was previously unremarked.
-    assert {c.pegrna.nicking_guide.nick_offset for c in pe3} == {4}  # type: ignore[union-attr]
+    #
+    # It read 4 until the nicking guide's nick was computed under the same convention as
+    # the pegRNA's. The two disagreed by one base — the same protospacer nicked at a
+    # different coordinate depending on which role it was playing — so every reported
+    # nick-to-nick distance was off by one, in opposite directions on the two strands.
+    # See `tests/design/test_the_prime_rtt_writes_what_it_says.py`, which requires one
+    # protospacer to give one answer.
+    assert {c.pegrna.nicking_guide.nick_offset for c in pe3} == {3}  # type: ignore[union-attr]
     assert all("close-nick" in c.flags for c in pe3)
 
     # ...so drive the other side of the boundary explicitly, or "close-nick" is only
