@@ -19256,3 +19256,26 @@ rule must live twice, the test is that they agree — and "must" was doing real 
 (a click option and a pydantic field cannot share an implementation). Here nothing forced
 four copies; they were four because nobody had noticed they were the same sentence. When
 the copies *can* be collapsed, the agreement test is a consolation prize.
+
+## Round 567 — the strand nothing measured
+
+Two minus-strand geometries were one base wrong. The obvious question is what else has only
+ever been measured on the plus strand, and the HDR donor's re-cut logic is the answer: every
+donor and re-cut test in this repository uses `PAD + SPACER + "TGG" + PAD`.
+
+It is **correct**. An edit inside the guide's seed needs no blocking mutation (the repaired
+allele is no longer a substrate); a PAM-distal edit gets one; and the seed is measured from
+the PAM-proximal end, which on the minus strand is the *low* genomic bound — the exact
+measurement its neighbours got wrong.
+
+Pinned anyway, with one assertion the existing plus-strand tests do not make: the blocking
+mutation **destroys the PAM as read on the guide's own strand**. The tests record that a
+mutation was proposed; this applies it and asks the PAM matcher. `recut_blocked` is the
+field a reader trusts before ordering a donor, and a mutation that leaves an `NGG` standing
+would be worse than none — it would be a false negative on the one hazard the donor exists
+to avoid.
+
+**Lesson: after finding a defect, the question is not "what else is broken" but "what else
+was checked the same way".** The two bugs did not share a module, an author's mistake, or a
+line of code. They shared a *test fixture shape* — one strand — and that shape is a
+searchable property of the suite, which "what else might be wrong" is not.
