@@ -187,10 +187,29 @@ class Liftover:
 
     @classmethod
     def from_chain_file(cls, path: str | Path, *, source_build: str, target_build: str) -> Liftover:
-        """Build a liftover from a local UCSC chain file (never downloaded)."""
+        """Build a liftover from a local UCSC chain file (never downloaded).
+
+        Raises:
+            ValueError: If the file yields no chains. `pyliftover` parses any text and
+                keeps whatever chain records it finds, so a file that is not a chain file
+                — the gnomAD TSV one flag over, an HTML error page a download saved, a
+                truncated `.gz` — builds a liftover with **zero** chains that maps
+                nothing. Every locus then comes back `UNMAPPED`, which is a lift tool
+                telling a user their locus does not exist in the target assembly. That is
+                a wrong answer, not a missing one, and it is the answer a reader is least
+                equipped to doubt.
+        """
         from pyliftover import LiftOver
 
         lo = LiftOver(str(path))
+        if not getattr(lo.chain_file, "chains", None):
+            raise ValueError(
+                f"{path} yielded no liftover chains, so every locus would come back "
+                "unmapped — that would report your loci as absent from "
+                f"{target_build} when in fact the chain file was never read. A UCSC "
+                "chain file for this direction is named like "
+                f"`{source_build}To{target_build.capitalize()}.over.chain.gz`"
+            )
         return cls(lo.convert_coordinate, source_build=source_build, target_build=target_build)
 
     def convert_position(self, chrom: str, pos: int) -> tuple[str, int, Strand] | None:

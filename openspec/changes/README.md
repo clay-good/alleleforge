@@ -18546,3 +18546,30 @@ flags and hard-coded the commands. 542 derived the writes and hard-coded nothing
 right. The rule is not "derive things" — it is that whatever list you *wrote by hand* while
 fixing the instance is the list that will be wrong next round, and it is always one level
 up from the list you were careful about.
+
+## Round 544 — the sweep's own hand-written list
+
+543's lesson applied to 543's neighbour. The path-flag sweep from 526-528 derives the
+*flags* of each command from the app and lists the **commands** by hand — six of them, while
+eight take path options. The two missing were `verify` and `lift`, and `lift` had this:
+
+    $ aforge lift chr2:0-20(+) --from hg38 --to hg19 --chain frequencies.tsv
+    chr2:0-20(+)  UNMAPPED
+    error: 1 of 1 loci did not lift from hg38 to hg19; they are dropped, not approximated
+
+`pyliftover` parses any text and keeps whatever chain records it finds, so a file that is
+not a chain file builds a liftover with **zero chains** that maps nothing. Every sentence
+in that output is also true of a locus with no genuine hg19 equivalent — which is a real and
+common thing, and therefore what a reader concludes. A wrong answer, not a missing one, from
+the one command whose whole job is to say where a locus lives in another assembly.
+
+Refused at `from_chain_file`, so the library and the CLI get it together, with the message
+naming what the silence would have meant and what the right file is called
+(`hg38ToHg19.over.chain.gz`). `aforge verify` also learned to name the file it rejected —
+one path in, and the message left it out.
+
+**Lesson: the guard that finds a class of bug is written by someone who has just seen one
+instance, and inherits that person's field of view.** Three rounds have now found the same
+shape: a derivation one level too low, made by the round that was proudest of deriving
+anything. The check on a new guard is not "is this derived" but "what did I type by hand
+while writing it" — and then to derive *that*.

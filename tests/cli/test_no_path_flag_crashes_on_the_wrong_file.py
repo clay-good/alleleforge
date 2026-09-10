@@ -44,7 +44,43 @@ _INVOCATIONS: dict[str, list[str]] = {
     # split before it touches `--out`. They take no genome.
     "bench run": ["cas9-efficiency"],
     "bench leaderboard": ["RESULTS"],
+    "lift": ["chr2:0-20(+)", "--from", "hg38", "--to", "hg19"],
+    "verify": ["DESIGN_JSON"],
 }
+
+
+def _path_option_commands() -> list[str]:
+    """Every command with a path option, from the app.
+
+    Derived, because the *command* list is the one that went stale: this sweep covered
+    six commands while `lift` and `verify` also take paths, and `aforge lift --chain`
+    given a file that is not a chain file reported every locus `UNMAPPED` — a wrong
+    answer, not a missing one.
+    """
+    found: list[str] = []
+
+    def walk(command: Any, path: list[str]) -> None:
+        subcommands = getattr(command, "commands", None)
+        if subcommands:
+            for name, sub in subcommands.items():
+                walk(sub, [*path, name])
+            return
+        if any(isinstance(p.type, TyperPath) and p.opts[0].startswith("-") for p in command.params):
+            found.append(" ".join(path))
+
+    root = typer.main.get_command(app)
+    for name, command in root.commands.items():  # type: ignore[attr-defined]
+        walk(command, [name])
+    return sorted(found)
+
+
+def test_every_such_command_is_reachable_here() -> None:
+    missing = [c for c in _path_option_commands() if c not in _INVOCATIONS]
+    assert not missing, (
+        f"these commands take a path option and are not exercised: {missing}. "
+        "Add an invocation, so a wrong file is checked there too."
+    )
+
 
 #: The three shapes a path argument can be wrong. A wrong-kind *file* is the
 #: transposition rounds 524-526 chased; a **directory** and a path under a directory that
@@ -66,6 +102,32 @@ def _cases() -> list[tuple[str, str, str]]:
     return [
         (cmd, flag, shape) for cmd in _INVOCATIONS for flag in _path_flags(cmd) for shape in _SHAPES
     ]
+
+
+@pytest.fixture(scope="module")
+def design_json(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A real design report, so `verify` fails on the flag under test and not on its
+    positional argument."""
+    directory = tmp_path_factory.mktemp("verify")
+    genome = directory / "g.fa"
+    genome.write_text(">chr2\n" + "AT" * 70 + "\n")
+    out = directory / "report.json"
+    CliRunner().invoke(
+        app,
+        [
+            "design",
+            "chr2:71:A>C",
+            "--reference-fasta",
+            str(genome),
+            "--no-offtarget",
+            "--format",
+            "json",
+            "--out",
+            str(out),
+        ],
+    )
+    assert out.is_file()
+    return out
 
 
 @pytest.fixture(scope="module")
@@ -110,6 +172,7 @@ def test_a_wrong_file_is_refused_not_crashed_on(
     genome: Path,
     wrong_file: Path,
     bench_result: Path,
+    design_json: Path,
     tmp_path: Path,
 ) -> None:
     cohort = tmp_path / "cohort.txt"
@@ -122,7 +185,12 @@ def test_a_wrong_file_is_refused_not_crashed_on(
     else:
         probe = wrong_file
 
-    substitutions = {"COHORT": str(cohort), "GENOME": str(genome), "RESULTS": str(bench_result)}
+    substitutions = {
+        "COHORT": str(cohort),
+        "GENOME": str(genome),
+        "RESULTS": str(bench_result),
+        "DESIGN_JSON": str(design_json),
+    }
     args = [*command.split()]
     args += [substitutions.get(a, a) for a in _INVOCATIONS[command]]
     if flag in args:

@@ -2953,9 +2953,12 @@ def verify(
                     f"Verify that instead:\n  aforge verify {sidecar}"
                 )
                 raise typer.Exit(ExitCode.USAGE) from exc
+            # Name the file. `aforge verify` takes one path and the message left it
+            # out, which is fine reading one line in a terminal and useless in a CI log
+            # that verifies forty artifacts in a loop.
             _echo_err(
-                "error: not a design report, a ranked menu, or a provenance sidecar. "
-                + " / ".join(errors)
+                f"error: {result} is not a design report, a ranked menu, or a "
+                "provenance sidecar. " + " / ".join(errors)
             )
             raise typer.Exit(ExitCode.USAGE) from exc
     if prov is None:
