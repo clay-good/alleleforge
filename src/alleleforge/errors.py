@@ -22,6 +22,7 @@ changes is that they now refer to one class each, and ``isinstance`` says so.
 from __future__ import annotations
 
 __all__ = [
+    "AnnotationServiceError",
     "ChecksumError",
     "ConsentError",
     "MissingDependencyError",
@@ -47,6 +48,18 @@ class MissingDependencyError(RuntimeError):
     second that way — it was catching bare `RuntimeError` for both, which reported a
     genuine defect in a vertical with the same word ("skipped") as a chemistry that
     simply did not apply.
+    """
+
+
+class AnnotationServiceError(RuntimeError):
+    """Raised when a request-time annotation service cannot be reached or answers badly.
+
+    `--vep` is the one flag that makes a network call while a design runs, and it had no
+    handler at all: a 400, a 429 from Ensembl's rate limiter, a 503, a timeout, or simply
+    being offline surfaced as a raw `requests` traceback with the query URL in it. A
+    *named* type so the CLI and the web can say which flag asked for the annotation and
+    that the design did not happen, rather than reporting a `requests` internal as if the
+    tool had a bug.
     """
 
 

@@ -53,6 +53,7 @@ from alleleforge.enumerate.base_editor import BASE_EDITORS
 from alleleforge.enumerate.base_editor import rejection_summary as base_rejection_summary
 from alleleforge.enumerate.prime import rejection_summary
 from alleleforge.errors import (
+    AnnotationServiceError,
     ChecksumError,
     ConsentError,
     MissingDependencyError,
@@ -606,6 +607,10 @@ def design(
 #: gates that exist to catch them. They have their own category below (`INTEGRITY_NOTE`),
 #: because the *other* bucket was wrong for them too: they were being announced as a
 #: defect in this tool.
+#: `AnnotationServiceError` is here for the cohort: `--vep` annotates each item over the
+#: network, and a rate limit two hundred items into a five-hundred-variant run is exactly
+#: what per-item isolation is for. It is not a defect in this tool, so the other bucket
+#: would mislabel it.
 _EXPECTED_DESIGN_FAILURES: tuple[type[Exception], ...] = (
     ValueError,
     KeyError,
@@ -613,6 +618,7 @@ _EXPECTED_DESIGN_FAILURES: tuple[type[Exception], ...] = (
     FileNotFoundError,
     ImportError,
     OSError,
+    AnnotationServiceError,
     ConsentError,
     ChecksumError,
     LicenseError,

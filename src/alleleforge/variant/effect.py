@@ -21,7 +21,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict
 
-from alleleforge.errors import ConsentError, MissingDependencyError
+from alleleforge.errors import AnnotationServiceError, ConsentError, MissingDependencyError
 from alleleforge.types.variant import Variant
 
 
@@ -375,7 +375,24 @@ class VepRestPredictor:
             raise MissingDependencyError(
                 "VepRestPredictor requires the optional 'requests' package"
             ) from exc
-        response = requests.get(url, headers={"Accept": "application/json"}, timeout=30)
-        response.raise_for_status()
-        data: list[dict[str, Any]] = response.json()
+        try:
+            response = requests.get(url, headers={"Accept": "application/json"}, timeout=30)
+            response.raise_for_status()
+            data: list[dict[str, Any]] = response.json()
+        except requests.RequestException as exc:
+            # Every failure here is somebody else's server on somebody else's network:
+            # a 429 from Ensembl's rate limiter, a 503, a timeout, a laptop offline, a
+            # locus the assembly does not have. None of them is a defect in this tool,
+            # and all of them arrived as a `requests` traceback carrying the query URL.
+            raise AnnotationServiceError(
+                f"the variant-consequence service at {self._server} could not be "
+                f"reached or refused the query ({exc.__class__.__name__}: {exc}). The "
+                "annotation is an optional enrichment: re-run without it, or try again "
+                "— a public REST service rate-limits and goes down."
+            ) from exc
+        except ValueError as exc:  # a 200 whose body is not JSON
+            raise AnnotationServiceError(
+                f"the variant-consequence service at {self._server} answered with "
+                f"something that is not JSON ({exc})."
+            ) from exc
         return data

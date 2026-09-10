@@ -18092,3 +18092,37 @@ what happens to a *wrong* value. A value that is not wrong, merely absent-shaped
 through all of them into the default — and the run then reports the default as if it had
 been chosen. The question is not "is this value valid" but "did typing this flag change
 anything".
+
+## Round 530 — the flag that reaches the internet
+
+529's lesson asks whether typing a flag changed anything. Asked mechanically of every
+boolean flag on `design` — run with, run without, diff the JSON — seven answered "no
+change" and one answered with a traceback:
+
+    $ aforge design chr2:71:A>C --reference-fasta g.fa --vep
+    [exit 1]
+    requests.exceptions.HTTPError: 400 Client Error: Bad Request for url:
+    https://rest.ensembl.org/vep/grch38/region/chr2:71-71/C?content-type=application/json
+
+`--vep` is the only flag in the tool that makes a network call while a design runs, and it
+had no handler at all. A 429 from Ensembl's rate limiter, a 503, a timeout, an offline
+laptop, a locus the assembly does not have — every one of them is somebody else's server on
+somebody else's network, and every one of them came out as `requests` internals with the
+query URL in them.
+
+`AnnotationServiceError` names the case. The CLI exits UNAVAILABLE with the flag named and
+the remedy stated; `_EXPECTED_DESIGN_FAILURES` gains it so a cohort records it **per item**
+rather than in the bucket reserved for defects in this tool — a rate limit two hundred
+variants into five hundred is exactly the case per-item isolation was built for.
+
+The seven "no change" answers were all correct, which is worth recording because the probe
+could not tell: `--hgvs` on a coordinate input, `--cache` and `--genome-index` (whose output
+is byte-identical *by design*, and `scripts/reproduce.py` requires it), and the four
+`--trained-*` flags on a genome whose only candidates are of another chemistry. A no-effect
+probe is a lead generator, not a verdict.
+
+**Lesson: one flag's blast radius is the whole request path, and the network is the part no
+test exercises.** Every other input this tool takes is a file or a string it owns. `--vep`
+hands a locus to a public REST service mid-run, and nothing in the suite could fail when
+that service does, because nothing in the suite calls it — `_default_fetch` is marked
+`pragma: no cover - network`. The uncovered line was the one with no error handling in it.

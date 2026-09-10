@@ -48,7 +48,7 @@ from alleleforge.design.cohort_summary import cohort_rows as _batch_rows
 from alleleforge.design.cohort_summary import cohort_to_parquet as _batch_parquet
 from alleleforge.design.cohort_summary import cohort_to_tsv as _batch_tsv
 from alleleforge.design.designer import DEFECT_NOTE, INTEGRITY_NOTE
-from alleleforge.errors import MissingDependencyError, reason
+from alleleforge.errors import AnnotationServiceError, MissingDependencyError, reason
 from alleleforge.types.offtarget import AGGREGATE_PRECISION, ANCESTRY_BURDEN_PRECISION
 from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import GenomicInterval
@@ -449,6 +449,13 @@ def resolve(
             dbsnp=_load_dbsnp(dbsnp),
             hgvs=_hgvs_adapter(hgvs, state.reference_build),
         )
+    except AnnotationServiceError as exc:
+        # `--vep` is the one flag that makes a network call while a design runs, and it
+        # had no handler: a 429 from Ensembl's rate limiter arrived as a `requests`
+        # traceback with the query URL in it. UNAVAILABLE, not a defect and not bad
+        # input — somebody else's server, on somebody else's network.
+        _echo_err(f"error: --vep: {reason(exc)}")
+        raise typer.Exit(ExitCode.UNAVAILABLE) from exc
     except MissingDependencyError as exc:
         _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.UNAVAILABLE) from exc
@@ -1566,6 +1573,13 @@ def design(
     # the caller misusing the command: `--hgvs` reaches a projector that needs the
     # `hgvs` package, exactly as `batch` and `resolve` already report. Without this the
     # one command most likely to be given a `c.` input exited 1 with a bare traceback.
+    except AnnotationServiceError as exc:
+        # `--vep` is the one flag that makes a network call while a design runs, and it
+        # had no handler: a 429 from Ensembl's rate limiter arrived as a `requests`
+        # traceback with the query URL in it. UNAVAILABLE, not a defect and not bad
+        # input — somebody else's server, on somebody else's network.
+        _echo_err(f"error: --vep: {reason(exc)}")
+        raise typer.Exit(ExitCode.UNAVAILABLE) from exc
     except MissingDependencyError as exc:
         _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.UNAVAILABLE) from exc
