@@ -17856,3 +17856,35 @@ commercial use" has no subject; the true sentence has two — the operator decla
 gate refuses — and the missing one is the one holding the obligation. Round 487 gave the
 declaration a mechanism, and it took a separate pass to notice that three documents were
 still describing the world where it did not need one.
+
+## Round 523 — the specificity of a four-base query
+
+Typing the mistakes a new user makes, through the CLI. Most answers are good: a missing
+`--reference-fasta` names the flag, a bad PAM names the characters, an unknown intent lists
+the four. One is not:
+
+    $ aforge offtarget ACGT --reference-fasta hg38-ish.fa
+    spacer ACGT / PAM NGG: 151093 site(s), worst score 1.000, specificity 0.000
+
+Every number in an off-target report is about a **guide**. A four-base query is not one —
+it occurs everywhere, so it "has" a hundred and fifty thousand off-targets and a
+specificity of zero, both of which are true about a 4-mer and say nothing about a reagent.
+A typo, a truncated paste or a half-copied spacer produces the most alarming report this
+tool can emit, with nothing on the page saying the input was not a guide.
+
+The report's search description says it now — the same sentence that already handles an
+empty search, an ambiguous spacer position and a sub-threshold tail — so it reaches the
+CLI, the API and every render at once. The range is published guide lengths: 20 nt for
+every chemistry here, 17-18 for the truncated SpCas9 guides of Fu et al. 2014, 20-24 for
+Cas12a.
+
+**Labelled, not refused**, which is the harder call. Screening a seed sequence is a
+legitimate thing to ask for, and a tool that refuses it takes a decision away from a user
+who may know exactly what they are doing. What is not legitimate is a specificity
+presented as if it described a reagent.
+
+**Lesson: type the mistakes, not only the examples.** Round 496 typed the placeholder and
+found a form the tool advertised and could not read. This one typed a plausible slip — the
+first four bases of a spacer — and found the tool answering confidently about a question
+nobody asked. Both are one command each, and neither is reachable by reading the code:
+what a wrong input produces is not written down anywhere in it.

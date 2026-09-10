@@ -16,6 +16,15 @@ from alleleforge.types.sequence import IUPAC_EXPAND, DNASequence, GenomicInterva
 
 #: Default SpCas9 spacer length (nt).
 DEFAULT_SPACER_LENGTH = 20
+
+#: The spacer lengths a *guide* has, as published: 20 nt for every chemistry this tool
+#: designs, 17-18 for the truncated SpCas9 guides of Fu et al. 2014, and 20-24 for Cas12a.
+#: Outside it, a query is a sequence, not a guide — and the numbers an off-target report
+#: computes over it are arithmetic rather than biology: a 4 nt query over a 2 Mb contig
+#: nominates 151,093 sites at specificity 0.000, which is a true statement about a
+#: 4-mer and no statement at all about a reagent. Used to *label*, never to refuse: a
+#: seed-length query is a legitimate thing to screen, and the report says what it is.
+GUIDE_SPACER_RANGE = (17, 24)
 #: Prime-editing primer-binding-site search range (nt), inclusive.
 PBS_RANGE = (8, 17)
 #: Prime-editing reverse-transcriptase-template search range (nt), inclusive.

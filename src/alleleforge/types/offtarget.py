@@ -14,6 +14,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from alleleforge.types.guide import GUIDE_SPACER_RANGE
 from alleleforge.types.sequence import GenomicInterval
 
 
@@ -267,6 +268,14 @@ class OffTargetReport(BaseModel):
                     "were searchable (the rest are assembly gaps, ambiguity codes, or "
                     "past a contig end)"
                 )
+        low, high = GUIDE_SPACER_RANGE
+        if self.spacer and not low <= len(self.spacer) <= high:
+            coverage += (
+                f"; the query is {len(self.spacer)} nt, outside the {low}-{high} nt range "
+                "a guide has, so this is a sequence search and not a guide's off-target "
+                "profile — a short query matches almost everywhere and its specificity is "
+                "arithmetic, not biology"
+            )
         if self.ambiguous_spacer_positions:
             listed = ", ".join(str(p) for p in self.ambiguous_spacer_positions)
             coverage += (
