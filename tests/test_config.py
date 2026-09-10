@@ -176,3 +176,27 @@ def test_allow_network_reaches_a_real_registry(tmp_path: Path) -> None:
         assert not isinstance(exc.value, ConsentError)
     finally:
         config._SETTINGS = original
+
+
+def test_cache_dir_redirects_a_process_that_already_read_a_setting(tmp_path: Path) -> None:
+    """`aforge --cache-dir` must redirect the run, not only a freshly started one.
+
+    The flag exports `ALLELEFORGE_CACHE_DIR` and its comment says that is "safe because
+    the singleton loads lazily, after this". True of a fresh `aforge` process and false
+    in a notebook, an embedded caller or a test suite: those already hold a singleton, so
+    the flag redirected nothing and the run read and wrote the *default* cache while the
+    user believed otherwise. Found because a test asserting a cold genome index passed
+    alone and failed in the suite — it was mapping an index from the developer's own
+    cache.
+    """
+    from typer.testing import CliRunner
+
+    from alleleforge import config as config_module
+    from alleleforge.cli.main import app
+
+    config_module.get_settings()  # the process now holds one, as a long-lived caller does
+    result = CliRunner().invoke(app, ["--cache-dir", str(tmp_path), "cache", "verify"])
+    assert result.exit_code == 0, result.output + result.stderr
+    assert str(tmp_path) in result.stdout, result.stdout
+    assert config_module.get_settings().cache_dir == tmp_path
+    config_module.reset_settings()

@@ -17161,3 +17161,49 @@ the run.** Three rounds now on the same shape — a cache, a crate, and before t
 resume that could not be checked — and each was invisible for the same reason: everything
 observable was, correctly, unchanged. Whenever a feature's contract is that you cannot
 tell it is there, someone has to be told anyway, on a channel the contract does not cover.
+
+## Round 501 — the index that took minutes or milliseconds, identically
+
+The third of the same shape, and the one with the biggest gap between the two cases.
+`--genome-index` builds a persistent FM-index per contig-strand: on a real genome that is
+minutes of work and several gigabytes written, and every later run memory-maps it in
+milliseconds. Both runs print the same three lines, because the index changes no result —
+which is the property that makes it safe and the reason nothing could say which had
+happened.
+
+`GenomeIndex.usage()` counts contig-strands mapped against contig-strands built, from a
+flag `FMIndex.build` sets on the instance it returns: it already knew, in the one line
+that decides whether to construct or load, and threw the answer away. The shells print it
+beside the cache's account, under `--verbose`, out of the artifact.
+
+    genome index: 0 contig-strand(s) mapped from cache, 4 built just now (over 2 contigs)
+    genome index: 4 contig-strand(s) mapped from cache, 0 built just now (over 2 contigs)
+
+**Lesson: the code that made the decision is the only place that can report it.** Each of
+these three rounds ended at the same line — a cache read that returned `None`, an
+`if meta.json.exists()`, an import that failed — and in each the fact was known for an
+instant and discarded, so every later attempt to recover it (timing the run, listing the
+cache directory, importing the extension a second time) is a reconstruction. Report from
+the branch, not from the outside.
+
+### Round 501, continued — and the flag that only worked in a fresh process
+
+The new test passed alone and failed in the suite. Not a flaky fixture: `aforge
+--cache-dir` redirects every consumer by exporting `ALLELEFORGE_CACHE_DIR`, and every
+consumer reads it through `get_settings()`, which is a **cached singleton**. The comment
+beside the export says the arrangement is "safe because the singleton loads lazily, after
+this" — true of a freshly started `aforge`, false in a notebook, an embedded caller, or a
+test suite that has already read one setting. There the singleton is loaded, the flag
+changes nothing, and the run reads and writes the default cache while the user believes
+they redirected it.
+
+So the cold-index test had been mapping an index out of the developer's own
+`~/.cache/alleleforge`, which is also what a user gets when they think they are running
+against a scratch directory. The flag now drops the loaded singleton, and the CLI says so
+where it exports the variable.
+
+**Lesson: a test that passes alone and fails in the suite is telling you about the
+product.** The reflex is to isolate the test — a fixture, a monkeypatch, a tmp path — and
+that reflex would have hidden this: the suite is simply a process that has done something
+before your code runs, which is what every long-lived caller is. Round 486 hit the same
+singleton and worked around it in the fixture; this time the workaround was the finding.

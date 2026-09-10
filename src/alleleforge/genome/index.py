@@ -187,6 +187,9 @@ class FMIndex:
         self.content_hash = content_hash
         self._bwt = bwt
         self._mm = mm
+        #: Whether *this* instance had to construct its tables, or mapped ones already on
+        #: disk. Set by :meth:`build`; `load` leaves it False, which is what it did.
+        self.built_now = False
 
     # -- construction -------------------------------------------------------
 
@@ -265,9 +268,15 @@ class FMIndex:
             )
         content_hash = hashlib.sha256(s.encode()).hexdigest()
         cache = cls._cache_path(content_hash, cache_dir)
-        if rebuild or not (cache / "meta.json").exists():
+        constructing = rebuild or not (cache / "meta.json").exists()
+        if constructing:
             cls._build_to_disk(s, cache, occ_rate, sa_rate, content_hash)
-        return cls.load(cache, in_memory=in_memory)
+        index = cls.load(cache, in_memory=in_memory)
+        # Which of the two happened is the whole difference between a run that takes
+        # minutes and one that takes milliseconds, and the results are identical either
+        # way — so nothing downstream could tell, and neither could the user.
+        index.built_now = constructing
+        return index
 
     @staticmethod
     def _cache_path(content_hash: str, cache_dir: str | Path | None) -> Path:
@@ -663,6 +672,23 @@ class GenomeIndex:
     def contigs(self) -> tuple[str, ...]:
         """Return the indexed contig names."""
         return tuple(self._plus)
+
+    def usage(self) -> str:
+        """Return one line saying how much of this index was constructed just now.
+
+        An index is built once and mapped forever after, and a mapped one is
+        indistinguishable from a freshly built one in every result it produces — which
+        is the point, and the reason a user could not tell a cold `--genome-index` run
+        (minutes, several gigabytes written per contig-strand on a real genome) from a
+        warm one (milliseconds). Worded here so the shells cannot describe it three ways.
+        """
+        parts = [*self._plus.values(), *self._minus.values()]
+        built = sum(1 for fm in parts if getattr(fm, "built_now", False))
+        mapped = len(parts) - built
+        return (
+            f"genome index: {mapped} contig-strand(s) mapped from cache, {built} built "
+            f"just now (over {len(self._plus)} contig(s))"
+        )
 
     def plus(self, contig: str) -> FMIndex:
         """Return the plus-strand index for ``contig``."""

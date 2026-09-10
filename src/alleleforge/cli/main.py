@@ -320,7 +320,14 @@ def main(
     # resolves (env > file > default) redirects every consumer at once, so the flag
     # stops being silently ignored. Safe because the singleton loads lazily, after this.
     if cache_dir is not None:
+        from alleleforge.config import reset_settings
+
         os.environ["ALLELEFORGE_CACHE_DIR"] = str(cache_dir)
+        # ...and drop any singleton already loaded. "Loads lazily, after this" is true of
+        # a fresh `aforge` process and false everywhere else — a notebook, an embedded
+        # caller, or a test suite that has read a setting already holds one, and the flag
+        # would silently redirect nothing while the run used the default cache.
+        reset_settings()
 
 
 def _load_settings(config: Path | None, seed: int | None) -> Any:
@@ -754,18 +761,23 @@ _GENOME_INDEX_HELP = (
 )
 
 
-def _echo_cache_usage(store: Any | None) -> None:
+def _echo_reuse_usage(store: Any | None, index: Any | None = None) -> None:
     """Say how the off-target cache was used, when one was asked for.
 
-    `--cache` promises reuse and its output is identical whether or not any reuse
-    happened, so a key that stopped matching — a genome re-copied to a new path, a knob
-    the signature covers — looks exactly like a warm cache. Under `--verbose` only, and
-    never in the artifact: a cached run and a computed run must stay byte-identical
-    documents, which is the property `scripts/reproduce.py` checks.
+    `--cache` and `--genome-index` promise reuse and their output is identical whether or
+    not any reuse happened, so a key that stopped matching — a genome re-copied to a new
+    path, a knob the signature covers, an index cache cleared — looks exactly like a warm
+    one. The index is the larger stake: a cold build is minutes and several gigabytes per
+    contig-strand on a real genome, and a warm map is milliseconds.
+
+    Under `--verbose` only, and never in the artifact: a reused run and a recomputed run
+    must stay byte-identical documents, which is the property `scripts/reproduce.py`
+    checks.
     """
-    usage = store.usage() if store is not None else None
-    if usage:
-        _echo_err(usage)
+    for source in (store, index):
+        usage = source.usage() if source is not None else None
+        if usage:
+            _echo_err(usage)
 
 
 def _reuse(reference: Any, *, cache: bool, index: bool) -> tuple[Any | None, Any | None]:
@@ -1534,7 +1546,7 @@ def design(
             f"{len(menu.candidates)} candidate(s); best: "
             f"{menu.best.chemistry.value if menu.best else 'none'}"
         )
-        _echo_cache_usage(store)
+        _echo_reuse_usage(store, index)
 
     # `--json` prints the ranked menu, which is a *different document* from the report:
     # the report truncates each candidate's outcome to the top alleles and says so, and
@@ -2058,7 +2070,7 @@ def batch(
         _echo_err(f"warning: {report.provenance[RESUME_UNVERIFIED]}")
     if state.verbose:
         _echo_err(f"designed {report.succeeded}/{report.total} (skipped {report.skipped})")
-        _echo_cache_usage(store)
+        _echo_reuse_usage(store, index)
 
     if as_json:
         from alleleforge.report.builder import COORDINATE_NOTE, RESEARCH_USE_DISCLAIMER
@@ -2539,7 +2551,7 @@ def offtarget(
         )
     _emit(payload, as_json=as_json, human="\n".join(human_lines))
     if state.verbose:
-        _echo_cache_usage(store)
+        _echo_reuse_usage(store, index)
     # A search that examined nothing exits non-zero, after saying so. The human line
     # already reads "NO SEQUENCE WAS SEARCHED -- this is not a clean result, it is an
     # empty one", and the exit code said 0, so a pipeline branching on `$?` saw a

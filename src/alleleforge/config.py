@@ -215,6 +215,21 @@ def get_settings() -> Settings:
     return _SETTINGS
 
 
+def reset_settings() -> None:
+    """Forget the loaded singleton, so the next reader re-resolves the environment.
+
+    `aforge --cache-dir` redirects every consumer by exporting `ALLELEFORGE_CACHE_DIR`,
+    and its comment says that is "safe because the singleton loads lazily, after this".
+    That holds in a fresh process and nowhere else: in a notebook, an embedded caller, or
+    a test suite that has already read a setting, the singleton is *already* loaded and
+    the flag silently changes nothing — the run reads and writes the default cache
+    instead of the directory the user named. A flag that works only in the process shape
+    it was written in is worse than one that does not exist, because it is believed.
+    """
+    global _SETTINGS
+    _SETTINGS = None
+
+
 #: How to authorize an artifact download, in the vocabulary of each surface that can
 #: reach the refusal. `consent=True` alone is a Python keyword argument, and the round
 #: that unified the three registries left the message speaking only to a Python caller —

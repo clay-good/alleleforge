@@ -1,4 +1,4 @@
-"""`--cache` promises reuse, and a cold cache printed the same run as a warm one.
+"""`--cache` and `--genome-index` promise reuse, and a cold run printed what a warm one did.
 
 The flag's whole purpose is not recomputing a scan. Its output is byte-identical either
 way — deliberately, because `scripts/reproduce.py` requires a cached run and a computed
@@ -77,6 +77,30 @@ def test_the_command_says_which_run_reused_and_which_computed(fasta: Path, tmp_p
     assert cold.stdout == warm.stdout
 
 
+def test_the_index_says_how_much_of_it_it_had_to_build(fasta: Path, tmp_path: Path) -> None:
+    """The larger stake: a cold build is minutes and gigabytes on a real genome."""
+    cache = tmp_path / "cache"
+    runner = CliRunner()
+    argv = [
+        "--cache-dir",
+        str(cache),
+        "--verbose",
+        "offtarget",
+        SPACER,
+        "--reference-fasta",
+        str(fasta),
+        "--genome-index",
+    ]
+    cold = runner.invoke(app, argv)
+    assert cold.exit_code == 0, cold.output + cold.stderr
+    assert "genome index: 0 contig-strand(s) mapped from cache, 2 built" in cold.stderr
+
+    warm = runner.invoke(app, argv)
+    assert warm.exit_code == 0, warm.output + warm.stderr
+    assert "genome index: 2 contig-strand(s) mapped from cache, 0 built" in warm.stderr
+    assert cold.stdout == warm.stdout
+
+
 def test_a_run_without_the_flag_says_nothing(fasta: Path, tmp_path: Path) -> None:
     result = CliRunner().invoke(
         app,
@@ -92,6 +116,7 @@ def test_a_run_without_the_flag_says_nothing(fasta: Path, tmp_path: Path) -> Non
     )
     assert result.exit_code == 0, result.output + result.stderr
     assert "off-target cache" not in result.stderr, result.stderr
+    assert "genome index" not in result.stderr, result.stderr
 
 
 def test_it_is_not_in_the_artifact(fasta: Path, tmp_path: Path) -> None:
