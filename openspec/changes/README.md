@@ -19390,3 +19390,35 @@ told no, by the command, with the task named — because a board aggregates many
 tamper-evidence property; it becomes one only where something *compares* the hash and
 refuses. The gap between those is exactly one call site, and it is the call site that can be
 missing.
+
+## Round 572 — a window two thirds closed
+
+While building a PE3 fixture two rounds ago I had to move a nicking guide inward to make it
+findable, and wrote that off as fixture geometry. It was the finding.
+
+    DEFAULT_PE3_OFFSET = (40, 90)      # the window the tool tells you to prefer
+    largest offset ever returned: 57   # measured, by walking a guide outward
+
+The enumeration frame is `edit ± margin`, and the margin was sized for what a **pegRNA**
+needs: protospacer, PAM, longest RTT, longest PBS, the allele. A nicking guide's protospacer
+has to fit inside the same frame to be seen at all, and 75 bases is not enough for one at 70.
+
+Not rejected — **never looked at**. There is no note, no tally, no "considered and
+declined": a guide at 70 nt is inside the documented optimal range, is a better PE3 partner
+than one at 41, and no run could offer it. The bias runs the wrong way as well, since the
+reachable half is the half nearer `close-nick`, the staggered double-strand break the
+chemistry is chosen to avoid.
+
+`margin = max(pegrna_reach, pe3_reach)` — a max, not a sum, so a `--no-pe3` run pays
+nothing. Measured cost: 6.9 ms → 7.3 ms for a 210-candidate design, same candidates, suite
+green unchanged.
+
+**The test has to be a sweep.** Any single distance inside 40-57 passed before the fix, so
+the check walks a guide outward and requires the *returned* offsets to cover the documented
+window — and a companion requires that past 90 is still refused, because widening a frame
+must not widen a policy.
+
+**Lesson: a constant that names a range is a promise, and the code that has to reach it is
+usually somewhere else.** `DEFAULT_PE3_OFFSET` is checked against every candidate it sees.
+Nothing checked that the candidates it sees can span it. The gap between "this filter
+accepts 40-90" and "this search can produce 40-90" is invisible from inside the filter.

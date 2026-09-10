@@ -394,13 +394,27 @@ def enumerate_prime(
         note(tally, "allele-too-long-to-template")
         return []
     ref_len = len(var.ref)
-    margin = (
+    # What the pegRNA search needs: a protospacer, its PAM, the longest RTT and PBS, and
+    # the allele itself — everything that can sit between the edit and the far end of a
+    # reagent that reaches it.
+    pegrna_reach = (
         spacer_length
         + len(pam.pattern)
         + RTT_RANGE[1]
         + max(pbs_lengths, default=PBS_RANGE[1])
         + max(ref_len, len(start_allele), len(desired_allele))
     )
+    # ...and what the PE3 search needs, which is more. A nicking guide sits up to
+    # `pe3_offset[1]` from the pegRNA's nick and its whole protospacer and PAM must be
+    # inside the frame to be found at all. With the pegRNA reach alone (75 bases here)
+    # the largest nick-to-nick offset the enumerator could *ever* return was 57, while
+    # `DEFAULT_PE3_OFFSET` documents the optimal range as 40-90: the top half of the
+    # window this project tells a user to prefer was unreachable, and silently so — a
+    # guide at 70 nt was not rejected, it was never looked at. The near half is also the
+    # half closer to `close-nick`, so the bias ran toward the staggered double-strand
+    # break prime editing is chosen to avoid.
+    pe3_reach = pe3_offset[1] + spacer_length + len(pam.pattern) if pe3 else 0
+    margin = max(pegrna_reach, pe3_reach)
     region = GenomicInterval(
         chrom=var.chrom,
         start=max(0, var.pos - margin),
