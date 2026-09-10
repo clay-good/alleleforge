@@ -1648,6 +1648,18 @@ def _is_vcf_path(path: Path) -> bool:
     return any(name.endswith(suffix) for suffix in _VCF_SUFFIXES)
 
 
+def _is_a_variant(text: str) -> bool:
+    """Whether ``text`` is an input form the resolver reads, without resolving it.
+
+    Deliberately parse-only — no database, no reference, no network. The question here
+    is which *argument* the string belongs to, and a coordinate on a contig this genome
+    does not have is still a variant in the wrong slot.
+    """
+    from alleleforge.variant.resolver import parses_as_variant
+
+    return parses_as_variant(text)
+
+
 def _read_variant_list(path: Path) -> list[str]:
     """Read a one-variant-per-line list, skipping blanks and ``#`` comments.
 
@@ -1957,7 +1969,20 @@ def batch(
             )
             raise typer.Exit(ExitCode.USAGE) from exc
     if not inputs.is_file():
-        _echo_err(f"error: input file not found: {inputs}")
+        # The mirror of the FASTA check in `_read_variant_list`: a variant typed where
+        # the cohort file goes is not a missing file, it is the other command. Saying
+        # "input file not found: chr2:71:A>C" is accurate and sends the reader to look
+        # for a file they never meant to make.
+        _echo_err(
+            f"error: input file not found: {inputs}"
+            + (
+                ". That is a variant, not a path — one variant is `aforge design "
+                f"'{inputs}'`; this argument takes a VCF or a file with one variant "
+                "per line."
+                if _is_a_variant(str(inputs))
+                else ""
+            )
+        )
         raise typer.Exit(ExitCode.MISSING_DATA)
     pops = _parse_populations(pops_str)
     _warn_if_ancestries_unbacked(pops, gnomad, haplotypes)

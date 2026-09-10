@@ -17919,3 +17919,40 @@ one of the two has a remedy.** Every refusal this project has sharpened — a mi
 bad PAM, an unknown intent — answers "what you gave me is wrong". This one had to answer
 "what you gave me is right, and it is in the wrong place", which is invisible to any check
 on the value itself and only reachable by asking what *else* the file could be.
+
+## Round 525 — the other direction of the same mistake
+
+524 refused a genome handed to `aforge batch` as the cohort, and its lesson was that an
+argument in the wrong slot is a different error from a bad argument. That transposition
+runs between four arguments, not two. Typing the rest of them:
+
+    $ aforge design cohort.txt --reference-fasta g.fa
+    error: unrecognized variant input: 'cohort.txt'
+
+    $ aforge batch 'chr2:71:A>C' --reference-fasta g.fa
+    error: input file not found: chr2:71:A>C
+
+Both accurate, both useless. The first sends the reader to check a variant syntax that was
+never the problem; the second sends them to look for a file they never meant to make.
+Neither names what actually happened, which is that the argument belongs to the other
+command. (The two remaining transpositions are already answered: a cohort in
+`--reference-fasta` gets pyfaidx's own "does not contain a valid sequence", and a FASTA in
+the spacer slot gets "check for a pasted FASTA header" — both added in earlier rounds.)
+
+`_a_file_in_a_variant_slot` in the resolver, so every shell gets it at once, and a
+`_is_a_variant` check on the CLI's missing-file branch for the reverse. The second needs
+`parses_as_variant`: shape only, no database — `rs334` is a variant in the wrong slot even
+on a machine with no dbSNP release, and "supply a release" is the wrong sentence there.
+
+**The file check never stats the path**, which is the part worth recording. The obvious
+implementation asks whether the file exists, and it would be better at the job. Resolving
+is reachable over HTTP with client-supplied text, so a refusal that reads differently for a
+path that exists is an oracle for the server's filesystem — the same objection the database
+remedies raise when they decline to take a client-supplied path at all. A test asserts the
+two answers are identical rather than trusting the comment.
+
+**Lesson: a transposition has as many directions as the command has arguments, and fixing
+one is a third of the finding.** 524 found one direction and stopped there. Four of these
+existed; two were already answered by rounds that were not thinking about transposition at
+all, which is why nothing connected them. The question that finds the rest is not "is this
+input valid" but "which argument was this meant for" — asked of every argument, both ways.

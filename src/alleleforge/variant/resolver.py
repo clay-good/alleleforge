@@ -317,7 +317,10 @@ def _from_string(
     _refuse_a_symbolic_vcf_line(text)
     m = _COORD_RE.match(text)
     if m is None:
-        raise ValueError(f"unrecognized variant input: {text!r}{_shell_ate_it(text)}")
+        raise ValueError(
+            f"unrecognized variant input: {text!r}"
+            f"{_shell_ate_it(text)}{_a_file_in_a_variant_slot(text)}"
+        )
     return (
         # Un-normalized on purpose: resolve() validates the full asserted ref span
         # against the reference before parsimony trims a shared prefix/suffix base
@@ -416,6 +419,68 @@ def _shell_ate_it(text: str) -> str:
         f". This is `chrom:pos:ref` with no `>alt` — the shape a shell leaves when the "
         f"variant is unquoted, because `>` redirects output (a file named after your ALT "
         f"allele was just created). Quote it: '{text}>ALT'"
+    )
+
+
+#: File suffixes this tool reads. A bare name with one of these is a file even without a
+#: directory separator, which is how a cohort in the working directory is usually typed.
+_DATA_SUFFIXES = (
+    ".txt",
+    ".tsv",
+    ".csv",
+    ".vcf",
+    ".vcf.gz",
+    ".bcf",
+    ".fa",
+    ".fasta",
+    ".fna",
+    ".fa.gz",
+    ".bed",
+    ".json",
+)
+
+
+def parses_as_variant(text: str) -> bool:
+    """Whether ``text`` has the shape of an input form :func:`resolve` reads.
+
+    Shape only: no database is consulted, no reference is opened, nothing is fetched. A
+    caller asking this is asking *which argument a string belongs to* — the answer for
+    `rs334` is yes even with no dbSNP release on the machine, because the remedy for a
+    missing release is a different sentence from the remedy for a misplaced argument.
+    """
+    text = text.strip()
+    return bool(
+        _RSID_RE.match(text)
+        or _CLINVAR_RE.match(text)
+        or _HGVS_RE.search(text)
+        or _VCF_LINE_RE.match(text)
+        or _COORD_RE.match(text)
+    )
+
+
+def _a_file_in_a_variant_slot(text: str) -> str:
+    """Return a sentence for text shaped like a path, where a variant was expected.
+
+    An argument in the wrong slot is a different error from a bad argument, and only one
+    of the two has a remedy. `aforge design cohort.txt` is not a malformed variant — it
+    is a correct file handed to the argument that takes one variant, and "unrecognized
+    variant input" sends the reader to check a syntax that was never the problem.
+
+    **Shape only; the disk is not touched.** Resolving is reachable over HTTP with
+    client-supplied text, and answering differently for a path that exists would make
+    this refusal an oracle for what is on the server's filesystem — the same reason the
+    database remedies above refuse a client-supplied path outright.
+    """
+    stripped = text.strip()
+    looks_like_one = "/" in stripped or stripped.lower().endswith(_DATA_SUFFIXES)
+    if not looks_like_one:
+        return ""
+    return (
+        ". This is shaped like a filename, and this argument takes one variant, not a "
+        "file. On the command line a cohort file is `aforge batch <file>` and a "
+        "patient's own calls are `--patient-vcf <file>`; from Python, read the file and "
+        "pass each record. Over HTTP a path names nothing the server should read: send "
+        "the variant itself (chrom:pos:ref>alt, 1-based as in a VCF)."
     )
 
 
