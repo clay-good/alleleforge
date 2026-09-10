@@ -408,3 +408,66 @@ Also in these rounds: `--no-resume` was refused into an existing manifest (it ap
 second record per item, under the first run's header, which a later resume would then read
 as authoritative), and the run-level notes a reader can act on were given a location on
 every surface rather than a mention in the sixth clause of a paragraph.
+
+## UPDATE 2026-09-10 (fourth) — rounds 568–576, and a third shipped correctness defect
+
+**Nothing in the TL;DR changed.** The scientific gap is where it was: the shipped default
+models are transparent heuristics, the trained ones are opt-in and data-blocked, and no
+number here has been validated against a wet-lab outcome.
+
+**One more geometry defect shipped and fixed, of the same family as the two above.**
+`DEFAULT_PE3_OFFSET = (40, 90)` is the nick-to-nick window this tool tells a user to
+prefer. The enumeration frame is `edit ± margin` with the margin sized for what a *pegRNA*
+needs, so a nicking guide's protospacer had to fit inside it, and the largest offset the
+enumerator could **ever** return was **57**. Guides at 58–90 were not rejected — they were
+never looked at, with no tally and no note — and the reachable half is the half nearer
+`close-nick`, the staggered double-strand break prime editing is chosen to avoid. Fixed by
+making the margin `max(pegrna_reach, pe3_reach)`: 6.9 ms → 7.3 ms on a 210-candidate
+design, same candidates.
+
+That is now three defects in the domain geometry found in one sitting, all invisible to a
+green suite, all found by measuring a quantity from outside the module that computes it.
+The transferable half of round 572 is that **a constant naming a range is a promise, and
+the code that has to reach it is usually somewhere else**: `DEFAULT_PE3_OFFSET` was checked
+against every candidate the search produced, and nothing checked that the search could
+produce the range.
+
+**Two disclosure defects, both of the "accepted, recorded, and not honoured" shape.**
+
+- `--dna-bulges 2` was accepted on every shell (the web schema advertised `le=4`), stored
+  in the report, and printed back as "2 DNA / 2 RNA bulges". Both alignment kernels try
+  exactly three alignments per PAM — ungapped, one DNA bulge, one RNA bulge — so budget 2
+  returns budget 1's hits and a genuine two-bulge site is found at **no** budget. A caller
+  screening a guide *for* two-bulge off-targets got a clean report that says nothing about
+  them. One bulge of each kind is the deliberate design; it is now the stated ceiling, and
+  a larger budget is refused before a genome is touched.
+- `aforge batch --config` accepted every key `aforge design` accepts and read five of them
+  nowhere. `vector_scheme = "aav"` — a scheme that does not exist — ran to exit 0 in
+  silence. The four trained-model opt-ins were the serious half: each is a consent gate,
+  and a cohort config asking for `deepprime` was designed by `pridict2-baseline` with
+  nothing recording what had been asked for. The existing guard passed throughout, because
+  it asked whether a key is read *somewhere in the module* rather than by the command
+  running.
+
+**Three properties that turned out correct and had never been measured.** Recorded because
+"we checked and it was right" is a result:
+
+- the efficiency model's asymmetric scoring window on the **minus** strand (the existing
+  minus-strand test used a symmetric flank, which cannot distinguish an order);
+- each ranking weight acting on the axis it is named after (`DEFAULT_WEIGHTS` gives
+  cleanliness and safety **0.30 each**, so exchanging the two is arithmetically invisible
+  under the defaults — 4,224 tests passed with them swapped);
+- a region restriction covering both strands, and the DNA/RNA bulge pairing.
+
+**Environment facts (this machine, 2026-09-10).** `ruff` clean; `mypy --strict` clean over
+108 source files; 4,299 tests collected, 33 skipped; `mkdocs build --strict` clean; the
+four example notebooks execute; `scripts/reproduce.py` matches its golden. The native
+`aforge_native` extension is built here, so the parity suites run rather than skip.
+
+**The summary sentence, once more.** The engineering around the models keeps getting more
+honest, and the models are still the gap. What these nine rounds add to the previous
+update's method is one line: **ask what the wrong version of a thing would return, and
+whether your assertion could tell the difference.** A length assertion cannot measure an
+order, a symmetric fixture cannot measure an asymmetric rule, and two defaults with the
+same number make the pair they belong to unmeasurable by every test that takes the
+defaults.

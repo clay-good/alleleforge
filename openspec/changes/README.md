@@ -19597,3 +19597,28 @@ quantities share a default, every test that takes the default cannot tell them a
 the tests that do vary one of them usually vary only that one. The place to look is not
 the code that pairs them — it is the table of defaults, for two entries with the same
 number.
+
+
+## Round 577 — the readiness assessment catches up with nine rounds
+
+`specs/readiness-assessment.md` exists because "context is not lost across sessions": it
+is the file a future reader consults for the honest state, and its last dated section
+stopped at round 567. Nine rounds later it was describing a tool that had since shipped a
+third geometry defect, two disclosure defects and three measured-and-correct properties.
+
+A stale honesty document is the one kind of staleness this project cannot shrug at — the
+guard that derives its "no CLI command supplies this" table from the code exists because
+that table warned people off capabilities the project already had.
+
+The new section records rounds 568–576: the PE3 window's reachability (the third
+one-base-class defect, and the first that was a *range* rather than a coordinate), the
+bulge budget and the batch config keys, and the three properties that were checked and
+found correct — including the two equal default weights that made an exchange of the
+cleanliness and safety axes invisible to 4,224 tests. Environment facts re-measured on
+this machine rather than copied forward: 108 source files, 4,299 tests collected, 33
+skipped, the native extension built so the parity suites run rather than skip.
+
+**Lesson: the document that says what is honest goes stale like any other.** Its previous
+update was itself written as a round, for the same reason. Nine rounds is about the point
+at which a reader consulting it would be misled — not by anything it says, but by what it
+stops before.
