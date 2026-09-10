@@ -19336,3 +19336,28 @@ a point estimate. That distinction was in the README all along and nowhere in th
 appeared twice in that table and meant "I have read the types and they look right". A type
 that requires an interval proves nothing about a function that never constructs one — and
 the walk that proves it is twenty lines.
+
+## Round 570 — "by construction"
+
+569's lesson: *structural* is a kind of confidence, not a kind of evidence. Sweeping for its
+synonyms found fourteen, thirteen of them explaining why something holds in a comment, which
+is what comments are for. The fourteenth is a claim about *behaviour*, written in the type
+that omits the field it is about:
+
+    class Region:
+        """A restriction covers both strands by construction, so requiring one
+        would be [misleading]."""
+
+Nothing measured it. And the failure it rules out is the expensive kind: a strand-aware
+filter would drop a minus-strand off-target from a region the user scoped to — a missing
+danger that reads as a clean region, in the feature whose whole purpose is to make a
+whole-genome scan practical.
+
+It is true. Two sites are planted, one per strand, and each region keeps the one inside it
+regardless of strand; adding `locus.strand is region.strand` to the filter fails three
+cases. The docstring now cites the test instead of the confidence.
+
+**Lesson: a claim about behaviour, written in a type, is the easiest kind to leave
+unchecked.** It reads like a description of the code around it — and it is a description of
+code somewhere else. Fourteen "by construction"s, thirteen of them local and fine; the one
+that pointed across a module boundary is the one that needed a test.

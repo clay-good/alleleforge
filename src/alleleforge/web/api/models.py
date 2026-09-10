@@ -557,7 +557,11 @@ class BatchResponse(BaseModel):
 class Region(BaseModel):
     """A search-restriction interval: a locus without a strand.
 
-    A restriction covers both strands by construction, so requiring one would be
+    A restriction covers both strands — measured, not assumed: see
+    `tests/offtarget/test_a_region_covers_both_strands.py`, which plants an off-target on
+    each strand and requires a region to keep whichever one is inside it. A strand-aware
+    filter would drop a minus-strand off-target from a region a user scoped to, which is a
+    missing danger that reads as a clean region. So requiring a strand here would be
     noise — but a client's most natural source for an interval is a `locus` copied
     out of a previous response, which *does* carry `strand` and
     `coordinate_system`. This accepts either: the extra keys are ignored and the
