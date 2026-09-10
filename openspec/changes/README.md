@@ -19464,3 +19464,51 @@ sentence structure, written two rounds of this file apart from a budget the *ali
 cannot search. What made one visible and the other not is that the scorer raised and the
 aligner quietly returned fewer hits. A parameter whose over-large value produces no error
 and no missing output produces the one artifact nobody checks: a smaller answer.
+
+
+## Round 574 — a whitelisted config key that the running command does not read
+
+Round 573's lesson, one level up: `--config` accepts a knob, records nothing, and the
+run is quietly not the one the file describes. `_load_config` warns about a key it does
+not recognise, so **silence means accepted** — and its whitelist was a single shared set
+holding every knob either command has.
+
+    $ cat c.toml
+    vector_scheme = "aav"
+    trained_prime = true
+    $ aforge batch cohort.txt --config c.toml --reference-fasta g.fa ...
+    cohort: 1 requested — 1 designed (1 ok, 0 failed)   # exit 0, no warning
+
+`aforge design` refuses that same file: there is no scheme called `aav`. `batch` used no
+scheme, noticed nothing, and — the half that matters — designed the whole cohort with
+`pridict2-baseline` while the user had opted into the trained model. Measured, from the
+per-item provenance:
+
+    no config              pridict2-baseline
+    config trained_prime   pridict2-baseline   # asked for deepprime
+    --trained-prime flag   deepprime
+
+Four trained-model opt-ins, each a consent gate, each honored by `design` and read by
+nothing in `batch`. A previous round fixed `chemistry` and `cell_context` here and wrote
+"a parity gap" in the comment beside them; the other five keys were not in front of
+anyone that day.
+
+**A guard existed and passed.** `test_every_whitelisted_config_key_is_read_somewhere`
+scanned the whole CLI module for `cfg.get("k")` — and every key *is* read somewhere,
+because `design` reads them all. The check was scoped one level wider than the property:
+the question is not whether a key is read, it is whether **this command** reads it.
+
+The fix makes `_RUN_PARAM_KEYS` a mapping from command to the keys that command reads,
+`batch` honor the four opt-ins, and a key belonging to the other command produce its own
+message — `config key 'vector_scheme' is read by \`aforge design\` and not by
+\`aforge batch\`` — because the file is fine and telling the reader to check their
+spelling would send them looking in the wrong place. The new guard derives each
+command's reads from its own AST (including one level of helper, since `run_offtarget`
+is read inside `_resolve_run_offtarget`) and checks both directions: a key declared and
+never read, and a key read and never declared.
+
+**Lesson: a guard's scope is a claim, and "somewhere in this module" is almost never the
+claim you want.** The population that goes stale is not only a hand-written list — it is
+also a correctly derived list gathered at the wrong granularity. This one was derived
+from the source, could not go stale, and was wrong the whole time, because it summed
+over the axis the defect lived on.

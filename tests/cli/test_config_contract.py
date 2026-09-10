@@ -8,43 +8,24 @@ run-param handling names this exact failure:
     "Without this a config key that _load_config accepts silently (no typo warning)
     would do nothing — the 'config file is honored' contract."
 
-That contract had no test. The keys are all honored today; this keeps them that way,
-and it is the cheap half. The expensive half — that a config-only run produces the same
-design as the equivalent flags — is asserted end to end below.
+That contract had no test. The cheap half — every whitelisted key is read — lived here
+as one module-wide scan, and **that scope was the hole**: it asked whether some command
+reads a key, so `vector_scheme` and the four trained-model opt-ins passed it while
+`aforge batch` read none of them. It now lives per command in
+`test_a_config_key_that_is_accepted_is_read.py`, derived from each command's own source.
+What remains here is the expensive half: a config-only run produces the same design as
+the equivalent flags.
 """
 
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
-from alleleforge.cli.main import _RUN_PARAM_KEYS, app
-
-_SOURCE = (
-    Path(__file__).resolve().parents[2] / "src" / "alleleforge" / "cli" / "main.py"
-).read_text()
-
-
-def test_every_whitelisted_config_key_is_read_somewhere() -> None:
-    """A whitelisted key nothing reads is accepted without warning and does nothing."""
-    # Both access forms: `cfg.get("k")` and `cfg["k"]`. The first version of this
-    # check recognized only `.get`, and reported `run_offtarget` as unread — it is
-    # honored by subscript, in a helper whose docstring says so. A guard narrower than
-    # the code it guards accuses working code, which is worse than not guarding.
-    consumed = set(re.findall(r'cfg\.get\(\s*"([a-z_]+)"', _SOURCE))
-    consumed |= set(re.findall(r'cfg\[\s*"([a-z_]+)"\s*\]', _SOURCE))
-    consumed |= set(re.findall(r'"([a-z_]+)"\s+in\s+cfg', _SOURCE))
-    assert consumed, "no config reads found — the check below would be vacuous"
-
-    unread = sorted(key for key in _RUN_PARAM_KEYS if key not in consumed)
-    assert not unread, (
-        f"config keys accepted without a warning and never read: {unread}. "
-        "Either honor them or drop them from _RUN_PARAM_KEYS, so an unknown key warns."
-    )
+from alleleforge.cli.main import app
 
 
 def test_a_config_only_run_matches_the_equivalent_flags(

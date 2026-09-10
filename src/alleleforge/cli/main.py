@@ -673,26 +673,56 @@ def _parse_weights(spec: Any) -> Any:
         raise typer.Exit(ExitCode.USAGE) from exc
 
 
-#: Run-parameter keys a config file may carry (the rest must be `Settings` fields).
-#: These mirror the design/batch command knobs; a config key outside this set and
-#: the `Settings` fields is almost certainly a typo and is warned about.
-_RUN_PARAM_KEYS = frozenset(
-    {
-        "intent",
-        "chemistry",
-        "populations",
-        "weights",
-        "max_per_chemistry",
-        "no_offtarget",
-        "run_offtarget",
-        "trained_efficiency",
-        "trained_outcome",
-        "trained_base_outcome",
-        "trained_prime",
-        "cell_context",
-        "vector_scheme",
-    }
-)
+#: Run-parameter keys each config-taking command actually **reads** (the rest of a
+#: config file must be `Settings` fields). A key outside this set and the `Settings`
+#: fields is almost certainly a typo and is warned about.
+#:
+#: Per command, not one shared set, because the shared set was the bug: it whitelisted
+#: every knob either command has, so a key the *running* command does not read was
+#: accepted in silence — the one state worse than a typo, since a typo at least warns.
+#: `aforge batch --config` with `vector_scheme = "aav"` ran to completion, exit 0, no
+#: message, having neither used a cloning scheme nor noticed that no such scheme exists;
+#: `aforge design` refuses that same file as a usage error. `trained_prime = true` in a
+#: batch config was the higher-stakes half — the cohort was designed by the heuristic
+#: baseline while the user believed they had opted into the trained model.
+_RUN_PARAM_KEYS: dict[str, frozenset[str]] = {
+    "design": frozenset(
+        {
+            "intent",
+            "chemistry",
+            "populations",
+            "weights",
+            "max_per_chemistry",
+            "no_offtarget",
+            "run_offtarget",
+            "trained_efficiency",
+            "trained_outcome",
+            "trained_base_outcome",
+            "trained_prime",
+            "cell_context",
+            "vector_scheme",
+        }
+    ),
+    # `vector_scheme` is absent because it is not a cohort knob at all: the scheme is a
+    # *report-building* argument (`build_report(..., scheme=...)`) and a cohort writes
+    # ranked menus, not cloning blocks. A batch config that names one is now told so.
+    "batch": frozenset(
+        {
+            "intent",
+            "chemistry",
+            "populations",
+            "weights",
+            "max_per_chemistry",
+            "no_offtarget",
+            "run_offtarget",
+            "trained_efficiency",
+            "trained_outcome",
+            "trained_base_outcome",
+            "trained_prime",
+            "cell_context",
+        }
+    ),
+}
 
 
 def _resolve_run_offtarget(no_offtarget: bool, cfg: dict[str, Any]) -> bool:
@@ -708,8 +738,14 @@ def _resolve_run_offtarget(no_offtarget: bool, cfg: dict[str, Any]) -> bool:
     return not skip
 
 
-def _load_config(path: Path | None) -> dict[str, Any]:
-    """Load a run-config TOML (warning on unknown keys), or exit if it is absent."""
+def _load_config(path: Path | None, command: str) -> dict[str, Any]:
+    """Load a run-config TOML for ``command`` (warning on keys it will ignore).
+
+    Args:
+        path: The config file, or ``None`` for no config.
+        command: Which command is reading it — the key sets differ, and a key this
+            command does not read is reported by name against the one that does.
+    """
     if path is None:
         return {}
     if not path.is_file():
@@ -734,13 +770,25 @@ def _load_config(path: Path | None) -> dict[str, Any]:
         raise typer.Exit(ExitCode.MISSING_DATA) from exc
     from alleleforge.config import Settings
 
-    known = set(Settings.model_fields) | _RUN_PARAM_KEYS
+    honored = _RUN_PARAM_KEYS[command]
+    known = set(Settings.model_fields) | honored
     for key in cfg:
-        if key not in known:
+        if key in known:
+            continue
+        elsewhere = sorted(c for c, keys in _RUN_PARAM_KEYS.items() if key in keys)
+        if elsewhere:
+            # Named against the command that does read it, because this is not a typo
+            # and telling the reader to check their spelling would send them looking in
+            # the wrong place. The file is fine; it is being given to the wrong command.
             _echo_err(
-                f"warning: unknown config key {key!r} (ignored); "
-                f"known keys: {', '.join(sorted(known))}"
+                f"warning: config key {key!r} is read by `aforge "
+                f"{'`/`aforge '.join(elsewhere)}` and not by `aforge {command}` "
+                "(ignored)"
             )
+            continue
+        _echo_err(
+            f"warning: unknown config key {key!r} (ignored); known keys: {', '.join(sorted(known))}"
+        )
     return cfg
 
 
@@ -1484,7 +1532,7 @@ def design(
         _missing_dependency(exc)
 
     state: GlobalState = ctx.obj
-    cfg = _load_config(config)
+    cfg = _load_config(config, "design")
     _refuse_blank_options(
         intent=intent,
         populations=populations,
@@ -2136,7 +2184,7 @@ def batch(
     from alleleforge.types.edit import Chemistry, EditIntent
 
     state: GlobalState = ctx.obj
-    cfg = _load_config(config)
+    cfg = _load_config(config, "batch")
     _refuse_blank_options(
         intent=intent,
         populations=populations,
@@ -2160,6 +2208,16 @@ def batch(
     # A CLI flag wins over the config file, matching every other option here.
     chem_list = chemistry if chemistry else cfg.get("chemistry")
     cell_context = cell_context or cfg.get("cell_context")
+    # The four trained-model opt-ins, for the same reason: whitelisted here, honored by
+    # `design`, and read by nothing in this command — so a cohort config asking for the
+    # trained models was designed by the heuristic baselines with no message anywhere.
+    # Each is a consent gate, which makes the silence worse than an ordinary ignored
+    # knob: the run's provenance records the model that ran, and nothing records the
+    # model that was asked for.
+    trained_efficiency = trained_efficiency or bool(cfg.get("trained_efficiency", False))
+    trained_outcome = trained_outcome or bool(cfg.get("trained_outcome", False))
+    trained_base_outcome = trained_base_outcome or bool(cfg.get("trained_base_outcome", False))
+    trained_prime = trained_prime or bool(cfg.get("trained_prime", False))
     run_offtarget = _resolve_run_offtarget(no_offtarget, cfg)
 
     try:

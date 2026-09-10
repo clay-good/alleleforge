@@ -245,6 +245,19 @@ simplicity = 0.1
 `allow_network`, `cache_dir`) go at the top level of the same file. An unrecognized
 key is warned about and ignored rather than silently accepted.
 
+`design` and `batch` read almost the same keys, and the one difference is reported
+rather than dropped: `vector_scheme` names a cloning vector for a *report*, and a
+cohort writes ranked menus, so a batch run given it says
+
+```
+warning: config key 'vector_scheme' is read by `aforge design` and not by `aforge batch` (ignored)
+```
+
+which is a different message from an unknown key — the file is fine, it is with the
+wrong command. Everything else, including the four trained-model opt-ins
+(`trained_efficiency`, `trained_outcome`, `trained_base_outcome`, `trained_prime`),
+is honored identically by both.
+
 !!! note "Reproducibility"
     `aforge --seed S design ...` records the seed and resolved config in the
     menu's provenance block. The same seed and config produce byte-identical
