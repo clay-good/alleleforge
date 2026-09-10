@@ -19128,3 +19128,33 @@ reference *already has*. Both failures looked exactly like a defect in the enume
 mutation confirms what you already believed the test covered. A surviving one tells you the
 code under it is not the code you thought — here, that the function named "editable
 positions" does not decide which positions are editable.
+
+## Round 563 — where the cut is
+
+562's method, applied to the flagship chemistry. A pegRNA's entire geometry hangs off the
+nick — the PBS anneals to the 3' end it creates, the RTT is written from there — so a
+one-base error is not a smaller edit. It is a *different* edit, written from the wrong end,
+with every number in the report computed about the wrong reagent, and nothing else about the
+run looking wrong.
+
+SpCas9 cuts between protospacer positions 17 and 18, three bases 5' of the PAM. In genomic
+coordinates that is two expressions, one per strand:
+
+    plus  : protospacer [s, e), PAM [e, e+3)   ->  nick at e - 3
+    minus : protospacer [s, e), PAM [s-3, s)   ->  nick at s + 2
+
+Measured: 117 and 102 for a protospacer at [100, 120). Correct, on both.
+
+The test requires **both** numbers, and asserts they differ — because a single wrong formula
+applied to both strands would satisfy a one-strand check, and that is precisely the error
+this file is about. Shifting `nick_local` by one fails all four cases.
+
+One more property pinned while the fixture was in hand: the spacer is the **patient's**
+allele, not the reference's. A pegRNA built from the reference sits at the same coordinates,
+carries the same nick, the same PBS and RTT lengths, the same flags — and is a different
+reagent. Every field this file checks would be identical.
+
+**Lesson: two expressions of one rule are a test, and one expression is an assumption.** A
+plus-strand-only check on this geometry passes whether the minus-strand arithmetic is right,
+wrong, or copied. What made the check real was that the two strands produce different
+numbers from the same protospacer, so the test can require them to disagree.
