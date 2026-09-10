@@ -23,9 +23,15 @@ DesignCmd = Callable[[Path, str], list[str]]
 
 
 def test_version(runner: CliRunner) -> None:
+    """The version is the first line and alone on it — a script reads `head -1`."""
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert result.output.strip() == __version__
+    lines = result.output.strip().splitlines()
+    assert lines[0] == __version__
+    # The second line answers a question the tool could not answer at all: whether this
+    # install runs the parity-proven native kernels, which change no result and are an
+    # order of magnitude faster on the off-target hot path.
+    assert lines[1].startswith("native kernels: ")
 
 
 def test_help_lists_commands(runner: CliRunner) -> None:

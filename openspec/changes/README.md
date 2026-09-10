@@ -17127,3 +17127,37 @@ recompute on a tampered entry — and each is right. Together they made a featur
 observable behaviour of its own, which a user cannot verify, cannot debug and cannot tell
 from a silent no-op. The channel has to be somewhere the reproducibility contract does not
 reach: stderr, under a flag, worded by the library.
+
+## Round 500 — the fast path nobody could see
+
+Round 499's lesson, applied to its nearest sibling: an optimisation whose correctness
+requirement is "changes nothing observable" has no observable behaviour, so it needs a
+second channel. The off-target cache got one. The **native Rust kernels** are the same
+shape and a larger stake.
+
+They are held to a parity suite proving they return exactly what the Python
+implementation returns. Correct, and the reason nothing could tell you whether they were
+running: an install without the extension produces identical output, an order of magnitude
+slower on the off-target hot path. `aforge --version` printed one line. `GET /api/health`
+— which reports which data sources a deployment loaded and which scan-reuse stores it
+enabled, on the stated grounds that "a client has no other way to learn that two
+deployments running the same code answer at very different speeds" — said nothing about
+the code itself.
+
+The **stale** case is worse than slow. An extension older than the crate source beside it
+is missing kernels, and one of them is the off-target evaluation hot path whose entire
+safety argument is that parity suite — which *skips itself* when the kernel is absent. So
+a stale build silently falls back to Python and takes its own verification with it.
+`_native.missing_native_functions()` has detected this since the round that found it, and
+it was reachable from a test and from nowhere else.
+
+`acceleration()` words it once, in the library: the build when there is one, "not
+installed (results are identical and the hot path is markedly slower)" when there is not,
+and a named `STALE` with the missing kernels when the extension has fallen behind. Both
+shells print that sentence; neither writes its own.
+
+**Lesson: "identical results" is a property of the output, and a user's question is about
+the run.** Three rounds now on the same shape — a cache, a crate, and before them a
+resume that could not be checked — and each was invisible for the same reason: everything
+observable was, correctly, unchanged. Whenever a feature's contract is that you cannot
+tell it is there, someone has to be told anyway, on a channel the contract does not cover.

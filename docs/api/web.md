@@ -39,7 +39,7 @@ auto-generated at `/openapi.json`.
 
 | Method & path | Purpose |
 |---|---|
-| `GET /api/health` | Liveness, the disclaimer, and which data sources this deployment loaded: the reference (and `reference_build`, the assembly it is), the population sites, the haplotype panel, and the accessibility track names a request may choose from — plus `source_errors`, the reason a *configured* source failed to load, so a broken mount is not reported as a deliberate absence. |
+| `GET /api/health` | Liveness, the disclaimer, and whether it runs the native Rust kernels (`native_kernels`, including a `STALE` build whose parity tests skip themselves), which data sources this deployment loaded: the reference (and `reference_build`, the assembly it is), the population sites, the haplotype panel, and the accessibility track names a request may choose from — plus `source_errors`, the reason a *configured* source failed to load, so a broken mount is not reported as a deliberate absence. |
 | `POST /api/resolve` | Normalize any input form to a canonical variant. |
 | `POST /api/design` | Variant → ranked menu; `?format=json\|html\|pdf\|tsv\|parquet\|menu` — the same set `aforge design --format` offers. `menu` returns the ranked menu itself rather than the report built from it, which is the only form carrying each candidate's *full* outcome spectrum; every other format truncates it and says so. |
 | `POST /api/jobs/design` | Submit an async design job (`202`, returns a job id). |

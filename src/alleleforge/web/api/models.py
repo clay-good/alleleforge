@@ -773,6 +773,14 @@ class HealthResponse(BaseModel):
     #: client has no other way to learn whether the numbers it gets back came from a
     #: trained model or the transparent baseline it can always reach.
     trained_models: tuple[str, ...] = ()
+    #: Whether this deployment runs the native Rust kernels, and which build. The same
+    #: reasoning as `scan_reuse` below: the kernels are parity-proven to return exactly
+    #: what the Python path returns, so a deployment without them answers identically and
+    #: an order of magnitude slower on the off-target hot path, and a client had no way
+    #: to learn which one it is talking to. `"STALE"` appears when the installed
+    #: extension is older than the crate it sits beside — those kernels fall back to
+    #: Python and their parity tests skip themselves.
+    native_kernels: str = ""
     #: Which ways of reusing an expensive reference scan this deployment has enabled
     #: ("offtarget-cache", "genome-index"). A client cannot turn either on — they spend
     #: the operator's disk — and has no other way to learn that two deployments running

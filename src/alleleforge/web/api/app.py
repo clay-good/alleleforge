@@ -173,6 +173,13 @@ def _cohort_parquet_bytes(rows: list[dict[str, Any]], provenance: Any) -> bytes:
 _REFERENCE_LOAD_ERROR: str | None = None
 
 
+def _native_acceleration() -> str:
+    """Return the library's own one-line account of this install's native kernels."""
+    from alleleforge._native import acceleration
+
+    return acceleration()
+
+
 def _reference_build_from_env() -> str:
     """Return the assembly the served FASTA is, from ``ALLELEFORGE_REFERENCE_BUILD``.
 
@@ -1020,6 +1027,7 @@ def create_app(
         return HealthResponse(
             status="ok",
             version=__version__,
+            native_kernels=_native_acceleration(),
             reference_loaded=app.state.reference is not None,
             reference_build=(
                 getattr(app.state.reference, "build", None)

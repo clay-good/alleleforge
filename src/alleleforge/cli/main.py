@@ -256,9 +256,20 @@ def _missing_dependency(exc: ImportError) -> NoReturn:
 
 
 def _version_callback(value: bool) -> None:
-    """Print the version and exit (eager ``--version``)."""
+    """Print the version, and whether the native kernels are in play, then exit.
+
+    Two lines, the version first and alone, because a script reads `aforge --version`
+    with `head -1`. The second answers a question this tool could not answer at all: the
+    Rust kernels are parity-proven to return exactly what the Python path returns, so an
+    install without the extension — or with a stale one — behaves identically and is an
+    order of magnitude slower on the off-target hot path, and nothing said which one you
+    have.
+    """
     if value:
+        from alleleforge._native import acceleration
+
         typer.echo(__version__)
+        typer.echo(acceleration())
         raise typer.Exit(ExitCode.OK)
 
 

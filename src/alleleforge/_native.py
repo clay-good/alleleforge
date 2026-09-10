@@ -33,6 +33,34 @@ def native_version() -> str | None:
     return version
 
 
+def acceleration() -> str:
+    """Return one line saying whether this install runs the native kernels.
+
+    The kernels are proven by a parity suite to return exactly what the Python
+    implementation returns, so switching between them changes no result — which is the
+    right property and makes the difference invisible: an install without the extension,
+    or with a stale one, produces identical output an order of magnitude slower, and
+    nothing anywhere said which was happening.
+
+    Worded here rather than in a shell, so the command line, the web API's health report
+    and a Python caller cannot describe the same install three ways.
+    """
+    version = native_version()
+    if version is None:
+        return (
+            "native kernels: not installed (pure Python; results are identical and the "
+            "off-target hot path is markedly slower — build the crate with maturin)"
+        )
+    missing = missing_native_functions()
+    if missing:
+        return (
+            f"native kernels: aforge_native {version}, STALE — the installed extension "
+            f"is missing {', '.join(sorted(missing))}, so those kernels fall back to "
+            "Python and their parity tests skip themselves. Rebuild it with maturin"
+        )
+    return f"native kernels: aforge_native {version}"
+
+
 def crate_pyfunctions() -> frozenset[str]:
     """Return the function names ``rust/src/lib.rs`` registers on the module.
 
