@@ -17599,3 +17599,31 @@ the kind of claim that survives its own falsification for months, because the tw
 diverge on something no fixture is big enough to reach — a scan that only a real genome
 runs, a cache only a second invocation touches. One `diff` of two real runs is worth the
 dozen, and costs a minute.
+
+## Round 514 — the diff that was worth a dozen assertions
+
+Round 513 compared two real runs by hand and found them byte-identical. This round makes
+that a constraint, because a check performed once is an anecdote.
+
+The cohort table has had a both-shells test for several phases. The **single design** —
+the document a reader actually opens — had never been diffed: a dozen tests assert pieces
+of it on either side (the same fields, the same caveats, the same disclaimer), which is
+exactly the shape that lets two paths agree on every part and differ as a whole.
+
+So `aforge design` and `POST /api/design` now render one genome and one variant into every
+format both offer — JSON, the flat TSV including its `#` note block, and the HTML a human
+reads — and the documents must be equal, with the run timestamp the only permitted
+difference. The fixture is a 20 kb contig rather than the usual 140 bp, because the
+divergences worth catching live in things a tiny fixture never reaches: a scan with real
+anchors, a sub-threshold tail, more candidates than a render cap.
+
+Mutation-checked in both directions: a web layer that forgets to forward `run_offtarget`
+fails all three, a CLI that renders a different candidate cap fails the HTML, and a
+rendering change made *in the library* passes all three — which is the property that makes
+this a parity test rather than a snapshot.
+
+**Lesson: assertions about parts do not compose into a claim about the whole.** Ten tests
+saying "the web report has this field, and this caveat, and this disclaimer" cannot notice
+that it is a different document; only `==` between two whole artifacts can. When the claim
+is "these two things are the same", the test is a diff, and everything else is evidence
+for a claim nobody made.
