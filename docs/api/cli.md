@@ -53,6 +53,15 @@ the report, whose per-candidate allele list is the same handful the HTML and PDF
 `--format menu --out menu.json` writes that same menu to a file, with the provenance
 sidecar every written format gets; `--json` is its stdout shorthand.
 
+**Output paths are checked before the work, not at the write.** Every flag that names a
+file to write — `--out`, and `batch`'s `--manifest`, `--summary-tsv`, `--summary-parquet`
+— is validated before the design runs, because the write happens last: a cohort that
+discovers at the end that its summary path is a directory has done the work and has
+nowhere to put it. A parent directory that does not exist is a usage error rather than
+something the run creates, since `--out reslts/design.json` is a typo far more often than
+an instruction to build a tree. `--output-dir` does create, because a directory is what
+that flag names.
+
 ## Exit codes
 
 Distinct, meaningful exit codes make the CLI scriptable:
