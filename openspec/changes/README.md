@@ -18573,3 +18573,24 @@ instance, and inherits that person's field of view.** Three rounds have now foun
 shape: a derivation one level too low, made by the round that was proudest of deriving
 anything. The check on a new guard is not "is this derived" but "what did I type by hand
 while writing it" — and then to derive *that*.
+
+## Round 545 — the file whose job is being current, again
+
+521 fixed `specs/readiness-assessment.md` by *deriving* the numbers it states, because it
+had been claiming 2,871 tests long after those were 2,975. Twenty-three rounds later its
+narrative was stale in the other direction: the newest section covers rounds 479–520 and
+this session shipped through 544.
+
+Appended, not rewritten — the dated sections are history on purpose, and the number guard
+holds only the current one. What the new section records is the **method**, because that is
+the transferable part: almost every finding in 521–544 came from typing a plausible mistake
+into a shell, and the audit-by-reading rounds in the same stretch found almost nothing.
+
+Also recorded, because a readiness assessment that only lists wins is the thing it exists to
+prevent: none of this makes a prediction better. It makes the tool's failures legible. The
+scientific gap is exactly where the TL;DR says it is.
+
+**Lesson: a document whose job is to be current has to be written to, not only checked.**
+The guard 521 built does its job — it would fail the moment a stated number rotted — and it
+cannot notice that the narrative beside the numbers describes a different codebase. A
+derivation keeps a claim honest; only writing keeps a document useful.

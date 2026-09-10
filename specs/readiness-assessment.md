@@ -308,3 +308,54 @@ licence-blocked, not effort-blocked, and no round moved it.
 substance is still the gap. What these rounds bought is that fewer of the engineering's own
 claims are taken on trust — the parity, the reachability, the assembly labels and the
 performance promises each have a check that fails when they stop being true.
+
+## UPDATE 2026-09-10 (later the same day) — rounds 521–544, and one class of defect
+
+The section above covers rounds 479–520. What follows covers 521–544, which were spent on
+a single question: **what does this tool do when it is used wrongly?**
+
+**Nothing in the TL;DR changed**, again. The scientific gap is where it was.
+
+**The method, because it is the transferable part.** Almost every finding came from typing
+a plausible mistake into a shell rather than reading code: transposing two path arguments,
+leaving a shell variable unset, pointing a flag at the file meant for the flag beside it,
+handing a command a file for the wrong genome build. The audit-by-reading rounds in the same
+stretch found almost nothing. Then each finding was generalized by crossing the command's
+own parameter list with a derived list of *ways to be wrong* — which turned one typed
+mistake into a hundred cases and found every remaining instance in one pass.
+
+**What is materially different:**
+
+- **A wrong answer is refused where it used to be given.** `aforge lift --chain <not a
+  chain file>` reported every locus `UNMAPPED` — indistinguishable, to a reader, from a
+  locus that genuinely has no equivalent in the target build. An **empty spacer** returned a
+  full off-target report: thousands of sites, specificity 0.000, because every position of a
+  genome matches an empty query. Both are refused now.
+- **A supplied safety source that cannot be used says so.** The off-target enumerators
+  correctly skip a record whose asserted REF is not the base this genome has, and skipped it
+  silently — so a gnomAD file or haplotype panel built against another assembly produced a
+  report identical to one whose file was fine and had nothing to add. All three sources
+  (gnomAD, haplotypes, patient VCF) now count those records, on every surface including the
+  cohort table, where the mistake is most expensive and least visible.
+- **A flag that was typed cannot be silently ignored.** `--intent ""` — what a shell script
+  produces from an unset variable — designed a `correct` edit and said nothing; the same
+  hole existed on `--weights`, `--populations`, `--cell-context` and on the web request
+  models. Every command refuses it now, while a stray comma inside a list (`afr,,eas`) still
+  runs, because those are different mistakes.
+- **A PE3 candidate's second spacer is checked.** Pol III quality caveats were applied to
+  the pegRNA spacer and never to the nicking guide's, so a nicking guide containing `TTTT`
+  is truncated, never nicks, and the candidate behaves as PE2 while the menu says PE3b. The
+  project's own canonical reproducibility fixture carried the flag.
+- **Failures reach the caller as answers.** A failed VEP annotation raised `requests` at the
+  user and answered `500` over HTTP (now `503`/`501`); a failed download left a truncated
+  file that every later run reported as *tampering* and never retried (now verify-then-
+  publish); a read-only output directory produced a traceback after the whole design (now
+  checked before, and handled at the write).
+- **One design publishes one precision.** The TSV, HTML and PDF rounded to four places and
+  the JSON — the surface a pipeline parses — published float64, of a heuristic whose own
+  note reads "coverage not measured".
+
+**What this does not buy.** None of it makes a prediction better. It makes the tool's
+*failures* legible, which matters for the same reason the uncertainty machinery does: a
+number a user cannot tell apart from a measurement is worse than no number. The scientific
+substance remains the gap, and remains data- and licence-blocked.
