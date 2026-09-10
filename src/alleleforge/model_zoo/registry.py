@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Callable
-from enum import StrEnum
 from functools import cache
 from pathlib import Path
 
@@ -35,6 +34,12 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from alleleforge.config import DOWNLOAD_REMEDY, artifact_download_permitted
 from alleleforge.errors import ChecksumError, ConsentError, MissingDependencyError
 from alleleforge.types.provenance import ModelCheckpoint
+
+# Re-exported (the `as` form is the explicit one) so every caller keeps reading the
+# licence-gate enum from the model zoo: it is defined one layer down only because
+# `alleleforge.config` — which the registry itself imports — needs it for
+# `Settings.model_use`.
+from alleleforge.types.provenance import ModelUse as ModelUse
 
 #: Directory of bundled model cards shipped with AlleleForge.
 CARDS_DIR = Path(__file__).parent / "cards"
@@ -47,13 +52,6 @@ FORBIDDEN_LICENSES = frozenset({"proprietary", "none", "unknown", "all-rights-re
 
 #: Substrings marking a non-commercial license (blocks commercial use).
 _NONCOMMERCIAL_MARKERS = ("-nc", "noncommercial", "non-commercial", "research-only")
-
-
-class ModelUse(StrEnum):
-    """The use a checkpoint is being loaded for (drives the license gate)."""
-
-    RESEARCH = "research"
-    COMMERCIAL = "commercial"
 
 
 class LicenseError(RuntimeError):

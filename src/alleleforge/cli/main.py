@@ -793,6 +793,19 @@ def _hgvs_adapter(enabled: bool, build: str) -> Any | None:
     return HgvsAdapter(projector=HgvsLibraryProjector(assembly=canonical_assembly(build)))
 
 
+def _model_use() -> Any:
+    """Return the licence use this machine's runs are for.
+
+    Every trained adapter takes `use=`, and `ModelRegistry.checkpoint` refuses a model
+    whose licence forbids it — a gate no shell could reach, so it only ever protected a
+    Python caller who already knew to pass it. `ALLELEFORGE_MODEL_USE=commercial` (or
+    `model_use` in the config file) is how a command-line user declares it.
+    """
+    from alleleforge.config import get_settings
+
+    return get_settings().model_use
+
+
 def _effect_predictor(vep: bool) -> Any | None:
     """Return a VEP effect predictor when ``--vep`` was given, else ``None``.
 
@@ -1424,22 +1437,22 @@ def design(
         from alleleforge.scoring.cas9_efficiency import TrainedRuleSet3Scorer
 
         # The user opted in explicitly, so consent for the gated weight download.
-        cas9_scorer = TrainedRuleSet3Scorer(consent=True)
+        cas9_scorer = TrainedRuleSet3Scorer(consent=True, use=_model_use())
     cas9_outcome = None
     if trained_outcome:
         from alleleforge.scoring.cas9_outcome import LindelAdapter
 
-        cas9_outcome = LindelAdapter(consent=True)
+        cas9_outcome = LindelAdapter(consent=True, use=_model_use())
     base_outcome = None
     if trained_base_outcome:
         from alleleforge.scoring.base_outcome import BeDictAdapter
 
-        base_outcome = BeDictAdapter(consent=True)
+        base_outcome = BeDictAdapter(consent=True, use=_model_use())
     prime_scorer = None
     if trained_prime:
         from alleleforge.scoring.prime_efficiency import DeepPrimeAdapter
 
-        prime_scorer = DeepPrimeAdapter(consent=True)
+        prime_scorer = DeepPrimeAdapter(consent=True, use=_model_use())
     try:
         resolved = resolve_variant(
             variant,
@@ -1931,22 +1944,22 @@ def batch(
         if trained_efficiency:
             from alleleforge.scoring.cas9_efficiency import TrainedRuleSet3Scorer
 
-            cas9_scorer = TrainedRuleSet3Scorer(consent=True)
+            cas9_scorer = TrainedRuleSet3Scorer(consent=True, use=_model_use())
         cas9_outcome = None
         if trained_outcome:
             from alleleforge.scoring.cas9_outcome import LindelAdapter
 
-            cas9_outcome = LindelAdapter(consent=True)
+            cas9_outcome = LindelAdapter(consent=True, use=_model_use())
         base_outcome = None
         if trained_base_outcome:
             from alleleforge.scoring.base_outcome import BeDictAdapter
 
-            base_outcome = BeDictAdapter(consent=True)
+            base_outcome = BeDictAdapter(consent=True, use=_model_use())
         prime_scorer = None
         if trained_prime:
             from alleleforge.scoring.prime_efficiency import DeepPrimeAdapter
 
-            prime_scorer = DeepPrimeAdapter(consent=True)
+            prime_scorer = DeepPrimeAdapter(consent=True, use=_model_use())
         store, index = _reuse(reference, cache=reuse_cache, index=genome_index)
         report = design_many(
             variants,

@@ -9,9 +9,24 @@ reference build, the config snapshot, the seed, and a UTC timestamp.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, field_validator
+
+
+class ModelUse(StrEnum):
+    """The use a checkpoint is being loaded for (drives the license gate).
+
+    It lives here, below the model zoo, because `Settings.model_use` is what lets a
+    *shell* declare it: `alleleforge.config` cannot import the model zoo — the registry
+    imports config — and a second enum spelling the same two values would be the kind of
+    duplicated population this project keeps finding stale. `alleleforge.model_zoo`
+    re-exports it, which is where every caller still reads it from.
+    """
+
+    RESEARCH = "research"
+    COMMERCIAL = "commercial"
 
 
 class ToolVersion(BaseModel):

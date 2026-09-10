@@ -529,6 +529,7 @@ def _trained_scorers(request: Request, req: Any) -> dict[str, Any]:
     calling one `design()` must not invent two failure modes for one condition.
     """
     enabled: frozenset[str] = request.app.state.trained_models
+    settings: Settings = request.app.state.settings
     out: dict[str, Any] = {}
     for field, (kwarg, module, cls) in _TRAINED_MODELS.items():
         if not getattr(req, field, False):
@@ -547,7 +548,10 @@ def _trained_scorers(request: Request, req: Any) -> dict[str, Any]:
         try:
             adapter = getattr(importlib.import_module(module), cls)
             # The operator consented by enabling it; the client chose it per request.
-            out[kwarg] = adapter(consent=True)
+            # `use` is the operator's too: whether these runs are research or commercial
+            # is a fact about who runs the deployment, which a client cannot answer for
+            # them — and a licence gate nothing could set was a gate on nobody.
+            out[kwarg] = adapter(consent=True, use=settings.model_use)
         except (MissingDependencyError, ConsentError, ChecksumError, LicenseError) as exc:
             # Enabled by the operator but not actually installable here. 503, not 422:
             # the client's request is well-formed and the deployment is the problem.

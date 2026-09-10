@@ -186,6 +186,7 @@ look up.
 | Trained models offered (web) | `ALLELEFORGE_TRAINED_MODELS` | _none (requests asking for one get a 422)_ |
 | Reuse off-target scans (web) | `ALLELEFORGE_OFFTARGET_CACHE` | _none (every scan recomputed)_ |
 | Persistent genome index (web) | `ALLELEFORGE_GENOME_INDEX` | _none (index rebuilt in memory)_ |
+| Licence use these runs are for (`research` / `commercial`) | `ALLELEFORGE_MODEL_USE` | `research` |
 | Global seed | `ALLELEFORGE_SEED` | `20240501` |
 | Predictive-interval level | `ALLELEFORGE_INTERVAL_LEVEL` | `0.80` |
 | Off-target MAF threshold | `ALLELEFORGE_MAF_THRESHOLD` | `0.001` |

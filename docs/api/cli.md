@@ -34,6 +34,12 @@ pip install "alleleforge[cli]"
 | `aforge bench compare` | Check whether two results are the same scientific result. |
 | `aforge bench leaderboard` | Aggregate signed result JSONs into the model-card-gated leaderboard. |
 
+Set `ALLELEFORGE_MODEL_USE=commercial` (or `model_use` in the config file) when the
+work is commercial. Every card carries a licence and every trained-model load is
+gated on it, so a model licensed for research declines with the licence named in the
+menu's rationale rather than scoring the run — and the declared use is recorded in the
+result's provenance. The default is `research`.
+
 Global options (before the subcommand): `--seed`, `--reference`, `--cache-dir`,
 `--verbose/-v`, `--version/-V`. Every command takes `--json` for machine-readable
 output.

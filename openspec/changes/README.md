@@ -16715,3 +16715,39 @@ parameter list against each shell. This round found a whole registry by iteratin
 `__all__` across every subpackage — eleven lines of throwaway script. The parity guards
 this repo has written are all per-entry-point (`design()`, the search, the report, the
 bench package); nothing had ever asked the question about the package list itself.
+
+## Round 487 — a licence gate on nobody
+
+Round 486's lesson was to run the oldest query — what can the library do that no shell can
+reach — against populations rather than modules. The model zoo had a whole registry with
+no shell; sweeping the same package one level deeper found the gate that registry exists
+to enforce.
+
+`ModelUse` has two members. `ModelRegistry.checkpoint(..., use=...)` raises `LicenseError`
+when a card's licence forbids that use. Every trained adapter — Rule Set 3, Lindel,
+BE-DICT, DeepPrime — takes `use: ModelUse = ModelUse.RESEARCH`. It is implemented, it is
+tested, and grepping `ModelUse` across `cli/` and `web/` returned nothing at all. So a
+company running `aforge design --trained-prime` loaded DeepPrime — licensed
+`research-only`, and the card says so — with no refusal on any surface. The gate protected
+a Python caller who already knew to pass an argument they had no reason to know about.
+
+`Settings.model_use` is the declaration, from `ALLELEFORGE_MODEL_USE` or the config file,
+and both shells read it where they construct an adapter. Not a request field: whether the
+work is commercial is a fact about who is running the tool, and a client of a deployment
+cannot answer it for them. The refusal arrives as the chemistry declining with the licence
+named in the menu's own rationale — the same channel a missing dependency uses — and the
+declared use lands in the result's `config_snapshot`, so a reader can tell a
+research-licensed run from a commercial one months later.
+
+Moving the enum was the only structural change: `alleleforge.config` cannot import the
+model zoo, because the registry imports config. `ModelUse` now lives in
+`types/provenance.py` beside `ModelCheckpoint`, which carries a licence for the same
+reason, and the model zoo re-exports it — a second enum spelling the same two values would
+have been exactly the duplicated population this project keeps finding stale.
+
+**Lesson: an unset default is not a default, it is the only value.** `use: ModelUse =
+ModelUse.RESEARCH` reads as a sensible default with an override available. There was no
+override — from any shell, in any configuration file, on any surface — so the parameter
+was a constant with a misleading signature, and every test of the gate passed because
+tests are Python callers. Ask of every "configurable" safety or compliance argument: which
+shell sets it, and what happens to the user who cannot?

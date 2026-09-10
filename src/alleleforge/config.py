@@ -19,6 +19,8 @@ from typing import Any
 from pydantic import Field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from alleleforge.types.provenance import ModelUse
+
 #: Global random seed, threaded through every stochastic step and recorded in
 #: provenance. Chosen once in the spec (2024-05-01) so results are re-derivable.
 DEFAULT_SEED = 20240501
@@ -90,6 +92,18 @@ class Settings(BaseSettings):
     #: separately at its own call site — see
     #: :class:`~alleleforge.variant.effect.VepRestPredictor`.
     allow_network: bool = False
+
+    #: What this machine's runs are *for*, as a licence question. Every model card
+    #: carries an SPDX-style licence, and :class:`~alleleforge.model_zoo.ModelUse` is
+    #: the gate: `ModelRegistry.checkpoint(..., use=...)` refuses a model whose licence
+    #: forbids that use. Every trained adapter takes the same argument, defaulting to
+    #: research — and no shell could set it, so the gate only ever protected a Python
+    #: caller who already knew to pass it. A company running `aforge design
+    #: --trained-prime` loaded a CC-BY-NC checkpoint with no refusal anywhere.
+    #:
+    #: Declared by the operator of the machine, not per request: it is a fact about who
+    #: is running the tool, and a client of a deployment cannot answer it for them.
+    model_use: ModelUse = ModelUse.RESEARCH
 
     def rng(self) -> random.Random:
         """Return the single run-scoped RNG, seeded from :attr:`seed`.
