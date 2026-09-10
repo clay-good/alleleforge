@@ -17490,3 +17490,41 @@ stopped.** Safety properties get tested because they are what a reviewer worries
 the promise — faster, smaller, fewer scans — is usually left to a benchmark nobody runs,
 or to prose in a changelog. Round 507's scan count and round 509's speedup are both
 promises now written as constraints, which is the only form that survives.
+
+## Round 511 — the promise the job queue never had to keep
+
+Round 510's rule, applied one surface over: for every flag, ask what it promises and write
+the test that would fail if it stopped. The async job endpoints promise that a deployment
+keeps answering while a long run is in flight — that is the entire reason they exist, after
+a three-hundred-variant cohort was measured blocking one connection for 3m 40s. Their tests
+check that a job is accepted, that it finishes, that both doors return the same cohort, and
+that the status endpoint serializes a cohort result as well as a design one. None of them
+checks that anything else can happen meanwhile.
+
+Two halves, both now pinned: the `202` must arrive before the work could have finished, and
+`GET /api/health` must answer while the job is running, on a deployment whose reads block so
+the measurement is about scheduling rather than about this machine.
+
+The first draft of it failed the same way the thing it tests could: it polled for
+`state == running`, and against a regression that runs the work inline the job was already
+*finished* by the first poll — so the test skipped itself. A skip is not a failure, and a
+guard that goes quiet under the exact condition it exists for is worse than none. That is
+the third time in three rounds that writing a performance test produced a version of the
+defect it was written to catch.
+
+And one test written this round was **deleted** before it shipped. A behavioural companion
+to round 509's GIL check — run a scan on one thread, count how much Python runs on another
+— could not be shown to fail. A kernel that holds the GIL is not something this crate can
+express by deleting one call (`py.detach` is what gives the closure access to the borrowed
+strings, so the version without it does not compile), and every timing-shaped instrument
+drowned in a loaded machine: two genuinely overlapping scans measured 1.25x, and a
+tick-rate calibration moved by 7x between two consecutive moments of one process. The
+source-level guard does discriminate, the cohort pool's overlap is measured where it can
+be, and a check nobody can make fail is not a check.
+
+**Lesson: a test that can skip itself must not be able to skip for the reason it exists —
+and one you cannot make fail should not ship.** Skip conditions are for the environment: no
+crate built, no network, no optional dependency. When a skip can be triggered by the
+*behaviour under test*, the guard is strongest exactly where it is silent. The same
+standard applied to the round's own new test is what sent one of them to the comment block
+that now explains its absence.

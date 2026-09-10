@@ -16,13 +16,9 @@ pin those numbers — a loaded machine moves them — it pins the property they 
 
 from __future__ import annotations
 
-import threading
-import time
 from pathlib import Path
 
 import pytest
-
-from alleleforge.offtarget import _search
 
 _LIB_RS = Path(__file__).resolve().parents[2] / "rust" / "src" / "lib.rs"
 
@@ -54,43 +50,19 @@ def test_the_long_kernels_release_the_interpreter(kernel: str) -> None:
     )
 
 
-@pytest.mark.native
-@pytest.mark.skipif(
-    _search._NATIVE_SCAN_STRAND is None, reason="native aforge_native scan_strand not built"
-)
-def test_two_threads_scan_at_the_same_time() -> None:
-    """The property itself: two scans on two threads take less than two scans' time.
-
-    A wide margin (1.4x rather than the ~2x this machine shows), because the number is
-    hardware- and load-dependent and this test is about the GIL, not the hardware. With
-    the GIL held the ratio is 1.0 by construction.
-    """
-    import random
-
-    rng = random.Random(5)
-    contig = "".join(rng.choice("ACGT") for _ in range(400_000))
-    spacer = "GACCATGCAACCTTGAACGT"
-    scan = _search._NATIVE_SCAN_STRAND
-
-    def once() -> None:
-        scan(spacer, contig, "NGG", 4, 1, 1)
-
-    once()  # warm any lazy work out of the measurement
-
-    start = time.perf_counter()
-    once()
-    once()
-    serial = time.perf_counter() - start
-
-    threads = [threading.Thread(target=once) for _ in range(2)]
-    start = time.perf_counter()
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join()
-    parallel = time.perf_counter() - start
-
-    assert serial / parallel > 1.4, (
-        f"two scans on two threads took {parallel:.3f}s against {serial:.3f}s serially "
-        f"({serial / parallel:.2f}x): the kernel is holding the interpreter"
-    )
+# A behavioural companion to the check above was written and then removed, which is worth
+# recording. The intent was to run a scan on one thread and count how much Python ran on
+# another; the trouble is demonstrating that it *fails*. A kernel that holds the GIL is
+# not something this crate can express by deleting one call — `py.detach` is what gives
+# the closure access to the borrowed strings, so the version without it does not compile —
+# and every timing-shaped instrument tried here was drowned by a loaded machine: two
+# genuinely overlapping scans measured 1.25x, and a tick-rate calibration moved by 7x
+# between two consecutive moments in the same process.
+#
+# So this file asserts the property at the source, where it is exact, and the *value* of
+# the release is measured where it can be: `tests/design/test_parallelism_is_parallel.py`
+# requires the cohort pool to overlap, and the round log carries the cohort speedups
+# (1.75x / 2.92x / 3.98x on two, four and eight workers) with their method.
+#
+# A check that cannot be shown to fail is not a check, and shipping one would have been
+# the exact defect this suite keeps finding in other people's work.
