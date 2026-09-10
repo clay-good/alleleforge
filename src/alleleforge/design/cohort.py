@@ -238,13 +238,34 @@ def _summarize(menu: RankedMenu) -> dict[str, Any]:
         # is what a reader scans. It is also the only place the difference is
         # observable — the candidate counts do not move.
         "offtarget_sources": (
-            dict(best.offtarget.sources_considered)
+            _sources_with_mismatches(best.offtarget)
             if best is not None and best.offtarget is not None
             else None
         ),
         "worst_offtarget": worst_ot,
         "best_specificity": best_specificity,
     }
+
+
+def _sources_with_mismatches(report: Any) -> dict[str, int]:
+    """Return the per-source counts, with unusable records named beside them.
+
+    `sources_considered` counts records *found in the region*, which a source built
+    against another assembly satisfies completely — so `gnomad=47` on every row of a
+    five-hundred-patient cohort is the same cell whether the file was right or for the
+    wrong build. The single-variant surfaces say which; the cohort table, where the cost
+    is highest and nobody opens five hundred reports, did not.
+
+    A key in the same mapping rather than a new column: both encodings already render
+    this cell through one function, so they cannot disagree about it, and a reader
+    filtering on `offtarget_sources` sees the qualification in the value they already
+    read.
+    """
+    sources = dict(report.sources_considered)
+    for name, count in sorted(report.source_build_mismatch.items()):
+        if count:
+            sources[f"{name}:build-mismatch"] = count
+    return sources
 
 
 def _read_done_ids(manifest_path: Path) -> set[str]:

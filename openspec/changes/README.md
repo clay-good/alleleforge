@@ -18420,3 +18420,40 @@ Both fixed: the scan handles `+=`, and the flags are written as literals anyway.
 then called once per candidate by a vertical whose candidates carry two spacers. Extraction
 makes a rule *available*; it says nothing about how many times each caller should apply it.
 When a helper is about a *thing*, count the things.
+
+## Round 540 — five hundred identical cells
+
+Ran a twenty-patient cohort with `--max-workers 4`, a manifest, an output directory and a
+gnomAD file, and read the artifacts. The note block is thorough; the rows are honest; the
+`offtarget_sources` cell says `gnomad=1` where a reference-only run would say
+`reference-only`. All correct.
+
+Then the same run with a gnomAD file built against another assembly:
+
+    offtarget_sources
+    gnomad=3          <- on every row, exactly as before
+
+537 and 538 taught the single-variant surfaces to say when a source's records assert a base
+this genome does not have. The cohort table is where that mistake costs the most — five
+hundred patients, one wrong file, every ancestry column quietly reference-only — and it was
+the surface that did not say.
+
+Two disclosures, because two readers. A `<source>:build-mismatch` key in the same mapping,
+for whatever parses the table: one column, one renderer, so the TSV and the Parquet cannot
+disagree about it. And **one line in the note block**, because a constant repeated in five
+hundred cells is not something a person notices — the reason the note block exists at all.
+
+The new count immediately failed an existing test — and the fixture was the one at fault.
+`test_a_generator_safety_input_reaches_every_cohort_item` builds a haplotype at
+`Variant(pos=26)`, the *1-based* position of a base whose 0-based index is 25, so its panel
+asserted an `A` where that contig has a `C` and was skipped for every item it reached. The
+test passed for eleven rounds because what it measures is whether the source *reaches* each
+item, and that count is taken before the panel is applied. A disclosure written for a user's
+wrong-build file found an inert fixture in this repository's own suite.
+
+**Lesson: the surface where a defect is cheapest to see is not the surface where it is most
+expensive to miss.** Three rounds fixed this on the single-variant path, where a reader has
+one report open and the sentence is one of twenty. The cohort path, where the same sentence
+is the difference between a screened cohort and an unscreened one, came last — because it is
+the surface I was not looking at when I found the bug. Fix outward from the cheap surface to
+the expensive one, not just to the next one.

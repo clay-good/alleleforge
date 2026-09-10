@@ -296,6 +296,27 @@ def _cohort_notes(
             "search, so their off-target columns are empty for want of a search rather "
             "than of a finding"
         )
+    # A source that disagrees with the reference. Said once for the whole run rather
+    # than left in five hundred rows: a file built against another assembly produces the
+    # same qualified cell on every one of them, and nobody reads five hundred cells to
+    # notice a constant. The per-row key stays, for whatever reads the table.
+    mismatched: dict[str, int] = {}
+    for row in designed:
+        sources = row.get("offtarget_sources")
+        if isinstance(sources, Mapping):
+            for key, count in sources.items():
+                if key.endswith(":build-mismatch") and isinstance(count, int):
+                    mismatched[key.removesuffix(":build-mismatch")] = max(
+                        mismatched.get(key.removesuffix(":build-mismatch"), 0), count
+                    )
+    for name, count in sorted(mismatched.items()):
+        notes.append(
+            f"the {name} source disagreed with this reference on up to {count} record(s) "
+            "per item: those records assert a base this genome does not have and were "
+            "skipped, so the ancestry columns are that much closer to reference-only — a "
+            "build mismatch, not an absence of population risk"
+        )
+
     # A cohort is triaged by sorting a column, and `best_efficiency` is the column people
     # sort. When the rows' best candidates span chemistries, that sort compares a
     # base-editor number with a prime number — outputs of different, mutually

@@ -446,7 +446,14 @@ def test_a_generator_safety_input_reaches_every_cohort_item(reference: Reference
         Haplotype(
             hap_id="H1",
             interval=GenomicInterval(chrom="chr2", start=0, end=80, strand=Strand.PLUS),
-            variants=(Variant(chrom="chr2", pos=26, ref="A", alt="C"),),
+            # 0-based, as `Variant` is canonical: index 25 is the third of the three
+            # A's this contig's ABE window is built around. It read `pos=26` — the
+            # *1-based* position of that same base — so the panel asserted an 'A' where
+            # the reference has a 'C' and was skipped for every item. The test still
+            # passed, because what it measures is whether the source *reaches* each item,
+            # and that count is taken before the panel is applied. The build-mismatch
+            # accounting is what made the inert panel visible.
+            variants=(Variant(chrom="chr2", pos=25, ref="A", alt="C"),),
             frequencies={"afr": 0.2},
             source="1000g",
         )
