@@ -19550,3 +19550,50 @@ cannot measure an order.** Both of the tests that existed here were about the ri
 function, on the right code path, and neither could distinguish the answer from its
 mirror image. The check to apply is not "is this covered" but "what would the wrong
 version of this return, and would my assertion tell the difference".
+
+
+## Round 576 — a ranking weight must act on the axis it is named after
+
+Round 575's lesson: for each assertion, ask what the wrong version would return and
+whether the assertion tells the difference. `score_candidate` writes the composite out
+longhand — four names on the left, four values on the right, paired by hand:
+
+    w["efficiency"] * eff + w["cleanliness"] * clean
+    + w["safety"] * safe + w["simplicity"] * simple
+
+Exchanging two is a one-character edit. Swapping `cleanliness` and `safety` leaves the
+whole suite green: **4,224 passed, 33 skipped**. Two reasons, and both are the shape this
+lesson names:
+
+    DEFAULT_WEIGHTS: cleanliness = 0.30, safety = 0.30
+
+Equal, so under the defaults the exchange is arithmetically invisible — every test that
+does not set weights is blind to it by construction. And the one test that does set them
+(`test_weights_are_sensitive_in_the_expected_direction`) varies efficiency against safety
+while leaving the other two axes at their defaults and holding cleanliness equal across
+its two candidates.
+
+`safety` is `1 - worst-case off-target score`, the axis this project exists to get right.
+A user ranking with `--weights 0.2,0.1,0.6,0.1` because off-target risk is what they care
+about would, under that swap, be ranking on outcome purity: a plausible menu, in a
+plausible order, answering a different question, with the requested weights echoed back
+faithfully in the provenance.
+
+The pairing is **correct**; this round is the measurement it never had. Both guards are
+derived from `OBJECTIVES`, so a fifth axis is covered the day it lands:
+
+* the composite *is* the dot product of the **reported** per-axis values with their own
+  weights, over five weight vectors including an unnormalized one;
+* one pair of candidates per axis, differing on that axis alone (asserted, not assumed),
+  with all the weight on one axis: the named weight moves its own axis, and every one of
+  the twelve ordered (axis, other) combinations must leave the other pair's two
+  composites *equal* — which is the exchange, stated without naming which pair was
+  exchanged.
+
+All four pairwise swaps fail it, 10-18 cases each.
+
+**Lesson: two equal defaults are a blind spot with a shape.** Wherever two parallel
+quantities share a default, every test that takes the default cannot tell them apart, and
+the tests that do vary one of them usually vary only that one. The place to look is not
+the code that pairs them — it is the table of defaults, for two entries with the same
+number.
