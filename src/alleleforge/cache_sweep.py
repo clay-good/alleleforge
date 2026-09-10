@@ -25,6 +25,22 @@ FAILURES = frozenset({"CORRUPT", "UNREADABLE", "MISMATCH"})
 #: Statuses that mean nothing was checked — neither a pass nor a failure.
 UNCHECKED = frozenset({"unpinned", "not-cached", "unverifiable"})
 
+#: Where a reader finds out *why* an artifact of each kind was not checked, keyed by
+#: `CacheCheck.kind`. The sweep counts unchecked artifacts and cannot explain them: an
+#: unpinned dataset and an unpinned checkpoint are two registries' business, and the
+#: answer is a command each. It was one sentence naming `aforge data list` — written
+#: when that was the only registry with a shell, and stale from the moment the model
+#: zoo got one, with two thirds of the unchecked rows being checkpoints it cannot
+#: explain. A kind with no entry here is a kind whose reader is told nothing, which
+#: `test_the_sweep_can_explain_every_kind_it_counts` refuses.
+UNCHECKED_REMEDIES: dict[str, str] = {
+    "dataset": "`aforge data list` says which datasets ship, which are cached and which "
+    "carry no pinned checksum (the registry refuses to fetch what it cannot verify)",
+    "checkpoint": "`aforge models list` says which model checkpoints are cached, which "
+    "carry a pinned hash (an unpinned one is refused on load, not only on fetch) and "
+    "what licence each card carries",
+}
+
 
 @dataclass(frozen=True)
 class CacheCheck:

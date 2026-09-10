@@ -16813,3 +16813,32 @@ it has a `rationale` column, a `caveats` column, a `flags` column — and every 
 is per candidate, so all three vanish in exactly the case where the reader most needs
 them. When checking whether a format carries a fact, ask which *cardinality* the fact has:
 a run-level truth stored per row is stored nowhere when there are no rows.
+
+## Round 490 — the note that pointed at the wrong registry
+
+Round 489's lesson was about cardinality; this round came from running the product, which
+this project's notes say has beaten auditing it four times over. `aforge cache verify` on
+a real cache dir prints:
+
+    NOTE: 24 artifact(s) were not checked — 1 pinned but not on this disk, 23 carrying no
+    pin at all ... `aforge data list` says which
+
+Sixteen of those 23 are model **checkpoints**. `aforge data list` lists datasets and has
+never mentioned a checkpoint. The sentence was correct when it was written — the dataset
+registry was the only one with a shell — and round 486 gave the model zoo one, which made
+the sentence wrong in the same round that made it fixable. Four rounds ago the lesson was
+that the round which fixes a class reproduces it; this is the milder version: **the round
+that adds a capability leaves the old pointers stale**, and nothing looks at a `NOTE`.
+
+`UNCHECKED_REMEDIES` maps `CacheCheck.kind` to the command that explains that kind, beside
+the sweep rather than in the shell, and the command prints one line per kind it actually
+counted. The guard derives the population from the producer's AST — every `CacheCheck(...)`
+literal paired with an unchecked status — checks both directions, and resolves each
+remedy's cited command against the live click tree, which is what would have caught the
+original sentence: it named a command that exists and cannot answer for that kind.
+
+**Lesson: a pointer is a claim about another surface, and it ages when that surface
+changes.** The prose guards in this repo check links, flags, module paths and command
+names. What none of them checks is whether the thing pointed at can actually answer the
+question asked — `aforge data list` exists, runs, and is documented, and was still the
+wrong answer for two thirds of the rows the note was explaining.

@@ -2888,7 +2888,7 @@ def cache_verify(
     what to do with a corrupt entry is the operator's call, and both stores are
     content-addressed, so deleting the named directory or file is always safe.
     """
-    from alleleforge.cache_sweep import held_bytes, verify_stores
+    from alleleforge.cache_sweep import UNCHECKED_REMEDIES, held_bytes, verify_stores
     from alleleforge.config import get_settings
 
     state: GlobalState = ctx.obj
@@ -2919,9 +2919,16 @@ def cache_verify(
             f"  NOTE: {len(unchecked)} artifact(s) were not checked — {absent} pinned but "
             f"not on this disk, {len(unchecked) - absent - unverifiable} carrying no pin "
             f"at all, {unverifiable} in a cache namespace that stores no checksum. Almost "
-            "none of the registry ships or is downloaded by default; `aforge data list` "
-            "says which, and `--json` lists every row."
+            "none of either registry ships or is downloaded by default; `--json` lists "
+            "every row."
         )
+        # One line per kind actually present, from the library's own map: this note used
+        # to name `aforge data list` alone, while most unchecked rows are checkpoints,
+        # which that command has never listed.
+        for kind in sorted({c["kind"] for c in unchecked}):
+            remedy = UNCHECKED_REMEDIES.get(kind)
+            if remedy:
+                human.append(f"    {kind}: {remedy}")
     if not deep and any(c["kind"] == "fm-index" for c in checks):
         human.append(
             "  NOTE: the FM-indexes got their structural checks only. An index altered "
