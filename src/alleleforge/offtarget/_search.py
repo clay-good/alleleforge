@@ -18,6 +18,7 @@ each is evaluated independently; a single site is not given both at once.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from functools import cache
 from itertools import product
@@ -325,6 +326,48 @@ def _evaluate(
     )
 
 
+def _anchor_evaluator(
+    spacer: str,
+    seq: str,
+    pam_len: int,
+    *,
+    max_mm: int,
+    dna_bulges: int,
+    rna_bulges: int,
+) -> Callable[[int], tuple[int, int, int, int, str, str] | None]:
+    """Return the per-anchor evaluator for one scan, with the dispatch already made.
+
+    The same two implementations :func:`_evaluate` chooses between, and the same
+    results — this only moves the choice out of a loop that runs once per PAM
+    occurrence, and binds the scan's sequence and budget instead of passing them again
+    for every anchor. `_evaluate` stays: it is the shape the parity test compares, and
+    a caller with a single anchor should not have to build a closure.
+    """
+    if _NATIVE_EVALUATE is not None:  # pragma: no cover - native not built in CI
+        native = _NATIVE_EVALUATE
+
+        def evaluate_native(pam_at: int) -> tuple[int, int, int, int, str, str] | None:
+            result: tuple[int, int, int, int, str, str] | None = native(
+                spacer, seq, pam_at, max_mm, dna_bulges, rna_bulges
+            )
+            return result
+
+        return evaluate_native
+
+    def evaluate_python(pam_at: int) -> tuple[int, int, int, int, str, str] | None:
+        return _python_evaluate(
+            spacer,
+            seq,
+            pam_at,
+            pam_len,
+            max_mm=max_mm,
+            dna_bulges=dna_bulges,
+            rna_bulges=rna_bulges,
+        )
+
+    return evaluate_python
+
+
 def _python_evaluate(
     spacer: str,
     seq: str,
@@ -526,6 +569,13 @@ def _scan_one_strand(
         else None
     )
     hits: list[tuple[int, int, str, int, int, int, str, str]] = []
+    # The kernel is chosen once for the scan rather than once per anchor. `_evaluate`
+    # dispatches on `_NATIVE_EVALUATE is not None`, which cannot change during a scan,
+    # and this loop calls it half a million times on a 2 Mb contig — a Python call per
+    # anchor to re-answer a question with one answer.
+    evaluate = _anchor_evaluator(
+        spacer, seq, pam_len, max_mm=max_mm, dna_bulges=dna_bulges, rna_bulges=rna_bulges
+    )
     # The PAM check comes first now that it costs one C-level scan for the whole
     # sequence rather than a slice and a lookup per anchor. It was second because it
     # used to be the expensive one, and the prefilter — which does not apply at the
@@ -539,22 +589,19 @@ def _scan_one_strand(
             lo = max(0, pam_at - (n + 1))
             if covered[pam_at] - covered[lo] == 0:
                 continue
-        pam_seq = match.group(1)
-        result = _evaluate(
-            spacer,
-            seq,
-            pam_at,
-            pam_len,
-            max_mm=max_mm,
-            dna_bulges=dna_bulges,
-            rna_bulges=rna_bulges,
-        )
+        result = evaluate(pam_at)
         if result is None:
             continue
         start, mm, dnab, rnab, a_spacer, a_target = result
-        if "N" in seq[start:pam_at]:
+        # `find` rather than `"N" in seq[start:pam_at]`: the slice allocates a copy of
+        # every protospacer that survives evaluation, to answer a question `find` answers
+        # over the same span without one.
+        if seq.find("N", start, pam_at) != -1:
             continue  # never nominate a site over a padded / unknown region
-        hits.append((start, pam_at, pam_seq, mm, dnab, rnab, a_spacer, a_target))
+        # Read only for an anchor that became a hit. It was read for every anchor — one
+        # string allocation per PAM occurrence in the genome, and the ratio of anchors to
+        # hits is the whole shape of this scan.
+        hits.append((start, pam_at, match.group(1), mm, dnab, rnab, a_spacer, a_target))
     return hits
 
 
@@ -633,23 +680,19 @@ def _scan_one_strand_fm(
             if lo_bound <= pam_at <= hi_bound:
                 anchors.add(pam_at)
     hits: list[tuple[int, int, str, int, int, int, str, str]] = []
+    evaluate = _anchor_evaluator(
+        spacer, seq, pam_len, max_mm=max_mm, dna_bulges=dna_bulges, rna_bulges=rna_bulges
+    )
     for pam_at in sorted(anchors):
-        pam_seq = seq[pam_at : pam_at + pam_len]
-        result = _evaluate(
-            spacer,
-            seq,
-            pam_at,
-            pam_len,
-            max_mm=max_mm,
-            dna_bulges=dna_bulges,
-            rna_bulges=rna_bulges,
-        )
+        result = evaluate(pam_at)
         if result is None:
             continue
         start, mm, dnab, rnab, a_spacer, a_target = result
-        if "N" in seq[start:pam_at]:
+        if seq.find("N", start, pam_at) != -1:
             continue  # never nominate a site over a padded / unknown region
-        hits.append((start, pam_at, pam_seq, mm, dnab, rnab, a_spacer, a_target))
+        hits.append(
+            (start, pam_at, seq[pam_at : pam_at + pam_len], mm, dnab, rnab, a_spacer, a_target)
+        )
     return hits
 
 

@@ -17207,3 +17207,39 @@ product.** The reflex is to isolate the test — a fixture, a monkeypatch, a tmp
 that reflex would have hidden this: the suite is simply a process that has done something
 before your code runs, which is what every long-lived caller is. Round 486 hit the same
 singleton and worked around it in the fixture; this time the workaround was the finding.
+
+## Round 502 — the anchors that paid for the hits
+
+Two audit veins ran dry this round before this one opened. The suite runs in file order —
+`pytest-randomly` is not installed, so the `-p no:randomly` in my own commands was a no-op
+— and pointing the whole suite at a scratch `HOME` touched nothing in the real cache, so
+the order- and environment-dependence class is closed. That left the vein the notes say is
+still open: performance.
+
+A profile of a 2 Mb scan is unambiguous. 498,957 anchors, two hits, and half the time in
+the Python loop around the native kernel:
+
+    0.320s  _scan_one_strand           (the loop)
+    0.155s  aforge_native.evaluate_anchor
+    0.079s  _evaluate                  (a wrapper, once per anchor)
+    0.060s  re.Match.group / .start    (once per anchor)
+
+Three things were being paid for every anchor and needed only by a hit. `_evaluate`'s
+whole body is `if _NATIVE_EVALUATE is not None` — a question with one answer for the
+entire scan, asked half a million times. `match.group(1)` allocates the PAM string, which
+is used only in the tuple a *hit* appends. And the `N` check sliced the protospacer window
+to ask a question `str.find` answers over the same span without a copy.
+
+`_anchor_evaluator` makes the dispatch once and binds the sequence and budget; the PAM
+string is read at append time; the `N` check is a bounded `find`. The FM-index scanner got
+the same three. **1.33x** on the 2 Mb contig at the default budget — paired and
+alternating, minimum of seven, in one process, on a machine at load 12, which is why this
+is a ratio and not a number of milliseconds — with the hit tuples byte-identical, checked
+by rebuilding the previous loop inside the module's own namespace so the comparison does
+not charge it for attribute lookups it never made.
+
+**Lesson: profile the loop, but read the *ratio* — how many times does this run per unit
+of output?** Two hits out of 498,957 anchors is the shape of this function, and it makes
+every per-anchor cost a 250,000x multiplier on work that only the output needs. Nothing in
+the profile said "wrapper": it said 0.079s, which looks small beside the kernel's 0.155s
+until you notice that both numbers are per-anchor and only one of them is the job.
