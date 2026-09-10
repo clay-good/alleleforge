@@ -17569,3 +17569,33 @@ breaks the unit tests do not reach — a format that stops writing, a flag whose
 mechanisms now fight, an artifact whose fields no longer agree. Two minutes of running the
 thing is a different instrument from three thousand tests, and this is the round that
 found nothing, which is the outcome that makes the previous thirty-three worth trusting.
+
+## Round 513 — the fourth audience, after the arc
+
+Round 512 ran the terminal. This one opens the served page in a browser, on the same 2 Mb
+deployment, because the browser is the audience with no `--help` to read and the one whose
+regressions the other three cannot show.
+
+The status line reads `AlleleForge 0.1.0.dev0 · reference loaded (hg38) · reference-only`
+— the assembly named, which it was not before round 480, and the search basis stated. The
+variant box's caption offers "Coordinates ..., a VCF record, or a genomic HGVS expression
+(chr1:g.500T>C)" and lists the three forms this deployment refuses, which is the wording
+round 496 corrected. Typing the placeholder's second half — `chr1 500001 . C A`, an input
+that answered "unrecognized variant input" for as long as the box had existed — designs
+270 candidates and offers five downloads.
+
+Then the check worth the round:
+
+    POST /api/design?format=json   ==   aforge design --format json
+
+byte-for-byte, modulo the run timestamp, for the same variant on the same genome. The
+project's stated thesis is that the library is the source of truth and the shells are thin;
+after a session that rewrote the scan four times, moved the anchoring into Rust, added a
+run-level scanner and released the GIL, the two shells still produce one document.
+
+**Lesson: the parity claim is only worth what its last check cost.** "The CLI and the web
+render the same report" is asserted by a dozen unit tests over small fixtures, and it is
+the kind of claim that survives its own falsification for months, because the two paths
+diverge on something no fixture is big enough to reach — a scan that only a real genome
+runs, a cache only a second invocation touches. One `diff` of two real runs is worth the
+dozen, and costs a minute.
