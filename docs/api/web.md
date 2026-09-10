@@ -49,6 +49,7 @@ auto-generated at `/openapi.json`.
 | `POST /api/batch` | Variant list → per-item summaries; `?format=json\|tsv\|parquet` — the flat table is the same per-patient table `aforge batch --summary-tsv` / `--summary-parquet` writes, from the same library function, and the two encodings hold the same columns in the same order. No `html`/`pdf`: a cohort has no single document. |
 | `POST /api/offtarget` | Standalone population-aware off-target search, including the `scorer` choice (`cfd` / `mit` / `cfd-cas12a`) so a Cas12a run is labelled as the unvalidated approximation rather than as the published matrix. |
 | `GET /api/data` / `GET /api/data/{name}` | Inspect the dataset registry. |
+| `GET /api/models` / `GET /api/models/{name}` | Inspect the model zoo: each card's licence, intended use, out-of-scope use and known failure modes, and whether this deployment can load its checkpoint. A request may ask for a trained model by name; this is where a client reads what that model is. |
 | `GET /api/bench` | List the CRISPR-Bench tasks with their kind, chemistry, dataset and metric battery. |
 | `GET /` | The served single-page frontend. |
 

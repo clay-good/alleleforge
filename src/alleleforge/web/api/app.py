@@ -77,6 +77,8 @@ from alleleforge.web.api.models import (
     JobState,
     JobStatusResponse,
     JobSubmitResponse,
+    ModelListResponse,
+    ModelRow,
     OffTargetRequest,
     OffTargetResponse,
     Region,
@@ -1376,6 +1378,51 @@ def create_app(
             **descriptor.model_dump(mode="json"),
             **status,
             "presence": dataset_presence(status),
+        }
+
+    @app.get("/api/models", response_model=ModelListResponse)
+    async def models_list(request: Request) -> ModelListResponse:
+        """List every model card: what it scores, its licence, and whether it is here."""
+        from alleleforge.model_zoo.registry import default_registry, model_presence, model_status
+
+        settings: Settings = request.app.state.settings
+        registry = default_registry()
+        return ModelListResponse(
+            models=tuple(
+                ModelRow(
+                    name=name,
+                    version=card.version,
+                    chemistry=card.chemistry,
+                    license=card.license,
+                    **status,
+                    presence=model_presence(status),
+                )
+                for name in registry.names
+                for card in (registry.get(name),)
+                for status in (model_status(card, settings.cache_dir),)
+            )
+        )
+
+    @app.get("/api/models/{name}")
+    async def models_show(name: str, request: Request) -> dict[str, Any]:
+        """Show one model card in full, and whether this deployment can load it.
+
+        The card's own fields are the point: its intended use, its out-of-scope use and
+        its known failure modes are what a client needs before it asks for the model by
+        name, and they were reachable from Python alone.
+        """
+        from alleleforge.model_zoo.registry import default_registry, model_presence, model_status
+
+        registry = default_registry()
+        if name not in registry:
+            raise HTTPException(status_code=404, detail=f"unknown model {name!r}")
+        settings: Settings = request.app.state.settings
+        card = registry.get(name)
+        status = model_status(card, settings.cache_dir)
+        return {
+            **card.model_dump(mode="json"),
+            **status,
+            "presence": model_presence(status),
         }
 
     @app.get("/api/bench", response_model=BenchListResponse)

@@ -825,6 +825,45 @@ class DataListResponse(BaseModel):
     datasets: tuple[DatasetRow, ...]
 
 
+class ModelRow(BaseModel):
+    """One model-zoo card (summary form).
+
+    The dataset registry has been answerable over HTTP since `GET /api/data` shipped.
+    The model registry was not — while a request can ask for a trained model by name
+    (`trained_efficiency`, ...) and `GET /api/health` says which ones the operator
+    enabled, with nothing anywhere saying what those models are, what licence they carry
+    or what they are documented to get wrong.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    version: str
+    chemistry: str | None
+    license: str
+    #: The licence half, split from the presence half for the same reason the dataset
+    #: row splits them: "permitted" is not "present".
+    research_use: bool = False
+    commercial_use: bool = False
+    #: The presence half. `available` is stricter than "the file is on disk": the
+    #: registry refuses to load an unpinned checkpoint exactly as it refuses to fetch
+    #: one, so an unpinned card is unusable however many bytes sit at its cache path.
+    pinned: bool = False
+    cached: bool = False
+    available: bool = False
+    fetchable: bool = False
+    #: The same one-line answer the CLI prints, so a client need not re-derive it.
+    presence: str = ""
+
+
+class ModelListResponse(BaseModel):
+    """The model registry listing."""
+
+    model_config = ConfigDict(frozen=True)
+
+    models: tuple[ModelRow, ...]
+
+
 class BenchTaskRow(BaseModel):
     """One CRISPR-Bench task (summary form)."""
 

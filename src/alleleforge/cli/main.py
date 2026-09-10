@@ -3093,6 +3093,114 @@ def data_show(
     _emit(payload, as_json=as_json, human=human)
 
 
+models_app = typer.Typer(
+    name="models",
+    help="Inspect the model zoo: cards, licences and checkpoints.",
+    no_args_is_help=True,
+)
+app.add_typer(models_app)
+
+
+def _model_cache_root(ctx: typer.Context) -> Path:
+    """Return the cache root a checkpoint would be found under."""
+    from alleleforge.config import get_settings
+
+    state: GlobalState = ctx.obj
+    return state.cache_dir if state.cache_dir is not None else get_settings().cache_dir
+
+
+@models_app.command("list")
+def models_list(
+    ctx: typer.Context,
+    as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """List every model card: what it scores, its licence, and whether a run can use it.
+
+    The dataset registry has had `data list`/`data show` and two HTTP endpoints for
+    several phases. The *model* registry had no shell at all — while each trained-model
+    opt-in on `aforge design`, the checkpoint cache and the leaderboard's gate all read
+    these cards, and the
+    card is where this project keeps a model's intended use, its out-of-scope use and
+    its known failure modes. A user could opt into a trained model and had no way to
+    read what they were opting into.
+    """
+    from alleleforge.model_zoo.registry import (
+        default_registry,
+        model_permission,
+        model_presence,
+        model_status,
+    )
+
+    root = _model_cache_root(ctx)
+    registry = default_registry()
+    rows: list[dict[str, Any]] = []
+    human_rows: list[str] = []
+    width = max(len(name) for name in registry.names)
+    for name in registry.names:
+        card = registry.get(name)
+        status = model_status(card, root)
+        rows.append(
+            {
+                "name": name,
+                "version": card.version,
+                "chemistry": card.chemistry,
+                "license": card.license,
+                **status,
+                "presence": model_presence(status),
+            }
+        )
+        human_rows.append(
+            f"{name:{width}s} {card.version:10s} {(card.chemistry or '-'):14s} "
+            f"{card.license:16s} {model_permission(status):26s} {model_presence(status)}"
+        )
+    human = "\n".join(
+        [
+            *human_rows,
+            "",
+            "A licence permission is not a statement that the weights are present: only "
+            "a model marked cached *and* pinned can be loaded, because the registry "
+            "refuses to load an unverifiable checkpoint exactly as it refuses to fetch "
+            "one. `aforge models show <name>` prints the card's intended use, its "
+            "out-of-scope use and its known failure modes.",
+        ]
+    )
+    _emit({"models": rows}, as_json=as_json, human=human)
+
+
+@models_app.command("show")
+def models_show(
+    ctx: typer.Context,
+    name: Annotated[str, typer.Argument(help="Model name (see `aforge models list`).")],
+    as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Show one model card in full: intended use, out-of-scope use, failure modes."""
+    from alleleforge.model_zoo.registry import (
+        default_registry,
+        model_permission,
+        model_presence,
+        model_reason,
+        model_status,
+    )
+
+    registry = default_registry()
+    if name not in registry:
+        _echo_err(f"error: unknown model {name!r}; known: {registry.names}")
+        raise typer.Exit(ExitCode.MISSING_DATA)
+    card = registry.get(name)
+    status = model_status(card, _model_cache_root(ctx))
+    payload: dict[str, Any] = {
+        **card.model_dump(mode="json"),
+        **status,
+        "presence": model_presence(status),
+    }
+    human = "\n".join(f"{k}: {v}" for k, v in payload.items())
+    human += (
+        f"\n\nusable by a run right now: {'yes' if status['available'] else 'NO'} — "
+        f"{model_reason(status)}. Licence: {model_permission(status)}."
+    )
+    _emit(payload, as_json=as_json, human=human)
+
+
 bench_app = typer.Typer(
     name="bench", help="Run CRISPR-Bench tasks (Phase 14).", no_args_is_help=True
 )

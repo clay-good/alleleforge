@@ -48,6 +48,12 @@ _NOT_ON_THE_PAGE: dict[str, str] = {
     "GET /api/data/{name}": "decision: the per-dataset detail view of the same "
     "inventory, and the same reasoning as `GET /api/data` — a client acts on what this "
     "deployment loaded, which the status line already reports",
+    "GET /api/models": "decision: the same inventory reasoning as `GET /api/data`, one "
+    "registry over. A client acts on what this deployment enabled, which the status line "
+    "already names beside the controls — `trained: rule-set-3` — and the card behind that "
+    "name is read from `aforge models show` or the endpoint itself",
+    "GET /api/models/{name}": "decision: the per-model detail view of the same inventory; "
+    "see `GET /api/models`",
     "GET /api/bench": "decision: the benchmark registry is a leaderboard surface, not a "
     "design one. The page designs; `aforge bench` and the published board are where the "
     "task table is read",

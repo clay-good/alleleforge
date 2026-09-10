@@ -16677,3 +16677,41 @@ Three of the last four rounds found a limitation that had been recorded, explain
 tested, and whose premise was one sentence nobody re-derived — a helper documenting it, a
 guard pinning it, a spec repeating it. The machinery that grows around a limitation is not
 evidence for it; it is what makes the limitation invisible.
+
+## Round 486 — the registry that gated everything and answered no one
+
+Round 485's lesson was that "no way to supply it" is a claim about the surface, and the
+surface is ours. The natural follow-up query is the one this project has found most
+productive over four hundred rounds: **what can the library do that no shell can reach?**
+
+Sweeping every subpackage's `__all__` against the CLI and web sources turned up mostly
+internal primitives the shells reach transitively — and one whole registry.
+`alleleforge.model_zoo` exports `default_registry` and `license_permits`, and neither the
+CLI nor the web layer names them anywhere. There is no `aforge models`. There is no
+`/api/models`.
+
+That is not a symmetry complaint. A model card in this project carries the licence, the
+intended use, the **out-of-scope use**, the **known failure modes** (at least one is
+required by a validator) and the pinned checkpoint hash. `--trained-efficiency`,
+`--trained-outcome`, `--trained-base-outcome` and `--trained-prime` are consent gates on
+those cards. `bench leaderboard` refuses a submission whose card is incomplete.
+`GET /api/health` lists which trained models an operator enabled, by name. So a user could
+opt into a model — one whose numbers move a candidate's rank — and read nothing about what
+they were opting into from any surface this project ships. Seventeen cards, sixteen
+kilobytes of exactly the honest labelling this repository exists to produce, addressable
+only from Python.
+
+The dataset registry's shape carried over: one derivation (`model_status`), read by all
+four surfaces, splitting the licence half from the presence half so "permitted" cannot be
+read as "present". One case is sharper than the dataset version. A cached checkpoint whose
+card pins no hash is *not* usable — `ModelRegistry.checkpoint` raises `ChecksumError`
+rather than load an unverifiable artifact, exactly as it refuses to fetch one — so "the
+file is on disk" would be the wrong answer. A test plants a file at that cache path and
+requires every surface to keep saying NO.
+
+**Lesson: the oldest query is still the best one, and it should be run against
+*populations*, not modules.** Rounds 63–76 found this class by reading `design()`'s
+parameter list against each shell. This round found a whole registry by iterating
+`__all__` across every subpackage — eleven lines of throwaway script. The parity guards
+this repo has written are all per-entry-point (`design()`, the search, the report, the
+bench package); nothing had ever asked the question about the package list itself.

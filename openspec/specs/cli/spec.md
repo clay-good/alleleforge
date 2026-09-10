@@ -11,7 +11,7 @@ meaningful exit codes. The library is the source of truth; the CLI is a shell.
 ### Requirement: A stable subcommand surface with meaningful exit codes
 
 The CLI SHALL expose `resolve`, `design`, `batch`, `offtarget`, `verify`, `lift`, and the
-`data`, `cache` and `bench` sub-apps, and SHALL use distinct exit codes:
+`data`, `models`, `cache` and `bench` sub-apps, and SHALL use distinct exit codes:
 `0` success, `2` usage, `3` missing data, `4` unavailable dependency or a failed
 integrity check.
 

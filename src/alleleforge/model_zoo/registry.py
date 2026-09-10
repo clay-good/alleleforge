@@ -370,3 +370,70 @@ def default_registry() -> ModelRegistry:
     is new each call, so it is the caller's to mutate.
     """
     return ModelRegistry({card.name: card for card in _bundled_cards()})
+
+
+#: Where a checkpoint is cached, relative to the cache root. The loader passes
+#: ``cache_dir/models`` and the cache sweep walks the same directory; a third caller
+#: spelling it a third way would report a cached model as absent.
+MODEL_CACHE_SUBDIR = "models"
+
+
+def checkpoint_path(card: ModelCard, cache_root: Path) -> Path:
+    """Return where ``card``'s checkpoint is (or would be) cached under ``cache_root``."""
+    return Path(cache_root) / MODEL_CACHE_SUBDIR / f"{card.name}.{card.version}.ckpt"
+
+
+def model_status(card: ModelCard, cache_root: Path) -> dict[str, bool]:
+    """Return what a caller can actually do with this model on this machine right now.
+
+    The dataset registry answers the same question for data (:func:`~alleleforge.data.
+    registry.dataset_status`), and four surfaces read that one derivation because each
+    surface that derived it separately got a different answer. The model registry had no
+    surface at all: the cards carry the licence, the intended and out-of-scope use, the
+    known failure modes and the pinned checkpoint hash that gate every `--trained-*`
+    flag and the whole leaderboard, and no shell could list them.
+
+    ``available`` is deliberately stricter than "the file is there". The registry
+    refuses to *load* an unpinned cached checkpoint exactly as it refuses to fetch one,
+    so a card with no ``checkpoint_sha256`` is not usable however many bytes sit at its
+    cache path — and reporting it as present is the presence-versus-permission confusion
+    the dataset surfaces were corrected for.
+    """
+    pinned = card.checkpoint_sha256 is not None
+    cached = checkpoint_path(card, cache_root).is_file()
+    return {
+        "pinned": pinned,
+        "cached": cached,
+        "available": pinned and cached,
+        # "a fetch would work", not "the fields a fetch needs are set": a fetch also
+        # needs consent, which is the caller's to give and not a property of the card.
+        "fetchable": pinned and card.source_url is not None and not cached,
+        "research_use": card.permits(ModelUse.RESEARCH),
+        "commercial_use": card.permits(ModelUse.COMMERCIAL),
+    }
+
+
+def model_reason(status: dict[str, bool]) -> str:
+    """Return why a model is or is not usable, without restating which of the two."""
+    if status["available"]:
+        return "cached and pinned"
+    if not status["pinned"]:
+        return "no pinned checksum, so it can be neither fetched nor loaded"
+    if status["fetchable"]:
+        return "fetch it with consent"
+    return "pinned but not cached, and the card names no source to fetch from"
+
+
+def model_presence(status: dict[str, bool]) -> str:
+    """Return the one-line presence answer, shouting when nothing is there to use."""
+    reason = model_reason(status)
+    return reason if status["available"] else f"NOT AVAILABLE - {reason}"
+
+
+def model_permission(status: dict[str, bool]) -> str:
+    """Return the licence half, worded so it cannot be read as a presence claim."""
+    if status["commercial_use"]:
+        return "research + commercial use"
+    if status["research_use"]:
+        return "research use only"
+    return "no use permitted"

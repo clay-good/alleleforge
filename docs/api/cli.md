@@ -25,6 +25,8 @@ pip install "alleleforge[cli]"
 | `aforge verify` | Re-check a result's (or a sidecar's) provenance: completeness always, artifact re-hashing with `--cache-dir`. |
 | `aforge data list` | List every registered dataset with its version and license. |
 | `aforge data show` | Show one dataset's full provenance descriptor. |
+| `aforge models list` | List every model card: what it scores, its licence, and whether a run can load it. |
+| `aforge models show` | Show one card in full — intended use, out-of-scope use, known failure modes, pinned checkpoint. |
 | `aforge cache verify` | Check the four on-disk stores a run trusts — the off-target report cache, the FM-index cache, and the pinned dataset and checkpoint caches. `--deep` adds the index reconstruction, the only check that catches an index altered without changing its length. It also reports what the stores weigh, because **nothing evicts them**: every one is content-addressed, so a changed input is a new key and the old entry stays — an FM-index over a whole genome runs to several gigabytes per contig-strand, and editing the reference mints a new one beside the old. Deleting any of them is safe; the next run recomputes or re-fetches. The content-addressed namespaces are read off disk rather than named, so a store the command has never heard of is still swept. Artifacts that are unpinned, absent from this disk, or in a namespace that stores no checksum are reported as not checked, counted apart from the passes. |
 | `aforge bench list` | List the [CRISPR-Bench](benchmark.md) tasks, their datasets, and primary metrics. |
 | `aforge bench run` | Score the reference baseline on a task's frozen test split. |
@@ -87,6 +89,10 @@ aforge offtarget GACGGAGGCTAAGCGTCGCAA --reference-fasta hg38.fa --pam NGG --jso
 # Inspect the dataset registry
 aforge data list
 aforge data show gnomad --json
+
+# Inspect the model zoo: what a trained-model opt-in would actually load
+aforge models list
+aforge models show rule-set-3 --json
 
 # CRISPR-Bench: list the tasks, then score the reference baseline on a frozen split
 aforge bench list
