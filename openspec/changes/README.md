@@ -17042,3 +17042,33 @@ checks that a *name* exists — a flag, a command, a module path, a link. The pa
 placeholder is not a name, it is an input, and the only way to check an input is to feed
 it to the thing it is an input for. Two rounds of prose guards, four rounds of shell-parity
 guards, and a documented capability nobody had ever typed.
+
+## Round 497 — typing the examples, permanently
+
+Round 496's lesson was "type the example", found by typing one. This round makes it a
+constraint rather than an anecdote.
+
+The page already had a guard over its placeholders: no placeholder may offer an input form
+this deployment refuses. It reads the *string* — `VCV\d+`, `rs\d+`, a `c.`/`p.` pattern —
+and the round that wrote it was right about the class it was chasing. `2 71 . A C` matches
+none of those patterns, is not a refused form, and was simply unreadable, which no check on
+the shape of a string can see.
+
+So the examples are submitted. Every `placeholder=` in an input whose `name` matches a
+request field goes to that field's endpoint, split on the `·` and newlines the page uses to
+show several forms at once, because a reader copies one of them and not the string. The
+population comes from the page, so a new example box is covered the day it is added.
+
+The one judgement in it is what counts as failure. The page's examples name loci in a real
+genome — `chr7:117559590:ATCT>A` is a CFTR variant — and no test fixture holds hg38, so
+"this reference does not have that position" is an honest answer to an example while "I
+cannot read `2 71 . A C`" is not. The guard fails on a parse refusal and tolerates a
+reference one, which is exactly the line between "this example is wrong" and "this test
+genome is small".
+
+**Lesson: a guard that reads a string can only find the defects that are visible in the
+string.** The placeholder guard, the link checker, the flag checker and the module-path
+checker are all pattern matches over text, and between them they cover a great deal —
+none of them could ever have found this, because the defect was not in the characters. The
+same is true of every check written over *documentation* rather than over *behaviour*:
+when the artifact under test is an input, the check has to be an execution.
