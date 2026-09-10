@@ -17657,3 +17657,30 @@ keeps full precision: this is what a *reader* is given, not what the engine comp
 engine's float is exact and unpublishable; every surface had to choose, and choosing
 separately is how two of them disagree while both are correct. Precision is part of the
 contract, and it belongs where the contract lives.
+
+## Round 516 — the cohort a reader had to assume about
+
+Completing the parity sweep: the design report (round 514) and the off-target payload
+(round 515) are diffed across both shells; the third flagship operation is the cohort. Its
+per-item summaries agree exactly — every number, every flag — and the envelopes differ
+deliberately: the CLI flattens `item_id`/`status`/`error` into each row, the API nests the
+summary under them.
+
+One field is in the CLI's envelope and not the API's: `coordinate_note`. Which means the
+cohort response over HTTP was the one document in this project that returns loci without
+saying which convention they are in. Its rows carry `variant` — the *resolved* variant,
+which is precisely where left-alignment has already moved the coordinate, printed 0-based
+— and a client had nothing in the document to read that against. A genome browser reads
+the same digits as 1-based inclusive, which is the off-by-one that designs a guide at the
+wrong place.
+
+`BatchResponse` carries `coordinate_system` now, from the same constant as the other three,
+and the guard derives its population from the models rather than listing them: any response
+whose fields can hold a locus or a variant must state the convention, and must state it
+from the shared constant rather than a literal of its own.
+
+**Lesson: comparing two surfaces finds what neither review would.** Nothing about the batch
+response looked wrong — it has a disclaimer, provenance, per-item summaries, and the
+project's own five-facts rule was satisfied by every *other* artifact of the same run. The
+missing field was visible only as a difference: one envelope had it, the other did not, and
+that is a question no amount of reading either document alone would have raised.

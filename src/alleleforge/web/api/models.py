@@ -484,6 +484,13 @@ class BatchResponse(BaseModel):
     failed: int
     items: tuple[BatchItemResult, ...]
     provenance: dict[str, object]
+    #: The convention every locus in this response is in — including the `variant` each
+    #: row carries, which is the *resolved* one and therefore 0-based. `ResolveResponse`,
+    #: the design report and `OffTargetResponse` all state it, and `aforge batch --json`
+    #: carries the same sentence; the cohort response over HTTP was the one document
+    #: whose reader had to assume. A cohort is also the artifact most likely to be
+    #: forwarded to someone who did not make the request.
+    coordinate_system: str = COORDINATE_SYSTEM
     disclaimer: str
 
 
