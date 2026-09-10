@@ -169,6 +169,46 @@ fn evaluate_anchor(
     evaluate::evaluate(spacer, seq, pam_at, max_mm, dna_bulges, rna_bulges)
 }
 
+/// Evaluate every anchor of one scan in a single crossing, keeping only the hits.
+///
+/// The per-anchor entry point above is called once for every PAM occurrence in the
+/// contig — 498,957 of them on 2 Mb, roughly 180 million on hg38 — and the scan keeps
+/// two. Each of those calls is a Python frame, an argument tuple and an FFI crossing
+/// spent on an anchor that is almost always rejected, so this takes the whole anchor
+/// list and returns only what survived, with the anchor position carried in the tuple
+/// so the caller does not have to pair the two lists back up.
+///
+/// Identical results to calling `evaluate_anchor` in a loop, which a parity test pins.
+#[pyfunction]
+#[allow(clippy::too_many_arguments)]
+fn evaluate_anchors(
+    spacer: &str,
+    seq: &str,
+    anchors: Vec<usize>,
+    max_mm: usize,
+    dna_bulges: usize,
+    rna_bulges: usize,
+) -> Vec<(usize, usize, usize, usize, usize, String, String)> {
+    anchors
+        .into_iter()
+        .filter_map(|pam_at| {
+            evaluate::evaluate(spacer, seq, pam_at, max_mm, dna_bulges, rna_bulges).map(
+                |(start, mm, dna_b, rna_b, aligned_spacer, aligned_target)| {
+                    (
+                        pam_at,
+                        start,
+                        mm,
+                        dna_b,
+                        rna_b,
+                        aligned_spacer,
+                        aligned_target,
+                    )
+                },
+            )
+        })
+        .collect()
+}
+
 /// Off-target seeding: reference offsets sharing an exact k-mer with `spacer`.
 #[pyfunction]
 fn kmer_seed_positions(sequence: &str, spacer: &str, k: usize) -> Vec<usize> {
@@ -198,6 +238,7 @@ fn aforge_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fm_suffix_array, m)?)?;
     m.add_function(wrap_pyfunction!(align_best_with_removed_base, m)?)?;
     m.add_function(wrap_pyfunction!(evaluate_anchor, m)?)?;
+    m.add_function(wrap_pyfunction!(evaluate_anchors, m)?)?;
     m.add_function(wrap_pyfunction!(kmer_seed_positions, m)?)?;
     m.add_function(wrap_pyfunction!(haplotype_apply_variants, m)?)?;
     m.add_class::<NativeFmIndex>()?;

@@ -69,6 +69,7 @@ TIMED_KERNELS = {
     "fm_suffix_array": "anchor enumeration: FM-index vs linear scan",
     "align_best_with_removed_base": "bulged alignment",
     "evaluate_anchor": "per-anchor evaluation",
+    "evaluate_anchors": "whole-scan evaluation (one crossing)",
 }
 
 
@@ -175,6 +176,7 @@ def _alignment_and_evaluation(rng: random.Random) -> None:
     """
     from alleleforge.offtarget._search import (
         _NATIVE_EVALUATE,
+        _NATIVE_EVALUATE_MANY,
         _NATIVE_REMOVED_BASE,
         _python_best_with_removed_base,
         _python_evaluate,
@@ -202,6 +204,24 @@ def _alignment_and_evaluation(rng: random.Random) -> None:
         print(f"  native : {nat * 1e3:8.2f} ms  ({py / nat:.1f}x)")
     else:
         print("  native : (not built) - dispatch == python")
+
+    # The shape a scan actually has: one contig, every anchor in it, two survivors. The
+    # timing above is the kernel; this is the kernel plus what it costs to reach it a
+    # quarter of a million times, which is what the scan pays.
+    print("\nwhole-scan evaluation (one crossing) — one contig, every NGG anchor")
+    contig = "".join(rng.choice("ACGT") for _ in range(2_000_000))
+    anchors = [i for i in range(30, len(contig) - 3) if contig[i + 1 : i + 3] == "GG"]
+    evaluate = _NATIVE_EVALUATE
+    if evaluate is None:
+        print(f"  per-anchor : (native not built; {len(anchors):,} anchors)")
+    else:
+        one = _time(lambda: [evaluate(spacer, contig, i, 4, 1, 1) for i in anchors])
+        print(f"  per-anchor : {one * 1e3:8.2f} ms  ({len(anchors):,} crossings)")
+        if _NATIVE_EVALUATE_MANY is not None:
+            many = _time(lambda: _NATIVE_EVALUATE_MANY(spacer, contig, anchors, 4, 1, 1))
+            print(f"  batched    : {many * 1e3:8.2f} ms  ({one / many:.1f}x, 1 crossing)")
+        else:
+            print("  batched    : (not built) - dispatch == per-anchor")
 
 
 def _contig_fold(rng: random.Random) -> None:

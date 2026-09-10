@@ -280,12 +280,35 @@ def _native_evaluate_available() -> bool:
     return _native.NATIVE_AVAILABLE and ext is not None and hasattr(ext, "evaluate_anchor")
 
 
+def _native_kernel_available(name: str) -> bool:
+    """Return whether the built extension registers ``name``.
+
+    By name rather than one predicate per kernel: an extension older than the crate
+    source beside it is missing whichever kernels were added since it was built, which
+    is the state `_native.missing_native_functions()` reports and `aforge --version`
+    now prints. Each kernel asks for itself and falls back on its own.
+    """
+    ext = getattr(_native, "_ext", None)
+    return _native.NATIVE_AVAILABLE and ext is not None and hasattr(ext, name)
+
+
 #: Resolved once at import, for the same reason the bulged-alignment dispatcher is:
 #: this runs once per PAM-positive anchor -- half a million times over 2 Mb -- so an
 #: availability check inside the loop would eat the win it is dispatching to.
 _NATIVE_EVALUATE = (
     _native._ext.evaluate_anchor  # type: ignore[attr-defined]
     if _native_evaluate_available()
+    else None
+)
+
+#: The batched form of the same kernel: every anchor of one scan in one crossing,
+#: returning only the ones that scored. The scan keeps two hits out of half a million
+#: anchors on a 2 Mb contig, and each rejected anchor was costing a Python frame, an
+#: argument tuple and an FFI crossing. `None` when the extension predates it, in which
+#: case the per-anchor path below is used and the results are the same.
+_NATIVE_EVALUATE_MANY = (
+    _native._ext.evaluate_anchors  # type: ignore[attr-defined]
+    if _native_kernel_available("evaluate_anchors")
     else None
 )
 
@@ -324,6 +347,44 @@ def _evaluate(
         dna_bulges=dna_bulges,
         rna_bulges=rna_bulges,
     )
+
+
+def _evaluate_anchors(
+    spacer: str,
+    seq: str,
+    anchors: list[int],
+    pam_len: int,
+    *,
+    max_mm: int,
+    dna_bulges: int,
+    rna_bulges: int,
+) -> list[tuple[int, int, int, int, int, str, str]]:
+    """Evaluate every anchor of one scan, returning ``(pam_at, *alignment)`` for the hits.
+
+    One crossing for the whole scan when the batched kernel is built, because the ratio
+    that matters here is anchors to hits: two out of 498,957 on a 2 Mb contig, and every
+    rejected anchor was costing a Python frame, an argument tuple and an FFI crossing on
+    its way to being discarded.
+
+    The per-anchor path is kept for an extension that predates the batched kernel and for
+    the pure-Python install, and returns the same list — pinned by a parity test, like
+    every other kernel here.
+    """
+    if _NATIVE_EVALUATE_MANY is not None:  # pragma: no cover - native not built in CI
+        batched: list[tuple[int, int, int, int, int, str, str]] = _NATIVE_EVALUATE_MANY(
+            spacer, seq, anchors, max_mm, dna_bulges, rna_bulges
+        )
+        return batched
+    evaluate = _anchor_evaluator(
+        spacer, seq, pam_len, max_mm=max_mm, dna_bulges=dna_bulges, rna_bulges=rna_bulges
+    )
+    found: list[tuple[int, int, int, int, int, str, str]] = []
+    for pam_at in anchors:
+        result = evaluate(pam_at)
+        if result is not None:
+            start, mm, dna_b, rna_b, a_spacer, a_target = result
+            found.append((pam_at, start, mm, dna_b, rna_b, a_spacer, a_target))
+    return found
 
 
 def _anchor_evaluator(
@@ -568,40 +629,35 @@ def _scan_one_strand(
         if seed
         else None
     )
-    hits: list[tuple[int, int, str, int, int, int, str, str]] = []
-    # The kernel is chosen once for the scan rather than once per anchor. `_evaluate`
-    # dispatches on `_NATIVE_EVALUATE is not None`, which cannot change during a scan,
-    # and this loop calls it half a million times on a 2 Mb contig — a Python call per
-    # anchor to re-answer a question with one answer.
-    evaluate = _anchor_evaluator(
-        spacer, seq, pam_len, max_mm=max_mm, dna_bulges=dna_bulges, rna_bulges=rna_bulges
-    )
     # The PAM check comes first now that it costs one C-level scan for the whole
     # sequence rather than a slice and a lookup per anchor. It was second because it
     # used to be the expensive one, and the prefilter — which does not apply at the
     # default budget anyway — was the cheap way to avoid it. Both are pure filters, so
     # the order is a performance question only.
-    for match in _pam_anchor_scanner(pam.pattern).finditer(seq, max(0, len(spacer) - 1)):
-        pam_at = match.start()
-        if covered is not None:
-            # No exact seed in the widest protospacer window (ungapped/DNA-bulge/
-            # RNA-bulge) -> provably no in-budget hit.
-            lo = max(0, pam_at - (n + 1))
-            if covered[pam_at] - covered[lo] == 0:
-                continue
-        result = evaluate(pam_at)
-        if result is None:
-            continue
-        start, mm, dnab, rnab, a_spacer, a_target = result
+    anchors = [
+        match.start()
+        for match in _pam_anchor_scanner(pam.pattern).finditer(seq, max(0, len(spacer) - 1))
+    ]
+    if covered is not None:
+        # No exact seed in the widest protospacer window (ungapped/DNA-bulge/RNA-bulge)
+        # -> provably no in-budget hit.
+        anchors = [
+            pam_at for pam_at in anchors if covered[pam_at] - covered[max(0, pam_at - (n + 1))] != 0
+        ]
+    hits: list[tuple[int, int, str, int, int, int, str, str]] = []
+    for pam_at, start, mm, dnab, rnab, a_spacer, a_target in _evaluate_anchors(
+        spacer, seq, anchors, pam_len, max_mm=max_mm, dna_bulges=dna_bulges, rna_bulges=rna_bulges
+    ):
         # `find` rather than `"N" in seq[start:pam_at]`: the slice allocates a copy of
         # every protospacer that survives evaluation, to answer a question `find` answers
         # over the same span without one.
         if seq.find("N", start, pam_at) != -1:
             continue  # never nominate a site over a padded / unknown region
-        # Read only for an anchor that became a hit. It was read for every anchor — one
-        # string allocation per PAM occurrence in the genome, and the ratio of anchors to
-        # hits is the whole shape of this scan.
-        hits.append((start, pam_at, match.group(1), mm, dnab, rnab, a_spacer, a_target))
+        # Read from the sequence rather than the match object: the anchors are positions
+        # now, and this is one slice per *hit* where it used to be one per anchor.
+        hits.append(
+            (start, pam_at, seq[pam_at : pam_at + pam_len], mm, dnab, rnab, a_spacer, a_target)
+        )
     return hits
 
 
@@ -680,14 +736,15 @@ def _scan_one_strand_fm(
             if lo_bound <= pam_at <= hi_bound:
                 anchors.add(pam_at)
     hits: list[tuple[int, int, str, int, int, int, str, str]] = []
-    evaluate = _anchor_evaluator(
-        spacer, seq, pam_len, max_mm=max_mm, dna_bulges=dna_bulges, rna_bulges=rna_bulges
-    )
-    for pam_at in sorted(anchors):
-        result = evaluate(pam_at)
-        if result is None:
-            continue
-        start, mm, dnab, rnab, a_spacer, a_target = result
+    for pam_at, start, mm, dnab, rnab, a_spacer, a_target in _evaluate_anchors(
+        spacer,
+        seq,
+        sorted(anchors),
+        pam_len,
+        max_mm=max_mm,
+        dna_bulges=dna_bulges,
+        rna_bulges=rna_bulges,
+    ):
         if seq.find("N", start, pam_at) != -1:
             continue  # never nominate a site over a padded / unknown region
         hits.append(

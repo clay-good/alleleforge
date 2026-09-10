@@ -17243,3 +17243,38 @@ of output?** Two hits out of 498,957 anchors is the shape of this function, and 
 every per-anchor cost a 250,000x multiplier on work that only the output needs. Nothing in
 the profile said "wrapper": it said 0.079s, which looks small beside the kernel's 0.155s
 until you notice that both numbers are per-anchor and only one of them is the job.
+
+## Round 503 — one crossing per scan
+
+Round 502's lesson was to read the *ratio*: how many times does this run per unit of
+output? Two hits out of 498,957 anchors. That round removed the Python-side per-anchor
+costs and left the largest one, because it was on the other side of the FFI boundary: a
+call into `evaluate_anchor`, an argument tuple and a returned `Option`, once per anchor,
+250,000 times per 2 Mb strand and about 180 million times on hg38.
+
+`evaluate_anchors` takes the whole anchor list in one crossing and returns only the
+anchors that scored, carrying each hit's position in its tuple so the caller does not have
+to pair two lists back up. The Python loop over anchors disappears entirely: the anchor
+list is a comprehension over the regex scan (C-level), the seed prefilter is a
+comprehension when it applies, and the surviving loop runs over *hits*.
+
+**1.47x** on a 2 Mb strand at the default budget — paired and alternating, minimum of
+fifteen, in one process on a machine at load 12, with the previous loop rebuilt inside the
+module's own namespace so it is not charged for lookups it never made. **1.09x** at a
+tight budget (`mm=2`, no bulges), where the seed prefilter already removes most anchors and
+dominates the remaining time: the case where the win is small is part of the measurement,
+not a footnote to it.
+
+Two things this round did not have to add. The parity contract already existed, so the
+batched kernel is pinned against the per-anchor one on randomized shapes including the
+ones that port had to decide about — an anchor past the end, an empty spacer, an all-`N`
+window. And round 500's staleness reporting is exactly the mechanism a new kernel needs: an
+extension built before `evaluate_anchors` falls back to the per-anchor path by name, and
+`aforge --version` says the build is STALE rather than leaving a developer wondering why
+their scan got slower.
+
+**Lesson: a boundary is a per-item cost, so move the loop across it, not the item.** The
+native kernel was already doing the work in Rust; what remained in Python was the *loop*,
+and a loop is the one thing an FFI boundary makes expensive. The same shape shows up
+wherever a fast implementation is called from a slow driver — the win is not in the kernel,
+it is in how many times you arrive at it.
