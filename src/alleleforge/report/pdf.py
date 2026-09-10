@@ -448,6 +448,13 @@ def _report_lines(report: DesignReport, max_candidates: int | None) -> list[str]
         for note in report.unavailable:
             lines += _wrap(f"- {note}")
         lines.append("")
+    if report.notes:
+        # Beside the block above, for the same reason: this is about the run, and inside
+        # a candidate's search paragraph it is present and not seen.
+        lines += _wrap("ABOUT THIS RUN, NOT ABOUT A CANDIDATE")
+        for note in report.notes:
+            lines += _wrap(f"- {note}")
+        lines.append("")
     if report.rationale:
         lines += _wrap("HOW THIS MENU WAS ASSEMBLED")
         for para in report.rationale.split("\n"):

@@ -436,6 +436,23 @@ def _unavailable_html(report: DesignReport) -> str:
     )
 
 
+def _run_notes_html(report: DesignReport) -> str:
+    """Render what a caller can act on about the run, above the rationale.
+
+    Beside `_unavailable_html` and for the same reason: a population source built for
+    another assembly is why the ancestry columns are empty, not one of the routing
+    verdicts a reader skims — and inside a candidate's search paragraph, repeated once
+    per reagent, it is present and not seen.
+    """
+    if not report.notes:
+        return ""
+    items = "".join(f"<li>{_esc(note)}</li>" for note in report.notes)
+    return (
+        "<div class='hazard'><strong>About this run, not about a candidate.</strong>"
+        f"<ul>{items}</ul></div>"
+    )
+
+
 def _rationale_html(report: DesignReport) -> str:
     """Render the menu-level rationale (routing verdicts, skips, failures).
 
@@ -489,6 +506,7 @@ def render_html(
         f"<div class='disclaimer'><strong>Research use only.</strong> "
         f"{_esc(report.disclaimer)}</div>",
         _unavailable_html(report),
+        _run_notes_html(report),
         _rationale_html(report),
         _figure_block("eff-chart", _efficiency_figure(report)),
         _figure_block("ot-chart", _offtarget_figure(report)),

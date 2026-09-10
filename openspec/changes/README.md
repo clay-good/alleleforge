@@ -19034,3 +19034,39 @@ two things that no longer exist.
 the guard it lives in.** Every one of these was written with a reason in the comment beside
 it, which is the part that made them feel finished. A reason is documentation; what makes it
 an engineering artifact is that the day it stops being true, something says so.
+
+## Round 560 — the third surface
+
+547-549 lifted the actionable clauses out of the off-target paragraph and out of the
+cohort's note block. A design report is the third document those clauses reach, and it had
+no run-level channel for them at all:
+
+    $ aforge design chr11:2004:T>A --reference-fasta ot.fa --gnomad wrong.tsv \
+        --populations afr,nfe --format html --out r.html
+    wrote r.html and r.html.provenance.json
+
+That is the entire terminal output of a run whose population source is for another assembly.
+The sentence is in the file — as the sixth clause of every candidate's search paragraph,
+repeated once per reagent, in the style used for the PAM broadening. This is the surface
+where the reader is furthest from it: they asked for a file, and the terminal is a receipt.
+
+`DesignReport.notes` carries them, built through the same `headline_notes` function the
+off-target surfaces use, so a note added there arrives here without anyone remembering. Two
+choices worth stating:
+
+**Deduplicated.** Forty candidates share one off-target source; the fact is about the run.
+Saying it forty times is the failure mode the cohort's own note block was created to avoid.
+
+**Beside `unavailable`, not inside the rationale.** That block already exists for "part of
+this menu is missing", above the routing verdicts, in the hazard style — and its argument
+("the reader has to see it without opening a disclosure widget") is this one exactly. The
+new block sits next to it and says what it is: *about this run, not about a candidate*.
+
+The served page needed no change, which is the nicest kind of confirmation: it embeds the
+HTML render in an iframe, so fixing the renderer fixed the page.
+
+**Lesson: when a class of defect has three surfaces, the third one is where the reader is
+furthest away.** The off-target CLI shows its notes on a headline the user is already
+reading. The cohort shows them on a terminal the user is watching. The design report's
+reader asked for a file and walked away — which is why it was the surface with no channel,
+and the surface where silence costs most.

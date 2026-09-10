@@ -1638,6 +1638,11 @@ def design(
     report = build_report(
         menu, variant=str(resolved.variant), intent=edit_intent.value, scheme=scheme
     )
+    # What a caller can act on about the run. `--out` makes the file the document and the
+    # terminal a receipt — `wrote r.html` was the entire output of a run whose population
+    # source was built for another assembly — so these go to stderr either way.
+    for note in report.notes:
+        _echo_err(f"note: {note}")
     if state.verbose:
         _echo_err(
             f"{len(menu.candidates)} candidate(s); best: "

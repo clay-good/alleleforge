@@ -980,6 +980,14 @@
       ],
       "title": "Intent"
     },
+    "notes": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+    },
     "provenance": {
       "anyOf": [
         {

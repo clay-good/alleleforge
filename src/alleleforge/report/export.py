@@ -331,6 +331,8 @@ def _export_notes(report: DesignReport) -> dict[str, str]:
     for index, line in enumerate(provenance_lines(report.provenance), start=1):
         if line:
             notes[f"provenance_{index}"] = _cell(line)
+    for index, note in enumerate(report.notes, start=1):
+        notes[f"run_note_{index}"] = _cell(note)
     notes.update(_rationale_notes(report))
     return notes
 
