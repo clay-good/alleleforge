@@ -17528,3 +17528,44 @@ crate built, no network, no optional dependency. When a skip can be triggered by
 *behaviour under test*, the guard is strongest exactly where it is silent. The same
 standard applied to the round's own new test is what sent one of them to the comment block
 that now explains its absence.
+
+## Round 512 — the whole tool, once, on a real-sized genome
+
+Thirty-three rounds in one session, most of them touching the design path: the assembly
+label, the build agreement, a new input form, provenance, four rewrites of the scan, a
+shared scanner, the GIL. The suite is green after each, and a suite is a collection of
+questions someone thought to ask. So: run the shipped surface end to end on the 2 Mb
+contig and read every artifact.
+
+    aforge --version            0.1.0.dev0 / native kernels: aforge_native 0.1.0.dev0
+    aforge resolve              chr1:500000:C>A [snv, build hg38, from coordinates]
+    aforge design --cache       270 candidates, 0.77s cold — "0 reused, 5 scans computed"
+    aforge design --cache       0.24s warm — "5 reused, 0 scans computed", report identical
+    aforge batch (VCF line +    2 designed, both rows placed, `chr1 500001 . C A` accepted
+      coordinate, mixed)        as an input form
+    aforge verify --cache-dir   provenance complete; the two baselines unpinned, the CFD
+                                matrix ok (bundled)
+    --format html/pdf/tsv/parquet   215 kB / 186 kB / 403 kB / 29 kB, 270 rows, 11 note lines
+    aforge cache verify         every stored report ok
+    aforge models list          17 cards, licence and presence per row
+
+Nothing was wrong. Two things are worth writing down anyway.
+
+The warm design is **3.2x** faster than the cold one and produces a byte-identical report
+— which is the cache's whole promise and the reason round 499 had to give it a voice: the
+only difference visible in the artifacts is that there is none.
+
+And a number that looks contradictory is already explained where it appears: a candidate
+with `n_offtarget_sites: 0` reports `specificity: 0.734`, because the specificity
+denominator includes the sub-threshold tail — and the report's own `offtarget_search`
+sentence says so, in full, with the number: "a sub-threshold tail of 11 further in-budget
+placement(s) ... contributing 0.362 to the specificity denominator ... so raising the
+cut-off cannot improve it". A reader who notices the tension has the answer in the same
+object.
+
+**Lesson: after a long arc of changes, run the product before believing the suite.** The
+suite passed at every step, and it would have passed with any of a dozen integration
+breaks the unit tests do not reach — a format that stops writing, a flag whose two
+mechanisms now fight, an artifact whose fields no longer agree. Two minutes of running the
+thing is a different instrument from three thousand tests, and this is the round that
+found nothing, which is the outcome that makes the previous thirty-three worth trusting.
