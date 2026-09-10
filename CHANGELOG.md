@@ -5436,6 +5436,10 @@ acceptance.
   automatically) and a packaging test that guards the marker — plus the bundled
   model cards, benchmark splits, and web frontend — against silent removal.
 
+### Added
+
+- **The cache-integrity remedy is executed, not only printed.** A refusal's closing sentence is a second piece of software, run by a person, and nothing was running any of them — which is how `--no-resume` came to corrupt the manifest it was recommended against. The integrity refusal is the highest-stakes remedy here, because the state it describes is one a user cannot diagnose from outside, and it makes three executable claims: the digest names a file on this disk, deleting that file makes the next run clean, and `aforge cache verify` reports the same fault. A test now performs all three in order, and checks the fourth thing the message does — saying the tool is not broken, so a reader deletes a file instead of filing a bug.
+
 ### Fixed
 
 - **`--no-resume` into an existing manifest is refused instead of appending a second record per item.** It is the remedy three messages name — the mismatched-resume refusal, the unverified-resume warning, and the partial-table note — and run against the manifest already there it turned twelve items into twenty-four records, two per id, under the `_run` header the *first* run wrote. The file then describes one run and contains two, and `_read_done_ids` reads ids into a set, so a later resume skips every one of them without choosing between the two stored summaries: the "silently a mixture of two runs" that the mismatched-resume refusal exists to prevent, reached through a door with no guard on it by following that refusal's own advice. Refused rather than truncated — which run to keep is the operator's call — and the three messages now name a fresh `--manifest` alongside the flag, which is the pairing that works.

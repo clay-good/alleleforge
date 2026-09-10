@@ -18920,3 +18920,38 @@ explain what it used to do. A comment explaining a fix is not a remedy being off
 and what it says; the sentence it ends with is a *second* piece of software, executed by a
 person, and nothing in this repository was running it. Three messages had been pointing at
 a command that quietly corrupted the file they were about — for as long as they had existed.
+
+## Round 556 — five remedies, executed
+
+555's lesson: check the remedy, not only the refusal. Applied to the five remedies this
+tool prints most often, by running each of them.
+
+    aforge verify report.html      -> "Verify that instead: aforge verify …provenance.json"
+                                      ...which verifies, and says what it did NOT check
+    that NOTE's own "--cache-dir"  -> re-hashes, and reports "1 of 3 artifact(s). Nothing
+                                      was established about the rest" — named, unpinned
+    "pass --on-target"             -> 3 sites at 0.239 becomes 1 at 0.456
+    STORE INTEGRITY                -> names a digest that is the wrong file; deleting it
+                                      makes the next run exit 0; `aforge cache verify`
+                                      reports the same fault and exits 4
+    "--no-resume"                  -> corrupted the manifest (round 555)
+
+Four of five sound, one broken, and the four are worth as much as the one: they are the
+sentences a user follows while a run is already wrong, and none of them had ever been
+executed by anything.
+
+The integrity remedy is now a test, because it is the one whose state a user cannot
+diagnose from outside and the only one that is cheap to automate end to end: corrupt an
+entry, read the digest **out of the message**, assert it names the file that is actually
+wrong, delete it, assert the next run is clean, then break another and assert
+`aforge cache verify` finds it. Both mutations are caught — renaming the note, and dropping
+the digest from the message.
+
+It also pins the sentence "Nothing here is broken", which is the half a remedy test loses:
+an altered store is not a defect in AlleleForge, and a message that reads like one sends a
+user to file a bug instead of deleting a file.
+
+**Lesson: a negative result is only worth having if it was expensive to get.** Four working
+remedies told me something because running them was the only way to know — the suite could
+not, the types could not, and reading them could not. The same four hours spent re-reading
+the code would have produced the same four "looks right" and no evidence.
