@@ -16751,3 +16751,33 @@ override — from any shell, in any configuration file, on any surface — so th
 was a constant with a misleading signature, and every test of the gate passed because
 tests are Python callers. Ask of every "configurable" safety or compliance argument: which
 shell sets it, and what happens to the user who cannot?
+
+## Round 488 — the artifact said both things
+
+Found while testing round 487's licence gate: a commercial run asking for DeepPrime
+produced a menu whose rationale read
+
+    - prime: skipped (LicenseError: license 'research-only' forbids commercial use of
+      model 'deepprime')
+
+and whose provenance block, forty lines below, read `models: [deepprime, ...]`.
+
+`_collect_model_checkpoints` takes the *eligible* chemistries. A chemistry can be eligible
+and never run — `_run_chemistry` catches an expected failure, writes the `skipped` note and
+returns nothing — and the commonest cause of that failure is the model itself being turned
+away: the licence gate, a missing extra, an unverifiable checkpoint. Every one of those
+paths stamped the card of the model that had just been refused. The function's own
+docstring is the claim it broke: provenance "names the model that actually scored the
+candidates ... otherwise a re-run from the stamped provenance would reproduce different
+numbers".
+
+`_run_chemistry` now records the chemistries it could not run, and the checkpoint
+collection skips them. The note stays exactly as it was — removing the card without the
+explanation would be the worse artifact, and a test says so.
+
+**Lesson: a new gate's first job is to show you what the old paths did with a refusal.**
+Round 487 made a licence refusal reachable, and the refusal walked straight through a
+provenance block that had never had a refusal to handle before — the honest failure path
+existed only in the rationale, because until then nothing had failed for a reason the
+artifact was supposed to record. When you make a new failure possible, follow it through
+every artifact the run produces before calling the round finished.

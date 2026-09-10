@@ -21,7 +21,7 @@ not.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Iterator, Sequence
+from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
 from datetime import datetime
 
 from alleleforge._version import __version__
@@ -341,6 +341,10 @@ def design(
             notes.append(f"{chem.value}: requested but not eligible for this variant/intent")
 
     candidates: list[DesignCandidate] = []
+    # Chemistries whose vertical raised, so provenance does not stamp a model card for a
+    # scorer that never scored anything. The note says "skipped"; the models block used
+    # to say the model was there.
+    failed: set[Chemistry] = set()
     candidates.extend(
         _run_base_editors(
             resolved,
@@ -358,6 +362,7 @@ def design(
             run_offtarget=run_offtarget,
             max_candidates=None,  # cap deferred to the composite ranker
             notes=notes,
+            failed=failed,
         )
     )
     if Chemistry.PRIME in eligible:
@@ -393,6 +398,8 @@ def design(
                 ),
                 notes,
                 empty_reason=lambda: rejection_summary(prime_tally),
+                chemistries=(Chemistry.PRIME,),
+                failed=failed,
             )
         )
     if Chemistry.CAS9_NUCLEASE in eligible:
@@ -419,6 +426,8 @@ def design(
                 ),
                 notes,
                 empty_reason=lambda: _cas9_empty_reason(allow_ng, allow_spry),
+                chemistries=(Chemistry.CAS9_NUCLEASE,),
+                failed=failed,
             )
         )
 
@@ -502,7 +511,11 @@ def design(
         reference_build=build,
         timestamp=timestamp,
         models=_collect_model_checkpoints(
-            eligible,
+            # Not `eligible`: a chemistry whose vertical raised scored nothing, and the
+            # commonest way it raises is the trained model itself being refused (a
+            # licence gate, a missing extra, an unverifiable checkpoint). Recording its
+            # card said "this run used the model that was in fact turned away".
+            [c for c in eligible if c not in failed],
             cas9_efficiency_scorer=cas9_efficiency_scorer,
             cas9_outcome_predictor=cas9_outcome_predictor,
             base_outcome_predictor=base_outcome_predictor,
@@ -642,6 +655,8 @@ def _run_chemistry(
     notes: list[str],
     *,
     empty_reason: Callable[[], str] | None = None,
+    chemistries: Collection[Chemistry] = (),
+    failed: set[Chemistry] | None = None,
 ) -> list[DesignCandidate]:
     """Run one chemistry's vertical, degrading gracefully on an expected failure.
 
@@ -656,6 +671,13 @@ def _run_chemistry(
         runner: A zero-argument callable returning the chemistry's candidates.
         notes: Mutable note list the outcome (or failure reason) is appended to.
         empty_reason: Called only when the runner returned nothing, to explain why.
+        chemistries: The chemistries this vertical covers, for attributing a failure.
+        failed: Mutable set the covered chemistries are added to when the runner
+            raises. Provenance stamps a model card for every *eligible* chemistry, so
+            a vertical that never ran — because its own trained scorer was refused by
+            the licence gate, or could not load — still had its model recorded, and the
+            artifact named a model that scored nothing. The note said "skipped" three
+            lines above the provenance block that said otherwise.
 
     Returns:
         The chemistry's candidates, or an empty list if it failed or found none.
@@ -664,12 +686,16 @@ def _run_chemistry(
         result = runner()
     except _EXPECTED_DESIGN_FAILURES as exc:
         notes.append(f"{label}: skipped ({type(exc).__name__}: {reason(exc)})")
+        if failed is not None:
+            failed.update(chemistries)
         return []
     except Exception as exc:  # noqa: BLE001 - a defect is surfaced, not swallowed as "no design"
         notes.append(
             f"{label}: {DEFECT_NOTE} {type(exc).__name__}: {reason(exc)} "
             "(a defect, not 'no design')"
         )
+        if failed is not None:
+            failed.update(chemistries)
         return []
     if not result:
         # Say *why* when the vertical can explain itself. "Nothing found" and "nothing
@@ -699,6 +725,7 @@ def _run_base_editors(
     run_offtarget: bool,
     max_candidates: int | None,
     notes: list[str],
+    failed: set[Chemistry] | None = None,
 ) -> list[DesignCandidate]:
     """Run the base-editor vertical once for whichever BE chemistries are eligible."""
     chosen = _BASE_CHEMISTRIES.intersection(eligible)
@@ -732,6 +759,8 @@ def _run_base_editors(
         ),
         notes,
         empty_reason=lambda: base_rejection_summary(be_tally),
+        chemistries=tuple(chosen),
+        failed=failed,
     )
 
 
