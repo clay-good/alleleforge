@@ -1477,6 +1477,7 @@ def design(
                 f"choose one of: {_known(Chemistry)}"
             )
             raise typer.Exit(ExitCode.USAGE) from exc
+    _check_output_paths(dirs={}, files={"--out": out})
     pops = _parse_populations(pops_str)
     _warn_if_ancestries_unbacked(pops, gnomad, haplotypes)
     gnomad_db = _load_gnomad(gnomad)
@@ -1703,7 +1704,13 @@ def _check_output_paths(*, dirs: dict[str, Path | None], files: dict[str, Path |
             _echo_err(f"error: {flag} {path} is a directory; this flag names a file.")
             raise typer.Exit(ExitCode.USAGE)
         parent = path.parent
-        if parent.exists() and not parent.is_dir():
+        if not parent.exists():
+            # Not created silently: `--out reslts/design.json` is a typo far more often
+            # than it is an instruction to build a tree, and the run that would have
+            # created it is the one whose output the reader is about to go looking for.
+            _echo_err(f"error: {flag} {path}: no such directory {parent}.")
+            raise typer.Exit(ExitCode.USAGE)
+        if not parent.is_dir():
             _echo_err(f"error: {flag} {path}: {parent} is not a directory.")
             raise typer.Exit(ExitCode.USAGE)
 
@@ -3447,6 +3454,7 @@ def bench_run(
         _missing_dependency(exc)
 
     state: GlobalState = ctx.obj
+    _check_output_paths(dirs={}, files={"--out": out})
     try:
         task_obj = get_task(task)
     except KeyError as exc:
@@ -3747,6 +3755,7 @@ def bench_leaderboard(
     except ImportError as exc:
         _missing_dependency(exc)
 
+    _check_output_paths(dirs={}, files={"--out": out})
     by_model: dict[str, list[BenchmarkResult]] = {}
     for path in results:
         if not path.is_file():

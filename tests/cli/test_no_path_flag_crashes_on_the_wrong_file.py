@@ -23,6 +23,7 @@ whatever a wrong file does, it does not reach the user as an unhandled exception
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 import typer
@@ -35,24 +36,46 @@ from alleleforge.cli.main import ExitCode, app
 #: past its own required options. Every path *flag* on each is then derived from the
 #: command, which is the population that goes stale; the invocations are a fixture.
 _INVOCATIONS: dict[str, list[str]] = {
-    "design": ["chr2:71:A>C", "--no-offtarget"],
-    "batch": ["COHORT", "--no-offtarget"],
-    "offtarget": ["ATATATATATATATATATAT"],
-    "resolve": ["chr2:71:A>C"],
+    "design": ["chr2:71:A>C", "--no-offtarget", "--reference-fasta", "GENOME"],
+    "batch": ["COHORT", "--no-offtarget", "--reference-fasta", "GENOME"],
+    "offtarget": ["ATATATATATATATATATAT", "--reference-fasta", "GENOME"],
+    "resolve": ["chr2:71:A>C", "--reference-fasta", "GENOME"],
+    # The two benchmark commands write *after* the work: `bench run` scores a whole
+    # split before it touches `--out`. They take no genome.
+    "bench run": ["cas9-efficiency"],
+    "bench leaderboard": ["RESULTS"],
 }
+
+#: The three shapes a path argument can be wrong. A wrong-kind *file* is the
+#: transposition rounds 524-526 chased; a **directory** and a path under a directory that
+#: does not exist are the two an output argument meets, and both crashed.
+_SHAPES = ("wrong-kind file", "a directory", "under a missing directory")
 
 
 def _path_flags(command: str) -> list[str]:
     """The path-taking options of ``command``, from the command itself."""
-    root = typer.main.get_command(app)
-    cmd = root.commands[command]  # type: ignore[attr-defined]
+    cmd: Any = typer.main.get_command(app)
+    for part in command.split():
+        cmd = cmd.commands[part]
     return sorted(
         p.opts[0] for p in cmd.params if isinstance(p.type, TyperPath) and p.opts[0].startswith("-")
     )
 
 
-def _cases() -> list[tuple[str, str]]:
-    return [(cmd, flag) for cmd in _INVOCATIONS for flag in _path_flags(cmd)]
+def _cases() -> list[tuple[str, str, str]]:
+    return [
+        (cmd, flag, shape) for cmd in _INVOCATIONS for flag in _path_flags(cmd) for shape in _SHAPES
+    ]
+
+
+@pytest.fixture(scope="module")
+def bench_result(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A real benchmark result JSON, so `bench leaderboard` fails on `--out` and not on
+    its positional argument."""
+    path = tmp_path_factory.mktemp("bench") / "result.json"
+    CliRunner().invoke(app, ["bench", "run", "cas9-efficiency", "--out", str(path)])
+    assert path.is_file()
+    return path
 
 
 @pytest.fixture
@@ -78,17 +101,34 @@ def test_the_flags_are_found() -> None:
     assert "--dbsnp" in flags and "--config" in flags and "--reference-fasta" in flags
 
 
-@pytest.mark.parametrize(("command", "flag"), _cases(), ids=lambda v: str(v))
+@pytest.mark.parametrize(("command", "flag", "shape"), _cases(), ids=lambda v: str(v))
 def test_a_wrong_file_is_refused_not_crashed_on(
-    command: str, flag: str, runner: CliRunner, genome: Path, wrong_file: Path, tmp_path: Path
+    command: str,
+    flag: str,
+    shape: str,
+    runner: CliRunner,
+    genome: Path,
+    wrong_file: Path,
+    bench_result: Path,
+    tmp_path: Path,
 ) -> None:
     cohort = tmp_path / "cohort.txt"
     cohort.write_text("chr2:71:A>C\n")
-    positional = [a.replace("COHORT", str(cohort)) for a in _INVOCATIONS[command]]
-    reference = str(wrong_file) if flag == "--reference-fasta" else str(genome)
-    args = [command, *positional, "--reference-fasta", reference]
-    if flag != "--reference-fasta":
-        args += [flag, str(wrong_file)]
+    if shape == "a directory":
+        probe = tmp_path / "a-dir"
+        probe.mkdir()
+    elif shape == "under a missing directory":
+        probe = tmp_path / "no-such-dir" / "x.json"
+    else:
+        probe = wrong_file
+
+    substitutions = {"COHORT": str(cohort), "GENOME": str(genome), "RESULTS": str(bench_result)}
+    args = [*command.split()]
+    args += [substitutions.get(a, a) for a in _INVOCATIONS[command]]
+    if flag in args:
+        args[args.index(flag) + 1] = str(probe)
+    else:
+        args += [flag, str(probe)]
     result = runner.invoke(app, args)
 
     # `typer.Exit` / `SystemExit` is a refusal; anything else is a traceback the user saw.
@@ -99,7 +139,7 @@ def test_a_wrong_file_is_refused_not_crashed_on(
     if result.exit_code not in (0, ExitCode.OK):
         # A refusal names the offending path, so the reader knows which of ten was
         # wrong — the flag's own name where the message has room for it.
-        assert str(wrong_file) in result.stderr or flag in result.stderr, result.stderr
+        assert str(probe) in result.stderr or flag in result.stderr, result.stderr
 
 
 def test_the_dbsnp_schema_is_named_both_ways(

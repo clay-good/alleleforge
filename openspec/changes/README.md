@@ -18027,3 +18027,35 @@ builds a fresh tree per case, which is why it reported one.
 524-526 was about a file being *read*. The write end has the same wrong-kind and
 wrong-slot mistakes and a much worse failure mode, because by the time the tool touches it
 the work is already done. Check where the answer goes before computing the answer.
+
+## Round 528 — the write end, everywhere
+
+527's lesson: an output path is an argument too, and it fails last. Applied to the whole
+CLI by giving the derived path sweep three shapes instead of one — a wrong-kind file, a
+**directory**, and a path **under a directory that does not exist** — over every path
+argument of every command:
+
+    aforge design ... --out <a directory>            IsADirectoryError   [empty stderr]
+    aforge design ... --out results/design.json      FileNotFoundError   [empty stderr]
+    aforge bench run cas9-efficiency --out <either>  both, after scoring the whole split
+    aforge batch ... --summary-tsv results/s.tsv     FileNotFoundError   [after the cohort]
+
+Five crashes, all on output paths. The *input* flags — ten of them across four commands —
+refuse a directory and a missing parent cleanly on every shape, which is the useful half of
+the result: this was not a gap in error handling generally, it was the write end never
+having been typed. Every refusal sharpened in 524-527 was about a file being read.
+
+All of them are now checked before the work rather than at the write. `bench run` is the
+clearest case: it loads a split, verifies its integrity hash, builds a baseline and scores
+it, and only then discovers that `--out` names a directory.
+
+**A missing parent is refused, not created.** `mkdir(parents=True)` is one line and would
+"work". `--out reslts/design.json` is a typo far more often than an instruction to build a
+tree, and the run that silently creates `reslts/` is the run whose output the reader then
+cannot find. `--output-dir` still creates, because a directory is what that flag names.
+
+**Lesson: three shapes, not one, and the negative result is half the finding.** 524-527 each
+handed a path one kind of wrong thing. Crossing the derived flag list with a derived list of
+*ways to be wrong* turned one probe into a hundred and three and found every remaining
+crash in a single pass — and told me, with the same evidence, that the input side is done.
+A sweep that only reports failures cannot say that.
