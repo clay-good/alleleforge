@@ -176,7 +176,14 @@ def _enumerate_window(
                         pam=pam,
                         pam_sequence=DNASequence(rc_window),
                         placement=placement,
-                        cut_site=frame.coord(k + pam_len + cut_offset),
+                        # `proto_lo + cut_offset - 1`, matching the pegRNA's nick: the
+                        # first base 3' of the cut along the strand that reads the
+                        # protospacer, which for a minus-strand guide is the *lower*
+                        # frame index. It read `proto_lo + cut_offset` — the base on the
+                        # other side of the cut — so a minus-strand guide's cut was one
+                        # base from where the same protospacer nicks as a pegRNA, and the
+                        # NHEJ outcome window below is centred on this coordinate.
+                        cut_site=frame.coord(k + pam_len + cut_offset - 1),
                     )
                 )
     return guides

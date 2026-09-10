@@ -19199,3 +19199,31 @@ values.** Both computations passed every test aimed at them: the pegRNA's nick i
 guide's search finds guides at plausible distances, the offsets fall in the documented
 window. The defect is only visible in the *relationship*, and the relationship had no test
 because each side looked finished.
+
+## Round 565 — the third place
+
+564's lesson: when one quantity is computed in two places, compare the places. There were
+**three**.
+
+    chr1:100-120(-)   pegRNA nick_site        102
+                      nuclease cut_site       103
+                      ngRNA implied nick      163 for a protospacer at 160 (i.e. +1)
+
+The plus strand agreed everywhere, which is why neither defect was ever visible. Each
+computation is self-consistent and passes every test aimed at it; only the relationships
+were wrong, and there were no tests of relationships because nothing had a reason to think
+these were the same computation.
+
+The nuclease one has the wider blast radius. `cut_site` is not only printed as `cut N` and
+used to filter guides by an actionable window — it **centres the sequence window the NHEJ
+indel spectrum is predicted over**. Every minus-strand nuclease candidate's outcome
+distribution was computed one base off target.
+
+**The whole suite passed before and after the fix.** Not "passed after I updated the
+expectations" — passed unchanged, because no test had ever measured a minus-strand cut. The
+plus strand had several.
+
+**Lesson: a defect that is invisible from inside every component lives in the space between
+them, and that space has no owner.** Three modules, three correct-looking functions, three
+green test files. What was missing is the sentence "SpCas9 cuts in one place" written down
+somewhere a test could read — and the test that says so is four assertions long.
