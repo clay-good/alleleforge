@@ -107,3 +107,28 @@ async def test_the_values_split_the_verdict(genome: Path) -> None:
     reference = ReferenceGenome(genome, build="hg38")
     verdicts = {value: await _web_accepts("populations", value, reference) for value in _VALUES}
     assert set(verdicts.values()) == {True, False}, verdicts
+
+
+def test_each_pair_names_an_option_both_shells_have() -> None:
+    """The mapping is written out; this is what stops it from naming a ghost.
+
+    `_SHARED` says "these two are the same option in two vocabularies". Rename either
+    side and the row would compare a flag that does not exist against a field that does —
+    which passes, because a nonexistent flag is refused by click and a blank field by
+    pydantic, and "both refused" is agreement.
+    """
+    import typer
+    from typer._click.types import StringParamType
+
+    from alleleforge.web.api.models import DesignRequest
+
+    root = typer.main.get_command(cli_app)
+    design = root.commands["design"]  # type: ignore[attr-defined]
+    flags = {
+        p.opts[0]
+        for p in design.params
+        if isinstance(p.type, StringParamType) and p.opts and p.opts[0].startswith("-")
+    }
+    for flag, field in _SHARED:
+        assert flag in flags, f"{flag} is no longer a string option of `aforge design`"
+        assert field in DesignRequest.model_fields, f"{field} is no longer a request field"

@@ -19009,3 +19009,28 @@ stale.** The objection to a hand-written table is that it drifts from the code. 
 is not always to derive it — sometimes there is nothing to derive from, as here, where the
 input is an English sentence — but to make each row *fail* when its subject moves. A row
 that asserts only its own success is a row that will one day pass alone.
+
+## Round 559 — the exceptions
+
+558's lesson: a hand-written table is honest when each row fails as soon as its subject
+moves. Three tables written this cycle had no such anchor, and all three are *exception*
+lists — the kind that widens quietly, because nothing ever revisits an excuse.
+
+    _DEFAULT_IS_THE_ANSWER   fields a response model may leave at its default
+    _UNREACHABLE             error types no request can provoke through the annotation path
+    _SHARED                  (flag, request field) pairs that are "the same option"
+
+This project already makes the argument in the other direction: a caveat nothing can
+trigger is "a promise, not a safeguard, and it read as coverage". An excuse nothing can
+trigger is the same object seen from behind. Each now fails when its reason stops holding —
+a field excused and then filled, a model or error type renamed out from under the list.
+
+The `_SHARED` anchor is the sharpest of the three, because its failure mode is a *pass*:
+rename either half of a pair and the row compares a flag click will refuse against a field
+pydantic will refuse, and "both refused" is agreement. A parity test can be satisfied by
+two things that no longer exist.
+
+**Lesson: an exception list is a guard pointed at itself, and it needs the same treatment as
+the guard it lives in.** Every one of these was written with a reason in the comment beside
+it, which is the part that made them feel finished. A reason is documentation; what makes it
+an engineering artifact is that the day it stops being true, something says so.

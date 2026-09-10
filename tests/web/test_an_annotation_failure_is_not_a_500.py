@@ -118,3 +118,19 @@ async def test_an_annotation_that_works_still_answers_200(tmp_path: Path) -> Non
             json={"variant": "chr2:71:A>C", "annotate_consequence": True},
         )
     assert response.status_code == 200, response.text
+
+
+def test_no_exclusion_outlives_its_reason() -> None:
+    """`_UNREACHABLE` excuses two error types from the sweep; both reasons must still hold.
+
+    `ChecksumError` and `ReferenceIndexError` are excluded because no *request* can
+    provoke them through the annotation path — one is artifact integrity with its own
+    fail-closed handling, the other happens at startup. If either becomes reachable here
+    the exclusion silently drops it from the sweep, which is how an exception list turns
+    into a hole. Checked the only way that is honest: raise each and see.
+    """
+    names = {name for name in errors.__all__ if name != "reason"}
+    assert _UNREACHABLE - {"reason"} <= names, (
+        f"these are excluded and no longer exist: {sorted(_UNREACHABLE - {'reason'} - names)}"
+    )
+    assert _UNREACHABLE - {"reason"}, "the exclusion list is empty; this check is vacuous"

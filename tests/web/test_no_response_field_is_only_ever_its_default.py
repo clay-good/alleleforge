@@ -105,3 +105,32 @@ def test_every_defaulted_field_is_filled_somewhere(model: str) -> None:
         "promised a field that can only ever be its default. Fill it where the response "
         "is built, or record it in _DEFAULT_IS_THE_ANSWER with the reason."
     )
+
+
+def test_no_exception_outlives_its_reason() -> None:
+    """An exception list that is never re-checked is a hole that widens quietly.
+
+    This repository already makes the argument in the other direction — "a caveat nobody
+    can trigger is a promise, not a safeguard, and it read as coverage". The same applies
+    to an excuse nobody can trigger: a field recorded here that the code *does* fill is
+    no longer an exception, and leaving it listed exempts a future change to that field
+    from the check for no reason anyone would remember.
+    """
+    stale = {
+        model: sorted(fields & _assigned_keywords(model))
+        for model, fields in _DEFAULT_IS_THE_ANSWER.items()
+        if fields & _assigned_keywords(model)
+    }
+    assert not stale, (
+        f"these are recorded as legitimately defaulted and are in fact passed: {stale}. "
+        "Remove them from _DEFAULT_IS_THE_ANSWER — the check covers them now."
+    )
+
+
+def test_every_exception_names_a_field_that_exists() -> None:
+    """A model or field renamed out from under the list leaves an excuse for nothing."""
+    models = _response_models()
+    for model, fields in _DEFAULT_IS_THE_ANSWER.items():
+        assert model in models, f"{model} is excepted and no longer exists"
+        missing = fields - models[model]
+        assert not missing, f"{model} is excepted for {sorted(missing)}, which it does not declare"
