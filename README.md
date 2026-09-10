@@ -1461,7 +1461,7 @@ Every default is overridable; these are the spec-mandated starting points.
 | Reference / coordinates | hg38, **0-based half-open** | T2T-CHM13 auto-recommended for ambiguous loci, and every candidate designed there carries the `ambiguous-region:<kind>` caveat; mm39 for mouse |
 | Strand | always explicit | no implicit "default strand"; spacers stored 5'→3' |
 | SpCas9 PAM | `NGG` (primary), `NAG` low-stringency | NG / SpRY opt-in when no NGG is actionable |
-| Off-target search | ≤ 4 mismatches, ≤ 1 DNA + ≤ 1 RNA bulge | report CFD ≥ 0.20 **or** MIT ≥ 0.10 |
+| Off-target search | ≤ 4 mismatches, ≤ 1 DNA + ≤ 1 RNA bulge | report CFD ≥ 0.20 **or** MIT ≥ 0.10; one bulge of each kind is the ceiling, and a larger budget is refused, not printed |
 | Population inclusion | MAF ≥ 0.001, all populations | de-novo PAM &amp; seed-mismatch changes always evaluated |
 | Base-editing window | protospacer positions **4–8** | ABE8e (A→G), CBE4max / evoCDA1 (C→T); bystanders always reported |
 | Prime editing | **PE5max + epegRNA (tevopreQ1)** | PBS 8–17 nt, RTT 7–34 nt; PE3b nicking guide when seed-disrupting; nick-to-nick distance shown on every PE3 candidate, `close-nick` below 30 nt |

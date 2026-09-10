@@ -772,6 +772,44 @@ def _scan_one_strand_fm(
     return hits
 
 
+#: The most bulges of each kind an alignment here can carry. Both kernels -- the Python
+#: ``_python_evaluate`` and the Rust ``evaluate`` it is parity-tested against -- consider
+#: exactly three alignments per PAM: ungapped, one DNA bulge, one RNA bulge. A budget
+#: above this therefore buys **nothing**: a genuine two-bulge site is not found at 2, 3
+#: or 4, and the search returns the same hits it returned at 1. The budget was an ``int``
+#: on every shell (``--dna-bulges`` took any non-negative number, the web schema
+#: advertised ``le=4``), and the report then printed "2 DNA / 2 RNA bulges" over a search
+#: that had looked for one of each -- a clean report that says nothing about the class of
+#: site the caller asked about. One bulge is the deliberate design (it is what a
+#: Cas-OFFinder-style screen does at practical cost); saying so is the fix.
+MAX_BULGES = 1
+
+
+def check_bulge_budget(dna_bulges: int, rna_bulges: int) -> None:
+    """Refuse a bulge budget the alignment cannot actually search.
+
+    Raises:
+        ValueError: When either budget exceeds :data:`MAX_BULGES`. The message carries
+            both spellings -- the flag and the keyword -- because this guard sits below
+            the CLI so that every caller meets it, and a remedy a caller has to
+            translate is half a remedy.
+    """
+    over = [
+        name
+        for name, value in (("dna_bulges", dna_bulges), ("rna_bulges", rna_bulges))
+        if value > MAX_BULGES
+    ]
+    if not over:
+        return
+    raise ValueError(
+        f"this search aligns at most {MAX_BULGES} bulge of each kind, so "
+        f"{' and '.join(over)} above {MAX_BULGES} would report a budget that was never "
+        "searched: a two-bulge site is not found at any budget. Set both to 0 or 1 "
+        "(`--dna-bulges 1 --rna-bulges 1` on the command line, `dna_bulges=1, "
+        "rna_bulges=1` from Python)"
+    )
+
+
 def scan_sequence(
     chrom: str,
     sequence: str | DNASequence,
@@ -819,6 +857,7 @@ def scan_sequence(
     Returns:
         All hits within budget, as plus-strand :class:`Hit` records.
     """
+    check_bulge_budget(dna_bulges, rna_bulges)
     seq = _sanitize(str(sequence).upper())
     sp = str(spacer).upper()
     n = len(seq)

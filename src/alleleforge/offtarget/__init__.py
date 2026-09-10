@@ -12,6 +12,7 @@ CHANGE-seq confirmation.
 
 from __future__ import annotations
 
+from alleleforge.offtarget._search import MAX_BULGES
 from alleleforge.offtarget.cache import OffTargetCache, search_signature
 from alleleforge.offtarget.cas_offinder_adapter import CasOffinderAdapter
 from alleleforge.offtarget.engine import (
@@ -41,6 +42,7 @@ __all__ = [
     "CFD_PAM_WEIGHTS",
     "DEFAULT_CFD_THRESHOLD",
     "DEFAULT_MIT_THRESHOLD",
+    "MAX_BULGES",
     "MIT_WEIGHTS",
     "Cas12aCfdScorer",
     "CasOffinderAdapter",

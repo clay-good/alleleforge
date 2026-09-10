@@ -29,7 +29,13 @@ from alleleforge.genome.index import GenomeIndex
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.offtarget._bounds import reject_non_finite
 from alleleforge.offtarget._counts import SourceCounts
-from alleleforge.offtarget._search import Hit, SearchBudget, SiteProvenance, scan_sequence
+from alleleforge.offtarget._search import (
+    Hit,
+    SearchBudget,
+    SiteProvenance,
+    check_bulge_budget,
+    scan_sequence,
+)
 from alleleforge.offtarget.cache import OffTargetCache, search_signature
 from alleleforge.offtarget.haplotype import enumerate_haplotype_sites
 from alleleforge.offtarget.population import (
@@ -547,6 +553,10 @@ def search(
         i + 1 for i, base in enumerate(sp.upper()) if base not in "ACGT"
     )
     primary = scorer if scorer is not None else CfdScorer()
+    # Refuse a bulge budget the aligner cannot search, before a genome is touched.
+    # `scan_sequence` refuses too, but only once a region is in hand: a whole-genome
+    # run would spend its setup before saying the budget was never searchable.
+    check_bulge_budget(dna_bulges, rna_bulges)
     # Refuse a scorer/budget combination the scorer cannot serve, before scanning
     # anything. The MIT score is defined only for an ungapped 20-nt alignment, so a
     # bulge budget makes it raise partway through the scan with a message about the

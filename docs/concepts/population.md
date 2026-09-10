@@ -46,6 +46,12 @@ ancestry-stratified report:
 Every threshold is a parameter; the defaults are ≤ 4 mismatches, ≤ 1 DNA + ≤ 1 RNA bulge, and
 MAF ≥ 0.001 in any queried population.
 
+One bulge of each kind is also the **ceiling**, not just the default: the alignment considers an
+ungapped, a single-DNA-bulge and a single-RNA-bulge placement per PAM, so a two-bulge site is not
+nominated at any budget. A budget above 1 is refused rather than accepted and printed — a report
+that said "2 DNA bulges" over a search that looked for one would be a clean bill of health about a
+class of site nobody looked for.
+
 ## Scoring
 
 Two published single-guide specificity scores are implemented behind one swappable

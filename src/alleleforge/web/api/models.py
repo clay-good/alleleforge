@@ -14,6 +14,7 @@ from typing import Annotated, Any
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from alleleforge.design.ranking import OBJECTIVES
+from alleleforge.offtarget import MAX_BULGES
 from alleleforge.report.builder import COORDINATE_SYSTEM, RESEARCH_USE_OFFTARGET
 from alleleforge.types.offtarget import (
     AGGREGATE_PRECISION,
@@ -594,8 +595,12 @@ class OffTargetRequest(BaseModel):
     spacer: str = Field(max_length=MAX_SPACER_LEN, description="The on-target spacer (5'->3').")
     pam: str = Field(default="NGG", max_length=MAX_PAM_LEN, description="PAM pattern (IUPAC).")
     mismatches: int = Field(default=4, ge=0, le=8, description="Max mismatches.")
-    dna_bulges: int = Field(default=1, ge=0, le=4, description="Max DNA bulges.")
-    rna_bulges: int = Field(default=1, ge=0, le=4, description="Max RNA bulges.")
+    # `le=MAX_BULGES`, not the 4 this schema used to advertise: the aligner carries at
+    # most one bulge of each kind, so a generated client offering 4 offers a search that
+    # cannot happen. The engine refuses the same values with the reason; this keeps the
+    # published contract from stating the wrong one.
+    dna_bulges: int = Field(default=1, ge=0, le=MAX_BULGES, description="Max DNA bulges (0 or 1).")
+    rna_bulges: int = Field(default=1, ge=0, le=MAX_BULGES, description="Max RNA bulges (0 or 1).")
     cfd_threshold: float = Field(
         default=0.20, ge=0.0, le=1.0, description="Report a site at or above this CFD score."
     )

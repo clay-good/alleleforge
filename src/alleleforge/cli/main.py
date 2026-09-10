@@ -2458,8 +2458,8 @@ def offtarget(
     ] = None,
     pam: Annotated[str, typer.Option(help="PAM pattern (IUPAC).")] = "NGG",
     mismatches: Annotated[int, typer.Option(help="Max mismatches.", min=0)] = 4,
-    dna_bulges: Annotated[int, typer.Option(help="Max DNA bulges.", min=0)] = 1,
-    rna_bulges: Annotated[int, typer.Option(help="Max RNA bulges.", min=0)] = 1,
+    dna_bulges: Annotated[int, typer.Option(help="Max DNA bulges (0 or 1).", min=0)] = 1,
+    rna_bulges: Annotated[int, typer.Option(help="Max RNA bulges (0 or 1).", min=0)] = 1,
     cfd_threshold: Annotated[
         float, typer.Option(help="Report a site at or above this CFD score.", min=0.0, max=1.0)
     ] = 0.20,

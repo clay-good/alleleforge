@@ -19422,3 +19422,45 @@ must not widen a policy.
 usually somewhere else.** `DEFAULT_PE3_OFFSET` is checked against every candidate it sees.
 Nothing checked that the candidates it sees can span it. The gap between "this filter
 accepts 40-90" and "this search can produce 40-90" is invisible from inside the filter.
+
+
+## Round 573 — a bulge budget is a number the search has to honour
+
+Round 572's lesson, asked of every other budget in the library: `RTT_RANGE`, `PBS_RANGE`,
+`GC_BAND`, `DEFAULT_HDR_ARM`, the cas9 actionable radius, the base-editor window, the
+off-target mismatch and bulge budgets. Five are reachable (measured; the cas9 and
+base-editor margins are exactly tight, and the base editor's is tight on both strands at
+once). One is not.
+
+    $ aforge offtarget GTCA... --dna-bulges 2
+    up to 4 mismatches, 2 DNA / 2 RNA bulges     # the report's own sentence
+
+Both alignment kernels — `_python_evaluate` and the Rust `evaluate` it is parity-tested
+against — consider exactly three alignments per PAM: ungapped, one DNA bulge, one RNA
+bulge. So a budget of 2 returns the hits a budget of 1 returns, and a site built with two
+extra genomic bases is invisible at 1, 2, 3 and 4. Measured:
+
+    1-bulge site, budget 1/2/3 -> one hit, one hit, one hit
+    2-bulge site, budget 1/2/3 -> nothing, nothing, nothing
+
+The budget was an `int` on every shell: `--dna-bulges` took any non-negative number, and
+the web schema advertised `le=4` — a published contract offering a search that cannot
+happen. Nothing clamped it, nothing noted it; the number went into `dna_bulge_budget` and
+came back out in `search_description()`. A caller screening a guide *for two-bulge
+off-targets* got a clean report that says nothing about two-bulge off-targets, which is the
+direction that reads as safer and is not.
+
+One bulge is the deliberate design — it is what a Cas-OFFinder-style screen does at
+practical cost — so the fix is to say so, not to build a second aligner. `MAX_BULGES = 1`
+and `check_bulge_budget` live next to the kernels that set the limit; `scan_sequence`
+refuses, and `search()` refuses *before a genome is touched*, next to the MIT/bulge refusal
+whose rule this follows (both spellings of the remedy, because the guard sits below the
+CLI so that every caller meets it). The schema's `le` is now `MAX_BULGES`, the flag's help
+names the ceiling, and the two docs that gave `≤ 1` as a default now give it as a ceiling.
+
+**Lesson: a filter is refused when it cannot serve; a *budget* was accepted and printed.**
+The MIT scorer already refuses a bulge budget it cannot score — the same seam, the same
+sentence structure, written two rounds of this file apart from a budget the *aligner*
+cannot search. What made one visible and the other not is that the scorer raised and the
+aligner quietly returned fewer hits. A parameter whose over-large value produces no error
+and no missing output produces the one artifact nobody checks: a smaller answer.
