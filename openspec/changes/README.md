@@ -16909,3 +16909,34 @@ command had never been invoked, because its lines are reached by `--help` render
 the library tests underneath it. The list of entry points is a population like any other,
 and "how many times does the suite invoke this one" took eleven lines and found the only
 command with a wrong exit code.
+
+## Round 493 — the generator nobody ran
+
+Round 492's lesson was to ask which entry points the suite never invokes, rather than
+which lines it never covers. The same question over the other two populations: every
+`/api/*` endpoint is exercised (7 to 83 references each), and of the nine files in
+`scripts/`, eight are referenced by tests and one is not — `make_benchmark_fixtures.py`,
+which writes the five dataset fixtures and the five frozen splits under
+`src/alleleforge/benchmark/`.
+
+That is the data every benchmark score is computed from, that the split integrity hashes
+pin, and that the leaderboard ranks on. Its docstring states the property the harness
+depends on: "fully deterministic — every value is derived from a SHA-256 of the row id, so
+re-running produces byte-identical files and the committed content hashes stay stable."
+Nothing had ever re-run it. `make ci` does not; no CI job does.
+
+Run in a scratch tree, it reproduces all ten files byte-for-byte — the good outcome, and
+not the point. What was missing is the constraint. A fixture edited by hand leaves data
+the generator can no longer produce; the split's recorded dataset hash catches a fixture
+edited *alone* and cannot catch a fixture and its hash edited together, which is what a
+person "fixing" a benchmark number would naturally do. Same shape as the committed figures
+one file over — something committed, something that generates it, and nothing comparing
+the two — with the benchmark's whole content-addressed story riding on it.
+
+**Lesson: the second-order artifacts are the ones with no owner.** The suite tests what the
+library does and what the shells do. A script that produces committed inputs sits outside
+both: it is not library code, so no unit test covers it; it is not a shell, so no CLI test
+invokes it; and its output is checked into git, so everything downstream keeps working
+long after the generator stops matching it. Every repository has a few. Enumerate them by
+population — `scripts/`, `Makefile` targets, committed generated files — and ask of each:
+what would notice if this stopped being true?
