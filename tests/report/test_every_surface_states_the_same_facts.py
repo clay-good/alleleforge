@@ -53,6 +53,16 @@ FACTS: dict[str, str | None] = {
 #: is the goal; an entry is a decision, and one without a reason is not allowed.
 OMITTED: dict[tuple[str, str], str] = {}
 
+#: Formats `aforge design --format` offers that this file does not render, with the
+#: reason. The population is the enum, not a list written here: this guard covered four
+#: surfaces for several rounds while the CLI offered six, and the fifth — Parquet — is a
+#: *flat table*, exactly the surface whose missing facts started this file.
+NOT_A_REPORT_RENDER: dict[str, str] = {
+    "menu": "a different document: the ranked menu, not the report. It carries the full "
+    "candidate list the report truncates, and its own facts are checked by the menu "
+    "tests",
+}
+
 
 @pytest.fixture(scope="module")
 def surfaces(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
@@ -82,11 +92,26 @@ def surfaces(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
         # The PDF's content stream is uncompressed text; a fact wrapped across a
         # line is still present, so the needles are short enough to survive that.
         "pdf": render_pdf(report).decode("latin-1", "replace"),
+        # Parquet holds no comment lines, so its facts live in the file-level key/value
+        # metadata — the same notes the TSV writes as `#` lines. Read back as one string,
+        # because what is being asked is whether the fact is *in the file*.
+        "parquet": _parquet_notes(report, tmp_path / "report.parquet"),
     }
 
 
+def _parquet_notes(report: object, path: Path) -> str:
+    """Return the file-level metadata of the Parquet export, as one searchable string."""
+    import polars as pl
+
+    from alleleforge.report import report_to_parquet
+
+    written = report_to_parquet(report, path)  # type: ignore[arg-type]
+    metadata = pl.read_parquet_metadata(written)
+    return "\n".join(f"{key}: {value}" for key, value in sorted(metadata.items()))
+
+
 @pytest.mark.parametrize("fact", sorted(FACTS))
-@pytest.mark.parametrize("surface", ["html", "tsv", "json", "pdf"])
+@pytest.mark.parametrize("surface", ["html", "tsv", "json", "pdf", "parquet"])
 def test_the_fact_is_on_the_surface(surfaces: dict[str, str], fact: str, surface: str) -> None:
     needle = FACTS[fact]
     assert needle, f"{fact!r} has no needle; the fixture must fill it in"
@@ -123,3 +148,26 @@ def test_the_two_spellings_agree() -> None:
     from alleleforge.report.builder import COORDINATE_NOTE, COORDINATE_SYSTEM
 
     assert COORDINATE_SYSTEM.replace("-", " ") in COORDINATE_NOTE.replace("-", " ")
+
+
+def test_every_format_the_cli_offers_is_rendered_here_or_excused() -> None:
+    """The population is `--format`'s own enum, not the list this file happens to render.
+
+    Four surfaces were checked while six were offered, and the unchecked one that mattered
+    was Parquet: a flat table, which is the shape whose missing facts this file was written
+    about in the first place. Its facts live in file-level metadata rather than in `#`
+    comment lines, which is exactly how a surface goes unnoticed — it carries them in a
+    place a text search over the document would not look.
+    """
+    from alleleforge.cli.main import OutputFormat
+
+    offered = {fmt.value for fmt in OutputFormat}
+    rendered = {"html", "tsv", "json", "pdf", "parquet"}
+    unchecked = sorted(offered - rendered - set(NOT_A_REPORT_RENDER))
+    assert not unchecked, (
+        f"`aforge design --format` offers {unchecked}, which no surface here renders. "
+        "Add it above, or record it in NOT_A_REPORT_RENDER with the reason it is not a "
+        "rendering of this report."
+    )
+    stale = sorted(set(NOT_A_REPORT_RENDER) - offered)
+    assert not stale, f"NOT_A_REPORT_RENDER names formats the CLI no longer offers: {stale}"

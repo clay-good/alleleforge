@@ -17684,3 +17684,31 @@ response looked wrong — it has a disclaimer, provenance, per-item summaries, a
 project's own five-facts rule was satisfied by every *other* artifact of the same run. The
 missing field was visible only as a difference: one envelope had it, the other did not, and
 that is a question no amount of reading either document alone would have raised.
+
+## Round 517 — the fifth surface
+
+`test_every_surface_states_the_same_facts` exists because a round found the TSV emitting
+none of the disclaimer, the coordinate convention or the provenance footer while three
+other renders emitted all three. Its own docstring states the lesson: *"which renderer is
+missing this?" needs asking on a schedule rather than once.* It then asked it of a
+hand-written list:
+
+    @pytest.mark.parametrize("surface", ["html", "tsv", "json", "pdf"])
+
+`aforge design --format` offers six. The unchecked one that matters is **Parquet** — a
+flat table, which is the shape whose missing facts started this file, and the one surface
+that keeps its facts in file-level key/value metadata rather than in `#` comment lines. A
+place a text search over the document would not look is exactly how a surface goes
+unnoticed for several rounds.
+
+It carries all six facts, which is the good outcome and not the point. The population is
+now `OutputFormat` itself: a format the CLI offers must either be rendered here or recorded
+as not being a rendering of this report, with the reason (`menu` is the ranked menu — a
+different document, with its own tests, carrying the candidates the report truncates).
+
+**Lesson: the guard against a stale population usually has one.** Three rounds this
+session found a hand-written list inside a check whose whole subject was something being
+missed — the privacy exceptions, the shell-parity allowances, and now the surfaces. A file
+that says "this needs asking on a schedule" is exactly the file to check for a list, since
+its author was thinking about the question and not about where the question's inputs come
+from.
