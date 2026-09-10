@@ -18225,3 +18225,39 @@ project spends its effort on refusals that say which input was wrong and what to
 instead, and then handed a third of a subsystem's failures to a client as the one status
 that says nothing and blames the wrong party. The CLI has had four distinct exit codes for
 this since it shipped. The API had `422` and `500`.
+
+## Round 534 — seventeen digits of a heuristic
+
+Two rounds of sweeping the API for bad answers found none, so I stopped looking for
+refusals and read the document the tool exists to produce. A design on an HBB-like locus,
+in two formats:
+
+    --format tsv    efficiency  0.6532
+    --format json   "efficiency": {"value": 0.6531868174105568, ...}
+
+The same number, the same run, the same report object. The HTML and the PDF publish four
+places like the TSV, so three renders of one document agreed and the fourth did not — and
+the fourth is the one a pipeline parses. Seventeen significant digits of an estimate whose
+own note, three lines below in the same object, reads "nominal interval level: fixed
+heuristic half-width, coverage not measured".
+
+This is the two-shells-two-precisions defect an earlier round fixed for the off-target
+report, one document along, from the same cause: rounding lived in each writer, applied
+where someone remembered. `published()` makes it a property of the document. The walk is
+**generic** — over the dumped model, not over a list of numeric fields — because a report
+with two dozen of them is exactly the list that goes stale on the next field added.
+
+**The menu is exempt, and finding out why was the useful part.** Rounding it made the model
+refuse its own output: `probabilities sum to 1.0002 > 1`. An outcome spectrum is a
+*distribution*, not a list of independent numbers, and element-wise rounding is not a
+lossless narrowing of it. That is also the argument for the exemption being right rather
+than convenient — the menu is documented as the lossless form, the report's own
+withheld-alleles note sends readers to it, and its `outcome_top` (truncated, three of four
+alleles) carries no such constraint and rounds fine.
+
+**Lesson: a number's precision is a claim about the method that produced it.** Every guard
+here checks that a number is *correct*. None asked whether the digits after it mean
+anything, and the answer was that a fixed ±0.15 heuristic half-width was being published to
+the sixteenth decimal on the one surface a machine reads. The model refusing my first fix
+is the same point from the other side: the document knew something about its own numbers
+that the writers did not.

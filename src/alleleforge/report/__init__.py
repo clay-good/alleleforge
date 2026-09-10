@@ -2,7 +2,8 @@
 
 Turns a ranked design menu into the artifacts users actually consume: cloning-
 ready oligos (:mod:`.oligos`), a structured serializable report model
-(:mod:`.builder`), machine-readable JSON / TSV / Parquet (:mod:`.export`), an
+(:mod:`.builder`), machine-readable JSON / TSV / Parquet (:mod:`.export`, rounded to one
+published precision by :mod:`.precision`), an
 interactive self-contained HTML page (:mod:`.html`), and a static print-ready
 PDF (:mod:`.pdf`). Every render leads with the research-use disclaimer and ends
 with full provenance.
@@ -45,11 +46,18 @@ from alleleforge.report.oligos import (
     sgrna_oligos,
 )
 from alleleforge.report.pdf import render_pdf
+from alleleforge.report.precision import (
+    FREQUENCY_KEYS,
+    REPORT_PRECISION,
+    published,
+)
 
 __all__ = [
+    "FREQUENCY_KEYS",
     "LENTIGUIDE_BSMBI",
     "PEGRNA_GG_BSAI",
     "PX330_BBSI",
+    "REPORT_PRECISION",
     "RESEARCH_USE_DISCLAIMER",
     "RESEARCH_USE_OFFTARGET",
     "VECTOR_SCHEMES",
@@ -66,6 +74,7 @@ __all__ = [
     "provenance_lines",
     "visible_candidates",
     "menu_to_json",
+    "published",
     "oligos_for",
     "donor_oligo",
     "pegrna_oligos",

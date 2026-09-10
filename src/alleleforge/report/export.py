@@ -20,6 +20,7 @@ from typing import Any
 
 from alleleforge.errors import MissingDependencyError
 from alleleforge.report.builder import DesignReport, caveats, provenance_lines
+from alleleforge.report.precision import REPORT_PRECISION, published
 from alleleforge.types.candidate import RankedMenu
 
 #: Schema version for the flat TSV/Parquet candidate export. Bump when a column is
@@ -172,11 +173,18 @@ def report_to_json(report: DesignReport, *, indent: int | None = 2) -> str:
     count — and serializing it faithfully preserves the summary, not the detail. Use
     :func:`menu_to_json` for that; the renders say so where they withhold something.
     """
-    return report.model_dump_json(indent=indent)
+    return published(report).model_dump_json(indent=indent)
 
 
 def menu_to_json(menu: RankedMenu, *, indent: int | None = 2) -> str:
-    """Serialize the underlying ranked menu to schema-valid Phase 1 JSON."""
+    """Serialize the underlying ranked menu to schema-valid Phase 1 JSON.
+
+    Full precision, unlike :func:`report_to_json`. The menu is the *lossless* form of a
+    design — the document the report's own withheld-alleles note sends a reader to — and
+    an outcome spectrum is a distribution, not a list of independent numbers: rounding its
+    alleles element-wise makes them sum to 1.0003, which this model refuses, correctly.
+    The report's truncated `outcome_top` carries no such constraint.
+    """
     return menu.model_dump_json(indent=indent)
 
 
@@ -195,19 +203,25 @@ def _row(candidate: Any) -> dict[str, Any]:
         "chemistry": candidate.chemistry.value,
         "locus": candidate.locus,
         "on_pareto_front": candidate.on_pareto_front,
-        "efficiency": None if eff is None else round(eff.value, 4),
-        "efficiency_low": None if eff is None else round(eff.interval[0], 4),
-        "efficiency_high": None if eff is None else round(eff.interval[1], 4),
+        "efficiency": None if eff is None else round(eff.value, REPORT_PRECISION),
+        "efficiency_low": None if eff is None else round(eff.interval[0], REPORT_PRECISION),
+        "efficiency_high": None if eff is None else round(eff.interval[1], REPORT_PRECISION),
         "in_distribution": None if eff is None else eff.in_distribution,
         "calibrated": None if eff is None else eff.calibrated,
-        "bystander_burden": None if burden is None else round(burden.value, 4),
-        "bystander_burden_low": None if burden is None else round(burden.interval[0], 4),
-        "bystander_burden_high": None if burden is None else round(burden.interval[1], 4),
+        "bystander_burden": None if burden is None else round(burden.value, REPORT_PRECISION),
+        "bystander_burden_low": None
+        if burden is None
+        else round(burden.interval[0], REPORT_PRECISION),
+        "bystander_burden_high": None
+        if burden is None
+        else round(burden.interval[1], REPORT_PRECISION),
         "bystander_burden_in_distribution": None if burden is None else burden.in_distribution,
         "bystander_burden_calibrated": None if burden is None else burden.calibrated,
-        "p_intended": None if candidate.p_intended is None else round(candidate.p_intended, 4),
-        "p_intended_low": None if pi is None else round(pi.interval[0], 4),
-        "p_intended_high": None if pi is None else round(pi.interval[1], 4),
+        "p_intended": None
+        if candidate.p_intended is None
+        else round(candidate.p_intended, REPORT_PRECISION),
+        "p_intended_low": None if pi is None else round(pi.interval[0], REPORT_PRECISION),
+        "p_intended_high": None if pi is None else round(pi.interval[1], REPORT_PRECISION),
         "p_intended_in_distribution": None if pi is None else pi.in_distribution,
         "p_intended_calibrated": None if pi is None else pi.calibrated,
         "n_offtarget_sites": candidate.n_offtarget_sites,
@@ -217,12 +231,12 @@ def _row(candidate: Any) -> dict[str, Any]:
         "offtarget_expected_burden": (
             None
             if candidate.offtarget_expected_burden is None
-            else round(candidate.offtarget_expected_burden, 4)
+            else round(candidate.offtarget_expected_burden, REPORT_PRECISION)
         ),
         "offtarget_specificity": (
             None
             if candidate.offtarget_specificity is None
-            else round(candidate.offtarget_specificity, 4)
+            else round(candidate.offtarget_specificity, REPORT_PRECISION)
         ),
         "offtarget_scorer": candidate.offtarget_scorer,
         "offtarget_matrix": candidate.offtarget_matrix,
@@ -230,7 +244,9 @@ def _row(candidate: Any) -> dict[str, Any]:
         "offtarget_scorer_citation": candidate.offtarget_scorer_citation,
         "offtarget_search": candidate.offtarget_search,
         "worst_ancestry": None if worst is None else worst.ancestry,
-        "worst_ancestry_score": None if worst is None else round(worst.worst_score, 4),
+        "worst_ancestry_score": None
+        if worst is None
+        else round(worst.worst_score, REPORT_PRECISION),
         "flags": ";".join(candidate.flags),
         "oligo_warnings": ";".join(
             getattr(candidate.oligos, "warnings", ()) if candidate.oligos else ()

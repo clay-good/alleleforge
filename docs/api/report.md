@@ -51,6 +51,8 @@ of the report and is not where to look for detail the report withheld; the rende
 wherever they withhold something. Both validate against the Phase 1 schemas. TSV is one
 flat row per candidate; Parquet is the columnar batch form.
 
+::: alleleforge.report.precision
+
 ::: alleleforge.report.export
 
 ## HTML render

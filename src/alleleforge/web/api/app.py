@@ -67,6 +67,7 @@ from alleleforge.report.export import report_to_parquet, report_to_tsv
 from alleleforge.report.html import render_html
 from alleleforge.report.oligos import scheme_by_name
 from alleleforge.report.pdf import render_pdf
+from alleleforge.report.precision import published
 from alleleforge.types.sequence import GenomicInterval
 from alleleforge.types.variant import assembly_matches
 from alleleforge.web.api.jobs import JobCapacityError, JobManager
@@ -758,6 +759,10 @@ def _render_design(finished: FinishedDesign, fmt: DesignFormat) -> DesignReport 
         # withheld-alleles note points at. Returned as a Response so the DesignReport
         # response_model does not reshape it into the very thing it is not.
         return Response(finished.menu.model_dump_json(indent=2), media_type="application/json")
+    # Rounded exactly as the CLI's `--format json` rounds it. The response_model
+    # serializes whatever object it is handed, so without this the HTTP client got
+    # float64 while the TSV, HTML and PDF of the same report published four places —
+    # the two-shells-two-precisions defect, one document along.
     # 0 means "draw them all"; the JSON body is never capped either way.
     cap = (
         DEFAULT_RENDER_CANDIDATES
@@ -777,7 +782,7 @@ def _render_design(finished: FinishedDesign, fmt: DesignFormat) -> DesignReport 
         )
     if fmt is DesignFormat.parquet:
         return Response(_report_parquet_bytes(report), media_type="application/vnd.apache.parquet")
-    return report
+    return published(report)
 
 
 def _render_cohort(finished: FinishedCohort, fmt: BatchFormat) -> BatchResponse | Response:
