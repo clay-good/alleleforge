@@ -18797,3 +18797,32 @@ TSV and JSON checks with it. Now only the Parquet branch is conditional.
 a disclosure guard has to ask is not "does this field serialize" but "does the code path a
 caller takes put anything in it". The three surfaces I checked by *running* them were right
 first time; the one I checked by constructing a model was the one that stayed broken.
+
+## Round 552 — the derived form of "assumed the bug away"
+
+551 found that a guard which *builds* the object under test asserts nothing about the code
+path that fills it. That is a lesson; this is the check.
+
+For every response model the API constructs, walk the app and the models module for
+`Model(...)` and for the `cls(...)` inside its own `from_report`, and collect the keyword
+names. A field with a default that appears in neither can only ever be its default — dead
+weight in the schema, or a disclosure a client is promised and never given.
+
+Verified against the real defect: deleting `notes=` from `_cohort_response` fails it, which
+is the mutation that left 551's first guard green.
+
+Three exceptions, each a line with a reason: `coordinate_system` on three models and
+`disclaimer` on one are properties of the *document* rather than of the run, so the model
+stamps them and passing them per response would be a chance to pass the wrong one. Noted in
+passing: `BatchResponse` passes its own disclaimer and `OffTargetResponse` defaults it — two
+coherent choices for one field across two models, worth an exception line and not worth a
+refactor.
+
+The guard's own first version reported **every** field of `OffTargetResponse`, because that
+model is built through `cls(...)` in a classmethod and the scan only knew the class name.
+A derivation that returns "everything is broken" is reporting on itself.
+
+**Lesson: when a lesson costs one AST walk, write the walk.** Five rounds this session ended
+with a sentence about deriving the population instead of listing it, and the sentences did
+not stop the next round from listing one. The check that a lesson has landed is that
+something in the repository fails when it is forgotten.

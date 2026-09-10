@@ -231,3 +231,26 @@ def test_every_kind_of_note_has_a_test() -> None:
         "`test_..._is_a_headline_note`. A guard for a set checked against one member is "
         "a guard for the member someone had in mind."
     )
+
+
+@pytest.mark.anyio
+async def test_the_endpoint_fills_them(fasta: Path) -> None:
+    """Through the endpoint, not by calling the function.
+
+    Every other check here exercises `headline_notes` directly, which says the *function*
+    works and nothing about whether the response a client receives carries its output —
+    the distinction that let a sibling guard pass while the cohort envelope returned an
+    empty list for two rounds.
+    """
+    pytest.importorskip("fastapi")
+    httpx = pytest.importorskip("httpx")
+
+    from alleleforge.web.api.app import create_app
+
+    app = create_app(reference=ReferenceGenome(fasta, build="hg38"))
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        short = await client.post("/api/offtarget", json={"spacer": "ACGT"})
+        clean = await client.post("/api/offtarget", json={"spacer": _SPACER})
+    assert any("not a guide length" in n for n in short.json()["headline_notes"])
+    assert clean.json()["headline_notes"] == []
