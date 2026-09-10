@@ -582,6 +582,9 @@ def design(
         ),
         candidates=outcome.candidates,
         rationale=rationale,
+        # The same notes the rationale carries in prose, as data: a caller deciding
+        # whether this run degraded should not have to grep a paragraph for a marker.
+        unavailable=tuple(note for note in notes if INTEGRITY_NOTE in note or DEFECT_NOTE in note),
         pareto_front=outcome.pareto_front,
         provenance=provenance,
     )

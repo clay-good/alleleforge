@@ -441,6 +441,13 @@ def _report_lines(report: DesignReport, max_candidates: int | None) -> list[str]
         weights = ", ".join(f"{k} {v:.2f}" for k, v in report.weights.items())
         lines += _wrap(f"Ranking weights: {weights}")
     lines.append("")
+    if report.unavailable:
+        # Before the rationale, for the same reason the HTML puts it above: this is why
+        # part of the menu is missing, not one of the routing verdicts a reader skims.
+        lines += _wrap("PART OF THIS MENU IS MISSING")
+        for note in report.unavailable:
+            lines += _wrap(f"- {note}")
+        lines.append("")
     if report.rationale:
         lines += _wrap("HOW THIS MENU WAS ASSEMBLED")
         for para in report.rationale.split("\n"):

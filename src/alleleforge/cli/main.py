@@ -1618,18 +1618,18 @@ def design(
     # line ("a script or a CI job driving this had no way to tell without re-parsing the
     # summary"), and `design` did not: a corrupted `--cache` entry, now refused rather
     # than served, took the whole prime vertical out of a menu and exited 0.
-    rationale = menu.rationale or ""
-    # An integrity failure exits the same way — this code is documented as "unavailable
-    # dependency or a failed integrity check" — and says a different thing, because the
-    # user's cache being altered is not a defect in this tool and the remedy is theirs.
-    if INTEGRITY_NOTE in rationale:
+    # Read off the menu's own field rather than grepped out of its prose: the marker
+    # constants existed because this check had nothing else to read, and an HTTP client
+    # asking for the same design had nothing at all.
+    degraded = "\n".join(menu.unavailable)
+    if INTEGRITY_NOTE in degraded:
         _echo_err(
             "error: a store this run was told to reuse failed its integrity check, so a "
             "chemistry contributed no candidates; the menu was written and its rationale "
             "names the entry and what to do about it"
         )
         raise typer.Exit(ExitCode.UNAVAILABLE)
-    if DEFECT_NOTE in rationale:
+    if DEFECT_NOTE in degraded:
         _echo_err(
             "error: a chemistry failed with an unexpected error and contributed no "
             "candidates; the menu was written and its rationale names the failure"

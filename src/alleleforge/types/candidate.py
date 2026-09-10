@@ -87,6 +87,11 @@ class RankedMenu(BaseModel):
             the summary row built from it — identified the item only by the string the
             user typed. For an accession or an rsID that string names no locus at all,
             and even a coordinate can move under left-alignment.
+        unavailable: One note per chemistry that contributed nothing for a reason that
+            is not biology — a defect, or a failed integrity check on a store the run
+            was told to reuse. Structured because both shells and every client branch
+            on it: the CLI's exit code and an HTTP client's error handling were both
+            reading prose.
         clinical_significance: What a clinical database asserts about that variant, when
             resolution came from one. It is the reason an accession is chosen over the
             coordinates it stands for, and it lived only inside ``rationale`` — prose the
@@ -101,6 +106,14 @@ class RankedMenu(BaseModel):
     provenance: Provenance | None = None
     variant: str | None = None
     clinical_significance: str | None = None
+    #: Notes for chemistries that contributed nothing for a reason that is **not**
+    #: biology: a defect in this tool, or a store whose integrity check failed. The
+    #: rationale carries the same sentences in prose, and prose is what a caller had to
+    #: parse — the CLI greps its own marker to pick an exit code, and an HTTP client
+    #: asking for the same design got `200` with an empty menu and no field to branch on.
+    #: Empty on every ordinary run, including one where a chemistry simply does not apply
+    #: (that is biology, and the rationale explains it).
+    unavailable: tuple[str, ...] = ()
 
     @property
     def best(self) -> DesignCandidate | None:

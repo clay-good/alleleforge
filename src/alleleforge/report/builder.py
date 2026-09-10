@@ -385,6 +385,10 @@ class DesignReport(BaseModel):
             rationale, because the flat exports do not render prose.
         weights: The ranking weights used.
         candidates: One :class:`CandidateReport` per menu candidate, in rank order.
+        unavailable: One note per chemistry that contributed nothing for a reason that
+            is not biology. The same sentences the rationale carries, as data, so a
+            caller — a shell picking an exit code, an HTTP client deciding whether to
+            retry — is not parsing prose to find out whether the run degraded.
         rationale: The **menu-level** rationale — which chemistries routed and why,
             which ran, and any that were skipped or failed. Without it a report can
             be empty with no explanation anywhere in it: the designer degrades
@@ -409,6 +413,9 @@ class DesignReport(BaseModel):
     weights: dict[str, float]
     candidates: tuple[CandidateReport, ...]
     rationale: str | None = None
+    #: One note per chemistry that contributed nothing for a reason that is not biology
+    #: — a defect, or a store whose integrity check failed. See `RankedMenu.unavailable`.
+    unavailable: tuple[str, ...] = ()
     provenance: Provenance | None
 
     @property
@@ -917,5 +924,9 @@ def build_report(
         weights=weights,
         candidates=candidates,
         rationale=rationale,
+        # Carried through rather than re-derived: a reader of the report should be able
+        # to branch on "did this run degrade" without parsing the rationale, and the menu
+        # already answers it.
+        unavailable=menu.unavailable,
         provenance=menu.provenance,
     )

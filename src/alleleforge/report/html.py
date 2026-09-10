@@ -420,6 +420,22 @@ def _provenance_html(report: DesignReport) -> str:
     return footer
 
 
+def _unavailable_html(report: DesignReport) -> str:
+    """Render the chemistries that contributed nothing for a non-biological reason.
+
+    Above the rationale and not inside it: a defect in this tool, or a store whose
+    integrity check failed, is not one of the routing verdicts a reader skims — it is the
+    reason part of this menu is missing, and the reader has to see it without opening a
+    disclosure widget.
+    """
+    if not report.unavailable:
+        return ""
+    items = "".join(f"<li>{_esc(note)}</li>" for note in report.unavailable)
+    return (
+        f"<div class='hazard'><strong>Part of this menu is missing.</strong><ul>{items}</ul></div>"
+    )
+
+
 def _rationale_html(report: DesignReport) -> str:
     """Render the menu-level rationale (routing verdicts, skips, failures).
 
@@ -472,6 +488,7 @@ def render_html(
         ),
         f"<div class='disclaimer'><strong>Research use only.</strong> "
         f"{_esc(report.disclaimer)}</div>",
+        _unavailable_html(report),
         _rationale_html(report),
         _figure_block("eff-chart", _efficiency_figure(report)),
         _figure_block("ot-chart", _offtarget_figure(report)),

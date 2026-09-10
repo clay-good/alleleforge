@@ -17775,3 +17775,31 @@ shape for "this is broken", and the condition that fits neither is the environme
 a check the code performs *on purpose*. That is the most actionable message a tool can
 produce and the one most likely to be misfiled, because both existing categories are so
 nearly right.
+
+## Round 520 — the same run, two answers about whether it worked
+
+Round 519's lesson was that two buckets is one too few. This round found the same shape a
+level up, between the shells.
+
+`aforge design` exits `UNAVAILABLE` when a chemistry contributes nothing for a reason that
+is not biology, and the round that added that said why: "a script or a CI job driving this
+had no way to tell without re-parsing the summary". `POST /api/design` answers the same
+condition with `200`, an empty candidate list, and the reason in a paragraph — so the HTTP
+client is in exactly the position the CLI's user was rescued from, one surface over.
+
+The fix is the one the CLI needed and never got either: a field. `unavailable` carries one
+note per chemistry that contributed nothing because of a defect in this tool or a store
+whose integrity check failed — the same sentences the rationale carries, as data. The CLI
+decides its exit code from it instead of grepping `DEFECT_NOTE` out of its own prose; a
+client branches on an empty list; the HTML and PDF render it *above* the rationale, because
+it is the reason part of the menu is missing and not a routing verdict to skim.
+
+Three guards fired while writing it, each correctly: a new report field must reach a
+renderer, the committed JSON schemas must match the models, and the reproducibility golden
+must match a canonical run. All three are the kind of thing a person forgets and a suite
+should not.
+
+**Lesson: when a shell has to parse its own output to know what happened, the answer is
+missing from the artifact.** The marker constants existed because the CLI had nothing else
+to read — and the moment a second surface needed the same answer, prose could not carry it.
+A signal a program has to *recover* is a signal the producer never sent.
