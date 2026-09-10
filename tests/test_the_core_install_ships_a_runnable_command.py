@@ -152,6 +152,28 @@ def test_the_recipe_can_run_the_command_it_tests() -> None:
     )
 
 
+def test_the_recipe_ships_the_same_entry_point_as_the_wheel() -> None:
+    """Two channels, one command: the *target* has to match, not only the name.
+
+    The recipe named `alleleforge.cli.main:app` — the target this shim was written to
+    replace, whose whole problem is that importing it without typer dies with a raw
+    traceback. It "worked" only because the recipe happens to require typer, so the
+    defect the shim exists to prevent was one `run:` edit away from coming back, on the
+    channel where a user is least likely to have the extra. `pip install .` in the
+    recipe's own build script already installs the wheel's entry point; conda-build then
+    generates this one over it, so a mismatch is two different scripts for one command.
+    """
+    declared = _pyproject()["project"]["scripts"]["aforge"]  # type: ignore[index]
+    recipe = _recipe()
+    entry_block = recipe.split("  entry_points:", 1)[1].split("\nrequirements:", 1)[0]
+    targets = re.findall(r"-\s*aforge\s*=\s*(\S+)", entry_block)
+    assert targets, f"the recipe declares no `aforge` entry point:\n{entry_block}"
+    assert targets == [declared], (
+        f"the recipe points `aforge` at {targets}, the wheel at {declared!r}. One command "
+        "installed two ways must run the same code."
+    )
+
+
 def test_the_recipe_runtime_requirements_cover_the_package_dependencies() -> None:
     """A conda `run:` that omits a base dependency is a package that cannot import."""
     recipe = _recipe()

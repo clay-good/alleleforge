@@ -16940,3 +16940,34 @@ invokes it; and its output is checked into git, so everything downstream keeps w
 long after the generator stops matching it. Every repository has a few. Enumerate them by
 population — `scripts/`, `Makefile` targets, committed generated files — and ask of each:
 what would notice if this stopped being true?
+
+## Round 494 — one command, two entry points
+
+Round 493's lesson said to enumerate the second-order artifacts — the ones with no owner —
+and ask what would notice if each stopped being true. `conda/meta.yaml` is one: a
+packaging recipe nothing in this repository builds, checked by two tests (its `run:` list
+covers the base dependencies, and it requires typer because its own `test:` block runs
+`aforge --version`). Neither looked at what the entry point *points at*.
+
+    pyproject.toml   aforge = alleleforge.cli:run
+    conda/meta.yaml  aforge = alleleforge.cli.main:app
+
+The shim is not decoration. `alleleforge/cli/__init__.py` opens with three paragraphs
+explaining why the console script is "deliberately *not* `alleleforge.cli.main.app`": that
+module imports typer at module scope, so the script it generates dies with a raw
+`ModuleNotFoundError` traceback on the documented core install, and `main._missing_dependency`
+— the remedy written for exactly this — lives inside the module that cannot load. The
+recipe pointed at the target the shim replaced.
+
+It "worked", because the recipe requires typer. Which means the defect the shim exists to
+prevent was one `run:` edit away from returning, on the channel where a user is *least*
+likely to have the extra — and conda-build generates that script over the one the recipe's
+own `pip install .` had already installed from pyproject, so the same command was
+installed twice from two targets. The guard now derives the expected target from
+`pyproject.toml` rather than naming it.
+
+**Lesson: a duplicated declaration is a claim that two things agree, and the copy is
+where the reasoning is missing.** The recipe restates the entry point, the dependencies
+and the Python floor — three facts pyproject already holds. Two of the three had a guard.
+The third had a comment in the *original* saying why it is what it is, and a copy with no
+comment at all, which is precisely the copy that drifted.

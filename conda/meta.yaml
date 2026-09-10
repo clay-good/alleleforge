@@ -19,7 +19,13 @@ build:
   number: 0
   script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
   entry_points:
-    - aforge = alleleforge.cli.main:app
+    # `alleleforge.cli:run`, exactly as pyproject declares it — not `cli.main:app`. The
+    # shim exists because `main` imports typer at module scope, so the script it
+    # generates dies with a raw ModuleNotFoundError traceback wherever typer is absent;
+    # the shim answers with the install line instead. A recipe pointing past it ships a
+    # command that behaves differently from the wheel's, and conda-build generates this
+    # script over the one `pip install .` above already installed.
+    - aforge = alleleforge.cli:run
 
 requirements:
   host:
