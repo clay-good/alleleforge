@@ -2090,7 +2090,14 @@ def batch(
         int, typer.Option(help="Thread pool size (a fresh reference is opened per worker).")
     ] = 1,
     summary_tsv: Annotated[
-        Path | None, typer.Option(help="Write a per-item TSV summary here.")
+        Path | None,
+        typer.Option(
+            help=(
+                "Write a per-item TSV summary here — of the items this run designed. A "
+                "resumed run skips what the manifest already records, so its table is "
+                "that much smaller than the cohort and says so in its notes."
+            )
+        ),
     ] = None,
     summary_parquet: Annotated[
         Path | None,

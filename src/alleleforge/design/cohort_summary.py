@@ -254,6 +254,20 @@ def cohort_headline_notes(
     from alleleforge.design.ranking import CROSS_CHEMISTRY_NOTE
 
     notes: list[str] = []
+    # A resumed run designs what the manifest does not already record, and the table it
+    # writes holds only those. The counts line states the arithmetic — "60 requested, 23
+    # designed, 37 already done" — and the *table* is the document: forwarded to a
+    # colleague, a 23-row file for a 60-patient cohort looks like a 60-patient cohort
+    # that lost half its rows to failures, or like a 23-patient cohort. Say which.
+    if counts and counts.get("skipped"):
+        designed_now = counts.get("total", 0)
+        skipped = counts.get("skipped", 0)
+        notes.append(
+            f"this table holds the {designed_now} item(s) this run designed, not the "
+            f"whole cohort: {skipped} more were skipped as already recorded in the "
+            "manifest, and their rows are in the output of the run that designed them. "
+            "Re-run with --no-resume for one table covering every item."
+        )
     # Whether the safety columns are empty because nothing was found or because nothing
     # was looked for. Every off-target cell of an unsearched item is blank, which reads
     # from the outside like a clean result — the distinction this project spends its

@@ -18856,3 +18856,37 @@ trivially would pass whatever the code did.
 right.** Two correctness tests, one per shell, both pass while the shells disagree, because
 each was written against the shell its author was looking at. The cheap check is the
 comparison, and it is the only one that fails for the reason the defect exists.
+
+## Round 554 — the manifest survived; the table did not say it had not
+
+Deliberately away from disclosures for once, into a correctness property I had not
+exercised: kill a cohort part way and resume it. Started 60 patients, `SIGTERM` at 1.2s,
+resumed.
+
+The manifest is **correct** — 60 unique records, none missing, none duplicated, every line
+valid JSON after a signal mid-write. That is the thing that could have been badly wrong and
+is not.
+
+What the run does not say is that its *table* is now partial:
+
+    # 60 requested, 23 designed (23 ok, 0 failed), 37 already done (resume)
+    [23 rows]
+
+The arithmetic is there, as one `#` line among ten. The table is the document — forwarded to
+a colleague and opened on its own, 23 rows for a 60-patient cohort reads either as a
+23-patient cohort or as one that lost half its rows to failures. And `--summary-tsv`'s help
+said "Write a per-item TSV summary here", with no hint that resume shortens it.
+
+Both fixed: the note names the split and the remedy, and the help says what the flag writes.
+
+**The better fix was considered and not taken.** The manifest holds every skipped item's
+summary, so the table *could* be completed from it — which is what a reader wants. That
+changes what `design_many` returns, what `report.total` counts, and the meaning of
+"skipped" in four guards, for a run whose remedy today is one flag. Recorded here rather
+than done, so the next round can weigh it with the same information.
+
+**Lesson: the artifact that survives a crash and the artifact that describes the run are
+different artifacts.** The resume machinery is careful about the manifest, because the
+manifest is what resume reads. Nothing was careless about the summary — it simply was not
+what anyone was thinking about while making resume correct, and it is the file a human
+opens.
