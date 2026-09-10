@@ -19512,3 +19512,41 @@ claim you want.** The population that goes stale is not only a hand-written list
 also a correctly derived list gathered at the wrong granularity. This one was derived
 from the source, could not go stale, and was wrong the whole time, because it summed
 over the axis the defect lived on.
+
+
+## Round 575 — the efficiency model's window, measured on both strands
+
+Round 574's lesson asked, of every guard: name the axis the defect would live on, and
+check the guard is quantified over it. The axis this repository keeps losing things on is
+**strand** — the minus-strand nuclease cut (R565) and the two prime nicks (R564) were each
+one base wrong and each passed a full suite. `guide_context` is the third piece of
+strand-dependent arithmetic in the same file, and it feeds a scorer.
+
+`TrainedRuleSet3Scorer.context_flank = (4, 3)`: 4 nt 5' + 20 nt protospacer + 3 nt PAM +
+3 nt 3', in the *guide's* orientation. On the minus strand the guide's 5' flank lies at
+the high plus coordinates, so the two pads swap — one line, `low_pad, high_pad = f3, f5`.
+What covered it:
+
+    test_guide_context_minus_strand            flank=6      # symmetric: cannot see a swap
+    test_guide_context_..._rule_set_3_30mer    plus strand  # asserts len == 30 and
+                                                            # "SPACER+TGG in ctx" — both
+                                                            # of which a swap preserves
+
+Swapping the minus branch's pads leaves **the whole suite green**: 4,211 passed, 33
+skipped. Every minus-strand guide would be scored on a window shifted one base at each
+end, with no symptom — candidates still appear, the ranking still looks plausible.
+
+The arithmetic turns out to be **correct**; this round is the measurement it never had.
+The window is now required to equal, base for base, the genome the guide sits in: the
+plus case and the minus case written as two different expressions, swept over `(4, 3)`
+and `(3, 4)` so an exchanged pair fails, and over the overlay path so a carried allele
+one base outside the protospacer appears reverse-complemented in the minus window. The
+population of windows is derived from `alleleforge.scoring` — any class declaring
+`context_flank` — so the next model to declare one is checked on both strands the day it
+lands. Four mutations verified: each pad swap, the minus fetch bounds, the overlay.
+
+**Lesson: a symmetric fixture cannot measure an asymmetric rule, and a length assertion
+cannot measure an order.** Both of the tests that existed here were about the right
+function, on the right code path, and neither could distinguish the answer from its
+mirror image. The check to apply is not "is this covered" but "what would the wrong
+version of this return, and would my assertion tell the difference".
