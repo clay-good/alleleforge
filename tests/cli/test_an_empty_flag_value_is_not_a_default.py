@@ -87,3 +87,31 @@ def test_omitting_the_flag_still_takes_the_default(runner: CliRunner, tmp_path: 
         ["design", "chr2:71:A>C", "--reference-fasta", str(genome), "--no-offtarget"],
     )
     assert result.exit_code == ExitCode.OK
+
+
+@pytest.mark.parametrize("value", ["afr,,eas", "afr, ,eas", "afr,eas,"])
+def test_a_stray_comma_in_a_list_is_not_a_refusal(
+    value: str, runner: CliRunner, tmp_path: Path
+) -> None:
+    """The half the blank-value rule must not swallow.
+
+    A wholly empty `--populations ""` is an unset variable and is refused. A stray comma
+    inside a list is a typo with an unambiguous intent, and this has always dropped the
+    empty element and run. Pinned on both shells after the web copy of this rule, applied
+    element-wise, made the served page refuse what the CLI accepted.
+    """
+    genome = tmp_path / "g.fa"
+    genome.write_text(">chr2\n" + "AT" * 70 + "\n")
+    result = runner.invoke(
+        app,
+        [
+            "design",
+            "chr2:71:A>C",
+            "--reference-fasta",
+            str(genome),
+            "--no-offtarget",
+            "--populations",
+            value,
+        ],
+    )
+    assert result.exit_code == ExitCode.OK, result.stderr

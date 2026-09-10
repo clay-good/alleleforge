@@ -49,7 +49,6 @@ async def test_a_short_spacer_is_still_answered(client: Any) -> None:
         {"variant": "chr2:71:A>C", "cell_context": ""},
         {"variant": "chr2:71:A>C", "cell_context": "  "},
         {"variant": "chr2:71:A>C", "populations": [""]},
-        {"variant": "chr2:71:A>C", "populations": ["afr", " "]},
         {"variant": "chr2:71:A>C", "chemistries": [""]},
         {"variant": "chr2:71:A>C", "intent": ""},
     ],
@@ -59,10 +58,33 @@ async def test_a_blank_field_is_refused_as_the_cli_refuses_it(
 ) -> None:
     response = await client.post("/api/design", json=body)
     assert response.status_code == 422, response.text
-    assert "sent empty" in str(response.json()["detail"])
+    detail = str(response.json()["detail"])
+    assert "sent empty" in detail or "names nothing" in detail
 
 
 async def test_omitting_the_field_is_still_the_way_to_take_the_default(client: Any) -> None:
     """The remedy the message gives has to work."""
     response = await client.post("/api/design", json={"variant": "chr2:71:A>C"})
     assert response.status_code == 200, response.text
+
+
+@pytest.mark.parametrize("field", ["populations", "chemistries"])
+async def test_a_stray_comma_in_a_list_is_not_a_refusal(client: Any, field: str) -> None:
+    """`afr,,eas` is the commonest typo in a comma-separated list, and the CLI has always
+    dropped the empty element and run. Applying the scalar rule element-wise made the
+    served page refuse it — its own parser trims each entry and keeps the empty one,
+    posting `["afr", "", "eas"]` — so the check written to stop two shells disagreeing
+    made them disagree the other way round. Found by typing it into the page.
+    """
+    values = {"populations": ["afr", "", "eas"], "chemistries": ["prime", ""]}[field]
+    response = await client.post("/api/design", json={"variant": "chr2:71:A>C", field: values})
+    assert response.status_code == 200, response.text
+
+
+async def test_a_list_of_nothing_but_blanks_is_still_refused(client: Any) -> None:
+    """That *is* the scalar mistake: the field was filled in with commas and no labels."""
+    response = await client.post(
+        "/api/design", json={"variant": "chr2:71:A>C", "populations": ["", "  "]}
+    )
+    assert response.status_code == 422, response.text
+    assert "names nothing" in str(response.json()["detail"])

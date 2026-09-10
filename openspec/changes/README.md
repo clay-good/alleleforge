@@ -18261,3 +18261,29 @@ anything, and the answer was that a fixed ±0.15 heuristic half-width was being 
 the sixteenth decimal on the one surface a machine reads. The model refusing my first fix
 is the same point from the other side: the document knew something about its own numbers
 that the writers did not.
+
+## Round 535 — the check that made the shells disagree
+
+I started the server, opened the page and typed into it. The report is in good shape — the
+routing explanation, the "top 180 candidates are within the leader's own uncertainty, treat
+them as one group", the 0.049 sub-threshold tail in the specificity denominator, all
+correct. Then, in the Populations box, a stray comma:
+
+    afr, , eas   ->   422 "this field was sent empty"
+
+`aforge design --populations afr,,eas` runs. The page's parser trims each entry and keeps
+the empty one, so it posts `["afr", "", "eas"]`, and **round 532's own fix** — written to
+stop the two shells disagreeing about blanks — refused it. Two rounds after shipping,
+found by using the thing.
+
+The rule was right for a *scalar* and wrong applied element-wise. A list is not a scalar:
+`--populations ""` is an unset variable and has no readable intent, while `afr,,eas` has
+exactly one. `DropBlanks` drops the empty entries and refuses only a list that is blank all
+through — which is the scalar mistake, spelled with commas.
+
+**Lesson: a rule written for one shape is not a rule until you ask what the other shapes
+do with it.** 532's mistake was applying the CLI's fix to the web; this one was applying
+the scalar's fix to a list, in the same round, in the same file. Both are the same failure
+of imagination one level down — and both were invisible to a suite that only ever asked
+whether the *wrong* input is refused, never whether a *right* one still gets through. Every
+one of these rounds should have written the passing case as well as the failing one.

@@ -73,12 +73,38 @@ def _not_blank(value: str) -> str:
 #: A string that, if present at all, must say something.
 NonBlank = AfterValidator(_not_blank)
 
+
+def _drop_blanks(values: list[str]) -> list[str]:
+    """Drop blank entries from a list field, refusing one that is blank all through.
+
+    A *list* is not a scalar, and the two mistakes are different. `afr,,eas` — a stray
+    comma, the commonest typo in a comma-separated list — has an unambiguous intent, and
+    `aforge design --populations afr,,eas` has always dropped the empty element and run.
+    Applying the scalar rule element-wise made the served page refuse it, because the
+    page's own parser trims each entry and keeps the empty one: `["afr", "", "eas"]`.
+    Two shells, two answers, from a check meant to stop exactly that.
+
+    A list with nothing in it *is* the scalar mistake — the field was filled in with
+    commas and no labels — so that is still refused, matching `--populations ""`.
+    """
+    kept = [value for value in values if value.strip()]
+    if values and not kept:
+        raise ValueError(
+            "this field names nothing. Omit it to use the default; a list of empty "
+            "entries is usually an unfilled form field or an unset variable."
+        )
+    return kept
+
+
+#: A list field whose blank entries are the user's stray comma, not their request.
+DropBlanks = AfterValidator(_drop_blanks)
+
 #: A variant input string bounded to :data:`MAX_VARIANT_LEN`, usable as a list item.
 VariantStr = Annotated[str, Field(max_length=MAX_VARIANT_LEN)]
 #: An ancestry/population label bounded so a huge list element can't slip the count cap.
-PopulationStr = Annotated[str, Field(max_length=MAX_BUILD_LEN), NonBlank]
+PopulationStr = Annotated[str, Field(max_length=MAX_BUILD_LEN)]
 #: A chemistry name bounded likewise.
-ChemistryStr = Annotated[str, Field(max_length=MAX_BUILD_LEN), NonBlank]
+ChemistryStr = Annotated[str, Field(max_length=MAX_BUILD_LEN)]
 
 #: An edit intent is one of four short words, and an unrecognized one is echoed back in
 #: the 422 (`unknown intent '...'`, so a caller can see their typo). Unbounded, that echo
@@ -219,12 +245,12 @@ class DesignRequest(BaseModel):
     intent: IntentStr = Field(
         default="correct", description="correct | knock_out | install | revert."
     )
-    chemistries: list[ChemistryStr] | None = Field(
+    chemistries: Annotated[list[ChemistryStr], DropBlanks] | None = Field(
         default=None,
         max_length=MAX_CHEMISTRIES,
         description="Restrict to these chemistries (default: all eligible).",
     )
-    populations: list[PopulationStr] | None = Field(
+    populations: Annotated[list[PopulationStr], DropBlanks] | None = Field(
         default=None,
         max_length=MAX_POPULATIONS,
         description="Ancestry labels to query and stratify off-target by.",
@@ -374,12 +400,12 @@ class BatchRequest(BaseModel):
     intent: IntentStr = Field(
         default="correct", description="correct | knock_out | install | revert."
     )
-    chemistries: list[ChemistryStr] | None = Field(
+    chemistries: Annotated[list[ChemistryStr], DropBlanks] | None = Field(
         default=None,
         max_length=MAX_CHEMISTRIES,
         description="Restrict to these chemistries (default: all eligible).",
     )
-    populations: list[PopulationStr] | None = Field(
+    populations: Annotated[list[PopulationStr], DropBlanks] | None = Field(
         default=None,
         max_length=MAX_POPULATIONS,
         description="Ancestry labels to query and stratify off-target by.",
@@ -569,7 +595,7 @@ class OffTargetRequest(BaseModel):
         le=1.0,
         description="Min population allele frequency to consider carrying.",
     )
-    populations: list[PopulationStr] | None = Field(
+    populations: Annotated[list[PopulationStr], DropBlanks] | None = Field(
         default=None, max_length=MAX_POPULATIONS, description="Ancestry labels to stratify by."
     )
     offtarget_regions: list[Region] | None = Field(
