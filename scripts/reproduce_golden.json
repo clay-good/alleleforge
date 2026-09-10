@@ -24,7 +24,9 @@
           "epegRNA:tevopreQ1",
           "pe3",
           "nick-distance:+52nt",
-          "both-nicks-searched"
+          "both-nicks-searched",
+          "ngrna-pol3-terminator",
+          "ngrna-no-5prime-g"
         ],
         "guide": null,
         "hdr_donor": null,
@@ -161,7 +163,9 @@
           "epegRNA:tevopreQ1",
           "pe3",
           "nick-distance:+52nt",
-          "both-nicks-searched"
+          "both-nicks-searched",
+          "ngrna-pol3-terminator",
+          "ngrna-no-5prime-g"
         ],
         "guide": null,
         "hdr_donor": null,
@@ -769,5 +773,5 @@
     "variant": "chr2:65:A>G"
   },
   "n_candidates": 4,
-  "sha256": "586a15f748cb46528b72e8f1216fdc3bdb5e56f44d833fa8fab2517ed7c9ddd3"
+  "sha256": "afb117aa0049c060e66c2d9ea326fa2862542d4f7c547dd6d573e4f68b18d61a"
 }

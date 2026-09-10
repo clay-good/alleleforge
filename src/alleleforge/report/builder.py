@@ -120,6 +120,21 @@ CAVEAT_FLAGS: dict[str, str] = {
     "gc-out-of-band": (
         "spacer GC is outside the band where U6 transcription and oligo synthesis behave"
     ),
+    # A PE3 candidate is two U6-driven spacers and only the pegRNA's was ever checked.
+    # These say the same three things about the *other* one, and the consequence is
+    # different enough to need its own sentence: a nicking guide that is not transcribed
+    # does not nick, so a PE3b candidate silently becomes a PE2 candidate at the bench
+    # while the menu, the flags and the ngRNA cloning oligos all still say PE3b.
+    "ngrna-pol3-terminator": (
+        "the PE3 nicking guide's spacer contains TTTT, which terminates Pol III "
+        "transcription — that guide is truncated, so the second nick does not happen and "
+        "this candidate behaves as PE2 while the reagent list still says PE3; pick "
+        "another nicking guide or synthesize this one"
+    ),
+    "ngrna-gc-out-of-band": (
+        "the PE3 nicking guide's spacer GC is outside the band where U6 transcription and "
+        "oligo synthesis behave, so the second nick may be weaker than the pegRNA's"
+    ),
     "hdr-donor:recut-not-blocked": (
         "the repaired allele is still a substrate for this guide, so the correction can "
         "be cut again after repair"
@@ -175,6 +190,7 @@ DESCRIPTIVE_FLAGS: frozenset[str] = frozenset(
         "hdr-donor:none",
         "hdr-donor:recut-blocked",
         "no-5prime-g",  # the cloning scheme prepends the U6-start G automatically
+        "ngrna-no-5prime-g",  # likewise, and the ngRNA goes through the same scheme
         "pe3",
         "pe3b",
         "no-nick",

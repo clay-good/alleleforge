@@ -162,6 +162,26 @@ def _flags(
     # Pol III transcription caveats. Shared with every other chemistry: they are
     # properties of the spacer as a transcribed reagent, not of prime editing.
     flags += spacer_quality_flags(str(pegrna.spacer.sequence))
+    # A PE3 candidate is *two* U6-driven spacers, and only the pegRNA's was checked.
+    # The nicking guide is a separately synthesized, separately transcribed sgRNA with
+    # the same constraints, and the failure is not cosmetic: a `TTTT` in it stops
+    # transcription, so the nick never happens and the candidate quietly degrades to PE2
+    # while the menu says PE3b and the report prints ngRNA cloning oligos to order.
+    # Prefixed, because "which of the two spacers" is the whole actionable content —
+    # one is re-picked by changing the edit, the other by picking another nick.
+    if ng is not None:
+        ngrna_flags = spacer_quality_flags(str(ng.spacer.sequence))
+        # Written out rather than prefixed in a comprehension. The classification guard
+        # collects string *literals* flowing into `flags`, and this module's own note
+        # records three idioms that slipped past it; an f-string built in a loop would
+        # be the fourth, and these are hazards, not decoration.
+        if "pol3-terminator" in ngrna_flags:
+            flags.append("ngrna-pol3-terminator")
+        if "no-5prime-g" in ngrna_flags:
+            flags.append("ngrna-no-5prime-g")
+        for flag in ngrna_flags:
+            if flag.startswith("gc-out-of-band"):
+                flags.append(f"ngrna-gc-out-of-band:{flag.split(':', 1)[1]}")
     return tuple(flags)
 
 

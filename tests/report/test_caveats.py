@@ -60,8 +60,11 @@ def _emitted_flag_prefixes() -> set[str]:
     Structural (AST) rather than a pile of regexes, because the regexes kept missing
     an idiom and each miss was a flag rendered with no sentence behind it. Three so
     far: `model_copy(update={"flags": ...})` (the base editor's `recommended`),
-    `flags = [f"..." for ...]` (`ambiguous-region`), and a bare
-    `return [f"..."]` from a flag builder (`intended-not-modal`). What is collected is
+    `flags = [f"..." for ...]` (`ambiguous-region`), a bare
+    `return [f"..."]` from a flag builder (`intended-not-modal`), and `flags += [...]` —
+    an `AugAssign`, which this scan handled for `append`/`extend` and not for `+=`, even
+    though `+=` is how every vertical attaches the *shared* flag helpers. What is
+    collected is
     every string literal that flows into something *named* flags — appended to it,
     assigned to it, returned from a `*_flags` function, or set as a `"flags"` value.
 
@@ -80,7 +83,7 @@ def _emitted_flag_prefixes() -> set[str]:
                 if node.func.attr in {"append", "extend"} and _is_flags(node.func.value):
                     for arg in node.args:
                         literals |= _flag_literals(arg)
-            elif isinstance(node, ast.Assign | ast.AnnAssign):
+            elif isinstance(node, ast.Assign | ast.AnnAssign | ast.AugAssign):
                 targets = node.targets if isinstance(node, ast.Assign) else [node.target]
                 if any(_is_flags(t) for t in targets) and node.value is not None:
                     literals |= _flag_literals(node.value)
@@ -190,3 +193,23 @@ def test_both_renders_give_a_caveat_its_own_line(renderer: str, ancestry_menu: o
         out_bytes = render_pdf(report)
         assert b"CAVEAT - close-nick:" in out_bytes
         assert b"staggered" in out_bytes  # the reason, not only the flag name
+
+
+def test_the_scan_sees_an_augmented_assignment() -> None:
+    """`flags += [...]` is the idiom every vertical uses for the shared helpers.
+
+    The scan handled `append`, `extend`, `=` and `return` and not `+=`, so a literal
+    attached that way was invisible — the fourth idiom to slip past a check whose own
+    docstring lists the previous three. Pinned with a source fragment rather than by
+    waiting for the next flag to be written that way.
+    """
+    import ast as _ast
+
+    module = _ast.parse('flags: list[str] = []\nflags += ["a-new-hazard"]\n')
+    found: set[str] = set()
+    for node in _ast.walk(module):
+        if isinstance(node, _ast.Assign | _ast.AnnAssign | _ast.AugAssign):
+            targets = node.targets if isinstance(node, _ast.Assign) else [node.target]
+            if any(_is_flags(t) for t in targets) and node.value is not None:
+                found |= _flag_literals(node.value)
+    assert "a-new-hazard" in found

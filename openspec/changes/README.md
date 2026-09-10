@@ -18380,3 +18380,43 @@ the gap arose in the first place."*
 took the haplotype path for done because it had *more* machinery than its siblings, and the
 machinery was aimed one case to the left of the failure. The comment predicting this exact
 gap was three lines above the code I was editing.
+
+## Round 539 — the other spacer
+
+538's lesson: the best-instrumented member of a set is the one to check last. The prime
+vertical is by far the best-instrumented chemistry — `close-nick`, `nick-distance`,
+`both-nicks-searched`, `epegRNA`, `templated-edit` — and every one of those is about the
+nicking guide. So:
+
+    flags += spacer_quality_flags(str(pegrna.spacer.sequence))
+
+A PE3 candidate is **two** U6-driven spacers. `spacer_quality_flags` exists precisely
+because Pol III caveats are "properties of an sgRNA spacer as a transcribed reagent, not of
+the chemistry that uses it" — that module was written when the checks lived in prime alone
+and the other two chemistries reported `clean` on an identical problem. The same gap
+survived one level down, inside the vertical that had been fixed.
+
+It is not cosmetic. `TTTT` terminates Pol III transcription: a nicking guide carrying one is
+truncated and never nicks, so the candidate behaves as PE2 while the menu says PE3b, the
+flags say `pe3b`, and the report prints ngRNA cloning oligos for a reagent that will not
+work. Prefixed flags, with their own sentences, because "which of the two" is the whole
+actionable content — one is re-picked by changing the edit, the other by picking another
+nick.
+
+**The canonical reproducibility fixture's candidates carry `ngrna-pol3-terminator`.** This
+project's own golden example has been shipping an untranscribable nicking guide,
+undisclosed, since it was written — the second time that fixture has turned out to be the
+best available evidence for a spacer-quality finding, the first being the twelve-T pegRNA
+spacer that motivated the module.
+
+Also: attaching the new flags with a comprehension (`flags += [f"ngrna-{f}" ...]`) passed
+the classification guard **silently**, because its AST scan handles `append`, `extend`, `=`
+and `return` and not `AugAssign` — which is the idiom every vertical uses for the shared
+helpers. The fourth idiom to slip past a check whose own docstring lists the previous three.
+Both fixed: the scan handles `+=`, and the flags are written as literals anyway.
+
+**Lesson: a helper extracted to fix a parity gap does not fix the gap inside its callers.**
+`spacer_quality.py` was created to stop one chemistry flagging what two others hid, and was
+then called once per candidate by a vertical whose candidates carry two spacers. Extraction
+makes a rule *available*; it says nothing about how many times each caller should apply it.
+When a helper is about a *thing*, count the things.
