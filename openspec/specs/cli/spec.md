@@ -419,6 +419,13 @@ a summary does not open the per-item menus.
 - **WHEN** the same cohort runs with `--max-workers 1` and `--max-workers 4`
 - **THEN** the run header pins the same datasets in the same order
 
+#### Scenario: The workers overlap
+- **WHEN** a cohort whose items block runs at one worker and at four
+- **THEN** the four-worker run finishes materially sooner: `--max-workers` exists for
+  throughput, and identical results is the safety property a flag can keep while being
+  inert — it delivered 1.6x on four threads for several phases because a native kernel
+  held the interpreter for its whole body
+
 ### Requirement: A cohort summary qualifies the column it is sorted by
 
 A cohort is triaged by sorting `best_efficiency`, and when the rows' best candidates span

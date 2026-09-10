@@ -17458,3 +17458,35 @@ because the ratio is a property of the machine and the release is a property of 
 were identical, which they were, and none checked that it was *faster*. The flag was
 correct and half-inert, and the only way to find that was to time it against the serial
 path it exists to beat.
+
+## Round 510 — the requirement the flag never had
+
+Round 509 found `--max-workers` delivering 1.6x on four threads and fixed the cause. This
+round asks why nothing had noticed for several phases, and the answer is in the spec:
+
+    #### Scenario: The same run at one worker and at four
+    - **WHEN** the same cohort runs with `--max-workers 1` and `--max-workers 4`
+    - **THEN** the run header pins the same datasets in the same order
+
+Every requirement on the pool, and every test under them, asks whether the *answers* are
+the same. They were. A flag that exists for throughput had no requirement about
+throughput, so it could — and did — become inert while every guard stayed green.
+
+The pool now has a test of its own property: a cohort whose reads block, run at one worker
+and at four, with the four-worker run required to finish materially sooner. It blocks
+rather than computes on purpose, so what is measured is scheduling and not this machine's
+speed; a serial run of eight blocking items cannot finish in the time four workers take,
+on any hardware. The kernels have the companion test from last round — every long kernel
+must release the GIL — and the spec gains the scenario that says why both exist.
+
+Writing it turned up its own version of the same mistake: the first draft wrapped
+`fetch`, which the design path does not call (it reads through `fetch_result`, which
+carries whether the read was clipped), so it blocked nothing and measured nothing. A
+performance test that quietly measures nothing is exactly the failure it is written to
+prevent, one level up.
+
+**Lesson: for every flag, ask what it promises and write the test that would fail if it
+stopped.** Safety properties get tested because they are what a reviewer worries about;
+the promise — faster, smaller, fewer scans — is usually left to a benchmark nobody runs,
+or to prose in a changelog. Round 507's scan count and round 509's speedup are both
+promises now written as constraints, which is the only form that survives.
