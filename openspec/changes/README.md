@@ -18287,3 +18287,31 @@ the scalar's fix to a list, in the same round, in the same file. Both are the sa
 of imagination one level down — and both were invisible to a suite that only ever asked
 whether the *wrong* input is refused, never whether a *right* one still gets through. Every
 one of these rounds should have written the passing case as well as the failing one.
+
+## Round 536 — the passing case, and a guard that could not be honest
+
+535's lesson: every one of these rounds should have written the passing case as well as
+the failing one. Applied as a checklist over 524-535, two guards were one-sided — the
+derived path sweep (every case hands a flag something it should refuse, so a flag that
+refused *everything* would pass all 103) and the annotation-status guard (every case raises;
+a predictor that always raised would pass). Both have their companion now: the dbSNP,
+BED and gnomAD readers whose refusals this session tightened are each asked to still accept
+the file they are for, and a working predictor must still answer 200.
+
+Writing the second one caught **my own stub** constructing `Consequence.missense_variant`,
+which is the *value*, not the member — a 500 that was mine and not the product's. Worth
+recording: the first result from a success case was a false alarm, and reading the
+traceback rather than reacting to the status code is what separated them.
+
+**The mechanical version was tried and rejected.** A meta-guard — "a test file that asserts
+a refusal must also assert a success" — matched **70** files. Almost all are unit tests of a
+validator whose success case is an ordinary return-value assertion the detector cannot see,
+so the rule would ship with a sixty-line exception list. This project's own standard is
+that the exclusion list has to be short enough to read; a derivation that needs a page of
+excuses is not a derivation, it is a list with extra steps. Recorded here so the next round
+does not rediscover it.
+
+**Lesson: some rules are for the author, not for the suite.** "Write the passing case" is
+real, it found two gaps, and it has no honest mechanical form at this repo's granularity.
+The temptation after four rounds of successful derived populations is to derive everything;
+the check on that is whether the exceptions read as reasons or as apologies.

@@ -99,3 +99,22 @@ async def test_an_unreachable_service_is_retryable_and_a_missing_one_is_not(
 
     bad_input = await _post(reference, ValueError("unrecognized variant input"))
     assert bad_input.status_code == 422  # your request was wrong
+
+
+async def test_an_annotation_that_works_still_answers_200(tmp_path: Path) -> None:
+    """A predictor that raises for everything would pass every case above."""
+
+    class _Fine:
+        def predict(self, variant: Any, transcript: str = "MANE_SELECT") -> Any:
+            from alleleforge.variant.effect import Consequence, Impact, VariantEffect
+
+            return VariantEffect(consequence=Consequence.MISSENSE, impact=Impact.MODERATE)
+
+    app = create_app(reference=_reference(tmp_path), effect=_Fine())
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as c:
+        response = await c.post(
+            "/api/design",
+            json={"variant": "chr2:71:A>C", "annotate_consequence": True},
+        )
+    assert response.status_code == 200, response.text

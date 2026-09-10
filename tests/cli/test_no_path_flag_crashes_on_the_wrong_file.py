@@ -210,3 +210,40 @@ def test_an_output_path_of_the_wrong_kind_is_refused_before_the_run(
     assert "this flag names a file" in at_a_dir.stderr
     # And the check ran before any work: nothing was designed.
     assert "requested" not in at_a_dir.stdout
+
+
+@pytest.mark.parametrize("flag", ["--gnomad", "--dbsnp", "--regions-bed"])
+def test_the_right_file_still_goes_through(
+    flag: str, runner: CliRunner, genome: Path, tmp_path: Path
+) -> None:
+    """The half a sweep of wrong inputs cannot see.
+
+    Every case above hands a flag something it should refuse, and a flag that refused
+    *everything* would pass all of them. Three of these refusals were tightened in this
+    file's own rounds — the dbSNP header check, the BED line prefix, the gnomAD header —
+    so each is asked, here, to still accept the file it is for.
+    """
+    files = {
+        "--gnomad": (
+            "gnomad.tsv",
+            "#chrom\tpos\tref\talt\taf\tafr\nchr2\t71\tA\tC\t0.02\t0.03\n",
+        ),
+        "--dbsnp": ("dbsnp.tsv", "#rsid\tchrom\tpos\tref\talt\nrs1\tchr2\t71\tA\tC\n"),
+        "--regions-bed": ("regions.bed", "chr2\t0\t140\n"),
+    }
+    name, content = files[flag]
+    path = tmp_path / name
+    path.write_text(content)
+    result = runner.invoke(
+        app,
+        [
+            "design",
+            "chr2:71:A>C",
+            "--reference-fasta",
+            str(genome),
+            "--no-offtarget",
+            flag,
+            str(path),
+        ],
+    )
+    assert result.exit_code == ExitCode.OK, result.stderr
