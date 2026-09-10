@@ -264,6 +264,13 @@ benchmark is for.
   the orientation-corrected gap between them, and says when the dataset is the bundled
   synthetic stand-in
 
+#### Scenario: A metric the model cannot produce
+- **WHEN** the primary metric is undefined on one of the two folds — a rank correlation
+  over constant predictions, an AUROC over a single-class fold
+- **THEN** the command reports `gap=undefined`, names the fold and why, and exits
+  successfully: `bench run` reports that same condition as a recorded result, and two
+  sibling commands SHALL NOT disagree about whether it is an error
+
 #### Scenario: A fold that does not exist
 - **WHEN** `--in-context-fold` or `--held-out-fold` names something other than
   train/val/test

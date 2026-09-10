@@ -27,7 +27,6 @@ from alleleforge.benchmark.runner import generalization_gap, run_benchmark
 from alleleforge.benchmark.splits import load_split
 from alleleforge.benchmark.tasks import TASKS, get_task
 from alleleforge.config import DEFAULT_SEED
-from alleleforge.errors import reason
 from alleleforge.scoring.uncertainty import (
     ConformalCalibrator,
     empirical_coverage,
@@ -88,34 +87,20 @@ def generalization_table() -> list[dict[str, Any]]:
         if not any(test_contexts):
             continue
         baseline = build_baseline(task, split, dataset)
-        try:
-            gap = generalization_gap(baseline, task, split=split, dataset=dataset)
-        except ValueError as exc:
-            # A gap is a subtraction and one of its sides does not exist — the baseline
-            # predicts one constant, so its rank correlation is undefined on both folds.
-            # This study used to print `+0.0` here, a generalization claim made out of
-            # two placeholders, in the document whose subject is honest uncertainty.
-            rows.append(
-                {
-                    "task": name,
-                    "metric": task.primary_metric,
-                    "in_context": None,
-                    "held_out": None,
-                    "gap": None,
-                    "undefined_reason": reason(exc),
-                    "held_out_context": ",".join(sorted(held_out)) or "(unlabeled)",
-                    "synthetic": dataset.synthetic,
-                }
-            )
-            continue
+        # A gap is a subtraction and one of its sides may not exist — the baseline
+        # predicts one constant, so its rank correlation is undefined on both folds.
+        # This study used to print `+0.0` here, a generalization claim made out of two
+        # placeholders, in the document whose subject is honest uncertainty. It then
+        # rebuilt the honest row by catching a `ValueError`; the library returns it.
+        gap = generalization_gap(baseline, task, split=split, dataset=dataset)
         rows.append(
             {
                 "task": name,
                 "metric": gap.primary_metric,
-                "in_context": round(gap.in_context, 4),
-                "held_out": round(gap.held_out, 4),
-                "gap": round(gap.gap, 4),
-                "undefined_reason": None,
+                "in_context": None if gap.in_context is None else round(gap.in_context, 4),
+                "held_out": None if gap.held_out is None else round(gap.held_out, 4),
+                "gap": None if gap.gap is None else round(gap.gap, 4),
+                "undefined_reason": gap.undefined_reason,
                 "held_out_context": ",".join(sorted(held_out)) or "(unlabeled)",
                 "synthetic": dataset.synthetic,
             }

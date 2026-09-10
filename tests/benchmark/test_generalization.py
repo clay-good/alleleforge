@@ -96,18 +96,23 @@ def test_gap_is_positive_when_held_out_is_worse() -> None:
     assert gap.gap > 0.5  # large drop on the unseen cell type
 
 
-def test_a_gap_is_refused_when_a_fold_has_no_number() -> None:
+def test_a_gap_is_absent_not_zero_when_a_fold_has_no_number() -> None:
     """`0.0 - 0.0 = +0.0000` was published as a statement about generalization.
 
     A gap is a subtraction, so both sides must be numbers. A model that predicts one
     constant — which the shipped reference baseline does — has no rank correlation on
     either fold, and the harness used to report a clean zero gap for it.
+
+    The absence is *returned*, not raised: `run_benchmark` reports the same condition as
+    a result with a reason, and a raising sibling made `aforge bench gap` exit 2 — this
+    CLI's usage code — for a well-formed question about two of the five shipped tasks.
     """
     task = get_task("cas9-efficiency")
     split, dataset = load_split("cas9-efficiency")
-    with pytest.raises(ValueError, match="no gap to report") as caught:
-        generalization_gap(_Constant(), task, split=split, dataset=dataset)
-    assert "constant value" in str(caught.value), caught.value
+    gap = generalization_gap(_Constant(), task, split=split, dataset=dataset)
+    assert gap.gap is None and gap.in_context is None
+    assert gap.undefined_fold == "val"
+    assert "constant value" in (gap.undefined_reason or ""), gap.undefined_reason
 
 
 def test_gap_orientation_for_lower_is_better_metric() -> None:

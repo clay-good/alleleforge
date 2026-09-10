@@ -425,11 +425,23 @@ class GeneralizationGap(BaseModel):
         task: The task name.
         primary_metric: The task's ranking metric the gap is measured on.
         in_context_fold / held_out_fold: The folds compared.
-        in_context / held_out: The primary-metric value on each fold.
+        in_context / held_out: The primary-metric value on each fold, or ``None``
+            where the metric is undefined there.
         gap: The signed gap, oriented so **positive means worse** held-out
             generalization (``in_context - held_out`` for higher-is-better metrics,
-            negated for lower-is-better ones).
+            negated for lower-is-better ones). ``None`` when either side is.
         higher_is_better: Whether the primary metric ranks better when larger.
+        undefined_fold: Which fold's metric was undefined, when one was.
+        undefined_reason: Why it was undefined, in the same words `run_benchmark`
+            uses for the same condition.
+
+    An undefined gap is a **result**, not an error. The metric functions were changed
+    to return ``None`` rather than ``0.0`` precisely so an absence could not be read as
+    a measurement — and this function turned that ``None`` back into a `ValueError`, so
+    one command reported "spearman is UNDEFINED for this run, not zero ... the result is
+    recorded" and exited 0 while its sibling exited 2, on the same fold of the same task
+    scored by the same model. The calibration study had already rebuilt the honest shape
+    by catching the exception, which is the shape that belongs here.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -438,10 +450,12 @@ class GeneralizationGap(BaseModel):
     primary_metric: str
     in_context_fold: str
     held_out_fold: str
-    in_context: float
-    held_out: float
-    gap: float
+    in_context: float | None
+    held_out: float | None
+    gap: float | None
     higher_is_better: bool
+    undefined_fold: str | None = None
+    undefined_reason: str | None = None
 
 
 def generalization_gap(
@@ -484,17 +498,25 @@ def generalization_gap(
     # single-class fold — and this used to be unreachable only because the metric
     # functions answered `0.0`, which made `0.0 - 0.0 = +0.0000` a published statement
     # about generalization derived from two absences.
+    higher_is_better = HIGHER_IS_BETTER[pm]
     if in_value is None or held_value is None:
         undefined = in_context_fold if in_value is None else held_out_fold
         detail = _undefined_reason(
             task_obj,
             *_fold_predictions_and_labels(scorer, task_obj, split, dataset, undefined),
         )
-        raise ValueError(
-            f"primary metric {pm!r} is undefined on the {undefined!r} fold, so there is "
-            f"no gap to report: {detail}"
+        return GeneralizationGap(
+            task=task_obj.name,
+            primary_metric=pm,
+            in_context_fold=in_context_fold,
+            held_out_fold=held_out_fold,
+            in_context=in_value,
+            held_out=held_value,
+            gap=None,
+            higher_is_better=higher_is_better,
+            undefined_fold=undefined,
+            undefined_reason=detail,
         )
-    higher_is_better = HIGHER_IS_BETTER[pm]
     gap = (in_value - held_value) if higher_is_better else (held_value - in_value)
     return GeneralizationGap(
         task=task_obj.name,

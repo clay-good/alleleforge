@@ -58,8 +58,10 @@ The reference baseline predicts one constant, so on the two **regression** tasks
 correlation is undefined — `aforge bench run cas9-efficiency` prints
 `spearman=undefined` and says why, the result records `primary_value: null` with a
 `primary_undefined_reason`, and the leaderboard lists that row without ranking it. There
-is no gap to report either, so `aforge bench gap cas9-efficiency` refuses and names the
-fold. That is the harness behaving correctly on a deliberately trivial model; the examples
+is no gap to report either, so `aforge bench gap cas9-efficiency` reports `gap=undefined`,
+names the fold and the reason, and exits **0** — an absent metric is a fact about the
+model, not a failed command, and the `--json` payload carries `gap: null` beside
+`undefined_reason` exactly as a result does. That is the harness behaving correctly on a deliberately trivial model; the examples
 above use tasks where the baseline can be measured.
 
 `bench gap` answers the question the test split alone cannot: a single number says how

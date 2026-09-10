@@ -3410,8 +3410,11 @@ def bench_gap(
             held_out_fold=held_out_fold,
         )
     except ValueError as exc:
-        # An unknown fold name, or a fold too degenerate for the primary metric to
-        # be defined on. Both are the caller's input, not a crash.
+        # An unknown fold name — the caller's input, not a crash. A fold too degenerate
+        # for the metric used to arrive here too, and exiting 2 called the caller's
+        # well-formed question a usage error: `bench run` reports that same condition as
+        # a result and exits 0, and the two commands disagreed about the same fold of the
+        # same task scored by the same model.
         _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.USAGE) from exc
 
@@ -3425,8 +3428,23 @@ def bench_gap(
             "shipped so the harness runs in CI. This gap measures the contract, "
             "not the model — it is not a generalization result."
         )
+    # Said before the line below, in the same shape `bench run` says it: an absent
+    # metric is a fact about this model on this fold, not a failed command.
+    if gap.undefined_reason is not None:
+        _echo_err(
+            f"NOTE: {gap.primary_metric} is UNDEFINED on the {gap.undefined_fold!r} "
+            f"fold, so there is no gap to report — {gap.undefined_reason.rstrip('.')}. "
+            "The reference "
+            "baseline predicts the train-fold marginal by construction, so a rank "
+            "correlation is undefined for it on every dataset."
+        )
     if as_json:
         typer.echo(gap.model_dump_json(indent=2))
+    elif gap.gap is None:
+        typer.echo(
+            f"{gap.task} @ {split_version}: {gap.primary_metric} gap=undefined "
+            f"({gap.undefined_fold} fold)"
+        )
     else:
         direction = "higher is better" if gap.higher_is_better else "lower is better"
         typer.echo(

@@ -16874,3 +16874,38 @@ that every branch reached only by real weights is unexercised, so the defects co
 there and none of them can be caught by running the suite. The remedy is not to load
 weights: it is a fake that reports what a real backbone reports (five lines here), which
 turns "the weight-free path works" into "the weighted path is checked too".
+
+## Round 492 — the two commands that disagreed about the same number
+
+Round 491's lesson was that CI's fixtures decide which half of a path is exercised. The
+sharper form of that question is: which commands does the suite never invoke at all? The
+click tree has twenty; a regex over every `CliRunner` call in `tests/` scores nineteen of
+them between 3 and 60 invocations, and one at zero: **`bench gap`** — the cross-cell-type
+generalization gap, which is the whole point of a held-out split, and which an earlier
+round added a command for *precisely because* it was reachable from Python alone.
+
+Running it found this:
+
+    $ aforge bench run cas9-efficiency   → spearman=undefined, "the result is recorded", exit 0
+    $ aforge bench gap cas9-efficiency   → "error: primary metric 'spearman' is undefined", exit 2
+
+Exit 2 is this CLI's *usage* code: you invoked the command wrong. The caller invoked it
+exactly right. The reference baseline predicts the train-fold marginal — a constant, by
+construction, stated in its module docstring and its own model card — so a rank
+correlation is undefined for it on every dataset, and two of the five shipped tasks are in
+that state permanently. Anyone scripting all five got a usage error on 40% of them.
+
+The metric functions were changed several rounds ago to return `None` rather than `0.0`
+precisely so an absence could not be read as a measurement. `generalization_gap` turned
+that `None` back into a `ValueError` — and `calibration.py` then rebuilt the honest row by
+catching it, which is exactly the shape that belonged in the library. It returns it now:
+`gap: float | None` with `undefined_fold` and `undefined_reason`, the command prints a NOTE
+in the same words `bench run` uses and exits 0, and an unknown fold name is still a usage
+error, because that one really is the caller's mistake.
+
+**Lesson: ask which commands the suite never runs, not which lines it never covers.**
+Coverage said 91% for `cli/main.py` and named lines; what it could not say is that a whole
+command had never been invoked, because its lines are reached by `--help` rendering and by
+the library tests underneath it. The list of entry points is a population like any other,
+and "how many times does the suite invoke this one" took eleven lines and found the only
+command with a wrong exit code.
