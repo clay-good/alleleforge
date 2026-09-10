@@ -31,6 +31,16 @@ from typer.testing import CliRunner
 
 from alleleforge.cli.main import ExitCode, app
 
+#: The commands that take a genome and a variant, with the arguments each needs to get
+#: past its own required options. Every path *flag* on each is then derived from the
+#: command, which is the population that goes stale; the invocations are a fixture.
+_INVOCATIONS: dict[str, list[str]] = {
+    "design": ["chr2:71:A>C", "--no-offtarget"],
+    "batch": ["COHORT", "--no-offtarget"],
+    "offtarget": ["ATATATATATATATATATAT"],
+    "resolve": ["chr2:71:A>C"],
+}
+
 
 def _path_flags(command: str) -> list[str]:
     """The path-taking options of ``command``, from the command itself."""
@@ -39,6 +49,10 @@ def _path_flags(command: str) -> list[str]:
     return sorted(
         p.opts[0] for p in cmd.params if isinstance(p.type, TyperPath) and p.opts[0].startswith("-")
     )
+
+
+def _cases() -> list[tuple[str, str]]:
+    return [(cmd, flag) for cmd in _INVOCATIONS for flag in _path_flags(cmd)]
 
 
 @pytest.fixture
@@ -64,14 +78,16 @@ def test_the_flags_are_found() -> None:
     assert "--dbsnp" in flags and "--config" in flags and "--reference-fasta" in flags
 
 
-@pytest.mark.parametrize("flag", _path_flags("design"))
+@pytest.mark.parametrize(("command", "flag"), _cases(), ids=lambda v: str(v))
 def test_a_wrong_file_is_refused_not_crashed_on(
-    flag: str, runner: CliRunner, genome: Path, wrong_file: Path
+    command: str, flag: str, runner: CliRunner, genome: Path, wrong_file: Path, tmp_path: Path
 ) -> None:
-    args = ["design", "chr2:71:A>C", "--reference-fasta", str(genome), "--no-offtarget"]
-    if flag == "--reference-fasta":
-        args[3] = str(wrong_file)
-    else:
+    cohort = tmp_path / "cohort.txt"
+    cohort.write_text("chr2:71:A>C\n")
+    positional = [a.replace("COHORT", str(cohort)) for a in _INVOCATIONS[command]]
+    reference = str(wrong_file) if flag == "--reference-fasta" else str(genome)
+    args = [command, *positional, "--reference-fasta", reference]
+    if flag != "--reference-fasta":
         args += [flag, str(wrong_file)]
     result = runner.invoke(app, args)
 
@@ -125,3 +141,32 @@ def test_the_config_refusal_says_what_the_flag_reads(
     assert result.exit_code == ExitCode.USAGE
     assert "not readable as TOML" in result.stderr
     assert "--gnomad" in result.stderr  # where this file was meant to go
+
+
+def test_an_output_path_of_the_wrong_kind_is_refused_before_the_run(
+    runner: CliRunner, genome: Path, tmp_path: Path
+) -> None:
+    """`--output-dir` at a file crashed with a bare `FileExistsError` and empty stderr.
+
+    Checked before the cohort starts, not when the write happens: a three-hundred-variant
+    run that discovers at the end that it cannot write its summary has done an hour of
+    work it cannot hand over.
+    """
+    cohort = tmp_path / "cohort.txt"
+    cohort.write_text("chr2:71:A>C\n")
+    a_file = tmp_path / "not-a-dir"
+    a_file.write_text("")
+    a_dir = tmp_path / "a-dir"
+    a_dir.mkdir()
+    base = ["batch", str(cohort), "--reference-fasta", str(genome), "--no-offtarget"]
+
+    at_a_file = runner.invoke(app, [*base, "--output-dir", str(a_file)])
+    assert at_a_file.exit_code == ExitCode.USAGE
+    assert "is not a directory" in at_a_file.stderr
+    assert at_a_file.exception is None or isinstance(at_a_file.exception, SystemExit)
+
+    at_a_dir = runner.invoke(app, [*base, "--summary-tsv", str(a_dir)])
+    assert at_a_dir.exit_code == ExitCode.USAGE
+    assert "this flag names a file" in at_a_dir.stderr
+    # And the check ran before any work: nothing was designed.
+    assert "requested" not in at_a_dir.stdout

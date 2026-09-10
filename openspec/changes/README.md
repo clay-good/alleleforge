@@ -17995,3 +17995,35 @@ command's own parameter list is the finding.** 524 and 525 each fixed the argume
 just been typed. This one asked the parameter list instead, and three of ten flags were
 wrong — none of which anyone would have thought to type, because nobody puts a frequency
 table in `--config` on purpose.
+
+## Round 527 — the same sweep, over the other four commands
+
+526's guard was written for `design`, which is 526's own lesson unapplied: a check written
+for the command in front of you is one case. Extending its derived population to `batch`,
+`offtarget` and `resolve` — every command that takes a genome — found one more:
+
+    $ aforge batch cohort.txt --reference-fasta g.fa --output-dir some-file
+    [exit 1, empty stderr]
+    FileExistsError: [Errno 17] File exists
+
+`mkdir(parents=True, exist_ok=True)` raises when the path exists as a *file*. It is the
+last unhandled exception on this command's arguments, and the only one on an **output**
+path rather than an input one.
+
+The fix checks all four output paths — `--output-dir`, `--manifest`, `--summary-tsv`,
+`--summary-parquet` — **before the run**, which matters more than the crash. The write
+happens at the end of the cohort: pointing `--summary-tsv` at a directory does not fail
+until three hundred variants have been designed, and the run then exits with the work done
+and nowhere to put it. That is the same defect with a longer fuse, and it was not reachable
+by fixing the traceback where it was thrown.
+
+Also recorded: the first sweep across all commands reported five findings, and three were
+the **probe's** fault — it reused one temporary file for every flag, so the parquet written
+by `--summary-parquet` became the input the next flag was handed. A guard that shares
+mutable fixture state between its cases manufactures its own defects; the pytest version
+builds a fresh tree per case, which is why it reported one.
+
+**Lesson: an output path is an argument too, and it fails last.** Every refusal sharpened in
+524-526 was about a file being *read*. The write end has the same wrong-kind and
+wrong-slot mistakes and a much worse failure mode, because by the time the tool touches it
+the work is already done. Check where the answer goes before computing the answer.

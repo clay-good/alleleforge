@@ -1683,6 +1683,31 @@ def _is_a_variant(text: str) -> bool:
     return parses_as_variant(text)
 
 
+def _check_output_paths(*, dirs: dict[str, Path | None], files: dict[str, Path | None]) -> None:
+    """Refuse an output path of the wrong kind, before the run rather than after it.
+
+    `--output-dir` pointed at a file crashed the cohort with a bare `FileExistsError`
+    from `mkdir(exist_ok=True)` and an empty stderr — the last unhandled exception on
+    this command. The check is deliberately *early*: a three-hundred-variant run that
+    discovers at the end that its summary path is a directory has done an hour of work
+    it cannot hand over, which is the same defect with a longer fuse.
+    """
+    for flag, directory in dirs.items():
+        if directory is not None and directory.exists() and not directory.is_dir():
+            _echo_err(f"error: {flag} {directory} exists and is not a directory.")
+            raise typer.Exit(ExitCode.USAGE)
+    for flag, path in files.items():
+        if path is None:
+            continue
+        if path.is_dir():
+            _echo_err(f"error: {flag} {path} is a directory; this flag names a file.")
+            raise typer.Exit(ExitCode.USAGE)
+        parent = path.parent
+        if parent.exists() and not parent.is_dir():
+            _echo_err(f"error: {flag} {path}: {parent} is not a directory.")
+            raise typer.Exit(ExitCode.USAGE)
+
+
 def _read_variant_list(path: Path) -> list[str]:
     """Read a one-variant-per-line list, skipping blanks and ``#`` comments.
 
@@ -2007,6 +2032,14 @@ def batch(
             )
         )
         raise typer.Exit(ExitCode.MISSING_DATA)
+    _check_output_paths(
+        dirs={"--output-dir": output_dir},
+        files={
+            "--manifest": manifest,
+            "--summary-tsv": summary_tsv,
+            "--summary-parquet": summary_parquet,
+        },
+    )
     pops = _parse_populations(pops_str)
     _warn_if_ancestries_unbacked(pops, gnomad, haplotypes)
     gnomad_db = _load_gnomad(gnomad)
