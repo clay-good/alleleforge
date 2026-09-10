@@ -17340,3 +17340,33 @@ become the second-largest cost in the scan: it stood still while the thing it wa
 against got three times faster. After a round that speeds something up, the conclusions
 that were reached by comparison with it are the ones to re-derive — and their comment
 usually says which they are, in a sentence like "negligible beside the scan".
+
+## Round 506 — where the time goes now
+
+Closing the arc with the measurement that says whether it is finished. A profiled 2 Mb
+scan, at the start of round 502 and today:
+
+    before   0.647s   1,996,749 Python calls   (0.32s in the scan loop, 0.155s in the kernel)
+    after    0.108s         341 Python calls   (0.093s in the kernel — 86% of the run)
+
+And a whole `design()` with the off-target search on, over the same genome: 0.69s, of
+which 0.559s is `scan_strand` and 0.13s is everything else this library does — routing,
+six chemistries' enumeration, 270 candidates scored, ranked, Pareto-fronted and assembled
+into a menu with its provenance.
+
+That is the signal to stop. The Python driver is no longer a meaningful share of a scan,
+so the next gain would have to come from inside the kernel — a bit-parallel matcher, a
+cheaper early exit — which is a different kind of work with a different risk profile, and
+nothing in the profile says it is needed yet.
+
+Two things the arc leaves behind besides the numbers. The README's kernel table has a row
+for the strand scan, so the claim is re-measurable rather than quoted — `scripts/native_speedup.py`
+times it, and a test fails if the crate gains a kernel the script does not cover. And every
+step of it is byte-parity-pinned against the Python path, which is what let four
+consecutive rewrites of the hottest function in the project be routine.
+
+**Lesson: a performance arc ends when the profile stops naming your code.** Not when the
+wins get small — they were still 1.7x at the last step — but when what remains is the work
+itself. The three rounds before this one each found the cost one layer out from where the
+profile pointed; this one found nothing out there to move, which is the answer to the same
+question rather than the absence of one.

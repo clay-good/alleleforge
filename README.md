@@ -294,12 +294,13 @@ pure-Python fallback and a byte-identical parity test, and each wired into its h
 | `kmer` | exact length-`k` seed positions | seed prefilter, now **opt-in** (`scan_sequence(seed=True)`) | [`test_kmer.py`](tests/offtarget/test_kmer.py) | ~5–7x lookup; scan-level a **net cost**, so it no longer runs by default — the prefilter's own O(n) pass exceeds what it saves now that the anchor scan is C-level. `scripts/native_speedup.py` prints the pair; [`test_the_seed_prefilter_is_opt_in.py`](tests/offtarget/test_the_seed_prefilter_is_opt_in.py) carries the numbers. |
 | `haplotype` | apply a haplotype's variant set to a window | haplotype walk (stage 3 materialization) | [`test_haplotype_kernel.py`](tests/offtarget/test_haplotype_kernel.py) | ~4x |
 | `align` | best single-base removal within a mismatch budget | the scan's innermost alignment (two calls per PAM anchor) | [`test_native_align_parity.py`](tests/offtarget/test_native_align_parity.py) | ~43% off a whole scan |
+| `evaluate` | the whole strand scan: IUPAC anchoring, the edit-minimal alignment, and the `N`-window rejection | every PAM occurrence in a contig — 250,000 per 2 Mb strand — with only the hits crossing back | [`test_native_batched_evaluate_parity.py`](tests/offtarget/test_native_batched_evaluate_parity.py) | ~2.4x over the same scan driven from Python |
 
 `FMIndex.build(prefer_native=True)` transparently uses the Rust index when the crate is present; the
 k-mer, haplotype and alignment dispatchers do the same. AlleleForge imports and runs cleanly **without** the crate
-(pure-Python mode); build it for the kernels that are on the hot path — the per-anchor evaluation and
-bulged alignment the scan calls a million times over 2 Mb, the haplotype materialization, and the contig
-fold:
+(pure-Python mode); build it for the kernels that are on the hot path — the strand scan, which anchors
+and evaluates every PAM occurrence without building a quarter of a million match objects, the bulged
+alignment under it, the haplotype materialization, the searched-base count, and the contig fold:
 
 ```bash
 pip install maturin
