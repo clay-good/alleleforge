@@ -266,7 +266,8 @@ def cohort_headline_notes(
             f"this table holds the {designed_now} item(s) this run designed, not the "
             f"whole cohort: {skipped} more were skipped as already recorded in the "
             "manifest, and their rows are in the output of the run that designed them. "
-            "Re-run with --no-resume for one table covering every item."
+            "For one table covering every item, re-run with --no-resume and a fresh "
+            "--manifest path."
         )
     # Whether the safety columns are empty because nothing was found or because nothing
     # was looked for. Every off-target cell of an unsearched item is blank, which reads

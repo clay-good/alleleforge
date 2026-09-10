@@ -420,8 +420,8 @@ def _unverified_resume(manifest_path: Path, provenance: dict[str, Any]) -> str |
         return (
             f"resumed items from {manifest_path.name}, which records no `_run` header: "
             "what they were designed under is unknown, so this run could not check that "
-            "it matches. Re-run with resume disabled to design every item under these "
-            "inputs"
+            "it matches. Point --manifest at a new file and add `--no-resume` to design "
+            "every item under these inputs"
         )
     missing = [key for key in _RESUME_CRITICAL if key not in header]
     if missing:
@@ -431,6 +431,35 @@ def _unverified_resume(manifest_path: Path, provenance: dict[str, Any]) -> str |
             f"({', '.join(f'{k}={provenance.get(k)!r}' for k in missing)})"
         )
     return None
+
+
+def _refuse_a_rerun_into_an_existing_manifest(manifest_path: Path) -> None:
+    """Refuse to append a second record per item to a manifest already holding them.
+
+    `--no-resume` is the remedy every mismatched-resume refusal names, and it is the
+    remedy the partial-table note names. Run against the manifest that is already there,
+    it appended: twelve items became twenty-four records, two per id, under the `_run`
+    header the *first* run wrote — so the file describes one run and contains two.
+
+    That is not merely untidy. `_read_done_ids` reads ids into a set, so a later resume
+    happily skips every one of them, choosing between two stored summaries by never
+    looking at either. Re-running under changed inputs and then resuming is exactly the
+    "silently a mixture of two runs" that :func:`_refuse_a_mismatched_resume` exists to
+    prevent, reached through a door with no guard on it.
+
+    Refused rather than truncated: this project does not delete a caller's file to make
+    its own life easier, and which of the two runs to keep is the operator's call. The
+    two ways forward are the ones the neighbouring refusal already offers.
+    """
+    if not manifest_path.exists() or manifest_path.stat().st_size == 0:
+        return
+    raise ValueError(
+        f"{manifest_path} already holds a run's records, and --no-resume would append a "
+        "second record for every item: the file would describe one run in its `_run` "
+        "header and contain two, and a later resume reads ids into a set and would skip "
+        "them without choosing between the summaries. Point --manifest at a new file, or "
+        "move this one aside."
+    )
 
 
 def _refuse_a_mismatched_resume(manifest_path: Path, provenance: dict[str, Any]) -> None:
@@ -462,8 +491,9 @@ def _refuse_a_mismatched_resume(manifest_path: Path, provenance: dict[str, Any])
             f"{manifest_path} was written by a run with different inputs, so resuming it "
             "would mix two runs into one result:\n  "
             + "\n  ".join(differing)
-            + "\nRe-run with resume disabled (`--no-resume`) to design every item under "
-            "these inputs, or point --manifest at a new file."
+            + "\nPoint --manifest at a new file, and add `--no-resume` if you want every "
+            "item designed under these inputs. (`--no-resume` into *this* file is "
+            "refused: it would append a second record per item.)"
             # The innocent cause is common enough to name: a genome moved, re-copied or
             # re-downloaded is a different file to this check even when its bytes are
             # identical, and a reader should not go looking for corrupted data.
@@ -598,6 +628,8 @@ def design_many(
     }
     if probe is not None:
         probe.close()
+    if manifest is not None and not resume:
+        _refuse_a_rerun_into_an_existing_manifest(manifest)
     if manifest is not None and resume:
         _refuse_a_mismatched_resume(manifest, provenance)
         # The refusal above only fires on a difference it can see. When it cannot see,

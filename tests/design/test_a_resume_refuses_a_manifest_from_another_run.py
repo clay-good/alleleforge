@@ -114,13 +114,23 @@ def test_other_result_determining_changes_are_refused_too(
 
 
 def test_the_remedy_the_refusal_names_works(reference: ReferenceGenome, tmp_path: Path) -> None:
-    """`resume=False` on the same manifest designs the item under the new release."""
+    """A *new* manifest with `resume=False` designs the item under the new release.
+
+    The remedy used to read "re-run with `--no-resume`", on this manifest — which
+    appended a second record per item under the first run's `_run` header, so the file
+    described one run and contained two and a later resume would skip both without
+    choosing. `--no-resume` into an existing manifest is refused now, and the remedy says
+    to point `--manifest` at a new file, which is what this checks.
+    """
     manifest = tmp_path / "run.jsonl"
     _run(reference, manifest, _release(tmp_path, "a", 103, "G", "A"))
-    report = _run(reference, manifest, _release(tmp_path, "b", 123, "G", "A"), resume=False)
+    fresh = tmp_path / "rerun.jsonl"
+    report = _run(reference, fresh, _release(tmp_path, "b", 123, "G", "A"), resume=False)
     assert report.succeeded == 1  # type: ignore[attr-defined]
     (item,) = report.items  # type: ignore[attr-defined]
     assert item.summary["variant"] == "chr9:122:G>A", item.summary
+    # One run's records, in one file, under one header.
+    assert len([line for line in fresh.read_text().splitlines() if '"item_id"' in line]) == 1
 
 
 def test_a_manifest_with_no_header_is_still_resumable(

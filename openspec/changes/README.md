@@ -18890,3 +18890,33 @@ different artifacts.** The resume machinery is careful about the manifest, becau
 manifest is what resume reads. Nothing was careless about the summary — it simply was not
 what anyone was thinking about while making resume correct, and it is the file a human
 opens.
+
+## Round 555 — the remedy corrupted the file it ran into
+
+554 ended by naming `--no-resume` as the way to get one table covering a whole cohort. So:
+does the remedy work?
+
+    aforge batch c.txt --manifest m.jsonl              # 12 items, 12 records
+    aforge batch c.txt --manifest m.jsonl --no-resume  # 12 items, 24 records
+
+Two records per id, under the `_run` header the **first** run wrote. The file describes one
+run and contains two — and `_read_done_ids` reads ids into a *set*, so a later resume skips
+every one of them and chooses between the two stored summaries by never looking at either.
+That is precisely the "silently a mixture of two runs" that `_refuse_a_mismatched_resume`
+exists to prevent, reached through a door with no guard on it, by following the advice that
+refusal itself gives.
+
+Refused, not truncated: this project does not delete a caller's file to make its own life
+easier, and which of the two runs to keep is the operator's call. Both ways forward are
+named, as the neighbouring refusal names them.
+
+**Three messages had to change with it**, or the tool would recommend something it now
+refuses. The guard for that is an AST walk over the *messages* — strings passed to
+`ValueError`, `warnings.warn`, `notes.append` — and not a grep: the first version grepped
+the source and failed on the new refusal's own docstring, which names the flag in order to
+explain what it used to do. A comment explaining a fix is not a remedy being offered.
+
+**Lesson: check the remedy, not only the refusal.** A refusal is judged on whether it fires
+and what it says; the sentence it ends with is a *second* piece of software, executed by a
+person, and nothing in this repository was running it. Three messages had been pointing at
+a command that quietly corrupted the file they were about — for as long as they had existed.
