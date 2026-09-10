@@ -586,6 +586,10 @@ def design(
         # The same notes the rationale carries in prose, as data: a caller deciding
         # whether this run degraded should not have to grep a paragraph for a marker.
         unavailable=tuple(note for note in notes if INTEGRITY_NOTE in note or DEFECT_NOTE in note),
+        # Beside it, from the candidates' own off-target reports through the one function
+        # the off-target surfaces use, so a note added there arrives everywhere a menu
+        # goes without anyone remembering.
+        notes=_run_notes(outcome.candidates),
         pareto_front=outcome.pareto_front,
         provenance=provenance,
     )
@@ -625,6 +629,23 @@ _EXPECTED_DESIGN_FAILURES: tuple[type[Exception], ...] = (
     CardError,
     MissingDependencyError,
 )
+
+
+def _run_notes(candidates: Sequence[DesignCandidate]) -> tuple[str, ...]:
+    """Return what a caller can act on about this run, deduplicated, in ranked order.
+
+    First-seen rather than sorted: it is the order the candidates are ranked in, which is
+    the order a reader meets the reagents these notes qualify.
+    """
+    from alleleforge.types.offtarget import headline_notes
+
+    seen: dict[str, None] = {}
+    for candidate in candidates:
+        report = getattr(candidate, "offtarget", None)
+        if report is not None:
+            for note in headline_notes(report):
+                seen.setdefault(note, None)
+    return tuple(seen)
 
 
 def _cas9_empty_reason(allow_ng: bool, allow_spry: bool) -> str:

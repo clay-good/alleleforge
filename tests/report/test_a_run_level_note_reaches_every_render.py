@@ -122,3 +122,42 @@ def test_the_cli_prints_them_beside_the_receipt() -> None:
 
     source = Path(cli_main.__file__).read_text(encoding="utf-8")
     assert "for note in report.notes:" in source
+
+
+def test_the_menu_owns_the_derivation(fasta: Path, tmp_path: Path) -> None:
+    """One derivation, not two.
+
+    `build_report` used to walk the candidates itself. A menu written by `--output-dir`
+    is the surface where a reader is furthest from any sentence — one file out of five
+    hundred in a directory — and it carried the *count* (`source_build_mismatch`) with no
+    statement anywhere. Putting the derivation on `RankedMenu` gives the per-item file,
+    the Python caller and the report one answer instead of the report having its own.
+    """
+    report = _report(fasta, tmp_path, agreeing=False)
+    assert report.notes, "the fixture no longer qualifies anything"
+
+    from alleleforge.report import build_report as _build
+
+    menu = design(
+        report.variant,
+        reference=ReferenceGenome(fasta, build="hg38"),
+        gnomad=GnomadDB.from_sites_tsv(tmp_path / "wrong.tsv"),
+        populations=["afr", "nfe"],
+    )
+    assert menu.notes == report.notes
+    assert _build(menu, variant=report.variant, intent="correct").notes == menu.notes
+
+
+def test_a_per_item_menu_file_carries_them(fasta: Path, tmp_path: Path) -> None:
+    """The surface the cohort's own exemption assumed had context beside it."""
+    import json
+
+    report = _report(fasta, tmp_path, agreeing=False)
+    menu = design(
+        report.variant,
+        reference=ReferenceGenome(fasta, build="hg38"),
+        gnomad=GnomadDB.from_sites_tsv(tmp_path / "wrong.tsv"),
+        populations=["afr", "nfe"],
+    )
+    written = json.loads(menu.model_dump_json())
+    assert any("another build" in note for note in written["notes"]), written["notes"]

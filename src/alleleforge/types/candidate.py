@@ -114,6 +114,14 @@ class RankedMenu(BaseModel):
     #: Empty on every ordinary run, including one where a chemistry simply does not apply
     #: (that is biology, and the rationale explains it).
     unavailable: tuple[str, ...] = ()
+    #: What a caller can act on about *this run*, as opposed to about a candidate: a
+    #: population source built for another assembly, a spacer that is ambiguous or not a
+    #: guide length, a search that examined nothing. Sits beside `unavailable` because it
+    #: is the same kind of statement — a fact about the run that a reader must not have to
+    #: reconstruct from a paragraph — and lives on the *menu* rather than on the report so
+    #: that a Python caller, a per-item file written by `--output-dir`, and the report all
+    #: read one derivation. Deduplicated: forty candidates share one off-target source.
+    notes: tuple[str, ...] = ()
 
     @property
     def best(self) -> DesignCandidate | None:

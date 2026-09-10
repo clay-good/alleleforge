@@ -1259,6 +1259,14 @@
       "default": null,
       "title": "Clinical Significance"
     },
+    "notes": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+    },
     "pareto_front": {
       "default": [],
       "items": {

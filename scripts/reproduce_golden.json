@@ -698,6 +698,7 @@
       }
     ],
     "clinical_significance": "pathogenic",
+    "notes": [],
     "pareto_front": [
       0,
       2,
@@ -773,5 +774,5 @@
     "variant": "chr2:65:A>G"
   },
   "n_candidates": 4,
-  "sha256": "afb117aa0049c060e66c2d9ea326fa2862542d4f7c547dd6d573e4f68b18d61a"
+  "sha256": "9f0bf9f3b0dace03d220bf01fc368311b8b5362a4b307dcae87f4507231f8b69"
 }

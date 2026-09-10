@@ -19070,3 +19070,27 @@ furthest away.** The off-target CLI shows its notes on a headline the user is al
 reading. The cohort shows them on a terminal the user is watching. The design report's
 reader asked for a file and walked away — which is why it was the surface with no channel,
 and the surface where silence costs most.
+
+## Round 561 — one file out of five hundred
+
+560's lesson said the third surface is where the reader is furthest away. There is a
+fourth, and it is further: `aforge batch --output-dir` writes one menu JSON per patient, and
+the cohort's exemption for those files says the context is "in the summary TSV and the
+manifest header beside it".
+
+Neither mentions a wrong-build population source. The manifest header is written *before*
+the run discovers one, and the summary TSV may not exist. What the menu file does carry is
+the **count** — `source_build_mismatch: {"gnomad": 3}`, nested inside each candidate's
+off-target report. Machine-readable, complete, and not a statement: a number, in one file
+out of five hundred in a directory.
+
+`RankedMenu.notes` sits beside `unavailable`, which is the same kind of field for the same
+kind of reason, and `DesignReport.notes` now reads it instead of walking the candidates
+itself. That removes the thing 553 warned about — one rule with two implementations — from
+code written three rounds ago.
+
+**Lesson: an exemption is a claim about a neighbouring artifact, and it can go stale
+without either artifact changing.** "The context is in the summary TSV and the manifest
+header beside it" was true when written. It became false when a *new* fact started being
+discovered mid-run, which neither the header (written first) nor an optional file could
+carry. An exemption names a dependency; nothing was watching it.

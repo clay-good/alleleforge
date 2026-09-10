@@ -882,26 +882,6 @@ def uncovered_prediction_notes(candidate: CandidateReport) -> list[str]:
     return list(dict.fromkeys(notes))
 
 
-def _run_notes(menu: RankedMenu) -> tuple[str, ...]:
-    """Return what a caller can act on about this run, deduplicated, in first-seen order.
-
-    Built from each candidate's off-target report through the one function the off-target
-    surfaces use, so a note added there reaches a design report without anyone
-    remembering. Order is first-seen rather than sorted: it is the order the candidates
-    are ranked in, which is the order a reader meets the reagents these notes qualify.
-    """
-    from alleleforge.types.offtarget import headline_notes
-
-    seen: dict[str, None] = {}
-    for candidate in menu.candidates:
-        report = getattr(candidate, "offtarget", None)
-        if report is None:
-            continue
-        for note in headline_notes(report):
-            seen.setdefault(note, None)
-    return tuple(seen)
-
-
 def build_report(
     menu: RankedMenu,
     *,
@@ -975,6 +955,6 @@ def build_report(
         # to branch on "did this run degrade" without parsing the rationale, and the menu
         # already answers it.
         unavailable=menu.unavailable,
-        notes=_run_notes(menu),
+        notes=menu.notes,
         provenance=menu.provenance,
     )
