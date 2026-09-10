@@ -47,7 +47,7 @@ from alleleforge.design.cohort_summary import cohort_reference_shape_suffix as _
 from alleleforge.design.cohort_summary import cohort_rows as _batch_rows
 from alleleforge.design.cohort_summary import cohort_to_parquet as _batch_parquet
 from alleleforge.design.cohort_summary import cohort_to_tsv as _batch_tsv
-from alleleforge.design.designer import DEFECT_NOTE
+from alleleforge.design.designer import DEFECT_NOTE, INTEGRITY_NOTE
 from alleleforge.errors import MissingDependencyError, reason
 from alleleforge.types.offtarget import AGGREGATE_PRECISION, ANCESTRY_BURDEN_PRECISION
 from alleleforge.types.provenance import DatasetVersion
@@ -1618,7 +1618,18 @@ def design(
     # line ("a script or a CI job driving this had no way to tell without re-parsing the
     # summary"), and `design` did not: a corrupted `--cache` entry, now refused rather
     # than served, took the whole prime vertical out of a menu and exited 0.
-    if DEFECT_NOTE in (menu.rationale or ""):
+    rationale = menu.rationale or ""
+    # An integrity failure exits the same way — this code is documented as "unavailable
+    # dependency or a failed integrity check" — and says a different thing, because the
+    # user's cache being altered is not a defect in this tool and the remedy is theirs.
+    if INTEGRITY_NOTE in rationale:
+        _echo_err(
+            "error: a store this run was told to reuse failed its integrity check, so a "
+            "chemistry contributed no candidates; the menu was written and its rationale "
+            "names the entry and what to do about it"
+        )
+        raise typer.Exit(ExitCode.UNAVAILABLE)
+    if DEFECT_NOTE in rationale:
         _echo_err(
             "error: a chemistry failed with an unexpected error and contributed no "
             "candidates; the menu was written and its rationale names the failure"

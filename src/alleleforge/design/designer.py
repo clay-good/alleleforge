@@ -26,6 +26,7 @@ from datetime import datetime
 
 from alleleforge._version import __version__
 from alleleforge.benchmark._canon import content_hash
+from alleleforge.cache import CacheIntegrityError
 from alleleforge.config import Settings, get_settings
 from alleleforge.data.annotations import EncodeTracks
 from alleleforge.data.gnomad import GnomadDB
@@ -57,7 +58,7 @@ from alleleforge.errors import (
     MissingDependencyError,
     reason,
 )
-from alleleforge.genome.index import GenomeIndex
+from alleleforge.genome.index import FMIndexIntegrityError, GenomeIndex
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.model_zoo.registry import CardError, LicenseError
 from alleleforge.offtarget.cache import OffTargetCache
@@ -599,7 +600,9 @@ def design(
 #: naming them individually keeps the graceful path and gives the base class back its
 #: meaning. Deliberately absent: `FMIndexIntegrityError` and `CacheIntegrityError`, which
 #: are corruption or tampering — degrading those to "skipped" would undo the fail-closed
-#: gates that exist to catch them.
+#: gates that exist to catch them. They have their own category below (`INTEGRITY_NOTE`),
+#: because the *other* bucket was wrong for them too: they were being announced as a
+#: defect in this tool.
 _EXPECTED_DESIGN_FAILURES: tuple[type[Exception], ...] = (
     ValueError,
     KeyError,
@@ -648,6 +651,20 @@ def _cas9_empty_reason(allow_ng: bool, allow_spry: bool) -> str:
 #: rewording the note cannot silently un-fail the command.
 DEFECT_NOTE = "ERROR — unexpected"
 
+#: The marker on a note meaning "a store this run trusted is not what it was". Its own
+#: category, because the other two are both wrong for it: it is not a *skip* (the design
+#: must not quietly continue on a store whose bytes changed) and it is not a *defect* in
+#: AlleleForge (nothing here is broken — an entry on this disk was altered, truncated or
+#: written by a different build). Reported as one for a while: a tampered `--cache` entry
+#: told the user "a chemistry failed with an unexpected error ... a defect, not 'no
+#: design'", which sends them to file a bug about their own cache and names no remedy.
+INTEGRITY_NOTE = "STORE INTEGRITY"
+
+#: The stores whose failure this covers, and the remedy each shares: they are
+#: content-addressed, so deleting the named entry is always safe and the next run
+#: recomputes it — the sentence `aforge cache verify` already gives.
+_INTEGRITY_FAILURES: tuple[type[Exception], ...] = (CacheIntegrityError, FMIndexIntegrityError)
+
 #: The marker on a note meaning "this chemistry did not run", for a *reader* rather than
 #: a shell: an expected failure — a licence refusal, a missing extra, an unverifiable
 #: checkpoint — is the difference between "no candidate exists" and "we did not look",
@@ -691,6 +708,19 @@ def _run_chemistry(
     """
     try:
         result = runner()
+    except _INTEGRITY_FAILURES as exc:
+        # Not a skip and not a defect: a store the run was told to reuse no longer holds
+        # what was written to it. Refusing rather than recomputing is deliberate —
+        # recomputing gives the right answer and hides that the store was altered.
+        notes.append(
+            f"{label}: {INTEGRITY_NOTE} — {reason(exc)}. Nothing here is broken: an entry "
+            "on this disk is not the bytes that were written. Every store is "
+            "content-addressed, so deleting the named entry is safe and the next run "
+            "recomputes it; `aforge cache verify` checks the rest"
+        )
+        if failed is not None:
+            failed.update(chemistries)
+        return []
     except _EXPECTED_DESIGN_FAILURES as exc:
         notes.append(f"{label}: {SKIP_NOTE}{type(exc).__name__}: {reason(exc)})")
         if failed is not None:

@@ -17740,3 +17740,38 @@ by every other subpackage, which is exactly why it is absent from a list assembl
 thinking about what each *entry point* needs — it is not an entry point, it is the floor
 under all of them. When a population is written by hand, the omission is rarely at the
 edges; it is the member so obvious that naming it felt redundant.
+
+## Round 519 — the user's cache, reported as our bug
+
+Round 518's lesson pointed at what everything depends on and nobody lists; the same sweep
+over *exception* types found several that no shell handles by name. Testing the most
+consequential — a tampered `--cache` entry, through `aforge design` — showed the gate
+working and its report wrong:
+
+    prime: ERROR — unexpected CacheIntegrityError: cache entry 6175f9… failed integrity
+    check (expected fcd242dd15a1…, got eb735385c218…) (a defect, not 'no design')
+    error: a chemistry failed with an unexpected error and contributed no candidates
+
+Nothing in AlleleForge failed. An entry on the user's disk is not the bytes that were
+written to it — which is exactly what the check is for — and the message says the tool has
+a defect and names no remedy, so the reader's next step is to file a bug about their own
+cache.
+
+It sat in the defect bucket because the other bucket is worse. `skipped` is the
+graceful-degradation path, and degrading an integrity failure to it would let a design
+continue past a store whose contents changed, undoing the fail-closed gate the cache's own
+docstring argues for at length. The answer is a third category, not a re-bucketing:
+`INTEGRITY_NOTE`, naming the entry and the remedy — every store here is content-addressed,
+so deleting the named entry is safe and the next run recomputes it, which is the sentence
+`aforge cache verify` already gives.
+
+Everything else is unchanged, including the exit code: `UNAVAILABLE`, which this CLI
+documents as "unavailable dependency **or a failed integrity check**" — the code was
+already right, and only the words were wrong.
+
+**Lesson: two buckets is one too few, and the missing one is always "not our fault, and
+here is what to do".** Every error path here had a shape for "this did not apply" and a
+shape for "this is broken", and the condition that fits neither is the environment failing
+a check the code performs *on purpose*. That is the most actionable message a tool can
+produce and the one most likely to be misfiled, because both existing categories are so
+nearly right.
