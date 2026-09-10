@@ -18348,3 +18348,35 @@ was already derived — a live count, filled during the scan, exactly where it s
 and still wrong, because "records considered" and "records usable" differ precisely in the
 case the count exists to catch. When a count is load-bearing for a claim, ask what it would
 read in the failure the claim is about.
+
+## Round 538 — two sources out of three
+
+537's lesson was that a count is only as honest as the noun it counts. Its own fix counted
+two of the three sources `sources_considered` names. The third:
+
+    applied_vars, skipped_vars = _partition_variants(ref_seq, start, hap.variants)
+    if not applied_vars:
+        continue
+
+The haplotype path is *better* instrumented than the other two — it partitions rather than
+dropping the whole haplotype on one clash, and records the skipped variants in each site's
+provenance. That is exactly what made it look done. A panel built against another assembly
+has **every** variant clash, so `applied_vars` is empty, the haplotype is dropped before any
+site exists, and the record of the skip goes nowhere. The better instrumentation covered the
+case that does not matter and not the case that does.
+
+The count also surfaces the partial case — some variants dropped, a site still produced —
+which until now lived inside one site's provenance and was aggregated nowhere, so a reader
+would have had to open every site to notice a panel half-disagreeing with the genome.
+
+**The guard is derived from `search` itself**: any source counted into `sources_considered`
+must also be able to write into `build_mismatch`. That is the shape of the mistake — a set
+of parallel sources where one gets a check and the others do not — and it is the shape
+`sources_considered`'s own comment warned about when it was written: *"a mapping rather than
+a field per source, because one of them getting the check while the others did not is how
+the gap arose in the first place."*
+
+**Lesson: the best-instrumented member of a set is the one to check last, not first.** I
+took the haplotype path for done because it had *more* machinery than its siblings, and the
+machinery was aimed one case to the left of the failure. The comment predicting this exact
+gap was three lines above the code I was editing.

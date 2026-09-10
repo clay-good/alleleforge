@@ -16,11 +16,11 @@ populations — invisible to a reference-only scan.
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
 
 from alleleforge.data.gnomad import PopulationFrequency
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.offtarget._bounds import reject_non_finite
+from alleleforge.offtarget._counts import SourceCounts
 from alleleforge.offtarget._search import (
     Hit,
     SearchBudget,
@@ -98,21 +98,6 @@ def _strengthens(hit: Hit, prior: ReferenceBest | None, scorer: OffTargetScorer)
         hit.aligned_spacer, hit.aligned_target, hit.pam_sequence, bulged=bulged
     )
     return alt_score > prior_score or hit.edits < prior_edits
-
-
-@dataclass
-class SourceCounts:
-    """How a supplied variant source fared, for the report to state.
-
-    In the shape :class:`~alleleforge.variant.vcf.VcfIngestCounts` already uses: the
-    enumerator fills it as it consumes the stream, so it is complete by the time the
-    report is built and costs nothing when no caller asks.
-    """
-
-    #: Records whose asserted REF does not match this reference at that position.
-    #: Skipping them is right; skipping them silently is what made a whole gnomAD file
-    #: for the wrong build indistinguishable from one that simply had nothing to add.
-    build_mismatch: int = 0
 
 
 def _variant_window_hits(

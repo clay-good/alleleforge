@@ -131,3 +131,84 @@ def test_a_file_that_agrees_with_the_reference_says_nothing(
     )
     assert report.source_build_mismatch == {}
     assert "build mismatch" not in report.search_description()
+
+
+def test_a_haplotype_panel_for_the_wrong_build_says_so_too(
+    genome: ReferenceGenome, fasta: Path
+) -> None:
+    """The third source, which the first version of this fix left out.
+
+    `sources_considered["haplotypes"]` counts panel entries with a variant in the region,
+    so a panel for the wrong assembly is "considered" in full and materializes nothing —
+    `apply_variants` returns `None` on a ref clash and said so to no one.
+    """
+    from alleleforge.data.haplotypes import Haplotype
+    from alleleforge.types.sequence import GenomicInterval, Strand
+    from alleleforge.types.variant import Variant
+
+    wrong = {"A": "C", "C": "G", "G": "T", "T": "A"}
+    # 0-based here: `Variant` is canonical, the gnomAD TSV above is 1-based.
+    bad = wrong[_base_at(fasta, 3006)]
+    panel = [
+        Haplotype(
+            hap_id="H1",
+            interval=GenomicInterval(chrom="chr11", start=2950, end=3070, strand=Strand.PLUS),
+            frequencies={"afr": 0.4},
+            variants=(Variant(chrom="chr11", pos=3005, ref=bad, alt="A"),),
+            source="a test panel",
+        )
+    ]
+    report = search(
+        _SPACER,
+        PAM(pattern="NGG"),
+        reference=genome,
+        haplotypes=panel,
+        populations=["afr"],
+    )
+    assert report.source_build_mismatch == {"haplotypes": 1}
+    assert "build mismatch" in report.search_description()
+
+
+def test_a_haplotype_panel_that_agrees_says_nothing(genome: ReferenceGenome, fasta: Path) -> None:
+    from alleleforge.data.haplotypes import Haplotype
+    from alleleforge.types.sequence import GenomicInterval, Strand
+    from alleleforge.types.variant import Variant
+
+    good = _base_at(fasta, 3006)
+    panel = [
+        Haplotype(
+            hap_id="H1",
+            interval=GenomicInterval(chrom="chr11", start=2950, end=3070, strand=Strand.PLUS),
+            frequencies={"afr": 0.4},
+            variants=(Variant(chrom="chr11", pos=3005, ref=good, alt="A"),),
+            source="a test panel",
+        )
+    ]
+    report = search(
+        _SPACER,
+        PAM(pattern="NGG"),
+        reference=genome,
+        haplotypes=panel,
+        populations=["afr"],
+    )
+    assert report.source_build_mismatch == {}
+
+
+def test_every_source_the_report_counts_can_report_a_mismatch() -> None:
+    """The gap this round closed was one source out of three, and the first fix missed it.
+
+    `sources_considered` names the optional safety sources; each one is consumed by an
+    enumerator that skips a wrong-build record. If a source can be counted as considered,
+    it must be able to say that what it considered was unusable — otherwise "supplied 47,
+    contributed 0" means two very different things spelled identically.
+    """
+    import inspect
+
+    from alleleforge.offtarget import engine
+
+    source = inspect.getsource(engine.search)
+    for name in ("gnomad", "haplotypes", "patient-vcf"):
+        assert f'sources_considered["{name}"]' in source, name
+        assert f'build_mismatch["{name}"]' in source, (
+            f"{name} is counted as considered but can never report a build mismatch"
+        )

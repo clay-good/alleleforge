@@ -17,6 +17,7 @@ from collections.abc import Iterable, Sequence
 
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.genome.reference import ReferenceGenome
+from alleleforge.offtarget._counts import SourceCounts
 from alleleforge.offtarget._haplotype import apply_variants
 from alleleforge.offtarget._search import (
     Hit,
@@ -76,6 +77,7 @@ def enumerate_haplotype_sites(
     dna_bulges: int = 1,
     rna_bulges: int = 1,
     scorer: OffTargetScorer | None = None,
+    counts: SourceCounts | None = None,
 ) -> list[tuple[Hit, SiteProvenance]]:
     """Enumerate off-target hits created or strengthened by common haplotypes.
 
@@ -89,6 +91,9 @@ def enumerate_haplotype_sites(
         mismatches: Maximum base mismatches.
         dna_bulges: Maximum DNA bulges.
         rna_bulges: Maximum RNA bulges.
+        counts: Filled as the panel is consumed, so the report can state how many
+            haplotypes assert a reference base this genome does not have — a panel for
+            the wrong assembly materializes nothing and, without this, says nothing.
         scorer: The specificity scorer used to judge whether a haplotype hit
             strengthens a reference hit at the same placement (default
             :class:`CfdScorer`); pass the engine's primary scorer so nomination and
@@ -137,6 +142,12 @@ def enumerate_haplotype_sites(
         # whole thing when one variant clashes with the build; record the skipped
         # variants for audit.
         applied_vars, skipped_vars = _partition_variants(ref_seq, start, hap.variants)
+        # A skipped variant asserts a base this genome does not have. The partition
+        # already records them per site — and a haplotype whose variants *all* clash
+        # produces no site at all, so for a panel built against the wrong assembly the
+        # record went nowhere and the run read like a panel with nothing to add.
+        if counts is not None:
+            counts.build_mismatch += len(skipped_vars)
         if not applied_vars:
             continue
         edits = [(v.pos, v.ref, v.alt) for v in applied_vars]

@@ -28,11 +28,11 @@ from alleleforge.data.haplotypes import Haplotype
 from alleleforge.genome.index import GenomeIndex
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.offtarget._bounds import reject_non_finite
+from alleleforge.offtarget._counts import SourceCounts
 from alleleforge.offtarget._search import Hit, SearchBudget, SiteProvenance, scan_sequence
 from alleleforge.offtarget.cache import OffTargetCache, search_signature
 from alleleforge.offtarget.haplotype import enumerate_haplotype_sites
 from alleleforge.offtarget.population import (
-    SourceCounts,
     enumerate_patient_sites,
     enumerate_population_sites,
 )
@@ -760,6 +760,7 @@ def search(
             sources_considered["patient-vcf"] = sum(
                 1 for v in patient_vcf if _covered(v.chrom, v.pos)
             )
+    haplotype_counts = SourceCounts()
     tagged.extend(
         enumerate_haplotype_sites(
             sp,
@@ -769,9 +770,12 @@ def search(
             populations=populations,
             min_freq=maf,
             scorer=primary,
+            counts=haplotype_counts,
             **kw,
         )
     )
+    if haplotype_counts.build_mismatch:
+        build_mismatch["haplotypes"] = haplotype_counts.build_mismatch
 
     # Stage 4 — optional patient-VCF personalization.
     if patient_vcf is not None:
