@@ -118,7 +118,8 @@ _PRINCIPLE_EVIDENCE: dict[int, tuple[str, str]] = {
     ),
     2: (
         "Honest uncertainty",
-        "structural: `Prediction` requires interval + method and defaults the two flags; "
+        "test_no_scoring_entry_point_returns_a_bare_number — plus the structural half: "
+        "`Prediction` requires interval + method and defaults the two flags, and "
         "`ensure_prediction`/`BareFloatError` reject a bare float at the scorer boundary",
     ),
     3: (
@@ -230,3 +231,95 @@ def test_the_two_statements_of_the_principles_agree() -> None:
         f"the principles disagree between their two statements: {differing}. "
         "openspec/project.md is the source of truth; the README restates it."
     )
+
+
+#: Scoring entry points whose return is deliberately not a `Prediction`, and why. Short
+#: enough to read, which is this project's test for whether an exception list is honest.
+_NOT_A_SCORER_BOUNDARY: dict[str, str] = {
+    "cas9_efficiency.predict_raw": (
+        "a model's raw forward pass over a batch, wrapped by `score` — which is the "
+        "boundary, and returns a Prediction"
+    ),
+    "uncertainty.predict_one": (
+        "an isotonic calibrator's map from a score to a calibrated score: it does not "
+        "predict a quantity, it transforms one that was already predicted"
+    ),
+    "uncertainty.predict": "the same map applied to a sequence",
+    "uncertainty.EnsembleResult": (
+        "the members of an ensemble, which `to_prediction` turns into the Prediction the "
+        "caller receives; the container is the intermediate, not the answer"
+    ),
+    "cas9_outcome.EditOutcome": (
+        "an outcome *distribution* — allele probabilities that sum to one — not a point "
+        "estimate. The point estimate over it, `P(intended)`, is a Prediction, and the "
+        "README says so in the same sentence that states this principle"
+    ),
+}
+
+
+def test_no_scoring_entry_point_returns_a_bare_number() -> None:
+    """Principle 2, as a check rather than a sentence.
+
+    Its recorded evidence was "structural: `ensure_prediction`/`BareFloatError` reject a
+    bare float at the scorer boundary" — a claim about a mechanism, with nothing asserting
+    the mechanism is reached from every boundary. A principle with prose for evidence is
+    the state this file exists to end.
+
+    A scoring entry point must return a `Prediction`, or a container that carries one.
+    Everything else is listed above with the reason it is not a boundary.
+    """
+    import ast
+    import dataclasses
+    import importlib
+
+    import alleleforge.scoring as package
+
+    offenders: list[str] = []
+    for path in sorted(Path(package.__file__).parent.glob("*.py")):
+        module = ast.parse(path.read_text(encoding="utf-8"))
+        stem = path.stem
+        for node in ast.walk(module):
+            if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
+                continue
+            if node.name != "score" and not node.name.startswith("predict"):
+                continue
+            returns = ast.unparse(node.returns) if node.returns else "<unannotated>"
+            if "Prediction" in returns:
+                continue
+            if f"{stem}.{node.name}" in _NOT_A_SCORER_BOUNDARY:
+                continue
+            # A container counts when its own fields carry a Prediction.
+            imported = importlib.import_module(f"alleleforge.scoring.{stem}")
+            carrier = getattr(imported, returns, None)
+            fields = dataclasses.fields(carrier) if dataclasses.is_dataclass(carrier) else ()
+            if any("Prediction" in str(f.type) for f in fields):
+                continue
+            if f"{stem}.{returns}" in _NOT_A_SCORER_BOUNDARY:
+                continue
+            offenders.append(f"{stem}.{node.name} -> {returns}")
+
+    assert not offenders, (
+        f"these scoring entry points return a bare number: {offenders}. Return a "
+        "`Prediction`, or record the entry point in _NOT_A_SCORER_BOUNDARY with the "
+        "reason it is not one."
+    )
+
+
+def test_every_exception_is_still_a_real_one() -> None:
+    """An excuse nobody can trigger is the mirror of a caveat nobody can trigger.
+
+    Keyed by the module that *uses* the name, not the one that defines it: `EditOutcome`
+    lives in `types.edit` and is what `cas9_outcome.predict` returns, and the exception is
+    about that return.
+    """
+    import alleleforge.scoring as package
+
+    root = Path(package.__file__).parent
+    for key in _NOT_A_SCORER_BOUNDARY:
+        module, name = key.split(".", 1)
+        path = root / f"{module}.py"
+        assert path.is_file(), f"{key} is excepted and `{module}` is gone"
+        source = path.read_text(encoding="utf-8")
+        assert f"def {name}(" in source or name in source, (
+            f"{key} is excepted and `{module}` no longer mentions {name}"
+        )

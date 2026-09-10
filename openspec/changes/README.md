@@ -19307,3 +19307,32 @@ treat a surviving mutation as a finding.
 comfortable half is the half to check.** Two updates in one day had said the engineering was
 sound and the science was the gap. Both were written by someone who had spent the day
 auditing *messages*, and neither had measured a coordinate.
+
+## Round 569 — a principle with prose for evidence
+
+568's lesson: the comfortable half of a self-description is the half to check.
+`tests/test_stated_principles.py` already does this deliberately — it keeps a table of the
+README's eight principles and the evidence for each, and refuses a principle with none.
+
+Principle 2's evidence read: *"structural: `Prediction` requires interval + method and
+defaults the two flags; `ensure_prediction`/`BareFloatError` reject a bare float at the
+scorer boundary."* Every word true, and it is a claim about a **mechanism** with nothing
+asserting the mechanism is reached from every boundary. Two of the eight entries in that
+table are honest admissions ("not mechanically checkable"); this one was a description
+wearing the shape of a check.
+
+It is a check now: every public `score`/`predict*` in `alleleforge.scoring` returns a
+`Prediction` or a container carrying one. Five do not, and the reasons are the interesting
+part — a raw forward pass wrapped by `score`, an isotonic map that *transforms* an
+already-predicted score rather than predicting anything, an ensemble's members before
+`to_prediction` sees them, and an outcome **distribution**, whose point estimate is the
+`P(intended)` the same README sentence names.
+
+The distribution exception is the one worth having written down: allele probabilities are
+numbers without intervals, and the principle does not cover them, because a spectrum is not
+a point estimate. That distinction was in the README all along and nowhere in the code.
+
+**Lesson: "structural" is not a kind of evidence, it is a kind of confidence.** The word
+appeared twice in that table and meant "I have read the types and they look right". A type
+that requires an interval proves nothing about a function that never constructs one — and
+the walk that proves it is twenty lines.
