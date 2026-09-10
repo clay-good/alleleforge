@@ -359,3 +359,52 @@ mistake into a hundred cases and found every remaining instance in one pass.
 *failures* legible, which matters for the same reason the uncertainty machinery does: a
 number a user cannot tell apart from a measurement is worse than no number. The scientific
 substance remains the gap, and remains data- and licence-blocked.
+
+## UPDATE 2026-09-10 (third) — rounds 545–567, and two shipped correctness defects
+
+The two sections above cover rounds 479–544 and were both about *disclosure*: what the tool
+says when something is wrong. This one is not, and it changes a sentence in the summary.
+
+**Two defects in the domain geometry were shipped, and are fixed.** Both were one base, both
+minus-strand only, and both were invisible to a suite of four thousand tests:
+
+- **A PE3 nicking guide's nick.** The same protospacer nicked at a different coordinate
+  depending on whether it was enumerated as a pegRNA or selected as its nicking guide.
+  `nick_offset` is the difference of the two, so every reported nick-to-nick distance was
+  off by one — the number the literature says to choose a PE3 guide by, which also decides
+  the `close-nick` caveat (two nicks close enough to act as a staggered double-strand break)
+  and admission to the 40–90 nt optimal window.
+- **A minus-strand nuclease guide's cut site.** Reported as `cut N`, used to filter guides
+  by an actionable window, and — the part that matters — it **centres the sequence window
+  the NHEJ indel spectrum is predicted over**. Every minus-strand nuclease candidate's
+  outcome distribution was computed one base off target. The whole suite passed before and
+  after the fix, unchanged: no test had ever measured a minus-strand cut.
+
+Where SpCas9 cuts is now computed in one place (`enumerate._cut.cut_index`), with a guard
+that fails if any module does that arithmetic by hand again, and a behavioural one requiring
+one protospacer to give one coordinate in all three roles it can play.
+
+**What this means for the honest summary.** The previous update said "the engineering is
+production-grade and the scientific substance is still the gap". That is still true of the
+*models*, and it was too comfortable about the code around them. These were not modelling
+approximations or missing weights: they were arithmetic, in the part of the system that
+decides where a reagent points, and they were found only by measuring the geometry from
+outside the module that computes it — building a contig with a protospacer at a known
+offset and asking where the tool says the cut is.
+
+**The method that found them, since it is the transferable part:**
+
+1. Measure a geometry from *outside* the code that computes it, on **both strands**. A
+   plus-strand-only test on a two-strand rule is not a test, and it was the shared property
+   of every fixture that missed these.
+2. When a quantity is computed in more than one place, compare the *places*. Each of the
+   three cut computations was self-consistent and passed every test aimed at it; the defect
+   existed only in the relationships, which had no owner.
+3. Treat a mutation that **survives** as a finding. Shifting one window function by a base
+   changed nothing, which said the code under that test was not the code it appeared to
+   test — and led to the second defect.
+
+Also in these rounds: `--no-resume` was refused into an existing manifest (it appended a
+second record per item, under the first run's header, which a later resume would then read
+as authoritative), and the run-level notes a reader can act on were given a location on
+every surface rather than a mention in the sixth clause of a paragraph.

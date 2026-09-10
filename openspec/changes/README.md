@@ -19279,3 +19279,31 @@ to avoid.
 was checked the same way".** The two bugs did not share a module, an author's mistake, or a
 line of code. They shared a *test fixture shape* — one strand — and that shape is a
 searchable property of the suite, which "what else might be wrong" is not.
+
+## Round 568 — the summary that was too comfortable
+
+`specs/readiness-assessment.md` exists so context survives a session. Its last two updates
+were both about disclosure, and both ended on the same sentence: *the engineering is
+production-grade and the scientific substance is still the gap.*
+
+Rounds 564-565 make that sentence wrong in a specific way, so it is corrected rather than
+extended. Two defects were **shipped**, both one base, both minus-strand only, both
+invisible to four thousand tests: a PE3 nicking guide's nick, and a minus-strand nuclease
+cut site — the latter centring the window the NHEJ indel spectrum is predicted over, so
+every minus-strand nuclease candidate's outcome distribution was computed one base off
+target.
+
+These are not modelling approximations or missing weights. They are arithmetic, in the part
+of the system that decides where a reagent points. "The engineering is production-grade" was
+a claim about the code, made while the code around the models had not been measured from
+outside.
+
+The update records the method rather than only the findings, because the method is what
+another session can use: measure a geometry from outside the module that computes it, on
+both strands; when a quantity is computed in more than one place, compare the places; and
+treat a surviving mutation as a finding.
+
+**Lesson: the summary a project writes about itself is a claim like any other, and the
+comfortable half is the half to check.** Two updates in one day had said the engineering was
+sound and the science was the gap. Both were written by someone who had spent the day
+auditing *messages*, and neither had measured a coordinate.
