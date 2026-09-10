@@ -48,7 +48,13 @@ from fastapi.staticfiles import StaticFiles
 from alleleforge._version import __version__
 from alleleforge.config import Settings
 from alleleforge.design.cohort_summary import cohort_rows, cohort_to_parquet, cohort_to_tsv
-from alleleforge.errors import ChecksumError, ConsentError, MissingDependencyError, reason
+from alleleforge.errors import (
+    AnnotationServiceError,
+    ChecksumError,
+    ConsentError,
+    MissingDependencyError,
+    reason,
+)
 from alleleforge.model_zoo.registry import LicenseError
 from alleleforge.report.builder import (
     DEFAULT_RENDER_CANDIDATES,
@@ -425,6 +431,18 @@ def _resolve(request: Request, variant: str, build: str, *, annotate: bool = Fal
         return resolve_variant(variant, build=build, reference=reference, effect=effect)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=reason(exc)) from exc
+    except AnnotationServiceError as exc:
+        # 503, not 500: the deployment is fine and the request is fine — the public REST
+        # service this annotation depends on is rate-limiting, down, or unreachable from
+        # here. The CLI learned this a round ago and the API did not, which is the parity
+        # gap that keeps recurring: a fix written for one shell is a bug in the other.
+        raise HTTPException(status_code=503, detail=reason(exc)) from exc
+    except (MissingDependencyError, ConsentError) as exc:
+        # 501, matching the Parquet writers above: this deployment cannot do the thing
+        # asked for, and the message names what is missing. Both arrive from the same
+        # annotation path — no `requests`, or a predictor wired without consent — and
+        # both were reaching the client as an opaque 500.
+        raise HTTPException(status_code=501, detail=reason(exc)) from exc
 
 
 def _load_effect_from_env() -> Any | None:

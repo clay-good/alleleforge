@@ -18195,3 +18195,33 @@ is a *CLI* story, and that framing is exactly what stopped me asking what a brow
 The check that would have caught it is the one this project already believes in: the
 library is the source of truth, and a refusal that lives in only one shell is in the wrong
 place.
+
+## Round 533 — the same fix, the other shell
+
+532's lesson said a fix applied to one shell is a parity bug until it is applied to the
+other. Taking it as a checklist over 524-531 rather than as a sentiment: 530 taught
+`aforge design --vep` to report an unreachable Ensembl instead of raising `requests` at the
+user. The API reaches the same predictor through the same resolver, and `_resolve` catches
+`ValueError` and nothing else.
+
+    AnnotationServiceError   ->  500 Internal Server Error
+    MissingDependencyError   ->  500 Internal Server Error
+    ConsentError             ->  500 Internal Server Error
+
+Three different situations, one answer, and the answer is the one that means "this
+deployment has a bug". A client cannot tell *retry in a minute* from *this server will
+never do this* from *your request was wrong*. 503, 501 and 422 now say which — the 501
+matching the Parquet writers, which have made exactly this distinction since they shipped
+twenty lines above the code that did not.
+
+**The guard is derived from `alleleforge.errors.__all__`**: every type this library raises
+is one it raises *on purpose*, so none of them may reach a client as an unhandled 500. Two
+are excluded with reasons — `ChecksumError` is artifact integrity with its own fail-closed
+path, `ReferenceIndexError` happens at startup before a request exists — and the exclusion
+list is short enough to read, which is the test for whether a derivation is honest.
+
+**Lesson: a status code is a vocabulary, and 500 is the word for "we are broken".** This
+project spends its effort on refusals that say which input was wrong and what to do
+instead, and then handed a third of a subsystem's failures to a client as the one status
+that says nothing and blames the wrong party. The CLI has had four distinct exit codes for
+this since it shipped. The API had `422` and `500`.

@@ -80,6 +80,13 @@ request because the variant is the client's. Where it is enabled, the API descri
 says so instead of claiming that no sequence data leaves the machine, and a request for
 it where it is not enabled is a `422` rather than a report quietly missing the field.
 
+When it *is* enabled, the annotation reaches a server neither the client nor the operator
+controls, so its failures get their own statuses rather than a blanket `500`: a rate limit,
+an outage or a timeout at the annotation service is a **`503`** (the request was fine — try
+again), and a missing optional dependency or a predictor the operator wired without consent
+is a **`501`** (this deployment will not do this). A `500` from any endpoint means a defect
+in AlleleForge and is worth reporting.
+
 `ALLELEFORGE_TRAINED_MODELS` follows the same operator-enables / client-chooses split as
 `ALLELEFORGE_VEP`, for a structurally identical reason. Each trained model — Rule Set 3,
 Lindel, BE-DICT, DeepPrime — is a consent-gated weight download or an external checkout on
