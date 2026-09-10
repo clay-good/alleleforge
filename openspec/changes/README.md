@@ -18826,3 +18826,33 @@ A derivation that returns "everything is broken" is reporting on itself.
 with a sentence about deriving the population instead of listing it, and the sentences did
 not stop the next round from listing one. The check that a lesson has landed is that
 something in the repository fails when it is forgotten.
+
+## Round 553 — one rule, two implementations
+
+552's lesson: when a lesson costs one check, write the check. The lesson from 532 and 535 —
+a fix applied to one shell is a parity bug until applied to the other — had none.
+
+The blank-value rule exists twice: `_refuse_blank_options` for the CLI, `NonBlank` /
+`DropBlanks` on the request models. Two expressions of one rule in two languages, the second
+written by copying the first, and they have **already diverged once**: applied element-wise
+to a list, the web copy refused `afr,,eas`, which the CLI has always dropped and run.
+
+A shared implementation is not on the table — a click option and a pydantic field are
+different things, and forcing one abstraction across them would be a worse defect than the
+one being prevented. So the agreement is behavioural: four options both shells expose, three
+values a shell can actually receive (`""`, `"   "`, `"afr,,eas"`), and the two must reach the
+same verdict.
+
+**The verdict, not the message.** A 422 and an exit code 2 say the same thing in two
+languages; requiring identical prose would be a test of the prose, and would fail on the
+first improvement to either.
+
+Both mutations are caught: restoring the element-wise rule on the web fails the stray-comma
+row, and removing the CLI's check fails three rows in the other direction. There is also a
+row asserting the value table *splits* the verdict, because a table where everything agrees
+trivially would pass whatever the code did.
+
+**Lesson: where one rule must live twice, the test is that they agree — not that each is
+right.** Two correctness tests, one per shell, both pass while the shells disagree, because
+each was written against the shell its author was looking at. The cheap check is the
+comparison, and it is the only one that fails for the reason the defect exists.
