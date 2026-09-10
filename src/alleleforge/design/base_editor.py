@@ -22,7 +22,7 @@ from alleleforge.genome.index import GenomeIndex
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.model_zoo.registry import ModelCard
 from alleleforge.offtarget.cache import OffTargetCache
-from alleleforge.offtarget.engine import search as offtarget_search
+from alleleforge.offtarget.engine import RunScanner
 from alleleforge.scoring.base_outcome import (
     BaseEditOutcomePredictor,
     WindowOutcome,
@@ -149,25 +149,27 @@ def design_base_editor(
     predictor = outcome_predictor or BaseEditOutcomePredictor()
     by_name = {e.name: e for e in editors}
 
+    # Two deaminases over one protospacer are two windows with one spacer, and this
+    # scanned per window: 1 of 2 scans at a measured locus was a repeat of a
+    # whole-genome pass already made in the same design.
+    scanner = RunScanner(
+        reference=reference,
+        gnomad=gnomad,
+        haplotypes=haplotypes,
+        patient_vcf=patient_vcf,
+        populations=populations,
+        regions=offtarget_regions,
+        cache=offtarget_cache,
+        genome_index=genome_index,
+    )
+
     built: list[tuple[DesignCandidate, WindowOutcome]] = []
     for window in windows:
         editor = by_name[window.editor]
         outcome = predictor.predict(window, editor)
         offreport: OffTargetReport | None = None
         if run_offtarget and window.pam is not None:
-            offreport = offtarget_search(
-                window.spacer,
-                window.pam,
-                reference=reference,
-                gnomad=gnomad,
-                haplotypes=haplotypes,
-                patient_vcf=patient_vcf,  # type: ignore[arg-type]  # Variant iterable
-                populations=populations,
-                regions=offtarget_regions,
-                cache=offtarget_cache,
-                genome_index=genome_index,
-                on_target=window.placement,
-            )
+            offreport = scanner.scan(window.spacer, window.pam, window.placement)
         candidate = DesignCandidate(
             chemistry=editor.chemistry,
             base_edit_window=window,

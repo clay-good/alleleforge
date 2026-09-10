@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
+from typing import Any
 
 from alleleforge import _native
 from alleleforge.data.gnomad import GnomadDB
@@ -217,6 +218,49 @@ _NATIVE_RESOLVED_BASE_COUNT = (
     if _native.NATIVE_AVAILABLE
     else None
 )
+
+
+class RunScanner:
+    """One design's off-target scans, run at most once per (spacer, excluded locus).
+
+    Every vertical calls :func:`search` with the same ten run-wide arguments — the
+    reference, the population and haplotype sources, the patient VCF, the region
+    restriction, the two reuse stores — and varies two: which spacer, and which locus to
+    exclude from its own report. Binding the ten and memoizing on the two is what stops a
+    design scanning the same genome for the same spacer more than once.
+
+    That was happening in two of the three verticals. Prime memoizes its *merged* report
+    under the pegRNA pair, so a peg spacer paired with two nicking guides was scanned
+    twice; the base-editor vertical scans per window, and two deaminases over one
+    protospacer are two windows with one spacer. Measured: 1 of 6, 4 of 10 and 1 of 4
+    scans on three prime loci, 1 of 2 on a base-editor locus, and 81 scans where 56
+    distinct ones exist across a ten-variant cohort. A scan is a pass over the whole
+    genome — the dominant cost of a run.
+
+    The key is exactly what a report depends on. It carries the spacer's own locus
+    *excluded* from it, so two pegRNAs at different loci with one spacer must not share a
+    report: keying on the spacer alone would hand one of them a report that excluded the
+    other's locus and drop a genuine paralogous off-target for it.
+    """
+
+    def __init__(self, **run_arguments: Any) -> None:
+        """Bind the run-wide arguments every scan in this design shares."""
+        self._arguments = run_arguments
+        self._scans: dict[tuple[str, str | None], OffTargetReport] = {}
+
+    def scan(self, spacer: Spacer, pam: PAM, on_target: GenomicInterval | None) -> OffTargetReport:
+        """Return the report for ``spacer``, running the scan only the first time."""
+        key = (str(spacer.sequence), str(on_target) if on_target is not None else None)
+        hit = self._scans.get(key)
+        if hit is not None:
+            return hit
+        report = search(spacer, pam, on_target=on_target, **self._arguments)
+        self._scans[key] = report
+        return report
+
+    def __len__(self) -> int:
+        """Return how many distinct scans this design has run."""
+        return len(self._scans)
 
 
 def _resolved_base_count(sequence: str) -> int:

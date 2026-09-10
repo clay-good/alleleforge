@@ -30,7 +30,7 @@ from alleleforge.genome.index import GenomeIndex
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.model_zoo.registry import ModelCard
 from alleleforge.offtarget.cache import OffTargetCache
-from alleleforge.offtarget.engine import search as offtarget_search
+from alleleforge.offtarget.engine import RunScanner
 from alleleforge.scoring.base import ensure_prediction
 from alleleforge.scoring.cas9_efficiency import EnsembleEfficiencyScorer
 from alleleforge.scoring.cas9_outcome import MicrohomologyOutcomePredictor
@@ -272,6 +272,20 @@ def design_cas9(
     overlay = (resolved.variant.pos, resolved.variant.ref, carried) if carried is not None else None
 
     candidates: list[DesignCandidate] = []
+    # No duplicate spacer was measured in this vertical — distinct guides have distinct
+    # protospacers — and it goes through the same scanner as the other two so a future
+    # enumerator that does repeat one cannot pay for it twice unnoticed.
+    scanner = RunScanner(
+        reference=reference,
+        gnomad=gnomad,
+        haplotypes=haplotypes,
+        patient_vcf=patient_vcf,
+        populations=populations,
+        regions=offtarget_regions,
+        cache=offtarget_cache,
+        genome_index=genome_index,
+    )
+
     for guide in guides:
         efficiency = ensure_prediction(
             scorer.score(guide_context(guide, reference, overlay=overlay, **ctx_kwargs)),
@@ -285,19 +299,7 @@ def design_cas9(
         donor = hdr_donor(resolved, intent, reference=reference, guide=guide) if precise else None
         offreport: OffTargetReport | None = None
         if run_offtarget:
-            offreport = offtarget_search(
-                guide.spacer,
-                pam,
-                reference=reference,
-                gnomad=gnomad,
-                haplotypes=haplotypes,
-                patient_vcf=patient_vcf,
-                populations=populations,
-                regions=offtarget_regions,
-                cache=offtarget_cache,
-                genome_index=genome_index,
-                on_target=guide.placement,
-            )
+            offreport = scanner.scan(guide.spacer, pam, guide.placement)
         candidates.append(
             DesignCandidate(
                 chemistry=Chemistry.CAS9_NUCLEASE,

@@ -26,7 +26,7 @@ from alleleforge.genome.index import GenomeIndex
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.model_zoo.registry import ModelCard
 from alleleforge.offtarget.cache import OffTargetCache
-from alleleforge.offtarget.engine import search as offtarget_search
+from alleleforge.offtarget.engine import RunScanner
 from alleleforge.scoring.base import ensure_prediction
 from alleleforge.scoring.prime_efficiency import PridictScorer
 from alleleforge.scoring.prime_outcome import PrimeOutcomePredictor
@@ -281,39 +281,22 @@ def design_prime(
     scorer: PrimeEfficiencyScorer = efficiency_scorer or PridictScorer()
     predictor = outcome_predictor or PrimeOutcomePredictor()
     cache: dict[_CacheKey, OffTargetReport] = {}
-    #: Scans already run in this design, keyed by exactly what a scan depends on: the
-    #: spacer, and the locus excluded from its own report. The merged-report cache above
-    #: is keyed on the *pair* (peg spacer, nicking spacer, both placements), so a peg
-    #: spacer paired with two different nicking guides was scanned twice, and a nicking
-    #: guide shared by several pegRNAs was scanned once per pegRNA — 1 of 6, 4 of 10 and
-    #: 1 of 4 scans on three measured loci were repeats of one already done in the same
-    #: run, each a whole-genome pass. The pair key is a product of two of these keys, so
-    #: memoizing at this level is the same reasoning one factor finer.
-    scans: dict[tuple[str, str | None], OffTargetReport] = {}
+    # One scan per (spacer, excluded locus) for the whole design. The merged-report
+    # cache above is keyed on the *pair*, so a peg spacer paired with two nicking guides
+    # was scanned twice and a shared nicking guide once per pegRNA.
+    scanner = RunScanner(
+        reference=reference,
+        gnomad=gnomad,
+        haplotypes=haplotypes,
+        patient_vcf=patient_vcf,
+        populations=populations,
+        regions=offtarget_regions,
+        cache=offtarget_cache,
+        genome_index=genome_index,
+    )
 
     def _search(spacer: Spacer, on_target: GenomicInterval | None) -> OffTargetReport:
-        key = (str(spacer.sequence), str(on_target) if on_target is not None else None)
-        hit = scans.get(key)
-        if hit is not None:
-            return hit
-        report = _run_search(spacer, on_target)
-        scans[key] = report
-        return report
-
-    def _run_search(spacer: Spacer, on_target: GenomicInterval | None) -> OffTargetReport:
-        return offtarget_search(
-            spacer,
-            pam,
-            reference=reference,
-            gnomad=gnomad,
-            haplotypes=haplotypes,
-            patient_vcf=patient_vcf,
-            populations=populations,
-            regions=offtarget_regions,
-            cache=offtarget_cache,
-            genome_index=genome_index,
-            on_target=on_target,
-        )
+        return scanner.scan(spacer, pam, on_target)
 
     def offtarget_for(pegrna: PegRNA) -> OffTargetReport | None:
         if not run_offtarget:

@@ -17400,3 +17400,28 @@ key was introduced to fix a correctness bug — a report keyed too loosely — a
 made the key *wider*, which is the right direction for correctness and the wrong one for
 reuse. Whenever a memo's key is a tuple of several things, ask what the value is actually
 built from: if it is built from pieces, each piece is a cache someone is not keeping.
+
+## Round 508 — the same fix, in the vertical that had not been measured
+
+Round 507's lesson — a cache keyed on the composite hides the duplication in its parts —
+has an obvious next question: which other verticals scan more than once? The base-editor
+vertical does not memoize at all. It scans per *window*, and a window is a deaminase over
+a protospacer, so two editors over one protospacer are two windows with one spacer: 1 of 2
+scans at the first locus measured. The nuclease vertical has no duplicates — distinct
+guides have distinct protospacers — and had no memo either, which is the same code waiting
+for an enumerator that repeats one.
+
+Rather than a third local dict, `RunScanner`. It binds the ten run-wide arguments every
+scan shares and memoizes on the two that vary, so the three verticals now express a scan
+as `scanner.scan(spacer, pam, placement)` instead of ten lines of identical plumbing —
+and the key that makes it correct is stated once, where the ten lines used to be repeated
+three times.
+
+Across the ten-variant cohort: **81 whole-genome scans two rounds ago, 58 now, every one
+of them distinct.**
+
+**Lesson: when the same fix applies twice, the third site is the one to write for.** The
+prime memo was right and local; copying it into base editing would have been right and
+local twice, and the nuclease vertical — which does not need it today — would have kept
+the shape that makes the bug possible. The cost of the shared object is one class; the
+cost of the duplicated fix is that the next vertical starts from the version without it.
