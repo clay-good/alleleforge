@@ -703,8 +703,23 @@ def _load_config(path: Path | None) -> dict[str, Any]:
     if not path.is_file():
         _echo_err(f"error: config file not found: {path}")
         raise typer.Exit(ExitCode.MISSING_DATA)
-    with path.open("rb") as fh:
-        cfg: dict[str, Any] = tomllib.load(fh)
+    try:
+        with path.open("rb") as fh:
+            cfg: dict[str, Any] = tomllib.load(fh)
+    except tomllib.TOMLDecodeError as exc:
+        # A file that is not TOML reached the user as a `TOMLDecodeError` traceback with
+        # tomllib's own source frames — the only unhandled crash left on this command's
+        # argument list. The ordinary cause is a path in the wrong flag (a TSV, a VCF, a
+        # YAML), so name what the flag reads as well as where the parse gave up.
+        _echo_err(
+            f"error: --config {path} is not readable as TOML: {reason(exc)}. This flag "
+            "takes a run-config TOML of `key = value` lines; a data file goes to the "
+            "flag that names it (--gnomad, --haplotypes, --clinvar, --dbsnp)."
+        )
+        raise typer.Exit(ExitCode.USAGE) from exc
+    except OSError as exc:
+        _echo_err(f"error: could not read --config {path}: {reason(exc)}")
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
     from alleleforge.config import Settings
 
     known = set(Settings.model_fields) | _RUN_PARAM_KEYS
@@ -940,7 +955,15 @@ def _load_regions(regions: list[str] | None, bed: Path | None) -> list[GenomicIn
     try:
         return merge_region_arguments(regions, bed)
     except ValueError as exc:
-        _echo_err(f"error: {reason(exc)}")
+        # The library refuses a row by line number ("line 2: start and end must be
+        # integers"), which is the right sentence and names neither the file nor which
+        # of this command's ten path flags it arrived through. A `--region` locus and a
+        # `--regions-bed` row reach the same parser, so the CLI adds what it alone knows.
+        # Keyed on the row prefix rather than on `bed is not None`: with both arguments
+        # given, a bad `--region` locus would otherwise be blamed on the file.
+        detail = reason(exc)
+        where = f"--regions-bed {bed}: " if bed is not None and detail.startswith("line ") else ""
+        _echo_err(f"error: {where}{detail}")
         raise typer.Exit(ExitCode.USAGE) from exc
     except OSError as exc:
         _echo_err(f"error: could not read --regions-bed {bed}: {reason(exc)}")

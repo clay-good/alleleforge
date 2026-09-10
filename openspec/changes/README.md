@@ -17956,3 +17956,42 @@ one is a third of the finding.** 524 found one direction and stopped there. Four
 existed; two were already answered by rounds that were not thinking about transposition at
 all, which is why nothing connected them. The question that finds the rest is not "is this
 input valid" but "which argument was this meant for" — asked of every argument, both ways.
+
+## Round 526 — ten paths, four of them never typed
+
+525's lesson said a transposition has as many directions as the command has arguments.
+`aforge design` has ten path arguments. Handing a gnomAD frequency table — a real,
+well-formed file meant for exactly one of them — to each in turn:
+
+    --dbsnp        error: could not read --dbsnp gnomad.tsv: 'rsid'
+    --config       TOMLDecodeError: Expected '=' after a key in a key/value pair
+                   [with tomllib's own source frames]
+    --regions-bed  error: line 2: start and end must be integers; got '71' and 'A'
+
+`'rsid'` is a bare `KeyError`: it names neither the file, nor the schema it has, nor the
+schema it needs — and gnomAD's reader has checked its header since it shipped, so this was
+one reader out of step with its neighbour rather than a missing idea. The `--config` case
+is a traceback, the last one on this command's argument list. The BED case says the right
+thing about the row and does not say which of ten paths it came from.
+
+Fixed where each belongs: the header check in `DbSnpDB._parse` (so Python and the web get
+it too), the TOML catch in `_load_config`, and the file name in the CLI's BED refusal —
+keyed on the `line N:` prefix rather than on `bed is not None`, or a bad `--region` locus
+would be blamed on the file when both arguments are given.
+
+**The guard derives its population from the command.** A list of ten flags written today
+is the shape this project has found stale a dozen times; `TyperPath` parameters are what
+the command actually has. The property is the weakest one true of all of them, output
+flags included: whatever a wrong file does, it does not arrive as an unhandled exception,
+and if it is refused the message names the path or the flag.
+
+Two of the four failures the guard reported on its first run were **the test's fault** —
+its genome had a `G` where the variant asserted an `A`, so `--clinvar` and `--out` failed
+for a reason neither flag caused. Worth recording because the fix was to the test and the
+symptom was indistinguishable from a product defect until each message was read.
+
+**Lesson: a check written for the flag in front of you is one case; the same check over the
+command's own parameter list is the finding.** 524 and 525 each fixed the argument that had
+just been typed. This one asked the parameter list instead, and three of ten flags were
+wrong — none of which anyone would have thought to type, because nobody puts a frequency
+table in `--config` on purpose.

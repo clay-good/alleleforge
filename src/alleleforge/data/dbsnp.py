@@ -16,6 +16,13 @@ from alleleforge.data._io import is_sequence_allele, open_text
 from alleleforge.types.sequence import GenomicInterval, canonical_contig
 from alleleforge.types.variant import DbSnpId, Variant
 
+#: The columns every data row is read through. Checked at the header rather than at the
+#: first row: a TSV with a header of some *other* schema — a gnomAD frequency table handed
+#: to `--dbsnp`, one flag over — reached `row["rsid"]` and surfaced as the bare `'rsid'`,
+#: which names neither the file, the schema it has, nor the schema it needs. gnomAD's
+#: reader has checked this since it shipped; this one had not.
+_CORE_COLUMNS = ("rsid", "chrom", "pos", "ref", "alt")
+
 
 class DbSnpDB:
     """Bidirectional rsID <-> variant lookup."""
@@ -60,6 +67,13 @@ class DbSnpDB:
             cols = line.rstrip("\n").split("\t")
             if line.startswith("#"):
                 header = [c.lstrip("#") for c in cols]
+                missing = [c for c in _CORE_COLUMNS if c not in header]
+                if missing:
+                    raise ValueError(
+                        f"dbSNP TSV header is missing {', '.join(missing)}. Expected a "
+                        f"tab-separated header of: {'  '.join(_CORE_COLUMNS)} — found: "
+                        f"{'  '.join(header)}"
+                    )
                 continue
             if header is None:
                 raise ValueError("dbSNP TSV is missing its '#rsid ...' header line")
