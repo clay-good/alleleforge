@@ -18956,7 +18956,7 @@ remedies told me something because running them was the only way to know — the
 not, the types could not, and reading them could not. The same four hours spent re-reading
 the code would have produced the same four "looks right" and no evidence.
 
-## Round 556a — the gate was red when I pushed
+## Round 557 — the gate was red when I pushed, twice
 
 Correction to the round above. Its `make ci` was run through
 `| grep -E "passed|FAILED|Success"` and the first matching lines — "All checks passed!"
@@ -18969,9 +18969,16 @@ in the Unreleased section, which already had an `### Added` two thousand lines u
 was right on both counts — that file has grown 77 headings in the past by exactly this
 route. The bullet is merged under the existing heading now and the gate is green.
 
-**Lesson: a filtered view of a gate is not the gate.** Every round this session ran `make ci`
-through a grep, because the full output is thousands of lines — and the filter that made it
-readable is the filter that hid the failure, twice over: the pattern matched success lines
-from earlier steps, and `head` cut the one line that mattered. The full tail is four lines
-and I already print it after every push; the discipline is to read *that* before the commit,
-not after.
+**And then again, immediately.** The correction above was first written as "round 556a",
+which `test_rounds_appear_in_ascending_order` refuses — round numbers are integers and the
+index is generated from them. That failure *was* visible: this time the gate's real tail
+was printed. The commit ran anyway, because `make ci` and `git commit` sat on separate
+lines of one shell invocation rather than being joined by `&&`, so the commit never saw the
+exit status. Twice in two rounds, from two different causes, with the same result.
+
+**Lesson: a check you have to remember to read is not a check.** The filtered gate output
+hid a failure; then an unfiltered one was printed and ignored, because nothing connected it
+to the commit. Both are the same defect this project keeps finding in its own product — a
+signal that exists and reaches nobody — and the fix is the same shape: make the gate's exit
+status the thing that decides, not the operator's attention. `make ci && git commit` is one
+character of difference and it is the whole of it.
