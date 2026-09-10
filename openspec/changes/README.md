@@ -16842,3 +16842,35 @@ changes.** The prose guards in this repo check links, flags, module paths and co
 names. What none of them checks is whether the thing pointed at can actually answer the
 question asked — `aforge data list` exists, runs, and is documented, and was still the
 wrong answer for two thirds of the rows the note was explaining.
+
+## Round 491 — the weights that scored, and were not named
+
+Round 490's lesson was that a pointer ages. This round ran the neighbouring query — what
+can the library do that no shell, and no *caller at all*, reaches — over public **methods**
+rather than module functions, which is where rounds 486 and 487 had stopped. Eleven lines
+of throwaway script over every exported class turned up a handful of user-facing helpers
+and one method with a docstring that names its own purpose:
+
+    def backbone_checkpoint(self) -> ModelCheckpoint | None:
+        """Return the embedding backbone's resolved checkpoint, for provenance."""
+
+Zero callers. `cas9_model_checkpoints` stamps `efficiency.model_card().to_checkpoint()`
+and stops — the *ensemble's* card, which describes projection heads. On the weight-free
+stub embedder that is the whole story, and it is what CI runs, so nothing ever noticed.
+With a real backbone it is most of the story missing: the embedding is what the numbers
+are made of, the backbone is a separate card with a separate licence and a separate pinned
+checksum, and `_HuggingFaceEmbedder`'s own docstring promises "the resolved
+`ModelCheckpoint` is recorded for provenance".
+
+Underneath it, a second layer of the same hiding. `CachedEmbedder.persistent(backbone)` is
+the documented way to use a real backbone, and the wrapper forwards `name`, `version` and
+`context_window` — three properties chosen one at a time — and not `model_checkpoint`. So
+even the caller who asked the question got `None`, through the exact composition the docs
+recommend.
+
+**Lesson: CI's fixtures decide which half of a code path is ever exercised.** "CI stays
+weight-free" is a correct, load-bearing principle of this project — and its consequence is
+that every branch reached only by real weights is unexercised, so the defects concentrate
+there and none of them can be caught by running the suite. The remedy is not to load
+weights: it is a fake that reports what a real backbone reports (five lines here), which
+turns "the weight-free path works" into "the weighted path is checked too".

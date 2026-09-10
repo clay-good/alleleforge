@@ -184,10 +184,22 @@ def cas9_model_checkpoints(
     outcome = (
         outcome_predictor if outcome_predictor is not None else MicrohomologyOutcomePredictor()
     )
-    return (
+    checkpoints = [
         efficiency.model_card().to_checkpoint(),
         outcome.model_card().to_checkpoint(),
-    )
+    ]
+    # The scorer's card is not the whole story when the numbers came out of a sequence
+    # backbone: the ensemble is projection heads *over an embedding*, and the embedding
+    # is what a real backbone (Nucleotide Transformer, Caduceus, Evo2 — each with its own
+    # card, licence and checksum) produced. `backbone_checkpoint` exists "for provenance"
+    # by its own docstring and had no caller, so a run scored through gated, licence-
+    # checked, checksum-pinned weights recorded the ensemble card alone and named nothing
+    # that would let a reader re-derive the numbers.
+    backbone = getattr(efficiency, "backbone_checkpoint", None)
+    resolved = backbone() if backbone is not None else None
+    if resolved is not None:
+        checkpoints.append(resolved)
+    return tuple(checkpoints)
 
 
 def design_cas9(

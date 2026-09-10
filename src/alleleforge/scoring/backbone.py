@@ -28,6 +28,7 @@ from alleleforge.cache import ContentAddressedCache
 from alleleforge.errors import MissingDependencyError
 from alleleforge.model_zoo.loader import WeightGate
 from alleleforge.model_zoo.registry import Downloader, ModelRegistry, ModelUse
+from alleleforge.types.provenance import ModelCheckpoint
 
 #: A single fixed-width embedding vector.
 Embedding = tuple[float, ...]
@@ -198,6 +199,22 @@ class CachedEmbedder:
     def context_window(self) -> int:
         """Return the wrapped embedder's context window."""
         return self._embedder.context_window
+
+    def model_checkpoint(self) -> ModelCheckpoint | None:
+        """Return the wrapped embedder's resolved checkpoint, or ``None``.
+
+        Forwarded, like the three properties above. A real backbone is *meant* to be
+        used through this wrapper — `CachedEmbedder.persistent(NucleotideTransformerEmbedder())`
+        is the documented shape — and the checkpoint the gate resolved reached provenance
+        through `EnsembleEfficiencyScorer.backbone_checkpoint`, which looks for this
+        method on the embedder it holds. Wrapping the backbone hid the weights that
+        produced every embedding.
+        """
+        getter = getattr(self._embedder, "model_checkpoint", None)
+        if getter is None:
+            return None
+        checkpoint: ModelCheckpoint | None = getter()
+        return checkpoint
 
     @property
     def cache_size(self) -> int:
