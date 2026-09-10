@@ -17425,3 +17425,36 @@ prime memo was right and local; copying it into base editing would have been rig
 local twice, and the nuclease vertical — which does not need it today — would have kept
 the shape that makes the bug possible. The cost of the shared object is one class; the
 cost of the duplicated fix is that the next vertical starts from the version without it.
+
+## Round 509 — four threads, one interpreter
+
+Round 508 left the scan count minimal, so the next question at cohort scale is whether the
+scans that remain can run at the same time. `aforge batch --workers 4` on the ten-variant
+cohort: **1.6x**. Ten cores, four workers, identical results, and 60% of the parallelism
+missing.
+
+Not the work — the interpreter. A PyO3 function holds the GIL for its whole body unless it
+says otherwise, and 80% of a run is inside `scan_strand`, which touches no Python object
+from the moment it starts. Four worker threads were queueing to take turns running Rust.
+
+`Python::detach` releases it for the duration of the scan, and `PyBackedStr` is what makes
+that affordable: it keeps the Python `str` alive without copying, and the sequence is a
+whole contig — copying it per call would have traded the GIL for a memcpy of the genome.
+Four kernels got it: the strand scan, the batched evaluator, the FM-index build and the
+suffix array, which are the ones that run long enough for the release to be worth its own
+cost. The per-anchor kernels are deliberately left alone.
+
+    workers=2   1.75x
+    workers=4   2.92x   (1.60x before)
+    workers=8   3.98x
+
+with byte-identical per-item summaries at every width. The guard reads the crate — every
+kernel in that list must call `py.detach` and borrow rather than copy — and a behavioural
+test runs two scans on two threads and requires them to overlap, with a wide margin,
+because the ratio is a property of the machine and the release is a property of the code.
+
+**Lesson: parallelism you added is not parallelism you have.** The cohort has had a
+`--workers` flag and a thread pool for many phases; every test of it checked that results
+were identical, which they were, and none checked that it was *faster*. The flag was
+correct and half-inert, and the only way to find that was to time it against the serial
+path it exists to beat.

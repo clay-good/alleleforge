@@ -11,6 +11,7 @@
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::pybacked::PyBackedStr;
 
 mod align;
 mod bwt;
@@ -109,8 +110,10 @@ impl NativeFmIndex {
 
 /// Build an FM-index over `text` (alphabet `ACGTN`).
 #[pyfunction]
-fn fm_build(text: &str) -> PyResult<NativeFmIndex> {
-    bwt::FmIndex::build(text)
+fn fm_build(py: Python<'_>, text: PyBackedStr) -> PyResult<NativeFmIndex> {
+    // Minutes on a chromosome, and none of it touches Python: a parallel cohort building
+    // indexes would otherwise serialize on the interpreter.
+    py.detach(|| bwt::FmIndex::build(&text))
         .map(|inner| NativeFmIndex { inner })
         .map_err(PyValueError::new_err)
 }
@@ -134,10 +137,12 @@ fn fm_locate(text: &str, pattern: &str) -> PyResult<Vec<usize>> {
 /// Exposed so a parity test can pin the linear-time build byte-for-byte against
 /// the ground-truth direct sort.
 #[pyfunction]
-fn fm_suffix_array(text: &str) -> Vec<usize> {
-    let mut data = text.to_ascii_uppercase().into_bytes();
-    data.push(0); // the FM-index sentinel: smaller than every base
-    sais::suffix_array(&data)
+fn fm_suffix_array(py: Python<'_>, text: PyBackedStr) -> Vec<usize> {
+    py.detach(|| {
+        let mut data = text.to_ascii_uppercase().into_bytes();
+        data.push(0); // the FM-index sentinel: smaller than every base
+        sais::suffix_array(&data)
+    })
 }
 
 /// Bulged alignment: best single-base removal from `longer` aligning it to `shorter`.
@@ -182,31 +187,34 @@ fn evaluate_anchor(
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 fn evaluate_anchors(
-    spacer: &str,
-    seq: &str,
+    py: Python<'_>,
+    spacer: PyBackedStr,
+    seq: PyBackedStr,
     anchors: Vec<usize>,
     max_mm: usize,
     dna_bulges: usize,
     rna_bulges: usize,
 ) -> Vec<(usize, usize, usize, usize, usize, String, String)> {
-    anchors
-        .into_iter()
-        .filter_map(|pam_at| {
-            evaluate::evaluate(spacer, seq, pam_at, max_mm, dna_bulges, rna_bulges).map(
-                |(start, mm, dna_b, rna_b, aligned_spacer, aligned_target)| {
-                    (
-                        pam_at,
-                        start,
-                        mm,
-                        dna_b,
-                        rna_b,
-                        aligned_spacer,
-                        aligned_target,
-                    )
-                },
-            )
-        })
-        .collect()
+    py.detach(|| {
+        anchors
+            .into_iter()
+            .filter_map(|pam_at| {
+                evaluate::evaluate(&spacer, &seq, pam_at, max_mm, dna_bulges, rna_bulges).map(
+                    |(start, mm, dna_b, rna_b, aligned_spacer, aligned_target)| {
+                        (
+                            pam_at,
+                            start,
+                            mm,
+                            dna_b,
+                            rna_b,
+                            aligned_spacer,
+                            aligned_target,
+                        )
+                    },
+                )
+            })
+            .collect()
+    })
 }
 
 /// Whole-strand scan: PAM anchoring, evaluation and the `N`-window rejection, in one call.
@@ -216,17 +224,27 @@ fn evaluate_anchors(
 /// profiling showed as the single largest cost left in the scan. This does the whole
 /// loop, and is pinned byte-identical to `_scan_one_strand` (without its seed prefilter,
 /// which stays in Python and only applies at tight budgets).
+/// The GIL is **released** for the scan itself (`Python::detach` in PyO3 0.29). This is the one kernel that runs long
+/// enough for that to matter — tens of milliseconds per strand of a 2 Mb contig, and
+/// minutes on a chromosome — and it is what a cohort's worker threads spend their time
+/// in: with the GIL held, `aforge batch --workers 4` was 1.6x rather than ~4x, because
+/// four threads were queueing for the interpreter to run Rust that never touches it.
+///
+/// `PyBackedStr` keeps the Python `str` alive without copying, which matters here: the
+/// sequence is a whole contig, and copying it per scan would trade the GIL for a memcpy
+/// of the genome.
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 fn scan_strand(
-    spacer: &str,
-    seq: &str,
-    pam: &str,
+    py: Python<'_>,
+    spacer: PyBackedStr,
+    seq: PyBackedStr,
+    pam: PyBackedStr,
     max_mm: usize,
     dna_bulges: usize,
     rna_bulges: usize,
 ) -> Vec<evaluate::Hit> {
-    evaluate::scan_strand(spacer, seq, pam, max_mm, dna_bulges, rna_bulges)
+    py.detach(|| evaluate::scan_strand(&spacer, &seq, &pam, max_mm, dna_bulges, rna_bulges))
 }
 
 /// How many bases of a sequence are unambiguous A/C/G/T — the report's "searched" count.
