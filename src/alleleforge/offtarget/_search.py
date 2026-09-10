@@ -306,6 +306,16 @@ _NATIVE_EVALUATE = (
 #: anchors on a 2 Mb contig, and each rejected anchor was costing a Python frame, an
 #: argument tuple and an FFI crossing. `None` when the extension predates it, in which
 #: case the per-anchor path below is used and the results are the same.
+#: The whole-strand scan: anchoring, evaluation and the `N`-window rejection in one call.
+#: Used when the seed prefilter does not apply — which is the default budget — because
+#: enumerating anchors in Python costs a `re.Match` and a method call each, a quarter of a
+#: million per 2 Mb strand, and profiling put that above the kernel itself.
+_NATIVE_SCAN_STRAND = (
+    _native._ext.scan_strand  # type: ignore[attr-defined]
+    if _native_kernel_available("scan_strand")
+    else None
+)
+
 _NATIVE_EVALUATE_MANY = (
     _native._ext.evaluate_anchors  # type: ignore[attr-defined]
     if _native_kernel_available("evaluate_anchors")
@@ -629,6 +639,15 @@ def _scan_one_strand(
         if seed
         else None
     )
+    if covered is None and _NATIVE_SCAN_STRAND is not None:  # pragma: no cover - native
+        # No prefilter to apply, so the whole loop can live in the kernel: anchoring, the
+        # alignment and the `N`-window rejection, with nothing crossing the boundary but
+        # the sequence and the hits. Pinned byte-identical to the Python path below.
+        native_hits: list[tuple[int, int, str, int, int, int, str, str]] = _NATIVE_SCAN_STRAND(
+            spacer, seq, pam.pattern, max_mm, dna_bulges, rna_bulges
+        )
+        return native_hits
+
     # The PAM check comes first now that it costs one C-level scan for the whole
     # sequence rather than a slice and a lookup per anchor. It was second because it
     # used to be the expensive one, and the prefilter — which does not apply at the

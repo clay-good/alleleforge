@@ -70,6 +70,7 @@ TIMED_KERNELS = {
     "align_best_with_removed_base": "bulged alignment",
     "evaluate_anchor": "per-anchor evaluation",
     "evaluate_anchors": "whole-scan evaluation (one crossing)",
+    "scan_strand": "whole-strand scan (anchoring in the kernel)",
 }
 
 
@@ -222,6 +223,27 @@ def _alignment_and_evaluation(rng: random.Random) -> None:
             print(f"  batched    : {many * 1e3:8.2f} ms  ({one / many:.1f}x, 1 crossing)")
         else:
             print("  batched    : (not built) - dispatch == per-anchor")
+
+    # And the whole loop, including the anchor enumeration the two timings above take as
+    # given: a quarter of a million `re.Match` objects and method calls in Python.
+    print("\nwhole-strand scan (anchoring in the kernel) — the loop the scan runs")
+    import alleleforge.offtarget._search as _search_mod
+    from alleleforge.offtarget._search import _NATIVE_SCAN_STRAND, _scan_one_strand
+    from alleleforge.types.guide import PAM as _PAM
+
+    pam_ngg = _PAM(pattern="NGG")
+    budget = {"max_mm": 4, "dna_bulges": 1, "rna_bulges": 1}
+    if _NATIVE_SCAN_STRAND is None:
+        print("  native : (not built) - the Python loop is the only path")
+    else:
+        native = _time(lambda: _scan_one_strand(spacer, contig, pam_ngg, **budget))
+        _search_mod._NATIVE_SCAN_STRAND = None
+        try:
+            in_python = _time(lambda: _scan_one_strand(spacer, contig, pam_ngg, **budget))
+        finally:
+            _search_mod._NATIVE_SCAN_STRAND = _NATIVE_SCAN_STRAND
+        print(f"  python loop : {in_python * 1e3:8.2f} ms")
+        print(f"  native scan : {native * 1e3:8.2f} ms  ({in_python / native:.1f}x)")
 
 
 def _contig_fold(rng: random.Random) -> None:

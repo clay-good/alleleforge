@@ -17278,3 +17278,38 @@ native kernel was already doing the work in Rust; what remained in Python was th
 and a loop is the one thing an FFI boundary makes expensive. The same shape shows up
 wherever a fast implementation is called from a slow driver — the win is not in the kernel,
 it is in how many times you arrive at it.
+
+## Round 504 — the loop, not the item
+
+Round 503 moved the evaluation across the FFI boundary in one crossing and left the anchor
+*enumeration* in Python. The next profile put that comprehension at the top:
+
+    0.404s  [match.start() for match in finditer(...)]   (of which 0.102s is .start())
+    0.255s  aforge_native.evaluate_anchors
+    0.124s  str.count                                     (the resolved-base count)
+
+A quarter of a million `re.Match` objects per 2 Mb strand, built to hand back positions the
+kernel immediately consumes. So `scan_strand` takes the loop as well: IUPAC PAM matching at
+every position — overlapping, because `AGGG` holds a PAM at 0 and another at 1, which is why
+the Python side uses a zero-width lookahead and a consuming regex would be wrong — then the
+alignment, then the `N`-window rejection, returning only the hits. Nothing crosses the
+boundary but the sequence and the two hits.
+
+**2.4x** against the loop as it stood two rounds ago and **1.7x** against last round's, on a
+2 Mb strand at the default budget: paired, alternating, minimum of eleven, one process,
+loaded machine, with each previous version rebuilt in the module's own namespace. Parity on
+200 randomized strands — `N`-rich sequence, spacers longer than the contig, four PAM
+patterns, budgets from 0 to 4 mismatches — plus the case an unknown IUPAC code must anchor
+*nowhere* rather than everywhere.
+
+The seed-prefilter path keeps the Python loop: when the prefilter applies it has already
+thrown most anchors away, and its own contract is that the results are identical either
+way, so the two paths meet at the same hits. An extension built before this kernel falls
+back by name, and round 500's `aforge --version` line reports the build as STALE rather
+than leaving a developer to wonder why their scan slowed down.
+
+**Lesson: when a fast kernel is called from a slow driver, move the driver.** Three rounds
+of the same finding at three depths — the wrapper around the call, the call itself, and now
+the loop around the call — and each time the profile named the *thing being called* while
+the cost was in the arriving. The question that found all three is the same one: how many
+times does this happen per unit of output?

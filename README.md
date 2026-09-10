@@ -540,9 +540,11 @@ attribute a site's burden to a population that merely shows a trace, sub-thresho
 
 > [!NOTE]
 > **Every kernel's speedup is re-measurable, not just quoted.**
-> [`scripts/native_speedup.py`](scripts/native_speedup.py) times all six functions the crate exposes
+> [`scripts/native_speedup.py`](scripts/native_speedup.py) times every function the crate exposes
 > plus the contig fold, and a test fails if the crate gains one the script does not cover. On this
-> machine: bulged alignment **~10x** native, per-anchor evaluation **~9x** native, and the fold to the
+> machine: bulged alignment **~10x** native, per-anchor evaluation **~9x** native, the **whole-strand
+> scan ~2x** over the same scan driven from Python (the kernel now does the anchoring too, so a
+> quarter of a million `re.Match` objects per 2 Mb strand are never built), and the fold to the
 > index alphabet **~13x** (clean 2 Mb contig) to **~19x** (one non-ACGTN base) after moving from a
 > per-base loop to `str.translate`. Wall-clock is hardware-dependent — run the script rather than
 > trusting these numbers.

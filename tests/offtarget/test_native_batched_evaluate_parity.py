@@ -84,3 +84,48 @@ def test_a_whole_strand_scan_is_unchanged_by_the_batching() -> None:
     ]
     assert batched == per_anchor
     assert batched, "the fixture must produce a hit or this proves nothing"
+
+
+@pytest.mark.native
+@pytest.mark.skipif(
+    _search._NATIVE_SCAN_STRAND is None, reason="native aforge_native scan_strand kernel not built"
+)
+def test_the_whole_strand_kernel_agrees_with_the_python_loop() -> None:
+    """The larger port: anchoring, evaluation and the `N` rejection, all in the kernel.
+
+    Anchors overlap — `AGGG` holds a PAM at 0 and another at 1 — and the Python side finds
+    them with a zero-width lookahead, so the kernel has to test every position rather than
+    consume a match. The randomized shapes below include `N`s in the sequence, spacers
+    longer than the contig, and PAM patterns of four different lengths, because each of
+    those is a bound the two implementations state separately.
+    """
+    rng = random.Random(11)
+    for _ in range(200):
+        spacer = "".join(rng.choice("ACGT") for _ in range(rng.randint(1, 22)))
+        seq = "".join(rng.choice("ACGTN") for _ in range(rng.randint(1, 200)))
+        pam = PAM(pattern=rng.choice(["NGG", "NRG", "TTTV", "NG", "NNGRRT"]))
+        budget = {
+            "max_mm": rng.randint(0, 4),
+            "dna_bulges": rng.randint(0, 1),
+            "rna_bulges": rng.randint(0, 1),
+        }
+        native = [tuple(hit) for hit in _search._scan_one_strand(spacer, seq, pam, **budget)]
+
+        saved = _search._NATIVE_SCAN_STRAND
+        _search._NATIVE_SCAN_STRAND = None
+        try:
+            in_python = _search._scan_one_strand(spacer, seq, pam, **budget)
+        finally:
+            _search._NATIVE_SCAN_STRAND = saved
+        assert native == in_python, (spacer, seq, pam.pattern, budget)
+
+
+@pytest.mark.native
+@pytest.mark.skipif(
+    _search._NATIVE_SCAN_STRAND is None, reason="native aforge_native scan_strand kernel not built"
+)
+def test_an_unknown_pam_code_finds_nothing_on_both_paths() -> None:
+    """A code neither table knows must anchor nowhere, not everywhere."""
+    seq = "ACGT" * 20
+    for pattern in ("NXG", "ZZZ"):
+        assert _search._NATIVE_SCAN_STRAND("ACGT" * 5, seq, pattern, 4, 1, 1) == []

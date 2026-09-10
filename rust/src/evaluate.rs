@@ -110,3 +110,96 @@ pub fn evaluate(
     }
     best
 }
+
+/// The concrete bases each IUPAC code admits, matching
+/// `alleleforge.types.sequence.IUPAC_EXPAND` intersected with `ACGT`.
+///
+/// `N` is deliberately not among the admitted bases of any code: the Python scanner
+/// builds character classes from the same intersection, so a PAM window holding an `N`
+/// is not an anchor on either path. A code this table does not know admits nothing,
+/// which makes an unknown pattern find no anchors rather than every anchor.
+fn iupac_bases(code: u8) -> &'static [u8] {
+    match code {
+        b'A' => b"A",
+        b'C' => b"C",
+        b'G' => b"G",
+        b'T' => b"T",
+        b'R' => b"AG",
+        b'Y' => b"CT",
+        b'S' => b"CG",
+        b'W' => b"AT",
+        b'K' => b"GT",
+        b'M' => b"AC",
+        b'B' => b"CGT",
+        b'D' => b"AGT",
+        b'H' => b"ACT",
+        b'V' => b"ACG",
+        b'N' => b"ACGT",
+        _ => b"",
+    }
+}
+
+/// One hit as the scan reports it: `(proto_start, pam_at, pam_seq, mismatches,
+/// dna_bulge, rna_bulge, aligned_spacer, aligned_target)`.
+pub type Hit = (usize, usize, String, usize, usize, usize, String, String);
+
+/// Scan one strand: every PAM-positive anchor, evaluated, keeping the in-budget hits.
+///
+/// The Python counterpart is `_scan_one_strand` without its seed prefilter, and the two
+/// are pinned byte-identical. Anchors overlap — `AGGG` holds a PAM at 0 and another at 1
+/// — so every position in range is tested, exactly as the Python's zero-width lookahead
+/// does; a consuming regex would skip the second.
+///
+/// The loop lives here because the boundary is the cost: the caller used to build a
+/// quarter-million-element anchor list in Python (a `re.Match` and a method call each) to
+/// hand back across the FFI, for a scan whose output is two hits.
+pub fn scan_strand(
+    spacer: &str,
+    seq: &str,
+    pam: &str,
+    max_mm: usize,
+    dna_bulges: usize,
+    rna_bulges: usize,
+) -> Vec<Hit> {
+    let seq_bytes = seq.as_bytes();
+    let pam_bytes = pam.as_bytes();
+    let pam_len = pam_bytes.len();
+    let spacer_len = spacer.chars().count();
+    let mut hits: Vec<Hit> = Vec::new();
+    if pam_len == 0 || seq_bytes.len() < pam_len {
+        return hits;
+    }
+    let classes: Vec<&'static [u8]> = pam_bytes.iter().map(|&code| iupac_bases(code)).collect();
+    let first = spacer_len.saturating_sub(1);
+    let last = seq_bytes.len() - pam_len;
+    for pam_at in first..=last {
+        let window = &seq_bytes[pam_at..pam_at + pam_len];
+        if !window
+            .iter()
+            .zip(classes.iter())
+            .all(|(base, allowed)| allowed.contains(base))
+        {
+            continue;
+        }
+        let Some((start, mm, dna_b, rna_b, aligned_spacer, aligned_target)) =
+            evaluate(spacer, seq, pam_at, max_mm, dna_bulges, rna_bulges)
+        else {
+            continue;
+        };
+        // Never nominate a site over a padded / unknown region.
+        if seq_bytes[start..pam_at].contains(&b'N') {
+            continue;
+        }
+        hits.push((
+            start,
+            pam_at,
+            String::from_utf8_lossy(window).into_owned(),
+            mm,
+            dna_b,
+            rna_b,
+            aligned_spacer,
+            aligned_target,
+        ));
+    }
+    hits
+}

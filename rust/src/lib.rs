@@ -209,6 +209,26 @@ fn evaluate_anchors(
         .collect()
 }
 
+/// Whole-strand scan: PAM anchoring, evaluation and the `N`-window rejection, in one call.
+///
+/// The batched evaluator above still needs its caller to enumerate anchors in Python —
+/// a quarter of a million `re.Match` objects and method calls per 2 Mb strand, which
+/// profiling showed as the single largest cost left in the scan. This does the whole
+/// loop, and is pinned byte-identical to `_scan_one_strand` (without its seed prefilter,
+/// which stays in Python and only applies at tight budgets).
+#[pyfunction]
+#[allow(clippy::too_many_arguments)]
+fn scan_strand(
+    spacer: &str,
+    seq: &str,
+    pam: &str,
+    max_mm: usize,
+    dna_bulges: usize,
+    rna_bulges: usize,
+) -> Vec<evaluate::Hit> {
+    evaluate::scan_strand(spacer, seq, pam, max_mm, dna_bulges, rna_bulges)
+}
+
 /// Off-target seeding: reference offsets sharing an exact k-mer with `spacer`.
 #[pyfunction]
 fn kmer_seed_positions(sequence: &str, spacer: &str, k: usize) -> Vec<usize> {
@@ -239,6 +259,7 @@ fn aforge_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(align_best_with_removed_base, m)?)?;
     m.add_function(wrap_pyfunction!(evaluate_anchor, m)?)?;
     m.add_function(wrap_pyfunction!(evaluate_anchors, m)?)?;
+    m.add_function(wrap_pyfunction!(scan_strand, m)?)?;
     m.add_function(wrap_pyfunction!(kmer_seed_positions, m)?)?;
     m.add_function(wrap_pyfunction!(haplotype_apply_variants, m)?)?;
     m.add_class::<NativeFmIndex>()?;
