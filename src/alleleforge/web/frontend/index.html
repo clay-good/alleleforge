@@ -50,10 +50,12 @@
             <label for="variant">Variant</label>
             <input id="variant" name="variant" type="text" required
                    placeholder="chr2:71:A&gt;C · 2 71 . A C" />
-            <small>Coordinates (<code>chrom:pos:ref&gt;alt</code>, 1-based as in a VCF) or a
-                   VCF record. A ClinVar accession, dbSNP rsID or HGVS string needs a lookup
-                   database this deployment has no way to supply, so those are refused with
-                   a message naming the coordinate form.</small>
+            <small>Coordinates (<code>chrom:pos:ref&gt;alt</code>, 1-based as in a VCF), a
+                   VCF record, or a <strong>genomic</strong> HGVS expression
+                   (<code>chr1:g.500T&gt;C</code>). A ClinVar accession, a dbSNP rsID or a
+                   <em>coding/protein</em> HGVS string (<code>c.</code>/<code>p.</code>)
+                   needs a lookup this deployment has no way to supply, so those are
+                   refused with a message naming the coordinate form.</small>
           </div>
 
           <div class="row">
@@ -211,9 +213,10 @@
             <label for="batch-variants">Variants (one per line)</label>
             <textarea id="batch-variants" name="variants" rows="6" required
                       placeholder="chr2:71:A&gt;C&#10;chr7:117559590:ATCT&gt;A&#10;2 71 . A C"></textarea>
-            <small>One coordinate or VCF record per line; blank lines and <code>#</code>
-                   comments are skipped. Accessions, rsIDs and HGVS need a lookup database
-                   this deployment cannot supply, and are refused per row.</small>
+            <small>One coordinate, VCF record or genomic <code>g.</code> HGVS expression
+                   per line; blank lines and <code>#</code> comments are skipped.
+                   Accessions, rsIDs and coding/protein HGVS need a lookup this deployment
+                   cannot supply, and are refused per row.</small>
           </div>
 
           <div class="row">

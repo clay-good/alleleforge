@@ -311,6 +311,10 @@ def _from_string(
         return variant, "clinvar", assertion
     if _HGVS_RE.search(text):
         return _from_hgvs(text, hgvs, reference), "hgvs", None
+    record = _vcf_line(text)
+    if record is not None:
+        return record.to_variant(), "vcf", None
+    _refuse_a_symbolic_vcf_line(text)
     m = _COORD_RE.match(text)
     if m is None:
         raise ValueError(f"unrecognized variant input: {text!r}{_shell_ate_it(text)}")
@@ -326,6 +330,69 @@ def _from_string(
         ),
         "coordinates",
         None,
+    )
+
+
+#: One data line of a VCF, as a string: `CHROM POS ID REF ALT [...]`, whitespace of any
+#: kind between the fields (a line pasted out of a terminal loses its tabs). Anchored on
+#: the five leading fields and tolerant of the rest, because a real row carries QUAL,
+#: FILTER, INFO and often a dozen sample columns, and none of them says where the variant
+#: is.
+#:
+#: Every shell told the user this worked. The page's own placeholder is `2 71 . A C`, its
+#: help says "Coordinates ... or a VCF record", `DesignRequest.variant` says it twice and
+#: `aforge design --help` says "a VCF record work[s] everywhere". None of them did: a
+#: `VcfRecord` is a *Python object* the resolver accepts, and the string parser had no
+#: pattern for the text form, so pasting the placeholder into the box the placeholder is
+#: in answered "unrecognized variant input".
+_VCF_LINE_RE = re.compile(
+    r"^(?P<chrom>[\w.]+)\s+(?P<pos>\d+)\s+(?P<id>\S+)\s+"
+    r"(?P<ref>[ACGTNacgtn]+)\s+(?P<alt>[ACGTNacgtn]+)(?:\s+\S+)*$"
+)
+
+
+def _vcf_line(text: str) -> VcfRecord | None:
+    """Return the record a single VCF data line names, or ``None`` if it is not one.
+
+    The ID column is carried through when it is an rsID: a row identifies its variant,
+    and dropping the identifier would lose the one field a reader could use to look the
+    same variant up elsewhere. `.` means "no identifier", as in the format.
+    """
+    m = _VCF_LINE_RE.match(text)
+    if m is None:
+        return None
+    rsid = m.group("id")
+    return VcfRecord(
+        chrom=m.group("chrom"),
+        pos=int(m.group("pos")),
+        ref=m.group("ref").upper(),
+        alt=m.group("alt").upper(),
+        rsid=rsid if _RSID_RE.match(rsid) else None,
+    )
+
+
+#: The same five fields with *any* allele text, so a row this tool cannot design for is
+#: told what it is rather than called unrecognizable. A symbolic ALT (`<DEL>`, `<DUP>`, a
+#: breakend) or a spanning-deletion `*` is a legitimate VCF row and names no substitution
+#: — `iter_vcf` skips exactly these when reading a file, with a counted reason, and a row
+#: pasted by hand deserves the same answer.
+_VCF_LINE_SHAPE_RE = re.compile(
+    r"^(?P<chrom>[\w.]+)\s+(?P<pos>\d+)\s+\S+\s+(?P<ref>\S+)\s+(?P<alt>\S+)(?:\s+\S+)*$"
+)
+
+
+def _refuse_a_symbolic_vcf_line(text: str) -> None:
+    """Raise a naming refusal when a VCF line's alleles are not designable."""
+    m = _VCF_LINE_SHAPE_RE.match(text)
+    if m is None:
+        return
+    ref, alt = m.group("ref"), m.group("alt")
+    raise ValueError(
+        f"VCF record at {m.group('chrom')}:{m.group('pos')} names REF {ref!r} ALT {alt!r}, "
+        "which is not a designable substitution: a symbolic allele (<DEL>, <DUP>, a "
+        "breakend) or a spanning deletion (*) says a variant is there without saying what "
+        "it writes. Give the concrete REF and ALT bases, or the coordinate form "
+        "chrom:pos:ref>alt"
     )
 
 

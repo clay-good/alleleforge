@@ -116,8 +116,11 @@ aforge bench leaderboard outcome.json offtarget.json --format html --out board.h
 
 ### Accession and rsID inputs
 
-Coordinates (`chrom:pos:ref>alt`, 1-based as in a VCF) and a VCF record work on every
-surface with nothing extra. The two *database* input forms need the release that defines
+Coordinates (`chrom:pos:ref>alt`, 1-based as in a VCF), a VCF data line (`chr2 71 . A
+C` — whitespace of any kind, trailing QUAL/FILTER/INFO/sample columns ignored, an rsID in
+the ID column carried) and a genomic `g.` HGVS expression work on every surface with
+nothing extra. A row whose ALT is symbolic (`<DEL>`, a breakend, a spanning `*`) is
+refused by name: it says a variant is there without saying what it writes. The two *database* input forms need the release that defines
 them, which you supply — AlleleForge parses both and downloads neither, because the
 registry has no pinned checksum for either:
 

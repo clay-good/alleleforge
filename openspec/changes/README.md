@@ -17003,3 +17003,42 @@ checked stopped there, because the reasoning is sound and the reader is looking 
 mistakes. What none of them said is what `|| true` does to the check mark, and the
 distance between "non-blocking" and "always green" is the whole difference between an
 audit and a decoration.
+
+## Round 496 — the placeholder the box rejected
+
+Round 495's lesson was to check the mechanism rather than the decision. The most direct
+way to check a mechanism is to run it, so this round opened the served page in a browser
+and read what it tells a user:
+
+> A ClinVar accession, dbSNP rsID or HGVS string needs a lookup database this deployment
+> has no way to supply, so those are refused with a message naming the coordinate form.
+
+Two of the three are right. A **genomic** `g.` expression needs no lookup and no projector
+— `POST /api/resolve` answers `chr1:g.500T>C` with the locus and `source: hgvs`. The
+request model's own description says "a *coding/protein* HGVS string", which is exactly
+right; last round's `--hgvs` work corrected the CLI's two copies and the docs' copy, and
+the page kept the blunter wording, in the surface with no `--help` to correct it.
+
+Then the placeholder in the input box, `chr2:71:A>C · 2 71 . A C`:
+
+    $ curl … -d '{"variant":"2 71 . A C"}'
+    {"detail":"unrecognized variant input: '2 71 . A C'"}
+
+A `VcfRecord` is a *Python object* the resolver has always taken. The string parser had no
+pattern for the text form — so the page's placeholder, the page's help, both request
+models, and both CLI `--help` strings promised an input form that three of the four
+audiences could not use, and the fourth reached it only by constructing the object. The
+promise sat in five places for as long as it had existed, and nothing tested it, because
+the tests that exercise "a VCF record" build the object.
+
+A data line resolves now wherever a coordinate does: whitespace of any kind (a row pasted
+out of a terminal has lost its tabs), trailing QUAL/FILTER/INFO/sample columns ignored, the
+ID column carried when it is an rsID. A symbolic ALT is refused *by name* — the same rows
+`iter_vcf` skips with a counted reason when reading a file — because "unrecognized input"
+says the tool could not read it, when it read it fine and cannot design for it.
+
+**Lesson: type the example.** Every guard in this repository that reads documentation
+checks that a *name* exists — a flag, a command, a module path, a link. The page's
+placeholder is not a name, it is an input, and the only way to check an input is to feed
+it to the thing it is an input for. Two rounds of prose guards, four rounds of shell-parity
+guards, and a documented capability nobody had ever typed.
