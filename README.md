@@ -1190,15 +1190,16 @@ flowchart LR
 > nuclease and base editing do not take a cell context; when one is supplied and they run, the rationale
 > names them and says their in-distribution flag describes the guide context alone, so an unqualified "in
 > distribution" beside a nuclease candidate is not mistaken for a claim about the cell line. **Every `design()` capability is reachable from
-> the CLI.** Four of its parameters are not passed by any command, and none of them is a capability: one is
-> the HGVS adapter for `c.`/`p.` inputs, which needs a projector from the `hgvs` library (not a dependency,
-> and no file a flag could name — genomic `g.` needs no adapter and already works everywhere), one is an
-> injection point with no trained model to select, one is the positional variant argument and one is a
+> the CLI.** Three of its parameters are not passed by any command, and none of them is a capability: one is
+> an injection point with no trained model to select, one is the positional variant argument and one is a
 > test-only provenance hook. That list lives with its reasons in
 > [`tests/test_shells_expose_the_library.py`](tests/test_shells_expose_the_library.py), which fails if a
-> fifth appears or if one of the four becomes reachable and the reason is left behind. It went from six to
+> fourth appears or if one of the three becomes reachable and the reason is left behind. It went from six to
 > four when `--clinvar` and `--dbsnp` were added: the excuse for those two said the lookups were
-> `Protocol`s with no shipped implementation, and `ClinVarDB`/`DbSnpDB` had shipped all along. On the web API a client-supplied filesystem path would be a server-side file-read primitive, so
+> `Protocol`s with no shipped implementation, and `ClinVarDB`/`DbSnpDB` had shipped all along. It went from
+> four to three when `--hgvs` was added: the excuse said a `c.`/`p.` projector "is not a dependency and has
+> no file a flag could name", which is true of every optional capability this CLI already offers behind a
+> boolean flag and a named `MissingDependencyError`. On the web API a client-supplied filesystem path would be a server-side file-read primitive, so
 > the **file-backed** inputs are configured by the operator, exactly as the reference already is:
 > `ALLELEFORGE_GNOMAD_TSV`, `ALLELEFORGE_HAPLOTYPES` and `ALLELEFORGE_ENCODE_TRACKS` (or the matching
 > `create_app(...)` arguments) make the population-aware search, the haplotype-aware pass and the chromatin

@@ -16643,3 +16643,37 @@ is not thread-safe to share" is true, and the conclusion drawn from it — that 
 run has no genome to name — is not. The gap had a note explaining it, a helper documenting
 it and two tests pinning it, which is what a considered decision looks like from the
 inside; three rounds of machinery grew around a sentence nobody re-derived.
+
+## Round 485 — the input form that "no surface could supply"
+
+Round 484's lesson was that an implementation constraint is not a fact about the world.
+The clearest remaining instance was in the shell-parity allowance list:
+
+    "hgvs": "c./p. inputs need a projector from the `hgvs` library, which is not a
+    dependency and has no file a flag could name"
+
+Both halves are true. Neither is a reason. This CLI offers `--trained-efficiency` (needs
+the `cas9-rs3` extra plus a booster), `--trained-prime` (a consent-gated weight download),
+`--summary-parquet` (needs `pyarrow`) and a VCF fast path (needs `cyvcf2`) — every one an
+optional capability behind a boolean flag and a named `MissingDependencyError`. And a flag
+does not need a file: `--vep` names no file either. The constraint "the projector is a
+Python object built from an optional package" had been generalized into "this surface has
+no way to supply it", and by the time it was checked the sentence appeared in the
+allowance, in two `--help` strings, in `docs/api/cli.md`, in the README's count of
+unreachable parameters and in the readiness assessment's own table.
+
+`--hgvs` is on `resolve`, `design` and `batch`. It builds the projector against the run's
+own `--build` rather than the library's `GRCh38` default — a `c.` expression projected onto
+GRCh38 and then designed against an hg19 or T2T FASTA is a wrong locus that every later
+check would take at face value, which is this arc's fourth appearance of the same hazard.
+The refusal without the flag now names it, and names the coordinate form for the surfaces
+that have no such flag, which is what every other resolver refusal already did. `design`
+also learned to report a missing optional package as `UNAVAILABLE` instead of a traceback:
+`batch` and `resolve` both did, and the command most likely to be handed a `c.` input did
+not.
+
+**Lesson: "no way to supply it" is a claim about the surface, and the surface is ours.**
+Three of the last four rounds found a limitation that had been recorded, explained and
+tested, and whose premise was one sentence nobody re-derived — a helper documenting it, a
+guard pinning it, a spec repeating it. The machinery that grows around a limitation is not
+evidence for it; it is what makes the limitation invisible.

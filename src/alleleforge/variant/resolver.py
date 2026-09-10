@@ -104,6 +104,15 @@ _DATABASE_REMEDIES: dict[str, str] = {
         "coordinates (chrom:pos:ref>alt, 1-based as in a VCF), which every surface "
         "accepts."
     ),
+    "hgvs": (
+        "Enable the projector with `--hgvs` on the command line, or "
+        "`HgvsAdapter(projector=HgvsLibraryProjector())` from Python — both need the "
+        "optional `hgvs` package and a reachable UTA database + SeqRepo, which is why "
+        "the projection is opt-in rather than attempted. Over HTTP there is no such "
+        "option, because the projection reaches an external service the operator has "
+        "not consented to: send coordinates (chrom:pos:ref>alt, 1-based as in a VCF), "
+        "or a genomic `g.` expression, which every surface accepts."
+    ),
     "dbsnp": (
         "Supply one with `--dbsnp <dbsnp.tsv>` on the command line, or "
         "`DbSnpDB.from_tsv(path)` from Python — an `rsid chrom pos ref alt` "

@@ -386,8 +386,8 @@ def resolve(
             "and a VCF record work everywhere. A ClinVar accession (VCV…) needs "
             "--clinvar and a dbSNP rsID (rs…) needs --dbsnp, each naming a release you "
             "supply — neither is ever downloaded. A coding/protein HGVS string (c./p.) "
-            "needs a projector from the `hgvs` library, which this surface has no way to "
-            "supply; genomic g. works without one."
+            "needs --hgvs, which projects it to genomic coordinates through the optional "
+            "`hgvs` package; genomic g. works without one."
         ),
     ],
     reference_fasta: Annotated[
@@ -401,6 +401,7 @@ def resolve(
         Path | None,
         typer.Option("--dbsnp", help="dbSNP `rsid chrom pos ref alt` TSV to look an `rs…` up in."),
     ] = None,
+    hgvs: Annotated[bool, typer.Option("--hgvs", help=_HGVS_HELP)] = False,
     vep: Annotated[bool, typer.Option("--vep", help=_VEP_HELP)] = False,
     as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
@@ -427,7 +428,11 @@ def resolve(
             effect=_effect_predictor(vep),
             clinvar=_load_clinvar(clinvar),
             dbsnp=_load_dbsnp(dbsnp),
+            hgvs=_hgvs_adapter(hgvs, state.reference_build),
         )
+    except MissingDependencyError as exc:
+        _echo_err(f"error: {reason(exc)}")
+        raise typer.Exit(ExitCode.UNAVAILABLE) from exc
     except ValueError as exc:
         _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.USAGE) from exc
@@ -765,6 +770,29 @@ _VEP_HELP = (
 )
 
 
+_HGVS_HELP = (
+    "Resolve a coding/protein HGVS input (`NM_000059.3:c.1234A>G`) by projecting it to "
+    "genomic coordinates. Opt-in for two reasons: it needs the optional `hgvs` package, "
+    "and the projection queries an external UTA database and SeqRepo, so the transcript "
+    "identifier leaves this machine. Genomic `g.` inputs need none of it and always work."
+)
+
+
+def _hgvs_adapter(enabled: bool, build: str) -> Any | None:
+    """Return an :class:`HgvsAdapter` with a live projector, or ``None``.
+
+    The projector targets the *run's* assembly rather than the library's ``GRCh38``
+    default: a ``c.`` expression projected onto GRCh38 and then designed against an
+    hg19 or T2T FASTA is a wrong locus that every later check would take at face value.
+    """
+    if not enabled:
+        return None
+    from alleleforge.types.variant import canonical_assembly
+    from alleleforge.variant.hgvs_adapter import HgvsAdapter, HgvsLibraryProjector
+
+    return HgvsAdapter(projector=HgvsLibraryProjector(assembly=canonical_assembly(build)))
+
+
 def _effect_predictor(vep: bool) -> Any | None:
     """Return a VEP effect predictor when ``--vep`` was given, else ``None``.
 
@@ -1068,8 +1096,8 @@ def design(
             "and a VCF record work everywhere. A ClinVar accession (VCV…) needs "
             "--clinvar and a dbSNP rsID (rs…) needs --dbsnp, each naming a release you "
             "supply — neither is ever downloaded. A coding/protein HGVS string (c./p.) "
-            "needs a projector from the `hgvs` library, which this surface has no way to "
-            "supply; genomic g. works without one."
+            "needs --hgvs, which projects it to genomic coordinates through the optional "
+            "`hgvs` package; genomic g. works without one."
         ),
     ],
     reference_fasta: Annotated[
@@ -1238,6 +1266,7 @@ def design(
             "weight download).",
         ),
     ] = False,
+    hgvs: Annotated[bool, typer.Option("--hgvs", help=_HGVS_HELP)] = False,
     vep: Annotated[bool, typer.Option("--vep", help=_VEP_HELP)] = False,
     reuse_cache: Annotated[bool, typer.Option("--cache", help=_CACHE_HELP)] = False,
     genome_index: Annotated[bool, typer.Option("--genome-index", help=_GENOME_INDEX_HELP)] = False,
@@ -1419,6 +1448,7 @@ def design(
             effect=_effect_predictor(vep),
             clinvar=clinvar_db,
             dbsnp=dbsnp_db,
+            hgvs=_hgvs_adapter(hgvs, state.reference_build),
         )
         store, index = _reuse(reference, cache=reuse_cache, index=genome_index)
         menu = run_design(
@@ -1447,6 +1477,13 @@ def design(
             allow_ng=allow_ng,
             allow_spry=allow_spry,
         )
+    # An optional package the run asked for and this environment does not have is not
+    # the caller misusing the command: `--hgvs` reaches a projector that needs the
+    # `hgvs` package, exactly as `batch` and `resolve` already report. Without this the
+    # one command most likely to be given a `c.` input exited 1 with a bare traceback.
+    except MissingDependencyError as exc:
+        _echo_err(f"error: {reason(exc)}")
+        raise typer.Exit(ExitCode.UNAVAILABLE) from exc
     except ValueError as exc:
         _echo_err(f"error: {reason(exc)}")
         raise typer.Exit(ExitCode.USAGE) from exc
@@ -1759,6 +1796,7 @@ def batch(
             "(consent-gated weight download).",
         ),
     ] = False,
+    hgvs: Annotated[bool, typer.Option("--hgvs", help=_HGVS_HELP)] = False,
     vep: Annotated[bool, typer.Option("--vep", help=_VEP_HELP)] = False,
     reuse_cache: Annotated[bool, typer.Option("--cache", help=_CACHE_HELP)] = False,
     genome_index: Annotated[bool, typer.Option("--genome-index", help=_GENOME_INDEX_HELP)] = False,
@@ -1942,6 +1980,7 @@ def batch(
             effect=_effect_predictor(vep),
             clinvar=clinvar_db,
             dbsnp=dbsnp_db,
+            hgvs=_hgvs_adapter(hgvs, state.reference_build),
             settings=settings,
             **ref_kwargs,
         )

@@ -29,9 +29,6 @@ _ROOT = Path(__file__).resolve().parents[1]
 _NOT_IN_CLI: dict[str, str] = {
     "inp": "the positional variant argument",
     "timestamp": "test-only hook for a reproducible provenance stamp",
-    "hgvs": "c./p. inputs need a projector from the `hgvs` library, which is not a "
-    "dependency and has no file a flag could name; genomic `g.` needs no adapter and "
-    "already works on every surface",
     "prime_outcome_predictor": "no trained prime-outcome model is registered to select",
 }
 

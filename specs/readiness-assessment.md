@@ -204,9 +204,19 @@ signature and requires the table below to name exactly the parameters left over.
 
 | Parameter | Why not, and whether it is a gap |
 |---|---|
-| `hgvs` | Blocked, not declined. `c.`/`p.` inputs need a projector from the `hgvs` library, which is not a dependency and is not a file a flag could name. Genomic `g.` needs no adapter and already works on every surface. |
 | `prime_outcome_predictor` | Not a gap today. It is an override for the prime byproduct baseline, and, as with prime *efficiency*, nothing trained ships to pass it. |
 | `timestamp` | Not a gap. It exists so tests can pin provenance; `--timestamp` would only let a user forge a run's clock. |
+
+### Addendum — `hgvs` closed, and its excuse described the wrong thing
+
+The row above these lines said `c.`/`p.` inputs were blocked because a projector "is
+not a dependency and is not a file a flag could name". Both halves are true and
+neither is a reason: this CLI offers every other optional capability behind a boolean
+flag and a named `MissingDependencyError` — `--trained-efficiency`, `--trained-prime`,
+the Parquet writers, the VCF fast path. `--hgvs` is the same shape, and it targets the
+*run's* assembly rather than the `hgvs` library's `GRCh38` default, because a `c.`
+expression projected onto GRCh38 and then designed against an hg19 or T2T FASTA is a
+wrong locus every later check would take at face value.
 
 ### Addendum — `clinvar` and `dbsnp` closed, and the excuse was false
 

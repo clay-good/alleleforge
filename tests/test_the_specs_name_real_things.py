@@ -71,6 +71,9 @@ _NOT_IDENTIFIERS = {
     # A PDF font encoding named by the reporting spec to say that the document
     # information dictionary is *not* written in it.
     "WinAnsiEncoding",
+    # An assembly name, not a symbol: the `hgvs` library's default target, named by the
+    # readiness assessment to say `--hgvs` overrides it with the run's own build.
+    "GRCh38",
     # Upstream PRIDICT2 symbols, named by the integration spec to describe the code
     # AlleleForge would have to call. They are deliberately not ours.
     "DeepPrimeGuideRNA",

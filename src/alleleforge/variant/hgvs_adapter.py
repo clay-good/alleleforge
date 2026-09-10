@@ -315,5 +315,14 @@ class HgvsAdapter:
     def _project(self, text: str) -> str:
         """Project a ``c.``/``p.`` expression to ``g.`` via the projector."""
         if self._projector is None:
-            raise ValueError(f"coding/protein HGVS {text!r} needs a projector (the 'hgvs' library)")
+            from alleleforge.variant.resolver import database_remedy
+
+            # Every other "this input needs something you have not given me" refusal in
+            # the resolver names what each caller can do about it. This one named the
+            # missing library and stopped, so the reader was told the shape of the gap
+            # and not that their own shell can close it.
+            raise ValueError(
+                f"coding/protein HGVS {text!r} needs a projector to reach its genomic "
+                f"coordinates. {database_remedy('hgvs')}"
+            )
         return self._projector(text)

@@ -129,9 +129,14 @@ Neither flag exists on the web API, for the same reason `--gnomad` does not: a
 client-supplied filesystem path on a server is a file-read primitive. Over HTTP, send
 coordinates.
 
-A coding or protein HGVS string (`c.`/`p.`) is the remaining input form no shell offers.
-It needs a projector from the `hgvs` library, which is not a dependency and is not a file
-a flag could name; genomic `g.` needs no adapter and works everywhere.
+A coding or protein HGVS string (`c.`/`p.`) needs `--hgvs`, on `resolve`, `design` and
+`batch` alike. It projects the expression to genomic coordinates through the optional
+`hgvs` package, targeting the run's own `--build` rather than the library's `GRCh38`
+default — a `c.` expression projected onto GRCh38 and designed against an hg19 or T2T
+FASTA is a wrong locus nothing downstream would question. Opt-in on two counts: the
+package is optional (a missing one exits `UNAVAILABLE`, naming it), and the projection
+queries an external UTA database and SeqRepo, so the transcript identifier leaves the
+machine. Genomic `g.` needs none of it and works everywhere.
 
 ### The TSV export
 

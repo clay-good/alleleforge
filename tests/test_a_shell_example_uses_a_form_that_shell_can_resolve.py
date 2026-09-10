@@ -106,7 +106,12 @@ def test_the_refusal_reaches_a_cli_caller(bad: str, tmp_path: Path) -> None:
 
 
 def test_the_argument_help_does_not_advertise_them_unqualified() -> None:
-    """Listing five forms with no caveat is what put them in the examples."""
+    """Listing five forms with no caveat is what put them in the examples.
+
+    The caveat is what each form *needs*, not that it is unreachable: `--clinvar`,
+    `--dbsnp` and `--hgvs` each turn one of them on, and the help says so rather than
+    leaving a reader to discover at the prompt that their accession went nowhere.
+    """
     import typer
 
     from alleleforge.cli.main import app
@@ -116,4 +121,5 @@ def test_the_argument_help_does_not_advertise_them_unqualified() -> None:
         params = root.commands[command].params  # type: ignore[attr-defined]
         variant = next(p for p in params if p.name == "variant")
         assert variant.help, command
-        assert "no way to supply" in variant.help, (command, variant.help)
+        for flag in ("--clinvar", "--dbsnp", "--hgvs"):
+            assert flag in variant.help, (command, flag, variant.help)
