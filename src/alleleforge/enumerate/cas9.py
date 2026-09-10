@@ -28,6 +28,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from alleleforge.enumerate._cut import cut_index
 from alleleforge.enumerate._frame import EditFrame
 from alleleforge.types.edit import EditIntent
 from alleleforge.types.guide import (
@@ -159,7 +160,11 @@ def _enumerate_window(
                         pam=pam,
                         pam_sequence=DNASequence(window),
                         placement=placement,
-                        cut_site=frame.coord(k - cut_offset),
+                        cut_site=frame.coord(
+                            cut_index(
+                                k - spacer_length, k, reads_with_frame=True, cut_offset=cut_offset
+                            )
+                        ),
                     )
                 )
         # Minus strand: the PAM reads NGG on the minus strand, i.e. revcomp here.
@@ -176,14 +181,14 @@ def _enumerate_window(
                         pam=pam,
                         pam_sequence=DNASequence(rc_window),
                         placement=placement,
-                        # `proto_lo + cut_offset - 1`, matching the pegRNA's nick: the
-                        # first base 3' of the cut along the strand that reads the
-                        # protospacer, which for a minus-strand guide is the *lower*
-                        # frame index. It read `proto_lo + cut_offset` — the base on the
-                        # other side of the cut — so a minus-strand guide's cut was one
-                        # base from where the same protospacer nicks as a pegRNA, and the
-                        # NHEJ outcome window below is centred on this coordinate.
-                        cut_site=frame.coord(k + pam_len + cut_offset - 1),
+                        cut_site=frame.coord(
+                            cut_index(
+                                k + pam_len,
+                                proto_end,
+                                reads_with_frame=False,
+                                cut_offset=cut_offset,
+                            )
+                        ),
                     )
                 )
     return guides

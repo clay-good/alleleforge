@@ -117,3 +117,46 @@ def test_the_two_strands_would_not_pass_one_formula(tmp_path: Path) -> None:
     A plus-strand-only check passed for the whole life of both defects.
     """
     assert _END - 3 != _START + 2
+
+
+def test_the_rule_lives_in_one_place() -> None:
+    """Three self-consistent copies of one rule is what produced two defects.
+
+    A guard that four call sites agree has to be maintained alongside a fifth.
+    `cut_index` removes the relationship instead of testing it, so this asserts nobody
+    does the arithmetic by hand again.
+
+    What counts as "by hand": a `+`/`-` on `cut_offset` outside a call to `cut_index`.
+    Not a mention of it — the enumeration margin is `spacer + PAM + cut_offset`, and
+    passing it to a helper is `cut_offset=cut_offset`. Both are legitimate, and a guard
+    that flagged them is a guard nobody could obey.
+    """
+    import ast
+
+    from alleleforge.enumerate import cas9, prime
+
+    offenders: list[str] = []
+    for module in (cas9, prime):
+        tree = ast.parse(Path(module.__file__).read_text(encoding="utf-8"))
+        inside_rule: set[int] = set()
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "cut_index"
+            ):
+                inside_rule |= {id(child) for child in ast.walk(node)}
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.BinOp) or id(node) in inside_rule:
+                continue
+            rendered = ast.unparse(node)
+            if "cut_offset" not in rendered:
+                continue
+            # The enumeration margin is the one legitimate sum, and it names no cut.
+            if rendered.startswith("spacer_length + "):
+                continue
+            offenders.append(f"{module.__name__}: {rendered}")
+    assert not offenders, (
+        f"these do the cut arithmetic by hand: {offenders}. Call `cut_index`, which is "
+        "where that rule lives — two hand-rolled copies of it disagreed with the pegRNA's."
+    )

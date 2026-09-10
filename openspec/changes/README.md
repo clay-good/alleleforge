@@ -19227,3 +19227,32 @@ plus strand had several.
 them, and that space has no owner.** Three modules, three correct-looking functions, three
 green test files. What was missing is the sentence "SpCas9 cuts in one place" written down
 somewhere a test could read — and the test that says so is four assertions long.
+
+## Round 566 — removing the relationship
+
+564 and 565 fixed two copies of one rule and left a guard requiring three copies to agree.
+That guard has to be maintained alongside a fourth copy, which is the shape that produced
+the defects in the first place.
+
+`enumerate._cut.cut_index` is the rule, stated once:
+
+    reading with the frame (PAM at the high end):  hi - cut_offset
+    reading against it     (PAM at the low end):   lo + cut_offset - 1
+
+The two expressions differ by one because a half-open interval names its low bound and
+excludes its high one — which is exactly the asymmetry both hand-rolled copies got wrong,
+and which is now written down in the one place a reader will look.
+
+The behavioural guard stays (one protospacer, one coordinate, three roles) and gains a
+structural one: a `+`/`-` on `cut_offset` outside a `cut_index` call fails. Narrowing that
+took three attempts, and the narrowing is the interesting part — the first version flagged
+the enumeration margin (`spacer + PAM + cut_offset`, a legitimate sum that names no cut),
+the second flagged `cut_offset=cut_offset` being *forwarded* to a helper. A guard that
+fires on legitimate code is a guard that gets deleted, so the rule it enforces has to be
+stated as precisely as the rule it protects.
+
+**Lesson: prefer removing a relationship to testing one.** 553 concluded that where one
+rule must live twice, the test is that they agree — and "must" was doing real work there
+(a click option and a pydantic field cannot share an implementation). Here nothing forced
+four copies; they were four because nobody had noticed they were the same sentence. When
+the copies *can* be collapsed, the agreement test is a consolation prize.
