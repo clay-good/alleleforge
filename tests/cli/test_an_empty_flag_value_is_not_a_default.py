@@ -28,10 +28,56 @@ from typer.testing import CliRunner
 
 from alleleforge.cli.main import ExitCode, app
 
+#: How to reach each command's body. The *commands* are derived below; this only says
+#: what each one needs to get past its own required arguments.
 _INVOCATIONS: dict[str, list[str]] = {
-    "design": ["chr2:71:A>C", "--no-offtarget"],
-    "batch": ["COHORT", "--no-offtarget"],
+    "design": ["chr2:71:A>C", "--no-offtarget", "--reference-fasta", "GENOME"],
+    "batch": ["COHORT", "--no-offtarget", "--reference-fasta", "GENOME"],
+    "offtarget": ["ATATATATATATATATATAT", "--reference-fasta", "GENOME"],
+    # Both required options supplied; the case under test appends its own, and
+    # click takes the last value for a non-repeatable option.
+    "lift": ["chr2:0-20(+)", "--chain", "CHAIN", "--from", "hg38", "--to", "hg19"],
+    "bench run": ["cas9-efficiency"],
+    "bench gap": ["cas9-efficiency"],
+    "bench leaderboard": ["RESULTS"],
 }
+
+
+def _string_option_commands() -> list[str]:
+    """Every command with a string option, from the app.
+
+    Derived, because the rule this file checks held for `design` and `batch` and not for
+    the other five — `aforge offtarget --populations ""` ran a scan with no populations
+    and said nothing. A list of commands written while fixing two of them is the thing
+    that goes stale; the app knows which commands have string options.
+    """
+    found: list[str] = []
+
+    def walk(command: Any, path: list[str]) -> None:
+        subcommands = getattr(command, "commands", None)
+        if subcommands:
+            for name, sub in subcommands.items():
+                walk(sub, [*path, name])
+            return
+        if any(
+            isinstance(p.type, StringParamType) and p.opts[0].startswith("-")
+            for p in command.params
+        ):
+            found.append(" ".join(path))
+
+    root = typer.main.get_command(app)
+    for name, command in root.commands.items():  # type: ignore[attr-defined]
+        walk(command, [name])
+    return sorted(found)
+
+
+def test_every_such_command_is_reachable_here() -> None:
+    """The invocation table must cover the derived commands, or a case is untested."""
+    missing = [c for c in _string_option_commands() if c not in _INVOCATIONS]
+    assert not missing, (
+        f"these commands take a string option and are not exercised: {missing}. "
+        "Add an invocation, so the blank-value rule is checked there too."
+    )
 
 
 def _string_flags(command: str) -> list[str]:
@@ -48,7 +94,8 @@ def _string_flags(command: str) -> list[str]:
 def _cases() -> list[tuple[str, str, str]]:
     return [
         (cmd, flag, blank)
-        for cmd in _INVOCATIONS
+        for cmd in _string_option_commands()
+        if cmd in _INVOCATIONS
         for flag in _string_flags(cmd)
         for blank in ("", "   ")
     ]
@@ -57,6 +104,7 @@ def _cases() -> list[tuple[str, str, str]]:
 def test_the_flags_are_found() -> None:
     assert "--intent" in _string_flags("design")
     assert "--weights" in _string_flags("batch")
+    assert "--populations" in _string_flags("offtarget")
 
 
 @pytest.mark.parametrize(("command", "flag", "blank"), _cases(), ids=lambda v: repr(v))
@@ -67,11 +115,19 @@ def test_a_blank_value_is_refused(
     genome.write_text(">chr2\n" + "AT" * 70 + "\n")
     cohort = tmp_path / "cohort.txt"
     cohort.write_text("chr2:71:A>C\n")
-    positional = [a.replace("COHORT", str(cohort)) for a in _INVOCATIONS[command]]
-    result = runner.invoke(
-        app,
-        [command, *positional, "--reference-fasta", str(genome), flag, blank],
-    )
+    chain = tmp_path / "over.chain"
+    chain.write_text("")
+    results = tmp_path / "results.json"
+    results.write_text("{}")
+    substitutions = {
+        "GENOME": str(genome),
+        "COHORT": str(cohort),
+        "CHAIN": str(chain),
+        "RESULTS": str(results),
+    }
+    args = [*command.split()]
+    args += [substitutions.get(a, a) for a in _INVOCATIONS[command]]
+    result = runner.invoke(app, [*args, flag, blank])
     assert result.exit_code == ExitCode.USAGE, (
         f"{command} {flag} {blank!r} exited {result.exit_code}: {result.stderr}"
     )

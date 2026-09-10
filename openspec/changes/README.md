@@ -18512,3 +18512,37 @@ one needs a derivation.** Rounds 537, 539 and 541 each fixed the instance in fro
 and left the set; each time the next round was the same finding one member along. The
 cost of deriving the population is one AST walk. The cost of not deriving it has now been
 three rounds.
+
+## Round 543 — two commands of seven
+
+542's lesson, applied to 529 instead of to itself: "I fixed it" and "the rule now holds"
+are different claims. 529 taught `design` and `batch` that a flag given `""` is not a flag
+omitted. Seven commands take string options.
+
+    $ aforge offtarget ATATATATATATATATATAT --reference-fasta g.fa --populations ''
+    spacer ATATATATATATATATATAT / PAM NGG: 0 site(s), specificity 1.000
+
+A scan with no populations, silently, from the flag that decides whether the run is
+population-aware at all — the project's stated differentiator. `lift`, `bench run`,
+`bench gap` and `bench leaderboard` were the same.
+
+The guard now derives its **commands** from the app, not just its flags from each command,
+with a companion that fails when a derived command has no invocation in the table: the
+population that went stale last time was one level up from the one being derived.
+
+Two things the round taught that were not the finding:
+
+**The refusal was naming a flag that does not exist.** `_refuse_blank_options` built its
+message as `"--" + name.replace("_", "-")`, so `aforge lift`'s `from_build` — spelled
+`--from` — was told to omit `--from-build`. It asks the running command now.
+
+**And asking it required the right click.** `click.get_current_context()` returns `None`
+inside a typer command, because typer vendors its own click and the plain import reads a
+different context stack. It fails *silently* to the fallback, which is exactly how the
+wrong flag name would have shipped a second time.
+
+**Lesson: derive the population one level above the one you just fixed.** 529 derived the
+flags and hard-coded the commands. 542 derived the writes and hard-coded nothing, and was
+right. The rule is not "derive things" — it is that whatever list you *wrote by hand* while
+fixing the instance is the list that will be wrong next round, and it is always one level
+up from the list you were careful about.

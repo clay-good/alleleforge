@@ -1799,6 +1799,25 @@ def _check_output_paths(*, dirs: dict[str, Path | None], files: dict[str, Path |
             raise typer.Exit(ExitCode.MISSING_DATA)
 
 
+def _option_name(parameter: str) -> str:
+    """Return the flag a caller typed for ``parameter``, from the running command.
+
+    Not `"--" + name.replace("_", "-")`: `aforge lift`'s `from_build` is spelled
+    `--from`, and a refusal naming a flag that does not exist is worse than one naming
+    none. The command knows its own option names; asking it cannot go stale.
+    """
+    # typer vendors its own click, so the plain `click.get_current_context` reads a
+    # different context stack and always answers `None` here.
+    from typer._click.globals import get_current_context
+
+    ctx = get_current_context(silent=True)
+    if ctx is not None and ctx.command is not None:
+        for param in ctx.command.params:
+            if param.name == parameter and param.opts:
+                return str(param.opts[0])
+    return "--" + parameter.replace("_", "-")
+
+
 def _refuse_blank_options(**given: str | Sequence[str] | None) -> None:
     """Refuse a flag that was given with an empty (or whitespace) value.
 
@@ -1820,7 +1839,7 @@ def _refuse_blank_options(**given: str | Sequence[str] | None) -> None:
         # with `$B` unset silently restricts the scan to half of what was asked for.
         values = [value] if isinstance(value, str) else list(value)
         if any(not v.strip() for v in values):
-            flag = "--" + name.replace("_", "-")
+            flag = _option_name(name)
             _echo_err(
                 f"error: {flag} was given an empty value. Omit the flag to use the "
                 "default; an empty string is usually an unset shell variable."
@@ -2542,6 +2561,13 @@ def offtarget(
     from alleleforge.types.guide import PAM
 
     state: GlobalState = ctx.obj
+    _refuse_blank_options(
+        populations=populations,
+        pam=pam,
+        scorer=scorer,
+        on_target=on_target,
+        region=regions,
+    )
     reference = _load_reference(reference_fasta, state.reference_build)
     pops = _parse_populations(populations)
     _warn_if_ancestries_unbacked(pops, gnomad, haplotypes)
@@ -3284,6 +3310,7 @@ def lift(
     if not chain.is_file():
         _echo_err(f"error: chain file not found: {chain}")
         raise typer.Exit(ExitCode.MISSING_DATA)
+    _refuse_blank_options(from_build=from_build, to_build=to_build)
     intervals = [GenomicInterval.parse(text) for text in _parsed_loci(loci)]
     try:
         lo = Liftover.from_chain_file(chain, source_build=from_build, target_build=to_build)
@@ -3590,6 +3617,7 @@ def bench_run(
         _missing_dependency(exc)
 
     state: GlobalState = ctx.obj
+    _refuse_blank_options(split_version=split_version)
     _check_output_paths(dirs={}, files={"--out": out})
     try:
         task_obj = get_task(task)
@@ -3679,6 +3707,11 @@ def bench_gap(
     them, oriented so a positive gap always means worse generalization, whichever
     direction the task's primary metric ranks in.
     """
+    _refuse_blank_options(
+        split_version=split_version,
+        in_context_fold=in_context_fold,
+        held_out_fold=held_out_fold,
+    )
     try:
         from alleleforge.benchmark.baseline import build_baseline
         from alleleforge.benchmark.runner import generalization_gap
@@ -3881,6 +3914,8 @@ def bench_leaderboard(
     verify its own signature and carry a complete model card (name, license,
     citation), so the board cannot show a number that was edited after signing.
     """
+    _refuse_blank_options(submitter=submitter)
+
     from datetime import UTC, datetime
 
     # The benchmark stack transitively imports the genome layer, so a
