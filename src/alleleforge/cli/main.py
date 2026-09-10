@@ -1430,6 +1430,16 @@ def design(
 
     state: GlobalState = ctx.obj
     cfg = _load_config(config)
+    _refuse_blank_options(
+        intent=intent,
+        populations=populations,
+        weights=weights,
+        cell_context=cell_context,
+        vector_scheme=vector_scheme,
+        chromatin_track=chromatin_track,
+        chemistry=chemistry,
+        region=regions,
+    )
     intent_str = intent or cfg.get("intent", "correct")
     pops_str = populations if populations is not None else cfg.get("populations")
     chem_list = chemistry if chemistry else cfg.get("chemistry")
@@ -1715,6 +1725,35 @@ def _check_output_paths(*, dirs: dict[str, Path | None], files: dict[str, Path |
             raise typer.Exit(ExitCode.USAGE)
 
 
+def _refuse_blank_options(**given: str | Sequence[str] | None) -> None:
+    """Refuse a flag that was given with an empty (or whitespace) value.
+
+    Every one of these options is read as `value or cfg.get(...)`, so an explicit empty
+    string is indistinguishable from the flag never being typed — and silently takes the
+    default. `aforge design "$V" --intent "$INTENT"` with `INTENT` unset designs a
+    `correct` edit; `--weights "$W"` ranks by the default weights; `--populations "$P"`
+    runs no population analysis at all. The flag was typed, so the run is not what was
+    asked for, and nothing on any surface says so.
+
+    Names are passed as keyword arguments so the message can name the flag the user
+    typed rather than the parameter this function received.
+    """
+    for name, value in given.items():
+        if value is None:
+            continue
+        # A repeatable option (`--region`, `--chemistry`) arrives as a tuple, and one
+        # blank element among several is the same mistake: `--region "$A" --region "$B"`
+        # with `$B` unset silently restricts the scan to half of what was asked for.
+        values = [value] if isinstance(value, str) else list(value)
+        if any(not v.strip() for v in values):
+            flag = "--" + name.replace("_", "-")
+            _echo_err(
+                f"error: {flag} was given an empty value. Omit the flag to use the "
+                "default; an empty string is usually an unset shell variable."
+            )
+            raise typer.Exit(ExitCode.USAGE)
+
+
 def _read_variant_list(path: Path) -> list[str]:
     """Read a one-variant-per-line list, skipping blanks and ``#`` comments.
 
@@ -1988,6 +2027,15 @@ def batch(
 
     state: GlobalState = ctx.obj
     cfg = _load_config(config)
+    _refuse_blank_options(
+        intent=intent,
+        populations=populations,
+        weights=weights,
+        cell_context=cell_context,
+        chromatin_track=chromatin_track,
+        chemistry=chemistry,
+        region=regions,
+    )
     intent_str = intent or cfg.get("intent", "correct")
     pops_str = populations if populations is not None else cfg.get("populations")
     weights_obj = _parse_weights(weights or cfg.get("weights"))

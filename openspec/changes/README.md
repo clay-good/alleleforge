@@ -18059,3 +18059,36 @@ handed a path one kind of wrong thing. Crossing the derived flag list with a der
 *ways to be wrong* turned one probe into a hundred and three and found every remaining
 crash in a single pass — and told me, with the same evidence, that the input side is done.
 A sweep that only reports failures cannot say that.
+
+## Round 529 — the flag that was typed and had no effect
+
+528's lesson: cross a derived population with a derived list of ways to be wrong. Same
+method, different axis — every string option of `design` and `batch`, against the shapes a
+shell produces: `""`, `"   "`, a stray comma, a leading space, the wrong case.
+
+Most answers were already right: an unknown intent lists the four, an unknown chemistry
+lists the four, a bad locus shows the form, `--populations afr,,eas` already drops the
+empty element. One shape was not:
+
+    $ aforge design "$V" --reference-fasta g.fa --intent "$INTENT"   # INTENT unset
+    [designs a `correct` edit, exit 0, nothing said]
+
+`intent or cfg.get("intent", "correct")` cannot tell an empty string from an absent flag.
+Five options share the pattern, and they are not decorative: `--intent` decides what is
+designed, `--weights` decides the ranking, `--populations` decides whether any population
+analysis happens, `--cell-context` decides whether the out-of-distribution flag can be
+raised at all. Every one of them silently took its default from a flag the user typed.
+
+This is not a typo class. `--intent "$INTENT"` with an unset variable is what a shell
+script *does*, and `set -u` is not on by default in the environments this tool runs in.
+
+Repeatable options are included, because `--region "$A" --region "$B"` with `$B` unset
+restricts the scan to half of what was asked for — refused today by the locus parser, but
+with a message about locus syntax rather than about the argument that was blank.
+
+**Lesson: "the flag had no effect" is a different defect from "the flag was rejected", and
+only the second one is visible.** Every guard this project has on its vocabulary checks
+what happens to a *wrong* value. A value that is not wrong, merely absent-shaped, walks
+through all of them into the default — and the run then reports the default as if it had
+been chosen. The question is not "is this value valid" but "did typing this flag change
+anything".
