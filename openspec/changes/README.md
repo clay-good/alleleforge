@@ -18457,3 +18457,31 @@ one report open and the sentence is one of twenty. The cohort path, where the sa
 is the difference between a screened cohort and an unscreened one, came last — because it is
 the surface I was not looking at when I found the bug. Fix outward from the cheap surface to
 the expensive one, not just to the next one.
+
+## Round 541 — the check was about shape
+
+528 moved the output-path checks before the work: a `--summary-tsv` pointing at a directory
+should not be discovered after three hundred variants. Those checks are about the path's
+*kind*, and a read-only directory has exactly the right kind:
+
+    $ aforge design chr11:2004:T>A --reference-fasta hbb.fa --format html --out ro/r.html
+    [the whole design runs]
+    PermissionError: [Errno 1] Operation not permitted: 'ro/r.html.provenance.json'
+
+A traceback, after the work, from the *sidecar* rather than the artifact — so even the
+filename in it points at a file the user did not name. This project's own
+`docker-compose.yml` mounts a volume read-only; a container run writing its report into that
+mount is the ordinary case, not an edge one.
+
+Both halves, and the second is not optional. Writability is checked up front so the cohort
+fails in its first second instead of its last — but `os.access` is *advisory*: it can say
+yes under ACLs, on a network filesystem, or as root, and then the write still fails. A
+pre-check that replaced the handler would move the traceback rather than remove it, so the
+write is guarded too, and the refusal says **the design finished and only the write failed**,
+which is what tells a reader whether a re-run costs seconds or an hour.
+
+**Lesson: a check that runs early is a different check, not the same one moved.** The
+shape checks and the writability check answer different questions and neither implies the
+other; and an advisory answer — which is all the filesystem will give you before you try —
+cannot replace handling the real attempt. Moving a check earlier is worth doing and is never
+the whole of it.

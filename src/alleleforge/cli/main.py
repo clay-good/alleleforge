@@ -26,7 +26,7 @@ import hashlib
 import json
 import os
 import tomllib
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import IntEnum, StrEnum
 from pathlib import Path
@@ -737,6 +737,29 @@ def _load_config(path: Path | None) -> dict[str, Any]:
                 f"known keys: {', '.join(sorted(known))}"
             )
     return cfg
+
+
+def _write_artifact(out: Path, write: Callable[[], object], menu: Any) -> None:
+    """Write the artifact and its sidecar, or refuse by name.
+
+    The shape checks in `_check_output_paths` run before the design and catch a path of
+    the wrong *kind*. They cannot catch a directory that is read-only, out of space, or
+    on a filesystem that refuses the sidecar's name — and those arrived as a raw
+    `PermissionError` / `OSError` traceback **after** the whole design had run, which is
+    the worst moment for the one failure that loses the work. This project's own
+    `docker-compose.yml` mounts a volume read-only, so it is not a hypothetical.
+    """
+    try:
+        write()
+        sidecar = _write_provenance_sidecar(out, menu)
+    except OSError as exc:
+        _echo_err(
+            f"error: could not write {out}: {reason(exc)}. The design finished; only "
+            "the write failed, so re-running with a writable --out costs nothing but "
+            "the time."
+        )
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
+    _echo_err(f"wrote {out}" + (f" and {sidecar}" if sidecar else ""))
 
 
 def _write_provenance_sidecar(out: Path, menu: Any) -> Path | None:
@@ -1617,12 +1640,10 @@ def design(
             _echo_err("error: --format parquet requires --out")
             raise typer.Exit(ExitCode.USAGE)
         try:
-            report_to_parquet(report, out)
+            _write_artifact(out, lambda: report_to_parquet(report, out), menu)
         except MissingDependencyError as exc:
             _echo_err(f"error: {reason(exc)}")
             raise typer.Exit(ExitCode.UNAVAILABLE) from exc
-        sidecar = _write_provenance_sidecar(out, menu)
-        _echo_err(f"wrote {out}" + (f" and {sidecar}" if sidecar else ""))
         if as_json:
             typer.echo(menu.model_dump_json(indent=2))
         return
@@ -1639,9 +1660,7 @@ def design(
         rendered = render_pdf(report, max_candidates=cap)
 
     if out is not None:
-        out.write_bytes(rendered)
-        sidecar = _write_provenance_sidecar(out, menu)
-        _echo_err(f"wrote {out}" + (f" and {sidecar}" if sidecar else ""))
+        _write_artifact(out, lambda: out.write_bytes(rendered), menu)
     elif as_json:
         # The caller asked for the ranked menu and gave nowhere to put the report, and a
         # stream cannot carry both (`test_a_json_stream_carries_only_json`). The menu is
@@ -1718,9 +1737,19 @@ def _check_output_paths(*, dirs: dict[str, Path | None], files: dict[str, Path |
     it cannot hand over, which is the same defect with a longer fuse.
     """
     for flag, directory in dirs.items():
-        if directory is not None and directory.exists() and not directory.is_dir():
+        if directory is None:
+            continue
+        if directory.exists() and not directory.is_dir():
             _echo_err(f"error: {flag} {directory} exists and is not a directory.")
             raise typer.Exit(ExitCode.USAGE)
+        # An existing directory must be writable; a missing one is created, so what has
+        # to be writable is the nearest parent that exists.
+        target = directory
+        while not target.exists() and target != target.parent:
+            target = target.parent
+        if not os.access(target, os.W_OK):
+            _echo_err(f"error: {flag} {directory}: {target} is not writable.")
+            raise typer.Exit(ExitCode.MISSING_DATA)
     for flag, path in files.items():
         if path is None:
             continue
@@ -1737,6 +1766,17 @@ def _check_output_paths(*, dirs: dict[str, Path | None], files: dict[str, Path |
         if not parent.is_dir():
             _echo_err(f"error: {flag} {path}: {parent} is not a directory.")
             raise typer.Exit(ExitCode.USAGE)
+        # Writability, not just shape. A read-only mount is the case this project's own
+        # `docker-compose.yml` creates, and discovering it *after* a three-hundred-variant
+        # run is the one failure that loses the work. Advisory: `os.access` can be wrong
+        # under ACLs or as root, so the write itself is still guarded — this only moves
+        # the ordinary case to before the design instead of after it.
+        if not os.access(parent, os.W_OK):
+            _echo_err(
+                f"error: {flag} {path}: {parent} is not writable. Checked before the "
+                "run, because the write happens after it."
+            )
+            raise typer.Exit(ExitCode.MISSING_DATA)
 
 
 def _refuse_blank_options(**given: str | Sequence[str] | None) -> None:

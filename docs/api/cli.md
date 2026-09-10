@@ -60,7 +60,9 @@ discovers at the end that its summary path is a directory has done the work and 
 nowhere to put it. A parent directory that does not exist is a usage error rather than
 something the run creates, since `--out reslts/design.json` is a typo far more often than
 an instruction to build a tree. `--output-dir` does create, because a directory is what
-that flag names.
+that flag names. The same check asks whether the destination is *writable*, so a
+run into a read-only mount fails in its first second rather than its last — and the write
+is still guarded, because that answer is advisory.
 
 ## Exit codes
 
