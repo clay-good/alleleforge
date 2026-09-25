@@ -19684,3 +19684,68 @@ changes, then set it to something else and read that number. Where a setting can
 honored, refusing beats relabelling — and check whether the two defaults on either side of
 the seam are the same number, because that is what makes the gap invisible until someone
 changes one.
+
+## Round 579 — sixty mutants, and the eight that lived
+
+Four queries came back empty first. Every `Settings` field has a real consumer (the
+`allow_network` scare was my own sweep excluding `config.py`, which is exactly where a
+well-designed setting's accessor lives). `allow_ng`/`allow_spry` are honored through to
+the enumerator's fallback on both shells. `design()`'s thirty parameters are all shell-
+reachable but genuine dependency injection, which the readiness assessment already
+derives. And all four pairs of equal-valued module constants are correctly paired —
+including `DEFAULT_ACTIONABLE_RADIUS` and `_SEED_LENGTH`, both 10, both safety-relevant.
+
+So the round stopped reading and let the machine look. Sixty mutants over
+`types/offtarget.py` — comparison flips, arithmetic swaps, `max`/`min`, `any`/`all`,
+dropped `not`s — against 484 focused tests. 52 died. **All 8 survivors were in the
+caveat machinery**: the clauses that decide what a reader is told about a scan. Not one
+was in the specificity, burden or ancestry arithmetic, which is where the reading had
+been looking.
+
+The sharpest was `population_sites`, which filters `origin is not SiteOrigin.REFERENCE`
+and feeds the `population-offtarget` flag. Its only test built one reference site and one
+population site and asserted `len(...) == 1` — true whichever side the predicate selects.
+A symmetric fixture measured by a count cannot say which half came back, which is R575's
+lesson about length assertions moved from a sequence to a *set*. Inverted, the flag would
+announce population risk on a reference-only report and stay silent on a population-driven
+one, in the feature this project is built around.
+
+The rest are the same shape. The PAM-broadening notice (`scanned_pam != pam`) had nothing
+asserting it stays away from a scan that did not broaden — and a reader told that
+low-stringency sites were nominated will read the site list as more complete than it is.
+The build-mismatch tally's `n > 0` had no zero case, so relaxing it names every clean
+source as carrying records for another assembly: a false alarm on the one clause in that
+paragraph with a remedy, sending a caller to replace a file that is fine. `count >= total`
+picks between "every one of the 2 records" and "1 of the 2", and the code's own comment is
+the specification — the first is a wrong-build file, the second is one stale record in a
+good file — so the strict `>` renders the reassuring half of that pair for the worst case.
+Both unreachable-cut-off notes tested `> 1.0`, where 1.0 is reachable: a perfect match
+scores CFD 1.0 and a fixed allele reaches MAF 1.0, so `>=` tells a caller who deliberately
+asked for either that their empty result is an artifact of an impossible threshold —
+inverting what the 0 means.
+
+Every predicate was correct. The round is the measurement, and the missing half was always
+the same half: that the sentence stays away when it does not apply. A caveat that fires
+when it should not is worse than one that never fires, because it spends a reader's
+attention on something they cannot act on.
+
+Three further mutants needed the two fixtures the first eight did not: the 0.99 materiality
+line below which a coverage warning is deliberately suppressed, and the searchable
+fraction's operands — `resolved_bases` defaults to 0, and 0 divided by the extent and 0
+multiplied by it are both 0, so any fixture leaving it unset cannot tell a quotient from a
+product. Also pinned, per R553, is the agreement between the two places the build-mismatch
+and empty-search claims are each rendered: the explaining paragraph and the bracket-ready
+headline word them differently on purpose, so each is probed by its own sentence and they
+are required to speak and stay silent together.
+
+`types/offtarget.py` now kills 60 of 60 mutants, measured by a 14-test file in 0.24 s.
+
+**Lesson: ask the machine which of your predicates can be inverted without anyone
+noticing, and expect the answer to be the disclosures rather than the arithmetic.** The
+arithmetic gets the careful reading because it is where a wrong answer feels expensive; the
+sentence explaining the answer gets a test that it appears, and never one that it stays
+away. Method, worth repeating: mutate one file, run only the tests that name its functions,
+and read the survivors as a set — theirs was a shape (every one a caveat) that no single
+finding would have shown. Two of the three second-round survivors were artifacts of the
+narrowed test list rather than real gaps, so a shrinking mutant set has to be checked
+against the wider suite before it is believed.
