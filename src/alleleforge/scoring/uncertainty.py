@@ -63,6 +63,41 @@ OOD_WIDEN_FACTOR = 2.0
 OOD_MIN_HALF_WIDTH = 0.05
 
 
+def check_interval_level_is_honorable(interval_level: float) -> None:
+    """Refuse an interval level a design run cannot actually deliver.
+
+    Every prediction a design run produces carries a **fixed** heuristic half-width
+    (e.g. ±0.15) and a *nominal* level label — see
+    :data:`~alleleforge.types.prediction.NOMINAL_INTERVAL_NOTE`. Nothing on that path
+    maps a level to a width: :class:`ConformalCalibrator` is the only thing that can,
+    and it is reached from :mod:`alleleforge.benchmark`, never from
+    :func:`~alleleforge.design.designer.design`.
+
+    So a non-default level is a *label with nothing behind it*. It was accepted from
+    ``config.toml`` and ``ALLELEFORGE_INTERVAL_LEVEL``, recorded in the provenance
+    snapshot, and routed by ``CONFIG_SNAPSHOT_ROUTES`` as having taken effect "on every
+    prediction" — while every band on the page stayed the 80%-labelled ±0.15. Asking
+    for 95% and being shown 80% intervals under a 95% provenance line is the one
+    outcome worth an error: a narrower guarantee than the number claims.
+
+    Raises:
+        ValueError: When ``interval_level`` differs from :data:`DEFAULT_INTERVAL_LEVEL`.
+            Named for the setting, because the caller set it in a file or an env var and
+            a remedy they have to translate is half a remedy.
+    """
+    if interval_level == DEFAULT_INTERVAL_LEVEL:
+        return
+    raise ValueError(
+        f"interval_level {interval_level:g} cannot be honored by a design run: every "
+        f"prediction here carries a fixed heuristic half-width labelled "
+        f"{DEFAULT_INTERVAL_LEVEL:g}, and no scorer on this path recomputes a band from "
+        f"a level, so {interval_level:g} would be a label with nothing behind it. Leave "
+        f"it at {DEFAULT_INTERVAL_LEVEL:g} (drop `interval_level` from your config.toml "
+        f"or unset ALLELEFORGE_INTERVAL_LEVEL); to calibrate a band to a level you "
+        f"choose, use `alleleforge.benchmark` and its ConformalCalibrator"
+    )
+
+
 def _z(level: float) -> float:
     """Return the two-sided standard-normal z for a coverage ``level``."""
     return NormalDist().inv_cdf((1.0 + level) / 2.0)

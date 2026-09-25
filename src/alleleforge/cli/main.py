@@ -1603,9 +1603,14 @@ def design(
     reference = _load_reference(reference_fasta, state.reference_build)
     _validate_regions(region_list, reference)
     patient_variants = _load_patient_variants(patient_vcf, reference)
-    # Honor the user's config file (its Settings keys) with the CLI --seed as
-    # an override, so a config.toml maf_threshold/interval_level/cache_dir is
-    # applied instead of being silently ignored.
+    # Honor the user's config file (its Settings keys) with the CLI --seed as an
+    # override, so a config.toml seed/reference/cache_dir/maf_threshold is applied
+    # instead of being silently ignored. Loading a key is not applying it: this
+    # comment claimed `maf_threshold` and `interval_level` were both applied while
+    # `design()` read neither, and the provenance snapshot recorded the asked-for
+    # value either way, which is what made it look settled. `maf_threshold` now
+    # reaches the scan; a non-default `interval_level` is refused there, because no
+    # scorer on that path can recompute a band from a level.
     settings = _load_settings(config, state.seed)
     cas9_scorer = None
     if trained_efficiency:
@@ -2276,9 +2281,14 @@ def batch(
     _validate_regions(region_list, reference)
     patient_variants = _load_patient_variants(patient_vcf, reference)
     assert reference_fasta is not None  # _load_reference exits otherwise
-    # Honor the user's config file (its Settings keys) with the CLI --seed as
-    # an override, so a config.toml maf_threshold/interval_level/cache_dir is
-    # applied instead of being silently ignored.
+    # Honor the user's config file (its Settings keys) with the CLI --seed as an
+    # override, so a config.toml seed/reference/cache_dir/maf_threshold is applied
+    # instead of being silently ignored. Loading a key is not applying it: this
+    # comment claimed `maf_threshold` and `interval_level` were both applied while
+    # `design()` read neither, and the provenance snapshot recorded the asked-for
+    # value either way, which is what made it look settled. `maf_threshold` now
+    # reaches the scan; a non-default `interval_level` is refused there, because no
+    # scorer on that path can recompute a band from a level.
     settings = _load_settings(config, state.seed)
 
     ingest: Any = None

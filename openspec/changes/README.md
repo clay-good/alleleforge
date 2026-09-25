@@ -19622,3 +19622,65 @@ skipped, the native extension built so the parity suites run rather than skip.
 update was itself written as a round, for the same reason. Nine rounds is about the point
 at which a reader consulting it would be misled — not by anything it says, but by what it
 stops before.
+
+## Round 578 — two settings recorded in provenance and read by nothing
+
+`Settings.maf_threshold` and `Settings.interval_level` are declared with bounds, settable
+from `config.toml` and `ALLELEFORGE_*`, stamped into `provenance.config_snapshot`, and
+named in `CONFIG_SNAPSHOT_ROUTES` — the table whose whole job is "every omission must be a
+decision" — as having taken effect: "`interval_level` on every prediction, `maf_threshold`
+in the search description." `design()` read neither. `cfg` is consulted twice in that
+function, for `seed` and for `snapshot()`, and nowhere else.
+
+What a run did with them: configured for `maf_threshold = 0.05`, the population pass ran
+at the engine's own `maf=0.001` default, because none of the three verticals passed one to
+`RunScanner`. That is the direction that reports *more* population risk than was asked
+for, which is why it reads as harmless — but it silently discards a scope control the
+caller chose, and the report then prints the 0.001 it used as confidently as it would have
+printed theirs. `interval_level = 0.95` labelled every band 80%, since every design-path
+prediction is a fixed heuristic half-width (`half = 0.15`) carrying the level as a
+*nominal* label, while provenance recorded 0.95 — a tighter guarantee than the run
+delivered, on the axis this project is most careful about.
+
+Two equal defaults hid the first one, in the shape R576 had just described in the ranking
+weights. `config.DEFAULT_MAF_THRESHOLD` is 0.001 and `search()`'s own `maf` default is
+0.001, so the snapshot and the search description agreed on every default run and could
+only disagree once somebody set the value — the case with no test. And the round that made
+the config file *load* reported these keys as applying; they only ever reached the
+snapshot. Being recorded looks like being used, which is what let it sit.
+
+The guard over that table could not fail. `test_the_resolved_settings_reach_the_page` read
+its expected `interval_level` out of `config_snapshot` on a *default* run — comparing the
+default to itself — and asserted nothing at all about `maf_threshold`, the one key whose
+route the table spells out. The file it lives in opens by naming this trap in a different
+form ("a page *differing* when a setting changes proves nothing"), and three of its checks
+were rewritten around it; this one was written the other way and passed throughout.
+
+The two settings needed opposite fixes, which is the part worth keeping. `maf_threshold`
+is honorable, so it is now threaded through all three verticals into the scan.
+`interval_level` is not honorable *anywhere on this path*: nothing there maps a level to a
+width, and `ConformalCalibrator` — the one component that fits a band to a coverage target
+— is reached from `alleleforge.benchmark` and never from `design()`. So a non-default value
+is refused, in `check_bulge_budget`'s idiom, rather than relabelled. The web app refuses it
+at boot instead of per request: `design()` raises, and every path out of a handler would
+have answered a correct request with a 4xx for an operator's config file.
+
+Expected values in the rewritten guard are literals, a non-default seed is required to
+reach the page so the literal cannot pass on a constant alone, each formerly inert setting
+is checked at a non-default value, and a fourth guard pins the three modules that express
+the nominal level to one number — the refusal is only correct while it names the level the
+scorers actually stamp. Both new checks were run against the unfixed source and fail there
+(`assert 0.001 == 0.05`, and `DID NOT RAISE`).
+
+Four doc-honesty guards then caught this round's own documentation: a duplicate
+`### Fixed` in an `[Unreleased]` section that already had one, its change types out of
+order, a `MAF >= 0.05` example in `cli.md` that the documented-defaults guard correctly
+read as a claim about the shipped default, and a stale generated round index.
+
+**Lesson: loading a setting is not applying it, and the snapshot is where an unread one
+hides — being recorded looks like being used.** The query is narrower than "which fields
+have no readers": for each *setting*, name the module that consumes it and the number it
+changes, then set it to something else and read that number. Where a setting cannot be
+honored, refusing beats relabelling — and check whether the two defaults on either side of
+the seam are the same number, because that is what makes the gap invisible until someone
+changes one.

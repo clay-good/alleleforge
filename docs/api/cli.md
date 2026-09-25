@@ -245,6 +245,27 @@ simplicity = 0.1
 `allow_network`, `cache_dir`) go at the top level of the same file. An unrecognized
 key is warned about and ignored rather than silently accepted.
 
+`maf_threshold` is the minimum population allele frequency an allele needs to enter
+the population-aware off-target scan, so it gates which gnomAD and haplotype alleles
+count as carrying. It reaches the search itself, and the value used is named in the
+search description of every candidate whose scan had a population source — by default
+`population alleles at MAF >= 0.001`, and whatever you set in its place otherwise.
+
+`interval_level` is accepted only at its default, `0.80`. Every prediction a design run
+produces carries a *fixed* heuristic half-width with a nominal level label, and no
+scorer on that path recomputes a band from a level — so a different value would be a
+label with nothing behind it, and a run given one is refused rather than shown 80%
+intervals under a 95% provenance line:
+
+```
+error: interval_level 0.95 cannot be honored by a design run: every prediction here
+carries a fixed heuristic half-width labelled 0.8 [...]
+```
+
+To calibrate an interval to a level you choose, use `alleleforge.benchmark` and its
+`ConformalCalibrator`, which is the one component that fits a band to a coverage
+target. See [Uncertainty](../concepts/uncertainty.md).
+
 `design` and `batch` read almost the same keys, and the one difference is reported
 rather than dropped: `vector_scheme` names a cloning vector for a *report*, and a
 cohort writes ranked menus, so a batch run given it says

@@ -16,8 +16,18 @@ payloads (such as an outcome distribution) carry an interval over a derived scal
 ## Why 80%
 
 An 80% predictive interval is wide enough to be honest about model error yet narrow enough to rank
-candidates. It is the spec-mandated default and is overridable per call. The level is always stored
-alongside the bounds so downstream consumers never assume a coverage that was not produced.
+candidates. It is the spec-mandated default. The level is always stored alongside the bounds so
+downstream consumers never assume a coverage that was not produced.
+
+A `Prediction` can be constructed at any level, but **a design run cannot be asked for a different
+one.** Every band on that path is a fixed heuristic half-width (e.g. ±0.15) carrying the level as a
+*nominal* label — see `NOMINAL_INTERVAL_NOTE` — and nothing there maps a level to a width, so
+`interval_level = 0.95` in a `config.toml` would relabel an unchanged ±0.15 rather than widen it.
+Such a run is refused outright (`check_interval_level_is_honorable`); the setting was previously
+accepted, recorded in provenance, and ignored, which reads as a tighter guarantee than was
+delivered. [`ConformalCalibrator`][alleleforge.scoring.uncertainty.ConformalCalibrator], reached
+through `alleleforge.benchmark`, is the one component that fits a band to a coverage target you
+choose.
 
 ## Combining predictions
 

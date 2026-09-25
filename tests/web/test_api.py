@@ -507,6 +507,23 @@ def test_create_app_config_file_governs_settings(
     assert app.state.settings.seed == 30313233
 
 
+def test_create_app_refuses_an_unhonorable_interval_level(
+    tmp_path: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A deployment that cannot deliver its configured interval level must not boot.
+
+    `design()` refuses the level, so without this every request would fail *inside* a
+    handler and be answered as though the caller had done something wrong. The operator
+    set it, in a file the client cannot see; the boot is where they will read about it.
+    """
+    cfg_dir = tmp_path / "alleleforge"  # type: ignore[operator]
+    cfg_dir.mkdir()
+    (cfg_dir / "config.toml").write_text("interval_level = 0.95\n")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    with pytest.raises(ValueError, match="cannot be honored by a design run"):
+        create_app()
+
+
 async def test_api_token_required_when_configured(reference: object) -> None:
     # With a token configured, /api/* needs a matching X-API-Token header; the
     # health probe stays open so liveness checks keep working.

@@ -64,6 +64,7 @@ from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.model_zoo.registry import CardError, LicenseError
 from alleleforge.offtarget.cache import OffTargetCache
 from alleleforge.scoring.prime_outcome import PrimeOutcomePredictor
+from alleleforge.scoring.uncertainty import check_interval_level_is_honorable
 from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import Chemistry, EditIntent
 from alleleforge.types.provenance import DatasetVersion, ModelCheckpoint, Provenance
@@ -291,6 +292,11 @@ def design(
             "required together (or pass neither for an unadjusted run)"
         )
     cfg = settings or get_settings()
+    # Both of these were accepted, snapshotted into provenance, and routed by
+    # CONFIG_SNAPSHOT_ROUTES as having taken effect -- while neither was read by
+    # anything. `maf_threshold` is now threaded to the scan below; `interval_level`
+    # cannot be honored on this path at all, so it is refused rather than relabelled.
+    check_interval_level_is_honorable(cfg.interval_level)
     build = _agreed_build(build, reference)
     resolved = _resolve_input(
         inp,
@@ -361,6 +367,7 @@ def design(
             offtarget_cache=offtarget_cache,
             genome_index=genome_index,
             populations=populations,
+            maf=cfg.maf_threshold,
             run_offtarget=run_offtarget,
             max_candidates=None,  # cap deferred to the composite ranker
             notes=notes,
@@ -394,6 +401,7 @@ def design(
                     offtarget_cache=offtarget_cache,
                     genome_index=genome_index,
                     populations=populations,
+                    maf=cfg.maf_threshold,
                     run_offtarget=run_offtarget,
                     max_candidates=None,  # cap deferred to the composite ranker
                     tally=prime_tally,
@@ -421,6 +429,7 @@ def design(
                     offtarget_cache=offtarget_cache,
                     genome_index=genome_index,
                     populations=populations,
+                    maf=cfg.maf_threshold,
                     run_offtarget=run_offtarget,
                     max_candidates=None,  # cap deferred to the composite ranker
                     allow_ng=allow_ng,
@@ -786,6 +795,7 @@ def _run_base_editors(
     haplotypes: Iterable[Haplotype],
     patient_vcf: Iterable[Variant] | None,
     populations: Sequence[str] | None,
+    maf: float,
     offtarget_regions: Sequence[GenomicInterval] | None,
     offtarget_cache: OffTargetCache | None,
     genome_index: GenomeIndex | None,
@@ -820,6 +830,7 @@ def _run_base_editors(
             offtarget_cache=offtarget_cache,
             genome_index=genome_index,
             populations=populations,
+            maf=maf,
             run_offtarget=run_offtarget,
             max_candidates=max_candidates,
             tally=be_tally,

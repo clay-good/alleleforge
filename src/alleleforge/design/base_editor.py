@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections.abc import Iterable, MutableMapping, Sequence
 from typing import Protocol
 
+from alleleforge.config import DEFAULT_MAF_THRESHOLD
 from alleleforge.data.gnomad import GnomadDB
 from alleleforge.data.haplotypes import Haplotype
 from alleleforge.design.offtarget_flags import offtarget_flags
@@ -110,6 +111,7 @@ def design_base_editor(
     haplotypes: Iterable[Haplotype] = (),
     patient_vcf: Iterable[object] | None = None,
     populations: Sequence[str] | None = None,
+    maf: float = DEFAULT_MAF_THRESHOLD,
     offtarget_regions: Sequence[GenomicInterval] | None = None,
     offtarget_cache: OffTargetCache | None = None,
     genome_index: GenomeIndex | None = None,
@@ -129,6 +131,9 @@ def design_base_editor(
         haplotypes: Common haplotypes for haplotype-aware off-target (optional).
         patient_vcf: Personal variants for off-target personalization (optional).
         populations: Ancestry labels to query/stratify.
+        maf: Minimum population allele frequency for an allele to enter the
+            population-aware scan. Governs which gnomAD/haplotype alleles are
+            considered carrying, so it moves the reported numbers.
         offtarget_regions: Restrict the off-target search (default: every contig).
         offtarget_cache: Cross-run store for reference-only scans, passed straight
             through to the search. A cohort re-runs the same guide against the same
@@ -158,6 +163,7 @@ def design_base_editor(
         haplotypes=haplotypes,
         patient_vcf=patient_vcf,
         populations=populations,
+        maf=maf,
         regions=offtarget_regions,
         cache=offtarget_cache,
         genome_index=genome_index,

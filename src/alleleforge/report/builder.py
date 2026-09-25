@@ -722,9 +722,13 @@ CONFIG_SNAPSHOT_ROUTES: dict[str, str] = {
     ),
     "settings": (
         "the resolved values appear where they took effect — seed and reference build "
-        "in the footer, interval_level on every prediction, maf_threshold in the search "
-        "description. allow_network governs how the run fetched data, not how a result "
-        "is to be read, and qualifies nothing a reader sees"
+        "in the footer, maf_threshold in the search description (it gates which "
+        "population alleles enter the scan), interval_level as the nominal level on "
+        "every prediction. interval_level is the one value this path cannot recompute a "
+        "band from, so a non-default one is refused at the start of the run rather than "
+        "printed over an unchanged ±0.15: see `check_interval_level_is_honorable`. "
+        "allow_network governs how the run fetched data, not how a result is to be "
+        "read, and qualifies nothing a reader sees"
     ),
 }
 

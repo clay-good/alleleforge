@@ -23,13 +23,20 @@ from pathlib import Path
 
 import pytest
 
+from alleleforge.config import DEFAULT_INTERVAL_LEVEL as CONFIG_DEFAULT_INTERVAL_LEVEL
+from alleleforge.config import DEFAULT_SEED, Settings
+from alleleforge.data.gnomad import GnomadDB
 from alleleforge.design.designer import design
 from alleleforge.design.ranking import RankingWeights
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.report.builder import CONFIG_SNAPSHOT_ROUTES, build_report
 from alleleforge.report.html import render_html
+from alleleforge.scoring.uncertainty import (
+    DEFAULT_INTERVAL_LEVEL as SCORING_DEFAULT_INTERVAL_LEVEL,
+)
 from alleleforge.types.candidate import RankedMenu
 from alleleforge.types.edit import EditIntent
+from alleleforge.types.prediction import Prediction
 
 VARIANT = "chr2:71:A>C"
 
@@ -120,13 +127,65 @@ def test_a_chromatin_track_without_tracks_is_refused(reference: ReferenceGenome)
 
 
 def test_the_resolved_settings_reach_the_page(reference: ReferenceGenome) -> None:
-    """seed and reference build in the footer; interval_level on every prediction."""
+    """seed and reference build in the footer; interval_level on every prediction.
+
+    This check used to read every expected value out of ``config_snapshot`` — on a
+    *default* run, which is the one case where the snapshot and the hardcoded constant
+    are the same number. So it could not fail: it compared the default to itself.
+    `maf_threshold` reached the search at 0.001 and
+    `interval_level` labelled every band 80% no matter what either setting said, and
+    this assertion passed throughout. The expected values are literals now, and the two
+    settings that were inert get their own checks below.
+    """
     menu = _menu(reference)
-    settings = menu.provenance.config_snapshot["settings"]
     page = render_html(build_report(menu))
-    assert f"seed {settings['seed']}" in page
-    assert f"reference build {settings['reference']}" in page
-    assert f"{settings['interval_level']:.0%} interval" in page
+    assert f"seed {DEFAULT_SEED}" in page
+    assert "reference build hg38" in page
+    assert "80% interval" in page
+    # And a seed the caller chose, so the line above cannot pass on a constant alone.
+    assert "seed 99" in render_html(build_report(_menu(reference, settings=Settings(seed=99))))
+
+
+def test_a_non_default_maf_threshold_reaches_the_search(reference: ReferenceGenome) -> None:
+    """`maf_threshold` gates the population pass, so the search must run at the set value.
+
+    Asserted at two places: the value the scan was actually given, and the sentence a
+    reader acts on. A page-only check would have passed on the old code for the default
+    run and told us nothing about a set one, which is the whole defect.
+    """
+    settings = Settings(maf_threshold=0.05)
+    menu = _menu(reference, gnomad=GnomadDB([]), settings=settings)
+
+    report = menu.candidates[0].offtarget
+    assert report is not None, "no population pass ran — this check would be vacuous"
+    assert report.maf_threshold == 0.05, (
+        "the search ran at a different MAF than the run was configured for; the "
+        "provenance snapshot would still have recorded 0.05"
+    )
+    assert "population alleles at MAF >= 0.05" in report.search_description()
+    # The page escapes `>=`, so the reader-facing form is the escaped one.
+    assert "population alleles at MAF &gt;= 0.05" in render_html(build_report(menu))
+
+
+def test_an_unhonorable_interval_level_is_refused(reference: ReferenceGenome) -> None:
+    """A level no scorer on this path can deliver must not become a label.
+
+    Every design-path prediction is a fixed heuristic half-width with a *nominal*
+    level. Asking for 0.95 used to render "80% interval" on every band while provenance
+    recorded 0.95 — a tighter guarantee than the run delivered.
+    """
+    with pytest.raises(ValueError, match="cannot be honored by a design run"):
+        _menu(reference, settings=Settings(interval_level=0.95))
+
+
+def test_the_nominal_interval_level_has_one_value() -> None:
+    """The refusal above is only correct while it names the level scorers actually stamp.
+
+    Three modules express this number. If they drift, the guard starts refusing a level
+    the scorers do honor, or accepting one they do not.
+    """
+    assert CONFIG_DEFAULT_INTERVAL_LEVEL == SCORING_DEFAULT_INTERVAL_LEVEL
+    assert Prediction.model_fields["interval_level"].default == SCORING_DEFAULT_INTERVAL_LEVEL
 
 
 def test_the_reference_genome_is_identified_not_just_labelled(

@@ -1011,6 +1011,15 @@ def create_app(
     # — the provenance-reproducibility spec requires the config file to apply to web runs,
     # not only the seed. A bare Settings() would read env vars but silently skip the file.
     app.state.settings = settings or Settings.load()
+    # Refuse a deployment whose interval level no design run can deliver, here rather
+    # than per request. `design()` raises on it, and every path out of a handler would
+    # have blamed the caller -- a 4xx for an operator's config file, on a request that
+    # was correct. An operator reads a failed boot; a client cannot act on this at all.
+    # Imported here, like this module's other scoring/design imports, so importing the
+    # app does not pull the scoring stack in.
+    from alleleforge.scoring.uncertainty import check_interval_level_is_honorable
+
+    check_interval_level_is_honorable(app.state.settings.interval_level)
     app.state.jobs = jobs if jobs is not None else JobManager()
 
     @app.exception_handler(RequestValidationError)
