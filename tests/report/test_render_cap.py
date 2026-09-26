@@ -98,3 +98,49 @@ def test_the_pdf_render_honors_the_same_contract() -> None:
     assert b"Showing 51 of 300" in capped
     assert b"candidate 200" in capped  # the far-ranked Pareto member is drawn
     assert b"candidate 120" not in capped  # an ordinary far-ranked one is not
+
+
+def _shuffled_report(n: int, pareto_ranks: set[int]) -> DesignReport:
+    """A report whose candidates are *not* in rank order.
+
+    `build_report` numbers candidates by enumeration, so it can only produce a sorted
+    tuple — which is why nothing had ever handed `visible_candidates` anything else.
+    `DesignReport` is a public model and `visible_candidates` a public function, so a
+    caller who deserialized a report from JSON, filtered it, or reordered it can.
+    """
+    ordered = [_candidate(i, pareto=i in pareto_ranks) for i in range(1, n + 1)]
+    return DesignReport(
+        title="t",
+        disclaimer="d",
+        variant=None,
+        intent=None,
+        weights={},
+        candidates=tuple(reversed(ordered)),
+        provenance=None,
+    )
+
+
+def test_the_render_order_is_rank_order_whether_or_not_the_cap_applied() -> None:
+    """The order a reader sees must not depend on whether a cap happened to apply.
+
+    The capped branch sorts by rank; the uncapped branch returned the report's own order
+    untouched. With a sorted report the two agree, so the difference was invisible — a
+    mutation at the `len(candidates) <= limit` boundary survived the whole suite because
+    every fixture was already sorted. Now one sort at the end covers all three paths.
+    """
+    report = _shuffled_report(6, pareto_ranks={1, 5})
+    assert [c.rank for c in report.candidates] == [6, 5, 4, 3, 2, 1], "fixture must be unsorted"
+
+    for limit in (None, 6, 10, 3):
+        shown, _ = visible_candidates(report, limit)
+        ranks = [c.rank for c in shown]
+        assert ranks == sorted(ranks), f"limit={limit} rendered out of rank order: {ranks}"
+
+
+def test_the_withheld_count_is_zero_when_nothing_is_dropped() -> None:
+    """At and below the cap every candidate is drawn, so the note must not appear."""
+    report = _shuffled_report(6, pareto_ranks={1})
+    for limit in (None, 6, 7):
+        shown, withheld = visible_candidates(report, limit)
+        assert withheld == 0, f"limit={limit} claimed to withhold {withheld}"
+        assert len(shown) == 6

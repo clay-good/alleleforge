@@ -577,12 +577,22 @@ def visible_candidates(
     allowed to decide it away — a candidate that is optimal on safety but 200th on
     the composite score is exactly the one such a reader came for. Shared by the
     HTML and PDF renders so the two cannot drift apart on that guarantee.
+
+    The result is in rank order whatever order ``report.candidates`` arrived in, and
+    that is deliberate rather than incidental: the capped branch sorts, and the
+    uncapped one used to return the report's own order untouched, so the render order
+    depended on whether a cap happened to apply. `build_report` numbers candidates by
+    enumeration and so always hands over a sorted tuple — but this is a public function
+    taking a public model, and a caller who deserialized a report from JSON, filtered it
+    or reordered it got a silently different guarantee from the two paths. Sorting once,
+    at the end, removes the dependence instead of documenting it.
     """
     if limit is None or len(report.candidates) <= limit:
-        return list(report.candidates), 0
-    kept = list(report.candidates[:limit])
-    ranks = {c.rank for c in kept}
-    kept += [c for c in report.candidates[limit:] if c.on_pareto_front and c.rank not in ranks]
+        kept = list(report.candidates)
+    else:
+        kept = list(report.candidates[:limit])
+        ranks = {c.rank for c in kept}
+        kept += [c for c in report.candidates[limit:] if c.on_pareto_front and c.rank not in ranks]
     kept.sort(key=lambda c: c.rank)
     return kept, len(report.candidates) - len(kept)
 

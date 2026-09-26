@@ -19816,3 +19816,44 @@ nobody has considered.** Both halves being thoughtful is what makes the gap invi
 there is nothing sloppy to notice, and each half is right about its own case. Look for the
 input that satisfies neither extreme, and in a per-item rule aggregated into one sentence,
 that input is simply a collection whose items disagree.
+
+## Round 581 — the survivor that was an invariant, not a missing test
+
+`report/builder.py`, the file R580's abandoned sweep was owed: 41 mutants, 40 killed,
+one survivor — `len(report.candidates) <= limit` relaxed to `<` in `visible_candidates`,
+which decides what a capped HTML or PDF render draws.
+
+The first read was that it must be an equivalent mutant: at `len == limit` the capped
+branch keeps everything and withholds nothing, same as the early return. Checking instead
+of assuming: the two branches differ on **5 of 6** orderings of a three-candidate report,
+because the capped branch sorts by rank and the early return hands back the report's own
+order untouched. They agree only when the report is already sorted.
+
+It always is. `build_report` assigns `rank=i + 1` by enumeration, so it cannot emit an
+unsorted tuple — which is why no fixture in 4,297 tests had ever handed this function
+anything else. That is the R571 shape exactly: a claim that holds *by construction*, in a
+place where the construction happens across a module boundary from the code relying on it.
+`visible_candidates` is a public export, `DesignReport` is a public model with a published
+JSON schema, and a caller who deserialized a report, filtered it, or reordered it got one
+ordering guarantee with a cap and a different one without, for no stated reason.
+
+So the survivor was not a missing test. It was an **unstated invariant**, and the two have
+different remedies: a missing test gets a test, an unstated invariant gets removed (R566 —
+prefer removing a relationship to testing one). One sort at the end now covers all three
+paths, and the fixture the suite never had — a deliberately reversed report — is pinned at
+`limit=None`, `== len`, `> len` and `< len`.
+
+The honest footnote is that the fix makes the mutant genuinely equivalent, so the sweep
+still reports 40 of 41 and always will. Verified rather than asserted: 872 combinations of
+candidate order, Pareto membership and cap, with no observable difference in either the
+list or the withheld count. A score that stops improving because the code stopped needing
+the distinction is the right outcome, and chasing 41 of 41 here would have meant writing a
+test for an invariant the function no longer depends on.
+
+**Lesson: a surviving mutant is either a missing test or an unstated invariant, and only
+the first one wants a test.** Tell them apart by asking what has to be true of the input
+for the two branches to agree; if something upstream guarantees it, you have found a
+coupling rather than a gap, and the cheaper fix is usually to stop depending on it. The
+tell that this was the second kind: the mutant survived a suite of 4,297 tests while being
+observably non-equivalent on almost every input — which can only mean no fixture ever
+reached the state that distinguishes them.
