@@ -20093,3 +20093,53 @@ in the direction that invents work.** Read the population before the score. An
 over-narrow list produces survivors that look exactly like findings — same file, same line,
 same plausible failure story — and the only thing separating them is a run against the tests
 you did not include.
+
+## Round 586 — a clamp with nothing to clamp, and a correction to the last round
+
+R585 deferred "seventeen survivors across `scoring/cas9_efficiency.py` and
+`prime_efficiency.py`" as one cluster wanting its own round. That count was wrong, and
+this round is partly the correction: the closable set is **five distinct gaps**, and every
+remaining survivor is either untestable in this environment or provably equivalent. The
+deferral note was written from a survivor list without asking what each survivor *was* —
+the same mistake as trusting a kill rate without reading its test list, one level up.
+
+The five that were real share R583's shape, inverted. There, validators were tested only
+*past* the boundary they admit. Here, hinges and clamps are never given anything to hinge
+or clamp:
+
+* `context_in_distribution`'s `len(seq) >= _MIN_CONTEXT_LENGTH` — a context of exactly the
+  minimum length. Tightened, an input the model was defined on is called out of
+  distribution, which demotes the candidate to its lower interval bound and raises `ood`.
+* the RuleSet3 baseline's lower interval clamp, which is reachable: a poly-T context scores
+  0.032, so the unclamped lower bound is about -0.12. Every other fixture in the suite sits
+  above 0.15, where the clamp is a no-op.
+* `_member_weights`' `[-1, 1]` range, documented and unchecked — dropping the `* 2.0` or the
+  `- 1.0` moves every projection weight into `[0, 1]` and makes the ensemble's members
+  systematically agree, which is the one thing a disagreement band must not do.
+* the long-RTT hinge `max(0, len(rtt) - 20)`. Measured: the value is *identical* at 16 and
+  20 nt and falls past 21, so `min` in its place makes a short RTT earn a bonus — the
+  comment says "very long RTTs are penalized" and the mutation inverts exactly that.
+* the mid-GC PBS preference `2.0 * abs(_gc(pbs) - 0.5)`, which every fixture held constant.
+  Pinned as a shape — a peak at GC 0.5 with a symmetric falloff — because no monotonic
+  substitute can produce it, and `abs(gc + 0.5)` is monotonic.
+
+The more useful half of the round is the survivors that are **not** gaps, established rather
+than assumed. Eight sit inside functions marked `pragma: no cover - needs the cas9-rs3
+extra`, and lightgbm is not installed, so those lines cannot execute here at all. One is a
+short-circuit: `heads_are_trained` is a literal `False`, so `False and not X` and
+`False and X` agree for every `X` — checked both ways rather than argued. The last four are
+clamps the public API cannot reach: swept over every valid PBS x RTT x GC combination the
+PridictScorer's value spans **0.2729 to 0.6733**, so neither `[0, 1]` bound nor the
+`min(0.99, …)` chromatin cap (factor at most 1.1) can engage, and the RuleSet3 baseline's
+upper clamp needs a value above 0.85 against a range topping out near 0.61.
+
+Writing a test for one of those would have meant reaching past the public API to inject a
+value the scorer cannot produce — a test that passes, raises the kill rate, and asserts
+nothing about the product. The clamps are defensive code for a range these scorers do not
+reach. That is a reasonable thing for them to be, and the honest record is to say so.
+
+**Lesson: "survivor" is not a synonym for "gap", and the difference is work you have to do
+per survivor.** Three kinds hid in one list here — reachable and untested, unreachable by
+construction, and unexecutable in this environment — and only the first wants a test. A
+count of survivors carried forward without that triage is a to-do list of which some items
+cannot be done, which is how R585's seventeen became five.
