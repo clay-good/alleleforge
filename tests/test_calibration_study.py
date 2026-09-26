@@ -16,6 +16,11 @@ def test_task_table_reports_ece_for_every_task() -> None:
         assert r["kind"] in {"regression", "distribution", "classification"}
 
 
+#: The cell type the shipped splits hold out: the chemistry tasks validate on K562 and
+#: test on HepG2, which is the transfer the whole generalization study is about.
+_HELD_OUT = "HepG2"
+
+
 def test_generalization_table_covers_cell_type_tasks() -> None:
     rows = calibration_study.generalization_table()
     tasks = {r["task"] for r in rows}
@@ -24,7 +29,11 @@ def test_generalization_table_covers_cell_type_tasks() -> None:
     assert "offtarget-classification" not in tasks
     assert {"cas9-efficiency", "pe-efficiency", "cas9-outcome", "be-outcome"} <= tasks
     for r in rows:
-        assert r["held_out_context"]  # the held-out context is labeled
+        # By name, not by truthiness. The field falls back to the literal "(unlabeled)"
+        # when no held-out context can be named, and that string is truthy -- so a check
+        # that the field is non-empty passes on a table whose every row has lost the one
+        # thing it exists to report: which cell type the gap was measured across.
+        assert r["held_out_context"] == _HELD_OUT, r
         # A gap can be absent: the shipped baseline predicts one constant, so its rank
         # correlation is undefined on both folds and there is nothing to subtract. What
         # must never happen is an absent gap arriving as a number — this study used to

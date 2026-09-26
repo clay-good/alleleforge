@@ -20546,3 +20546,60 @@ sweep safe only works once the thing being protected is committed.
 **Lesson: a constant extracted to prevent divergence does not prevent it.** This one carried a
 comment naming its callers and the exact failure, and both callers open-coded the layout anyway.
 Grep for the constant's *value*, not its name — the duplication is wherever the literal still is.
+
+## Round 595 — the metrics were tested where the arithmetic cannot be wrong
+
+`benchmark/metrics.py` computes every number CRISPR-Bench publishes, and it was thoroughly
+tested: a perfect correlation is 1.0, a reversed one -1.0, a degenerate fold is `None` rather
+than a flattering 0.0, a confidently-wrong model scores ECE 1.0. Mutation testing killed 95 of
+114 mutants and left 19, and the survivors were not scattered — they sat in exactly the places
+those tests cannot reach. 1.0 comes out of a perfect correlation however the ranks are averaged.
+A fixture whose every confidence is 1.0 puts every example in one bin, so the binning never
+runs. A tie test written `spearman(x, x)` gives 1.0 under any tie convention at all.
+
+Sixteen are now closed by pinning each published number to a value computed by hand in the
+test's own docstring:
+
+| what was unmeasured | the case that measures it |
+| --- | --- |
+| the two-point boundary (`len < 2`), in the metric *and* in its reason function | a two-example fold is a number, not an undefined-reason row |
+| tie-averaged ranks | one series has the tie; Spearman is 0.9487, and notably not 1.0 |
+| the positive-label test in the AUC reason | an all-positive fold is missing its **negatives** |
+| ECE's bin index | confidences 0.1 and 0.9 land in different bins: 0.9, where one global gap says 0.0 |
+| distribution renormalization | counts, not probabilities, so dividing by the total is not an identity |
+| the KL epsilon | `q` with mass but none on a category `p` supports — the case the docstring names |
+| `topk_accuracy`'s empty guard | one side empty, not both, which otherwise reaches `max()` of nothing |
+| average precision's tie run | a tie in the **middle** of the ranking |
+
+Two of those needed a second attempt, and both for the same reason. The first tie fixture put
+the tie in the middle of `[1, 2, 2, 3]`, and a backwards-looking tie scan groups the wrong pair
+there — into ranks whose deviations happen to sum to the *same* correlation, 0.9487 either way.
+The tie has to lead for the mis-grouping to show. Likewise the existing average-precision tie
+test gives every example one score, which is a single run under any grouping; a tie in the
+middle is what separates "consume the whole run" from crediting the positive first and
+reporting a perfect 1.0.
+
+The remaining six are equivalent mutants, proved rather than asserted — the algebra says so and
+20,000 random inputs agree with zero mismatches. Centering by `a + mx` instead of `a - mx`
+changes nothing, because the other factor's deviations sum to zero. Shifting or scaling the
+tie-averaged rank changes nothing, because a correlation is invariant under a positive affine
+transform of either series. `while i <= n` in average precision runs one extra iteration that
+adds `precision * 0`. And `while j <= n` cannot reach `j == n`, because the tie-run check breaks
+at `n - 1`.
+
+`benchmark/calibration.py` had four survivors, and its sharpest was the same shape one layer up:
+`held_out_context` was asserted with `assert r["held_out_context"]`, and the field's fallback
+string `"(unlabeled)"` is truthy — so a table whose every row had lost the one thing that field
+exists to report, which cell type the gap was measured across, passed. It is now pinned by name
+(`HepG2`, tested against `K562`). Its other three are accounted for: two are equivalent given
+every shipped task has exactly one test context, and the third — flipping the sign of the
+synthetic residual — is provably unobservable, since coverage depends on `|residual|` and so
+does the recalibrated width. Running `conformal_demo` with the sign flipped returns a
+byte-identical table.
+
+Also clean: `report/precision.py` 1 of 1.
+
+**Lesson: a metric tested only where it is 1.0, -1.0 or `None` is untested.** Those are the
+inputs where every candidate implementation agrees. The one number that distinguishes a correct
+metric from a plausible one is an ordinary, asymmetric, hand-computable case — which is also the
+only kind a reader can check.
