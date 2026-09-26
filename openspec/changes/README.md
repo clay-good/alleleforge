@@ -20603,3 +20603,44 @@ Also clean: `report/precision.py` 1 of 1.
 inputs where every candidate implementation agrees. The one number that distinguishes a correct
 metric from a plausible one is an ordinary, asymmetric, hand-computable case — which is also the
 only kind a reader can check.
+
+## Round 596 — the negative half of a branch, three times over
+
+The sweep's remaining survivors were in `report/oligos.py`, `report/export.py` and
+`variant/hgvs_adapter.py`, and the six real ones share a shape: a branch whose *other* side
+had no case, where the tested side is the one that produces nothing.
+
+**Which vector a pegRNA is cloned into.** `oligos_for` substitutes the default pegRNA acceptor
+when the scheme it was handed cannot receive a 3' extension — correct, because an sgRNA vector
+physically cannot take one. The gate is `ext_top_overhang is not None and ext_bottom_overhang
+is not None`, and all three of its mutants survived: nothing asserted that a *real* pegRNA
+scheme survives the gate. Inverted, the user's requested acceptor is silently swapped for
+`PEGRNA_GG_BSAI` and the oligos they order carry the wrong sticky ends for the backbone on
+their bench — a failed ligation with no error anywhere. The test asserts a pegRNA scheme that
+is deliberately *not* the default, because with the default a substitution and a pass-through
+give the same answer. `_ext_overhangs` carries the same condition in De Morgan's mirror, and a
+scheme with only one overhang defined is now refused there by name rather than splicing a
+`None` into an oligo.
+
+**The length at which a donor stops being an oligo.** `len(sequence) > MAX_SSODN_NT` was
+measured nowhere near 200. Relaxed by one, a 200-nt donor a vendor will synthesize as a single
+oligo is reported as needing a dsDNA fragment or plasmid — real cost and delay for a reagent
+that was orderable.
+
+**The export note that says a chemistry never ran.** `_rationale_notes` exists because the two
+flat exports used to drop the rationale entirely; its with-rows branch carries only the lines
+saying a chemistry could not run. The only test of that branch asserts those lines stay *out*
+of the ordinary case — which passes on a filter that lets nothing through, and `or` mutated to
+`and` is exactly that filter. No test had ever built a report with both rows and a skipped
+chemistry, so the one line the branch exists to carry was never seen to arrive. It takes a
+C->T correction, which routes to both CBE and prime: refuse the prime scorer and the report
+has CBE rows and a prime skip note together.
+
+`variant/hgvs_adapter.py`'s three survivors are all on one `assert` marked
+`pragma: no cover - live only`, inside the `c_to_g` projection that needs the live `hgvs`
+backend. Not reachable here, and not a gap.
+
+**Lesson: a filter tested only by what it excludes is a filter that may pass nothing.** All
+three findings are the same omission — `assert X not in output` is satisfied by an output with
+nothing in it, so the exclusion test and the empty filter are indistinguishable. Every
+exclusion assertion needs a sibling that requires the thing to arrive.

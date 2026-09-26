@@ -103,6 +103,39 @@ def test_a_table_with_rows_carries_only_the_lines_that_say_it_did_not_look(
     assert "did not run" not in comments, comments
 
 
+def test_a_table_with_rows_still_carries_the_chemistry_that_was_skipped(
+    reference: ReferenceGenome,
+) -> None:
+    """The positive half of the branch above, which had no case at all.
+
+    The check that the full rationale stays *out* of a populated table passes on a filter
+    that lets nothing through, and that was the state: no test ever built a report with
+    both rows and a skipped chemistry, so the one line this branch exists to carry was
+    never seen to arrive. Requiring both markers instead of either empties the block
+    silently, and the export is back to the file the whole function was written to fix --
+    a spreadsheet of CBE rows with no hint that prime was never attempted.
+
+    A C->T correction routes to both CBE and prime, so refusing the prime scorer leaves
+    rows from one chemistry and a skip note from the other in the same report.
+    """
+    menu = design(
+        "chr2:71:A>G",
+        reference=reference,
+        run_offtarget=False,
+        prime_efficiency_scorer=_RefusingScorer(),  # type: ignore[arg-type]
+    )
+    assert menu.candidates, "this fixture is supposed to produce rows"
+    chemistries = {c.chemistry.value for c in menu.candidates}
+    assert chemistries == {"base_cbe"}, "prime must be the absent one"
+
+    comments = _comments(_tsv(menu))
+    assert "a chemistry did not run" in comments, comments
+    assert SKIP_NOTE in comments, comments
+    assert "not installed here" in comments, comments
+    # Still only the lines that say a chemistry did not run.
+    assert "Ranked by a weighted sum" not in comments, comments
+
+
 def test_the_markers_the_exports_read_are_the_ones_the_designer_writes() -> None:
     """The seam: rewording a note must not silently empty this block.
 
