@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import math
 
+import pytest
+
 from alleleforge.scoring.prime_outcome import PrimeOutcomePredictor
 from alleleforge.types.guide import NickingGuide, PegRNA, Spacer, ThreePrimeMotif
 from alleleforge.types.prediction import UncertaintyMethod
@@ -85,3 +87,61 @@ def test_long_rtt_raises_byproducts() -> None:
     short = PrimeOutcomePredictor().predict(_peg(rtt="ACGTACGTACGT"))  # 12
     long = PrimeOutcomePredictor().predict(_peg(rtt="ACGTACGTACGTACGTACGTACGTACGTACGT"))  # 32
     assert short.p_intended.value > long.p_intended.value
+
+
+# -- the two byproduct terms that RTT length actually moves ---------------------
+#
+# The byproduct mix is three propensities from pegRNA geometry, and two of them depend on
+# RTT length in different ways: scaffold incorporation is flat until 20 nt and then climbs
+# (`0.10 + 0.01 * max(0, rtt_len - 20)`, "long RTTs read into scaffold"), while partial
+# reverse transcription climbs throughout (`0.08 + 0.004 * rtt_len`). Every fixture used a
+# single RTT length, so neither shape was measured: the hinge sat at zero and the linear
+# term was a constant.
+
+
+def _mass(rtt_len: int, allele: str) -> float:
+    """The probability of one byproduct allele for an otherwise-default pegRNA."""
+    outcome = PrimeOutcomePredictor().predict(_peg(rtt="A" * rtt_len)).outcome
+    return next(a.probability for a in outcome.alleles if a.allele == allele)
+
+
+def test_scaffold_incorporation_is_flat_until_the_rtt_passes_twenty() -> None:
+    """`0.10 + 0.01 * max(0, rtt_len - 20)` — a hinge, not a slope.
+
+    With `min` in place of `max` the term goes *negative* below 20, so a short RTT is
+    credited with less scaffold incorporation than the floor the literature figure sets;
+    with the subtraction reversed it climbs from the shortest RTT instead of from 20. Both
+    read as a plausible byproduct mix, and both misattribute the mass that decides
+    `p_intended`.
+    """
+    flat = {_mass(n, "scaffold_incorporation") for n in (7, 12, 16, 20)}
+    assert flat == {0.10}, f"scaffold must sit at its floor up to 20 nt, got {flat}"
+
+    assert _mass(24, "scaffold_incorporation") == pytest.approx(0.14)
+    assert _mass(30, "scaffold_incorporation") == pytest.approx(0.20)
+
+
+def test_partial_reverse_transcription_climbs_with_every_added_base() -> None:
+    """`0.08 + 0.004 * rtt_len` — linear in length, with no hinge.
+
+    This is the term that distinguishes a 12-nt RTT from a 20-nt one, where scaffold
+    incorporation cannot. Dividing by the length instead of multiplying makes longer RTTs
+    stop early *less* often, which inverts the documented behaviour.
+    """
+    masses = [_mass(n, "partial_rtt") for n in (7, 12, 16, 20, 24, 30)]
+    assert masses == sorted(masses), "a longer RTT must stop early more often"
+    assert masses[0] < masses[-1]
+    assert _mass(20, "partial_rtt") == pytest.approx(0.16)
+
+
+def test_a_longer_rtt_lowers_the_intended_probability_throughout() -> None:
+    """The two terms together, as the caller sees them.
+
+    Below the hinge only partial-RTT moves; above it both do. `p_intended` must therefore
+    fall across the whole range, and fall faster past 20 nt.
+    """
+    p = {n: _mass(n, "intended") for n in (12, 16, 20, 24, 30)}
+    assert list(p.values()) == sorted(p.values(), reverse=True)
+    below = p[16] - p[20]
+    above = p[20] - p[24]
+    assert above > below, "past the hinge both terms add, so the fall steepens"

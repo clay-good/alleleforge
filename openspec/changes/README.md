@@ -20438,3 +20438,56 @@ only the second means the instrument was not looking. Every kill rate I have quo
 was conditional on an operator set I never audited — the fix found nothing, but the audit was
 overdue, and the way to have caught it sooner was to ask what fraction of each module's
 branches the operators can actually perturb.
+
+## Round 593 — fixing the hang instead of noting it again
+
+Two operators and a process-group fix, then eight modules.
+
+The harness could not mutate `and`/`or` either — the companion to R592's missing
+`In`/`NotIn`. That mattered because several findings in this arc were about boolean
+structure (`_strengthens`' union gate, the two-term OOD check, the prime budget's two
+operands) and every one had to be reached sideways through an operand boundary. With both
+operators in place the previously-clean claims were re-measured rather than assumed:
+`offtarget/_search.py` goes from 114 mutants to **124, all killed**, and
+`offtarget/engine.py` from 68 to **91, all killed** — a third more mutants in the search
+orchestration, every one dying. `design/routing.py` reaches 23 of 24. The aligner and the
+engine are the two modules where a silent defect would cost most, and their 100% claims now
+rest on a materially wider basis than when I first made them.
+
+Then the hang. A sweep of `variant/effect.py` sat for 78 minutes with **zero** timeout-kills
+logged, which is the tell: the bound never fired. `subprocess.run(timeout=…)` cannot reclaim a
+child whose pipes are still held open — it kills pytest and then blocks in `communicate()` —
+so the sweep stalls silently and forever. This is the third time it has cost real time (68
+minutes in R582, 78 here), and both previous times I wrote it down and worked around it. pytest
+now runs in its own session with stdout discarded and `killpg` on timeout. The proof is that
+`variant/effect.py`, the module that hung, sweeps **23 of 23 with no timeouts at all** — the
+mutants never needed the network; the hang was entirely mine.
+
+**Working around a known defect in your own instrument twice is how two and a half hours
+leave the codebase.**
+
+The round's real findings are two. `variant/vcf.py`'s `_is_concrete` tests
+`set(a) <= set("ACGTN")`, and as a proper subset an allele using all five permitted
+characters is rejected as symbolic — reachable by any indel allele carrying an ambiguous base
+beside all four bases. It does not error; the record is counted with the `<DEL>` family and
+dropped, so a designable variant leaves the cohort for a reason that is not true of it.
+
+And `scoring/prime_outcome.py` is R586's family again: scaffold incorporation hinges at 20 nt
+while partial reverse transcription climbs throughout, and every fixture used one RTT length,
+so the hinge sat at zero and the slope was a constant.
+
+Nine survivors there became five, and the five were predicted before the sweep confirmed them.
+Reachability was computed over the whole valid RTT range first: the maximum byproduct mass is
+0.656, so the `max(0.01, …)` floor cannot engage, which makes `total` exactly 1.0 and all three
+`/total` normalisations no-ops; and `p_intended` spans 0.344 to 0.742, so the `[0, 1]` interval
+clamp cannot engage either. Computing the reachable range *before* writing tests turned ten
+candidate gaps into two real ones without a wasted fixture.
+
+Also swept clean: `genome/index.py` 86 of 86, `types/edit.py` 9 of 10 with its survivor proved
+unreachable (per-allele validation caps probability at 1.0, and no float sum lands exactly on
+`1.0 + 1e-6`).
+
+**Lesson: compute the reachable range before writing the test.** Ten survivors in one scoring
+function looked like a large finding; arithmetic over the input domain said two. The same
+calculation that tells you a clamp is unreachable also tells you which input reaches the hinge,
+so it is the cheapest first step, not an afterthought for triage.

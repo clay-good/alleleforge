@@ -129,3 +129,31 @@ def test_stream_drives_design_many(reference: ReferenceGenome) -> None:
     assert (report.total, report.succeeded, report.failed) == (1, 1, 0)
     (item,) = report.items
     assert item.summary is not None and item.summary["best_chemistry"] == "base_abe"
+
+
+def test_an_allele_using_every_permitted_base_is_still_concrete() -> None:
+    """`set(a) <= set("ACGTN")` — subset *or equal*, not proper subset.
+
+    Tightened to `<`, an allele that happens to use all five permitted characters is
+    rejected as symbolic and the record is skipped with the `<DEL>`/breakend family. That
+    is reachable by ordinary data: any indel allele long enough to contain an ambiguous
+    base alongside all four bases, such as `ACGTN` or `NACGTACGT`. The record does not
+    error — it is counted as symbolic and dropped, so a designable variant disappears from
+    a cohort with a reason that does not apply to it.
+    """
+    from alleleforge.variant.vcf import _is_concrete
+
+    assert _is_concrete("ACGTN") is True, "all five permitted characters is not symbolic"
+    assert _is_concrete("NACGTACGT") is True
+    # A proper subset is concrete too, so the check above is not the only passing case.
+    assert _is_concrete("ACGT") is True
+    assert _is_concrete("N") is True
+
+
+def test_a_symbolic_or_out_of_alphabet_allele_is_not_concrete() -> None:
+    """The other side, so the subset rule is measured rather than assumed."""
+    from alleleforge.variant.vcf import _is_concrete
+
+    assert _is_concrete("<DEL>") is False
+    assert _is_concrete("*") is False
+    assert _is_concrete("ACGTX") is False, "a character outside the alphabet is not designable"
