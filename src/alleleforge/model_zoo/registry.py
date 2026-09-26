@@ -250,7 +250,7 @@ class ModelRegistry:
             raise LicenseError(
                 f"license {card.license!r} forbids {use.value} use of model {name!r}"
             )
-        path = Path(cache_dir) / f"{card.name}.{card.version}.ckpt"
+        path = Path(cache_dir) / checkpoint_filename(card)
         if not path.exists():
             if not artifact_download_permitted(consent):
                 raise ConsentError(
@@ -374,15 +374,28 @@ def default_registry() -> ModelRegistry:
     return ModelRegistry({card.name: card for card in _bundled_cards()})
 
 
-#: Where a checkpoint is cached, relative to the cache root. The loader passes
-#: ``cache_dir/models`` and the cache sweep walks the same directory; a third caller
-#: spelling it a third way would report a cached model as absent.
+#: Where a checkpoint is cached, relative to the cache root. The loader resolves its
+#: default cache against this and the cache sweep hashes whatever :func:`checkpoint_path`
+#: names, because both once spelled the layout out for themselves -- and a caller
+#: spelling it a second way reports a cached model as absent.
 MODEL_CACHE_SUBDIR = "models"
+
+
+def checkpoint_filename(card: ModelCard) -> str:
+    """Return the file ``card``'s checkpoint is cached as, wherever the cache lives.
+
+    Two layerings are in play and both are deliberate: :meth:`ModelRegistry.checkpoint`
+    is handed the model store itself, while :func:`checkpoint_path` starts from the cache
+    root. Only the *filename* is common to them, and it used to be spelled once in each
+    -- so the path ``model_status`` reports ``cached`` from and the path a load actually
+    reads were two derivations that happened to agree.
+    """
+    return f"{card.name}.{card.version}.ckpt"
 
 
 def checkpoint_path(card: ModelCard, cache_root: Path) -> Path:
     """Return where ``card``'s checkpoint is (or would be) cached under ``cache_root``."""
-    return Path(cache_root) / MODEL_CACHE_SUBDIR / f"{card.name}.{card.version}.ckpt"
+    return Path(cache_root) / MODEL_CACHE_SUBDIR / checkpoint_filename(card)
 
 
 def model_status(card: ModelCard, cache_root: Path) -> dict[str, bool]:

@@ -20491,3 +20491,58 @@ unreachable (per-allele validation caps probability at 1.0, and no float sum lan
 function looked like a large finding; arithmetic over the input domain said two. The same
 calculation that tells you a clamp is unreachable also tells you which input reaches the hinge,
 so it is the cheapest first step, not an afterthought for triage.
+
+## Round 594 — the constant that warned about exactly the duplication it sat beside
+
+Sweeping the model zoo and the data loaders left nine survivors. Three were on one line:
+
+```python
+"fetchable": pinned and card.source_url is not None and not cached,
+```
+
+`model_status` is the one derivation four surfaces read — `aforge models list`, `models show`,
+and two web model-status responses — and `model_reason` turns `fetchable` into the sentence a
+reader acts on. Its siblings `pinned`, `cached` and `available` were all pinned by value.
+`fetchable` was asserted only to *exist*, as a key in a tuple of expected field names, so none
+of its three terms had a case and each wrong answer is a different lie: that an unpinned model
+can be fetched (the registry refuses), that a card naming a source names none, or that a copy
+already on disk still needs fetching. Four states now cover it, each paired with the sentence
+`model_reason` produces from it.
+
+Chasing the fourth survivor — a `/` mutated to `*` in the loader's default cache directory —
+found something better than a test gap. `MODEL_CACHE_SUBDIR` exists with this warning attached:
+
+> The loader passes `cache_dir/models` and the cache sweep walks the same directory; a third
+> caller spelling it a third way would report a cached model as absent.
+
+Both callers it names were spelling it out for themselves. `cache_sweep` rebuilt the whole path
+by hand (`cache_root / "models" / f"{card.name}.{card.version}.ckpt"`), and the loader wrote the
+`"models"` literal — so the constant documented a hazard while the two functions it was extracted
+for went on ignoring it. And the registry's own `checkpoint`, the method that actually *loads*,
+spelled the filename a second time, against `checkpoint_path`, the function `model_status` reports
+`cached` from. Two derivations of the path a checkpoint is at, on the two sides of the question
+"is it there?" — agreement was a coincidence.
+
+The filename now lives once, in `checkpoint_filename`, with the two layerings left explicit
+(`checkpoint` is handed the model store; `checkpoint_path` starts from the cache root). A test
+pins the three surfaces against one planted file: `model_status` calls it available, the loader
+resolving its *own* default returns that very path, and the sweep re-hashes it — with deliberately
+wrong bytes, so the only way the sweep can report a mismatch is by having found it. Reporting it
+missing is the answer a hand-built path would have given, and it looks like a pass.
+
+The last three were `data/haplotypes.py`: a population listed at frequency 0.0 counted as a
+carrier, `max_freq` over requested populations never had two to choose between, and no haplotype
+ever sat exactly on `min_freq` — a safety floor, so the boundary has to fall on the side that
+discloses. One survivor is left and deferred: the `/` in `gnomad.load_default`, inside a function
+marked `pragma: no cover - requires the fetched release`.
+
+Two process notes, both about a green result that meant nothing. A mutation loop reported
+"no tests ran" three times and `tail -1` made it read like a verdict — zsh does not word-split an
+unquoted parameter, so a space-separated file list in a variable is one argument and one bogus
+path. Then `git checkout -- src/` between mutants silently reverted the round's own *uncommitted*
+fixes, and the sweep went on measuring the code as it was before. The restore step that makes a
+sweep safe only works once the thing being protected is committed.
+
+**Lesson: a constant extracted to prevent divergence does not prevent it.** This one carried a
+comment naming its callers and the exact failure, and both callers open-coded the layout anyway.
+Grep for the constant's *value*, not its name — the duplication is wherever the literal still is.

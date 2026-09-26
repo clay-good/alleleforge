@@ -28,6 +28,7 @@ from typing import ClassVar
 
 from alleleforge.config import get_settings
 from alleleforge.model_zoo.registry import (
+    MODEL_CACHE_SUBDIR,
     Downloader,
     ModelRegistry,
     ModelUse,
@@ -85,7 +86,7 @@ class WeightGate:
         """
         card = self._registry.get(self.card_name)
         if card.checkpoint_sha256 is not None:
-            cache_dir = self._cache_dir or (get_settings().cache_dir / "models")
+            cache_dir = self._cache_dir or (get_settings().cache_dir / MODEL_CACHE_SUBDIR)
             path, checkpoint = self._registry.checkpoint(
                 self.card_name,
                 cache_dir=cache_dir,

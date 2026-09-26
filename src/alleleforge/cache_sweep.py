@@ -107,7 +107,7 @@ def verify_stores(root: str | Path, *, deep: bool = False) -> list[CacheCheck]:
     """
     from alleleforge.data.registry import DEFAULT_REGISTRY
     from alleleforge.genome.index import FMIndex, FMIndexIntegrityError
-    from alleleforge.model_zoo.registry import default_registry
+    from alleleforge.model_zoo.registry import checkpoint_path, default_registry
 
     cache_root = Path(root)
     checks: list[CacheCheck] = []
@@ -162,7 +162,7 @@ def verify_stores(root: str | Path, *, deep: bool = False) -> list[CacheCheck]:
         if card.checkpoint_sha256 is None:
             checks.append(CacheCheck("checkpoint", name, "unpinned", "no checksum to check"))
             continue
-        path = cache_root / "models" / f"{card.name}.{card.version}.ckpt"
+        path = checkpoint_path(card, cache_root)
         checks.append(
             _hashed("checkpoint", f"{card.name}.{card.version}", path, card.checkpoint_sha256)
         )
