@@ -23,5 +23,9 @@ citation: "AlleleForge contributors (heuristic); mechanism after Marquart et al.
 known_failure_modes:
   - "Transparent motif heuristic, not the trained BE-DICT model: a re-run from this checkpoint reproduces the heuristic, not published BE-DICT numbers. Use be-dict for the trained model."
   - "Treats editable positions as independent and does not model deaminase- and context-dependent bystander transfer."
+# No checkpoint and no source because there are no weights: this is a weight-free
+# baseline that ships as code. `bundled` is what tells the status surfaces apart from
+# a trained card that merely forgot to pin a hash, which is unusable for that reason.
 checkpoint_sha256: null
 source_url: null
+bundled: true

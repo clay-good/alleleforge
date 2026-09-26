@@ -25,5 +25,9 @@ known_failure_modes:
   - "Transparent geometry heuristic, not a trained byproduct model: a re-run from this checkpoint reproduces the heuristic, not measured product distributions."
   - "Keyed on pegRNA geometry only — no target-sequence context, no cell type, and no edit-size or edit-class term, so two pegRNAs with identical geometry receive the same split whether they write one base or a 29-nt insertion."
   - "The three modeled byproduct channels (scaffold incorporation, partial RT product, indel) are the dominant ones, not an exhaustive account of what a pegRNA can produce."
+# No checkpoint and no source because there are no weights: this is a weight-free
+# baseline that ships as code. `bundled` is what tells the status surfaces apart from
+# a trained card that merely forgot to pin a hash, which is unusable for that reason.
 checkpoint_sha256: null
 source_url: null
+bundled: true

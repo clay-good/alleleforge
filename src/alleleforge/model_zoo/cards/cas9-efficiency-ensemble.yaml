@@ -26,5 +26,9 @@ known_failure_modes:
   - "Heads are an unfitted pseudo-random scaffold: the point estimate is not a trained activity prediction (method=HEURISTIC). Use rule-set-3 for a real baseline."
   - "Out of distribution for non-human / synthetic contexts (flagged by the OOD detector)."
   - "Cross-cell-type generalization is a field-wide limitation, not AlleleForge-specific."
+# No checkpoint and no source because there are no weights: this is a weight-free
+# baseline that ships as code. `bundled` is what tells the status surfaces apart from
+# a trained card that merely forgot to pin a hash, which is unusable for that reason.
 checkpoint_sha256: null
 source_url: null
+bundled: true

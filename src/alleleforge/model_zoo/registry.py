@@ -93,6 +93,10 @@ class ModelCard(BaseModel):
         known_failure_modes: Documented ways the model fails.
         checkpoint_sha256: Expected checkpoint hash (``None`` blocks download).
         source_url: Where the checkpoint is fetched from.
+        bundled: Whether the model ships *inside the installed package* and needs no
+            checkpoint at all -- a weight-free baseline, which is code rather than
+            weights. Distinct from an unpinned trained card, which also has no hash
+            but is unusable because of it; see :func:`model_status`.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -109,6 +113,7 @@ class ModelCard(BaseModel):
     known_failure_modes: tuple[str, ...]
     checkpoint_sha256: str | None = None
     source_url: str | None = None
+    bundled: bool = False
 
     @field_validator("known_failure_modes")
     @classmethod
@@ -249,6 +254,14 @@ class ModelRegistry:
         if not card.permits(use):
             raise LicenseError(
                 f"license {card.license!r} forbids {use.value} use of model {name!r}"
+            )
+        if card.bundled:
+            # Not a ConsentError and not a ChecksumError: a weight-free baseline has no
+            # checkpoint to consent to or to verify. Answering with either sends the
+            # caller to grant permission or pin a hash for weights that do not exist.
+            raise CardError(
+                f"model {name!r} is a weight-free baseline bundled with the package and has "
+                f"no checkpoint; load it directly rather than through the checkpoint cache"
             )
         path = Path(cache_dir) / checkpoint_filename(card)
         if not path.exists():
@@ -413,16 +426,29 @@ def model_status(card: ModelCard, cache_root: Path) -> dict[str, bool]:
     so a card with no ``checkpoint_sha256`` is not usable however many bytes sit at its
     cache path — and reporting it as present is the presence-versus-permission confusion
     the dataset surfaces were corrected for.
+
+    A **bundled** card inverts that, and this surface used to get it exactly backwards.
+    The weight-free baselines — the transparent heuristics that score every design by
+    default — ship as code, so they have no checkpoint to pin and no source to fetch
+    from, which from here looked identical to a trained card that forgot to pin a hash.
+    All five reported ``NOT AVAILABLE - no pinned checksum, so it can be neither fetched
+    nor loaded`` while being the models that actually produced the numbers in the report.
+    The dataset registry met this first — ``dataset_status`` carries ``bundled`` for
+    exactly this reason, and ``cache_sweep`` records that checking the cache path for
+    packaged bytes "is how a dataset that is always present came to be reported
+    unavailable once already". The model registry is the sibling that never got the fix.
     """
     pinned = card.checkpoint_sha256 is not None
     cached = checkpoint_path(card, cache_root).is_file()
     return {
+        "bundled": card.bundled,
         "pinned": pinned,
         "cached": cached,
-        "available": pinned and cached,
+        "available": card.bundled or (pinned and cached),
         # "a fetch would work", not "the fields a fetch needs are set": a fetch also
         # needs consent, which is the caller's to give and not a property of the card.
-        "fetchable": pinned and card.source_url is not None and not cached,
+        # A bundled model is already here, so there is nothing for a fetch to add.
+        "fetchable": pinned and card.source_url is not None and not cached and not card.bundled,
         "research_use": card.permits(ModelUse.RESEARCH),
         "commercial_use": card.permits(ModelUse.COMMERCIAL),
     }
@@ -430,6 +456,8 @@ def model_status(card: ModelCard, cache_root: Path) -> dict[str, bool]:
 
 def model_reason(status: dict[str, bool]) -> str:
     """Return why a model is or is not usable, without restating which of the two."""
+    if status["bundled"]:
+        return "bundled in the package; a weight-free baseline needs no checkpoint"
     if status["available"]:
         return "cached and pinned"
     if not status["pinned"]:

@@ -20644,3 +20644,52 @@ backend. Not reachable here, and not a gap.
 three findings are the same omission — `assert X not in output` is satisfied by an output with
 nothing in it, so the exclusion test and the empty filter are indistinguishable. Every
 exclusion assertion needs a sibling that requires the thing to arrive.
+
+## Round 597 — the shell said the model that scored the run was missing
+
+Not a sweep finding. I ran `aforge models list` and read it:
+
+```
+prime-outcome-baseline  0.1  prime  MIT  research + commercial use
+    NOT AVAILABLE - no pinned checksum, so it can be neither fetched nor loaded
+```
+
+That model had just produced `p_intended` for every prime candidate in the report. So had
+`pridict2-baseline`, `be-dict-baseline`, `indelphi-mh-baseline` and `cas9-efficiency-ensemble`:
+five of seventeen cards, and the five that run **by default on every design**, each reported
+as absent by the shell whose whole purpose is telling a reader what a run can use.
+
+The cause is that "no checkpoint" has two opposite meanings and `model_status` only knew one.
+A trained card with no `checkpoint_sha256` is unusable *because* of it — the registry refuses
+to fetch what it cannot verify and refuses to load an unverified cached file, which is
+deliberate and load-bearing. A weight-free baseline has no checkpoint because it **is code**:
+a transparent heuristic over pegRNA geometry or local microhomology, with nothing to
+download. From inside `model_status` the two look identical, and the sterner reading won.
+
+The sibling registry already solved this. `dataset_status` carries `bundled`, computes
+`available` as `bundled or cached`, excludes bundled rows from `fetchable`, and answers
+"bundled in the package"; `cache_sweep` even records why, in a comment on the dataset loop —
+checking the cache path for packaged bytes "is how a dataset that is always present came to be
+reported unavailable once already". The model registry is the sibling that never got the fix,
+and it went unnoticed because every *test* of this surface asked about trained cards.
+
+So `bundled` now exists on `ModelCard` too, declared on the five baseline cards rather than
+inferred from the absence of a URL, because a declaration is checkable and an inference is a
+guess about why a field is empty. It flows to every surface that reads the one derivation:
+`aforge models list` and `show`, both web model-status responses, and `aforge cache verify`,
+which reported these as "unpinned — no checksum to check" and now reports "bundled — ships in
+the package, no checkpoint". `ModelRegistry.checkpoint` on a bundled card raises `CardError`
+naming the reason rather than a `ConsentError` asking permission to download weights that do
+not exist.
+
+The tests pin both directions, which is the part that makes the change safe rather than
+merely nicer: an unpinned *trained* card is still not available, still says "no pinned
+checksum", and still prints `NOT AVAILABLE`. A rule that called every checksum-less card
+available would be the same confusion pointing the other way, and a worse one — it would
+announce unverified weights as present. The bundled set is asserted by name, so adding
+`bundled: true` to a trained card fails.
+
+**Lesson: run the shell and read what it says about the thing that just ran.** The sweep
+cannot find this; every mutant of `model_status` was killed or accounted for in R594, because
+the function computed its documented contract correctly. The contract was missing a case, and
+the only way to see that was to look at the output beside a report the same models produced.

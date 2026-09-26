@@ -3602,11 +3602,13 @@ def models_list(
         [
             *human_rows,
             "",
-            "A licence permission is not a statement that the weights are present: only "
-            "a model marked cached *and* pinned can be loaded, because the registry "
-            "refuses to load an unverifiable checkpoint exactly as it refuses to fetch "
-            "one. `aforge models show <name>` prints the card's intended use, its "
-            "out-of-scope use and its known failure modes.",
+            "A licence permission is not a statement that the weights are present: a "
+            "model with a checkpoint can be loaded only when it is cached *and* pinned, "
+            "because the registry refuses to load an unverifiable checkpoint exactly as "
+            "it refuses to fetch one. A model marked bundled has no checkpoint to pin "
+            "— it is a weight-free baseline that ships as code, and it is the default "
+            "for its axis. `aforge models show <name>` prints the card's intended use, "
+            "its out-of-scope use and its known failure modes.",
         ]
     )
     _emit({"models": rows}, as_json=as_json, human=human)

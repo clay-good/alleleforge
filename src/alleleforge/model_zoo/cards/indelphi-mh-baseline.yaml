@@ -23,5 +23,9 @@ citation: "AlleleForge contributors (heuristic); mechanism after Shen et al. 201
 known_failure_modes:
   - "Transparent MMEJ heuristic, not the trained inDelphi model: a re-run from this checkpoint reproduces the heuristic, not published inDelphi numbers. Use indelphi for the trained model."
   - "Models the dominant MMEJ deletions and 1-bp insertions from local microhomology, not every byproduct, and does not model cell-type dependence."
+# No checkpoint and no source because there are no weights: this is a weight-free
+# baseline that ships as code. `bundled` is what tells the status surfaces apart from
+# a trained card that merely forgot to pin a hash, which is unusable for that reason.
 checkpoint_sha256: null
 source_url: null
+bundled: true

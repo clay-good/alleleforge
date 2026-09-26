@@ -41,7 +41,15 @@ from alleleforge.web.api.app import create_app
 runner = CliRunner()
 
 #: The facts every surface must report, not just the one that grew them first.
-_DERIVED = ("pinned", "cached", "available", "fetchable", "research_use", "commercial_use")
+_DERIVED = (
+    "bundled",
+    "pinned",
+    "cached",
+    "available",
+    "fetchable",
+    "research_use",
+    "commercial_use",
+)
 
 
 def _json(*args: str) -> Any:
@@ -106,7 +114,15 @@ def test_an_unpinned_card_is_not_reported_usable(isolated_cache: Path) -> None:
     to keep saying NO.
     """
     registry = default_registry()
-    unpinned = [n for n in registry.names if registry.get(n).checkpoint_sha256 is None]
+    # A bundled card also has no checksum, and is usable anyway: it is a weight-free
+    # baseline that ships as code, so there is nothing to pin and nothing to verify.
+    # That is the opposite failure mode and has its own test; conflating the two is what
+    # reported every default scorer as NOT AVAILABLE.
+    unpinned = [
+        n
+        for n in registry.names
+        if registry.get(n).checkpoint_sha256 is None and not registry.get(n).bundled
+    ]
     assert unpinned, "no unpinned card ships; this check would be vacuous"
     card = registry.get(unpinned[0])
     planted = checkpoint_path(card, isolated_cache)

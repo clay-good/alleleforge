@@ -159,6 +159,13 @@ def verify_stores(root: str | Path, *, deep: bool = False) -> list[CacheCheck]:
     zoo = default_registry()
     for name in zoo.names:
         card = zoo.get(name)
+        if card.bundled:
+            # Same distinction the dataset loop above draws: packaged bytes are never in
+            # the cache, and "unpinned" would read as a defect in a card that is correct.
+            checks.append(
+                CacheCheck("checkpoint", name, "bundled", "ships in the package, no checkpoint")
+            )
+            continue
         if card.checkpoint_sha256 is None:
             checks.append(CacheCheck("checkpoint", name, "unpinned", "no checksum to check"))
             continue

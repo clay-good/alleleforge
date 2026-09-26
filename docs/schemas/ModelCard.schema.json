@@ -1,6 +1,11 @@
 {
-  "description": "A required, validated model card (mirrors ``cards/*.yaml``).\n\nAttributes:\n    name: Model identifier.\n    version: Model version.\n    chemistry: The chemistry it scores, or ``None`` for a generic backbone.\n    training_data: A description of the training data.\n    metrics: Reported metrics (name -> value).\n    intended_use: What the model is for.\n    out_of_scope_use: What it must not be used for.\n    license: SPDX-style license identifier.\n    citation: Literature citation.\n    known_failure_modes: Documented ways the model fails.\n    checkpoint_sha256: Expected checkpoint hash (``None`` blocks download).\n    source_url: Where the checkpoint is fetched from.",
+  "description": "A required, validated model card (mirrors ``cards/*.yaml``).\n\nAttributes:\n    name: Model identifier.\n    version: Model version.\n    chemistry: The chemistry it scores, or ``None`` for a generic backbone.\n    training_data: A description of the training data.\n    metrics: Reported metrics (name -> value).\n    intended_use: What the model is for.\n    out_of_scope_use: What it must not be used for.\n    license: SPDX-style license identifier.\n    citation: Literature citation.\n    known_failure_modes: Documented ways the model fails.\n    checkpoint_sha256: Expected checkpoint hash (``None`` blocks download).\n    source_url: Where the checkpoint is fetched from.\n    bundled: Whether the model ships *inside the installed package* and needs no\n        checkpoint at all -- a weight-free baseline, which is code rather than\n        weights. Distinct from an unpinned trained card, which also has no hash\n        but is unusable because of it; see :func:`model_status`.",
   "properties": {
+    "bundled": {
+      "default": false,
+      "title": "Bundled",
+      "type": "boolean"
+    },
     "checkpoint_sha256": {
       "anyOf": [
         {

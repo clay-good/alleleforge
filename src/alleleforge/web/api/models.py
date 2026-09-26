@@ -963,6 +963,9 @@ class ModelRow(BaseModel):
     #: The presence half. `available` is stricter than "the file is on disk": the
     #: registry refuses to load an unpinned checkpoint exactly as it refuses to fetch
     #: one, so an unpinned card is unusable however many bytes sit at its cache path.
+    #: ``bundled`` is the opposite case and is not a weaker ``pinned``: a weight-free
+    #: baseline ships as code, so it is usable with no checkpoint at all.
+    bundled: bool = False
     pinned: bool = False
     cached: bool = False
     available: bool = False
