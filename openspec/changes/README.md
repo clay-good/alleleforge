@@ -19965,3 +19965,67 @@ parallelism test already requires of both paths.
 kill rate is a statement about a test list, and a list too narrow invents gaps while a
 fixture too symmetric hides them. The two failures look nothing alike from the summary line
 — 15 survivors and 0 survivors — and both were the population, not the code.
+
+## Round 584 — the test that named the defect and could not see it
+
+Four sweeps. `design/prime.py` killed 24 of 24. `enumerate/cas9.py` produced 24 survivors
+that were **all** artifacts of a 14-file derived list — every one died against 2,087 tests.
+`design/base_editor.py` and `design/cas9.py` produced eleven that were real, confirmed the
+same way.
+
+The base-editor one is R583's shape again: `max_candidates=1` asserted against a fixture
+that yields exactly one candidate, so `candidates[:1]` is the whole list and `len == 1`
+holds whether the cap is applied, ignored or inverted. A C→T install is catalysed by two
+editors, which is the smallest menu this vertical can build that is larger than a cap of 1.
+
+`design/cas9.py`'s ten split into two groups, and the first is the sharpest thing this arc
+has turned up.
+
+`tests/design/test_cas9_indel_context.py` exists for exactly one defect and describes it in
+its own docstring — a carried allele that changes length must move the cut index, or the
+predictor gets "the right sequence with the break in the wrong place: a plausible-looking
+indel spectrum computed for a different locus, with nothing to flag it". Its two decisive
+assertions are tautologies:
+
+    offset = carried.index(context)
+    assert context[cut] == carried[offset + cut]
+
+`offset` comes from `context`, so the two sides are the same character for every `cut` in
+range. The assertion holds whatever index the code recorded. Six mutations survive it,
+including the exact one the file was written to catch. **A test can name a defect precisely,
+in prose, and still be arranged so that no execution of it could ever fail** — and the
+naming is what stops anyone looking again.
+
+The repair had to come from outside the context. `_cut_outcome` fetches
+`cut_site ± _OUTCOME_FLANK`, so the unshifted index is exactly `_OUTCOME_FLANK`: a constant,
+independent of the sequence. Ten cases now pin the six mutants. Deliberately *not* asserted
+is the end-to-end cut convention — the fixture's two guides are both minus-strand and their
+recorded indices sit on opposite sides of the naive expectation, and this repository has
+corrected minus-strand cut arithmetic three times (R564, R565, R575). Asserting a convention
+I had not pinned down would have been worse than the tautology, because it would have looked
+like evidence.
+
+The second group is one idea: **a disclosure asserted by shape rather than by value.**
+`any(f.startswith("hdr-donor:"))` accepts all three states equally, so a candidate carrying
+a template can be labelled `hdr-donor:none` — the safe-sounding direction and the wrong one.
+`"HDR donor" in rationale` matches the inverted sentence "no HDR donor available", of which
+it is a substring. `relaxed-pam` had no check at all. And the efficiency sort used two copies
+of one spacer, so both candidates scored identically and any order was sorted. Prefix,
+substring, absence, symmetry — four ways of checking that the vertical emits a string.
+
+One tooling failure, mine, worth recording because it nearly inverted the evidence. An
+ad-hoc verification loop reported a mutant surviving that was in fact killed. Python
+invalidates `.pyc` by mtime **and size**, and two mutations that each turn `<=` into `<`
+produce files of identical size written inside the same second — so one run loaded the
+previous mutation's bytecode. The real harness sets `PYTHONDONTWRITEBYTECODE=1` and was
+never affected; the throwaway script did not. Trusting it would have meant reporting one gap
+that did not exist and missing two that did.
+
+`design/cas9.py`: 31 of 31. `design/base_editor.py`: 5 of 5.
+
+**Lesson: an assertion that mentions the defect is not an assertion that can detect it.**
+Two tests here were written by someone who understood the failure exactly — the docstrings
+prove it — and both compared a value against itself through an alignment derived from that
+value. The check to apply: name the number your assertion would have to *change* for it to
+fail, and confirm that number comes from somewhere other than the thing under test. If both
+sides of an equality trace back to one source, the test is documentation.

@@ -119,3 +119,38 @@ def test_candidates_are_design_candidates(make_reference: MakeRef) -> None:
     assert len(cands) == 1
     assert isinstance(cands[0], DesignCandidate)
     assert cands[0].has_reagent
+
+
+def _cbe_case(make_reference: MakeRef) -> tuple[ReferenceGenome, ResolvedVariant]:
+    """A C->T install, which **two** editors catalyse: CBE4max and evoCDA1.
+
+    One variant, one protospacer, two candidates — the smallest menu this vertical can
+    build that is larger than a cap of 1.
+    """
+    proto = "TTTTCACGTTTTTTTTTTTT"
+    ref = make_reference({"chr2": PAD + proto + "TGG" + PAD})
+    return ref, _resolve(ref, 24, "T")  # the C at protospacer position 5
+
+
+def test_max_candidates_caps_a_menu_bigger_than_the_cap(make_reference: MakeRef) -> None:
+    """The cap must be measured against a menu that exceeds it.
+
+    `test_candidates_are_design_candidates` passes `max_candidates=1` to the ABE fixture,
+    which yields exactly one candidate — so `candidates[:1]` is the whole list and
+    `len(cands) == 1` holds whether the cap is applied, ignored, or inverted. Dropping the
+    slice entirely left that assertion green. The premise is asserted first here, because
+    a cap test is only worth as much as the menu it caps.
+    """
+    ref, rv = _cbe_case(make_reference)
+    uncapped = design_base_editor(rv, EditIntent.INSTALL, reference=ref)
+    assert len(uncapped) > 1, "the fixture must exceed the cap or this measures nothing"
+
+    capped = design_base_editor(rv, EditIntent.INSTALL, reference=ref, max_candidates=1)
+    assert len(capped) == 1
+    # The cap keeps the ranked head, not an arbitrary member.
+    assert capped[0].base_edit_window is not None
+    assert uncapped[0].base_edit_window is not None
+    assert capped[0].base_edit_window.editor == uncapped[0].base_edit_window.editor
+
+    # And no cap returns the whole menu.
+    assert len(design_base_editor(rv, EditIntent.INSTALL, reference=ref)) == len(uncapped)
