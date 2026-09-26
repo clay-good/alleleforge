@@ -359,3 +359,85 @@ def test_bare_hgvs_without_contig_raises(reference: ReferenceGenome) -> None:
 def test_unmapped_refseq_raises(reference: ReferenceGenome) -> None:
     with pytest.raises(ValueError, match="cannot map"):
         resolve("NC_000099.1:g.6A>T", reference=reference)
+
+
+# -- the working interval's extent ----------------------------------------------
+
+
+def test_the_working_interval_covers_a_multi_base_reference_allele(tmp_path: Path) -> None:
+    """`end = pos + max(1, len(ref)) + window` — the `max` is what covers the deleted span.
+
+    With `min` in its place the term is always 1, so the interval stops `len(ref) - 1`
+    bases short of the allele it is supposed to bracket: every downstream consumer that
+    trusts the working interval to contain the variant reads a window that ends inside it.
+
+    The tiny shared fixture cannot show this. Its contig is 30 bases against a 100-base
+    window, so the interval is clamped to the whole contig and covers the allele whatever
+    the arithmetic says. This one is long enough to leave the clamp out of it.
+    """
+    import random
+
+    random.seed(11)
+    contig = "".join(random.choice("ACGT") for _ in range(2000))
+    deleted = contig[500:520]  # a 20-base reference allele
+    fasta = tmp_path / "long.fa"
+    fasta.write_text(f">chr7\n{contig}\n")
+    reference = ReferenceGenome(fasta, build="hg38")
+
+    window = 100
+    resolved = resolve(f"chr7:501:{deleted}>{deleted[0]}", reference=reference, window=window)
+    var, interval = resolved.variant, resolved.working_interval
+
+    assert len(var.ref) > 1, "the fixture must carry a multi-base allele"
+    assert interval.end >= var.pos + len(var.ref), (
+        "the working interval stops inside the allele it brackets"
+    )
+    assert interval.end == var.pos + len(var.ref) + window
+    assert interval.start == var.pos - window
+
+
+def test_the_working_interval_reserves_one_base_for_an_insertion(tmp_path: Path) -> None:
+    """The other side of `max(1, len(ref))`: an empty ref still gets a base of span.
+
+    Left-alignment re-anchors an insertion onto the preceding base, so `ref` is normally
+    one base rather than empty — the `1` is the floor that keeps a zero-length allele from
+    collapsing the interval to a point.
+    """
+    import random
+
+    random.seed(12)
+    contig = "".join(random.choice("ACGT") for _ in range(2000))
+    fasta = tmp_path / "ins.fa"
+    fasta.write_text(f">chr7\n{contig}\n")
+    reference = ReferenceGenome(fasta, build="hg38")
+
+    resolved = resolve(f"chr7:501:{contig[500]}>{contig[500]}ACGT", reference=reference, window=100)
+    interval = resolved.working_interval
+    assert interval.end - interval.start >= 2 * 100 + 1
+
+
+def test_the_unknown_contig_message_elides_only_when_it_is_hiding_something(
+    tmp_path: Path,
+) -> None:
+    """`"…" if len(reference.contigs) > 8 else ""` — the eight it lists are all of them.
+
+    The message names up to eight contigs so a caller can see the naming style they should
+    have used. Relaxed to `>=`, a reference with exactly eight gets a trailing ellipsis
+    while every contig is already on screen — telling the reader the list is partial and
+    that the name they want might be among the ones not shown, when there are none.
+    """
+
+    def _message(n: int) -> str:
+        fasta = tmp_path / f"contigs{n}.fa"
+        fasta.write_text("".join(f">c{i}\nACGTACGTAC\n" for i in range(n)))
+        reference = ReferenceGenome(fasta, build="hg38")
+        with pytest.raises(ValueError) as excinfo:
+            resolve("absent:5:A>T", reference=reference)
+        return str(excinfo.value)
+
+    exactly_eight = _message(8)
+    assert "…" not in exactly_eight, exactly_eight
+    assert "c7" in exactly_eight, "all eight must be listed"
+
+    nine = _message(9)
+    assert "…" in nine, nine

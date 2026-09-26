@@ -20252,3 +20252,51 @@ Deferred, named: 10 survivors in `variant/resolver.py` and 9 in `genome/referenc
 number — not past it.** Every fixture here was written to demonstrate the limit working, so
 each one sat comfortably outside it. The value that matters is the one a user's edit lands
 exactly on, and for a limit quoted in documentation that value is the one they will pick.
+
+## Round 589 — the fixture that sat where the code is a no-op
+
+`variant/resolver.py`, the last of the batch. Sixty of sixty-one mutants die now, and the
+single survivor is a narrow-list artifact the wider suite kills.
+
+The cluster is two kinds of unmeasured claim, and both were hidden the same way.
+
+**The numbers inside a refusal.** The past-the-contig-end message is the only place a caller
+is told what range the contig has, and it is what they will use to fix their input — so its
+arithmetic is a specification, not decoration. Three of its numbers were unpinned because
+every existing assertion checked that the message *mentions* the length rather than that it
+computes correctly. `0-based positions 0-{length - 1}`: off by one and the message invites
+exactly the position it is refusing, so a caller who tries it is refused again with no way to
+tell which of the two numbers was wrong. The span renders as a point for a one-base ref and a
+range otherwise, and the range's end is `pos + len(ref)` — invert the first and a single base
+prints as a range, mis-sign the second and the range runs backwards. The same shape sits in
+the unknown-contig message, whose `…` must appear only when a contig is actually hidden:
+relaxed, a reference with exactly eight gets an ellipsis while all eight are on screen,
+telling the reader the name they want might be among ones not shown when there are none.
+
+**The working interval.** `end = pos + max(1, len(ref)) + window`, where the `max` spans a
+multi-base reference allele. With `min` the term is always 1, so the interval stops
+`len(ref) - 1` bases short of the allele it brackets and every consumer that trusts it to
+contain the variant reads a window ending inside it.
+
+That one could not be tested with the fixture the module's tests share, and the reason is
+this round's lesson. Its contig is 30 bases against a 100-base window, so the working
+interval is **clamped to the whole contig** — it covers the allele whatever the arithmetic
+says. A 30-base contig is the obvious thing to write for a resolver test; it is also exactly
+the region where the code under test does nothing. The fix is a 2,000-base contig that leaves
+the clamp out of it, and both sides pinned: a 20-base deletion's full span, and the `1` floor
+that keeps a zero-length allele from collapsing the interval to a point.
+
+One process note. A sweep's output was lost when its background task ended without flushing,
+and the temptation was to trust the earlier run's numbers. Re-running cost two minutes and
+changed the answer — several mutants the earlier run listed as surviving were already dead,
+because the new tests had covered their code paths incidentally. A stale measurement of your
+own work is worth less than no measurement, because it reads as current.
+
+Deferred, named: nine survivors in `genome/reference.py`.
+
+**Lesson: a fixture chosen for convenience tends to sit exactly where the code under test is
+a no-op.** This arc has now hit it four times — clamps whose inputs never reach them,
+symmetric alleles that cannot distinguish a single relaxed guard, a cap tested against a menu
+its own size, and now a contig short enough that every window question is answered by the
+clamp instead of the arithmetic. The common tell is that the fixture was picked to be *small
+and obvious*, and smallness is what puts it in the degenerate region.

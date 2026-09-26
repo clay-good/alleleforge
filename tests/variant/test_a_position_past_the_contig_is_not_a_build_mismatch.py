@@ -65,3 +65,47 @@ def test_the_last_base_of_the_contig_still_resolves(reference: ReferenceGenome) 
     """Guard the boundary from the inside: off-by-one here would refuse real input."""
     resolved = resolve(f"chr2:{_LENGTH}:{CHR2_SEQ[-1]}>A", reference=reference)
     assert resolved.variant.pos == _LENGTH - 1
+
+
+# -- the numbers inside the refusal ---------------------------------------------
+#
+# This message is a specification: it is the only place a caller is told what range the
+# contig actually has, and it is what they will use to fix their input. Mutation sweeps
+# left three of its numbers unpinned — the last valid position, the span's end, and
+# whether the span is rendered as a point or a range — because every existing assertion
+# checks that the message *mentions* the length, not that its arithmetic is right.
+
+
+def test_the_refusal_names_the_last_valid_position(reference: ReferenceGenome) -> None:
+    """`0-based positions 0-{length - 1}`, which is the number the caller will reuse.
+
+    Off by one and the message invites exactly the position it is refusing: a caller told
+    the range ends at `length` will try `length`, be refused again, and have no way to tell
+    which of the two numbers was wrong.
+    """
+    with pytest.raises(ValueError) as excinfo:
+        resolve(f"chr2:{_LENGTH + 5}:A>T", reference=reference)
+    message = str(excinfo.value)
+
+    assert f"0-based positions 0-{_LENGTH - 1}" in message, message
+    assert f"positions 0-{_LENGTH}" not in message, message
+
+
+def test_a_single_base_refusal_names_a_position_and_a_span_names_a_range(
+    reference: ReferenceGenome,
+) -> None:
+    """`span = pos if len(ref) == 1 else f"{pos}-{end}"`, and `end = pos + len(ref)`.
+
+    Inverting the length test prints a one-base variant as a range and a multi-base one as
+    a point; mis-signing the end prints a range that runs backwards. Either way the
+    coordinates in the refusal are not the coordinates the caller sent.
+    """
+    with pytest.raises(ValueError) as single:
+        resolve(f"chr2:{_LENGTH + 5}:A>T", reference=reference)
+    assert f"variant at chr2:{_LENGTH + 4} lies past the end" in str(single.value), single.value
+
+    # A four-base ref anchored one before the end: the span must read start-to-end.
+    with pytest.raises(ValueError) as span:
+        resolve(f"chr2:{_LENGTH - 1}:AAAA>A", reference=reference)
+    start = _LENGTH - 2  # the input is 1-based; the message prints 0-based
+    assert f"variant at chr2:{start}-{start + 4} lies past the end" in str(span.value), span.value
