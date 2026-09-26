@@ -20394,3 +20394,47 @@ three window-boundary survivors in `haplotype.py`/`population.py`.
 dangerous one.** Every test here asked whether the prefilter finds the right anchors. None
 asked what happens when it finds none — and "none" is indistinguishable, downstream, from a
 locus with nothing to find.
+
+## Round 592 — the operator the harness never had
+
+`report/precision.py` swept to **zero mutants**. Not "all killed" — nothing to mutate. Its
+whole logic is `isinstance` dispatch plus one key-dependent precision choice
+(`FREQUENCY_PRECISION if key in FREQUENCY_KEYS else places`, six places for frequencies and
+four for scores), and my operator set could not reach any of it.
+
+That is because the harness had **no `In`/`NotIn` operator**, and had not had one for fourteen
+rounds. Membership tests are the second most common guard shape in this codebase after a plain
+comparison — config-key whitelists, `_PRIME_CLASSES` chemistry eligibility, `FREQUENCY_KEYS`,
+rejection-reason sets, contig sets — and every one of them was invisible to every sweep I have
+run. A "0 survivors" result on `precision.py` was a statement about my tooling.
+
+So the first thing this round did was stop trusting its own earlier numbers. With `In`/`NotIn`
+added, the membership-richest modules I had already called clean were re-swept:
+`design/routing.py` went from 18 mutants to 21 and kills 20 of them (only the
+registry-equivalent `any`/`all` survives), `types/offtarget.py` kills 60 of 60 with the new
+mutants included, and `design/cohort_summary.py` — a module I had lost entirely to a wrong
+path, `report/` instead of `design/` — kills 19 of 19.
+
+**The blind spot was real and hid nothing.** That is worth stating plainly rather than
+dressing up: the membership tests in chemistry routing, the off-target report and the cohort
+summary are all covered, and the fix bought confidence rather than findings.
+
+One real gap did turn up, in `report/html.py`. The banner reading "Part of this menu is
+missing" is gated on `if not report.unavailable`, and `unavailable` holds one note per
+chemistry that contributed nothing for a reason the reader has to act on — a defect, or a
+store whose integrity check failed. Its docstring is explicit that it sits outside any
+disclosure widget because the reader has to see it without opening anything. Dropping the
+`not` inverts it precisely: gone when part of the menu is missing, rendered empty when it is
+not. Neither direction was asserted, so a menu silently short of its prime candidates would
+have looked complete. 41 of 41 now.
+
+Also fixed: the batch script reported a missing module as a traceback, and before that as
+"baseline not green". A missing target and a red baseline are different facts and now read
+differently — the same confusion cost `design/hdr` in R585 and `cohort_summary` here.
+
+**Lesson: a zero is the one result a measurement tool cannot report about itself.** A sweep
+that finds no survivors and a sweep that finds no *mutants* print almost the same summary, and
+only the second means the instrument was not looking. Every kill rate I have quoted in this arc
+was conditional on an operator set I never audited — the fix found nothing, but the audit was
+overdue, and the way to have caught it sooner was to ask what fraction of each module's
+branches the operators can actually perturb.

@@ -290,3 +290,35 @@ def test_the_html_shows_the_same_oligo_block_as_the_printable_sheet() -> None:
     body = block.group(1)
     assert "HDR donor" in body, "the oligo block omits the repair template"
     assert "&quot;kind&quot;" not in body, "the oligo record is still dumped as JSON"
+
+
+def test_the_missing_menu_banner_appears_only_when_part_is_missing(
+    prime_menu: RankedMenu,
+) -> None:
+    """`if not report.unavailable: return ""` — both directions, since neither was checked.
+
+    `unavailable` carries one note per chemistry that contributed nothing for a reason the
+    reader has to act on: a defect in the tool, or a store whose integrity check failed.
+    The banner is deliberately outside the rationale and outside any disclosure widget,
+    because it explains why part of the menu is absent rather than why a candidate ranked
+    where it did.
+
+    Dropping the `not` inverts it exactly: the banner vanishes on the reports that need it
+    and renders empty on the reports that do not. Nothing asserted either side — so a menu
+    silently missing its prime candidates would have rendered as a complete one.
+    """
+    report = build_report(prime_menu)
+    assert "Part of this menu is missing" not in render_html(report)
+
+    with_notes = report.model_copy(
+        update={
+            "unavailable": (
+                "prime: the off-target store failed its integrity check",
+                "base_abe: internal error (ValueError)",
+            )
+        }
+    )
+    html = render_html(with_notes)
+    assert "Part of this menu is missing" in html
+    assert "failed its integrity check" in html, "the note itself must reach the page"
+    assert "internal error (ValueError)" in html, "every note, not just the first"
