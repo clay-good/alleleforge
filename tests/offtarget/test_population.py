@@ -248,3 +248,224 @@ def test_insertion_places_downstream_hit_at_correct_locus(make_reference: MakeRe
     agg = [h for h in hits if h.pam_sequence == "AGG" and h.rna_bulges == 0]
     assert len(agg) == 1
     assert (agg[0].start, agg[0].end, agg[0].mismatches) == (10, 29, 0)
+
+
+# -- the reference baseline an alt hit has to beat -----------------------------
+#
+# `_reference_best` establishes the *strongest* reference hit per placement, and
+# `_strengthens` nominates an alt hit only when it beats that. Both were exercised only
+# through fixtures holding **one** reference hit per placement, so `prev` was always
+# `None` and the aggregation below never ran: swapping its `max` for `min` (or its `min`
+# for `max`) changed nothing in 2,087 tests. Understating the baseline is the direction
+# that matters — every alt hit then looks like a strengthening, and the population pass
+# over-attributes sites to the variant.
+
+
+def _hit(
+    *,
+    score_target: str,
+    mismatches: int,
+    start: int = 100,
+    dna_bulges: int = 0,
+    rna_bulges: int = 0,
+    pam: str = "AGG",
+):
+    from alleleforge.offtarget._search import Hit
+    from alleleforge.types.sequence import Strand
+
+    return Hit(
+        chrom="chr2",
+        start=start,
+        end=start + 20,
+        strand=Strand.PLUS,
+        pam_sequence=pam,
+        aligned_spacer="GACGCTAGACGATCGATCGA",
+        aligned_target=score_target,
+        mismatches=mismatches,
+        dna_bulges=dna_bulges,
+        rna_bulges=rna_bulges,
+    )
+
+
+class _RecordingScorer:
+    """Returns a score keyed by target, and records every ``bulged`` it was passed."""
+
+    name = "recording"
+    matrix = "recording"
+
+    def __init__(self, scores: dict[str, float]) -> None:
+        self.scores = scores
+        self.bulged_seen: list[bool] = []
+        self.calls = 0
+
+    @property
+    def method(self):  # type: ignore[no-untyped-def]
+        from alleleforge.types.offtarget import ScoreMethod
+
+        return ScoreMethod.CFD
+
+    def score(
+        self, spacer: str, protospacer: str, pam_sequence: str, *, bulged: bool = False
+    ) -> float:
+        self.calls += 1
+        self.bulged_seen.append(bulged)
+        return self.scores[protospacer]
+
+
+def test_the_reference_baseline_keeps_the_strongest_hit_at_a_placement() -> None:
+    """Two reference hits at one placement: the max score and the fewest edits.
+
+    A fixture with a single hit cannot measure an aggregator — `prev` stays `None` and
+    the `max`/`min` are never evaluated.
+    """
+    from alleleforge.offtarget.population import _reference_best
+    from alleleforge.types.sequence import Strand
+
+    weak = _hit(score_target="T" * 20, mismatches=4)
+    strong = _hit(score_target="C" * 20, mismatches=1)
+    scorer = _RecordingScorer({"T" * 20: 0.10, "C" * 20: 0.90})
+
+    best = _reference_best([weak, strong], scorer)[(Strand.PLUS, 100, 120)]
+    assert best == (0.90, 1), "the baseline must be the strongest hit, not the last one"
+
+    # Order must not matter, which a single-hit fixture also cannot check.
+    reversed_best = _reference_best([strong, weak], scorer)[(Strand.PLUS, 100, 120)]
+    assert reversed_best == (0.90, 1)
+
+
+def test_the_reference_baseline_is_per_placement() -> None:
+    """The aggregation is keyed, so two placements must not collapse into one."""
+    from alleleforge.offtarget.population import _reference_best
+    from alleleforge.types.sequence import Strand
+
+    here = _hit(score_target="T" * 20, mismatches=4, start=100)
+    elsewhere = _hit(score_target="C" * 20, mismatches=1, start=500)
+    scorer = _RecordingScorer({"T" * 20: 0.10, "C" * 20: 0.90})
+
+    best = _reference_best([here, elsewhere], scorer)
+    assert best[(Strand.PLUS, 100, 120)] == (0.10, 4)
+    assert best[(Strand.PLUS, 500, 520)] == (0.90, 1)
+
+
+def test_a_bulge_free_reference_hit_is_not_scored_as_bulged() -> None:
+    """`bulged` comes from the hit's own counts: `> 0`, not `>= 0`.
+
+    Relaxed, every reference hit is scored off the bulge fallback, which lowers the
+    baseline the alt hit has to beat and over-attributes sites to the variant.
+    """
+    from alleleforge.offtarget.population import _reference_best
+
+    scorer = _RecordingScorer({"T" * 20: 0.10})
+    _reference_best([_hit(score_target="T" * 20, mismatches=4)], scorer)
+    assert scorer.bulged_seen == [False]
+
+    bulged = _RecordingScorer({"T" * 20: 0.10})
+    _reference_best([_hit(score_target="T" * 20, mismatches=3, dna_bulges=1)], bulged)
+    assert bulged.bulged_seen == [True]
+
+
+# -- "more dangerous than the reference" --------------------------------------
+
+
+def test_an_alt_hit_matching_the_reference_exactly_is_not_a_strengthening() -> None:
+    """The docstring says *strictly* higher and *strictly* fewer, so pin the equality.
+
+    Relaxed to `>=`, an alt hit identical to the reference hit at that placement is
+    attributed to the variant — the population pass then reports sites the variant did
+    not create or strengthen, with an ancestry attached to each.
+    """
+    from alleleforge.offtarget.population import _strengthens
+
+    scorer = _RecordingScorer({"T" * 20: 0.50})
+    same = _hit(score_target="T" * 20, mismatches=2)
+    assert _strengthens(same, (0.50, 2), scorer) is False
+
+
+def test_an_alt_hit_beating_the_reference_on_either_measure_is_a_strengthening() -> None:
+    """The union gate: a higher score, or fewer edits, each on its own."""
+    from alleleforge.offtarget.population import _strengthens
+
+    scorer = _RecordingScorer({"T" * 20: 0.60})
+    higher_score = _hit(score_target="T" * 20, mismatches=2)
+    assert _strengthens(higher_score, (0.50, 2), scorer) is True
+
+    # Same score, one fewer edit — the case the bulge-blind score alone would miss.
+    scorer = _RecordingScorer({"T" * 20: 0.50})
+    fewer_edits = _hit(score_target="T" * 20, mismatches=1)
+    assert _strengthens(fewer_edits, (0.50, 2), scorer) is True
+
+
+def test_a_created_hit_needs_no_reference_to_beat() -> None:
+    """No reference hit at the placement means the variant created the site."""
+    from alleleforge.offtarget.population import _strengthens
+
+    scorer = _RecordingScorer({"T" * 20: 0.01})
+    assert _strengthens(_hit(score_target="T" * 20, mismatches=4), None, scorer) is True
+
+
+def test_a_bulge_free_alt_hit_is_not_scored_as_bulged() -> None:
+    """The same `> 0` on the alt side, where the penalty *drops* a real site.
+
+    This is the dangerous direction of the pair: an alt hit scored off the bulge
+    fallback scores lower, fails the gate, and the population site disappears.
+    """
+    from alleleforge.offtarget.population import _strengthens
+
+    scorer = _RecordingScorer({"T" * 20: 0.60})
+    _strengthens(_hit(score_target="T" * 20, mismatches=2), (0.50, 2), scorer)
+    assert scorer.bulged_seen == [False]
+
+
+# -- a supplied scorer is the scorer that runs ---------------------------------
+
+
+def test_the_patient_pass_uses_the_scorer_it_was_given(make_reference: MakeRef) -> None:
+    """`scorer if scorer is not None else CfdScorer()` — inverted, the argument is dropped.
+
+    The patient pass then scores a personal off-target site with the default matrix
+    however the caller configured the run, and nothing says so: the sites still appear,
+    tagged PATIENT, carrying numbers from a scorer nobody asked for.
+    `enumerate_population_sites` has the identical line and is checked here too, because a
+    guard holding on one of two parallel call sites is a shape this repository keeps
+    finding.
+
+    The window holds an exact match with an NRG PAM, so reference hits exist and are
+    scored. A fixture whose site the variant *creates* cannot measure this at all:
+    `_strengthens` returns early on `prior is None` and never reaches a scorer.
+    """
+    contig = PAD + SPACER + "AGG" + PAD
+    ref = make_reference({"chr2": contig})
+    pos0 = len(PAD) + len(SPACER) + 3  # just past the PAM, still inside the scan window
+    base = contig[pos0]
+    alt = "A" if base != "A" else "G"
+
+    class _Sentinel:
+        name = "sentinel"
+        matrix = "sentinel-matrix"
+        calls = 0
+
+        @property
+        def method(self):  # type: ignore[no-untyped-def]
+            from alleleforge.types.offtarget import ScoreMethod
+
+            return ScoreMethod.CFD
+
+        def score(
+            self, spacer: str, protospacer: str, pam_sequence: str, *, bulged: bool = False
+        ) -> float:
+            type(self).calls += 1
+            return 1.0
+
+    sentinel = _Sentinel()
+    var = Variant(chrom="chr2", pos=pos0 + 1, ref=base, alt=alt)
+    enumerate_patient_sites(SPACER, NRG, reference=ref, variants=[var], scorer=sentinel)
+    assert _Sentinel.calls, "the patient pass ignored the scorer it was handed"
+
+    _Sentinel.calls = 0
+    pf = PopulationFrequency(
+        chrom="chr2", pos=pos0 + 1, ref=base, alt=alt, overall_af=0.2, populations={"afr": 0.2}
+    )
+    enumerate_population_sites(
+        SPACER, NRG, reference=ref, variants=[pf], maf=0.001, scorer=sentinel
+    )
+    assert _Sentinel.calls, "the population pass ignored the scorer it was handed"

@@ -20029,3 +20029,67 @@ prove it — and both compared a value against itself through an alignment deriv
 value. The check to apply: name the number your assertion would have to *change* for it to
 fail, and confirm that number comes from somewhere other than the thing under test. If both
 sides of an equality trace back to one source, the test is documentation.
+
+## Round 585 — five modules clean, thirty-six gaps, and a tool that was inventing them
+
+Nine modules swept. Five are clean and the number is worth stating: `offtarget/engine.py`
+68 of 68, `enumerate/prime.py` 62 of 62, `enumerate/base_editor.py` 45 of 45,
+`scoring/cas9_outcome.py` 44 of 44, with `enumerate/cas9.py`'s 110 from R584. The search
+orchestration and all three enumerators are fully mutation-covered. What this arc has found
+was never the arithmetic; it was the machinery that describes the arithmetic.
+
+**The tool was manufacturing findings.** The driver derives each module's test list from its
+public symbols, and for three rounds running it selected lists too narrow to judge a
+survivor by: 2 files of 126 for `scoring/base_outcome`, 2 of 41 for `scoring/cas9_outcome`,
+14 for `enumerate/cas9`. Every "survivor" from those lists died once the real population ran
+— 43 phantom gaps across R583-585, all in safety-relevant scorers, and each one would have
+been a fabricated defect in a changelog. The list now unions three sources: symbol matches,
+the mirror package directory (`tests/scoring/` for `src/.../scoring/`), and the module's own
+basename. `base_outcome` goes 2 → 15 files, `cas9_outcome` 2 → 16. The confirm-against-2,087
+protocol stays regardless, because a narrower list is still faster and still wrong.
+
+A second tool defect in the same round: the batch script reported "baseline not green" for
+`design/hdr`, which does not exist — the driver had thrown on `read_text()`. A missing
+target and a red baseline are different facts and were being reported as one. (HDR lives in
+`enumerate/cas9.py`, already clean.)
+
+Thirty-six confirmed gaps remain from four modules. This round closes the ten in
+`offtarget/population.py`, which decide whether a population off-target site is reported at
+all.
+
+`_reference_best` establishes the strongest reference hit per placement,
+`(max(score), min(edits))`, and `_strengthens` nominates an alt-allele hit only when it beats
+that. Every fixture in the suite handed the aggregation **one** hit per placement — the
+existing `_reference_best([hit], ...)` call is right there in the file — so `prev` was always
+`None` and the `max`/`min` were never evaluated. **A fixture with one item cannot measure an
+aggregator**, and understating this particular baseline makes every alt hit look like a
+strengthening.
+
+The `bulged` flag is the pair worth reading twice. It is `dna_bulges > 0 or rna_bulges > 0`
+on both the reference and the alt side, and the two relaxations point opposite ways: on the
+reference side every hit scores off the bulge fallback, lowering the bar and over-reporting;
+on the alt side the real site scores lower, fails the gate, and **disappears**. Only one of
+those two directions is dangerous, and it is the one with no symptom.
+
+`enumerate_patient_sites(scorer=…)` was the R578 shape again — a knob accepted and dropped.
+Inverted, the argument is ignored and a patient's personal off-target sites are scored with
+the default matrix, still tagged PATIENT, carrying numbers nobody asked for. Writing that
+test taught something: the first fixture failed against *correct* code, because the site it
+built was one the variant **created**, and `_strengthens` returns early on `prior is None`
+without ever reaching a scorer. A fixture that does not exercise the path cannot measure the
+knob on it.
+
+Deferred, named rather than rounded away: one confirmed survivor in `population.py` (L142,
+the window-end margin — a hit at the extreme 3' edge), nine in `offtarget/haplotype.py`, and
+seventeen across `scoring/cas9_efficiency.py` and `scoring/prime_efficiency.py`. The scorer
+cluster is one idea — `interval=(max(0.0, value - half), min(1.0, value + half))` is a clamp
+to [0, 1] that no test reaches, because every fixture's value sits in [0.15, 0.85], so the
+clamps are no-ops and `max`↔`min` is invisible. That is R583's validator finding inverted: a
+validator tested only *past* its boundary, a clamp never given anything to clamp. It wants a
+round of its own rather than the tail of this one.
+
+**Lesson: a kill rate is a claim about a test list, and mine was wrong three rounds running
+in the direction that invents work.** Read the population before the score. An
+over-narrow list produces survivors that look exactly like findings — same file, same line,
+same plausible failure story — and the only thing separating them is a run against the tests
+you did not include.
