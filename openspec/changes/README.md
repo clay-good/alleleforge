@@ -19857,3 +19857,54 @@ coupling rather than a gap, and the cheaper fix is usually to stop depending on 
 tell that this was the second kind: the mutant survived a suite of 4,297 tests while being
 observably non-equivalent on almost every input — which can only mean no fixture ever
 reached the state that distinguishes them.
+
+## Round 582 — the gate that neutered the test guarding it
+
+`types/prediction.py` is the uncertainty contract: no scorer returns a bare float, and
+`Prediction.combine` propagates the honesty flags conservatively — `calibrated` only if
+every input was, `in_distribution` only if every input was. Thirty mutants; two survived,
+and both were `all(...)` → `any(...)` on exactly those two rules. The third parallel
+propagation, `point_from_trained_model`, died.
+
+`test_combine_and_flags` is what made them survive, and it looks like precisely the test
+that should have killed them: one calibrated input, one uncalibrated, asserting the result
+is not calibrated. But it built the calibrated input as `_pred(..., calibrated=True)`, and
+`calibrated=True` is gated by a capability token only `calibrated_by` holds. The
+constructor refuses it silently. So *neither* input was calibrated, `all` and `any` agreed
+at `False`, and `assert c.calibrated is False` passed no matter what `combine` did — it
+would have passed against a `combine` that forged the flag from a single input, which is
+the one failure the gate exists to prevent. The same fixture set both inputs
+in-distribution, so the second rule was invisible for the mirror-image reason.
+
+**The capability gate that protects calibration is what made the test of calibration
+inert.** A fixture cannot carry a guarantee that only an authorized path can grant, and
+the safer that path is made, the quieter the failure when a test tries to fake it. Nothing
+warns: the constructor does not raise, it coerces.
+
+Fixed by building inputs through `calibrated_by`, asserting the premise itself (a
+constructor-set `calibrated=True` *is* refused, so the next reader does not have to
+rediscover why the fixture looks roundabout), and covering the three cases the old one
+could not express — an uncalibrated input among calibrated ones, an out-of-distribution
+input among in-distribution ones, and a calibrated input combined with an OOD one, which
+must yield neither flag. 30 of 30 now.
+
+The other half of the round was the instrument. The first sweep of this file reported
+**30 killed, 0 survived** — and was worthless. `prediction.py` is imported almost
+everywhere, so the derived test list was 435 files with a 67 s baseline, against a 30 s
+per-mutant bound: every mutant that did not fail fast hit the bound and was counted as
+killed. Twenty-five of the thirty "kills" were timeouts. The summary line cannot show
+this; only the per-mutant labels added two rounds ago did. The harness now measures the
+green baseline, sizes its own bound at four times it, and refuses to start when an
+explicit bound is under twice it — the run that produced the false 30/30 is now rejected
+by name. A second attempt with the full list then hung past its bound entirely (68 minutes,
+zero mutants resolved), so the sweep uses a 26-file list exercising prediction semantics,
+with survivors to be confirmed against the wider suite — none survived.
+
+**Lesson: a fixture cannot hold a guarantee that only an authorized path can grant, and
+the gate will not tell you it refused.** Wherever a flag, token or permission is
+capability-gated, the tests *of* that flag are the ones most likely to be inert, because
+the natural way to write the fixture is the way the gate silently rejects. Assert the
+premise — that the fixture really carries what it claims — or the assertion after it is
+measuring nothing. Corollary for tooling: a metric that can be satisfied by a timeout is
+not a measurement, and the check for that belongs in the tool, not in the operator's
+memory.

@@ -130,12 +130,85 @@ def test_combine_sum() -> None:
     assert c.interval == pytest.approx((0.8, 1.2))
 
 
+def _calibrated(value: float, low: float, high: float, **kw: object) -> Prediction[float]:
+    """A *genuinely* calibrated prediction, via the one authorized path.
+
+    `Prediction(calibrated=True)` is silently refused — the flag is gated by a
+    capability token only `calibrated_by` holds — so a fixture built that way carries
+    `calibrated=False`. That is the whole point of the gate, and it also means a test
+    that tries to build a calibrated input through the constructor is testing nothing.
+    """
+    return Prediction[float].calibrated_by(
+        value=value,
+        interval=(low, high),
+        method=UncertaintyMethod.ENSEMBLE,
+        **kw,  # type: ignore[arg-type]
+    )
+
+
+def test_a_constructor_calibrated_flag_is_refused() -> None:
+    """The premise of the tests below, stated rather than assumed."""
+    assert _pred(0.4, 0.3, 0.5, calibrated=True).calibrated is False
+    assert _calibrated(0.4, 0.3, 0.5).calibrated is True
+
+
 def test_combine_and_flags() -> None:
-    a = _pred(0.4, 0.3, 0.5, calibrated=True, in_distribution=True)
+    """Conservative propagation: one uncalibrated input makes the aggregate uncalibrated.
+
+    This check used to build its "calibrated" input with `_pred(calibrated=True)`, which
+    the capability gate refuses — so *neither* input was calibrated, `all(...)` and
+    `any(...)` agreed at False, and the assertion below passed however `combine`
+    propagated. Mutating `all` to `any` on that line left the whole suite green. The
+    input is now calibrated for real, so the assertion measures the rule it names.
+    """
+    a = _calibrated(0.4, 0.3, 0.5, in_distribution=True)
     b = _pred(0.6, 0.5, 0.7, calibrated=False, in_distribution=True)
+    assert a.calibrated is True, "the fixture must carry the guarantee it is testing"
+
     c = Prediction.combine([a, b])
-    assert c.calibrated is False
+    assert c.calibrated is False, "one uncalibrated input must not inherit calibration"
     assert c.in_distribution is True
+
+
+def test_combine_keeps_calibration_only_when_every_input_has_it() -> None:
+    """The positive case, so the check above cannot pass by never calibrating anything."""
+    a = _calibrated(0.4, 0.3, 0.5, in_distribution=True)
+    b = _calibrated(0.6, 0.5, 0.7, in_distribution=True)
+    assert Prediction.combine([a, b]).calibrated is True
+
+
+def test_combine_is_out_of_distribution_when_any_input_is() -> None:
+    """`in_distribution` propagates by `all`, and the fixture must contain a False.
+
+    Both inputs of the older check were in-distribution, so `all` and `any` agreed and
+    the mutation was invisible. An aggregate that calls itself in-distribution because
+    *one* input was is the overclaim the flag exists to prevent — and an OOD input can
+    never be calibrated, so this also pins the interaction between the two flags.
+    """
+    inside = _pred(0.4, 0.3, 0.5, in_distribution=True)
+    outside = _pred(0.6, 0.5, 0.7, in_distribution=False)
+
+    combined = Prediction.combine([inside, outside])
+    assert combined.in_distribution is False
+    assert combined.calibrated is False
+
+    assert Prediction.combine([inside, inside]).in_distribution is True
+
+
+def test_a_calibrated_input_cannot_rescue_an_out_of_distribution_one() -> None:
+    """Both guards at once: `in_distribution and all(calibrated)`.
+
+    The calibrated branch is reached only when the aggregate is also in-distribution, so
+    a calibrated input combined with an OOD one must yield neither flag.
+    """
+    combined = Prediction.combine(
+        [
+            _calibrated(0.4, 0.3, 0.5, in_distribution=True),
+            _pred(0.6, 0.5, 0.7, in_distribution=False),
+        ]
+    )
+    assert combined.in_distribution is False
+    assert combined.calibrated is False
 
 
 def test_combine_rejects_empty() -> None:
