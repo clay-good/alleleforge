@@ -20342,3 +20342,55 @@ it.** Uniform naming, one contig, a file that ends the way your editor ends file
 the natural thing to write and none is what a reference genome is. This is R589's lesson from
 the other side: there the fixture was too *small* to leave the degenerate region, here it is
 too *tidy*.
+
+## Round 591 — the prefilter that would have reported a clean guide
+
+Six modules swept. `offtarget/_search.py` — the aligner itself, 958 lines of ungapped and
+single-bulge alignment, the pigeonhole seed prefilter, the FM-index scan, the `MAX_BULGES`
+budget — kills **114 of 114**. `types/candidate.py` kills 3 of 3. That is the pattern this arc
+keeps confirming: the arithmetic is well tested, and it was never where the findings were.
+
+The finding with the worst consequence is in `offtarget/_kmer.py`, and it is about a
+guarantee rather than a number. The prefilter may skip an anchor only where the window
+*provably* contains no exact seed — it is safe because it is a proven superset. So an empty
+anchor list does not mean "no seeds here" to the scan; it means every anchor in the window is
+skipped. **A guide then comes back clean because nothing looked at it.** Two guard boundaries
+produce exactly that, and neither is exotic: `k < 1` relaxed refuses a one-base seed, which
+`seed_length(n, E) = n // (E + 1)` returns whenever the edit budget approaches the spacer
+length; and `len(spacer) < k` relaxed refuses a spacer exactly `k` long, which holds precisely
+one k-mer — itself.
+
+The other three survivors in that file are genuinely equivalent, established by running both
+versions over ~100 input combinations rather than by reading: the two `range(len ± k + 1)`
+mutations only add short strings that can never match a full-length k-mer, and `p <= length`
+cancels because the increment and decrement land on the same index.
+
+`types/sequence.py`'s `overlaps` is two comparisons, and the existing abutting check asks it
+one way round — which reaches the second and leaves the first untested. Asked the other way,
+the same two intervals expose it: relaxed, half-open spans that merely touch are reported as
+overlapping, which would exclude a real neighbouring off-target as if it were the guide's own
+locus. This is R588's `or`-operand lesson with an `and`.
+
+`design/designer.py` hid a sign error behind a fixture anchored at zero: the provenance record
+of how many bases a region restriction covers is `sum(end - start)`, checked against a region
+`[0, 140)` where `end + start` is also 140. Third time this arc that an origin-anchored
+fixture has made a sign invisible.
+
+Two process failures of mine, both worth recording. I restored a source file with `cp` from a
+backup I had taken *while a sweep had it mutated*, putting the unparsed version back — the
+only safe restore is `git checkout`. And my `pgrep` pattern for live sweeps matched
+inconsistently; two were running while I believed none were. `ps -ax | grep` is the check that
+works, and `git diff --stat src/` immediately before a commit is the one that matters.
+
+One guard paid for itself: a sweep refused to start because its baseline had a single failure —
+my own test edit, in flight. A red baseline silently inflates a kill rate, and the harness now
+declines rather than measure it.
+
+Deferred, named: `designer.py` L760 (the failed-chemistry set on the cache-integrity path,
+which needs a corrupted-cache fixture), `offtarget/cache.py` L202 (a pluralisation), and the
+three window-boundary survivors in `haplotype.py`/`population.py`.
+
+**Lesson: when a filter is only correct because it is a superset, its empty result is the
+dangerous one.** Every test here asked whether the prefilter finds the right anchors. None
+asked what happens when it finds none — and "none" is indistinguishable, downstream, from a
+locus with nothing to find.

@@ -205,3 +205,42 @@ def test_the_complement_of_an_empty_sequence_is_empty() -> None:
     """`translate` and `[::-1]` both have to survive the degenerate case."""
     assert str(DNASequence("").reverse_complement()) == ""
     assert str(DNASequence("").complement()) == ""
+
+
+def test_abutting_intervals_do_not_overlap_in_either_order() -> None:
+    """`self.start < other.end and other.start < self.end` — two comparisons, two orders.
+
+    `test_overlaps` already checks that `[0,10)` and `[10,20)` are disjoint, but only as
+    `a.overlaps(c)`, which reaches the *second* comparison. Asking it the other way round
+    is what reaches the first, and relaxing that one reports abutting intervals as
+    overlapping — a half-open interval that ends where another begins shares no base.
+
+    `overlaps` decides whether an off-target site is inside a requested region and whether
+    a nominated placement is the guide's own locus, so treating adjacency as overlap
+    excludes a real neighbouring site as if it were the on-target.
+    """
+    left = GenomicInterval(chrom="c", start=0, end=10, strand=Strand.PLUS)
+    right = GenomicInterval(chrom="c", start=10, end=20, strand=Strand.PLUS)
+
+    assert not left.overlaps(right)
+    assert not right.overlaps(left), "abutting is still disjoint with the arguments swapped"
+
+    # One base of genuine overlap, both orders, so the check above is not vacuous.
+    touching = GenomicInterval(chrom="c", start=9, end=20, strand=Strand.PLUS)
+    assert left.overlaps(touching)
+    assert touching.overlaps(left)
+
+
+def test_a_zero_width_interval_reports_overlap_as_it_stands() -> None:
+    """Records the current behaviour of an empty span rather than asserting a preference.
+
+    `[5,5)` contains no base, yet `overlaps` returns True against `[0,10)` because both
+    comparisons hold (`5 < 10` and `0 < 5`). Whether an empty interval should overlap
+    anything is a contract question, not a defect I can settle from here: `GenomicInterval`
+    permits `start == end`, and callers may rely on either reading. Pinned so a future
+    change to it is deliberate and visible rather than incidental.
+    """
+    empty = GenomicInterval(chrom="c", start=5, end=5, strand=Strand.PLUS)
+    around = GenomicInterval(chrom="c", start=0, end=10, strand=Strand.PLUS)
+    assert empty.overlaps(around) is True
+    assert around.overlaps(empty) is True, "and it is symmetric, both ways round"

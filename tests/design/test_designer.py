@@ -1034,3 +1034,34 @@ def test_a_declined_line_is_trimmed_when_a_menu_exists() -> None:
         == "Eligible only for a transition SNV."
     )
     assert _first_sentence("  no terminal period  ") == "no terminal period"
+
+
+def test_the_region_snapshot_counts_a_span_not_a_sum_of_coordinates(
+    make_reference: MakeRef,
+) -> None:
+    """`sum(r.end - r.start)` — measured on a region that does not start at 0.
+
+    Provenance records how many bases a region restriction covers so a re-run can prove it
+    searched the same extent. The existing check uses a region anchored at 0, where
+    `end - start` and `end + start` are the same number, so a sign error in the span is
+    invisible: 140 either way. A region at [10, 150) is also 140 bases wide but sums to 160.
+
+    Two regions, both away from the origin, so the per-interval span and the sum across
+    intervals are each exercised.
+    """
+    reference = _prime_ref(make_reference)
+    menu = design(
+        "chr2:71:A>C",
+        reference=reference,
+        intent=EditIntent.INSTALL,
+        run_offtarget=False,
+        offtarget_regions=[
+            GenomicInterval(chrom="chr2", start=10, end=60, strand=Strand.PLUS),
+            GenomicInterval(chrom="chr2", start=80, end=120, strand=Strand.PLUS),
+        ],
+    )
+    assert menu.provenance is not None
+    snapshot = menu.provenance.config_snapshot["offtarget_regions"]
+    assert isinstance(snapshot, dict)
+    assert snapshot["n"] == 2
+    assert snapshot["bases"] == 90, "50 + 40 spans, not 70 + 200 coordinate sums"

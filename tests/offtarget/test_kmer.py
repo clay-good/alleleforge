@@ -147,3 +147,50 @@ def test_seed_positions_dispatch_matches_python() -> None:
         seq = _random_seq(rng, rng.randint(20, 80))
         k = rng.randint(1, 5)
         assert seed_positions(seq, spacer, k) == python_seed_positions(seq, spacer, k)
+
+
+# -- the seed set must be complete, or the prefilter stops being a superset ------
+#
+# The k-mer prefilter is only safe because it is a *proven superset*: it may skip an anchor
+# only when the window provably contains no exact seed. `python_seed_positions` returning an
+# empty list therefore does not mean "no seeds here" to the scan — it means every anchor in
+# the window is skipped, so a real off-target is never looked at. The two guard boundaries
+# below each produce exactly that, and both are reachable.
+
+
+def test_a_single_base_seed_still_finds_its_anchors() -> None:
+    """`k < 1` rejects a meaningless seed length; `k == 1` is a legitimate one.
+
+    `seed_length(n, E) = n // (E + 1)` returns 1 whenever the edit budget approaches the
+    spacer length — 20 // 20 for a 19-edit budget — so a one-base seed is a configuration
+    the caller can reach. Tightened to `k <= 1`, the anchor list comes back empty and the
+    scan skips every window, reporting a clean guide because it looked nowhere.
+    """
+    positions = python_seed_positions("ACGTACGT", "AC", 1)
+    assert positions, "a 1-mer seed must still produce anchors"
+    # Every position whose base appears in the spacer, and only those.
+    assert positions == [0, 1, 4, 5]
+
+
+def test_a_spacer_exactly_as_long_as_the_seed_is_its_own_kmer() -> None:
+    """`len(spacer) < k` rejects a spacer too short to hold a seed; equality is not short.
+
+    A spacer of exactly `k` bases contains exactly one `k`-mer — itself. Relaxed to
+    `len(spacer) <= k` that case returns no anchors, so a guide whose seed length equals its
+    own length is never matched anywhere.
+    """
+    assert python_seed_positions("TTACGTTT", "ACGT", 4) == [2]
+    # The genuinely-too-short case still returns nothing.
+    assert python_seed_positions("TTACGTTT", "ACG", 4) == []
+
+
+def test_a_sequence_exactly_as_long_as_the_seed_is_one_window() -> None:
+    """The third term of the same guard, for symmetry with the two above."""
+    assert python_seed_positions("ACGT", "TTACGTTT", 4) == [0]
+    assert python_seed_positions("ACG", "TTACGTTT", 4) == []
+
+
+def test_a_meaningless_seed_length_yields_no_anchors() -> None:
+    """The guard's own purpose, so the boundary checks above are not one-sided."""
+    assert python_seed_positions("ACGTACGT", "ACGT", 0) == []
+    assert python_seed_positions("ACGTACGT", "ACGT", -1) == []
