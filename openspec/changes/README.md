@@ -20143,3 +20143,52 @@ per survivor.** Three kinds hid in one list here — reachable and untested, unr
 construction, and unexecutable in this environment — and only the first wants a test. A
 count of survivors carried forward without that triage is a to-do list of which some items
 cannot be done, which is how R585's seventeen became five.
+
+## Round 587 — two coincidences stacked, and a site three bases from where it is
+
+The last of R585's confirmed clusters: nine survivors in `offtarget/haplotype.py`. Four are
+closed, and one of them is the most consequential defect shape this arc has produced —
+not a dropped site but a **mislocated** one.
+
+Hits are found on the length-changed alt window and lifted back to genomic coordinates
+through `applied_edits`, which records each applied variant as a window-local offset
+`(v.pos - start, len(ref), len(alt))`. Mis-sign that and the site is reported three bases
+from where it is. A missing site is a gap in a report; a site at the wrong coordinates is
+something a person goes and looks at.
+
+**Two coincidences hid it, and neither is a mistake on its own.** Every haplotype fixture in
+the suite carries only SNVs — and for length-preserving edits the coordinate lift is the
+identity whatever offsets it is handed. Every fixture's interval also starts at 0, so the
+window start clamps to 0 and `v.pos - start` *equals* `v.pos + start`. Either condition alone
+makes the mutation invisible; the suite had both, everywhere. Breaking one was not enough:
+the first fixture I built put the deletion upstream with an interval at 0 and the mutant
+still survived.
+
+The assertion deliberately knows nothing about the lift's arithmetic. The protospacer sits
+at one place in the reference, so adding an upstream deletion to the haplotype must not move
+where the hit is reported. Measured: `(80, 100)` either way, and `(77, 97)` under the
+mutation. That is the R584 discipline — compare against something derived independently of
+the code under test — applied without having to re-derive a coordinate convention.
+
+The other three are one rule stated in a comment and implemented twice: "a population
+'carries' the haplotype only **at or above** the safety threshold". `min_freq` gates whether
+the haplotype is scanned (`max_freq(...) < min_freq`) and, separately, which ancestries are
+named (`frequencies[p] >= min_freq`). The below-threshold case was tested; equality was not.
+Tightening either drops something sitting exactly on the caller's line — a haplotype never
+scanned, or an ancestry absent from `populations`, which makes the per-ancestry burden read
+"not measured" for a group that is carrying. And attribution over a multi-variant haplotype
+is `any` of the applied spans, not `all`: a haplotype is co-inherited alleles and a hit needs
+to overlap only the one that made it dangerous, so `all` discards a hit that overlaps one and
+not another — the more variants a haplotype carries, the more certainly all its hits go.
+
+Deferred, named: five survivors remain — `_clashes`'s window bounds (L46, three mutants) and
+the scan margin (L108, two). Making the first observable needs the site-creating variant to
+sit on the window's first base, which fights the geometry: the protospacer is 5' of its PAM,
+so a variant at the window start is upstream of any protospacer the window contains. That is
+a fixture worth building deliberately, not at the tail of a round.
+
+**Lesson: when a mutant survives, look for more than one reason — the second is usually in
+the fixture you were about to reuse.** Both conditions here were ordinary choices: SNVs are
+the natural haplotype example, and an interval at 0 is the natural way to write a small
+contig. Neither is wrong. Their conjunction made an entire coordinate transform untestable,
+and fixing only one left the mutant alive and me believing the test worked.
