@@ -123,3 +123,27 @@ def test_the_help_no_longer_promises_the_cohort() -> None:
         p for p in root.commands["batch"].params if p.opts and p.opts[0] == "--summary-tsv"
     )
     assert "resumed run" in (option.help or "")
+
+
+def test_the_report_points_at_the_manifest_it_wrote(fasta: Path, tmp_path: Path) -> None:
+    """`manifest_path` is the run's pointer to its own manifest, in both states.
+
+    The field is documented ("the JSONL manifest written, if any") and had no reader
+    anywhere in the package or the suite — which is why inverting its condition, so that
+    a run with no manifest reports the literal string ``"None"`` and a run with one
+    reports nothing, changed no test. A provenance pointer that is never read is a
+    pointer nobody has checked points anywhere.
+    """
+    manifest = tmp_path / "m.jsonl"
+    variants = _variants(fasta)
+
+    written = _run(fasta, manifest, variants[:1])
+    assert written.manifest_path == str(manifest)
+    assert Path(written.manifest_path).exists(), "the path must name a file that is there"
+
+    none = design_many(
+        variants[:1],
+        reference=ReferenceGenome(fasta, build="hg38"),
+        run_offtarget=False,
+    )
+    assert none.manifest_path is None, "no manifest means no path, not the string 'None'"

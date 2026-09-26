@@ -19908,3 +19908,60 @@ premise — that the fixture really carries what it claims — or the assertion 
 measuring nothing. Corollary for tooling: a metric that can be satisfied by a timeout is
 not a measurement, and the check for that belongs in the tool, not in the operator's
 memory.
+
+## Round 583 — six modules swept, and two results that were not real
+
+Six sweeps. `scoring/uncertainty.py` killed 130 of 130 — the calibration machinery,
+including the OOD-widening contract, is genuinely covered, and that is worth recording
+because R579's lesson predicted the honesty surfaces would be the weak ones. R582 found a
+weak *fixture* guarding that code, not weak code.
+
+Then two results that were not real, in opposite directions.
+
+**The false positive.** The batch reported `scoring/base_outcome.py` at 15 survivors of 32
+— by far the worst rate this repository has produced, in the scorer that computes
+`bystander_burden`, a safety number. It was an artifact. The driver derives each module's
+test list from its public names, and `base_outcome`'s names barely appear in test files:
+it had selected **2 files, 25 tests**. Re-swept against a list built from base-editing
+vocabulary (126 files, 1,789 tests): **32 of 32 killed, none surviving**. All fifteen were
+killed by tests the narrow list had excluded. R580 recorded this trap after two survivors
+turned out to be list artifacts; this time it was fifteen, and they would have been fifteen
+fabricated gaps in safety-critical code. **Read the derived list before reading the score.**
+
+**The false negative.** `types/variant.py` kept four survivors through a round of new
+tests. Both trim loops guard `len(ref) > 1 and len(alt) > 1`, and the sweep mutates one
+comparison at a time — relaxing *one* guard still leaves the other to stop the loop
+whenever the alleles are the same length. My fixtures were all symmetric (`AT>AT`), so
+they could not distinguish one relaxed guard from none, and they passed. The distinguishing
+input is an allele already at the floor: the insertion `T>GT` normalizes to an **empty
+ref**. That is R579's symmetric-fixture lesson appearing inside the test written to apply
+R579's lesson, which is the second time this arc that the sweep has caught a green test of
+mine that measured nothing.
+
+The rest of the round is one shape: **a validator tested only past its boundary.** A
+base-edit position at 1 or at `len(spacer)`; a one-position activity window; a pegRNA whose
+two homology arms exactly fill the RTT, which is what a zero-length templated allele means.
+Every one of these is legal and none was asserted, because the natural way to test a
+validator is to feed it something illegal and watch it raise. Refusing a legal input at the
+edge is the worse failure of the two — the input is correct, the error names a rule it does
+not break, and nothing upstream produced it, so there is nobody to ask. Checked and
+recorded honestly: the enumerator never reaches the pegRNA homology boundary (0 of 580
+pegRNAs over two deletions), so those validators guard hand-built and deserialized models
+rather than the pipeline.
+
+`CohortReport.manifest_path` is the round's own finding rather than a boundary: documented,
+computed, and read by nothing in the package or the suite, so inverting it — the literal
+string `"None"` for a run with no manifest, and nothing for a run with one — changed no
+test.
+
+Two survivors remain and are *proved* equivalent rather than assumed, because R581's
+"obviously equivalent" mutant turned out to differ on five of six inputs. `variant.py`'s
+`len(ref) > 1` sits after an SNV early return that already claims the only distinguishing
+case: 7,056 allele pairs, zero differing classifications. `cohort.py`'s `max_workers > 1`
+selects the threaded path for a single worker without changing results, which the suite's
+parallelism test already requires of both paths.
+
+**Lesson: read the derived population before reading the score, in both directions.** A
+kill rate is a statement about a test list, and a list too narrow invents gaps while a
+fixture too symmetric hides them. The two failures look nothing alike from the summary line
+— 15 survivors and 0 survivors — and both were the population, not the code.
