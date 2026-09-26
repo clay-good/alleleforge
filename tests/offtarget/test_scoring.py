@@ -239,3 +239,103 @@ def test_default_cfd_differs_from_approximation() -> None:
     published = CfdScorer().score(spacer, target, "AGG")
     approx = CfdScorer(approximate=True).score(spacer, target, "AGG")
     assert published != pytest.approx(approx, abs=1e-6)
+
+
+# -- the default mismatch-tolerance curve, at its endpoints ---------------------
+#
+# The fallback weight is `0.95 * (1 - position / (length - 1)) + 0.05`, a line from fully
+# tolerated at the PAM-distal end to 0.05 at the seed. Mutation sweeps left its denominator
+# and its guard unpinned: nothing asserted where the line *starts and ends*, only that
+# scores came out between 0 and 1, which every variant of the arithmetic also satisfies.
+
+
+def test_the_default_tolerance_curve_spans_the_whole_range() -> None:
+    """The endpoints pin the denominator: `length - 1`, not `length` or `length + 1`.
+
+    A PAM-distal mismatch is fully tolerated and a seed mismatch scores 0.05. Change the
+    denominator and the line no longer reaches either end — every off-target score shifts,
+    in a direction no aggregate reveals, because the curve stays monotonic and in range.
+    """
+    from alleleforge.offtarget.scoring import _default_mismatch_weight
+
+    length = 20
+    assert _default_mismatch_weight("A", "C", 0, length) == pytest.approx(1.0)
+    assert _default_mismatch_weight("A", "C", length - 1, length) == pytest.approx(0.05)
+
+
+def test_the_default_tolerance_curve_falls_toward_the_seed() -> None:
+    """Monotonic, so a sign flip on the proximity term is named."""
+    from alleleforge.offtarget.scoring import _default_mismatch_weight
+
+    weights = [_default_mismatch_weight("A", "C", i, 20) for i in range(20)]
+    assert weights == sorted(weights, reverse=True)
+    assert weights[0] > weights[-1]
+
+
+def test_a_transition_is_better_tolerated_than_a_transversion() -> None:
+    """The 1.15 boost, and its cap at 1.0.
+
+    Asserted at a mid-window position, where the boost is visible; at position 0 the
+    untouched weight is already 1.0 and the cap hides the multiplier entirely.
+    """
+    from alleleforge.offtarget.scoring import _default_mismatch_weight
+
+    transition = _default_mismatch_weight("A", "G", 10, 20)
+    transversion = _default_mismatch_weight("A", "C", 10, 20)
+    assert transition > transversion
+    assert _default_mismatch_weight("A", "G", 0, 20) == pytest.approx(1.0), "capped at 1.0"
+
+
+def test_the_cas12a_analog_mirrors_the_seed_to_the_five_prime_end() -> None:
+    """Cas12a's PAM is 5', so `length - 1 - i` puts the seed where Cas9's is not.
+
+    This is the whole difference between the two analogs, and it was unasserted: a
+    mismatch at the 5' end must be the damaging one for Cas12a, which is the opposite end
+    from Cas9. Getting the mirror wrong scores every Cas12a off-target as though its seed
+    were at the far end of the protospacer.
+    """
+    spacer = "A" * 20
+    five_prime = "C" + spacer[1:]
+    three_prime = spacer[:-1] + "C"
+
+    assert cas12a_cfd_score(spacer, five_prime, "TTTA") == pytest.approx(0.05)
+    assert cas12a_cfd_score(spacer, three_prime, "TTTA") == pytest.approx(1.0)
+
+
+# -- which weight source the report will name -----------------------------------
+
+
+def test_the_cas12a_matrix_label_names_the_table_that_scored() -> None:
+    """`effective_matrix` is how a reader tells a published table from an approximation.
+
+    The label is chosen by `elif mismatch_weights is None`. Inverted, a custom table is
+    reported as the built-in analog and the built-in analog as a custom table — the
+    provenance field reads exactly backwards, and both strings end in "unvalidated", so
+    nothing about either one looks wrong.
+    """
+    assert Cas12aCfdScorer().matrix == Cas12aCfdScorer.DEFAULT_MATRIX
+    assert "custom-mismatch-matrix" in Cas12aCfdScorer({("A", "C", 0): 0.5}).matrix
+    assert "custom" not in Cas12aCfdScorer().matrix
+    # An explicit label outranks both, so a caller supplying a published table can say so.
+    assert Cas12aCfdScorer(matrix="published-cas12a-v1").matrix == "published-cas12a-v1"
+    assert Cas12aCfdScorer({("A", "C", 0): 0.5}, matrix="published-cas12a-v1").matrix == (
+        "published-cas12a-v1"
+    )
+
+
+def test_a_single_base_query_does_not_divide_by_zero() -> None:
+    """`position / (length - 1) if length > 1 else 1.0` — the guard is for `length == 1`.
+
+    `cfd_score` and the weight helper are public functions, so a one-base query is
+    reachable from outside; relaxing the guard to `length >= 1` divides by zero. Nothing
+    exercised it because every fixture scores a 20-nt spacer.
+
+    The guard's value is the *seed* weight, not the distal one: with nowhere to measure
+    distance from, a lone base is treated as fully PAM-proximal, which is the conservative
+    reading — it makes the single mismatch maximally damaging rather than free.
+    """
+    from alleleforge.offtarget.scoring import _default_mismatch_weight
+
+    assert _default_mismatch_weight("A", "C", 0, 1) == pytest.approx(0.05)
+    # And a one-base query scores end to end without raising.
+    assert 0.0 <= cfd_score("A", "C", "AGG") <= 1.0

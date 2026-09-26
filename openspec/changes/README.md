@@ -20192,3 +20192,63 @@ the fixture you were about to reuse.** Both conditions here were ordinary choice
 the natural haplotype example, and an interval at 0 is the natural way to write a small
 contig. Neither is wrong. Their conjunction made an entire coordinate transform untestable,
 and fixing only one left the mutant alive and me believing the test worked.
+
+## Round 588 — the boundary of a number the product advertises
+
+Four modules swept, two closed. The derived test lists were broad this time (85–281 files,
+991–2,953 tests), so the survivors needed no separate confirmation pass — the driver repair
+from R585 paying for itself.
+
+`design/routing.py` had the worst ratio of the batch, 10 of 18, and it decides which
+chemistry a variant is offered at all. The cluster is one idea: **the boundary of a number
+the product advertises.** `PRIME_MAX_EDIT` is 44 and `PRIME_MAX_TEMPLATED_EDIT` is 29; every
+fixture sat far past them — a 61-nt allele, a 41-nt insertion — so tightening either
+comparison, refusing an edit of exactly the budget, changed nothing in 991 tests. The
+refusal is silent in the worst way: the chemistry is simply absent from the menu, and the
+decline reason still reads correctly.
+
+Three things about it were worth learning.
+
+The over-budget case cannot separate the two operands of
+`len(ref) > MAX or len(alt) > MAX` — 45 is over on either reading — so **each side needs its
+own at-the-boundary check**, and the intent decides which allele is written. Correcting a
+long deletion writes the whole reference back, which the templated budget refuses first; my
+first two fixtures failed against correct code because I was measuring the other limit. One
+intent per side reaches the allele limit cleanly.
+
+The same comparison is written twice, in `_prime_eligible` and in `_why_not_prime`, and
+the second is only reached when the first declines — so at exactly 44 nt the reason is never
+computed and the mutation is unobservable. It becomes observable when the gate declines for
+a *different* reason: an allele of exactly `PRIME_MAX_EDIT` is inside the allele budget while
+its write exceeds the templated one, and the relaxed reason function then blames the allele
+size. That sentence tells a caller to shorten an edit already inside the limit the message
+names, and never mentions the constraint that actually applied.
+
+And one survivor is equivalent for a reason worth recording rather than testing: `any` →
+`all` over the base editors of a chemistry. Both CBE members install exactly C→T and ABE has
+one member, so the two agree on all 32 (chemistry, change) combinations. It is
+registry-dependent, not wrong.
+
+`offtarget/scoring.py` went 45 → 48 of 50. The CFD fallback tolerance curve is a line from
+fully tolerated at the PAM-distal end to 0.05 at the seed, and nothing asserted **where the
+line starts and ends** — only that scores landed inside [0, 1], which every variant of the
+denominator also satisfies. The Cas12a analog's mirrored seed was unasserted too, and it is
+the whole difference between the two analogs: its PAM is 5', so the damaging mismatch is at
+the opposite end from Cas9's. The label survivor is the familiar shape — `elif
+mismatch_weights is None` chooses between "cas12a-analog-approximation (unvalidated)" and
+"custom-mismatch-matrix (unvalidated cas12a analog)", and inverted it reports each as the
+other. Both strings end in "unvalidated", so neither looks wrong.
+
+Its last two survivors: a `pam[-2:] if len(pam) >= 2` whose relaxation is provably identical
+(for a two-character PAM, `p[-2:]` *is* `p`), verified over every string up to length 5; and
+the single-base guard, now pinned — and pinned at the seed weight, not the distal one, which
+I had backwards until I ran it. With nowhere to measure distance from, a lone base is treated
+as fully PAM-proximal: its mismatch maximally damaging rather than free, which is the
+conservative reading and worth stating so nobody "fixes" it the other way.
+
+Deferred, named: 10 survivors in `variant/resolver.py` and 9 in `genome/reference.py`.
+
+**Lesson: a number the product advertises is a promise, and the test for it belongs at the
+number — not past it.** Every fixture here was written to demonstrate the limit working, so
+each one sat comfortably outside it. The value that matters is the one a user's edit lands
+exactly on, and for a limit quoted in documentation that value is the one they will pick.
