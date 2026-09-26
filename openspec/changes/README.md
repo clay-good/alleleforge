@@ -20300,3 +20300,45 @@ symmetric alleles that cannot distinguish a single relaxed guard, a cap tested a
 its own size, and now a contig short enough that every window question is answered by the
 clamp instead of the arithmetic. The common tell is that the fixture was picked to be *small
 and obvious*, and smallness is what puts it in the degenerate region.
+
+## Round 590 — fixtures that look like real assemblies
+
+`genome/reference.py`, the last deferred module: 32 of 41 to 38 of 41, with all three
+remaining survivors accounted for rather than left open.
+
+Two of the gaps were the same mistake in different places: **the fixtures are uniform where
+a real reference is not.** `naming_style` asks `any(c.startswith("chr"))`, and the existing
+check gives it an all-`chr` reference and an all-bare one. A real hg38 is neither — it carries
+chr1..chrY beside `GL000009.2` scaffolds — and under `all` it reports as Ensembl-named, which
+resolves every `chr`-prefixed alias the wrong way round. The contig-naming hint has the same
+shape: it asks whether *some* contig canonicalises to the query, and its test uses a reference
+holding exactly one contig, where `any` and `all` cannot be told apart. With two contigs and
+`all`, a `chr`-style query against a reference that holds the locus under another spelling
+falls through to "unknown contig" — sending the reader to look for a missing chromosome
+instead of a naming difference, which is the one diagnosis that message exists to prevent.
+
+The size check needed a boundary, not a bigger hammer. `required = offset + rlen + full_lines
+* (lenb - lenc)` adds back the newlines *between* a record's lines, so a FASTA may legally end
+without its last one. For a 24-base record over three 10-base lines that is exactly 32 bytes —
+the file's size minus its trailing newline. One byte short is accepted; two is refused. Clamp
+`full_lines` to zero and `required` drops to 30, so a file short by two bytes passes and every
+read through the index returns bases shifted by the missing line breaks. The existing
+truncation test drops *six* bytes, which the weakened check also catches, so the two versions
+are distinguishable only at the boundary. Measured: 33 → 32 accepted, 33 → 31 refused with
+"32 bytes required, 31 on disk".
+
+The padding was already right and is now stated: a window overrunning a contig comes back the
+width it asked for, `N`-padded, at four positions relative to the end including one starting
+exactly on it.
+
+All three survivors are explained. `- left_pad` flipping to `+ left_pad` is unobservable
+because `GenomicInterval` rejects a negative start, so `max(0, -start)` is always 0 — the
+validator upstream makes the arithmetic unreachable. `real_hi > real_lo` relaxed to `>=` is
+unobservable because `fasta[i:i]` is the empty string the else branch already supplies. The
+third is the builtin-build download path, which needs network consent.
+
+**Lesson: ask what the production input looks like, then check whether any fixture resembles
+it.** Uniform naming, one contig, a file that ends the way your editor ends files — each is
+the natural thing to write and none is what a reference genome is. This is R589's lesson from
+the other side: there the fixture was too *small* to leave the degenerate region, here it is
+too *tidy*.

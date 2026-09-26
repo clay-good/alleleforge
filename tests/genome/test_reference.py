@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from alleleforge.errors import ReferenceIndexError
 from alleleforge.genome.reference import (
     BUILTIN_BUILDS,
     BuildDescriptor,
@@ -245,3 +246,157 @@ def test_concurrent_fetches_are_thread_safe(tiny_fasta: Path) -> None:
     finally:
         ref.close()
     assert all(results)
+
+
+# -- references that look like real ones ----------------------------------------
+#
+# Two mutation survivors here shared a root: the fixtures are uniform. `naming_style` is
+# checked on an all-`chr` reference and an all-bare one, and the naming-mismatch error on a
+# reference holding a *single* contig — where `any(...)` and `all(...)` are the same thing.
+# A real assembly is neither: hg38 carries chr1..chrY beside `GL000009.2`-style scaffolds.
+
+
+def test_naming_style_is_ucsc_when_only_some_contigs_are_chr_prefixed(tmp_path: Path) -> None:
+    """`any(c.startswith("chr"))` — a real assembly's scaffolds are not chr-prefixed.
+
+    Tightened to `all`, hg38 with its unplaced scaffolds reports as Ensembl-named, and
+    every alias lookup for a `chr`-prefixed query is then resolved the wrong way round.
+    """
+    mixed = _write_fasta(tmp_path, {"chr1": "ACGTACGTAC", "GL000009.2": "TTTTGGGG"})
+    with ReferenceGenome(mixed) as ref:
+        assert ref.naming_style == "ucsc"
+
+
+def test_a_naming_mismatch_is_named_even_when_other_contigs_do_not_match(
+    tmp_path: Path,
+) -> None:
+    """The hint fires when *some* contig canonicalises to the query, not when all do.
+
+    The existing check uses a one-contig reference, so `any` and `all` agree on it. With
+    more than one contig and `all`, a `chr`-style query against a reference that holds the
+    same locus under another spelling falls through to a plain unknown-contig error — which
+    sends the reader to look for a missing chromosome instead of a naming difference, the
+    one diagnosis the message exists to prevent.
+    """
+    fa = _write_fasta(tmp_path, {"Chr9": "ACGTACGT", "chr1": "ACGTACGT"})
+    with ReferenceGenome(fa) as ref:
+        with pytest.raises(ContigNamingError, match="contig-naming mismatch"):
+            ref.fetch(_iv("9", 0, 4))
+        # A genuinely absent contig still reads as absent.
+        with pytest.raises(KeyError, match="unknown contig"):
+            ref.fetch(_iv("22", 0, 4))
+
+
+def test_a_fasta_without_a_trailing_newline_is_not_called_truncated(tmp_path: Path) -> None:
+    """The size check excludes the final line terminator, which a FASTA may omit.
+
+    `full_lines = max(-(-rlen // lenc) - 1, 0)` counts the line breaks *inside* the record,
+    so the last line is allowed to end without one. Get that arithmetic wrong and a
+    perfectly good reference is refused as "replaced or truncated after it was indexed" —
+    a refusal that names the wrong cause and tells the reader to rebuild an index that is
+    correct.
+    """
+    body = "ACGTACGTAC\nGGGGTTTTCC\nAAAA"  # three lines, 24 bases, 10 per line
+
+    with_newline = tmp_path / "with_newline.fa"
+    with_newline.write_text(f">chr1\n{body}\n")
+    with ReferenceGenome(with_newline) as ref:
+        assert ref.contig_length("chr1") == 24
+
+    without = tmp_path / "without_newline.fa"
+    without.write_text(f">chr1\n{body}")
+    with ReferenceGenome(without) as ref:
+        assert ref.contig_length("chr1") == 24
+        assert str(ref.fetch(_iv("chr1", 20, 24))) == "AAAA", "the last line is readable"
+
+
+@pytest.mark.filterwarnings("ignore:Index file .* is older than FASTA file:RuntimeWarning")
+def test_a_genuinely_truncated_fasta_is_refused_with_both_byte_counts(tmp_path: Path) -> None:
+    """The other side: bases the index promises and the file no longer holds.
+
+    The message quotes both numbers, so the reader can see the shortfall rather than take
+    "stale index" on trust. A reference silently short of its index returns the wrong bases.
+    """
+    fasta = tmp_path / "truncated.fa"
+    fasta.write_text(">chr1\nACGTACGTAC\nGGGGTTTTCC\nAAAA\n")
+    with ReferenceGenome(fasta):
+        pass  # index it while it is whole
+    whole = fasta.stat().st_size
+    fasta.write_bytes(fasta.read_bytes()[:-6])
+
+    with pytest.raises(ReferenceIndexError) as excinfo:
+        ReferenceGenome(fasta)
+    message = str(excinfo.value)
+    assert f"{fasta.stat().st_size} on disk" in message, message
+    assert "bytes required" in message
+    assert str(whole - 6) in message, "the size it actually has"
+
+
+@pytest.mark.filterwarnings("ignore:Index file .* is older than FASTA file:RuntimeWarning")
+def test_the_required_size_counts_the_line_breaks_inside_the_record(tmp_path: Path) -> None:
+    """The size check's arithmetic, at the one byte where a weaker version differs.
+
+    `required = offset + rlen + full_lines * (lenb - lenc)` adds back the newlines that sit
+    *between* the record's lines. For this fixture — 24 bases over three 10-base lines after
+    a 6-byte header — that is `6 + 24 + 2 * 1 = 32`, which is exactly the file's size without
+    its trailing newline.
+
+    Weaken the arithmetic (`full_lines` clamped to 0, or the newline term subtracted or
+    divided) and `required` becomes 30. A file short by two bytes then passes, and every read
+    through the stale index returns bases shifted by the missing line breaks — silently, which
+    is the failure this check exists to prevent. The earlier truncation test drops six bytes,
+    enough for the weaker check to catch too, so only the boundary separates them.
+    """
+    body = "ACGTACGTAC\nGGGGTTTTCC\nAAAA"  # 24 bases, three lines of 10
+    fasta = tmp_path / "boundary.fa"
+    fasta.write_text(f">chr1\n{body}\n")
+    with ReferenceGenome(fasta):
+        pass  # index it whole
+    whole = fasta.stat().st_size
+    assert whole == 33, "the fixture's byte count is load-bearing here"
+
+    # One byte short is the missing trailing newline, which is allowed.
+    fasta.write_bytes(fasta.read_bytes()[:-1])
+    with ReferenceGenome(fasta) as ref:
+        assert ref.contig_length("chr1") == 24
+
+    # Two bytes short is a byte of sequence gone, and must be refused by name.
+    fasta.write_bytes(fasta.read_bytes()[:-1])
+    assert fasta.stat().st_size == 31
+    with pytest.raises(ReferenceIndexError) as excinfo:
+        ReferenceGenome(fasta)
+    assert "32 bytes required, 31 on disk" in str(excinfo.value), excinfo.value
+
+
+@pytest.mark.parametrize(
+    ("start", "end", "expected"),
+    [
+        (0, 10, "ACGTACGTAC"),  # exactly the contig
+        (7, 14, "TACNNNN"),  # overruns the end
+        (10, 14, "NNNN"),  # starts exactly at the end
+        (12, 16, "NNNN"),  # entirely past the end
+        (5, 25, "CGTACNNNNNNNNNNNNNNN"),  # far past it
+    ],
+)
+def test_a_window_past_a_contig_end_is_padded_to_its_requested_width(
+    tmp_path: Path, start: int, end: int, expected: str
+) -> None:
+    """`right_pad = (end - start) - (real_hi - real_lo) - left_pad`.
+
+    A window near a telomere still comes back the width that was asked for, padded with `N`,
+    so callers that index into the result by offset stay correct. Everything downstream
+    assumes that: the off-target scanner walks the window by position, and the resolver
+    reports what fraction of the requested bases were searchable. Get the padding arithmetic
+    wrong and the sequence is a different length from the interval that produced it, which
+    shifts every offset computed against it.
+
+    Covered at four positions relative to the contig end, including a window that starts
+    exactly on it — the case where no real bases are available at all.
+    """
+    fasta = tmp_path / "pad.fa"
+    fasta.write_text(">chr1\nACGTACGTAC\n")  # 10 bases
+    with ReferenceGenome(fasta) as ref:
+        sequence = str(ref.fetch(_iv("chr1", start, end)))
+
+    assert len(sequence) == end - start, "the result must be as wide as the interval"
+    assert sequence == expected
