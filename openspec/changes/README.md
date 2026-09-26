@@ -19749,3 +19749,70 @@ and read the survivors as a set — theirs was a shape (every one a caveat) that
 finding would have shown. Two of the three second-round survivors were artifacts of the
 narrowed test list rather than real gaps, so a shrinking mutant set has to be checked
 against the wider suite before it is believed.
+
+## Round 580 — the middle case of a claim with two careful halves
+
+R579's method, pointed at four more modules. Three flag modules — `offtarget_flags`,
+`outcome_flags`, `spacer_quality` — are fully covered: 11 mutants, 11 killed. That is
+worth recording, because R579's lesson predicted the disclosure surfaces would be the
+weak ones and here they were not.
+
+`design/ranking.py`: 60 mutants, 54 killed. The 6 survivors were not in the composite
+arithmetic (R576 pinned that) but in the simplicity axis, the Pareto strictness, and the
+rationale that explains the ordering. One of them was a live defect.
+
+`_safety` chooses **per candidate** between the worst-affected ancestry and the global
+worst nominated site, depending on whether that candidate's off-target report carries
+ancestry annotation. Both places that explain the choice asked `any(...)`. So a menu with
+one annotated candidate and one without read "the safety term uses the worst-affected
+ancestry", full stop — asserting the population-aware basis for a candidate whose safety
+came from the worst site. gnomAD coverage is per locus, so two candidates at different
+loci land on different sides routinely: the mixed menu is the ordinary case.
+
+The instructive part is what was already there. The all-or-nothing halves were both
+written with care, and the negative one explains its own mechanism ("no candidate here
+carries ancestry annotation, so there is no per-ancestry worst to take"). The comment
+above them records a previous round fixing this exact class — the sentence "claimed the
+population-aware behaviour on a reference-only run, which is the one overclaim this
+project works hardest to avoid". That round fixed the end it was looking at. **A predicate
+with two carefully-written extremes is a predicate whose middle nobody has considered**,
+and the middle is where the two halves are both wrong at once: here it is the only case in
+which the safety numbers inside one menu are not comparable with each other, which is
+exactly what a reader ranks on.
+
+The fix names the split and counts only the *searched* candidates — an unsearched candidate
+took the maximum on safety and has neither an ancestry nor a worst site, so it is on
+neither side and putting it in the denominator would describe a choice it was never part
+of. One helper, used by both call sites, because the rule lived twice (R553) and a helper
+that only one caller reaches is R539's gap.
+
+The four other survivors are the R579 shape. The `nicking_guide is not None` simplicity
+penalty had no test that it lands on the PE3 reagent rather than the PE2 one — inverted,
+the axis named simplicity rewards the reagent that needs a second guide cloned, which is
+R576 one module over. `_dominates` had none that domination is *strict*, so two identical
+objective vectors each dominate the other and both leave the Pareto front — the set
+`--render-candidates 0` promises to draw in full. The cross-chemistry note had no
+single-chemistry case, which its own comment asks for.
+
+The fourth is the one worth keeping. My boundary test for `indistinguishable_leaders`
+**passed and was worthless**: it took the composite from `DEFAULT_WEIGHTS` while the
+tolerance came from the weights under test, so it never came near the boundary. The sweep
+said so — the mutant lived through a green test written specifically to kill it. Rewritten
+with exact binary fractions (tolerance `1.0 * (0.25 - 0.0)`, gap `1.0 - 0.75`) it bites.
+A mutation harness checks the tests, not only the code, and that is the half of its value
+I had not expected.
+
+Two harness repairs, both from a `report/builder.py` sweep that had to be abandoned at 46
+minutes: it logged only survivors, so stopping it lost everything, and it had no per-mutant
+bound, while some mutants there almost certainly defeat a render cap and draw hundreds of
+candidates. It now logs every mutant as it resolves and counts a timeout as killed — but
+labelled, because "killed by being slow" is not the evidence an assertion is. `builder.py`
+is still owed a sweep.
+
+`design/ranking.py` now kills 63 of 63, none by timeout.
+
+**Lesson: a predicate with two carefully-written extremes is a predicate whose middle
+nobody has considered.** Both halves being thoughtful is what makes the gap invisible —
+there is nothing sloppy to notice, and each half is right about its own case. Look for the
+input that satisfies neither extreme, and in a per-item rule aggregated into one sentence,
+that input is simply a collection whose items disagree.

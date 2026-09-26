@@ -144,6 +144,42 @@ def _safety(candidate: DesignCandidate) -> tuple[float, str | None]:
     return 1.0 - report.worst_score(), None
 
 
+def _ancestry_basis(searched: list[CandidateScore]) -> str:
+    """Describe which quantity the safety term took, over the candidates it was computed for.
+
+    :func:`_safety` decides this **per candidate**: the worst-affected ancestry when that
+    candidate's off-target report carries ancestry annotation, else the global worst
+    nominated site. A menu can therefore be mixed — and since gnomAD coverage is per
+    locus, two candidates at different loci routinely land on different sides — so mixed
+    is the ordinary case, not an edge one.
+
+    Both call sites used ``any(...)``, which says "the worst-affected ancestry" for the
+    whole menu as soon as *one* candidate has it, claiming the population-aware basis for
+    candidates whose safety came from the global worst site. The two all-or-nothing halves
+    were each stated carefully; only the middle was missing, and it is the half where the
+    numbers in one menu are not on the same basis — which is what a reader comparing two
+    safety scores needs to know.
+
+    Args:
+        searched: Scores of the candidates that were actually searched for off-targets.
+            An unsearched candidate has no ``worst_ancestry`` *and* no worst site, so it
+            belongs to neither side and is excluded by the callers.
+    """
+    with_ancestry = sum(1 for score in searched if score.worst_ancestry)
+    if with_ancestry == 0:
+        return (
+            "the worst nominated site — no candidate here carries ancestry annotation, "
+            "so there is no per-ancestry worst to take"
+        )
+    if with_ancestry == len(searched):
+        return "the worst-affected ancestry"
+    return (
+        f"the worst-affected ancestry for {with_ancestry} of {len(searched)} searched "
+        "candidate(s) and the worst nominated site for the rest, so the safety scores in "
+        "this menu are not all on the same basis"
+    )
+
+
 def _candidate_identity(candidate: DesignCandidate) -> str:
     """Return a stable identity string for a final, order-independent tiebreak.
 
@@ -462,6 +498,14 @@ def rank_candidates(
     # so there is no per-ancestry worst to take") while describing a term that was not
     # computed at all as though it had been.
     unsearched = sum(1 for candidate in ranked if candidate.offtarget is None)
+    # The population for the ancestry-basis clause is the *searched* candidates: the
+    # others took the maximum on safety and sit on neither side of the choice. `ranked`
+    # and `ordered_scores` are built index-aligned in the loop above.
+    searched_scores = [
+        score
+        for candidate, score in zip(ranked, ordered_scores, strict=True)
+        if candidate.offtarget is not None
+    ]
     if unsearched == len(ranked) and ranked:
         safety_clause = (
             f"no off-target search was run, so every candidate takes the maximum on the "
@@ -474,22 +518,10 @@ def rank_candidates(
             f"{unsearched} of {len(ranked)} candidate(s) were not searched for "
             "off-targets and take the maximum on the safety objective (flagged "
             "offtarget-not-searched), so the safety term does not compare them with the "
-            "rest; where it was searched it uses "
-            + (
-                "the worst-affected ancestry"
-                if any(score.worst_ancestry for score in ordered_scores)
-                else "the worst nominated site"
-            )
+            "rest; where it was searched it uses " + _ancestry_basis(searched_scores)
         )
     else:
-        safety_clause = (
-            "the safety term uses the worst-affected ancestry"
-            if any(score.worst_ancestry for score in ordered_scores)
-            else (
-                "the safety term uses the worst nominated site — no candidate here carries "
-                "ancestry annotation, so there is no per-ancestry worst to take"
-            )
-        )
+        safety_clause = "the safety term uses " + _ancestry_basis(searched_scores)
     efficiency_clause = (
         "the efficiency term is uncertainty-discounted"
         if n_ood
