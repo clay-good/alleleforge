@@ -29,6 +29,23 @@ missing any required field SHALL be rejected at validation.
 - **WHEN** a model is loaded but its card file is missing
 - **THEN** it raises `CardError`
 
+### Requirement: Bundled means weight-free code, not unverified weights
+
+A `ModelCard` marked `bundled` SHALL define neither `checkpoint_sha256` nor `source_url`:
+the model ships as code and has no weight artifact. Card validation SHALL reject either
+contradiction, because status surfaces trust `bundled` enough to report the model available
+without consulting the checkpoint cache. Both `ModelRegistry.checkpoint` and
+`ModelRegistry.authorize` SHALL refuse a bundled card with `CardError` naming that there
+are no external weights to resolve.
+
+#### Scenario: Bundled card names a weight artifact
+- **WHEN** a bundled card defines a checkpoint hash or source URL
+- **THEN** card validation rejects it
+
+#### Scenario: Bundled card is sent through a weight gate
+- **WHEN** a caller asks either checkpoint resolver to load a bundled model
+- **THEN** it raises `CardError` explaining that the model must be loaded directly
+
 ### Requirement: Licenses are enforced before load
 
 `license_permits` SHALL refuse forbidden licenses (`proprietary`, `none`, `unknown`,

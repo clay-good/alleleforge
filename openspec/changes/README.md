@@ -20693,3 +20693,22 @@ announce unverified weights as present. The bundled set is asserted by name, so 
 cannot find this; every mutant of `model_status` was killed or accounted for in R594, because
 the function computed its documented contract correctly. The contract was missing a case, and
 the only way to see that was to look at the output beside a report the same models produced.
+
+## Round 598 — the availability label that could overrule the artifact gate
+
+R597 added `bundled` to say that a weight-free baseline ships as code and is available without
+a checkpoint. The status calculation trusted that boolean, but the card did not enforce what it
+meant. A custom card could set `bundled: true` while also naming `checkpoint_sha256` or
+`source_url`; every status surface would then report it available without checking whether those
+external bytes existed or matched the hash. The new state fixed the false negative from R597 and
+introduced a possible false positive at the artifact gate.
+
+`ModelCard` now rejects that contradiction. A bundled card defines neither checkpoint hash nor
+source because there are no weights. Both resolution paths enforce the other half of the same
+rule: `checkpoint()` already refused bundled cards, and `authorize()` now does too instead of
+asking for consent to download from `None` and returning checkpoint provenance for packaged code.
+The tests cross both contradictory fields and both resolvers, while the baseline spec now states
+the invariant the status surfaces depend on.
+
+**Lesson: a trusted state is an invariant, not a boolean a card may contradict.** If a label is
+strong enough to bypass an integrity check, validating the label's meaning is part of that check.

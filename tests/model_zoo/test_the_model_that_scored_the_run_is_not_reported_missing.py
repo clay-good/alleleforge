@@ -100,3 +100,10 @@ def test_asking_a_bundled_model_for_a_checkpoint_says_it_has_none(tmp_path: Path
     registry = default_registry()
     with pytest.raises(CardError, match="weight-free baseline"):
         registry.checkpoint("prime-outcome-baseline", cache_dir=tmp_path, consent=True)
+
+
+def test_asking_to_authorize_bundled_weights_says_there_are_none() -> None:
+    """The loader-driven path must not turn packaged code back into a download."""
+    registry = default_registry()
+    with pytest.raises(CardError, match="no external weights"):
+        registry.authorize("prime-outcome-baseline", consent=True)

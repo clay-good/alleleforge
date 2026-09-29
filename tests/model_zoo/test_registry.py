@@ -92,6 +92,19 @@ def test_from_yaml_roundtrip(tmp_path: Path) -> None:
     assert card.name == "demo" and card.license == "MIT"
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("checkpoint_sha256", "0" * 64),
+        ("source_url", "https://example.test/model.ckpt"),
+    ],
+)
+def test_a_bundled_card_cannot_describe_external_weights(field: str, value: str) -> None:
+    """A status label must not make external, unverified weights look packaged."""
+    with pytest.raises(ValidationError, match="bundled model is weight-free"):
+        _card(bundled=True, **{field: value})
+
+
 # -- license gate -------------------------------------------------------------
 
 

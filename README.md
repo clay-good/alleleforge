@@ -686,7 +686,9 @@ flowchart LR
 **No bare floats.** Every scorer returns a `Prediction`, never a number; `ensure_prediction` is the
 runtime guard at the orchestration seam. **No undocumented models.** Every checkpoint loads through the
 model zoo, which refuses a missing card, a license that forbids the use, or an unverifiable hash, and
-surfaces a `ModelCheckpoint` into result provenance.
+surfaces a `ModelCheckpoint` into result provenance. A card marked `bundled` is validated as
+weight-free code: it cannot also name a checkpoint hash or download source, and neither weight resolver
+accepts it.
 
 **Consent-gated real weights (R1).** Every trained model — the sequence backbone **and** the
 per-chemistry adapters (cas9 efficiency/outcome, base-edit outcome, prime efficiency) — resolves its

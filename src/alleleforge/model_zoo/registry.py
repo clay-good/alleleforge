@@ -27,9 +27,10 @@ import hashlib
 from collections.abc import Callable
 from functools import cache
 from pathlib import Path
+from typing import Self
 
 import yaml
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from alleleforge._fetch import download_verified
 from alleleforge.config import DOWNLOAD_REMEDY, artifact_download_permitted
@@ -128,6 +129,21 @@ class ModelCard(BaseModel):
         if not value:
             raise ValueError("a model card must document at least one known_failure_mode")
         return value
+
+    @model_validator(mode="after")
+    def _bundled_means_weight_free(self) -> Self:
+        """Reject a bundled model card that also describes external weights.
+
+        ``bundled`` is an availability claim, not display metadata: status surfaces
+        trust it enough to report the model usable without inspecting the checkpoint
+        cache. A card that also names a checkpoint hash or source would therefore make
+        unverified external weights look like packaged code.
+        """
+        if self.bundled and (self.checkpoint_sha256 is not None or self.source_url is not None):
+            raise ValueError(
+                "a bundled model is weight-free and cannot define checkpoint_sha256 or source_url"
+            )
+        return self
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> ModelCard:
@@ -339,6 +355,11 @@ class ModelRegistry:
         if not card.permits(use):
             raise LicenseError(
                 f"license {card.license!r} forbids {use.value} use of model {name!r}"
+            )
+        if card.bundled:
+            raise CardError(
+                f"model {name!r} is a weight-free baseline bundled with the package and has "
+                f"no external weights to authorize; load it directly"
             )
         # `artifact_download_permitted`, not a bare `consent` check. The round that
         # introduced that predicate says why in its docstring — "the setting that was
