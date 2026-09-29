@@ -789,6 +789,7 @@ small synthetic fixtures.
   off-target finding from a documented fixture; cite Cancellieri & Pinello, *Nat Genet* 2023),
   `03_batch_vcf.ipynb` (cohort-scale design).
 - Release: PyPI + bioconda + multi-arch Docker images + a tagged GitHub release with a Zenodo DOI;
+  the Docker manifest carries max-level build provenance and an OCI-attached SBOM;
   `CITATION.cff` finalized; a short methods-preprint outline in `docs/paper/`.
 
 **Defaults & decisions.** Docs = mkdocs-material + mkdocstrings, built in CI, deployed on tag. Examples run in

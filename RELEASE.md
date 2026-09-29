@@ -77,6 +77,10 @@ The `rule-set-3` card pins a `checkpoint_sha256` and a `source_url` release asse
       - [`constraints/container.txt`](constraints/container.txt) pins the complete
         Python runtime graph without narrowing the library's public dependency ranges.
         Both local and CI image smokes compare the installed graph with that snapshot.
+      - GHCR receives max-level build provenance and an OCI-attached SBOM for the
+        multi-platform image. This image inventory includes its operating-system and
+        deployment layers; it complements the wheel's CycloneDX SBOM attached to the
+        GitHub Release rather than describing a different artifact with it.
 
 ## 4. Bioconda (the channel bench scientists use)
 

@@ -21020,3 +21020,21 @@ the constraints file.
 
 **Lesson: pinning the operating system does not pin the application environment; constrain the
 resolved deployment graph without turning a library's compatibility range into a lock file.**
+
+## Round 615 — a wheel inventory attached to a container release
+
+The release generated a validated CycloneDX SBOM from the exact wheel sent to PyPI and attached it
+to the GitHub Release. GHCR received a different artifact: a multi-platform manifest containing
+Debian, Python, the locked deployment extras, and AlleleForge. The image publisher did not request
+an SBOM for those layers. It also relied on `build-push-action`'s default provenance, which is max
+for a public repository, min for a private one, and absent for output modes that cannot carry
+attestations. Repository visibility was therefore changing a release guarantee outside the diff.
+
+The GHCR build now requests `provenance: mode=max` and `sbom: true` explicitly. BuildKit attaches
+both attestations to the pushed manifest, while the separately validated wheel CycloneDX document
+stays attached to the GitHub Release because it describes the PyPI artifact rather than the image.
+A structural release test pins the publishing step, platform set, and both inputs; the ordinary CI
+image build remains push-free and does not need registry attestations for its disposable output.
+
+**Lesson: an inventory describes one artifact, not a release in general; attach provenance and an
+SBOM to the image as an image.**
