@@ -20731,3 +20731,21 @@ matched as text.
 
 **Lesson: an install command has two inputs — the package set and the interpreter receiving it.**
 Checking only the extras proves nothing about where they land.
+
+## Round 600 — a release switch that did not identify the release
+
+The README and the workflow's own header called releases tag-triggered and inert until a `v*` tag,
+but the trigger also included `workflow_dispatch`. A manual run could therefore publish from an
+arbitrary branch. The tag path had a second version of the same problem: `v9.9.9` would happily
+build and send the checkout's `0.1.0.dev0` distributions to PyPI, then create a GitHub release whose
+name and attached artifact disagreed.
+
+The workflow now has one release switch: a pushed `v*` tag. Before building anything, it reads the
+version from the same `_version.py` that Hatch uses and requires the tag to equal `v` plus that
+version. An executable guard parses the actual workflow, proves there is no second trigger, runs its
+real command with the current matching tag, and proves a different tag exits nonzero with the reason.
+The README now states that enforced relationship instead of merely calling the workflow tag-driven.
+
+**Lesson: a deployment trigger is part of the artifact's identity, not just a way to start a job.**
+If it does not prove what it is releasing, the rest of the release can be internally correct and
+still publish the wrong thing.

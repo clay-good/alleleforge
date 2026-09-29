@@ -8,7 +8,6 @@ name: Release
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch:
 
 permissions:
   contents: write # create the GitHub Release
@@ -24,6 +23,15 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+      - name: Verify tag matches package version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: >-
+          python -c "import os, runpy, sys;
+          version = runpy.run_path('src/alleleforge/_version.py')['__version__'];
+          expected = f'v{version}'; actual = os.environ['RELEASE_TAG'];
+          sys.exit(0 if actual == expected else
+          f'release tag {actual!r} does not match package version {version!r} (expected {expected!r})')"
       - run: pip install build
       - run: python -m build
       - run: pip install dist/*.whl && python -c "import alleleforge; print(alleleforge.__version__)"

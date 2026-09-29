@@ -1440,7 +1440,8 @@ Full docs (concept guides, deployment, CLI reference, CRISPR-Bench, a
 ## Release & packaging (Phase 15)
 
 The release pipeline is wired and **tag-triggered** ([`.github/workflows/release.yml`](.github/workflows/release.yml)) —
-it stays inert until `v0.1.0` is tagged, then it:
+it stays inert until a `v*` tag is pushed, and refuses to build unless that tag is exactly `v` plus the
+package version (for example, package version `0.1.0` requires tag `v0.1.0`). It then:
 
 | Target | Mechanism |
 |---|---|
