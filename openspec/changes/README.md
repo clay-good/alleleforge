@@ -21111,3 +21111,22 @@ input the build actually needs; Compose continues to mount `./data` only at runt
 
 **Lesson: a file omitted from image layers can still cross the build boundary; minimize the context
 before reasoning about `COPY`.**
+
+## Round 620 — a fetchable dataset with no command that fetched it
+
+The Phase 12 contract named dataset status, fetch, refresh, and version/license inspection. The
+registry already enforced explicit consent, checksum verification, and atomic first downloads, but
+the `data` shell exposed only `list` and `show`. Worse, every external descriptor was unpinned, so
+the listing correctly said none could be fetched. A user could inspect the mechanism and could not
+use it from the interface the spec promised.
+
+The final May 2024 ClinVar GRCh38 snapshot is now frozen to NCBI's immutable May 28 archive object.
+Its published MD5 was verified and its SHA-256 recorded, making it the first externally hosted data
+release the registry can acquire. `aforge data fetch clinvar` treats the command as explicit consent,
+honors the global cache root, verifies the bytes, and prints the path to pass to `--clinvar`.
+`aforge data refresh clinvar` uses the same gate but downloads even when a copy exists; verification
+happens before an atomic replacement, so an interrupted or corrupt refresh leaves the last verified
+copy intact. `data status` names the availability view explicitly while preserving `data list`.
+
+**Lesson: a library capability does not satisfy a command-surface contract; if a status says an
+artifact is fetchable, the same surface should provide the checked fetch.**

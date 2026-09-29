@@ -12,7 +12,7 @@ Subcommands:
 * ``design`` — variant to a ranked, multi-chemistry menu (the headline command).
 * ``batch`` — design a whole cohort from a VCF or variant list (streaming, resumable).
 * ``offtarget`` — standalone population/haplotype-aware off-target for a spacer.
-* ``data`` — inspect the dataset registry (versions, licenses, provenance).
+* ``data`` — inspect, fetch, and refresh pinned dataset releases.
 * ``bench`` — list/run CRISPR-Bench tasks and render the leaderboard (Phase 14).
 
 Exit codes are meaningful and distinct: ``0`` success, ``2`` usage/input error
@@ -49,7 +49,13 @@ from alleleforge.design.cohort_summary import cohort_rows as _batch_rows
 from alleleforge.design.cohort_summary import cohort_to_parquet as _batch_parquet
 from alleleforge.design.cohort_summary import cohort_to_tsv as _batch_tsv
 from alleleforge.design.designer import DEFECT_NOTE, INTEGRITY_NOTE
-from alleleforge.errors import AnnotationServiceError, MissingDependencyError, reason
+from alleleforge.errors import (
+    AnnotationServiceError,
+    ChecksumError,
+    ConsentError,
+    MissingDependencyError,
+    reason,
+)
 from alleleforge.types.offtarget import (
     AGGREGATE_PRECISION,
     ANCESTRY_BURDEN_PRECISION,
@@ -3502,6 +3508,14 @@ def data_list(
     _emit({"datasets": rows}, as_json=as_json, human=human)
 
 
+@data_app.command("status")
+def data_status(
+    as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Report dataset availability; an explicit alias for ``data list``."""
+    data_list(as_json=as_json)
+
+
 @data_app.command("show")
 def data_show(
     name: Annotated[str, typer.Argument(help="Dataset name (see `aforge data list`).")],
@@ -3536,6 +3550,71 @@ def data_show(
         f"{dataset_reason(status)}. Licence: {dataset_permission(status)}."
     )
     _emit(payload, as_json=as_json, human=human)
+
+
+def _data_cache_root(ctx: typer.Context) -> Path:
+    """Return the registry's data-cache root under the selected global cache."""
+    from alleleforge.config import get_settings
+
+    state: GlobalState = ctx.obj
+    root = state.cache_dir if state.cache_dir is not None else get_settings().cache_dir
+    return root / "data"
+
+
+def _acquire_dataset(ctx: typer.Context, name: str, *, refresh: bool, as_json: bool) -> None:
+    """Resolve one dataset for the two explicit acquisition commands."""
+    from alleleforge.data.registry import DEFAULT_REGISTRY
+
+    if name not in DEFAULT_REGISTRY:
+        _echo_err(f"error: unknown dataset {name!r}; known: {DEFAULT_REGISTRY.names}")
+        raise typer.Exit(ExitCode.MISSING_DATA)
+    descriptor = DEFAULT_REGISTRY.get(name)
+    if refresh and descriptor.bundled:
+        _echo_err(
+            f"error: dataset {name!r} is bundled with AlleleForge and cannot be "
+            "refreshed independently; upgrade the package to replace it"
+        )
+        raise typer.Exit(ExitCode.UNAVAILABLE)
+    try:
+        path, version = DEFAULT_REGISTRY.resolve(
+            name,
+            cache_dir=_data_cache_root(ctx),
+            consent=True,
+            refresh=refresh,
+        )
+    except (ChecksumError, ConsentError, MissingDependencyError, OSError) as exc:
+        action = "refresh" if refresh else "fetch"
+        _echo_err(f"error: could not {action} dataset {name!r}: {reason(exc)}")
+        raise typer.Exit(ExitCode.UNAVAILABLE) from exc
+    payload = {
+        "name": version.name,
+        "version": version.version,
+        "path": str(path),
+        "sha256": version.sha256,
+        "refreshed": refresh,
+    }
+    verb = "refreshed" if refresh else "ready"
+    _emit(payload, as_json=as_json, human=f"{name} {version.version}: {verb} at {path}")
+
+
+@data_app.command("fetch")
+def data_fetch(
+    ctx: typer.Context,
+    name: Annotated[str, typer.Argument(help="Dataset name (see `aforge data list`).")],
+    as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Fetch a pinned dataset release into the cache with explicit consent."""
+    _acquire_dataset(ctx, name, refresh=False, as_json=as_json)
+
+
+@data_app.command("refresh")
+def data_refresh(
+    ctx: typer.Context,
+    name: Annotated[str, typer.Argument(help="Dataset name (see `aforge data list`).")],
+    as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
+) -> None:
+    """Re-fetch a pinned release, preserving the cached copy if the transfer fails."""
+    _acquire_dataset(ctx, name, refresh=True, as_json=as_json)
 
 
 models_app = typer.Typer(

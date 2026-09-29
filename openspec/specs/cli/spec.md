@@ -23,6 +23,28 @@ integrity check.
 - **WHEN** a variant fails to resolve
 - **THEN** stderr shows the error and it exits with the usage code (2)
 
+### Requirement: Dataset management is reachable from the shell
+
+The `data` sub-app SHALL expose `list`/`status`, `show`, `fetch`, and `refresh`.
+`fetch` SHALL treat invocation as explicit consent, resolve only a checksum-pinned
+release, honor the global cache directory, and print the verified path. `refresh` SHALL
+re-download through the registry's atomic refresh path. Both commands SHALL support
+`--json`; an unknown dataset SHALL exit with missing-data code 3 and an unavailable or
+unverifiable release with code 4. A bundled artifact SHALL name a package upgrade as its
+replacement path instead of claiming that `refresh` downloaded new bytes.
+
+#### Scenario: Fetch a pinned release
+- **WHEN** `aforge --cache-dir <dir> data fetch <name>` names a pinned release
+- **THEN** it downloads to `<dir>/data`, verifies the checksum, and prints that path
+
+#### Scenario: Refresh a cached release
+- **WHEN** `aforge data refresh <name>` names a cached pinned release
+- **THEN** it replaces the cache only after the new download verifies
+
+#### Scenario: Refresh a bundled artifact
+- **WHEN** `aforge data refresh <name>` names bytes shipped inside the package
+- **THEN** it refuses to claim a refresh and directs the user to upgrade the package
+
 ### Requirement: Every locus states its coordinate convention
 
 Every surface that emits a locus SHALL state the convention it is in. The tool emits

@@ -23,8 +23,10 @@ pip install "alleleforge[cli]"
 | `aforge offtarget` | Standalone population-aware off-target search for a spacer. |
 | `aforge lift` | Lift loci to another assembly, so a build mismatch has a remedy in the tool. |
 | `aforge verify` | Re-check a result's (or a sidecar's) provenance: completeness always, artifact re-hashing with `--cache-dir`. |
-| `aforge data list` | List every registered dataset with its version and license. |
+| `aforge data list` / `aforge data status` | List every registered dataset with its version, license, availability, and fetchability. |
 | `aforge data show` | Show one dataset's full provenance descriptor. |
+| `aforge data fetch` | Fetch a checksum-pinned release into the cache. Invoking it is explicit consent for that download. |
+| `aforge data refresh` | Re-fetch a pinned cached release atomically; a failed transfer leaves the last verified copy intact. Bundled data is replaced by upgrading AlleleForge, not by this command. |
 | `aforge models list` | List every model card: what it scores, its licence, and whether a run can load it. A weight-free baseline reports **bundled** — it ships as code, so it is usable with no checkpoint at all, which is a different thing from a trained card that pins no checksum and is unusable for that reason. |
 | `aforge models show` | Show one card in full — intended use, out-of-scope use, known failure modes, pinned checkpoint. |
 | `aforge offtarget --cache` / `--genome-index` | Reuse a cross-run off-target report store, and a persistent FM-index. `--verbose` says how each was used — `off-target cache: 3 reused, 1 scan computed and stored`, `genome index: 4 contig-strand(s) mapped from cache, 0 built just now` — because the result is byte-identical either way, so a key that stopped matching otherwise looks exactly like a warm one. The index is the larger stake: a cold build is minutes and several gigabytes per contig-strand on a real genome. |
@@ -105,8 +107,10 @@ aforge batch cohort.vcf.gz --reference-fasta hg38.fa --intent correct \
 aforge offtarget GACGGAGGCTAAGCGTCGCAA --reference-fasta hg38.fa --pam NGG --json
 
 # Inspect the dataset registry
-aforge data list
+aforge data status
 aforge data show gnomad --json
+aforge data fetch clinvar
+aforge data refresh clinvar
 
 # Inspect the model zoo: what a trained-model opt-in would actually load
 aforge models list

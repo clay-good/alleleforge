@@ -148,6 +148,7 @@ class DatasetRegistry:
         cache_dir: str | Path | None = None,
         consent: bool = False,
         downloader: Downloader | None = None,
+        refresh: bool = False,
     ) -> tuple[Path, DatasetVersion]:
         """Return the cached artifact path and its :class:`DatasetVersion`.
 
@@ -163,6 +164,8 @@ class DatasetRegistry:
             consent: Must be ``True`` to permit any network download.
             downloader: Injected fetcher ``(url, dest) -> None``; defaults to a
                 network download (only reached with ``consent=True``).
+            refresh: Download and atomically replace a cached artifact instead of
+                reusing it. The previous verified file remains if the refresh fails.
 
         Returns:
             ``(path, dataset_version)``.
@@ -193,7 +196,7 @@ class DatasetRegistry:
                 _verify_sha256(bundled, desc.sha256)
             return bundled, desc.dataset_version()
         path = self.cache_path(name, cache_dir=cache_dir)
-        if not path.exists():
+        if refresh or not path.exists():
             if not artifact_download_permitted(consent):
                 raise ConsentError(
                     f"dataset {desc.name!r} is not cached; {DOWNLOAD_REMEDY}. "
@@ -235,20 +238,25 @@ class DatasetRegistry:
 
 
 #: The default registry, pinning every Phase 3 dataset to a release with its
-#: license and citation. ``sha256`` is intentionally ``None`` until the data
-#: layer pins concrete release artifacts; that keeps auto-download disabled (a
-#: fetch without a verifiable checksum is refused) while the descriptors already
-#: document provenance for ``docs/data.md`` and the ``aforge data`` command.
+#: license and citation. ClinVar and the bundled CFD matrix pin concrete bytes;
+#: ``sha256`` remains ``None`` for the other external artifacts until their exact
+#: release files are frozen. That keeps their downloads disabled (a fetch without a
+#: verifiable checksum is refused) while the descriptors still document provenance
+#: for ``docs/data.md`` and the ``aforge data`` command.
 DEFAULT_REGISTRY = DatasetRegistry(
     {
         "clinvar": DatasetDescriptor(
             name="clinvar",
-            version="2024-05",
-            source_url="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz",
+            version="2024-05-28",
+            source_url=(
+                "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/archive_2.0/"
+                "2024/clinvar_20240528.vcf.gz"
+            ),
             license="public-domain (NCBI)",
             citation="Landrum et al., Nucleic Acids Res 2018 (ClinVar)",
+            sha256="501728f876ca01fb299892560efe5487efc2a0fd68afd9219985e48f1172d340",
             redistributable=True,
-            filename="clinvar.vcf.gz",
+            filename="clinvar_20240528.vcf.gz",
         ),
         "gnomad": DatasetDescriptor(
             name="gnomad",

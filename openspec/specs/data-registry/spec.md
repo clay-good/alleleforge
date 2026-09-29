@@ -46,6 +46,21 @@ license, and citation.
 - **WHEN** a dataset resolves successfully
 - **THEN** the returned `DatasetVersion` records its version, license, and citation
 
+### Requirement: Cached releases can be refreshed without losing the verified copy
+
+`DatasetRegistry.resolve(..., refresh=True)` SHALL re-download a pinned release even
+when its cache path exists, verify the new bytes, and atomically replace the cached file.
+If transfer or verification fails, the last cached file SHALL remain unchanged and no
+partial file SHALL remain at the authoritative cache path.
+
+#### Scenario: A refresh succeeds
+- **WHEN** a caller refreshes a cached pinned release and the downloaded bytes match its SHA-256
+- **THEN** the cache path contains the newly downloaded verified bytes
+
+#### Scenario: A refresh fails
+- **WHEN** transfer or checksum verification fails during a refresh
+- **THEN** the previous cached file remains intact and no partial artifact is served
+
 ### Requirement: Parsers normalize coordinates to 0-based internally
 
 Dataset parsers SHALL convert file-native coordinates to the internal 0-based

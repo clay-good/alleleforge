@@ -19,7 +19,9 @@ everything.
 Commands are run **in file order in one directory**, because that is how a reader follows
 a code block: `bench leaderboard outcome.json offtarget.json` consumes the files the two
 `bench run` lines above it wrote, and running it alone would only prove that a missing
-input is an error.
+input is an error. The two commands whose purpose is downloading a real external
+artifact are classified alongside caller-supplied files; their injected-downloader tests
+exercise the command without turning documentation validation into a network job.
 """
 
 from __future__ import annotations
@@ -57,6 +59,10 @@ _PATHLIKE = (
 _WRITE_FLAGS = frozenset(
     {"--out", "--summary-tsv", "--summary-parquet", "--manifest", "--output-dir"}
 )
+
+#: Commands that necessarily reach outside the repository. Kept exact so adding a new
+#: command does not quietly turn it into an unexecuted example.
+_NETWORK_COMMANDS = frozenset({("data", "fetch"), ("data", "refresh")})
 
 #: Documented invocations expected to refuse, as `command` → (exit code, the phrase the
 #: file must carry to explain it). An entry is a claim that the refusal is deliberate
@@ -103,7 +109,8 @@ def _plan(path: Path) -> tuple[list[list[str]], list[list[str]]]:
             for token in argv
             if not token.startswith("-") and token.endswith(_PATHLIKE) and token not in written
         ]
-        (skipped if external else runnable).append(argv)
+        needs_network = tuple(argv[:2]) in _NETWORK_COMMANDS
+        (skipped if external or needs_network else runnable).append(argv)
     return runnable, skipped
 
 
@@ -145,9 +152,12 @@ def test_the_plan_covers_the_commands_it_should() -> None:
 
     assert len(ran) >= 10, f"only {len(ran)} documented commands are exercised: {ran}"
     assert skipped, "nothing was skipped; the path rule is no longer doing anything"
-    # Every skip must name the file it wants, so the rule cannot become a bucket.
+    # Every skip must name the file it wants or be one of the two exact acquisition
+    # commands, so neither rule can become a bucket.
     for argv in skipped:
-        assert any(token.endswith(_PATHLIKE) for token in argv), argv
+        assert any(token.endswith(_PATHLIKE) for token in argv) or tuple(argv[:2]) in (
+            _NETWORK_COMMANDS
+        ), argv
     # And every command that reaches a genome must be among the skips: a test cannot
     # invent an hg38, and a guard that pretended otherwise would be checking a stub.
     assert all("--reference-fasta" not in argv for argv in ran), ran

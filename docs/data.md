@@ -51,7 +51,7 @@ while their off-target verdicts differed twofold.
 
 | Dataset | Version | License | Citation | Used for |
 |---|---|---|---|---|
-| **ClinVar** | 2024-05 | Public domain (NCBI) | Landrum et al., *Nucleic Acids Res* 2018 | Variant front-end: accession → normalized variant + clinical significance (class *and* review status, carried onto the resolved variant and stated in the menu) |
+| **ClinVar** | 2024-05-28 | Public domain (NCBI) | Landrum et al., *Nucleic Acids Res* 2018 | Variant front-end: accession → normalized variant + clinical significance (class *and* review status, carried onto the resolved variant and stated in the menu) |
 | **gnomAD** | v4.1 | CC0-1.0 | Chen et al., *Nature* 2024 | Per-population allele frequencies for off-target augmentation |
 | **1000 Genomes** | phase 3, high-coverage | Public (IGSR) | Byrska-Bishop et al., *Cell* 2022 | Phased common haplotypes for haplotype-aware search |
 | **HGDP** | gnomAD v3.1 | CC0-1.0 | Bergström et al., *Science* 2020 | Ancestry breadth beyond 1000G super-populations |
@@ -59,10 +59,16 @@ while their off-target verdicts differed twofold.
 | **GENCODE** | v47 | Open (GENCODE) | Frankish et al., *Nucleic Acids Res* 2023 | Gene models for transcript selection |
 | **ENCODE** | 2024 | Open (ENCODE policy) | ENCODE Project Consortium, *Nature* 2012 | Chromatin tracks (DNase/ATAC/CTCF/H3K27ac) for chromatin-aware scoring |
 
-The `sha256` of each release artifact is intentionally unset until the data
-layer pins concrete files; until then auto-download stays disabled (a fetch
-without a verifiable checksum is refused), while the descriptors already document
-provenance for this page and the `aforge data` command.
+ClinVar's immutable May 28, 2024 GRCh38 VCF is pinned to SHA-256
+`501728f876ca01fb299892560efe5487efc2a0fd68afd9219985e48f1172d340`; its NCBI-published
+MD5 was also checked before the pin was recorded. Fetch it with `aforge data fetch
+clinvar`; `aforge data refresh clinvar` atomically replaces the cached copy and preserves
+the last verified file if a transfer fails. Both commands are explicit consent for that
+download and print the cache path a caller can pass to `--clinvar`.
+
+The other external release artifacts still have no `sha256`, so auto-download stays
+disabled for them: the registry refuses a fetch without a verifiable checksum. Their
+descriptors continue to document provenance for this page and `aforge data status`.
 
 ## Population and ancestry labels
 

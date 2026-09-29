@@ -127,6 +127,46 @@ def test_resolve_uses_cache_on_second_call(tmp_path: Path) -> None:
     assert calls["n"] == 1  # second call served from cache
 
 
+def test_refresh_atomically_replaces_a_cached_artifact(tmp_path: Path) -> None:
+    payload = b"fresh-data"
+    digest = hashlib.sha256(payload).hexdigest()
+    reg = DatasetRegistry({"demo": _descriptor(sha256=digest)})
+    path = reg.cache_path("demo", cache_dir=tmp_path)
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"stale-or-corrupt-data")
+
+    def fresh_download(url: str, dest: Path) -> None:
+        dest.write_bytes(payload)
+
+    resolved, _ = reg.resolve(
+        "demo", cache_dir=tmp_path, consent=True, downloader=fresh_download, refresh=True
+    )
+    assert resolved == path
+    assert path.read_bytes() == payload
+
+
+def test_a_failed_refresh_preserves_the_last_verified_artifact(tmp_path: Path) -> None:
+    payload = b"verified-data"
+    digest = hashlib.sha256(payload).hexdigest()
+    reg = DatasetRegistry({"demo": _descriptor(sha256=digest)})
+
+    def initial_download(url: str, dest: Path) -> None:
+        dest.write_bytes(payload)
+
+    path, _ = reg.resolve("demo", cache_dir=tmp_path, consent=True, downloader=initial_download)
+
+    def failed_download(url: str, dest: Path) -> None:
+        dest.write_bytes(b"partial")
+        raise OSError("connection lost")
+
+    with pytest.raises(OSError, match="connection lost"):
+        reg.resolve(
+            "demo", cache_dir=tmp_path, consent=True, downloader=failed_download, refresh=True
+        )
+    assert path.read_bytes() == payload
+    assert not list(path.parent.glob("*.partial-*"))
+
+
 def test_resolve_reverifies_cached_artifact_on_read(tmp_path: Path) -> None:
     # A cached dataset is re-hashed on resolve: a tampered cache entry is rejected
     # on load, with no new download (consent=False).
