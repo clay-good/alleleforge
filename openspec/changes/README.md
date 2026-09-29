@@ -20712,3 +20712,22 @@ the invariant the status surfaces depend on.
 
 **Lesson: a trusted state is an invariant, not a boolean a card may contradict.** If a label is
 strong enough to bypass an integrity check, validating the label's meaning is part of that check.
+
+## Round 599 — the source install before there was a source environment
+
+Following the README on a clean macOS checkout stopped at its first project command. It went
+from `cd alleleforge` directly to `make install`, and that target invoked bare `pip`. Homebrew
+installs `pip3`, not `pip`; calling it instead reaches a second refusal because the system Python
+is externally managed under PEP 668. `CONTRIBUTING.md` already created and activated `.venv`
+first, but the README's source-install and development blocks omitted the step while describing
+the same workflow.
+
+Both README paths now establish the environment they install into. The Makefile uses
+`python -m pip`, so installation is tied to the active interpreter rather than whichever `pip`
+executable wins `PATH`. The guard derives the Makefile's extras from that command as before and
+now also requires the README's virtualenv creation and activation to precede `make install`.
+Finally, the documented sequence was run in a new temporary Python 3.11 environment, not merely
+matched as text.
+
+**Lesson: an install command has two inputs — the package set and the interpreter receiving it.**
+Checking only the extras proves nothing about where they land.

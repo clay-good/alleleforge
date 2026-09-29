@@ -69,7 +69,7 @@ def _gate_extras() -> set[str]:
     # anywhere in the block rather than immediately after the colon — a rule that broke
     # the first time a comment was added, which is the wrong thing to be fragile about.
     block = _makefile_target("install", makefile)
-    match = re.search(r'pip install -e "\.\[([^\]]+)\]"', block)
+    match = re.search(r'python -m pip install -e "\.\[([^\]]+)\]"', block)
     assert match, f"the `install` target no longer runs a pip install:\n{block}"
     return {extra.strip() for extra in match.group(1).split(",")}
 

@@ -12,7 +12,7 @@ install: ## Editable install with the extras the gate needs.
 # it pytest fails at *collection*), and cli/web/genome-light the shells the suite
 # exercises. `node` is the one thing the gate needs that pip cannot supply — see
 # tests/test_the_gate_can_run_from_the_documented_install.py.
-	pip install -e ".[dev,docs,core,cli,web,genome-light]"
+	python -m pip install -e ".[dev,docs,core,cli,web,genome-light]"
 
 lint: ## Ruff lint + format check, and parse the served page's script.
 	ruff check src tests scripts examples

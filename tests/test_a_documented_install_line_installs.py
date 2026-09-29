@@ -125,13 +125,29 @@ def test_the_readme_points_at_the_makefile_target_for_a_source_install() -> None
             lines.append(line)
     block = "\n".join(lines)
     assert block, "the Makefile no longer has an `install` target"
-    target = re.search(r'(pip install -e "\.\[[^\]]+\]")', block)
+    target = re.search(r'(python -m pip install -e "\.\[[^\]]+\]")', block)
     assert target, f"the `install` target no longer runs a pip install:\n{block}"
     assert "make install" in readme, "the README no longer points at `make install`"
     assert target.group(1) in readme, (
         f"the README does not show the extras `make install` uses ({target.group(1)}), so "
         "the two can drift and a contributor cannot see what the command does"
     )
+
+
+def test_the_readme_activates_a_venv_before_the_source_install() -> None:
+    """The source command must not target an externally managed system Python.
+
+    Homebrew exposes ``pip3`` rather than ``pip`` and protects its interpreter under
+    PEP 668. More importantly, an editable development install belongs to the checkout's
+    environment, not the machine. The README used to jump from ``cd`` directly to
+    ``make install`` even though CONTRIBUTING documented the required virtualenv.
+    """
+    readme = (_ROOT / "README.md").read_text(encoding="utf-8")
+    source_start = readme.index("# From source:")
+    install_at = readme.index("make install", source_start)
+    setup = readme[source_start:install_at]
+    assert "python3 -m venv .venv" in setup
+    assert "source .venv/bin/activate" in setup
 
 
 @pytest.mark.parametrize("extra", sorted(_NEEDS_A_SYSTEM_LIBRARY))
