@@ -165,9 +165,15 @@ jobs:
           tags: alleleforge-ci:smoke
       - name: Boot image and query health
         run: |
-          docker run --detach --name alleleforge-ci-smoke alleleforge-ci:smoke
+          docker run --detach \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges:true \
+            --tmpfs /tmp:mode=1777,uid=10001,gid=10001 \
+            --tmpfs /cache:mode=0755,uid=10001,gid=10001 \
+            --name alleleforge-ci-smoke alleleforge-ci:smoke
           for attempt in $(seq 1 30); do
-            if docker exec alleleforge-ci-smoke python -c "import json, os, urllib.request; response = urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=2); body = json.load(response); assert response.status == 200 and body['status'] == 'ok' and body['version']; assert os.getuid() == 10001 and os.getgid() == 10001"; then
+            if docker exec alleleforge-ci-smoke python -c "import json, os, pathlib, urllib.request; response = urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=2); body = json.load(response); assert response.status == 200 and body['status'] == 'ok' and body['version']; assert os.getuid() == 10001 and os.getgid() == 10001; pathlib.Path('/cache/ci-smoke').write_text('ok')"; then
               exit 0
             fi
             sleep 1

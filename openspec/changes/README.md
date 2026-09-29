@@ -20981,3 +20981,22 @@ general Linux container can expose.
 
 **Lesson: process liveness is not service health; publish the same probe used to decide whether the
 artifact actually works.**
+
+## Round 613 — non-root inside a writable box
+
+The service had stopped running as root, but its default Compose container still kept a writable
+root filesystem and Docker's default Linux capability set. UID 10001 could not rewrite root-owned
+application files through normal permissions, but that was an incidental property of those files,
+not a runtime boundary, and capabilities the process never uses remained available. The deployment
+needed two write locations: temporary files and AlleleForge's persistent cache.
+
+Compose now marks the root filesystem read-only, drops all capabilities, and sets
+`no-new-privileges`. A memory-backed `/tmp` and the named `/cache` volume are the two explicit
+writable mounts. CI applies the equivalent flags to the real image, waits for `/api/health` under
+them, verifies the fixed non-root identity, and writes a probe into `/cache`; the test therefore
+checks useful operation under confinement rather than only inspecting YAML. The deployment guide
+names the boundary so an operator translating it to another orchestrator knows which exceptions are
+intentional.
+
+**Lesson: a non-root identity limits who a process is; a read-only filesystem and an empty capability
+set limit what that identity can change.**

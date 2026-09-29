@@ -62,7 +62,8 @@ def test_ci_boots_the_image_and_asks_the_service_if_it_is_healthy() -> None:
     assert loadable[0]["with"]["platforms"] == "linux/amd64"
 
     commands = "\n".join(step.get("run", "") for step in job["steps"])
-    assert "docker run --detach --name alleleforge-ci-smoke" in commands
+    assert "docker run --detach" in commands
+    assert "--name alleleforge-ci-smoke alleleforge-ci:smoke" in commands
     assert "http://127.0.0.1:8000/api/health" in commands
     assert "body['status'] == 'ok'" in commands
     assert "os.getuid() == 10001 and os.getgid() == 10001" in commands

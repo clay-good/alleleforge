@@ -318,7 +318,8 @@ CI-gated from commit one.
   toolchain end to end. A test asserts the native version matches the Python package version.
 - `.github/workflows/ci.yml`: matrix over Python 3.11/3.12 on Linux + macOS; jobs for lint, type-check,
   test, Rust build, and a docs build. Multi-arch Docker build on tags.
-- `Dockerfile` (multi-stage), `docker-compose.yml` stub.
+- `Dockerfile` (multi-stage), `docker-compose.yml` deployment with a non-root process,
+  read-only root filesystem, no Linux capabilities, and explicit writable mounts.
 - `README.md` with the mission, the "research tool, not medical advice" disclaimer, and a quickstart.
 - `LICENSE` (MIT), `CITATION.cff`, `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), `CONTRIBUTING.md`,
   `CHANGELOG.md` (Keep a Changelog format).

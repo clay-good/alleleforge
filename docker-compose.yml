@@ -29,6 +29,13 @@ services:
     volumes:
       - ./data:/data:ro          # reference genome (read-only)
       - aforge-cache:/cache      # XDG cache; image provisions it for UID/GID 10001
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:mode=1777,uid=10001,gid=10001
     restart: unless-stopped
 
 volumes:

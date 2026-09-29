@@ -109,6 +109,12 @@ inherits the image's ownership. If you replace either named volume with a host b
 mount, make reference files readable by 10001 and the cache directory writable by
 10001; the service does not need broader host permissions or root.
 
+The default Compose service also uses a read-only root filesystem, drops every Linux
+capability, and enables `no-new-privileges`. Only the memory-backed `/tmp` mount and
+the persistent `/cache` volume stay writable. Keep those restrictions when translating
+the deployment to another orchestrator; add a writable mount deliberately if a future
+integration requires one.
+
 The image's built-in health check calls the same unauthenticated `GET /api/health`
 surface described below. Docker and Compose report the container as `healthy` only
 after that endpoint returns HTTP 200 and `status: ok`; inspect it with
