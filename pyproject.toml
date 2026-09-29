@@ -108,6 +108,9 @@ dev = [
     "pytest-asyncio>=0.23",
     "hypothesis>=6.100",
     "maturin>=1.5",
+    "build>=1.2",
+    # Twine 6.2 rejects the Metadata-Version 2.5 emitted by current Hatchling.
+    "twine>=7.0",
     "nbmake>=1.5",
     "ipykernel>=6.29",
 ]

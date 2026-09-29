@@ -59,6 +59,7 @@ ruff check src tests            # lint, import order, public-API docstrings
 ruff format --check src tests   # formatting
 mypy src                        # strict type-check (no untyped defs)
 pytest                          # tests + ≥85% coverage gate on the core
+make distribution              # sdist/wheel metadata and packaged-resource audit
 cd rust && cargo test           # native crate
 ```
 

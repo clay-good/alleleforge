@@ -20809,3 +20809,21 @@ stale `bench/` path was corrected to the real `scripts/` path at the same time.
 
 **Lesson: a reproducible benchmark is the method; a dated measurement is the evidence, and a release
 criterion that asks for both must verify both.**
+
+## Round 604 — the publish gate that ran only after publishing began
+
+The release runbook recorded an artifact check that failed, the distribution plan said it passed,
+ordinary CI never built either artifact, and the tag workflow sent both toward PyPI without running
+`twine check`. The wheel had been inspected once by hand, but that observation could not catch the
+next model card, benchmark fixture or frontend asset being omitted. A release tag was therefore the
+first automated test of the thing users install, and its first irreversible step followed immediately.
+
+The failure was re-run before changing the claim. Current build 1.6.1 and Hatchling 1.32.4 still emit
+Metadata-Version 2.5, but twine 7.0.0 accepts both the sdist and wheel; the recorded twine 6.2.0 failure
+was a stale toolchain limit, not a current blocker. One audit now builds the wheel *from the sdist*,
+checks both artifacts with twine, and compares every non-Python resource under the package source
+with the wheel. `make distribution`, an ordinary blocking CI job, and the tag workflow all run that
+same command, with publication depending on its output rather than on a separate approximation.
+
+**Lesson: validate the artifact before the first operation that can distribute it, and make the
+release path consume the same check developers and CI can run.**

@@ -129,6 +129,17 @@ jobs:
       - run: pip install -e ".[dev,core,cli,web,genome-light]"
       - run: python scripts/reproduce.py
 
+  distribution:
+    name: Distribution (sdist · wheel · metadata · resources)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install build "twine>=7.0"
+      - run: python scripts/check_distribution.py
+
   security:
     name: Supply-chain audit (pip-audit · cargo audit)
     runs-on: ubuntu-latest

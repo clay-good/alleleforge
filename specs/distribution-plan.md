@@ -1,6 +1,6 @@
 # Distribution plan — getting AlleleForge into scientific hands
 
-_Status as of 2026-06-23. Sequence matters: do NOT distribute widely until at least
+_Status as of 2026-09-28. Sequence matters: do NOT distribute widely until at least
 one real model is wired + validated (see [`readiness-assessment.md`](readiness-assessment.md)).
 Distribution amplifies whatever you ship._
 
@@ -55,7 +55,9 @@ PyPI is table stakes, **not** a growth channel — bench scientists install from
 ## Pre-flight before listing anywhere
 
 - Cut a real `0.1.0` (currently `0.1.0.dev0` / Alpha) so the version signals "usable".
-- Publish to PyPI (builds + `twine check` already pass) — table stakes.
+- Publish to PyPI — table stakes. `make distribution` continuously proves the sdist
+  builds the wheel, `twine` accepts both artifacts, and the wheel contains every
+  packaged runtime resource; the tag workflow runs the same audit before publication.
 - Ensure README honestly labels heuristic vs real scorers.
 
 ## Sources

@@ -58,7 +58,11 @@ def test_the_current_version_passes_the_release_guard() -> None:
         for i, step in enumerate(steps)
         if step.get("name") == "Verify tag matches package version"
     )
-    build_at = next(i for i, step in enumerate(steps) if step.get("run") == "python -m build")
+    build_at = next(
+        i
+        for i, step in enumerate(steps)
+        if step.get("run") == "python scripts/check_distribution.py --outdir dist"
+    )
     assert guard_at < build_at
 
     version = str(runpy.run_path(_ROOT / "src" / "alleleforge" / "_version.py")["__version__"])

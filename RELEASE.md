@@ -44,18 +44,17 @@ The `rule-set-3` card pins a `checkpoint_sha256` and a `source_url` release asse
 
 ## 3. PyPI (table stakes)
 
-- [ ] `python -m build` then `twine upload dist/*`.
+- [ ] `python scripts/check_distribution.py --outdir dist` then `twine upload dist/*`.
       - The wheel builds and is sound: verified 2026-09-07 that it carries `py.typed`,
         17 model cards, the benchmark splits, the served frontend and the CFD matrix,
         and that the package imports and resolves all of them from the wheel's own
         contents rather than the source tree.
-      - **`twine check` currently errors**, on twine 6.2.0 with packaging 26.2:
-        `'2.5' is not a valid metadata version`. That is the toolchain disagreeing with
-        itself — setuptools/hatchling now emit `Metadata-Version: 2.5` and this twine
-        rejects it — not a defect in the distribution. Re-run it at release time with a
-        current twine before assuming it is still true; this checklist used to say it
-        already passed, which is the sentence that would have made the error a surprise
-        at the worst moment.
+      - The audit builds the wheel from the sdist, runs `twine check` over both, and
+        compares every non-Python runtime resource in `src/alleleforge` with the wheel.
+        It passed on 2026-09-28 with build 1.6.1, Hatchling 1.32.4 and twine 7.0.0.
+        Twine 6.2.0 rejects current Metadata-Version 2.5 artifacts, so the release
+        toolchain requires twine 7 or newer and both CI and the tag workflow run the
+        same audit before publication.
 
 ## 4. Bioconda (the channel bench scientists use)
 

@@ -95,6 +95,7 @@ JOB_TO_TARGET = {
     "docs": "docs",
     "examples": "examples",
     "reproduce": "reproduce",
+    "distribution": "distribution",
 }
 
 
