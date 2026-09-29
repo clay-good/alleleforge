@@ -65,6 +65,7 @@ def test_ci_boots_the_image_and_asks_the_service_if_it_is_healthy() -> None:
     assert "docker run --detach --name alleleforge-ci-smoke" in commands
     assert "http://127.0.0.1:8000/api/health" in commands
     assert "body['status'] == 'ok'" in commands
+    assert "os.getuid() == 10001 and os.getgid() == 10001" in commands
 
     cleanup = [step for step in job["steps"] if step.get("name") == "Remove smoke container"]
     assert len(cleanup) == 1

@@ -20944,3 +20944,21 @@ PRs that move the digest with an audit trail.
 
 **Lesson: a reproducible container needs a content-pinned base, and the update mechanism must move
 that pin visibly.**
+
+## Round 611 — the web process with root it never needed
+
+The release image declared no `USER`, so Docker started its network-facing Uvicorn process as root.
+The service binds port 8000, reads the reference from the deliberately read-only `/data` mount, and
+writes only under its XDG cache at `/cache`; none of those operations requires UID 0. Root bought no
+capability the deployment uses and gave an exploited request handler authority over everything else
+inside the container.
+
+The runtime stage now creates fixed UID/GID `10001:10001`, provisions `/cache` for that identity,
+and switches users before `CMD`. A numeric identity makes Kubernetes security contexts and host bind
+mounts predictable; the deployment guide states that reference files must be readable and a custom
+cache bind mount writable by 10001. The Compose named volume inherits the image directory's existing
+ownership. A structural check pins the ordering as well as the number, while the CI boot-and-health
+probe exercises the actual restricted process rather than assuming the Dockerfile is sufficient.
+
+**Lesson: when a service needs one writable directory and an unprivileged port, give it that
+directory, not root.**

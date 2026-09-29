@@ -104,6 +104,11 @@ the fact that one is required.
 docker compose up --build
 ```
 
+The image runs as unprivileged UID/GID `10001:10001`. The Compose named cache volume
+inherits the image's ownership. If you replace either named volume with a host bind
+mount, make reference files readable by 10001 and the cache directory writable by
+10001; the service does not need broader host permissions or root.
+
 Endpoints that need the reference return `503` until one is configured; `GET
 /api/health` reports liveness and reference status. Long design runs go through an
 **in-process async job queue** (`POST /api/jobs/design` → `GET /api/jobs/{id}`),

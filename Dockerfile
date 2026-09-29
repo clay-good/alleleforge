@@ -33,8 +33,16 @@ ENV PATH="/opt/venv/bin:$PATH" \
     XDG_CACHE_HOME=/cache
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /app/src ./src
+# The service needs only a readable reference and a writable cache. A fixed identity
+# keeps bind-mount ownership predictable and prevents a compromised web process from
+# running as root inside the container.
+RUN groupadd --gid 10001 alleleforge \
+    && useradd --uid 10001 --gid 10001 --create-home alleleforge \
+    && mkdir /cache \
+    && chown 10001:10001 /cache
 # A reference FASTA is mounted at runtime; point the app at it.
 ENV ALLELEFORGE_REFERENCE_FASTA=/data/reference.fa
 EXPOSE 8000
+USER 10001:10001
 # Research-use, local-only service. Bind to all interfaces inside the container.
 CMD ["uvicorn", "alleleforge.web.api.app:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -28,7 +28,7 @@ services:
       # ALLELEFORGE_API_TOKEN: "change-me-to-a-random-secret"
     volumes:
       - ./data:/data:ro          # reference genome (read-only)
-      - aforge-cache:/cache      # XDG cache for datasets / embeddings
+      - aforge-cache:/cache      # XDG cache; image provisions it for UID/GID 10001
     restart: unless-stopped
 
 volumes:

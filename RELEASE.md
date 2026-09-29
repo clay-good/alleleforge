@@ -68,7 +68,8 @@ The `rule-set-3` card pins a `checkpoint_sha256` and a `source_url` release asse
         adjacent version comment lets Dependabot propose reviewed SHA updates without
         returning the workflow to a mutable tag.
       - Both Docker stages pin `python:3.12-slim` to one multi-architecture manifest
-        digest. Dependabot's Docker ecosystem proposes explicit digest updates.
+        digest. Dependabot's Docker ecosystem proposes explicit digest updates. The
+        runtime server runs as fixed unprivileged UID/GID `10001:10001`.
 
 ## 4. Bioconda (the channel bench scientists use)
 

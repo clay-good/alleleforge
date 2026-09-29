@@ -59,7 +59,8 @@ install, reproduce, and cite. The code is done; this is the operational freeze.
   both `linux/amd64` and `linux/arm64` without publishing it; the tag workflow uses
   the same context and platform set when it pushes to GHCR. CI also loads the amd64
   result, boots its real default command, and requires the served health endpoint to
-  answer successfully; `make image` performs the local build and import smoke.
+  answer successfully; `make image` performs the local build and import smoke. The
+  runtime uses fixed unprivileged UID/GID `10001:10001`, with only `/cache` writable.
 - **Reproducibility audit (☑ landed).** `scripts/reproduce.py` (and `make
   reproduce`) re-derives the canonical weight-free design run from config + seed,
   asserts run-to-run determinism, and diffs a canonicalized digest against a
