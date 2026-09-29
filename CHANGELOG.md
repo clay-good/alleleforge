@@ -5516,6 +5516,13 @@ acceptance.
   model cards, benchmark splits, and web frontend — against silent removal.
 
 ### Fixed
+- **Timed-out web jobs can no longer bypass the worker cap.** Python cannot cancel
+  work already executing through `asyncio.to_thread`, but the job manager marked a
+  timeout terminal and immediately freed its in-flight slot. Repeated slow requests
+  could therefore start one background worker per timeout despite the documented
+  concurrency bound. A timed-out request still receives its error promptly, while
+  the underlying worker now holds the slot until it actually exits; new work is
+  refused at capacity and admitted after the worker stops.
 - **Cas-OFFinder cross-checks no longer leave guide and locus files in the system temp directory.** The optional adapter created both its input deck and subprocess result with `delete=False` and never removed them, retaining the reference path, guide sequence, and reported genomic loci after every run. Both files now live in scoped temporary directories that clean up after success or failure; tests verify cleanup through the injected runner and the subprocess path.
 - **Concurrent artifact fetches no longer share one partial file.** The dataset and model registries derived their atomic-download temporary path from the process ID, which distinguishes processes but collides for 2 threads fetching or refreshing the same artifact in one process. Each transfer now uses a unique sibling temporary file before its verified atomic replace; a barrier-synchronized regression test requires distinct paths and a clean final cache.
 - **The dataset fetch output can be passed directly to the flag that needs it.** The CLI and README told callers to pass the path printed by `aforge data fetch clinvar` to `--clinvar`, but the default output wrapped that path in status prose, so command substitution supplied an invalid filename. Human output is now the verified path alone; `--json` retains the dataset name, version, digest, and refresh status. The CLI guide no longer claims ClinVar is unfetchable, and its lookup-backed examples must carry the flag that makes each input form resolvable.

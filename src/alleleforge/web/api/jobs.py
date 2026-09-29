@@ -47,9 +47,10 @@ DEFAULT_MAX_JOBS = 1000
 #: reached first evicts oldest-terminal-first, and neither ever drops an in-flight job.
 DEFAULT_MAX_RESULT_BYTES = 256 * 1024 * 1024
 
-#: Default cap on concurrently in-flight (pending/running) jobs. Each job spawns a
-#: worker thread, so an uncapped submission path is a thread-pool amplifier; past
-#: this cap :meth:`JobManager.submit` refuses new work until a job finishes.
+#: Default cap on concurrently executing jobs. Each job spawns a worker thread, so an
+#: uncapped submission path is a thread-pool amplifier; past this cap
+#: :meth:`JobManager.submit` refuses new work until a worker finishes. A timed-out
+#: thread still occupies a slot because Python cannot cancel work already running in it.
 DEFAULT_MAX_IN_FLIGHT = 16
 
 
@@ -88,8 +89,9 @@ class JobManager:
             max_jobs: Maximum retained *terminal* job records. Older completed
                 records are evicted oldest-first past this cap; in-flight jobs are
                 never evicted.
-            max_in_flight: Maximum concurrently in-flight (pending/running) jobs;
-                :meth:`submit` raises :class:`JobCapacityError` past this cap.
+            max_in_flight: Maximum concurrently executing jobs; :meth:`submit`
+                raises :class:`JobCapacityError` past this cap. Timed-out worker
+                threads keep their slot until they actually stop.
             max_result_bytes: Maximum bytes the retained results may hold together.
                 Evicted oldest-terminal-first like ``max_jobs``, and applied alongside
                 it: whichever bound is reached first evicts.
@@ -194,11 +196,34 @@ class JobManager:
         async def _run() -> None:
             record.state = JobState.RUNNING
             record.progress = 0.1
+            release_slot = True
             try:
                 if self._max_job_seconds is not None:
-                    record.result = await asyncio.wait_for(
-                        asyncio.to_thread(work), self._max_job_seconds
-                    )
+                    worker = asyncio.create_task(asyncio.to_thread(work))
+                    try:
+                        record.result = await asyncio.wait_for(
+                            asyncio.shield(worker), self._max_job_seconds
+                        )
+                    except TimeoutError:
+                        # `to_thread` cannot stop a callable once it is running. Keep
+                        # its capacity slot until the real worker exits; otherwise a
+                        # caller can submit one slow job per timeout and grow the
+                        # background thread count without bound.
+                        release_slot = False
+
+                        async def _release_after_worker() -> None:
+                            try:
+                                await worker
+                            except Exception:  # noqa: BLE001 - result was already timed out
+                                pass
+                            finally:
+                                self._in_flight -= 1
+                                self._evict()
+
+                        cleanup = asyncio.create_task(_release_after_worker())
+                        self._tasks.add(cleanup)
+                        cleanup.add_done_callback(self._tasks.discard)
+                        raise
                 else:
                     record.result = await asyncio.to_thread(work)
                 record.result_bytes = self._measure(record.result)
@@ -228,9 +253,11 @@ class JobManager:
                 # display. `finished` is what this branch means, error or not; `state`
                 # carries which kind.
                 record.progress = 1.0
-                # This record is now terminal; free its slot and reclaim any backlog.
-                self._in_flight -= 1
-                self._evict()
+                # A timed-out record is terminal for the caller, but its worker still
+                # owns the slot until `_release_after_worker` observes its real exit.
+                if release_slot:
+                    self._in_flight -= 1
+                    self._evict()
 
         # Keep a strong reference until the task finishes. asyncio holds only a
         # weak reference to a bare create_task() result, so without this a job

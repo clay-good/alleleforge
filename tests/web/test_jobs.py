@@ -119,6 +119,34 @@ async def test_job_times_out_when_over_limit() -> None:
     assert record.state is JobState.ERROR
     assert "time limit" in (record.error or "")
     gate.set()  # release the orphaned worker thread so it can exit cleanly
+    await _settle_tasks(mgr)
+
+
+async def test_timed_out_worker_keeps_capacity_until_thread_stops() -> None:
+    import threading
+
+    import pytest
+
+    from alleleforge.web.api.jobs import JobCapacityError
+
+    mgr = JobManager(max_in_flight=1, max_job_seconds=0.01)
+    gate = threading.Event()
+    timed_out = await mgr.submit(lambda: gate.wait(5))
+    await _drain(mgr, [timed_out.id])
+
+    with pytest.raises(JobCapacityError, match="at capacity"):
+        await mgr.submit(lambda: "must not start while the timed-out thread is running")
+
+    gate.set()
+    deadline = asyncio.get_running_loop().time() + 10
+    while mgr._in_flight:
+        if asyncio.get_running_loop().time() >= deadline:
+            raise AssertionError("timed-out worker did not release its capacity slot")
+        await asyncio.sleep(0.001)
+
+    admitted = await mgr.submit(lambda: "started after the worker stopped")
+    await _drain(mgr, [admitted.id])
+    assert admitted.result == "started after the worker stopped"
 
 
 async def test_max_job_seconds_must_be_positive() -> None:

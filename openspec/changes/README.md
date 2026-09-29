@@ -21247,3 +21247,20 @@ require it to be gone after the call returns.
 
 **Lesson: temporary data is not temporary because of its directory; ownership ends only when the
 code removes it on both success and failure.**
+
+## Round 629 — a timed-out thread stopped counting before it stopped running
+
+The web job manager caps concurrent work because every admitted job consumes a worker thread. Its
+optional timeout correctly returned an error without waiting for the thread, which Python cannot
+cancel once started, but the timeout's `finally` block immediately freed the capacity slot anyway.
+Submitting another slow job after every timeout therefore accumulated background threads without
+bound while the manager continued to report available capacity.
+
+A timed-out record still becomes terminal promptly, but its worker now retains the slot until the
+callable actually exits. A synchronized test holds one timed-out thread open, requires a second
+submission to be refused at the 1-worker cap, releases the first thread, and then requires new work
+to be admitted. The deployment guide now states both the soft-timeout behavior and the capacity
+semantics operators can rely on.
+
+**Lesson: a timeout bounds how long a caller waits, not how long uncancelable work executes; release
+the resource only when the resource is truly free.**

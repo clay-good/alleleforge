@@ -172,6 +172,11 @@ matter for an operator:
 - **The async job queue is per-process.** `POST /api/jobs/design` schedules an
   in-process `asyncio` task; a job submitted to one process is only visible to
   that process. This is exactly right for the default single-process deployment.
+  At most 16 jobs execute concurrently by default. A timed-out job returns an
+  error promptly, but its Python worker thread cannot be canceled; that thread
+  continues to occupy its capacity slot until it actually exits, so repeated
+  timeouts cannot bypass the concurrency bound. Size the limit or add a timeout
+  with `JobManager(max_in_flight=…, max_job_seconds=…)`.
 - **A finished job's result is held in memory until it is evicted**, so it can be
   re-rendered in any format without designing again — which is what the served page
   relies on to make one click of *Design edits* one run. The store is bounded twice:
