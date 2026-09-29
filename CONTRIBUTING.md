@@ -42,6 +42,9 @@ run cannot pass. It is the same extras set CI installs, kept in one place — an
 now checked rather than asserted: `core` was missing from both for a long time, and
 `pytest` could not *collect* the suite without it, so no test ran at all
 ([`test_the_gate_can_run_from_the_documented_install.py`](tests/test_the_gate_can_run_from_the_documented_install.py)).
+The `dev` extra currently constrains NumPy below 2.5 because mypy checks the supported
+Python 3.11 type contract and NumPy 2.5's stubs require Python 3.12 syntax. Runtime extras
+remain open to newer NumPy; this is a development-tool compatibility bound only.
 
 There is no conda *environment* file. `conda/meta.yaml` is a bioconda-style packaging
 recipe — it describes how to publish the released package, not how to set up a checkout —

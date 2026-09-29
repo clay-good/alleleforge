@@ -20749,3 +20749,22 @@ The README now states that enforced relationship instead of merely calling the w
 **Lesson: a deployment trigger is part of the artifact's identity, not just a way to start a job.**
 If it does not prove what it is releasing, the rest of the release can be internally correct and
 still publish the wrong thing.
+
+## Round 601 — the type gate stopped in somebody else's future syntax
+
+The last completed GitHub Actions run was red although the local gate was green. Its Python 3.12
+resolver had installed NumPy 2.5.3; NumPy's stubs use Python 3.12 `type` statements, while mypy
+deliberately checks AlleleForge as Python 3.11, the oldest supported version. Mypy stopped in
+`numpy/__init__.pyi` before checking one AlleleForge file. The local Python 3.11 environment could
+resolve only NumPy 2.4.6, which is why the same command passed there.
+
+This is a development-tool incompatibility, not evidence that NumPy 2.5 is an invalid runtime for
+AlleleForge. The upper bound therefore belongs only to the `dev` extra; `core` and `cas9-rs3` keep
+their open runtime constraint. A fresh Python 3.12 environment first reproduced the failure with
+NumPy 2.5.3, then re-resolved to 2.4.6 from the corrected extras and completed all 108 mypy targets.
+The guard pins all three premises: the 3.11 mypy target, the development bound, and the absence of
+that bound from the runtime extra.
+
+**Lesson: a development dependency can break a compatibility check without breaking the runtime.**
+Constrain it at the narrowest scope that restores the check; do not export a tooling workaround to
+users who never run that tool.

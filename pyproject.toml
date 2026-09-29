@@ -98,6 +98,11 @@ dev = [
     # Bump this deliberately (and reformat in the same commit).
     "ruff==0.15.21",
     "mypy>=1.10",
+    # NumPy 2.5's stubs use Python 3.12 `type` statements. Mypy deliberately checks
+    # AlleleForge's Python 3.11 contract, so it rejects those stubs before reaching our
+    # code even when mypy itself runs on 3.12. This is a development-tool constraint;
+    # the runtime `core` and `cas9-rs3` extras remain compatible with newer NumPy.
+    "numpy<2.5",
     "pytest>=8.1",
     "pytest-cov>=5.0",
     "pytest-asyncio>=0.23",
