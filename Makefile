@@ -1,6 +1,6 @@
 # AlleleForge developer tasks. CI runs the same commands; this is the local
 # mirror so `make ci` reproduces the gate before a push.
-.PHONY: help install lint type test docs examples reproduce figures native distribution sbom ci
+.PHONY: help install lint type test docs examples reproduce figures native image distribution sbom ci
 
 help: ## Show this help.
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -47,6 +47,9 @@ native: ## Build the Rust crate and run the whole suite against it, as CI's `rus
 	pip install rust/dist/*.whl --force-reinstall
 	pytest --no-cov
 
+image: ## Build the deployment container for the host architecture.
+	docker build --tag alleleforge-ci .
+
 distribution: ## Build and audit the sdist, wheel metadata, and packaged runtime resources.
 	python scripts/check_distribution.py
 
@@ -57,6 +60,7 @@ sbom: ## Build and audit the release wheel's isolated CycloneDX SBOM.
 # once missing and a change that passed lint, types, tests, docs and reproduce still
 # broke a notebook — a gate is only as good as its least convenient member, and the
 # member most likely to be left out is the slow one that catches a different class
-# of failure. The `security` job is advisory in CI (`continue-on-error`) and the `rust` job
-# needs the crate built (`make native`), so neither is included here.
+# of failure. The `security` job is advisory in CI (`continue-on-error`), the `rust` job
+# needs the crate built (`make native`), and the multi-arch `container` job needs Docker +
+# QEMU (`make image` covers the host architecture), so those are not included here.
 ci: lint type test docs examples reproduce distribution sbom ## Run the full local CI gate.

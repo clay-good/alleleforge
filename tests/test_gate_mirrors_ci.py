@@ -36,6 +36,8 @@ NOT_MIRRORED = {
     "security": "advisory in CI: the job is `continue-on-error`, so a newly-published "
     "advisory shows up without blocking an unrelated PR",
     "rust": "needs the compiled crate; `make native` covers it on demand",
+    "container": "needs a Docker daemon and QEMU; `make image` covers the host "
+    "architecture on demand, while CI proves both release architectures",
     # Mirroring this one would be circular: it *is* `make ci`, run after `make install`
     # in one environment. It exists because every other job installs its own subset, so
     # nothing asked whether the command CONTRIBUTING gives a newcomer can run the gate

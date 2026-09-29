@@ -20869,3 +20869,20 @@ and the job graph.
 
 **Lesson: a release gate is only a gate when publishers wait for it, and a release key belongs only
 in the job that turns it.**
+
+## Round 607 — the container build that began at the release tag
+
+The repository had already found one Dockerfile install line that cannot succeed on Linux and wrote
+a static guard for the dependency responsible. Ordinary CI still did not build the image at all.
+The next failure in a base image, wheel, `COPY`, Docker instruction, or architecture would therefore
+surface only after a version tag started the publishing workflow. The release's two-architecture
+claim was configuration nobody exercised before distribution.
+
+A blocking CI job now runs Buildx over the release Dockerfile for both `linux/amd64` and
+`linux/arm64`, with `push: false`. Its context and platform set are asserted equal to the release
+job's, so the check cannot quietly become a cheaper approximation. `make image` provides the native
+host build on demand for developers with Docker; it stays outside `make ci` because a Python
+development environment does not imply a Docker daemon or QEMU.
+
+**Lesson: if an artifact is part of a release, a release must not be the first time anyone builds
+it.**

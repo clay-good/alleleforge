@@ -52,6 +52,9 @@ install, reproduce, and cite. The code is done; this is the operational freeze.
   from the exact default wheel in an isolated environment, and the release `sbom`
   job gates PyPI/GHCR publication and attaches the same artifact-derived inventory
   to the GitHub Release. Release credentials are least-privilege per job.
+- **Container artifact (☑ landed).** Ordinary CI builds the release Dockerfile for
+  both `linux/amd64` and `linux/arm64` without publishing it; the tag workflow uses
+  the same context and platform set when it pushes to GHCR.
 - **Reproducibility audit (☑ landed).** `scripts/reproduce.py` (and `make
   reproduce`) re-derives the canonical weight-free design run from config + seed,
   asserts run-to-run determinism, and diffs a canonicalized digest against a

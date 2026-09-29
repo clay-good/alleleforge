@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # Multi-stage image for the AlleleForge web API (Phase 13).
 # The API needs only the light half of the genome stack — the pure-Python FASTA
 # reader and liftover — so the compiled pysam/cyvcf2/mappy chain is intentionally
