@@ -150,6 +150,9 @@ make ci  # includes artifact, SBOM, and immutable workflow-action checks
 make image  # build and import-smoke the deployment image (requires Docker)
 ```
 
+CI actions and the deployment base image are content-pinned; Dependabot proposes
+reviewable updates instead of allowing upstream tags to change a green commit.
+
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), and report security
 issues through the private process in [SECURITY.md](SECURITY.md).
 

@@ -20925,3 +20925,22 @@ The local `make image` path now includes the lighter import smoke after its host
 
 **Lesson: a successful image build establishes layers, not a working entry point; boot the artifact
 and ask its own liveness surface.**
+
+## Round 610 — immutable automation on a mutable operating system
+
+Every external workflow action had just been pinned to the exact code reviewed, while both Docker
+stages still said `FROM python:3.12-slim`. That tag is intentionally advanced in place. The same
+AlleleForge commit could therefore build against different Python and Debian bytes on different
+days, with no repository diff or update review. The package artifact and its publisher were
+content-addressed; the operating system underneath the published image was not.
+
+Docker currently recommends retaining the readable tag and adding the manifest digest. The
+official `python:3.12-slim` multi-architecture tag resolved to
+`sha256:d764629ce0ddd8c71fd371e9901efb324a95789d2315a47db7e4d27e78f1b0e9`, the same manifest the
+green amd64+arm64 build had resolved. Builder and runtime now use that exact reference. A guard
+requires every named stage to carry a full SHA-256 digest and requires both stages to share it;
+Dependabot's Docker ecosystem watches the root Dockerfile weekly so security updates become explicit
+PRs that move the digest with an audit trail.
+
+**Lesson: a reproducible container needs a content-pinned base, and the update mechanism must move
+that pin visibly.**
