@@ -294,7 +294,8 @@ An input the library takes as a local file is reachable from any surface that ca
 path, and the command line is one. The ClinVar and dbSNP lookups SHALL therefore be
 supplyable with `--clinvar` and `--dbsnp` on every command that resolves a variant —
 `resolve`, `design` and `batch` — and an unreadable file SHALL be a data error, never a
-silent fall back. Neither is ever downloaded: the caller supplies the release.
+silent fall back. ClinVar's pinned release SHALL be obtainable with `aforge data fetch
+clinvar`, whose printed path can be passed to those commands; the caller supplies dbSNP.
 
 This requirement exists because the opposite was asserted for many releases. The refusal
 said the lookups were "Protocols with no shipped implementation", and the excuse was

@@ -96,10 +96,10 @@ class _ClinVarRecordLike(Protocol):
 #: cannot (a client-supplied server path is a file-read primitive).
 _DATABASE_REMEDIES: dict[str, str] = {
     "clinvar": (
-        "Supply one with `--clinvar <clinvar.vcf.gz>` on the command line, or "
-        "`ClinVarDB.from_vcf(path)` from Python. AlleleForge parses the ClinVar VCF "
-        "release itself but never downloads it — the registry has no pinned checksum "
-        "for it — so the file is yours to provide. Over HTTP there is no such option, "
+        "Run `aforge data fetch clinvar` to acquire the pinned release, then pass its "
+        "printed path with `--clinvar <clinvar.vcf.gz>`; you may instead supply another "
+        "release. From Python, use `ClinVarDB.from_vcf(path)`. Over HTTP there is no "
+        "such option, "
         "because a client-supplied server path reads the server's files: send "
         "coordinates (chrom:pos:ref>alt, 1-based as in a VCF), which every surface "
         "accepts."

@@ -4,12 +4,12 @@
 
     error: resolving a ClinVar accession requires a clinvar= database
 
-`ClinVarLookup` and `DbSnpLookup` are Protocols with no shipped implementation. The CLI
-has no code path that constructs one, `create_app` takes no such argument, and the
-registry lists no fetchable ClinVar or dbSNP release. So three of the five input forms
-the argument help advertised — accession, rsID, coding/protein HGVS — cannot be used from
-either shell, and the two documented CLI examples plus one `curl` example used the first
-of them.
+At the time, the CLI had no code path that constructed the shipped `ClinVarDB` and
+`DbSnpDB`, and the registry had no fetchable release. Three of the five input forms the
+argument help advertised — accession, rsID, coding/protein HGVS — therefore could not be
+used from either shell, and the two documented CLI examples plus one `curl` example used
+the first of them. The file-backed CLI paths and a pinned ClinVar acquisition now exist;
+this guard still ensures an example shows the lookup it needs.
 
 The refusal made it worse by naming `clinvar=`, a *Python keyword argument*, to a caller
 who arrived from a command line or a JSON body. A remedy the surface does not have is not
@@ -31,7 +31,9 @@ from alleleforge.variant.resolver import database_remedy
 _ROOT = Path(__file__).resolve().parents[1]
 _DOCS = [_ROOT / "README.md", *(_ROOT / "docs").rglob("*.md")]
 
-#: Input forms that need a lookup database or the `hgvs` library, which no shell supplies.
+#: Input forms that need a lookup database or the `hgvs` library. Bare examples remain
+#: invalid even though CLI flags now supply them; the scanner intentionally accepts only
+#: examples whose positional variant is self-contained.
 _NEEDS_A_DATABASE = re.compile(r"^(VCV\d+|rs\d+|[A-Z_0-9.]+:[cp]\.\S+)$")
 
 

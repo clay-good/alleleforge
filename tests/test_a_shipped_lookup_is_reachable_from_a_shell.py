@@ -1,8 +1,8 @@
 """A ClinVar accession and a dbSNP rsID were refused on a false premise.
 
-Both refusals said the lookups were "Protocols with no shipped implementation, and the
-registry lists no fetchable ClinVar or dbSNP release", so the honest remedy was to type
-coordinates instead. The first half was never true:
+Both refusals once said the lookups were "Protocols with no shipped implementation, and
+the registry lists no fetchable ClinVar or dbSNP release", so the honest remedy was to
+type coordinates instead. The implementation claim was never true:
 :class:`~alleleforge.data.clinvar.ClinVarDB` and :class:`~alleleforge.data.dbsnp.DbSnpDB`
 ship, are package exports, are covered by their own tests, and implement those Protocols
 method for method. They are *file-backed*, like ``--gnomad`` — only the second half held,
@@ -35,6 +35,7 @@ from typer.testing import CliRunner
 from alleleforge.cli.main import app
 from alleleforge.data.clinvar import ClinVarDB
 from alleleforge.data.dbsnp import DbSnpDB
+from alleleforge.data.registry import DEFAULT_REGISTRY
 from alleleforge.variant.resolver import ClinVarLookup, DbSnpLookup, database_remedy
 
 _SEQ = "ACGTTGCAAGGCTTACCGTA" * 20  # 400 bp of chr9
@@ -94,6 +95,27 @@ def test_the_shipped_classes_implement_the_resolver_protocols(
         assert [p.name for p in inspect.signature(method).parameters.values()] == [
             p.name for p in inspect.signature(getattr(protocol, name)).parameters.values()
         ], name
+
+
+def test_the_fetchable_clinvar_release_is_named_by_every_cli_remedy() -> None:
+    """A pin in the registry is not a feature if the accession refusal denies it exists."""
+    descriptor = DEFAULT_REGISTRY.get("clinvar")
+    assert descriptor.source_url and descriptor.sha256, "ClinVar stopped being fetchable"
+    remedy = database_remedy("clinvar")
+    assert "aforge data fetch clinvar" in remedy
+    assert "--clinvar" in remedy
+    assert "never download" not in remedy.lower()
+    assert "no pinned checksum" not in remedy.lower()
+
+    import typer
+
+    root = typer.main.get_command(app)
+    for command in ("resolve", "design", "batch"):
+        params = root.commands[command].params  # type: ignore[attr-defined]
+        option = next(param for param in params if param.name == "clinvar")
+        assert option.help and "aforge data fetch clinvar" in option.help, command
+        assert "never download" not in option.help.lower(), (command, option.help)
+        assert "no pinned checksum" not in option.help.lower(), (command, option.help)
 
 
 @pytest.mark.parametrize(

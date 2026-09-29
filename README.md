@@ -88,6 +88,8 @@ aforge data fetch gencode
 
 `aforge data status` re-hashes cached and bundled artifacts before calling them available;
 a corrupt file is reported as cached but unverified, with a refresh remedy.
+The path printed by `aforge data fetch clinvar` can be passed directly to
+`aforge resolve`, `aforge design`, or `aforge batch` with `--clinvar`.
 
 The same pipeline is available in Python:
 

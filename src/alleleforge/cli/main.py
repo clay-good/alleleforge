@@ -414,8 +414,9 @@ def resolve(
         typer.Argument(
             help="Variant to design for. Coordinates (chrom:pos:ref>alt, 1-based as in a VCF) "
             "and a VCF record work everywhere. A ClinVar accession (VCV…) needs "
-            "--clinvar and a dbSNP rsID (rs…) needs --dbsnp, each naming a release you "
-            "supply — neither is ever downloaded. A coding/protein HGVS string (c./p.) "
+            "--clinvar (a pinned release is available from `aforge data fetch clinvar`) "
+            "and a dbSNP rsID (rs…) needs --dbsnp naming a release you supply. A "
+            "coding/protein HGVS string (c./p.) "
             "needs --hgvs, which projects it to genomic coordinates through the optional "
             "`hgvs` package; genomic g. works without one."
         ),
@@ -425,7 +426,13 @@ def resolve(
     ] = None,
     clinvar: Annotated[
         Path | None,
-        typer.Option("--clinvar", help="ClinVar VCF release to look a `VCV…` accession up in."),
+        typer.Option(
+            "--clinvar",
+            help=(
+                "ClinVar VCF release to look a `VCV…` accession up in. Run "
+                "`aforge data fetch clinvar` and pass its printed path, or supply another release."
+            ),
+        ),
     ] = None,
     dbsnp: Annotated[
         Path | None,
@@ -1277,8 +1284,9 @@ def design(
         typer.Argument(
             help="Variant to design for. Coordinates (chrom:pos:ref>alt, 1-based as in a VCF) "
             "and a VCF record work everywhere. A ClinVar accession (VCV…) needs "
-            "--clinvar and a dbSNP rsID (rs…) needs --dbsnp, each naming a release you "
-            "supply — neither is ever downloaded. A coding/protein HGVS string (c./p.) "
+            "--clinvar (a pinned release is available from `aforge data fetch clinvar`) "
+            "and a dbSNP rsID (rs…) needs --dbsnp naming a release you supply. A "
+            "coding/protein HGVS string (c./p.) "
             "needs --hgvs, which projects it to genomic coordinates through the optional "
             "`hgvs` package; genomic g. works without one."
         ),
@@ -1362,8 +1370,8 @@ def design(
             "--clinvar",
             help=(
                 "ClinVar VCF release (plain or .gz) — what a `VCV…` accession input is "
-                "looked up in. Never downloaded: the registry has no pinned checksum "
-                "for ClinVar, so you supply the release. The record's clinical "
+                "looked up in. Run `aforge data fetch clinvar` for the pinned release "
+                "and pass the printed path here, or supply another release. The record's clinical "
                 "significance is carried into the design, which is what an accession "
                 "is chosen for over the plain coordinates."
             ),
@@ -2051,8 +2059,8 @@ def batch(
             "--clinvar",
             help=(
                 "ClinVar VCF release (plain or .gz) — what a `VCV…` accession input is "
-                "looked up in. Never downloaded: the registry has no pinned checksum "
-                "for ClinVar, so you supply the release. The record's clinical "
+                "looked up in. Run `aforge data fetch clinvar` for the pinned release "
+                "and pass the printed path here, or supply another release. The record's clinical "
                 "significance is carried into the design, which is what an accession "
                 "is chosen for over the plain coordinates."
             ),

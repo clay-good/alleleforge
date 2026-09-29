@@ -21192,3 +21192,18 @@ was not truncated; 0 is refused instead of producing an empty, misleading summar
 
 **Lesson: a lossless output does not excuse a hard-coded summary; expose the presentation choice
 where readers create the report, and prove it never reaches the underlying data.**
+
+## Round 625 — the accession refusal denied the release the previous rounds added
+
+ClinVar became checksum-pinned and fetchable, but every place a caller learned how to resolve an
+accession still said it was never downloaded and had no pinned checksum: the resolver's refusal,
+the `resolve` and `design` argument help, and the `design` and `batch` `--clinvar` option help. The
+acquisition command worked while the workflow that needed its artifact told readers it did not.
+
+Those surfaces now give one executable chain: run `aforge data fetch clinvar`, then pass the path
+it prints with `--clinvar`. The README and specifications name the same connection. A regression
+guard first proves the live ClinVar descriptor has both URL and checksum, then requires every CLI
+remedy to name the fetch command and rejects the stale “never downloaded” and “no checksum” claims.
+
+**Lesson: when a blocker is removed, search the remedies written for the blocked state; otherwise
+the implementation advances while the product keeps steering users around it.**

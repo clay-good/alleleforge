@@ -313,8 +313,9 @@ two escaped the shells' handling.
 
 Three input forms — a ClinVar accession, a dbSNP rsID and a coding/protein HGVS string —
 need a lookup database or the `hgvs` library. The accession and rsID lookups are
-*file-backed*: `ClinVarDB` and `DbSnpDB` ship and implement the resolver's Protocols, and
-the registry lists no fetchable release only because nothing downloads one. Any surface
+*file-backed*: `ClinVarDB` and `DbSnpDB` ship and implement the resolver's Protocols.
+ClinVar has a pinned release available through `aforge data fetch clinvar`; dbSNP has no
+fetchable release. Any surface
 that can name a local path SHALL therefore be able to supply a lookup — `--clinvar` and
 `--dbsnp` on `resolve`, `design` and `batch` — and the refusal SHALL name that flag to a
 shell caller and the constructor (`ClinVarDB.from_vcf` / `DbSnpDB.from_tsv`) to a Python
@@ -333,7 +334,8 @@ the flags shown alongside it.
 
 #### Scenario: An accession on the command line
 - **WHEN** `aforge resolve VCV000012345` is run with no `--clinvar`
-- **THEN** the refusal names `--clinvar`, and running it with that flag resolves
+- **THEN** the refusal names `aforge data fetch clinvar`, `--clinvar`, and how the printed
+  path connects the two commands
 
 #### Scenario: Two dbSNP releases disagreeing about one rsID
 - **WHEN** the same rsID is resolved against two releases that place it differently
