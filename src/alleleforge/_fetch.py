@@ -22,6 +22,7 @@ the old file or the new one and never a partial write.
 from __future__ import annotations
 
 import os
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 
@@ -49,10 +50,12 @@ def download_verified(
             temporary file — the point being that nothing is left at ``dest``.
     """
     dest.parent.mkdir(parents=True, exist_ok=True)
-    # A sibling, so the final move is a rename within one directory (atomic) rather than
-    # a cross-device copy; the pid keeps two concurrent fetches of the same artifact from
-    # writing over each other's partial file.
-    tmp = dest.with_name(f"{dest.name}.partial-{os.getpid()}")
+    # A unique sibling keeps the final move atomic and lets threads in one process fetch
+    # the same artifact without writing over one another's partial file. A PID suffix
+    # distinguished processes but gave every thread in one process the same path.
+    fd, tmp_name = tempfile.mkstemp(prefix=f"{dest.name}.partial-", dir=dest.parent)
+    os.close(fd)
+    tmp = Path(tmp_name)
     try:
         downloader(url, tmp)
         verify(tmp)

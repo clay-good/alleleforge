@@ -21221,3 +21221,17 @@ parses complete command lines so a VCV, rsID, or coding HGVS example is valid on
 
 **Lesson: “prints the path” is an interface contract, not a substring claim; run the documented
 composition exactly as a shell will run it.**
+
+## Round 627 — process-unique was not thread-unique
+
+The shared dataset/model downloader writes to a sibling partial file, verifies it, then atomically
+replaces the cache entry. Its comment said the process-ID suffix kept concurrent fetches apart, but
+2 threads in that process received the same suffix and therefore the same partial path. One transfer
+could replace the file while the other still verified it, or either could verify bytes written by
+its sibling. Each transfer now creates a unique sibling temporary file; the rename remains on one
+filesystem, and concurrent successful fetches still converge on the same verified destination. A
+barrier-synchronized test observes both downloader paths and requires distinct partials, no worker
+failure, correct final bytes, and no debris.
+
+**Lesson: a concurrency claim must be scoped to the concurrency primitive in use; a PID separates
+processes, not threads.**
