@@ -30,9 +30,9 @@ from typing import Any
 from alleleforge.errors import reason
 from alleleforge.web.api.models import JobState
 
-#: Default cap on retained job records. A long-lived server would otherwise grow
-#: ``_jobs`` without bound; only *terminal* (done/error) records are evicted, so an
-#: in-flight job is never dropped.
+#: Default cap on retained terminal job records. A long-lived server would otherwise
+#: grow ``_jobs`` without bound; only *terminal* (done/error) records count toward it,
+#: so an in-flight job is never dropped or made to displace a finished result.
 DEFAULT_MAX_JOBS = 1000
 
 #: Default cap on the bytes those retained records hold.
@@ -155,18 +155,31 @@ class JobManager:
 
     def get(self, job_id: str) -> JobRecord | None:
         """Return the record for ``job_id``, or ``None`` if unknown."""
-        return self._jobs.get(job_id)
+        record = self._jobs.get(job_id)
+        if record is not None and record.state in (JobState.DONE, JobState.ERROR):
+            self._touch(record)
+        return record
+
+    def _touch(self, record: JobRecord) -> None:
+        """Mark a retained record as most recently used."""
+        retained = self._jobs.pop(record.id, None)
+        if retained is not None:
+            self._jobs[record.id] = retained
 
     def _over_budget(self) -> bool:
         """Return whether either bound is exceeded."""
-        return len(self._jobs) > self._max_jobs or self.retained_bytes() > self._max_result_bytes
+        terminal_records = sum(
+            record.state in (JobState.DONE, JobState.ERROR) for record in self._jobs.values()
+        )
+        return terminal_records > self._max_jobs or self.retained_bytes() > self._max_result_bytes
 
     def _evict(self) -> None:
         """Evict oldest terminal records until the store is within both caps.
 
-        Only ``DONE``/``ERROR`` records are removed, oldest-submitted first (dict
-        insertion order), so an unbounded backlog of finished jobs cannot leak
-        memory while a running or pending job is always retained.
+        Only ``DONE``/``ERROR`` records are removed, least-recently-used first (dict
+        insertion order is refreshed on completion and terminal reads), so an unbounded
+        backlog of finished jobs cannot leak memory while a running or pending job is
+        always retained.
 
         Two caps, because a count is not a bound on memory: a finished design keeps the
         ranked menu and the report built from it, over a megabyte for an ordinary menu,
@@ -245,10 +258,18 @@ class JobManager:
                             raise _JobDeadlineExceeded from exc
                 else:
                     result, result_bytes = await worker
-                record.result = result
-                record.result_bytes = result_bytes
-                record.progress = 1.0
-                record.state = JobState.DONE
+                if result_bytes > self._max_result_bytes:
+                    record.error = (
+                        f"job result is {result_bytes:,} bytes and exceeds the "
+                        f"{self._max_result_bytes:,}-byte retained-result limit; submit "
+                        "less work or ask the operator to raise the limit"
+                    )
+                    record.state = JobState.ERROR
+                else:
+                    record.result = result
+                    record.result_bytes = result_bytes
+                    record.progress = 1.0
+                    record.state = JobState.DONE
             except _JobDeadlineExceeded:
                 record.result = None
                 record.result_bytes = 0
@@ -281,6 +302,7 @@ class JobManager:
                 record.progress = 1.0
                 # A timed-out record is terminal for the caller, but its worker still
                 # owns the slot until `_release_after_worker` observes its real exit.
+                self._touch(record)
                 if release_slot:
                     self._in_flight -= 1
                     self._evict()

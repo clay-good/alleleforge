@@ -21316,3 +21316,24 @@ and a callable timeout to keep its original message.
 
 **Lesson: a deadline must surround every phase counted as the operation, and its exception must be
 distinguishable from an identically named failure inside that operation.**
+
+## Round 633 — the bounded store could erase the result it had just accepted
+
+The async contract says a job that reaches `done` has a result a caller can poll. A single result
+larger than `max_result_bytes` crossed that state and was immediately selected as the only terminal
+record the byte-budget eviction could remove. The client received `404`; submitting the same work
+again could only repeat the outcome. A second route produced the same disappearance: `max_jobs` is
+documented as the number of retained terminal records, but `_over_budget` counted running records,
+so with a limit of one, the first of two concurrent jobs was evicted when it finished.
+
+The byte limit is now also a per-result admission limit. An oversized result becomes a retained
+`ERROR` naming its measured size and the configured limit, while the payload is discarded; the
+caller can reduce the work or ask the operator to resize the store. The count bound now counts only
+`DONE` and `ERROR` records. Terminal reads and completions refresh recency, making the spec's LRU
+policy observable instead of evicting by submission order. Synchronized tests require the first
+concurrent result to remain pollable until another terminal record replaces it, require a later
+completion to replace the older result, and require an oversized result's refusal to remain
+available at its submitted id.
+
+**Lesson: a bounded result store needs an answer for an item that cannot fit; silently deleting the
+newest item turns a resource limit into an unrecoverable protocol loop.**

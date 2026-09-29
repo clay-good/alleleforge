@@ -185,7 +185,10 @@ batch endpoint SHALL cap the number of variants per request and reject an over-l
 request at the boundary; the job manager SHALL cap in-flight jobs and reject beyond the
 cap; the job store SHALL bound its size with LRU eviction of terminal records so completed
 records are reclaimed; and a job MAY carry a wall-clock limit past which it is marked
-errored.
+errored. In-flight records SHALL NOT spend the terminal-record budget. A single result
+larger than the retained-result byte limit SHALL become a retained error naming its size
+and the limit, with its payload discarded; it SHALL NOT become a `done` job that is
+immediately evicted and can only be polled as unknown.
 
 #### Scenario: Over-large batch
 - **WHEN** a batch request exceeds the maximum variant count
@@ -198,6 +201,15 @@ errored.
 #### Scenario: Job store stays bounded
 - **WHEN** many jobs complete over a long-lived server
 - **THEN** the job store evicts old terminal records rather than growing without bound
+
+#### Scenario: Concurrent work does not erase the first result
+- **WHEN** one of several in-flight jobs finishes at the terminal-record limit
+- **THEN** its result remains pollable until another terminal record replaces it
+
+#### Scenario: One result cannot fit in the store
+- **WHEN** a completed result is larger than the retained-result byte limit
+- **THEN** the job becomes `error` with an actionable size-limit reason and no payload
+- **AND** its record remains pollable
 
 ### Requirement: Non-loopback binds require authentication
 

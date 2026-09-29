@@ -5516,6 +5516,14 @@ acceptance.
   model cards, benchmark splits, and web frontend — against silent removal.
 
 ### Fixed
+- **An accepted web job no longer disappears the instant it finishes.** A result larger
+  than `max_result_bytes` was marked `DONE` and immediately evicted, so its job id returned
+  only `404`; resubmitting could never succeed under the same limit. The record now remains
+  pollable as `ERROR`, names the measured size and configured limit, and drops the oversized
+  payload. The count bound also now counts the terminal records it documents rather than
+  in-flight work, which could otherwise evict the first result while a second job ran.
+  Terminal reads and completion refresh recency, so the specified LRU policy is now real
+  rather than submission-order eviction under that name.
 - **The web job deadline now covers the whole job and identifies its own timeout.**
   `max_job_seconds` bounded only the callable, leaving the retained-result accounting
   pass unbounded even though the option promises a per-job wall-clock limit. It also

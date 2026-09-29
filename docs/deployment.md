@@ -182,12 +182,15 @@ matter for an operator:
 - **A finished job's result is held in memory until it is evicted**, so it can be
   re-rendered in any format without designing again — which is what the served page
   relies on to make one click of *Design edits* one run. The store is bounded twice:
-  by record count (1000) and by the UTF-8 bytes those results serialize to (256 MiB),
-  evicting oldest-finished-first and never an in-flight job. Both bounds matter because
-  a finished design keeps the ranked menu *and* its report — 1.25 MiB of JSON for a
-  200-candidate menu — so a count alone permits well over a gigabyte. Serialization for
-  this accounting also runs in a worker thread, so finalizing a large result does not
-  stall health checks or job polling. Size the bounds with
+  by terminal-record count (1000) and by the UTF-8 bytes those results serialize to
+  (256 MiB), evicting least-recently-used finished records and never counting an
+  in-flight job against the terminal-record limit. A single result larger than the
+  byte limit becomes a pollable `ERROR` naming its size and the limit; its unbounded
+  payload is discarded instead of the whole record vanishing into a `404`. Both bounds
+  matter because a finished design keeps the ranked menu *and* its report — 1.25 MiB of
+  JSON for a 200-candidate menu — so a count alone permits well over a gigabyte.
+  Serialization for this accounting also runs in a worker thread, so finalizing a large
+  result does not stall health checks or job polling. Size the bounds with
   `create_app(jobs=JobManager(max_jobs=…, max_result_bytes=…))` for a deployment whose
   menus are larger or whose memory is tighter.
 
