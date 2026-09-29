@@ -229,10 +229,15 @@ class JobManager:
                         raise
                 else:
                     record.result = await asyncio.to_thread(work)
-                record.result_bytes = self._measure(record.result)
+                # A real cohort result can serialize to many megabytes. Measuring it
+                # inline here blocks the event loop that serves status and health
+                # requests, defeating the reason work is dispatched to a thread.
+                record.result_bytes = await asyncio.to_thread(self._measure, record.result)
                 record.progress = 1.0
                 record.state = JobState.DONE
             except TimeoutError:
+                record.result = None
+                record.result_bytes = 0
                 record.error = f"job exceeded the {self._max_job_seconds}s time limit"
                 record.state = JobState.ERROR
             except Exception as exc:  # noqa: BLE001 - report any failure to the client
@@ -245,6 +250,10 @@ class JobManager:
                 # inside the reason. Any other exception keeps its type, which is a real
                 # clue when the message alone is opaque.
                 detail = getattr(exc, "detail", None)
+                # A result that failed its accounting pass must not stay in the bounded
+                # store as a zero-byte error record. Work failures already have `None`.
+                record.result = None
+                record.result_bytes = 0
                 record.error = str(detail) if detail else f"{type(exc).__name__}: {reason(exc)}"
                 record.state = JobState.ERROR
             finally:

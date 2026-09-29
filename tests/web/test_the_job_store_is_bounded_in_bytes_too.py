@@ -28,6 +28,11 @@ class _Payload(BaseModel):
     blob: str
 
 
+class _UnserializablePayload:
+    def model_dump_json(self) -> str:
+        raise ValueError("cannot serialize result")
+
+
 @dataclasses.dataclass(frozen=True)
 class _Pair:
     left: _Payload
@@ -60,6 +65,39 @@ async def test_non_ascii_json_is_measured_in_bytes_not_characters() -> None:
     assert len(encoded) > len(payload.model_dump_json()), "fixture must distinguish bytes"
     assert record.result_bytes == len(encoded)
     assert manager.get(record.id) is None, "the true byte size must trigger eviction"
+
+
+@pytest.mark.anyio
+async def test_result_measurement_does_not_run_on_the_event_loop(monkeypatch) -> None:
+    import threading
+
+    loop_thread = threading.get_ident()
+    measurement_threads: list[int] = []
+
+    def measure(_result: object) -> int:
+        measurement_threads.append(threading.get_ident())
+        return 1
+
+    monkeypatch.setattr(JobManager, "_measure", staticmethod(measure))
+    manager = JobManager()
+    record = await manager.submit(lambda: _payload(100))
+    while record.state is not JobState.DONE:
+        await _tick()
+
+    assert measurement_threads
+    assert measurement_threads != [loop_thread], "serializing the result blocked the event loop"
+
+
+@pytest.mark.anyio
+async def test_a_result_that_cannot_be_measured_is_not_retained_unaccounted() -> None:
+    manager = JobManager(max_result_bytes=1)
+    payload = _UnserializablePayload()
+    record = await manager.submit(lambda: payload)
+    while record.state not in (JobState.DONE, JobState.ERROR):
+        await _tick()
+
+    assert record.state is JobState.ERROR
+    assert record.result is None, "failed measurement retained a result recorded as zero bytes"
 
 
 @pytest.mark.anyio

@@ -21281,3 +21281,21 @@ states the encoding behind the number instead of using an undefined “bytes.”
 
 **Lesson: a string length is not a byte length; when a limit is stated in bytes, measure the
 encoding that crosses the boundary.**
+
+## Round 631 — the background job returned to the event loop to serialize
+
+The async job manager correctly ran design and cohort computation through `asyncio.to_thread`,
+then synchronously serialized the finished result on the event loop to measure the retained-result
+budget. An ordinary 200-candidate design produces about 1.25 MiB of JSON and cohorts can be larger,
+so the final accounting pass could freeze health checks and status polling after the supposedly
+background work finished. The measuring function's own docstring claimed it already ran in a
+worker thread; a thread-identity test proved otherwise.
+
+Measurement now goes through `to_thread` too, while the job remains running and holds its capacity
+slot until accounting and eviction finish. A second failure case exposed the same boundary from the
+other side: if serialization raised, the error record retained the whole result with a recorded size
+of 0 bytes. Failed accounting now clears that unmeasured payload. Tests pin both the off-loop thread
+and the no-unaccounted-result invariant.
+
+**Lesson: moving the expensive computation off an event loop is not enough when finalization is
+also expensive; every pre-response pass belongs on the same scheduling audit.**

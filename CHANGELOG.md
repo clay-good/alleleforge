@@ -5516,6 +5516,12 @@ acceptance.
   model cards, benchmark splits, and web frontend — against silent removal.
 
 ### Fixed
+- **Finalizing a large web job no longer blocks the event loop.** The job callable ran
+  through `asyncio.to_thread`, but the subsequent JSON serialization used to measure
+  retained-result bytes ran synchronously on the event loop. A multi-megabyte design or
+  cohort could therefore stall health checks and polling after its computation finished.
+  Accounting now runs off-loop as well. If serialization fails, the unmeasured payload
+  is cleared rather than being retained indefinitely as a zero-byte error record.
 - **The web job-store byte limit now counts bytes.** Result measurement used
   `len(model_dump_json())`, which counts Unicode code points, while Pydantic emits
   non-ASCII text directly and the API serves UTF-8. A result rich in non-ASCII gene
