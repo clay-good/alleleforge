@@ -21146,3 +21146,18 @@ to report the acquired release as cached and available.
 
 **Lesson: a global storage option is part of every read and write in that workflow; honoring it only
 on writes makes successful work disappear from the product's own status view.**
+
+## Round 622 — freeze the annotation the parser actually consumes
+
+R0 requires every external descriptor to identify immutable, verifiable bytes. GENCODE already
+named a stable v47 release URL and `GeneModels` already consumed its comprehensive GTF, but the
+descriptor omitted the artifact hash, so the registry correctly refused to download it.
+
+The v47 comprehensive GRCh38 GTF was downloaded from the official EBI release directory. Its MD5
+matches GENCODE's `MD5SUMS` manifest (`2459f58694fd330740627a8c371fed6a`), the gzip stream is valid,
+and its header identifies GENCODE v47 / Ensembl 113 on GRCh38. The exact bytes are now pinned by
+SHA-256 and fetched through the same consent and atomic-verification path as ClinVar. A real-file
+smoke parses the fetched artifact through `GeneModels`, rather than proving only that it downloads.
+
+**Lesson: pin the exact artifact the production parser accepts, then verify both its publisher's
+checksum and its semantic header; a hash of the wrong file is perfectly reproducible and useless.**

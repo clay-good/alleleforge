@@ -66,7 +66,13 @@ clinvar`; `aforge data refresh clinvar` atomically replaces the cached copy and 
 the last verified file if a transfer fails. Both commands are explicit consent for that
 download and print the cache path a caller can pass to `--clinvar`.
 
-The other external release artifacts still have no `sha256`, so auto-download stays
+GENCODE's immutable v47 comprehensive GRCh38 GTF is pinned to SHA-256
+`df11938c66d2b39f8ebbdb5f1720919321f9cf9d58f02b019753f6a24ca3db24`; its official
+release-manifest MD5, `2459f58694fd330740627a8c371fed6a`, was also checked before the
+pin was recorded. Fetch it with `aforge data fetch gencode`; the resulting
+`gencode.v47.annotation.gtf.gz` is accepted directly by `GeneModels.from_gtf()`.
+
+The remaining external release artifacts still have no `sha256`, so auto-download stays
 disabled for them: the registry refuses a fetch without a verifiable checksum. Their
 descriptors continue to document provenance for this page and `aforge data status`.
 

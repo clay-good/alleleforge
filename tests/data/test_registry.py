@@ -43,6 +43,17 @@ def test_default_registry_lists_all_phase3_datasets() -> None:
     )
 
 
+def test_gencode_pins_the_official_v47_annotation_artifact() -> None:
+    descriptor = DEFAULT_REGISTRY.get("gencode")
+    assert descriptor.version == "v47"
+    assert descriptor.source_url == (
+        "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/"
+        "gencode.v47.annotation.gtf.gz"
+    )
+    assert descriptor.filename == "gencode.v47.annotation.gtf.gz"
+    assert descriptor.sha256 == ("df11938c66d2b39f8ebbdb5f1720919321f9cf9d58f02b019753f6a24ca3db24")
+
+
 def test_every_default_descriptor_has_license_and_citation() -> None:
     for name in DEFAULT_REGISTRY.names:
         desc = DEFAULT_REGISTRY.get(name)

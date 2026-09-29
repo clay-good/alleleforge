@@ -46,7 +46,8 @@ install, reproduce, and cite. The code is done; this is the operational freeze.
   refused by design). Record the pinned versions in `docs/data.md` and each model
   card. **(☐ blocked on freezing the real artifacts — the only remaining R0
   item; the gate already refuses a `null`-hash fetch. The bundled CFD matrix and
-  immutable ClinVar 2024-05-28 snapshot are pinned; the other external datasets remain.)**
+  immutable ClinVar 2024-05-28 snapshot, and GENCODE v47 annotation are pinned; the
+  other external datasets remain.)**
 - **Supply-chain (☑ landed).** Dependabot covers `pip` + `cargo` +
   `github-actions` (`.github/dependabot.yml`); a CI `security` job runs
   `pip-audit` + `cargo audit`; ordinary CI builds and validates a CycloneDX SBOM

@@ -78,11 +78,12 @@ aforge design 'chr11:5227002:A>T' \
   --out report.html
 ```
 
-Fetch the pinned ClinVar snapshot when resolving accessions. The command prints the
-verified cache path to pass to `--clinvar`:
+Fetch a pinned dataset snapshot. The command prints its verified cache path; ClinVar can
+be passed to `--clinvar`, while GENCODE's GTF loads directly through `GeneModels`:
 
 ```bash
 aforge data fetch clinvar
+aforge data fetch gencode
 ```
 
 The same pipeline is available in Python:
@@ -109,11 +110,12 @@ search, result verification, model and dataset inspection, caching, and benchmar
 | Optional gnomAD-style frequencies, haplotypes, and patient variants | Reference, population, haplotype, and patient-specific off-target findings |
 | Optional trained models and chromatin tracks | Efficiency and outcome predictions with provenance and uncertainty |
 
-ClinVar has a checksum-pinned snapshot available through `aforge data fetch`; dbSNP,
-coding/protein HGVS, trained models, and external annotations require their documented
-optional dependencies or data sources. The default pipeline uses transparent,
-weight-free baselines. A `data fetch`/`data refresh` command is explicit consent for that
-artifact download; automatic downloads and VEP lookups remain separately consent-gated.
+ClinVar and GENCODE have checksum-pinned snapshots available through `aforge data fetch`;
+dbSNP, coding/protein HGVS, trained models, and the remaining external annotations require
+their documented optional dependencies or data sources. The default pipeline uses
+transparent, weight-free baselines. A `data fetch`/`data refresh` command is explicit
+consent for that artifact download; automatic downloads and VEP lookups remain separately
+consent-gated.
 
 For commercial work, set `ALLELEFORGE_MODEL_USE=commercial`. The license gate refuses
 trained models that do not permit the use you declare.

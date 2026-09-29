@@ -313,6 +313,7 @@ DEFAULT_REGISTRY = DatasetRegistry(
             "gencode.v47.annotation.gtf.gz",
             license="custom (GENCODE / open)",
             citation="Frankish et al., Nucleic Acids Res 2023 (GENCODE)",
+            sha256="df11938c66d2b39f8ebbdb5f1720919321f9cf9d58f02b019753f6a24ca3db24",
             redistributable=True,
             filename="gencode.v47.annotation.gtf.gz",
         ),
