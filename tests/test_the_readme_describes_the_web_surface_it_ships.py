@@ -1,4 +1,4 @@
-"""The README stated a design decision that the code had since outgrown.
+"""The web reference documents the surface the app ships.
 
 It said the four file-backed inputs were "deliberately absent" from the web API because a
 client-supplied path would be a server-side file-read primitive, and that "that surface
@@ -7,9 +7,9 @@ and the conclusion had moved: three of the four are now operator-configured exac
 described, and only `--patient-vcf` stays out — for a different reason, since a personal
 genotype is the caller's data rather than the operator's.
 
-A README paragraph explaining why something is missing is the kind of text nobody revisits
+A documentation paragraph explaining why something is missing is easy to overlook
 when it stops being missing, so this checks the claim instead of trusting it: each source
-the README says an operator can configure must have its environment variable read, and the
+the web docs say an operator can configure must have its environment variable read, and the
 one it says is absent must really be absent from both request models.
 """
 
@@ -21,15 +21,17 @@ from pathlib import Path
 from alleleforge.web.api import app as web_app
 from alleleforge.web.api.models import BatchRequest, DesignRequest, OffTargetRequest
 
-_README = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
+_WEB_DOCS = (Path(__file__).resolve().parents[1] / "docs" / "api" / "web.md").read_text(
+    encoding="utf-8"
+)
 
-#: Operator-configured file inputs the README promises are reachable over HTTP.
+#: Operator-configured file inputs the web docs promise are reachable over HTTP.
 _CONFIGURABLE = ("ALLELEFORGE_GNOMAD_TSV", "ALLELEFORGE_HAPLOTYPES", "ALLELEFORGE_ENCODE_TRACKS")
 
 
-def test_the_readme_names_the_variables_that_configure_them() -> None:
+def test_the_web_docs_name_the_variables_that_configure_them() -> None:
     for env_var in _CONFIGURABLE:
-        assert env_var in _README, f"{env_var} configures the web API and the README omits it"
+        assert env_var in _WEB_DOCS, f"{env_var} configures the web API and its docs omit it"
 
 
 def test_each_named_variable_is_actually_read() -> None:
@@ -45,10 +47,10 @@ def test_the_create_app_arguments_exist() -> None:
 
 
 def test_a_patient_genotype_is_still_not_a_request_field() -> None:
-    """The one the README says stays out: caller data, not operator data."""
+    """The one the web docs say stays out: caller data, not operator data."""
     for model in (DesignRequest, BatchRequest, OffTargetRequest):
         assert not [f for f in model.model_fields if "patient" in f], model.__name__
-    assert "`--patient-vcf` remains absent" in _README
+    assert "personal genotype" in _WEB_DOCS and "stays out" in _WEB_DOCS
 
 
 def test_no_request_model_takes_a_filesystem_path() -> None:

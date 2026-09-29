@@ -80,12 +80,9 @@ def test_no_document_calls_the_opt_in_path_the_default(flag: str) -> None:
     )
 
 
-def test_the_readme_says_the_path_is_opt_in() -> None:
+def test_the_offtarget_docs_say_the_path_is_opt_in() -> None:
     """Not saying the wrong thing is half of it; a reader still needs the right one."""
-    readme = (_ROOT / "README.md").read_text(encoding="utf-8")
-    row = next(line for line in readme.splitlines() if line.startswith("| `bwt` |"))
-    assert "opt-in" in row, row
-    assert "use_fm_index" in row or "genome_index" in row, row
-    # And the neighbouring row's honesty, applied here: what it costs, not just that it
-    # is optional.
-    assert re.search(r"net cost|SLOWER", row), row
+    docs = (_ROOT / "docs" / "api" / "offtarget.md").read_text(encoding="utf-8")
+    assert "opt-ins" in docs
+    assert "genome_index" in docs
+    assert re.search(r"net cost|SLOWER", docs)

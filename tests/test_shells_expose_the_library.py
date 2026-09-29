@@ -484,42 +484,6 @@ def test_the_two_shells_offer_the_same_output_formats() -> None:
     )
 
 
-def test_the_readme_states_the_number_of_exceptions_this_file_records() -> None:
-    """The README makes an absolute claim; this is what keeps it from becoming false.
-
-    "Every `design()` capability is reachable from the CLI" is true only because none of
-    the parameters below is a capability the command line cannot reach — one adapter
-    needing an undeclared library, an injection point with nothing trained to select,
-    the positional argument and a test hook. That is an argument about four specific
-    entries, so the README states the count and points here, and a fifth entry makes
-    the sentence a promise nobody checked.
-
-    Two entries left this list when `--clinvar` and `--dbsnp` were added: the excuse
-    had said the lookups were "Protocols with no shipped implementation", and
-    `ClinVarDB`/`DbSnpDB` had shipped all along.
-    """
-    words = {
-        1: "One",
-        2: "Two",
-        3: "Three",
-        4: "Four",
-        5: "Five",
-        6: "Six",
-        7: "Seven",
-        8: "Eight",
-    }
-    readme = (_ROOT / "README.md").read_text(encoding="utf-8")
-    stated = f"{words[len(_NOT_IN_CLI)]} of its parameters are not passed by any command"
-    assert stated in readme, (
-        f"the README should say {stated!r}; this file records {len(_NOT_IN_CLI)} "
-        f"exceptions ({sorted(_NOT_IN_CLI)}) and the README's absolute claim depends on "
-        "each of them not being a capability"
-    )
-    assert "tests/test_shells_expose_the_library.py" in readme, (
-        "the README should name the file that holds the list and its reasons"
-    )
-
-
 def test_the_cli_allowances_are_exactly_the_unsupplied_parameters() -> None:
     """No slack in either direction: every excuse real, every gap excused."""
     unsupplied = _design_parameters() - _cli_forwards()

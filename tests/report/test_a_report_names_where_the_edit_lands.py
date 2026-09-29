@@ -115,7 +115,7 @@ def test_an_unplaced_candidate_reports_no_locus(ancestry_menu: RankedMenu) -> No
     assert _locus_summary(bare) is None
 
 
-def test_the_readme_states_the_conventions_the_reports_actually_use() -> None:
+def test_the_data_docs_state_the_conventions_the_reports_actually_use() -> None:
     """The cheat-sheet said human-readable reports were 1-based. They are not.
 
     One row lumped HGVS together with "human-readable reports" and labelled the pair
@@ -128,9 +128,9 @@ def test_the_readme_states_the_conventions_the_reports_actually_use() -> None:
 
     from alleleforge.report.builder import COORDINATE_NOTE
 
-    readme = (Path(__file__).resolve().parents[2] / "README.md").read_text()
+    data_docs = (Path(__file__).resolve().parents[2] / "docs" / "data.md").read_text()
     row = next(
-        (line for line in readme.splitlines() if line.startswith("| Human-readable reports")),
+        (line for line in data_docs.splitlines() if line.startswith("| Every locus a report")),
         None,
     )
     assert row is not None, "the coordinate cheat-sheet has no row for the reports"

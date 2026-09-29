@@ -1,8 +1,8 @@
-"""The benchmark's task table is hand-written in three documents and checked in none.
+"""The benchmark's task table is hand-written in two reference documents.
 
 The same structural facts — the task's name, its kind, and the primary metric a model is
-ranked on — appear in the README, the API reference and the preprint. Each was typed by
-hand from `alleleforge.benchmark.tasks`, and nothing compared any of them to it.
+ranked on — appear in the API reference and the preprint. Each was typed by hand from
+`alleleforge.benchmark.tasks`, and nothing compared either one to it.
 
 This project has already learned what that costs, on the exit codes: the same fact written
 down four times, with a guard on the one copy a *test* read and none on the two a *reader*
@@ -10,7 +10,7 @@ reads. And these numbers rank worse than exit codes on the scale that matters. A
 `Spearman` where the harness ranks on `KL` is not a documentation nit; it is a false
 statement about how models are compared, in the document written to be cited.
 
-All three agree with the registry today, so this is preventive — and mutation-verified,
+Both agree with the registry today, so this is preventive — and mutation-verified,
 which is this project's standing obligation for a check that has never yet caught
 anything: renaming a task, or swapping a primary metric, fails it in every document.
 """
@@ -26,9 +26,8 @@ from alleleforge.benchmark.tasks import TASKS, get_task
 
 _ROOT = Path(__file__).resolve().parents[2]
 
-#: The documents that print the task table, and what each one is for.
+#: The reference documents that print the task table, and what each one is for.
 _SURFACES = {
-    "README.md": "the front door",
     "docs/api/benchmark.md": "the API reference",
     "docs/paper/preprint.md": "the citable write-up",
 }

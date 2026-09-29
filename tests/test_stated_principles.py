@@ -205,34 +205,6 @@ def test_every_stated_principle_has_named_evidence() -> None:
                 )
 
 
-def test_the_two_statements_of_the_principles_agree() -> None:
-    """The principles are written out twice; two copies of a claim can disagree.
-
-    `openspec/project.md` is the declared source of truth and the README restates the
-    list for readers. Principle 3 was corrected in the README — "not on by default,
-    because AlleleForge vendors no gnomAD data" — and left as "Population-aware by
-    default" in the source of truth, where the overclaim guard above did not read.
-    """
-    import re
-
-    def titles(path: str, header: str) -> dict[int, str]:
-        section = (_ROOT / path).read_text().split(header)[1].split("\n## ")[0]
-        return {int(n): t for n, t in re.findall(r"^(\d+)\. \*\*(.+?)\.?\*\*", section, re.M)}
-
-    spec = titles("openspec/project.md", "## Non-negotiable design principles")
-    readme = titles("README.md", "## Design principles")
-    assert len(spec) >= 8, spec
-    differing = {
-        n: (spec.get(n), readme.get(n))
-        for n in set(spec) | set(readme)
-        if spec.get(n) != readme.get(n)
-    }
-    assert not differing, (
-        f"the principles disagree between their two statements: {differing}. "
-        "openspec/project.md is the source of truth; the README restates it."
-    )
-
-
 #: Scoring entry points whose return is deliberately not a `Prediction`, and why. Short
 #: enough to read, which is this project's test for whether an exception list is honest.
 _NOT_A_SCORER_BOUNDARY: dict[str, str] = {

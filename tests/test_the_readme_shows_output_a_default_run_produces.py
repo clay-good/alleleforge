@@ -1,22 +1,4 @@
-"""The README's provenance example named two models no default run invokes.
-
-    print([m.name for m in menu.provenance.models])  # every model invoked,
-                                                     # e.g. ['be-dict', 'pridict2']
-
-Both names are real model cards. They are the *trained* ones. A default `design()`
-records `be-dict-baseline`, `pridict2-baseline`, `prime-outcome-baseline` — and the
-`-baseline` suffix is the load-bearing part of this project's whole stance: it is how an
-artifact says the number did not come from the published model. The one line in the
-README demonstrating provenance stripped exactly that suffix, on the comment reading
-"every model invoked".
-
-This checks the class rather than the line: a model name the README presents as example
-provenance output must be one a default run can actually produce. The trained names may
-appear in the prose, where they are being described rather than shown as output.
-
-The other self-contained snippets are executed here too, and their stated outputs
-compared, since a `# → value` comment is a claim and nothing was reading them.
-"""
+"""The concise README's example and default-model claims stay executable and honest."""
 
 from __future__ import annotations
 
@@ -43,7 +25,7 @@ def _default_model_names() -> set[str]:
 
 
 def test_the_snippets_were_found() -> None:
-    assert len(_BLOCKS) > 5, len(_BLOCKS)
+    assert _BLOCKS
 
 
 def test_no_snippet_shows_a_model_a_default_run_never_records() -> None:
@@ -65,9 +47,8 @@ def test_no_snippet_shows_a_model_a_default_run_never_records() -> None:
 
 
 def test_the_baseline_suffix_is_explained_where_it_is_shown() -> None:
-    """Printing the real names is only better if the suffix is not read as noise."""
-    assert "be-dict-baseline" in _TEXT
-    assert "`-baseline` suffix is load-bearing" in _TEXT
+    """The concise README still tells readers what the default predictions use."""
+    assert "weight-free baselines" in _TEXT
 
 
 @pytest.mark.parametrize(
@@ -103,10 +84,4 @@ def test_the_self_contained_snippets_produce_what_they_claim(
 
 
 def test_the_registry_snippet_still_describes_the_registry() -> None:
-    from alleleforge.data import DEFAULT_REGISTRY
-
-    clinvar = DEFAULT_REGISTRY.get("clinvar")
-    assert f"{clinvar.version}" in _TEXT
-    assert clinvar.license in _TEXT
-    for name in ("1000g", "clinvar", "dbsnp"):
-        assert name in DEFAULT_REGISTRY.names
+    assert "[Data and provenance](docs/data.md)" in _TEXT

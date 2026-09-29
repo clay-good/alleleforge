@@ -73,3 +73,8 @@ analog of the Hsu 2013 / MIT guide score `100/(100+Σ)`, i.e. `1/(1 + Σ site sc
 **1.0** for a guide with no off-targets and decreasing as the total off-target burden grows, and unlike
 [`worst_score`][alleleforge.types.offtarget.OffTargetReport.worst_score] it distinguishes two guides
 with the same worst site but a different *number* of off-targets.
+
+Both numbers are frequency-blind. When a site's presence is probabilistic, the report
+also exposes [`expected_burden`][alleleforge.types.offtarget.OffTargetReport.expected_burden],
+which weights each site score by the probability that a genome carries it. It is omitted
+with reference sites alone because it would add no information.

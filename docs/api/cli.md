@@ -165,6 +165,9 @@ package is optional (a missing one exits `UNAVAILABLE`, naming it), and the proj
 queries an external UTA database and SeqRepo, so the transcript identifier leaves the
 machine. Genomic `g.` needs none of it and works everywhere.
 
+The `variant` extra installs `hgvs`, whose PostgreSQL client requires `libpq-dev` on
+Debian or `libpq` on macOS. It is intentionally absent from the default source install.
+
 ### The TSV export
 
 `--format tsv` writes the flat per-candidate table led by `#` comment lines carrying the

@@ -1,4 +1,4 @@
-"""The README's benchmark walkthrough is executed, not just proofread.
+"""The CLI reference's benchmark walkthrough is executed, not just proofread.
 
 Four commands in one block — list the tasks, score the baseline, write a signed result,
 render a model-card-gated board — presented as the way to use CRISPR-Bench. Existing guards
@@ -7,8 +7,8 @@ block start to finish, so a renamed subcommand, a changed output flag, or a lead
 that rejects the very result `bench run` writes would all survive review of the most-read
 file in the repo.
 
-The commands are parsed out of the README and executed through the CLI runner in a
-temporary directory, so this fails when the README drifts *or* when the chain breaks. The
+The commands are parsed out of the CLI reference and executed through the CLI runner in a
+temporary directory, so this fails when the docs drift *or* when the chain breaks. The
 glob in the last line is expanded against the files the previous lines actually produced —
 which is the point of running it as a sequence: the board is built from the result JSON
 that `bench run --out` wrote one line earlier.
@@ -25,17 +25,19 @@ from typer.testing import CliRunner
 
 from alleleforge.cli.main import app
 
-_README = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
+_CLI_DOCS = (Path(__file__).resolve().parents[1] / "docs" / "api" / "cli.md").read_text(
+    encoding="utf-8"
+)
 
 
 def _bench_walkthrough() -> list[list[str]]:
-    """Return the `aforge bench ...` command lines from the README, in order."""
-    for block in re.findall(r"```bash\n(.*?)```", _README, re.S):
+    """Return the `aforge bench ...` command lines from the CLI docs, in order."""
+    for block in re.findall(r"```bash\n(.*?)```", _CLI_DOCS, re.S):
         lines = [line.split("#")[0].strip() for line in block.splitlines()]
         commands = [shlex.split(line)[1:] for line in lines if line.startswith("aforge bench")]
         if len(commands) >= 3:
             return commands
-    raise AssertionError("the README no longer carries a bench walkthrough")
+    raise AssertionError("the CLI docs no longer carry a bench walkthrough")
 
 
 def test_the_walkthrough_has_the_shape_this_test_assumes() -> None:

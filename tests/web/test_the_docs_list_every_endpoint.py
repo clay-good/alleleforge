@@ -1,9 +1,7 @@
-"""Every `/api` endpoint must appear on the surfaces that claim to list them.
+"""Every `/api` endpoint must appear in the web API reference.
 
-`docs/api/web.md` heads a table "Endpoints" and `README.md` carries the same table.
-`POST /api/batch` — cohort design, a whole capability — was in the README's and absent
-from the docs site's, so the page a user lands on from the documentation navigation
-listed nine of the ten endpoints and gave no sign it was incomplete.
+`docs/api/web.md` heads a table "Endpoints". It once omitted `POST /api/batch`, so the
+page listed nine of the ten endpoints and gave no sign it was incomplete.
 
 An undocumented endpoint is not a broken one, which is exactly why nothing caught it:
 the route works, its tests pass, and the omission is only visible by comparing two
@@ -25,8 +23,8 @@ import pytest
 from alleleforge.web.api.app import create_app
 
 _ROOT = Path(__file__).resolve().parents[2]
-#: The two surfaces that present themselves as the list of endpoints.
-_SURFACES = [_ROOT / "docs" / "api" / "web.md", _ROOT / "README.md"]
+#: The reference surface that presents itself as the list of endpoints.
+_SURFACES = [_ROOT / "docs" / "api" / "web.md"]
 
 
 def _api_paths() -> list[str]:

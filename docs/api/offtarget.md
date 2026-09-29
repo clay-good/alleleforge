@@ -13,6 +13,10 @@ and the reference-bias rationale.
 
 ## Engine
 
+The linear reference scan is the default. The FM-index and k-mer prefilter are exact,
+parity-tested opt-ins because both were a net cost in the measured default scan. Use a
+supplied `genome_index` when its persistent, memory-mapped representation is useful.
+
 ::: alleleforge.offtarget.engine
 
 ## Scoring (CFD, MIT, Cas12a)
