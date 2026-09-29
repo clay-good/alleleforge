@@ -321,7 +321,8 @@ CI-gated from commit one.
 - `Dockerfile` (multi-stage), `docker-compose.yml` deployment with a non-root process,
   read-only root filesystem, no Linux capabilities, explicit writable mounts, and a
   container-only constraints snapshot for the complete Python runtime graph. The
-  runtime contains the installed package rather than a duplicate source checkout.
+  runtime contains the installed package rather than a duplicate source checkout, and
+  a deny-by-default build context excludes reference data and developer state.
 - `README.md` with the mission, the "research tool, not medical advice" disclaimer, and a quickstart.
 - `LICENSE` (MIT), `CITATION.cff`, `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), `CONTRIBUTING.md`,
   `CHANGELOG.md` (Keep a Changelog format).

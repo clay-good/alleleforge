@@ -158,7 +158,8 @@ SBOM; GitHub Releases carry `SHA256SUMS` for the wheel, sdist, and wheel SBOM. T
 container runs as unprivileged UID/GID `10001:10001` and advertises its
 `/api/health` liveness check to Docker and Compose. The default Compose service also
 drops all Linux capabilities and makes its root filesystem read-only. The runtime
-contains the installed package only, not a second source checkout.
+contains the installed package only, not a second source checkout, and a deny-by-default
+build context excludes local reference data.
 
 CI's visible advisory job audits both the development environment and the exact
 container dependency snapshot; a finding stays visible without blocking unrelated

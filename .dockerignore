@@ -1,0 +1,8 @@
+# Deny by default: local builds often keep private reference data under ./data.
+*
+!pyproject.toml
+!README.md
+!constraints/
+!constraints/container.txt
+!src/
+!src/**

@@ -104,6 +104,10 @@ the fact that one is required.
 docker compose up --build
 ```
 
+The repository uses a deny-by-default build context that admits only package source,
+metadata, and the container constraints snapshot. Your mounted `./data` never enters
+the image build; Compose supplies it only at runtime as the read-only `/data` mount.
+
 The image runs as unprivileged UID/GID `10001:10001`. The Compose named cache volume
 inherits the image's ownership. If you replace either named volume with a host bind
 mount, make reference files readable by 10001 and the cache directory writable by

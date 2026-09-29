@@ -21093,3 +21093,21 @@ resolve the snapshot's Python 3.12-only NumPy.
 
 **Lesson: a vulnerability audit is evidence about the versions it reads, not about a neighboring
 environment with similar dependency names.**
+
+## Round 619 — the mounted genome was also build context
+
+The one-command deployment tells an operator to place `reference.fa` and its index under `./data`,
+then runs `docker compose up --build` from the repository root. There was no `.dockerignore`.
+The Dockerfile's explicit `COPY` instructions kept those bytes out of the resulting layers, but a
+classic or remote builder could still receive the whole context: reference genomes, caches, a local
+environment file, virtual environments, and any other untracked developer state. Data intended for
+a read-only runtime mount had crossed a different trust boundary before the container started.
+
+The build context now denies everything first, then admits only `pyproject.toml`, `README.md`,
+`constraints/container.txt`, and the package source tree. A structural test pins the complete
+allowlist and the Dockerfile's two non-stage `COPY` sources, so adding `COPY .` cannot quietly undo
+the boundary. The real image build remains the executable proof that the allowlist contains every
+input the build actually needs; Compose continues to mount `./data` only at runtime.
+
+**Lesson: a file omitted from image layers can still cross the build boundary; minimize the context
+before reasoning about `COPY`.**
