@@ -21038,3 +21038,21 @@ image build remains push-free and does not need registry attestations for its di
 
 **Lesson: an inventory describes one artifact, not a release in general; attach provenance and an
 SBOM to the image as an image.**
+
+## Round 616 — release files a reader could download but not verify
+
+The release workflow validated the wheel and sdist, built a CycloneDX inventory from the exact
+wheel, and attached all three files to GitHub. It did not publish their digests. PyPI displays hashes
+for its own files, but a GitHub Release download or copied SBOM had no repository-produced value to
+compare, even as the surrounding workflow increasingly content-addressed actions, bases, and model
+artifacts.
+
+A read-only checksum job now waits for both artifact producers, downloads the validated wheel,
+sdist, and SBOM into one directory, and writes a GNU-compatible `SHA256SUMS` over their basenames.
+The manifest is a separate workflow artifact, later downloaded beside the files it names. Both PyPI
+and GHCR publishers wait for checksum generation along with the existing SBOM gate, so failure occurs
+before distribution begins; the GitHub Release still waits for both publishers and attaches all four
+files. Structural tests pin the inputs, command, output, location, and expanded dependency graph.
+
+**Lesson: validation says an artifact is acceptable now; a published digest lets the next reader
+prove they still have that artifact.**

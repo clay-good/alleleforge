@@ -154,7 +154,8 @@ CI actions and the deployment base image are content-pinned, and the image resol
 its Python runtime from [`constraints/container.txt`](constraints/container.txt);
 Dependabot proposes reviewable updates instead of allowing upstream releases to change
 a green commit. Published images carry max-level build provenance and an OCI-attached
-SBOM. The served container runs as unprivileged UID/GID `10001:10001` and advertises its
+SBOM; GitHub Releases carry `SHA256SUMS` for the wheel, sdist, and wheel SBOM. The served
+container runs as unprivileged UID/GID `10001:10001` and advertises its
 `/api/health` liveness check to Docker and Compose. The default Compose service also
 drops all Linux capabilities and makes its root filesystem read-only.
 

@@ -36,6 +36,6 @@ def test_write_authority_is_scoped_to_the_jobs_that_publish() -> None:
 
 def test_nothing_is_published_before_the_required_sbom_passes() -> None:
     jobs = _workflow()["jobs"]
-    assert {"build", "sbom"} <= _needs(jobs["pypi"])
-    assert {"build", "sbom"} <= _needs(jobs["docker"])
+    assert {"build", "sbom", "checksums"} <= _needs(jobs["pypi"])
+    assert {"build", "sbom", "checksums"} <= _needs(jobs["docker"])
     assert {"sbom", "pypi", "docker"} <= _needs(jobs["github-release"])

@@ -81,6 +81,9 @@ The `rule-set-3` card pins a `checkpoint_sha256` and a `source_url` release asse
         multi-platform image. This image inventory includes its operating-system and
         deployment layers; it complements the wheel's CycloneDX SBOM attached to the
         GitHub Release rather than describing a different artifact with it.
+      - The GitHub Release attaches `SHA256SUMS` beside the wheel, sdist, and wheel
+        CycloneDX SBOM. Verify downloads with `sha256sum --check SHA256SUMS` (Linux) or
+        `shasum -a 256 -c SHA256SUMS` (macOS). Both publishers wait for this manifest.
 
 ## 4. Bioconda (the channel bench scientists use)
 

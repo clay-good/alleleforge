@@ -61,9 +61,29 @@ jobs:
           name: sbom
           path: alleleforge.cdx.json
 
+  checksums:
+    name: Release checksums (SHA-256)
+    needs: [build, sbom]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: dist
+          path: artifacts
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: sbom
+          path: artifacts
+      - name: Hash every downloadable release artifact
+        run: (cd artifacts && sha256sum * > ../SHA256SUMS)
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: checksums
+          path: SHA256SUMS
+
   pypi:
     name: Publish to PyPI
-    needs: [build, sbom]
+    needs: [build, sbom, checksums]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -77,7 +97,7 @@ jobs:
 
   docker:
     name: Multi-arch Docker image (GHCR)
-    needs: [build, sbom]
+    needs: [build, sbom, checksums]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -122,6 +142,10 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: sbom
+          path: dist
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: checksums
           path: dist
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
