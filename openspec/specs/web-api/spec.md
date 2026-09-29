@@ -367,6 +367,12 @@ control, and it was false for as long as the rendered report carried a CDN scrip
 - **THEN** the browser blocks the load, because a `srcdoc` frame inherits the parent's
   policy
 
+#### Scenario: Authentication rejects an API request
+- **WHEN** an API token is configured and a protected request omits it or supplies the
+  wrong token
+- **THEN** the `401` response carries the same content security, content-type,
+  referrer, and frame headers as a successful response
+
 
 ### Requirement: A terminal job reports finished
 

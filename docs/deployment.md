@@ -79,7 +79,9 @@ ALLELEFORGE_REFERENCE_FASTA=/data/hg38.fa \
 ```
 
 To reach the service from anywhere else, set a token. Every `/api/*` request
-(except `/api/health`) then needs a matching `X-API-Token` header:
+(except `/api/health`) then needs a matching `X-API-Token` header. Authentication
+failures retain the same content security, content-type, referrer, and frame headers
+as successful responses:
 
 ```bash
 export ALLELEFORGE_API_TOKEN="$(python -c 'import secrets;print(secrets.token_urlsafe(32))')"

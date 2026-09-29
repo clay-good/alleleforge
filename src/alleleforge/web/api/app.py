@@ -1082,14 +1082,6 @@ def create_app(
             errors.append(trimmed)
         return JSONResponse(status_code=422, content={"detail": jsonable_encoder(errors)})
 
-    @app.middleware("http")
-    async def _security_headers(request: Request, call_next: Any) -> Response:
-        """Attach the fixed security headers to every response."""
-        response: Response = await call_next(request)
-        for header, value in _SECURITY_HEADERS.items():
-            response.headers.setdefault(header, value)
-        return response
-
     if api_token:
 
         @app.middleware("http")
@@ -1101,6 +1093,14 @@ def create_app(
                     return JSONResponse({"detail": "missing or invalid API token"}, status_code=401)
             response: Response = await call_next(request)
             return response
+
+    @app.middleware("http")
+    async def _security_headers(request: Request, call_next: Any) -> Response:
+        """Attach the fixed security headers to every response."""
+        response: Response = await call_next(request)
+        for header, value in _SECURITY_HEADERS.items():
+            response.headers.setdefault(header, value)
+        return response
 
     @app.get("/api/health", response_model=HealthResponse)
     async def health() -> HealthResponse:

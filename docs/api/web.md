@@ -56,6 +56,9 @@ auto-generated at `/openapi.json`.
 
 Every request model forbids unknown fields, so a misspelled or unsupported parameter is a
 `422` naming it rather than a `200` describing a different run than the one asked for.
+When `ALLELEFORGE_API_TOKEN` is set, every `/api/*` endpoint except `/api/health`
+requires that value in `X-API-Token`; rejected requests retain the same browser security
+headers as successful responses.
 
 The data a run reads is supplied by the deployment, never by the request: a
 client-supplied filesystem path would be a server-side file-read primitive. The reference

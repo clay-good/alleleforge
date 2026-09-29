@@ -818,10 +818,10 @@ def test_every_response_carries_the_security_headers() -> None:
 
     from alleleforge.web.api.app import _SECURITY_HEADERS, create_app
 
-    client = TestClient(create_app())
-    for path in ("/", "/api/health"):
+    client = TestClient(create_app(api_token="secret"))
+    for path in ("/", "/api/health", "/api/data"):
         res = client.get(path)
-        assert res.status_code == 200, path
+        assert res.status_code == (401 if path == "/api/data" else 200), path
         for header, value in _SECURITY_HEADERS.items():
             assert res.headers.get(header) == value, f"{path} is missing {header}"
 

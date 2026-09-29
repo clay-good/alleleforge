@@ -21373,3 +21373,18 @@ split does not change any result representation.
 
 **Lesson: thread offloading needs a boundary, not a blanket; keep mutable ownership on its owning
 thread and move only the expensive pure work across.**
+
+## Round 636 — the authentication failure escaped the security boundary
+
+The web contract requires every response to carry CSP, `nosniff`, a referrer policy, and frame
+controls. Successful pages and API responses did, but the token gate was registered outside the
+security-header middleware. Its direct `401` return therefore bypassed that middleware entirely:
+the response most likely to be exposed at a network boundary carried none of the required headers.
+
+The security middleware is now registered last so Starlette makes it the outer wrapper around the
+authentication gate and every normal route. The regression boots a token-protected app and checks
+the complete fixed header set on its public page, public health endpoint, and rejected protected
+endpoint.
+
+**Lesson: an every-response control must wrap every short-circuiting middleware, including the
+failure paths that never reach a route.**

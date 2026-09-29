@@ -5516,6 +5516,11 @@ acceptance.
   model cards, benchmark splits, and web frontend — against silent removal.
 
 ### Fixed
+- **API-token failures now retain the required browser security headers.** The token
+  middleware returned its `401` directly outside the content-security middleware, so an
+  unauthenticated response omitted CSP, `nosniff`, the referrer policy, and frame controls
+  despite the every-response contract. Security-header middleware now wraps the
+  authentication gate, and a regression checks both successful and rejected responses.
 - **Rendering a retained web-job result no longer mutates the job store from a worker thread.** `GET /api/jobs/{id}/result` was a synchronous FastAPI route, so Starlette moved the whole handler into its threadpool. That kept PDF and cohort rendering off the event loop, but it also moved `JobManager.get()` there; `get()` refreshes the LRU dictionary while submissions and completions mutate the same dictionary on the loop. The route now reads and snapshots the terminal result on the owning event loop, then sends only rendering and complete response serialization to a worker. A thread-identity regression pins both halves of that boundary.
 - **Polling a finished web job no longer serializes its result on the event loop.** Job
   computation and retained-byte accounting already ran in worker threads, but
