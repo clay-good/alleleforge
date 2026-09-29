@@ -151,7 +151,11 @@ jobs:
       # remediation PR — but it must be *visible*, which is what the job-level
       # `continue-on-error` above does and what `|| true` did not.
       - run: pip install -e ".[dev,core,cli,web,genome-light]" pip-audit
-      - run: pip-audit --strict --desc
+      # The checkout itself is an editable, unpublished package. Freeze the resolved
+      # third-party environment without editables so strict mode still catches every
+      # real collection failure instead of treating this expected exclusion as one.
+      - run: python -m pip freeze --exclude-editable > audit-requirements.txt
+      - run: pip-audit --strict --desc -r audit-requirements.txt
       - run: cargo install cargo-audit --locked
       - run: cargo audit
         working-directory: rust

@@ -9,21 +9,23 @@ from alleleforge.web.api.models import JobState
 
 
 async def _drain(mgr: JobManager, ids: list[str]) -> None:
-    """Yield to the loop until every job has finished (or fail after a bound)."""
-    for _ in range(10_000):
+    """Yield to the loop until every job has finished (or fail after 10 seconds)."""
+    deadline = asyncio.get_running_loop().time() + 10
+    while asyncio.get_running_loop().time() < deadline:
         records = [mgr.get(i) for i in ids]
         if all(r is not None and r.state in (JobState.DONE, JobState.ERROR) for r in records):
             return
-        await asyncio.sleep(0)
+        await asyncio.sleep(0.001)
     raise AssertionError("jobs did not finish")
 
 
 async def _settle_tasks(mgr: JobManager) -> None:
     """Yield until the done-callbacks have discarded finished tasks (eventually)."""
-    for _ in range(10_000):
+    deadline = asyncio.get_running_loop().time() + 10
+    while asyncio.get_running_loop().time() < deadline:
         if not mgr._tasks:
             return
-        await asyncio.sleep(0)
+        await asyncio.sleep(0.001)
     raise AssertionError("task tracking set was not released")
 
 

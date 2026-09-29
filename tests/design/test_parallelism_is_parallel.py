@@ -8,9 +8,8 @@ taking turns to run Rust that never touches the interpreter.
 
 That is fixed in the kernels (see `test_the_scan_releases_the_interpreter`). This file
 pins the other half: that the *pool* overlaps items at all. It uses a reference whose
-reads block, so the measurement is about scheduling rather than about how fast this
-machine happens to be — a serial run of eight blocking items cannot finish in the time
-four workers take, whatever the hardware.
+reads block and records how many reads are in flight together, so the assertion is about
+scheduling rather than a wall-clock ratio that a loaded shared runner can distort.
 
 The rule the two tests state together: a flag that exists for speed needs a test that
 would fail if it stopped delivering it. "Identical results" is the *safety* property, and
@@ -19,9 +18,10 @@ a flag can keep it while being inert.
 
 from __future__ import annotations
 
-import time
 from collections.abc import Callable
 from pathlib import Path
+from threading import Lock
+from time import sleep
 from typing import Any
 
 import pytest
@@ -33,6 +33,24 @@ from alleleforge.genome.reference import ReferenceGenome
 _BLOCK_SECONDS = 0.05
 
 
+class _OverlapProbe:
+    """Record how many deliberately blocking reference reads overlap."""
+
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self.active = 0
+        self.peak = 0
+
+    def enter(self) -> None:
+        with self._lock:
+            self.active += 1
+            self.peak = max(self.peak, self.active)
+
+    def leave(self) -> None:
+        with self._lock:
+            self.active -= 1
+
+
 class _SlowReference:
     """A reference whose every read blocks, so the pool's overlap is what is measured.
 
@@ -41,8 +59,9 @@ class _SlowReference:
     would cost eight sleeps however many workers were configured.
     """
 
-    def __init__(self, inner: ReferenceGenome) -> None:
+    def __init__(self, inner: ReferenceGenome, probe: _OverlapProbe) -> None:
         self._inner = inner
+        self._probe = probe
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._inner, name)
@@ -51,12 +70,16 @@ class _SlowReference:
     # (it carries whether the read was clipped), and wrapping the one nobody calls is how
     # a first draft of this file measured nothing at all.
     def fetch_result(self, *args: Any, **kwargs: Any) -> Any:
-        time.sleep(_BLOCK_SECONDS)
-        return self._inner.fetch_result(*args, **kwargs)
+        self._probe.enter()
+        try:
+            sleep(_BLOCK_SECONDS)
+            return self._inner.fetch_result(*args, **kwargs)
+        finally:
+            self._probe.leave()
 
 
 @pytest.fixture
-def slow_factory(tmp_path: Path) -> tuple[Callable[[], Any], list[str]]:
+def slow_factory(tmp_path: Path) -> tuple[Callable[[], Any], list[str], _OverlapProbe]:
     """A factory of blocking references, and a cohort of eight ordinary variants."""
     import random
 
@@ -72,39 +95,30 @@ def slow_factory(tmp_path: Path) -> tuple[Callable[[], Any], list[str]]:
         alt = "A" if ref_base != "A" else "G"
         variants.append(f"chr1:{position + 1}:{ref_base}>{alt}")
 
-    def factory() -> Any:
-        return _SlowReference(ReferenceGenome(fasta, build="hg38"))
+    probe = _OverlapProbe()
 
-    return factory, variants
+    def factory() -> Any:
+        return _SlowReference(ReferenceGenome(fasta, build="hg38"), probe)
+
+    return factory, variants, probe
 
 
 def test_workers_overlap_rather_than_taking_turns(
-    slow_factory: tuple[Callable[[], Any], list[str]],
+    slow_factory: tuple[Callable[[], Any], list[str], _OverlapProbe],
 ) -> None:
-    factory, variants = slow_factory
+    factory, variants, probe = slow_factory
 
-    start = time.perf_counter()
-    serial = design_many(variants, reference=factory(), run_offtarget=False)
-    serial_seconds = time.perf_counter() - start
-
-    start = time.perf_counter()
     parallel = design_many(variants, reference_factory=factory, max_workers=4, run_offtarget=False)
-    parallel_seconds = time.perf_counter() - start
 
-    assert serial.succeeded == parallel.succeeded == len(variants)
-    # A wide margin: four workers on this shape should be near 4x, and anything at or
-    # below 1.0 means the pool is not overlapping at all.
-    assert serial_seconds / parallel_seconds > 1.8, (
-        f"four workers took {parallel_seconds:.2f}s against {serial_seconds:.2f}s "
-        "serially: the pool is running items one after another"
-    )
+    assert parallel.succeeded == len(variants)
+    assert probe.peak > 1, "the worker pool never overlapped two reference reads"
 
 
 def test_the_answers_are_still_the_same(
-    slow_factory: tuple[Callable[[], Any], list[str]],
+    slow_factory: tuple[Callable[[], Any], list[str], _OverlapProbe],
 ) -> None:
     """The safety property the older guards check, restated here so this file is complete."""
-    factory, variants = slow_factory
+    factory, variants, _probe = slow_factory
     serial = design_many(variants, reference=factory(), run_offtarget=False)
     parallel = design_many(variants, reference_factory=factory, max_workers=4, run_offtarget=False)
     by_id = {item.item_id: item.summary for item in parallel.items}

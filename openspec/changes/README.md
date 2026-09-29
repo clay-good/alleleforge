@@ -20768,3 +20768,24 @@ that bound from the runtime extra.
 **Lesson: a development dependency can break a compatibility check without breaking the runtime.**
 Constrain it at the narrowest scope that restores the check; do not export a tooling workaround to
 users who never run that tool.
+
+## Round 602 — the CI that measured its runner instead of the contract
+
+The first clean matrix after repairing the type gate exposed four more red checks. None was the
+behavior its assertion named. Rich 15 can put separate ANSI style runs inside a displayed option,
+so two tests searched the terminal encoding for a contiguous `--vep` rather than searching the
+unstyled help a person reads. The cohort concurrency test divided 2 wall-clock durations, so an
+overloaded shared runner reported 4 workers slower even though the pool overlapped work. The async
+timeout test counted 10,000 `sleep(0)` yields as if that implied 50 ms had elapsed; on the native
+runner the loop completed before the timer did. Finally, the advisory audit stopped at the editable
+checkout because the unpublished development version is not on PyPI, before it audited 1 dependency.
+
+Each check now measures its claim directly. Help is unstyled before semantic parsing. The cohort
+probe records the peak number of simultaneous blocking reads and requires more than 1, independent
+of unrelated runner load. Async helpers wait against a 10-second monotonic deadline with a small
+real delay between polls. The audit now freezes the installed environment without editable packages
+and strictly audits that pinned inventory, excluding only the local package under development while
+continuing through every resolved third-party dependency.
+
+**Lesson: a test should measure the contract, not the incidental encoding, iteration count, or
+wall-clock ratio of the machine that happens to run it.**

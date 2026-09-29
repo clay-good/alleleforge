@@ -20,6 +20,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from click import unstyle
 
 README = Path(__file__).resolve().parents[1] / "README.md"
 
@@ -58,9 +59,12 @@ _NOT_OURS: dict[str, str] = {}
 
 def _help(*args: str) -> str:
     env = dict(os.environ, COLUMNS="400")
-    return subprocess.run(
+    output = subprocess.run(
         ["aforge", *args, "--help"], capture_output=True, text=True, env=env, check=False
     ).stdout
+    # Rich's CI color mode can style the two dashes separately from the option name.
+    # Parse what the terminal displays, not the ANSI transport used to display it.
+    return unstyle(output)
 
 
 @pytest.fixture(scope="module")

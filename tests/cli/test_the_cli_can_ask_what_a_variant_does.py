@@ -23,6 +23,7 @@ import json
 from pathlib import Path
 
 import pytest
+from click import unstyle
 from typer.testing import CliRunner
 
 from alleleforge.cli.main import app
@@ -107,6 +108,8 @@ def test_the_flag_states_what_leaves_the_machine() -> None:
     for command in ("resolve", "design", "batch"):
         result = runner.invoke(app, [command, "--help"])
         assert result.exit_code == 0, result.output
-        help_text = " ".join(result.stdout.split())
+        # Rich may split a visible flag across ANSI style runs (notably in CI), so
+        # assertions belong to the text a user sees rather than its terminal encoding.
+        help_text = " ".join(unstyle(result.stdout).split())
         assert "--vep" in help_text, f"{command} does not offer --vep"
         assert "third-party" in help_text, f"{command}'s --vep does not name the recipient"
