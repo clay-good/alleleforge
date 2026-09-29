@@ -57,7 +57,9 @@ PyPI is table stakes, **not** a growth channel — bench scientists install from
 - Cut a real `0.1.0` (currently `0.1.0.dev0` / Alpha) so the version signals "usable".
 - Publish to PyPI — table stakes. `make distribution` continuously proves the sdist
   builds the wheel, `twine` accepts both artifacts, and the wheel contains every
-  packaged runtime resource; the tag workflow runs the same audit before publication.
+  packaged runtime resource. `make sbom` inventories that exact wheel's isolated
+  default runtime closure; the tag workflow consumes the same validated artifact for
+  both the CycloneDX attachment and publication.
 - Ensure README honestly labels heuristic vs real scorers.
 
 ## Sources

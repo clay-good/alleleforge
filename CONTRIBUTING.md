@@ -60,6 +60,7 @@ ruff format --check src tests   # formatting
 mypy src                        # strict type-check (no untyped defs)
 pytest                          # tests + ≥85% coverage gate on the core
 make distribution              # sdist/wheel metadata and packaged-resource audit
+make sbom                      # exact-wheel runtime-closure SBOM audit
 cd rust && cargo test           # native crate
 ```
 

@@ -20827,3 +20827,28 @@ same command, with publication depending on its output rather than on a separate
 
 **Lesson: validate the artifact before the first operation that can distribute it, and make the
 release path consume the same check developers and CI can run.**
+
+## Round 605 — the bill of materials for a different installation
+
+The release SBOM job never downloaded the artifact it claimed to describe. It installed an editable
+checkout with five selected extras, omitted two other supported extras, and ran the inventory tool in
+that same environment. The resulting document therefore included build tooling and described neither
+the default wheel sent to PyPI nor a complete optional installation. Because the job existed only in
+the tag workflow, the first time this path ran was during a release.
+
+The SBOM builder now starts from the validated wheel itself. It reads name and version from the
+wheel's metadata, installs that exact artifact and its default dependencies into a temporary virtual
+environment created without pip or setuptools, and invokes CycloneDX from outside it. A temporary
+static project version supplies metadata that CycloneDX cannot infer from the dynamic-version
+declaration; post-generation checks pin the root identity, require its dependency edge, and refuse
+installer or SBOM-tool contamination. Ordinary CI and `make ci` exercise the same builder, and the
+tag job downloads the same `dist` artifact the PyPI job publishes.
+
+That editable install had also accidentally been the only workflow line naming the heavy `genome`
+and `ml` extras. Their omission is now an explicit, checked decision: the gate uses `genome-light`
+for the injectable paths it exercises, and remains weight-free rather than installing the
+multi-gigabyte trained-model stack. They no longer gain a false appearance of coverage from an
+unrelated tag-only inventory job.
+
+**Lesson: an artifact inventory has to begin with the artifact; an editable approximation is a bill
+of materials for something else.**

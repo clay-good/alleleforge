@@ -48,8 +48,9 @@ install, reproduce, and cite. The code is done; this is the operational freeze.
   item; the gate already refuses a `null`-hash fetch.)**
 - **Supply-chain (☑ landed).** Dependabot covers `pip` + `cargo` +
   `github-actions` (`.github/dependabot.yml`); a CI `security` job runs
-  `pip-audit` + `cargo audit`; the release pipeline emits a CycloneDX SBOM
-  (`sbom` job) and attaches it to the GitHub Release.
+  `pip-audit` + `cargo audit`; ordinary CI builds and validates a CycloneDX SBOM
+  from the exact default wheel in an isolated environment, and the release `sbom`
+  job attaches the same artifact-derived inventory to the GitHub Release.
 - **Reproducibility audit (☑ landed).** `scripts/reproduce.py` (and `make
   reproduce`) re-derives the canonical weight-free design run from config + seed,
   asserts run-to-run determinism, and diffs a canonicalized digest against a

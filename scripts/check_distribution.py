@@ -55,7 +55,7 @@ def audit_wheel_resources(wheel: Path, source: Path = PACKAGE_SOURCE) -> None:
         raise DistributionError("; ".join(details))
 
 
-def _build_and_audit(output: Path) -> tuple[Path, Path]:
+def build_and_audit(output: Path) -> tuple[Path, Path]:
     if output.exists() and any(output.iterdir()):
         raise DistributionError(f"output directory is not empty: {output}")
     output.mkdir(parents=True, exist_ok=True)
@@ -94,10 +94,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         if args.outdir is not None:
-            wheel, sdist = _build_and_audit(args.outdir.resolve())
+            wheel, sdist = build_and_audit(args.outdir.resolve())
         else:
             with tempfile.TemporaryDirectory(prefix="alleleforge-dist-") as directory:
-                wheel, sdist = _build_and_audit(Path(directory))
+                wheel, sdist = build_and_audit(Path(directory))
                 print(f"distribution audit passed: {wheel.name}, {sdist.name}")
                 return 0
     except (DistributionError, subprocess.CalledProcessError) as exc:

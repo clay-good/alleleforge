@@ -140,6 +140,17 @@ jobs:
       - run: pip install build "twine>=7.0"
       - run: python scripts/check_distribution.py
 
+  sbom:
+    name: SBOM (exact wheel runtime closure)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install build "twine>=7.0" "cyclonedx-bom>=7.4,<8"
+      - run: python scripts/build_sbom.py
+
   security:
     name: Supply-chain audit (pip-audit · cargo audit)
     runs-on: ubuntu-latest

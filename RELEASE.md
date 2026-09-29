@@ -13,7 +13,8 @@ wired + validated: trained Rule Set 3 and PRIDICT2.0).
       of the software name a version that was never released. The Rust crate's
       `version()` and `CITATION.cff`'s are both asserted equal in the test suite, so
       `make ci` fails if either is missed.
-- [ ] `make ci` green (lint, type, test, docs, reproduce). Native: `make native`.
+- [ ] `make ci` green (lint, type, test, docs, examples, reproduce, distribution,
+      and the isolated wheel SBOM). Native: `make native`.
 - [ ] `python scripts/release_readiness.py` — the v1.0 criteria from `SPEC_V2.md` (R6),
       measured rather than recalled. It exits non-zero while any is open; for a `0.x`
       release that is expected, and the point is to read *which* are open and confirm
@@ -55,6 +56,10 @@ The `rule-set-3` card pins a `checkpoint_sha256` and a `source_url` release asse
         Twine 6.2.0 rejects current Metadata-Version 2.5 artifacts, so the release
         toolchain requires twine 7 or newer and both CI and the tag workflow run the
         same audit before publication.
+      - `make sbom` installs that validated wheel into a temporary environment with
+        no installer or build tools, emits a reproducible CycloneDX document, and
+        checks the root name/version and dependency graph. The release job downloads
+        and inventories the same `dist` artifact that the PyPI job publishes.
 
 ## 4. Bioconda (the channel bench scientists use)
 

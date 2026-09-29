@@ -111,6 +111,8 @@ dev = [
     "build>=1.2",
     # Twine 6.2 rejects the Metadata-Version 2.5 emitted by current Hatchling.
     "twine>=7.0",
+    # Build the release SBOM with the same tool and schema CI exercises.
+    "cyclonedx-bom>=7.4,<8",
     "nbmake>=1.5",
     "ipykernel>=6.29",
 ]

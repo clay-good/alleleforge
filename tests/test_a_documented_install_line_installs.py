@@ -170,6 +170,11 @@ _NOT_INSTALLED_BY_CI: dict[str, str] = {
     "variant": "hgvs, which needs PostgreSQL client headers — see "
     "_NEEDS_A_SYSTEM_LIBRARY. Installing it in CI would put libpq on every runner for a "
     "capability no shell exposes",
+    "genome": "the compiled whole-genome I/O and alignment stack (pysam, cyvcf2, mappy). "
+    "Every gate uses and tests the separately declared genome-light subset; native readers "
+    "are injectable and reserved for opt-in whole-genome validation",
+    "ml": "the multi-gigabyte trained-model stack (torch, transformers, lightning). CI is "
+    "weight-free by design and exercises the model interfaces through deterministic stubs",
 }
 
 

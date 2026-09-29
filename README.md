@@ -146,7 +146,7 @@ their end-to-end measurements do not beat the default path.
 ## Development
 
 ```bash
-make ci  # includes the publishable sdist/wheel audit
+make ci  # includes the publishable artifacts and isolated wheel-SBOM audits
 ```
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), and report security
