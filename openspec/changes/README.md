@@ -20962,3 +20962,22 @@ probe exercises the actual restricted process rather than assuming the Dockerfil
 
 **Lesson: when a service needs one writable directory and an unprivileged port, give it that
 directory, not root.**
+
+## Round 612 — a running process was not an observable service
+
+CI now booted the real container and asked `/api/health`, but the image itself declared no
+`HEALTHCHECK`. Outside that one workflow, Docker and Compose could report only whether Uvicorn's
+process was still running. A wedged application that retained its process appeared identical to one
+answering requests, even though the service already had an unauthenticated liveness contract built
+for exactly that distinction.
+
+The image now runs an exec-form health check against `/api/health` using its installed Python
+standard library. It requires HTTP 200 and `status: ok`, has explicit interval, timeout, start period,
+and retry bounds, and runs after `USER 10001:10001`, as the server does. No curl package or private
+probe endpoint was added. Compose inherits the image check, and the deployment guide tells an
+operator where the resulting `healthy` state appears. The spec wording was narrowed at the same
+time: `/cache` is the directory provisioned for application writes, not the only writable inode a
+general Linux container can expose.
+
+**Lesson: process liveness is not service health; publish the same probe used to decide whether the
+artifact actually works.**

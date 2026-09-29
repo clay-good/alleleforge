@@ -152,7 +152,8 @@ make image  # build and import-smoke the deployment image (requires Docker)
 
 CI actions and the deployment base image are content-pinned; Dependabot proposes
 reviewable updates instead of allowing upstream tags to change a green commit. The
-served container runs as unprivileged UID/GID `10001:10001`.
+served container runs as unprivileged UID/GID `10001:10001` and advertises its
+`/api/health` liveness check to Docker and Compose.
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), and report security
 issues through the private process in [SECURITY.md](SECURITY.md).

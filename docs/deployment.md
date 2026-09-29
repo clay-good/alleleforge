@@ -109,6 +109,11 @@ inherits the image's ownership. If you replace either named volume with a host b
 mount, make reference files readable by 10001 and the cache directory writable by
 10001; the service does not need broader host permissions or root.
 
+The image's built-in health check calls the same unauthenticated `GET /api/health`
+surface described below. Docker and Compose report the container as `healthy` only
+after that endpoint returns HTTP 200 and `status: ok`; inspect it with
+`docker compose ps`.
+
 Endpoints that need the reference return `503` until one is configured; `GET
 /api/health` reports liveness and reference status. Long design runs go through an
 **in-process async job queue** (`POST /api/jobs/design` → `GET /api/jobs/{id}`),

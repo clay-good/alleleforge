@@ -44,5 +44,9 @@ RUN groupadd --gid 10001 alleleforge \
 ENV ALLELEFORGE_REFERENCE_FASTA=/data/reference.fa
 EXPOSE 8000
 USER 10001:10001
+# Use the service's public liveness contract and the Python already in the image; no
+# curl package or privileged probe is needed. Compose inherits this check.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD ["python", "-c", "import json, urllib.request; response = urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=2); body = json.load(response); assert response.status == 200 and body['status'] == 'ok'"]
 # Research-use, local-only service. Bind to all interfaces inside the container.
 CMD ["uvicorn", "alleleforge.web.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
