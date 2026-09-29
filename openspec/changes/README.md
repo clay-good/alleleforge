@@ -21264,3 +21264,20 @@ semantics operators can rely on.
 
 **Lesson: a timeout bounds how long a caller waits, not how long uncancelable work executes; release
 the resource only when the resource is truly free.**
+
+## Round 630 — the byte budget counted Unicode characters
+
+The retained web-job store calls its result limit a byte budget and measures each opaque result by
+serializing it to JSON. The measurement took `len()` of Pydantic's returned string, however, which
+counts Unicode code points rather than encoded bytes. Pydantic emits non-ASCII directly: a fixture
+containing 100 DNA emoji is 111 characters but 411 UTF-8 bytes. Gene names, model notes, or user
+context containing such text could therefore make the store consume nearly 4 times the memory its
+budget accounted for.
+
+The measurement now counts the UTF-8 encoding that the API serves. The regression test places that
+411-byte result under a 200-byte limit, requires the exact byte count, and requires eviction; the
+old 111-character measurement fails both consequences of the contract. The deployment guide now
+states the encoding behind the number instead of using an undefined “bytes.”
+
+**Lesson: a string length is not a byte length; when a limit is stated in bytes, measure the
+encoding that crosses the boundary.**

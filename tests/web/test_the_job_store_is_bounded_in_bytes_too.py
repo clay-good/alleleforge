@@ -49,6 +49,20 @@ async def test_a_finished_result_is_measured() -> None:
 
 
 @pytest.mark.anyio
+async def test_non_ascii_json_is_measured_in_bytes_not_characters() -> None:
+    manager = JobManager(max_result_bytes=200)
+    payload = _Payload(blob="🧬" * 100)
+    record = await manager.submit(lambda: payload)
+    while record.state is not JobState.DONE:
+        await _tick()
+
+    encoded = payload.model_dump_json().encode("utf-8")
+    assert len(encoded) > len(payload.model_dump_json()), "fixture must distinguish bytes"
+    assert record.result_bytes == len(encoded)
+    assert manager.get(record.id) is None, "the true byte size must trigger eviction"
+
+
+@pytest.mark.anyio
 async def test_a_dataclass_of_models_is_measured_by_its_fields() -> None:
     """The shape both finished-result types actually have."""
     manager = JobManager()

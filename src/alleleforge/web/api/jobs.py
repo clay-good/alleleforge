@@ -134,7 +134,10 @@ class JobManager:
         """
         dump = getattr(result, "model_dump_json", None)
         if callable(dump):
-            return len(dump())
+            # `model_dump_json()` returns `str`, whose length is code points rather
+            # than bytes. Pydantic emits non-ASCII directly, so counting characters
+            # can understate the retained/served UTF-8 payload by almost 4x.
+            return len(dump().encode("utf-8"))
         if dataclasses.is_dataclass(result) and not isinstance(result, type):
             return sum(
                 JobManager._measure(getattr(result, field.name))

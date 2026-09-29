@@ -5516,6 +5516,13 @@ acceptance.
   model cards, benchmark splits, and web frontend — against silent removal.
 
 ### Fixed
+- **The web job-store byte limit now counts bytes.** Result measurement used
+  `len(model_dump_json())`, which counts Unicode code points, while Pydantic emits
+  non-ASCII text directly and the API serves UTF-8. A result rich in non-ASCII gene
+  names or notes could therefore consume nearly 4× its accounted size and bypass the
+  configured retained-result budget. Measurement now uses the encoded UTF-8 length;
+  a regression test requires both the exact byte count and eviction at a threshold
+  that the old character count would not cross.
 - **Timed-out web jobs can no longer bypass the worker cap.** Python cannot cancel
   work already executing through `asyncio.to_thread`, but the job manager marked a
   timeout terminal and immediately freed its in-flight slot. Repeated slow requests
