@@ -21355,3 +21355,21 @@ run off the loop thread, and requires `/api/health` to answer before the block i
 
 **Lesson: a background operation is not non-blocking if collecting its answer performs the same
 class of work on the event loop; audit the response path as well as execution and finalization.**
+
+## Round 635 — moving the whole result route moved the store with it
+
+`GET /api/jobs/{id}/result` was declared as a synchronous FastAPI handler so its PDF, Parquet,
+and multi-megabyte JSON rendering would run in Starlette's worker pool. That protected the event
+loop, but it also moved the handler's `JobManager.get()` call into that worker. `get()` is not a
+read: it pops and reinserts terminal records to maintain the LRU order, while job submissions and
+completions mutate and iterate the same dictionary on the event loop. The route therefore created
+an unsynchronized cross-thread mutation in the resource bound meant to make the service safe.
+
+The route is async now. It reads, validates, and snapshots the terminal payload on the event loop,
+then passes only that immutable result to `asyncio.to_thread` for rendering and complete response
+serialization. A regression records both thread identities: store access must equal the loop
+thread, while `DesignReport.model_dump()` must not. The existing every-format tests prove the
+split does not change any result representation.
+
+**Lesson: thread offloading needs a boundary, not a blanket; keep mutable ownership on its owning
+thread and move only the expensive pure work across.**

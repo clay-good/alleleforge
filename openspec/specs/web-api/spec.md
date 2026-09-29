@@ -105,7 +105,11 @@ Every job kind's result SHALL be serialized by the status endpoint. A result sha
 endpoint does not name is reported as `done` with a null result — the work performed and
 the answer discarded. Building and serializing a finished result SHALL run off the event
 loop, because a multi-megabyte cohort response must not stall health checks or other job
-polls at the moment the background work finishes.
+polls at the moment the background work finishes. Rendering that retained result through
+`GET /api/jobs/{id}/result` SHALL likewise run off the event loop, while reading and
+refreshing the mutable in-process job store SHALL stay on the event-loop thread that owns
+its LRU state; moving the entire route to a worker trades event-loop blocking for an
+unsynchronized cross-thread store mutation.
 
 #### Scenario: Job failure
 - **WHEN** a submitted job's work raises
@@ -119,6 +123,11 @@ polls at the moment the background work finishes.
 #### Scenario: Polling a large finished job
 - **WHEN** a finished result takes time to serialize
 - **THEN** the health endpoint remains responsive while that serialization runs
+
+#### Scenario: Rendering a retained job result
+- **WHEN** a client requests one of a finished job's renderings
+- **THEN** the job store is read and reordered on its event-loop thread
+- **AND** the potentially expensive rendering and response serialization run in a worker
 
 ### Requirement: The long operation is submittable
 

@@ -868,6 +868,20 @@ def _as_format(kind: type[_FormatT], value: str) -> _FormatT:
         ) from None
 
 
+def _finished_job_result_response(job_id: str, result: Any, fmt: str) -> Response:
+    """Render and serialize one retained result in a worker thread."""
+    rendered: DesignReport | BatchResponse | Response
+    if isinstance(result, FinishedDesign):
+        rendered = _render_design(result, _as_format(DesignFormat, fmt))
+    elif isinstance(result, FinishedCohort):
+        rendered = _render_cohort(result, _as_format(BatchFormat, fmt))
+    else:
+        raise HTTPException(status_code=409, detail=f"job {job_id} has no renderable result")
+    if isinstance(rendered, DesignReport | BatchResponse):
+        return Response(rendered.model_dump_json(), media_type="application/json")
+    return rendered
+
+
 #: Request paths that never require the API token (liveness must stay probeable).
 _TOKEN_EXEMPT_PATHS = frozenset({"/api/health"})
 
@@ -1232,11 +1246,11 @@ def create_app(
     # `response_model=None`: which model this returns depends on the kind of job that
     # finished, and four of the eight renderings are not models at all.
     @app.get("/api/jobs/{job_id}/result", response_model=None)
-    def job_result(
+    async def job_result(
         job_id: str,
         request: Request,
         fmt: Annotated[str, Query(alias="format")] = "json",
-    ) -> DesignReport | BatchResponse | Response:
+    ) -> Response:
         """Render a *finished* job's result in any format its synchronous twin offers.
 
         The async doors are the ones the documentation sends a client behind a proxy
@@ -1270,12 +1284,13 @@ def create_app(
             # so a client that polls only this route is not told merely "no".
             detail = record.error or f"job {job_id} is {record.state.value}, not done"
             raise HTTPException(status_code=409, detail=detail)
-        result = record.result
-        if isinstance(result, FinishedDesign):
-            return _render_design(result, _as_format(DesignFormat, fmt))
-        if isinstance(result, FinishedCohort):
-            return _render_cohort(result, _as_format(BatchFormat, fmt))
-        raise HTTPException(status_code=409, detail=f"job {job_id} has no renderable result")
+        # `JobManager.get()` refreshes the store's LRU order, so it belongs on the one
+        # event loop that owns that mutable dictionary. Rendering belongs in a worker:
+        # a PDF or multi-megabyte cohort must not block health checks. A synchronous
+        # FastAPI route put *both* operations in the worker pool, racing the manager's
+        # submission/completion mutations. Snapshot the terminal result, then cross the
+        # thread boundary with only that immutable payload.
+        return await asyncio.to_thread(_finished_job_result_response, job_id, record.result, fmt)
 
     def _run_cohort(request: Request, req: BatchRequest) -> Any:
         """Run a cohort and return the library's report, for both batch entry points.

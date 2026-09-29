@@ -73,3 +73,45 @@ async def test_health_answers_while_a_finished_result_is_serialized(
         f"health waited {elapsed:.2f}s for finished-result serialization: the status "
         "handler is blocking the event loop"
     )
+
+
+async def test_rendering_a_job_keeps_store_access_on_the_event_loop(
+    client: httpx.AsyncClient, app, monkeypatch
+) -> None:
+    """The mutable LRU store and the expensive renderer belong on different threads."""
+    submitted = await client.post("/api/jobs/design", json=_DESIGN)
+    assert submitted.status_code == 202
+    job_id = submitted.json()["job_id"]
+    for _ in range(500):
+        status = await client.get(f"/api/jobs/{job_id}")
+        if status.json()["state"] in ("done", "error"):
+            break
+        await asyncio.sleep(0.01)
+    assert status.json()["state"] == "done", status.text
+
+    loop_thread = threading.get_ident()
+    jobs = app.state.jobs
+    original_get = jobs.get
+    store_threads: list[int] = []
+
+    def recording_get(asked_job_id: str):
+        store_threads.append(threading.get_ident())
+        return original_get(asked_job_id)
+
+    original_dump = DesignReport.model_dump
+    rendering_threads: list[int] = []
+
+    def recording_dump(self, *args, **kwargs):
+        rendering_threads.append(threading.get_ident())
+        return original_dump(self, *args, **kwargs)
+
+    monkeypatch.setattr(jobs, "get", recording_get)
+    monkeypatch.setattr(DesignReport, "model_dump", recording_dump)
+
+    response = await client.get(f"/api/jobs/{job_id}/result?format=json")
+
+    assert response.status_code == 200, response.text
+    assert store_threads == [loop_thread], (
+        "the event-loop-owned job store was read and reordered from a worker thread"
+    )
+    assert rendering_threads and loop_thread not in rendering_threads

@@ -5516,6 +5516,7 @@ acceptance.
   model cards, benchmark splits, and web frontend — against silent removal.
 
 ### Fixed
+- **Rendering a retained web-job result no longer mutates the job store from a worker thread.** `GET /api/jobs/{id}/result` was a synchronous FastAPI route, so Starlette moved the whole handler into its threadpool. That kept PDF and cohort rendering off the event loop, but it also moved `JobManager.get()` there; `get()` refreshes the LRU dictionary while submissions and completions mutate the same dictionary on the loop. The route now reads and snapshots the terminal result on the owning event loop, then sends only rendering and complete response serialization to a worker. A thread-identity regression pins both halves of that boundary.
 - **Polling a finished web job no longer serializes its result on the event loop.** Job
   computation and retained-byte accounting already ran in worker threads, but
   `GET /api/jobs/{id}` converted the complete design or cohort to its response dictionary
