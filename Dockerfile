@@ -32,7 +32,6 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     XDG_CACHE_HOME=/cache
 COPY --from=builder /opt/venv /opt/venv
-COPY --from=builder /app/src ./src
 # The service needs only a readable reference and a writable cache. A fixed identity
 # keeps bind-mount ownership predictable and prevents a compromised web process from
 # running as root inside the container.

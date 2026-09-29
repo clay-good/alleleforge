@@ -157,7 +157,8 @@ a green commit. Published images carry max-level build provenance and an OCI-att
 SBOM; GitHub Releases carry `SHA256SUMS` for the wheel, sdist, and wheel SBOM. The served
 container runs as unprivileged UID/GID `10001:10001` and advertises its
 `/api/health` liveness check to Docker and Compose. The default Compose service also
-drops all Linux capabilities and makes its root filesystem read-only.
+drops all Linux capabilities and makes its root filesystem read-only. The runtime
+contains the installed package only, not a second source checkout.
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), and report security
 issues through the private process in [SECURITY.md](SECURITY.md).

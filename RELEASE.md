@@ -77,6 +77,8 @@ The `rule-set-3` card pins a `checkpoint_sha256` and a `source_url` release asse
       - [`constraints/container.txt`](constraints/container.txt) pins the complete
         Python runtime graph without narrowing the library's public dependency ranges.
         Both local and CI image smokes compare the installed graph with that snapshot.
+        The runtime copies only that installed environment from the builder, not a
+        second source tree that could shadow the validated package.
       - GHCR receives max-level build provenance and an OCI-attached SBOM for the
         multi-platform image. This image inventory includes its operating-system and
         deployment layers; it complements the wheel's CycloneDX SBOM attached to the

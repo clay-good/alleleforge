@@ -21056,3 +21056,21 @@ files. Structural tests pin the inputs, command, output, location, and expanded 
 
 **Lesson: validation says an artifact is acceptable now; a published digest lets the next reader
 prove they still have that artifact.**
+
+## Round 617 — the installed package and its unused twin
+
+The builder installed an AlleleForge wheel into `/opt/venv`. The runtime stage then copied both that
+environment and the builder's raw `/app/src` tree. Python's path selected the wheel today, so every
+health check passed, but the image contained two application copies with different identities: one
+with installed metadata and distribution validation, one inert only because `/app/src` was not yet
+on `sys.path`. A future `PYTHONPATH` or working-directory change could make the second copy win
+without changing the Dockerfile's install step.
+
+The runtime now copies only `/opt/venv`. The build context still supplies source to the builder, as
+it must, but no raw checkout crosses the stage boundary. CI boots the real server and additionally
+asserts that `alleleforge.__file__` lives under the installed environment and `/app/src` does not
+exist. This proves the running artifact is the one whose dependency graph, package resources, and
+metadata the preceding gates validate.
+
+**Lesson: when an artifact is installed and validated, do not ship a second source copy that can
+become authoritative through an unrelated path change.**
