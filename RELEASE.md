@@ -59,7 +59,9 @@ The `rule-set-3` card pins a `checkpoint_sha256` and a `source_url` release asse
       - `make sbom` installs that validated wheel into a temporary environment with
         no installer or build tools, emits a reproducible CycloneDX document, and
         checks the root name/version and dependency graph. The release job downloads
-        and inventories the same `dist` artifact that the PyPI job publishes.
+        and inventories the same `dist` artifact that the PyPI job publishes. Both
+        PyPI and GHCR publication wait for that audit; OIDC, package-write, and
+        release-write authority are scoped only to the job that uses each one.
 
 ## 4. Bioconda (the channel bench scientists use)
 

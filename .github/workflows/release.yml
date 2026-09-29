@@ -10,9 +10,7 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: write # create the GitHub Release
-  id-token: write # PyPI Trusted Publishing (OIDC)
-  packages: write # push to GHCR
+  contents: read
 
 jobs:
   build:
@@ -65,9 +63,11 @@ jobs:
 
   pypi:
     name: Publish to PyPI
-    needs: build
+    needs: [build, sbom]
     runs-on: ubuntu-latest
     environment: pypi
+    permissions:
+      id-token: write # PyPI Trusted Publishing (OIDC)
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -77,8 +77,11 @@ jobs:
 
   docker:
     name: Multi-arch Docker image (GHCR)
-    needs: build
+    needs: [build, sbom]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push to GHCR
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-qemu-action@v4
@@ -107,6 +110,8 @@ jobs:
     name: GitHub Release
     needs: [build, sbom, pypi, docker]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub Release
     steps:
       - uses: actions/download-artifact@v8
         with:

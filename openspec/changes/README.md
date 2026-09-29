@@ -20852,3 +20852,20 @@ unrelated tag-only inventory job.
 
 **Lesson: an artifact inventory has to begin with the artifact; an editable approximation is a bill
 of materials for something else.**
+
+## Round 606 — every release job held every release key
+
+The release workflow granted `contents: write`, `packages: write`, and `id-token: write` globally.
+The checkout, artifact build, and SBOM jobs therefore received authority to create releases, push
+packages, and mint a PyPI identity despite using none of it. At the same time, the jobs that did
+publish depended only on the wheel build: an SBOM failure stopped the GitHub Release at the end but
+did not stop the wheel from reaching PyPI or the image from reaching GHCR.
+
+The workflow now defaults to read-only contents. PyPI alone gets OIDC, the Docker job alone gets
+package write, and the GitHub Release job alone gets content write. Both publication jobs require
+the SBOM as well as the build, so a required release artifact is a precondition rather than an
+attachment attempted after distribution has begun. A structural test pins both the permission map
+and the job graph.
+
+**Lesson: a release gate is only a gate when publishers wait for it, and a release key belongs only
+in the job that turns it.**

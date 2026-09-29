@@ -50,7 +50,8 @@ install, reproduce, and cite. The code is done; this is the operational freeze.
   `github-actions` (`.github/dependabot.yml`); a CI `security` job runs
   `pip-audit` + `cargo audit`; ordinary CI builds and validates a CycloneDX SBOM
   from the exact default wheel in an isolated environment, and the release `sbom`
-  job attaches the same artifact-derived inventory to the GitHub Release.
+  job gates PyPI/GHCR publication and attaches the same artifact-derived inventory
+  to the GitHub Release. Release credentials are least-privilege per job.
 - **Reproducibility audit (☑ landed).** `scripts/reproduce.py` (and `make
   reproduce`) re-derives the canonical weight-free design run from config + seed,
   asserts run-to-run determinism, and diffs a canonicalized digest against a
