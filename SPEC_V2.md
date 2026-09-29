@@ -51,7 +51,9 @@ install, reproduce, and cite. The code is done; this is the operational freeze.
   `pip-audit` + `cargo audit`; ordinary CI builds and validates a CycloneDX SBOM
   from the exact default wheel in an isolated environment, and the release `sbom`
   job gates PyPI/GHCR publication and attaches the same artifact-derived inventory
-  to the GitHub Release. Release credentials are least-privilege per job.
+  to the GitHub Release. Release credentials are least-privilege per job, and every
+  external workflow action is pinned to a full commit SHA with a Dependabot-readable
+  version comment.
 - **Container artifact (☑ landed).** Ordinary CI builds the release Dockerfile for
   both `linux/amd64` and `linux/arm64` without publishing it; the tag workflow uses
   the same context and platform set when it pushes to GHCR.

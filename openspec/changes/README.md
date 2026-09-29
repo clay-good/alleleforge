@@ -20886,3 +20886,23 @@ development environment does not imply a Docker daemon or QEMU.
 
 **Lesson: if an artifact is part of a release, a release must not be the first time anyone builds
 it.**
+
+## Round 608 — content pins for the code that publishes content
+
+Every external action in both workflows was selected by a mutable tag: `@v7`, `@v4`,
+`@release/v1`, or even `@stable`. That let upstream maintainers advance routine fixes without a
+repository change, but it also let anyone able to move an upstream tag replace code that receives
+the checkout and artifacts. In the release workflow, some of that code runs in jobs holding GHCR,
+PyPI OIDC, or GitHub Release authority. The package's artifacts were increasingly content-addressed
+while the automation entrusted with publishing them was not.
+
+Each action reference now uses the full commit SHA to which its existing tag resolved, so this is a
+provenance hardening change rather than a version upgrade. The old selector remains in a same-line
+comment, the form GitHub documents for Dependabot to update both SHA and version annotation. A guard
+walks every workflow `uses:` line, including future job-level reusable workflows, and requires both
+the 40-character pin and its update hint. Local actions and explicit container actions remain exempt
+because their identities are resolved by the checkout or image reference rather than an external
+GitHub repository ref.
+
+**Lesson: content-address the automation that signs in and publishes, not only the artifact it
+handles.**

@@ -63,6 +63,9 @@ The `rule-set-3` card pins a `checkpoint_sha256` and a `source_url` release asse
         and inventories the same `dist` artifact that the PyPI job publishes. Both
         PyPI and GHCR publication wait for that audit; OIDC, package-write, and
         release-write authority are scoped only to the job that uses each one.
+      - Every external action in CI and release is pinned to a full commit SHA. The
+        adjacent version comment lets Dependabot propose reviewed SHA updates without
+        returning the workflow to a mutable tag.
 
 ## 4. Bioconda (the channel bench scientists use)
 

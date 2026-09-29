@@ -20,7 +20,9 @@ def _workflow(name: str) -> dict[str, Any]:
 
 def _build_step(workflow: dict[str, Any], job: str) -> dict[str, Any]:
     steps = workflow["jobs"][job]["steps"]
-    matches = [step for step in steps if step.get("uses") == "docker/build-push-action@v7"]
+    matches = [
+        step for step in steps if step.get("uses", "").startswith("docker/build-push-action@")
+    ]
     assert len(matches) == 1
     return matches[0]
 

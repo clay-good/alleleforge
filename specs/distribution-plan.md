@@ -59,7 +59,8 @@ PyPI is table stakes, **not** a growth channel — bench scientists install from
   builds the wheel, `twine` accepts both artifacts, and the wheel contains every
   packaged runtime resource. `make sbom` inventories that exact wheel's isolated
   default runtime closure; the tag workflow consumes the same validated artifact for
-  both the CycloneDX attachment and publication.
+  both the CycloneDX attachment and publication. CI and release actions are pinned to
+  immutable full commit SHAs and kept current through Dependabot's inline version hints.
 - Ensure README honestly labels heuristic vs real scorers.
 
 ## Sources
