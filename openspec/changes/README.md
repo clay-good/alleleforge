@@ -21235,3 +21235,15 @@ failure, correct final bytes, and no debris.
 
 **Lesson: a concurrency claim must be scoped to the concurrency primitive in use; a PID separates
 processes, not threads.**
+
+## Round 628 — the optional cross-check left its inputs behind
+
+The Cas-OFFinder adapter created its input deck and output file with `delete=False`, read them, and
+never removed them. Every optional cross-check therefore left the reference path, guide sequence,
+and reported genomic loci in the system temporary directory. Both files now live in scoped temporary
+directories: the input persists only while the injected or default runner executes, and the output
+only while the subprocess result is read. Tests retain each path long enough to inspect it, then
+require it to be gone after the call returns.
+
+**Lesson: temporary data is not temporary because of its directory; ownership ends only when the
+code removes it on both success and failure.**

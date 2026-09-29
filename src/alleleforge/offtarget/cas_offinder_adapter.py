@@ -153,15 +153,15 @@ class CasOffinderAdapter:
 
     def _default_runner(self, input_path: str) -> str:  # pragma: no cover - external binary
         """Invoke Cas-OFFinder on ``input_path`` (CPU device) and return stdout."""
-        with tempfile.NamedTemporaryFile("r", suffix=".tsv", delete=False) as out:
-            out_path = out.name
-        subprocess.run(  # noqa: S603 - binary resolved from PATH, args are not user shell input
-            [self.binary, input_path, "C", out_path],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        return Path(out_path).read_text()
+        with tempfile.TemporaryDirectory(prefix="alleleforge-cas-offinder-output-") as work:
+            out_path = Path(work) / "output.tsv"
+            subprocess.run(  # noqa: S603 - binary resolved from PATH, no user shell input
+                [self.binary, input_path, "C", str(out_path)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            return out_path.read_text()
 
     def run(
         self,
@@ -185,8 +185,8 @@ class CasOffinderAdapter:
         if runner is None and not self.available():
             raise MissingDependencyError(f"Cas-OFFinder binary {self.binary!r} is not on PATH")
         deck = self.format_input(reference, spacer, pam, mismatches)
-        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as fh:
-            fh.write(deck)
-            input_path = fh.name
-        output = (runner or self._default_runner)(input_path)
+        with tempfile.TemporaryDirectory(prefix="alleleforge-cas-offinder-input-") as work:
+            input_path = Path(work) / "input.txt"
+            input_path.write_text(deck)
+            output = (runner or self._default_runner)(str(input_path))
         return self.parse_output(output)

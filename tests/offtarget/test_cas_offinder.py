@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
+
+import pytest
 
 from alleleforge.offtarget.cas_offinder_adapter import CasOffinderAdapter
 from alleleforge.types.guide import PAM
@@ -108,6 +111,7 @@ def test_run_with_injected_runner_parses_loci() -> None:
     captured: dict[str, str] = {}
 
     def fake_runner(input_path: str) -> str:
+        captured["path"] = input_path
         captured["deck"] = Path(input_path).read_text()
         return (_FIXTURES / "cas_offinder_legacy.txt").read_text()
 
@@ -116,6 +120,23 @@ def test_run_with_injected_runner_parses_loci() -> None:
     )
     assert ("chr5", 8841, Strand.MINUS) in loci
     assert captured["deck"].splitlines()[1] == "N" * 20 + "NGG"
+    assert not Path(captured["path"]).exists()
+
+
+def test_default_runner_removes_its_output_file(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, Path] = {}
+
+    def fake_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        output_path = Path(args[3])
+        captured["path"] = output_path
+        output_path.write_text((_FIXTURES / "cas_offinder_legacy.txt").read_text())
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    output = CasOffinderAdapter()._default_runner("input.txt")
+
+    assert "chr5" in output
+    assert not captured["path"].exists()
 
 
 def test_run_raises_without_binary_or_runner() -> None:
