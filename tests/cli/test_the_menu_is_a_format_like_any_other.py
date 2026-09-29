@@ -93,3 +93,31 @@ def test_the_menu_format_prints_one_document_to_stdout(reference: Path) -> None:
     assert result.exit_code == ExitCode.OK, result.output + result.stderr
     menu = json.loads(result.stdout)  # raises if two documents were concatenated
     assert menu["candidates"][0]["outcome"]["alleles"], "the menu carried no spectrum"
+
+
+def test_top_alleles_shapes_the_report_but_not_the_menu(reference: Path) -> None:
+    runner = CliRunner()
+    base = ["design", _variant(reference), "--reference-fasta", str(reference)]
+    report_result = runner.invoke(app, [*base, "--top-alleles", "1"])
+    menu_result = runner.invoke(app, [*base, "--top-alleles", "1", "--format", "menu"])
+    assert report_result.exit_code == menu_result.exit_code == ExitCode.OK
+
+    report = json.loads(report_result.stdout)
+    menu = json.loads(menu_result.stdout)
+    assert len(report["candidates"][0]["outcome_top"]) == 1
+    assert len(menu["candidates"][0]["outcome"]["alleles"]) > 1
+
+
+def test_top_alleles_refuses_an_empty_summary(reference: Path) -> None:
+    result = CliRunner().invoke(
+        app,
+        [
+            "design",
+            _variant(reference),
+            "--reference-fasta",
+            str(reference),
+            "--top-alleles",
+            "0",
+        ],
+    )
+    assert result.exit_code == ExitCode.USAGE

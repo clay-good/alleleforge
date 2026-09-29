@@ -501,3 +501,14 @@ engine incidentally.
 - **WHEN** `app.js` is not valid JavaScript
 - **THEN** the suite fails with the parser's message, instead of the text checks passing
   on a file the browser cannot run
+
+### Requirement: Outcome summary depth is reachable over HTTP and in the page
+
+`DesignRequest.top_alleles` SHALL select the number of outcome alleles shown per
+candidate in every report rendering, with a minimum of 1. It SHALL NOT truncate
+`format=menu`. The served single-design form SHALL expose the same control and state
+that the menu remains complete.
+
+#### Scenario: A compact report and a complete menu
+- **WHEN** a request sets `top_alleles` to 1 and reads both JSON report and menu formats
+- **THEN** the report shows 1 outcome per candidate and the menu returns every outcome

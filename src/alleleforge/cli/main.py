@@ -1492,6 +1492,17 @@ def design(
             ),
         ),
     ] = None,
+    top_alleles: Annotated[
+        int,
+        typer.Option(
+            "--top-alleles",
+            help=(
+                "How many outcome alleles to summarize per candidate in reports. "
+                "The full spectrum remains in --format menu and --json output."
+            ),
+            min=1,
+        ),
+    ] = 3,
     render_candidates: Annotated[
         int | None,
         typer.Option(
@@ -1695,7 +1706,11 @@ def design(
         raise typer.Exit(ExitCode.USAGE) from exc
 
     report = build_report(
-        menu, variant=str(resolved.variant), intent=edit_intent.value, scheme=scheme
+        menu,
+        variant=str(resolved.variant),
+        intent=edit_intent.value,
+        top_alleles=top_alleles,
+        scheme=scheme,
     )
     # What a caller can act on about the run. `--out` makes the file the document and the
     # terminal a receipt — `wrote r.html` was the entire output of a run whose population

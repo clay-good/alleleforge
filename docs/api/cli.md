@@ -54,6 +54,8 @@ the only surface carrying each candidate's full outcome spectrum: `--format json
 the report, whose per-candidate allele list is the same handful the HTML and PDF show.
 `--format menu --out menu.json` writes that same menu to a file, with the provenance
 sidecar every written format gets; `--json` is its stdout shorthand.
+`--top-alleles N` controls how many outcome alleles each report candidate summarizes
+(default 3, minimum 1); it never truncates the ranked menu.
 
 **Output paths are checked before the work, not at the write.** Every flag that names a
 file to write — `--out`, and `batch`'s `--manifest`, `--summary-tsv`, `--summary-parquet`

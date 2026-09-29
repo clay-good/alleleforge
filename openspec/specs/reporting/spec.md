@@ -358,9 +358,17 @@ apparent.
 
 A table showing every allele SHALL add no such note.
 
+The display cap SHALL be selectable by callers of both command shells that build a
+single-design report. Changing it SHALL NOT truncate the ranked menu, which remains the
+lossless output.
+
 #### Scenario: An NHEJ spectrum
 - **WHEN** a knock-out candidate's distribution holds more alleles than the table shows
 - **THEN** the render states the count and the shown probability mass
+
+#### Scenario: A caller requests a smaller summary
+- **WHEN** the CLI or web request selects 1 top allele
+- **THEN** each report candidate shows 1 outcome allele while the ranked menu retains all of them
 
 ### Requirement: A cohort row records which safety sources screened it
 

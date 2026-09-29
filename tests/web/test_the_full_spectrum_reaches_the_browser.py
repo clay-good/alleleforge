@@ -61,6 +61,27 @@ async def test_the_menu_format_carries_every_allele(client: httpx.AsyncClient) -
 
 
 @pytest.mark.anyio
+async def test_top_alleles_shapes_the_report_but_not_the_menu(
+    client: httpx.AsyncClient,
+) -> None:
+    body = {"variant": "chr2:71:A>C", "top_alleles": 1}
+    report_response = await client.post("/api/design?format=json", json=body)
+    menu_response = await client.post("/api/design?format=menu", json=body)
+    assert report_response.status_code == menu_response.status_code == 200
+
+    report = report_response.json()
+    menu = menu_response.json()
+    assert len(report["candidates"][0]["outcome_top"]) == 1
+    assert len(menu["candidates"][0]["outcome"]["alleles"]) > 1
+
+
+@pytest.mark.anyio
+async def test_top_alleles_refuses_an_empty_summary(client: httpx.AsyncClient) -> None:
+    response = await client.post("/api/design", json={"variant": "chr2:71:A>C", "top_alleles": 0})
+    assert response.status_code == 422
+
+
+@pytest.mark.anyio
 async def test_the_menu_is_the_menu_and_not_the_report(client: httpx.AsyncClient) -> None:
     """A response model that reshaped it into a report would pass every check above."""
     menu = (await client.post("/api/design?format=menu", json={"variant": "chr2:71:A>C"})).json()

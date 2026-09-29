@@ -129,6 +129,7 @@ async def test_the_pam_fallbacks_actually_change_the_menu(client: httpx.AsyncCli
 #: Controls the single-variant panel has that the cohort panel legitimately lacks, with
 #: the reason — the same shape `_DESIGN_ONLY` has for the request models.
 _SINGLE_VARIANT_ONLY: dict[str, str] = {
+    "top_alleles": "caps a report's outcome summary; the cohort panel renders summaries",
     "vector_scheme": "picks the enzyme the report's oligo screen uses; the cohort "
     "endpoint returns per-item summaries and builds no oligos, so nothing is screened",
 }

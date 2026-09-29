@@ -720,7 +720,13 @@ def _design_to_menu_and_report(request: Request, req: DesignRequest) -> tuple[An
         **_trained_scorers(request, req),
     )
     scheme = scheme_by_name(req.vector_scheme) if req.vector_scheme else None
-    report = build_report(menu, variant=str(resolved.variant), intent=intent.value, scheme=scheme)
+    report = build_report(
+        menu,
+        variant=str(resolved.variant),
+        intent=intent.value,
+        top_alleles=req.top_alleles,
+        scheme=scheme,
+    )
     return menu, report
 
 

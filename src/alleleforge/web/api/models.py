@@ -288,6 +288,14 @@ class DesignRequest(BaseModel):
             "what it withheld. The json export is never capped."
         ),
     )
+    top_alleles: int = Field(
+        default=3,
+        ge=1,
+        description=(
+            "How many outcome alleles to summarize per candidate in reports. The full "
+            "spectrum remains available from format=menu."
+        ),
+    )
     weights: list[float] | None = Field(
         default=None,
         description=f"Ranking weights [{', '.join(OBJECTIVES)}], in that order.",

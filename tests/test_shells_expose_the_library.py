@@ -285,6 +285,7 @@ _DESIGN_ONLY_OPTIONS: dict[str, str] = {
     "--format": "batch writes a directory of results, not one rendered document",
     "--out": "batch uses --output-dir and --manifest",
     "--render-candidates": "caps a single rendered report; batch renders none",
+    "--top-alleles": "caps a single report's outcome summary; batch renders none",
     "--vector-scheme": "picks the enzyme the *report's* oligo screen uses; batch writes "
     "raw ranked menus and builds no oligos at all, so there is nothing to screen",
 }
@@ -403,14 +404,12 @@ def test_the_search_allowances_are_real_parameters() -> None:
 #: their insert is cloning-lethal — sat reachable from Python alone.
 _REPORT_NOT_IN_CLI: dict[str, str] = {
     "title": "cosmetic; the default names the tool, and no one has asked to retitle it",
-    "top_alleles": "not yet exposed; --render-candidates caps rows, not alleles per row",
     "with_oligos": "always on; a report that withholds the reagents helps no one",
 }
 
 _REPORT_NOT_IN_WEB: dict[str, str] = {
     "menu": "built by the server from the design it just ran; not a request field",
     "title": "cosmetic; see the CLI note",
-    "top_alleles": "not yet exposed; see the CLI note",
     "with_oligos": "always on; see the CLI note",
 }
 

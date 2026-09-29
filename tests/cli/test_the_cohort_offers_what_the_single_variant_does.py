@@ -33,12 +33,12 @@ from alleleforge.web.api.models import BatchRequest, DesignRequest
 #: and the cohort path writes raw ranked menus — it builds no oligos at all, so there
 #: is nothing for a vector to screen. (Giving a cohort run cloning oligos is its own
 #: piece of work; until it has them this is an absence, not a parity gap.)
-_CLI_EXEMPT = {"fmt", "out", "render_candidates", "variant", "vector_scheme"}
+_CLI_EXEMPT = {"fmt", "out", "render_candidates", "top_alleles", "variant", "vector_scheme"}
 
 #: The same, for the request models: `render_candidates` shapes one render, the two
 #: commands name their input differently (`variant` / `variants`), and `vector_scheme`
 #: has no cohort oligos to screen.
-_WEB_EXEMPT = {"render_candidates", "variant", "vector_scheme"}
+_WEB_EXEMPT = {"render_candidates", "top_alleles", "variant", "vector_scheme"}
 
 
 def test_every_design_option_is_offered_by_batch() -> None:

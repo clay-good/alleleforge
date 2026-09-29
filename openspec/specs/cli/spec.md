@@ -632,3 +632,13 @@ shell, not in the command that happens to write it.
 - **WHEN** a caller has a `CohortRunReport`
 - **THEN** the library gives them the same rows and the same TSV, notes included, that
   `aforge batch --summary-tsv` writes
+
+### Requirement: Report outcome depth is selectable without data loss
+
+`aforge design --top-alleles N` SHALL select how many predicted outcome alleles each
+candidate's report summary shows, with a minimum of 1. It SHALL NOT alter `--format menu`
+or `--json`, which are the lossless ranked-menu outputs.
+
+#### Scenario: One displayed outcome
+- **WHEN** a caller passes `--top-alleles 1`
+- **THEN** the report shows 1 outcome per candidate and the menu still carries the full spectrum

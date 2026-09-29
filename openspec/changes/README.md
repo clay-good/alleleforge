@@ -21177,3 +21177,18 @@ does not hash every large artifact twice.
 
 **Lesson: presence and usability are different states; if the load path enforces integrity, the
 status path must enforce the same boundary before it says “available.”**
+
+## Round 624 — the report's outcome depth was a Python-only capability
+
+`build_report(top_alleles=...)` decides how many predicted alleles each candidate summary shows,
+but both command shells fixed it at the default 3. The browser page likewise had no control. This
+was not the candidate render cap: `render_candidates` chooses rows, while `top_alleles` chooses the
+outcomes summarized inside each row.
+
+The CLI now accepts `--top-alleles N`, the typed web request accepts `top_alleles`, and the served
+page exposes the same positive-integer control. Both shells pass the value to the shared report
+builder. Tests request a 1-allele report and then read the ranked menu to prove the full spectrum
+was not truncated; 0 is refused instead of producing an empty, misleading summary.
+
+**Lesson: a lossless output does not excuse a hard-coded summary; expose the presentation choice
+where readers create the report, and prove it never reaches the underlying data.**

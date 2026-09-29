@@ -78,6 +78,7 @@ function readForm() {
   const cellContext = document.getElementById("cell-context").value.trim();
   const track = document.getElementById("chromatin-track").value;
   const vector = document.getElementById("vector-scheme").value;
+  const topAlleles = document.getElementById("top-alleles").value;
   return {
     variant: document.getElementById("variant").value.trim(),
     intent: document.getElementById("intent").value,
@@ -89,6 +90,7 @@ function readForm() {
     cell_context: cellContext || null,
     chromatin_track: track || null,
     vector_scheme: vector || null,
+    top_alleles: Number(topAlleles),
     allow_ng: document.getElementById("allow-ng").checked,
     allow_spry: document.getElementById("allow-spry").checked,
     annotate_consequence: document.getElementById("annotate-consequence").checked,

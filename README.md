@@ -113,6 +113,10 @@ search, result verification, model and dataset inspection, caching, and benchmar
 | Optional gnomAD-style frequencies, haplotypes, and patient variants | Reference, population, haplotype, and patient-specific off-target findings |
 | Optional trained models and chromatin tracks | Efficiency and outcome predictions with provenance and uncertainty |
 
+Reports summarize the top 3 predicted outcome alleles per candidate by default. Use
+`--top-alleles N` (or `top_alleles` in the web request) to change that summary; the
+ranked-menu output always retains the complete outcome spectrum.
+
 ClinVar and GENCODE have checksum-pinned snapshots available through `aforge data fetch`;
 dbSNP, coding/protein HGVS, trained models, and the remaining external annotations require
 their documented optional dependencies or data sources. The default pipeline uses
