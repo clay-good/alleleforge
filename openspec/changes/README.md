@@ -21207,3 +21207,17 @@ remedy to name the fetch command and rejects the stale “never downloaded” an
 
 **Lesson: when a blocker is removed, search the remedies written for the blocked state; otherwise
 the implementation advances while the product keeps steering users around it.**
+
+## Round 626 — the path printed for reuse was not a path
+
+The CLI guide still said ClinVar could never be downloaded because neither lookup dataset had a
+pinned checksum, contradicting the registry and the remedies corrected in Round 625. Correcting it
+to show the promised fetch-to-resolve chain exposed a second defect: `aforge data fetch clinvar`
+printed `clinvar 2024-05: ready at /path`, so shell substitution passed that whole sentence to
+`--clinvar` as a filename. The default output is now the verified path alone; `--json` remains the
+metadata form. The README and CLI guide show the composable command, and the documentation guard now
+parses complete command lines so a VCV, rsID, or coding HGVS example is valid only with its matching
+`--clinvar`, `--dbsnp`, or `--hgvs` flag.
+
+**Lesson: “prints the path” is an interface contract, not a substring claim; run the documented
+composition exactly as a shell will run it.**

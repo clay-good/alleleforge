@@ -22,6 +22,7 @@ clinvar=clinvar_db)`) are correct and stay.
 from __future__ import annotations
 
 import re
+import shlex
 from pathlib import Path
 
 import pytest
@@ -31,22 +32,42 @@ from alleleforge.variant.resolver import database_remedy
 _ROOT = Path(__file__).resolve().parents[1]
 _DOCS = [_ROOT / "README.md", *(_ROOT / "docs").rglob("*.md")]
 
-#: Input forms that need a lookup database or the `hgvs` library. Bare examples remain
-#: invalid even though CLI flags now supply them; the scanner intentionally accepts only
-#: examples whose positional variant is self-contained.
-_NEEDS_A_DATABASE = re.compile(r"^(VCV\d+|rs\d+|[A-Z_0-9.]+:[cp]\.\S+)$")
+#: Input forms that need a lookup database or the `hgvs` library, paired with the flag
+#: that makes each form reachable from the CLI.
+_REQUIRED_FLAGS = (
+    (re.compile(r"^VCV\d+$"), "--clinvar"),
+    (re.compile(r"^rs\d+$"), "--dbsnp"),
+    (re.compile(r"^[A-Z_0-9.]+:[cp]\.\S+$"), "--hgvs"),
+)
 
 
-def _shell_variant_arguments() -> list[tuple[str, str]]:
-    """Return (file, variant) for every `aforge <cmd> <variant>` in the docs."""
-    found: list[tuple[str, str]] = []
+def _shell_variant_arguments() -> list[tuple[str, str, set[str]]]:
+    """Return (file, variant, flags) for every variant-taking CLI example."""
+    found: list[tuple[str, str, set[str]]] = []
     for path in _DOCS:
-        for match in re.finditer(
-            r"^\s*aforge\s+(?:--\S+\s+\S+\s+)*(design|resolve|batch)\s+(\S+)",
-            path.read_text(encoding="utf-8"),
-            re.M,
-        ):
-            found.append((path.name, match.group(2).strip("'\"")))
+        buffer = ""
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not buffer and not line.startswith("aforge "):
+                continue
+            if line.endswith("\\"):
+                buffer += line[:-1] + " "
+                continue
+            argv = shlex.split(buffer + line)
+            buffer = ""
+            command_index = next(
+                (index for index, token in enumerate(argv) if token in {"design", "resolve"}),
+                None,
+            )
+            if command_index is None or command_index + 1 >= len(argv):
+                continue
+            found.append(
+                (
+                    path.name,
+                    argv[command_index + 1],
+                    {token for token in argv if token.startswith("--")},
+                )
+            )
     return found
 
 
@@ -69,10 +90,22 @@ def test_the_scan_finds_examples() -> None:
 @pytest.mark.parametrize("source", ["cli", "json"])
 def test_no_documented_example_uses_a_form_its_shell_cannot_resolve(source: str) -> None:
     examples = _shell_variant_arguments() if source == "cli" else _json_variant_literals()
-    offenders = [(f, v) for f, v in examples if _NEEDS_A_DATABASE.match(v)]
+    if source == "cli":
+        offenders = [
+            (file, variant, required)
+            for file, variant, flags in examples
+            for pattern, required in _REQUIRED_FLAGS
+            if pattern.match(variant) and required not in flags
+        ]
+    else:
+        offenders = [
+            (file, variant)
+            for file, variant in examples
+            if any(pattern.match(variant) for pattern, _ in _REQUIRED_FLAGS)
+        ]
     assert not offenders, (
         f"documented {source} examples use an input form no shell can resolve: "
-        f"{offenders}. Use coordinates, or show it as Python passing a lookup."
+        f"{offenders}. Use coordinates, or show the required CLI lookup flag."
     )
 
 

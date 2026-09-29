@@ -118,6 +118,16 @@ def test_the_fetchable_clinvar_release_is_named_by_every_cli_remedy() -> None:
         assert "no pinned checksum" not in option.help.lower(), (command, option.help)
 
 
+def test_the_cli_guide_does_not_deny_the_fetchable_clinvar_release() -> None:
+    """The guide is part of the remedy, not a historical record of the old registry."""
+    guide = (Path(__file__).resolve().parents[1] / "docs" / "api" / "cli.md").read_text()
+    section = guide.split("### Accession and rsID inputs", 1)[1].split("### ", 1)[0]
+    assert "aforge data fetch clinvar" in section
+    assert "--clinvar" in section
+    assert "downloads neither" not in section
+    assert "no pinned checksum for either" not in section
+
+
 @pytest.mark.parametrize(
     ("variant", "kind", "flag"),
     [("VCV000000012", "clinvar", "--clinvar"), ("rs334", "dbsnp", "--dbsnp")],

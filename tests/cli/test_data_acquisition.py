@@ -86,6 +86,8 @@ def test_fetch_reuses_a_verified_cache_and_refresh_replaces_it(
     second = runner.invoke(app, [*argv, "fetch", "demo"])
     refreshed = runner.invoke(app, [*argv, "refresh", "demo", "--json"])
     assert first.exit_code == second.exit_code == refreshed.exit_code == 0
+    expected_path = tmp_path / "data" / "demo" / "demo.tsv"
+    assert first.stdout.strip() == second.stdout.strip() == str(expected_path)
     assert len(calls) == 2, "fetch should reuse the cache; refresh should download again"
     assert json.loads(refreshed.stdout)["refreshed"] is True
 

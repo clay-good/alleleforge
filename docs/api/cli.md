@@ -138,9 +138,10 @@ Coordinates (`chrom:pos:ref>alt`, 1-based as in a VCF), a VCF data line (`chr2 7
 C` — whitespace of any kind, trailing QUAL/FILTER/INFO/sample columns ignored, an rsID in
 the ID column carried) and a genomic `g.` HGVS expression work on every surface with
 nothing extra. A row whose ALT is symbolic (`<DEL>`, a breakend, a spanning `*`) is
-refused by name: it says a variant is there without saying what it writes. The two *database* input forms need the release that defines
-them, which you supply — AlleleForge parses both and downloads neither, because the
-registry has no pinned checksum for either:
+refused by name: it says a variant is there without saying what it writes. The two
+*database* input forms need the release that defines them. AlleleForge can fetch its
+checksum-pinned ClinVar snapshot; dbSNP remains a file you supply because its descriptor
+has no pinned checksum:
 
 | Input form | Flag | File |
 |---|---|---|
@@ -149,6 +150,16 @@ registry has no pinned checksum for either:
 
 Both are accepted by `resolve`, `design` and `batch`. Without the flag the input is
 refused, and the refusal names the flag.
+
+For ClinVar, fetch the pinned release and pass the printed path directly:
+
+```bash
+CLINVAR_PATH=$(aforge data fetch clinvar)
+aforge resolve VCV000012345 --reference-fasta hg38.fa --clinvar "$CLINVAR_PATH" --json
+```
+
+You may pass another ClinVar release instead when the run requires it; provenance records
+the exact file hash either way.
 
 An accession is worth typing over the coordinates it stands for because ClinVar's
 **classification** comes with it: the record's significance and review status are carried

@@ -82,8 +82,9 @@ Fetch a pinned dataset snapshot. The command prints its verified cache path; Cli
 be passed to `--clinvar`, while GENCODE's GTF loads directly through `GeneModels`:
 
 ```bash
-aforge data fetch clinvar
+CLINVAR_PATH=$(aforge data fetch clinvar)
 aforge data fetch gencode
+aforge resolve VCV000012345 --reference-fasta hg38.fa --clinvar "$CLINVAR_PATH" --json
 ```
 
 `aforge data status` re-hashes cached and bundled artifacts before calling them available;

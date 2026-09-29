@@ -3621,8 +3621,10 @@ def _acquire_dataset(ctx: typer.Context, name: str, *, refresh: bool, as_json: b
         "sha256": version.sha256,
         "refreshed": refresh,
     }
-    verb = "refreshed" if refresh else "ready"
-    _emit(payload, as_json=as_json, human=f"{name} {version.version}: {verb} at {path}")
+    # The human form is deliberately just the verified path so a caller can use
+    # `DATASET=$(aforge data fetch NAME)` without parsing prose. `--json` carries the
+    # name, version, digest, and refresh status for callers that need metadata.
+    _emit(payload, as_json=as_json, human=str(path))
 
 
 @data_app.command("fetch")
