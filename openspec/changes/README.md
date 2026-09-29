@@ -21130,3 +21130,19 @@ copy intact. `data status` names the availability view explicitly while preservi
 
 **Lesson: a library capability does not satisfy a command-surface contract; if a status says an
 artifact is fetchable, the same surface should provide the checked fetch.**
+
+## Round 621 — the fetch and status commands looked in different caches
+
+The new acquisition commands honored the global `--cache-dir`: fetching into a selected root wrote
+the artifact under its `data` directory. The existing status derivation did not receive that root.
+It always inspected the configured default cache, so `aforge --cache-dir X data fetch clinvar`
+could succeed and `aforge --cache-dir X data status` could immediately report the same release as
+not cached and unavailable. `data show` gave the same false answer.
+
+The shared status derivation now accepts an explicit data-cache root. The three shell views pass the
+same root as fetch and refresh, while the web API keeps its intended default-cache behavior. A CLI
+test performs the full fetch/status/show sequence against an isolated cache and requires both views
+to report the acquired release as cached and available.
+
+**Lesson: a global storage option is part of every read and write in that workflow; honoring it only
+on writes makes successful work disappear from the product's own status view.**

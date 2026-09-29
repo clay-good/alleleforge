@@ -31,7 +31,8 @@ release, honor the global cache directory, and print the verified path. `refresh
 re-download through the registry's atomic refresh path. Both commands SHALL support
 `--json`; an unknown dataset SHALL exit with missing-data code 3 and an unavailable or
 unverifiable release with code 4. A bundled artifact SHALL name a package upgrade as its
-replacement path instead of claiming that `refresh` downloaded new bytes.
+replacement path instead of claiming that `refresh` downloaded new bytes. `list`/`status`
+and `show` SHALL inspect the same global cache directory that acquisition uses.
 
 #### Scenario: Fetch a pinned release
 - **WHEN** `aforge --cache-dir <dir> data fetch <name>` names a pinned release
@@ -44,6 +45,10 @@ replacement path instead of claiming that `refresh` downloaded new bytes.
 #### Scenario: Refresh a bundled artifact
 - **WHEN** `aforge data refresh <name>` names bytes shipped inside the package
 - **THEN** it refuses to claim a refresh and directs the user to upgrade the package
+
+#### Scenario: Report a release fetched into a selected cache
+- **WHEN** a caller fetches a release with `--cache-dir <dir>` and then requests its status with the same option
+- **THEN** `list`/`status` and `show` report that release as cached and available
 
 ### Requirement: Every locus states its coordinate convention
 

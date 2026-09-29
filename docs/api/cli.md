@@ -23,8 +23,8 @@ pip install "alleleforge[cli]"
 | `aforge offtarget` | Standalone population-aware off-target search for a spacer. |
 | `aforge lift` | Lift loci to another assembly, so a build mismatch has a remedy in the tool. |
 | `aforge verify` | Re-check a result's (or a sidecar's) provenance: completeness always, artifact re-hashing with `--cache-dir`. |
-| `aforge data list` / `aforge data status` | List every registered dataset with its version, license, availability, and fetchability. |
-| `aforge data show` | Show one dataset's full provenance descriptor. |
+| `aforge data list` / `aforge data status` | List every registered dataset with its version, license, availability, and fetchability. With `--cache-dir`, availability is read from that selected cache. |
+| `aforge data show` | Show one dataset's full provenance descriptor and its availability in the selected cache. |
 | `aforge data fetch` | Fetch a checksum-pinned release into the cache. Invoking it is explicit consent for that download. |
 | `aforge data refresh` | Re-fetch a pinned cached release atomically; a failed transfer leaves the last verified copy intact. Bundled data is replaced by upgrading AlleleForge, not by this command. |
 | `aforge models list` | List every model card: what it scores, its licence, and whether a run can load it. A weight-free baseline reports **bundled** — it ships as code, so it is usable with no checkpoint at all, which is a different thing from a trained card that pins no checksum and is unusable for that reason. |

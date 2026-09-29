@@ -69,6 +69,13 @@ def test_fetch_downloads_a_pinned_release_to_the_selected_cache(
     assert path.read_bytes() == _PAYLOAD
     assert calls == ["https://example.invalid/demo.tsv"]
 
+    status = runner.invoke(app, ["--cache-dir", str(tmp_path), "data", "status", "--json"])
+    shown = runner.invoke(app, ["--cache-dir", str(tmp_path), "data", "show", "demo", "--json"])
+    assert status.exit_code == shown.exit_code == 0
+    row = json.loads(status.stdout)["datasets"][0]
+    assert row["cached"] is row["available"] is True
+    assert json.loads(shown.stdout)["cached"] is True
+
 
 def test_fetch_reuses_a_verified_cache_and_refresh_replaces_it(
     runner: CliRunner, monkeypatch: object, tmp_path: Path

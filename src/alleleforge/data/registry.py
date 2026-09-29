@@ -358,7 +358,12 @@ DEFAULT_REGISTRY = DatasetRegistry(
 )
 
 
-def dataset_status(name: str, descriptor: DatasetDescriptor) -> dict[str, bool]:
+def dataset_status(
+    name: str,
+    descriptor: DatasetDescriptor,
+    *,
+    cache_dir: str | Path | None = None,
+) -> dict[str, bool]:
     """Return what a caller can actually do with ``name`` on this machine right now.
 
     ``redistributable`` is a *licence* fact — whether AlleleForge is permitted to ship
@@ -374,7 +379,7 @@ def dataset_status(name: str, descriptor: DatasetDescriptor) -> dict[str, bool]:
     ``aforge data list``, ``aforge data show``, ``GET /api/data`` and
     ``GET /api/data/{name}``. Each one that derived it separately got a different answer.
     """
-    cached = DEFAULT_REGISTRY.cache_path(name).is_file()
+    cached = DEFAULT_REGISTRY.cache_path(name, cache_dir=cache_dir).is_file()
     return {
         "redistributable": descriptor.redistributable,
         "bundled": descriptor.bundled,

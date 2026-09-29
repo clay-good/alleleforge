@@ -3462,6 +3462,7 @@ app.add_typer(data_app)
 
 @data_app.command("list")
 def data_list(
+    ctx: typer.Context,
     as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """List every registered dataset with its version and license."""
@@ -3484,12 +3485,12 @@ def data_list(
         }
         for name in DEFAULT_REGISTRY.names
         for d in (DEFAULT_REGISTRY.get(name),)
-        for status in (dataset_status(name, d),)
+        for status in (dataset_status(name, d, cache_dir=_data_cache_root(ctx)),)
     ]
     human_rows = []
     for name in DEFAULT_REGISTRY.names:
         d = DEFAULT_REGISTRY.get(name)
-        status = dataset_status(name, d)
+        status = dataset_status(name, d, cache_dir=_data_cache_root(ctx))
         human_rows.append(
             f"{name:16s} {d.version or '-':14s} {d.license or '-':18s} "
             f"{dataset_permission(status):16s} {dataset_presence(status)}"
@@ -3510,14 +3511,16 @@ def data_list(
 
 @data_app.command("status")
 def data_status(
+    ctx: typer.Context,
     as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
     """Report dataset availability; an explicit alias for ``data list``."""
-    data_list(as_json=as_json)
+    data_list(ctx, as_json=as_json)
 
 
 @data_app.command("show")
 def data_show(
+    ctx: typer.Context,
     name: Annotated[str, typer.Argument(help="Dataset name (see `aforge data list`).")],
     as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable JSON.")] = False,
 ) -> None:
@@ -3539,7 +3542,7 @@ def data_show(
     # `list` grew that answer and `show` did not, so the command for one dataset printed
     # `redistributable: True` and `sha256: None` and left the reader to know that the
     # first is a licence permission and the second means it cannot even be fetched.
-    status = dataset_status(name, d)
+    status = dataset_status(name, d, cache_dir=_data_cache_root(ctx))
     payload = {**d.model_dump(), **status, "presence": dataset_presence(status)}
     human = "\n".join(f"{k}: {v}" for k, v in payload.items())
     # One line answering the question, because the fields above answer it only to a
