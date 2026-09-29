@@ -147,6 +147,7 @@ their end-to-end measurements do not beat the default path.
 
 ```bash
 make ci  # includes artifact, SBOM, and immutable workflow-action checks
+make image  # build and import-smoke the deployment image (requires Docker)
 ```
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), and report security

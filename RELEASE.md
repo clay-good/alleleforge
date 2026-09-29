@@ -15,7 +15,8 @@ wired + validated: trained Rule Set 3 and PRIDICT2.0).
       `make ci` fails if either is missed.
 - [ ] `make ci` green (lint, type, test, docs, examples, reproduce, distribution,
       and the isolated wheel SBOM). Native: `make native`. Container: `make image`;
-      ordinary CI also builds both published architectures without pushing them.
+      ordinary CI also builds both published architectures without pushing them,
+      then boots the loadable amd64 image and requires `/api/health` to answer.
 - [ ] `python scripts/release_readiness.py` — the v1.0 criteria from `SPEC_V2.md` (R6),
       measured rather than recalled. It exits non-zero while any is open; for a `0.x`
       release that is expected, and the point is to read *which* are open and confirm

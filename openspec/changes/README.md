@@ -20906,3 +20906,22 @@ GitHub repository ref.
 
 **Lesson: content-address the automation that signs in and publishes, not only the artifact it
 handles.**
+
+## Round 609 — the image that built and might not boot
+
+The new container gate proved that both release architectures could execute every Dockerfile
+instruction. Its Buildx result stayed only in the builder cache, so nothing started the image's
+default Uvicorn command. A missing runtime dependency, an invalid module path, or a broken command
+could therefore leave the gate green and first surface after GHCR publication. The earlier local
+check imported the app under an overridden entry point, which was useful evidence and still skipped
+the command users actually run.
+
+The existing image was booted before changing the gate. Its real command served `/api/health` with
+HTTP 200, `status: ok`, and `version: 0.1.0.dev0`; the intentionally absent reference mount appeared
+under `source_errors` rather than preventing startup. CI now keeps the original amd64+arm64 no-push
+build, then reuses BuildKit's amd64 cache for a loadable image, starts the real command, and polls
+that endpoint from inside the container. An always-run cleanup step removes the temporary container.
+The local `make image` path now includes the lighter import smoke after its host build.
+
+**Lesson: a successful image build establishes layers, not a working entry point; boot the artifact
+and ask its own liveness surface.**
