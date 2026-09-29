@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -126,7 +127,7 @@ def _native_kernels() -> Criterion:
     # the evidence. A readiness report that grades itself generously is the failure
     # mode it exists to prevent.
     harness = _ROOT / "scripts" / "native_speedup.py"
-    recorded = harness.is_file() and "native_speedup" in (_ROOT / "README.md").read_text()
+    recorded = _has_native_speedup_record(_ROOT)
     return Criterion(
         track="R2",
         summary="native kernels on their hot paths with parity tests and a recorded speedup",
@@ -159,6 +160,31 @@ def _native_kernels() -> Criterion:
             "byte-identical, so an unbuilt kernel changes speed and not results",
         ],
     )
+
+
+def _has_native_speedup_record(root: Path) -> bool:
+    """Return whether the README records reproducible results for all 3 R2 kernels.
+
+    Merely naming the harness is not a recorded speedup. The release criterion needs
+    a link a reader can rerun, plus one measured ratio for each kernel the criterion
+    names. Ratios below 1 are valid evidence: a measured regression is still a result,
+    and is the reason the FM-index and k-mer prefilter remain opt-in.
+    """
+    harness = root / "scripts" / "native_speedup.py"
+    readme = root / "README.md"
+    if not harness.is_file() or not readme.is_file():
+        return False
+    _before, heading, tail = readme.read_text().partition("## Native acceleration")
+    if not heading:
+        return False
+    section = tail.partition("\n## ")[0]
+    if "[benchmark harness](scripts/native_speedup.py)" not in section:
+        return False
+    for kernel in ("bwt", "kmer", "haplotype"):
+        row = next((line for line in section.splitlines() if f"| `{kernel}` |" in line), "")
+        if not re.search(r"\b\d+(?:\.\d+)?x\b", row):
+            return False
+    return True
 
 
 def _calibration_on_real_data() -> Criterion:

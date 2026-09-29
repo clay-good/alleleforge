@@ -110,6 +110,28 @@ consent.
 For commercial work, set `ALLELEFORGE_MODEL_USE=commercial`. The license gate refuses
 trained models that do not permit the use you declare.
 
+## Native acceleration
+
+The optional Rust extension accelerates the off-target hot path while keeping a
+byte-identical Python fallback. `make native` builds the release wheel and runs the
+entire suite against it. Performance is reported, not gated: hardware and workloads
+matter, and an exact native algorithm can still be slower end to end.
+
+Recorded on September 28, 2026, with Python 3.11.16 on arm64 macOS using the release
+build and the synthetic workloads in the [benchmark harness](scripts/native_speedup.py):
+
+| Kernel | Current hot path | Recorded result |
+|---|---|---:|
+| `bwt` | Opt-in persistent FM-index query | 0.03x at 300 kb and 1 Mb, so slower than the default linear scan |
+| `kmer` | Opt-in exact seed prefilter | 6.1x for seed lookup, but 0.2x for the selective end-to-end scan |
+| `haplotype` | Population haplotype materialization | 4.0x |
+
+The same run measured the whole native strand scan at 1.4x, bulged alignment at
+10.8x, and resolved-base counting at 4.0x. Re-run
+`python scripts/native_speedup.py` on the deployment hardware before using these
+numbers for capacity planning. The FM-index and k-mer prefilter stay opt-in because
+their end-to-end measurements do not beat the default path.
+
 ## Learn more
 
 - [Documentation](docs/index.md)

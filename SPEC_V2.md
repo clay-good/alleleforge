@@ -193,7 +193,7 @@ them**, so the native build delivers real speedups — not dead code.
   **~4x** in the R2 micro-benchmark. With this the three spec kernels
   (`bwt`/`kmer`/`haplotype`) are all on their hot paths behind the
   fallback-plus-parity discipline.
-- A `bench/native_speedup.py` micro-benchmark recording native-vs-Python wall
+- A `scripts/native_speedup.py` micro-benchmark recording native-vs-Python wall
   time per kernel (reported, not gated).
 
 **Defaults & decisions.** Every native kernel keeps a **correct pure-Python

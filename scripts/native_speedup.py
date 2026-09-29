@@ -96,9 +96,9 @@ def main() -> None:
         else "  native : (not built) — dispatch == python"
     )
 
-    # Seeding auto-engages only when the seed is selective (k >= 5, i.e. low edit
-    # budget / high stringency); at the default budget (k=2) it is a no-op and the
-    # scan is unchanged. Report both regimes.
+    # Seeding is opt-in at every budget: after the strand scan moved into Rust, its
+    # extra O(n) pass cost more than the native work it pruned. Report both the
+    # selective and default regimes so that decision remains re-measurable.
     print("\noff-target scan (both strands)")
     for label, mm in (("high-stringency (mismatches=1)", 1), ("default (mismatches=4)", 4)):
         kw = dict(mismatches=mm, dna_bulges=0, rna_bulges=0)

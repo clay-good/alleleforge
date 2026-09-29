@@ -14,6 +14,8 @@ matches any test whose prose contains the word.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from scripts import release_readiness
 
 
@@ -101,6 +103,31 @@ def test_a_criterion_summary_covers_its_spec_bullet() -> None:
         "the R2 criterion is graded on both halves; its summary must say so"
     )
     assert "speedup harness" in native.detail
+
+
+def test_a_harness_name_alone_is_not_a_recorded_speedup(tmp_path: Path) -> None:
+    """R2 needs measurements for all 3 named kernels, including measured regressions."""
+    import scripts.release_readiness as readiness
+
+    root = tmp_path
+    (root / "scripts").mkdir()
+    (root / "scripts" / "native_speedup.py").write_text("# benchmark\n")
+    readme = root / "README.md"
+    readme.write_text(
+        "## Native acceleration\n\n"
+        "Run the [benchmark harness](scripts/native_speedup.py).\n\n"
+        "| Kernel | Result |\n|---|---|\n"
+        "| `bwt` | measured |\n| `kmer` | measured |\n| `haplotype` | measured |\n"
+    )
+    assert not readiness._has_native_speedup_record(root)
+
+    readme.write_text(
+        readme.read_text()
+        .replace("`bwt` | measured", "`bwt` | 0.03x (slower)")
+        .replace("`kmer` | measured", "`kmer` | 6.1x")
+        .replace("`haplotype` | measured", "`haplotype` | 4.0x")
+    )
+    assert readiness._has_native_speedup_record(root)
 
 
 def test_r2_does_not_call_a_stale_build_importable() -> None:

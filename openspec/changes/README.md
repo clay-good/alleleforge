@@ -20789,3 +20789,23 @@ continuing through every resolved third-party dependency.
 
 **Lesson: a test should measure the contract, not the incidental encoding, iteration count, or
 wall-clock ratio of the machine that happens to run it.**
+
+## Round 603 — a benchmark that existed and a speed record that did not
+
+The v1.0 readiness report marked R2 open after the README was rewritten. The crate still exposed all
+3 spec kernels, every one still ran on its production path, 9 modules still pinned native/Python
+parity, and `scripts/native_speedup.py` still timed every exported kernel. What disappeared was the
+record: the new README named neither the harness nor 1 measured ratio. The readiness check was nearly
+as weak as the missing evidence — it accepted the substring `native_speedup` anywhere in the file, so
+a sentence saying the benchmark had been deleted would have closed the criterion.
+
+The current release build was measured again on arm64 macOS. The honest result has both signs: native
+haplotype materialization is 4.0x and k-mer lookup is 6.1x, while the k-mer prefilter's selective
+whole scan is 0.2x and the FM-index query path is 0.03x at both 300 kb and 1 Mb. The slower paths stay
+opt-in. The concise README now records those numbers, the environment, and the exact command that
+reproduces them. Readiness requires that link and a numeric ratio on each `bwt`, `kmer`, and
+`haplotype` row; a harness name without measurements is explicitly tested as insufficient. The spec's
+stale `bench/` path was corrected to the real `scripts/` path at the same time.
+
+**Lesson: a reproducible benchmark is the method; a dated measurement is the evidence, and a release
+criterion that asks for both must verify both.**
