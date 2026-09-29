@@ -21000,3 +21000,23 @@ intentional.
 
 **Lesson: a non-root identity limits who a process is; a read-only filesystem and an empty capability
 set limit what that identity can change.**
+
+## Round 614 — an immutable base with a moving Python graph
+
+The container's base manifest and every workflow action were pinned by digest, but its one `pip
+install` still resolved every direct and transitive runtime dependency from open compatible ranges.
+Rebuilding the same commit after a FastAPI, Pydantic, NumPy, or previously invisible transitive
+release could therefore produce different application bytes or fail entirely. Tightening
+`pyproject.toml` would have exported deployment reproducibility as needless restrictions on every
+library user.
+
+The currently proven image's 32 third-party distributions are now recorded in a container-only
+constraints snapshot. Docker applies that snapshot while installing the unchanged public extras.
+The amd64 and arm64 build remains the compatibility proof, and both the local image target and CI
+diff `pip freeze` from the finished artifact against the snapshot. That last comparison makes a new
+transitive dependency a reviewed lock change rather than an unrecorded addition. Dependabot's
+existing root Python ecosystem continues to propose updates for both the public declarations and
+the constraints file.
+
+**Lesson: pinning the operating system does not pin the application environment; constrain the
+resolved deployment graph without turning a library's compatibility range into a lock file.**

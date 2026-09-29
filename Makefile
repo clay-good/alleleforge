@@ -50,6 +50,7 @@ native: ## Build the Rust crate and run the whole suite against it, as CI's `rus
 image: ## Build and import-smoke the deployment container for the host architecture.
 	docker build --tag alleleforge-ci .
 	docker run --rm --entrypoint python alleleforge-ci -c "import alleleforge; import alleleforge.web.api.app; print(alleleforge.__version__)"
+	docker run --rm --entrypoint pip alleleforge-ci freeze --exclude alleleforge | sort | diff -u constraints/container.txt -
 
 distribution: ## Build and audit the sdist, wheel metadata, and packaged runtime resources.
 	python scripts/check_distribution.py

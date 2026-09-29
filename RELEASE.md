@@ -74,6 +74,9 @@ The `rule-set-3` card pins a `checkpoint_sha256` and a `source_url` release asse
         default Compose service uses a read-only root filesystem, drops every Linux
         capability, enables `no-new-privileges`, and leaves only `/tmp` and `/cache`
         writable.
+      - [`constraints/container.txt`](constraints/container.txt) pins the complete
+        Python runtime graph without narrowing the library's public dependency ranges.
+        Both local and CI image smokes compare the installed graph with that snapshot.
 
 ## 4. Bioconda (the channel bench scientists use)
 

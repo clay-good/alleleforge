@@ -11,7 +11,7 @@ WORKDIR /app
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md constraints/container.txt ./
 COPY src ./src
 # `variant` is deliberately absent. It exists for `c.`/`p.` HGVS input, which needs a
 # projector from the `hgvs` package — and `hgvs` requires `psycopg2`, which publishes
@@ -23,7 +23,7 @@ COPY src ./src
 # a `c.` request still gets the refusal that names the missing library. Adding
 # libpq-dev to carry a Postgres client into an image that never speaks to Postgres
 # would be the wrong half of the trade.
-RUN pip install ".[core,cli,web,genome-light]"
+RUN pip install --constraint container.txt ".[core,cli,web,genome-light]"
 
 # --- runtime: copy the venv, run uvicorn ------------------------------------
 FROM python:3.12-slim@sha256:d764629ce0ddd8c71fd371e9901efb324a95789d2315a47db7e4d27e78f1b0e9 AS runtime

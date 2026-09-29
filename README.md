@@ -150,9 +150,10 @@ make ci  # includes artifact, SBOM, and immutable workflow-action checks
 make image  # build and import-smoke the deployment image (requires Docker)
 ```
 
-CI actions and the deployment base image are content-pinned; Dependabot proposes
-reviewable updates instead of allowing upstream tags to change a green commit. The
-served container runs as unprivileged UID/GID `10001:10001` and advertises its
+CI actions and the deployment base image are content-pinned, and the image resolves
+its Python runtime from [`constraints/container.txt`](constraints/container.txt);
+Dependabot proposes reviewable updates instead of allowing upstream releases to change
+a green commit. The served container runs as unprivileged UID/GID `10001:10001` and advertises its
 `/api/health` liveness check to Docker and Compose. The default Compose service also
 drops all Linux capabilities and makes its root filesystem read-only.
 

@@ -115,6 +115,18 @@ the persistent `/cache` volume stay writable. Keep those restrictions when trans
 the deployment to another orchestrator; add a writable mount deliberately if a future
 integration requires one.
 
+Image builds resolve the Python runtime through `constraints/container.txt`. That file
+pins the complete deployment graph without narrowing the compatible dependency ranges
+offered to library users in `pyproject.toml`. CI builds both release architectures and
+compares the runnable image's installed distributions with the constraints snapshot;
+review dependency updates in that file together with their image build. After approving
+an updated image, regenerate the snapshot with:
+
+```bash
+docker run --rm --entrypoint pip alleleforge-ci \
+    freeze --exclude alleleforge | sort > constraints/container.txt
+```
+
 The image's built-in health check calls the same unauthenticated `GET /api/health`
 surface described below. Docker and Compose report the container as `healthy` only
 after that endpoint returns HTTP 200 and `status: ok`; inspect it with
