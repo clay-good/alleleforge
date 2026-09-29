@@ -31,6 +31,7 @@ _ROOT = Path(__file__).resolve().parents[1]
 #: here should be a considered addition; an unlisted file is a stray until someone says
 #: otherwise.
 _EXPECTED: dict[str, str] = {
+    ".dockerignore": "the private, minimal container build context",
     ".gitignore": "what git ignores",
     ".zenodo.json": "archival metadata for a DOI",
     "CHANGELOG.md": "the release history",

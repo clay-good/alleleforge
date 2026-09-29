@@ -2,7 +2,7 @@
 
 The image is built only on a `v*` tag — "inert until v0.1.0 is tagged" — and it runs
 
-    RUN pip install ".[core,variant,cli,web,genome-light]"
+    RUN pip install --constraint container.txt ".[core,variant,cli,web,genome-light]"
 
 on `python:3.12-slim`. `variant` is `hgvs>=1.5`; `hgvs` requires `psycopg2`
 unconditionally; and psycopg2 publishes **Windows wheels only** (checked against PyPI:
@@ -41,7 +41,7 @@ _DOCKERFILE = (_ROOT / "Dockerfile").read_text(encoding="utf-8")
 
 def _image_extras() -> list[str]:
     """Return the extras the image's `pip install` line asks for."""
-    match = re.search(r'RUN pip install "\.\[([^\]]+)\]"', _DOCKERFILE)
+    match = re.search(r'RUN pip install[^\n]* "\.\[([^\]]+)\]"', _DOCKERFILE)
     assert match, "the Dockerfile no longer installs the project with extras"
     return [e.strip() for e in match.group(1).split(",")]
 

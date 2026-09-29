@@ -12,6 +12,7 @@ import os
 import runpy
 import shlex
 import subprocess
+import sys
 from pathlib import Path
 
 import yaml
@@ -78,8 +79,10 @@ def test_a_tag_for_another_version_is_refused_before_building() -> None:
 
 def _run_guard(tag: str) -> subprocess.CompletedProcess[str]:
     env = {**os.environ, "RELEASE_TAG": tag}
+    command = shlex.split(_version_guard())
+    command[0] = sys.executable
     return subprocess.run(
-        shlex.split(_version_guard()),
+        command,
         cwd=_ROOT,
         env=env,
         check=False,

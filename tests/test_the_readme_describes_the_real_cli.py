@@ -17,6 +17,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -60,7 +61,17 @@ _NOT_OURS: dict[str, str] = {}
 def _help(*args: str) -> str:
     env = dict(os.environ, COLUMNS="400")
     output = subprocess.run(
-        ["aforge", *args, "--help"], capture_output=True, text=True, env=env, check=False
+        [
+            sys.executable,
+            "-c",
+            "from alleleforge.cli import run; run()",
+            *args,
+            "--help",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
     ).stdout
     # Rich's CI color mode can style the two dashes separately from the option name.
     # Parse what the terminal displays, not the ANSI transport used to display it.
