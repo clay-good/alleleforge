@@ -21299,3 +21299,20 @@ and the no-unaccounted-result invariant.
 
 **Lesson: moving the expensive computation off an event loop is not enough when finalization is
 also expensive; every pre-response pass belongs on the same scheduling audit.**
+
+## Round 632 — the job deadline ended before the job did
+
+`max_job_seconds` is documented as a per-job wall-clock limit, but the timer wrapped only the
+callable. The result-accounting pass moved off the event loop in Round 631 ran after that timer, so
+a fast computation followed by slow serialization could remain `RUNNING` without a bound. The same
+outer `except TimeoutError` also caught a callable's own timeout and replaced its real failure with
+the manager's deadline message.
+
+Computation and accounting now run inside one worker and one deadline. A worker that outlives the
+limit still retains its capacity slot until both phases actually exit, and its result is discarded.
+The manager uses a private deadline marker, so a `TimeoutError` raised by the callable follows the
+ordinary typed-error path. Regression tests separately require slow accounting to hit the deadline
+and a callable timeout to keep its original message.
+
+**Lesson: a deadline must surround every phase counted as the operation, and its exception must be
+distinguishable from an identically named failure inside that operation.**

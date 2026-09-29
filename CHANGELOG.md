@@ -5516,6 +5516,13 @@ acceptance.
   model cards, benchmark splits, and web frontend — against silent removal.
 
 ### Fixed
+- **The web job deadline now covers the whole job and identifies its own timeout.**
+  `max_job_seconds` bounded only the callable, leaving the retained-result accounting
+  pass unbounded even though the option promises a per-job wall-clock limit. It also
+  caught a callable's own `TimeoutError` and mislabeled that failure as the manager's
+  deadline. Computation and accounting now share one timed worker boundary; only an
+  expired manager deadline receives the time-limit message, and its capacity slot stays
+  occupied until the full worker lifecycle exits.
 - **Finalizing a large web job no longer blocks the event loop.** The job callable ran
   through `asyncio.to_thread`, but the subsequent JSON serialization used to measure
   retained-result bytes ran synchronously on the event loop. A multi-megabyte design or

@@ -149,6 +149,43 @@ async def test_timed_out_worker_keeps_capacity_until_thread_stops() -> None:
     assert admitted.result == "started after the worker stopped"
 
 
+async def test_job_deadline_includes_result_measurement(monkeypatch) -> None:
+    import threading
+
+    measurement_started = threading.Event()
+    release_measurement = threading.Event()
+
+    def slow_measure(_result: object) -> int:
+        measurement_started.set()
+        release_measurement.wait(5)
+        return 1
+
+    monkeypatch.setattr(JobManager, "_measure", staticmethod(slow_measure))
+    mgr = JobManager(max_job_seconds=0.01)
+    record = await mgr.submit(lambda: "computed quickly")
+    await _drain(mgr, [record.id])
+
+    try:
+        assert measurement_started.is_set()
+        assert record.state is JobState.ERROR
+        assert "time limit" in (record.error or "")
+    finally:
+        release_measurement.set()
+    await _settle_tasks(mgr)
+
+
+async def test_a_callable_timeout_error_is_not_mislabeled_as_the_job_deadline() -> None:
+    def fail() -> None:
+        raise TimeoutError("upstream socket timed out")
+
+    mgr = JobManager(max_job_seconds=1)
+    record = await mgr.submit(fail)
+    await _drain(mgr, [record.id])
+
+    assert record.state is JobState.ERROR
+    assert record.error == "TimeoutError: upstream socket timed out"
+
+
 async def test_max_job_seconds_must_be_positive() -> None:
     import pytest
 

@@ -58,6 +58,10 @@ class JobCapacityError(RuntimeError):
     """Raised by :meth:`JobManager.submit` when the in-flight cap is reached."""
 
 
+class _JobDeadlineExceeded(Exception):
+    """Distinguish the manager deadline from a callable's own ``TimeoutError``."""
+
+
 @dataclass
 class JobRecord:
     """The mutable state of one async job."""
@@ -200,42 +204,52 @@ class JobManager:
             record.state = JobState.RUNNING
             record.progress = 0.1
             release_slot = True
+
+            def _execute() -> tuple[Any, int]:
+                result = work()
+                return result, self._measure(result)
+
             try:
+                worker = asyncio.create_task(asyncio.to_thread(_execute))
                 if self._max_job_seconds is not None:
-                    worker = asyncio.create_task(asyncio.to_thread(work))
                     try:
-                        record.result = await asyncio.wait_for(
+                        result, result_bytes = await asyncio.wait_for(
                             asyncio.shield(worker), self._max_job_seconds
                         )
-                    except TimeoutError:
-                        # `to_thread` cannot stop a callable once it is running. Keep
-                        # its capacity slot until the real worker exits; otherwise a
-                        # caller can submit one slow job per timeout and grow the
-                        # background thread count without bound.
-                        release_slot = False
+                    except TimeoutError as exc:
+                        if worker.done():
+                            # The callable (or its accounting pass) raised its own
+                            # TimeoutError; preserve that failure instead of calling
+                            # it a manager deadline. A result completed exactly at the
+                            # boundary is likewise safe to accept.
+                            result, result_bytes = worker.result()
+                        else:
+                            # `to_thread` cannot stop a callable once it is running.
+                            # Keep its capacity slot until computation and accounting
+                            # really exit; otherwise repeated timeouts can grow the
+                            # background thread count without bound.
+                            release_slot = False
 
-                        async def _release_after_worker() -> None:
-                            try:
-                                await worker
-                            except Exception:  # noqa: BLE001 - result was already timed out
-                                pass
-                            finally:
-                                self._in_flight -= 1
-                                self._evict()
+                            async def _release_after_worker() -> None:
+                                try:
+                                    await worker
+                                except Exception:  # noqa: BLE001 - already timed out
+                                    pass
+                                finally:
+                                    self._in_flight -= 1
+                                    self._evict()
 
-                        cleanup = asyncio.create_task(_release_after_worker())
-                        self._tasks.add(cleanup)
-                        cleanup.add_done_callback(self._tasks.discard)
-                        raise
+                            cleanup = asyncio.create_task(_release_after_worker())
+                            self._tasks.add(cleanup)
+                            cleanup.add_done_callback(self._tasks.discard)
+                            raise _JobDeadlineExceeded from exc
                 else:
-                    record.result = await asyncio.to_thread(work)
-                # A real cohort result can serialize to many megabytes. Measuring it
-                # inline here blocks the event loop that serves status and health
-                # requests, defeating the reason work is dispatched to a thread.
-                record.result_bytes = await asyncio.to_thread(self._measure, record.result)
+                    result, result_bytes = await worker
+                record.result = result
+                record.result_bytes = result_bytes
                 record.progress = 1.0
                 record.state = JobState.DONE
-            except TimeoutError:
+            except _JobDeadlineExceeded:
                 record.result = None
                 record.result_bytes = 0
                 record.error = f"job exceeded the {self._max_job_seconds}s time limit"

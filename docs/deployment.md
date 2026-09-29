@@ -175,8 +175,10 @@ matter for an operator:
   At most 16 jobs execute concurrently by default. A timed-out job returns an
   error promptly, but its Python worker thread cannot be canceled; that thread
   continues to occupy its capacity slot until it actually exits, so repeated
-  timeouts cannot bypass the concurrency bound. Size the limit or add a timeout
-  with `JobManager(max_in_flight=…, max_job_seconds=…)`.
+  timeouts cannot bypass the concurrency bound. The wall-clock limit covers both
+  computation and retained-result accounting; a `TimeoutError` raised by the
+  callable itself is reported as that failure, not as a manager deadline. Size the
+  limit or add a timeout with `JobManager(max_in_flight=…, max_job_seconds=…)`.
 - **A finished job's result is held in memory until it is evicted**, so it can be
   re-rendered in any format without designing again — which is what the served page
   relies on to make one click of *Design edits* one run. The store is bounded twice:
