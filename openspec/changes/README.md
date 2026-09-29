@@ -21388,3 +21388,46 @@ endpoint.
 
 **Lesson: an every-response control must wrap every short-circuiting middleware, including the
 failure paths that never reach a route.**
+
+## Round 637 — the number every submission is compared against
+
+`build_baseline` fits the reference scorer that CRISPR-Bench measures every submission
+against: a result means "better or worse than this". Mutation testing killed only **7 of 23**
+mutants there — by some distance the worst rate in this arc — and the 16 survivors were one
+cluster, the fitted numbers themselves. The train-fold mean, both interval endpoints, the
+widening applied to a constant fold, the final clamp, the distribution marginal and the
+classification heuristic's two saturation points had no value test among them. The module was
+exercised constantly, through the board tests and the acceptance test, and none of them ever
+asked what the baseline predicted.
+
+The fixture is a synthetic three-example fold whose answers are arithmetic anyone can check.
+Labels are 0.2, 0.3 and 0.7, chosen so the mean is **0.4** and not 0.5 — 0.5 is what the
+empty-fold fallback returns, so a fixture averaging to it cannot tell a fitted baseline from
+an unfitted one.
+
+Three of the cases are only reachable with a fold built for them:
+
+* **A constant fold is widened, not given a zero-width interval.** Every label 0.5 has no
+  range, so it is padded to `[0.4, 0.6]`. A zero-width interval is a claim of certainty, and
+  this baseline's whole documented character is that it predicts one constant and knows
+  nothing — which is why its rank correlation is reported as undefined rather than as a
+  number.
+* **The marginal sums across examples before normalizing.** `{a: 3, b: 1}` and `{a: 5}` give
+  `a = 8/9`. The obvious fixture, `{a: 3, b: 1}` with `{a: 1, b: 3}`, normalizes to `{0.5,
+  0.5}` — which a subtraction or a multiplication reaches often enough to hide in.
+* **A fold with no observed mass is an empty marginal, not a crash.** The `total > 0` guard
+  relaxed to `>= 0` admits an all-zero distribution into the division and takes the whole
+  board run down with it. That fold is the only input separating the two, and it is what a
+  malformed or filtered dataset produces.
+
+The classification heuristic is pinned at both clamps and on its slope: a perfect match is
+0.99 rather than 1.0, six mismatches or more is 0.01 rather than 0.0, and one mismatch is
+`1 - 1/6`. Only the middle point pins the slope — at the saturated ends a wrong divisor or a
+flipped sign is hidden by the clamp it runs into.
+
+`benchmark/baseline.py` now kills 23 of 23.
+
+**Lesson: the reference point is the number nobody thinks to check.** Every board test used
+this baseline and every one of them asked about the *comparison*, so the thing being compared
+against was assumed rather than measured. A module with heavy incidental traffic and no direct
+assertions is the shape to look for; the kill rate finds it when reading does not.
