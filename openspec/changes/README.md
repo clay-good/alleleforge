@@ -21074,3 +21074,22 @@ metadata the preceding gates validate.
 
 **Lesson: when an artifact is installed and validated, do not ship a second source copy that can
 become authoritative through an unrelated path change.**
+
+## Round 618 — auditing a nearby environment
+
+The advisory security job installed the development, core, CLI, web, and light-genome extras, froze
+that resolved environment, and ran `pip-audit` over it. The container now has a separate exact
+snapshot. The two graphs overlap heavily and are not equal: development caps NumPy below 2.5 so mypy
+can parse dependencies while targeting Python 3.11, whereas the Python 3.12 image currently runs
+NumPy 2.5.3. A clean audit of one graph therefore said nothing definitive about the versions in the
+other.
+
+The existing advisory job now runs a second strict audit directly over
+`constraints/container.txt`. It keeps the same visible-but-nonblocking policy until v1.0, but a
+finding names the deployed version rather than an approximation resolved from broader extras. The
+snapshot was also audited locally under the image's pinned Python 3.12 interpreter and reported no
+known vulnerabilities; the host's Python 3.11 auditor was deliberately rejected because it cannot
+resolve the snapshot's Python 3.12-only NumPy.
+
+**Lesson: a vulnerability audit is evidence about the versions it reads, not about a neighboring
+environment with similar dependency names.**

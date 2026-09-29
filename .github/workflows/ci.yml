@@ -224,6 +224,10 @@ jobs:
       # real collection failure instead of treating this expected exclusion as one.
       - run: python -m pip freeze --exclude-editable > audit-requirements.txt
       - run: pip-audit --strict --desc -r audit-requirements.txt
+      # The deployment snapshot intentionally differs from the development graph
+      # above (for example, its Python 3.12 NumPy is not capped for mypy-on-3.11).
+      # Audit the versions that actually ship as their own artifact.
+      - run: pip-audit --strict --desc -r constraints/container.txt
       - run: cargo install cargo-audit --locked
       - run: cargo audit
         working-directory: rust

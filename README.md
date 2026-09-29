@@ -160,6 +160,10 @@ container runs as unprivileged UID/GID `10001:10001` and advertises its
 drops all Linux capabilities and makes its root filesystem read-only. The runtime
 contains the installed package only, not a second source checkout.
 
+CI's visible advisory job audits both the development environment and the exact
+container dependency snapshot; a finding stays visible without blocking unrelated
+work until the v1.0 policy makes that audit mandatory.
+
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), and report security
 issues through the private process in [SECURITY.md](SECURITY.md).
 
