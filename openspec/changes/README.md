@@ -21161,3 +21161,19 @@ smoke parses the fetched artifact through `GeneModels`, rather than proving only
 
 **Lesson: pin the exact artifact the production parser accepts, then verify both its publisher's
 checksum and its semantic header; a hash of the wrong file is perfectly reproducible and useless.**
+
+## Round 623 — a path existed, so status called corrupt bytes available
+
+The registry re-hashes every cached dataset when a run resolves it, but the status derivation asked
+only whether the expected path was a file. A truncated, edited, or unpinned artifact therefore read
+`cached: true, available: true` in the CLI and web API, then failed closed on the next real use. The
+integrity boundary was correct; the observability layer contradicted it.
+
+Status now hashes the exact artifact resolution would use and exposes the result as `verified`.
+`available` is true only for checksum-verified cached or bundled bytes. A bad fetchable cache entry
+stays visible as cached, is explicitly unavailable, and names `refresh` as the remedy. The CLI list
+builds the machine and human renderings from one status record per dataset, so the stronger check
+does not hash every large artifact twice.
+
+**Lesson: presence and usability are different states; if the load path enforces integrity, the
+status path must enforce the same boundary before it says “available.”**

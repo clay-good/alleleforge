@@ -369,8 +369,8 @@ def dataset_status(
 
     ``redistributable`` is a *licence* fact — whether AlleleForge is permitted to ship
     this — and it was once rendered as "vendored", which is a *presence* claim: gnomAD
-    v4.1 is CC0, so it read as shipped while no gnomAD data ships at all. These four
-    derived facts are the presence half.
+    v4.1 is CC0, so it read as shipped while no gnomAD data ships at all. These derived
+    facts are the presence half.
 
     A fetch needs a pinned checksum, because the registry refuses to download what it
     cannot verify, and most descriptors carry no ``sha256`` — so "fetch it" is a remedy
@@ -380,12 +380,29 @@ def dataset_status(
     ``aforge data list``, ``aforge data show``, ``GET /api/data`` and
     ``GET /api/data/{name}``. Each one that derived it separately got a different answer.
     """
-    cached = DEFAULT_REGISTRY.cache_path(name, cache_dir=cache_dir).is_file()
+    cache_path = DEFAULT_REGISTRY.cache_path(name, cache_dir=cache_dir)
+    cached = cache_path.is_file()
+    bundled_path = descriptor.bundled_file()
+    artifact = bundled_path if bundled_path is not None and bundled_path.is_file() else None
+    if artifact is None and cached:
+        artifact = cache_path
+    verified = False
+    if artifact is not None and descriptor.sha256 is not None:
+        try:
+            _verify_sha256(artifact, descriptor.sha256)
+        except (ChecksumError, OSError):
+            pass
+        else:
+            verified = True
     return {
         "redistributable": descriptor.redistributable,
         "bundled": descriptor.bundled,
         "cached": cached,
-        "available": descriptor.bundled or cached,
+        "verified": verified,
+        # "Available" means resolve can use these exact bytes, not merely that some
+        # file occupies the expected path. `resolve` hashes on read and rejects corrupt
+        # or unpinned cache entries, so the status view must apply the same boundary.
+        "available": verified,
         # "a fetch would work", not "the two fields that a fetch needs are both set".
         # A bundled row has neither need nor path: `resolve` returns the packaged bytes
         # and never reaches the downloader. Saying otherwise mattered for the one row
@@ -400,9 +417,15 @@ def dataset_status(
 def dataset_reason(status: dict[str, bool]) -> str:
     """Return why a dataset is or is not usable, without restating which of the two."""
     if status["bundled"]:
-        return "bundled in the package"
+        if status["verified"]:
+            return "bundled and checksum-verified"
+        return "bundled file is missing or failed checksum verification; reinstall AlleleForge"
     if status["cached"]:
-        return "cached"
+        if status["verified"]:
+            return "cached and checksum-verified"
+        if status["fetchable"]:
+            return "cached but not checksum-verified; refresh it"
+        return "cached but not checksum-verified; supply a pinned release"
     if status["fetchable"]:
         return "supply it, or fetch it with consent"
     return "supply it (no pinned checksum, so it cannot be fetched)"

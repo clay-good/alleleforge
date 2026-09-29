@@ -23,7 +23,7 @@ pip install "alleleforge[cli]"
 | `aforge offtarget` | Standalone population-aware off-target search for a spacer. |
 | `aforge lift` | Lift loci to another assembly, so a build mismatch has a remedy in the tool. |
 | `aforge verify` | Re-check a result's (or a sidecar's) provenance: completeness always, artifact re-hashing with `--cache-dir`. |
-| `aforge data list` / `aforge data status` | List every registered dataset with its version, license, availability, and fetchability. With `--cache-dir`, availability is read from that selected cache. |
+| `aforge data list` / `aforge data status` | List every registered dataset with its version, license, checksum-verification status, availability, and fetchability. With `--cache-dir`, the selected cache is re-hashed before availability is claimed. |
 | `aforge data show` | Show one dataset's full provenance descriptor and its availability in the selected cache. |
 | `aforge data fetch` | Fetch a checksum-pinned release into the cache. Invoking it is explicit consent for that download. |
 | `aforge data refresh` | Re-fetch a pinned cached release atomically; a failed transfer leaves the last verified copy intact. Bundled data is replaced by upgrading AlleleForge, not by this command. |

@@ -36,7 +36,7 @@ from alleleforge.data.registry import DEFAULT_REGISTRY
 
 runner = CliRunner()
 
-_DERIVED = ("redistributable", "bundled", "cached", "available", "fetchable")
+_DERIVED = ("redistributable", "bundled", "cached", "verified", "available", "fetchable")
 
 
 def _json(*args: str) -> dict[str, object]:

@@ -926,6 +926,7 @@ class DatasetRow(BaseModel):
     #: download what it cannot verify, and most descriptors carry no pinned checksum.
     bundled: bool = False
     cached: bool = False
+    verified: bool = False
     available: bool = False
     fetchable: bool = False
     #: The same one-line answer the CLI prints, so a client need not re-derive it.

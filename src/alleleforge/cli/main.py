@@ -3473,6 +3473,11 @@ def data_list(
         dataset_status,
     )
 
+    records = [
+        (name, d, dataset_status(name, d, cache_dir=_data_cache_root(ctx)))
+        for name in DEFAULT_REGISTRY.names
+        for d in (DEFAULT_REGISTRY.get(name),)
+    ]
     rows = [
         {
             "name": name,
@@ -3483,27 +3488,24 @@ def data_list(
             # carry the same answer — and so does `GET /api/data`, which grew it first.
             "presence": dataset_presence(status),
         }
-        for name in DEFAULT_REGISTRY.names
-        for d in (DEFAULT_REGISTRY.get(name),)
-        for status in (dataset_status(name, d, cache_dir=_data_cache_root(ctx)),)
+        for name, d, status in records
     ]
-    human_rows = []
-    for name in DEFAULT_REGISTRY.names:
-        d = DEFAULT_REGISTRY.get(name)
-        status = dataset_status(name, d, cache_dir=_data_cache_root(ctx))
-        human_rows.append(
+    human_rows = [
+        (
             f"{name:16s} {d.version or '-':14s} {d.license or '-':18s} "
             f"{dataset_permission(status):16s} {dataset_presence(status)}"
         )
+        for name, d, status in records
+    ]
     human = "\n".join(
         [
             *human_rows,
             "",
             "'may redistribute' is a licence permission, not a statement that the data "
-            "is present: almost none of it ships. Only a dataset marked bundled or "
-            "cached is usable by a run right now, and only a dataset with a pinned "
-            "checksum can be fetched at all — the registry refuses to download what it "
-            "cannot verify.",
+            "is present: almost none of it ships. Only checksum-verified bundled or "
+            "cached bytes are usable by a run right now, and only a dataset with a "
+            "pinned checksum can be fetched at all — the registry refuses to use what "
+            "it cannot verify.",
         ]
     )
     _emit({"datasets": rows}, as_json=as_json, human=human)

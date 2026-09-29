@@ -90,6 +90,52 @@ def test_fetch_reuses_a_verified_cache_and_refresh_replaces_it(
     assert json.loads(refreshed.stdout)["refreshed"] is True
 
 
+def test_status_does_not_call_unverified_cached_bytes_available(
+    runner: CliRunner, monkeypatch: object, tmp_path: Path
+) -> None:
+    _install_fake_registry(monkeypatch)
+    path = tmp_path / "data" / "demo" / "demo.tsv"
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"corrupt")
+
+    result = runner.invoke(app, ["--cache-dir", str(tmp_path), "data", "show", "demo", "--json"])
+    assert result.exit_code == 0, result.output + result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["cached"] is True
+    assert payload["verified"] is payload["available"] is False
+    assert "NOT AVAILABLE" in payload["presence"]
+    assert "refresh it" in payload["presence"]
+
+    _install_fake_registry(monkeypatch, pinned=False)
+    unpinned = runner.invoke(app, ["--cache-dir", str(tmp_path), "data", "show", "demo", "--json"])
+    assert unpinned.exit_code == 0, unpinned.output + unpinned.stderr
+    unpinned_payload = json.loads(unpinned.stdout)
+    assert unpinned_payload["cached"] is True
+    assert unpinned_payload["verified"] is unpinned_payload["available"] is False
+    assert "supply a pinned release" in unpinned_payload["presence"]
+
+
+def test_listing_hashes_each_cached_artifact_once(
+    runner: CliRunner, monkeypatch: object, tmp_path: Path
+) -> None:
+    _install_fake_registry(monkeypatch)
+    path = tmp_path / "data" / "demo" / "demo.tsv"
+    path.parent.mkdir(parents=True)
+    path.write_bytes(_PAYLOAD)
+    original = data_registry._verify_sha256
+    calls = 0
+
+    def counted(candidate: Path, expected: str) -> str:
+        nonlocal calls
+        calls += 1
+        return original(candidate, expected)
+
+    monkeypatch.setattr(data_registry, "_verify_sha256", counted)  # type: ignore[attr-defined]
+    result = runner.invoke(app, ["--cache-dir", str(tmp_path), "data", "list"])
+    assert result.exit_code == 0, result.output + result.stderr
+    assert calls == 1
+
+
 def test_fetch_refuses_an_unpinned_or_unknown_release(
     runner: CliRunner, monkeypatch: object, tmp_path: Path
 ) -> None:

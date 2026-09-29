@@ -190,9 +190,11 @@ it — see the variant-resolution capability.
 
 `redistributable` states what the project is permitted to ship; it does not state what a
 user has. Any listing SHALL report the two separately, and SHALL say for each dataset
-whether a run can use it right now — bundled inside the installed package, present in the
-cache, or neither. A dataset that ships in-package SHALL NOT be reported as absent merely
-because it is not in the cache.
+whether a run can use it right now — checksum-verified inside the installed package,
+checksum-verified in the cache, or neither. A file merely occupying the cache path SHALL
+be reported as cached but unavailable when its checksum is absent or mismatched. A
+dataset that ships in-package SHALL NOT be reported as absent merely because it is not
+in the cache, but its shipped bytes SHALL still be verified before availability is claimed.
 
 #### Scenario: A permitted but unshipped dataset
 - **WHEN** a CC0 dataset is listed that the project does not ship
@@ -201,6 +203,10 @@ because it is not in the cache.
 #### Scenario: The in-package dataset
 - **WHEN** a dataset whose bytes ship inside the package is listed
 - **THEN** it is reported as available, not as uncached
+
+#### Scenario: Corrupt bytes occupy the cache path
+- **WHEN** a cached dataset's bytes do not match its pinned checksum
+- **THEN** it is reported as cached but not verified or available, with a refresh remedy
 
 ### Requirement: Allele frequencies are validated as fractions
 
@@ -219,10 +225,12 @@ safety figure wrong by a hundredfold that looks deliberate. `0.0` and `1.0` are 
 
 `redistributable` is a licence permission, not a statement that the data is present.
 Every command that reports a dataset SHALL report the presence facts alongside it —
-whether it is bundled, cached, available and fetchable — and SHALL state plainly whether
-a run can use it right now. `aforge data show` SHALL report everything `aforge data list`
-reports for the same dataset, in both the human and the `--json` rendering: a caller
-asking about one dataset must not learn less than a caller asking about all of them.
+whether it is bundled, cached, checksum-verified, available and fetchable — and SHALL
+state plainly whether a run can use it right now. `available` SHALL mean that the exact
+bytes the registry would resolve have passed their pinned checksum, not only that a path
+exists. `aforge data show` SHALL report everything `aforge data list` reports for the same
+dataset, in both the human and the `--json` rendering: a caller asking about one dataset
+must not learn less than a caller asking about all of them.
 
 This applies to all four surfaces that report the registry — `aforge data list`,
 `aforge data show`, `GET /api/data` and `GET /api/data/{name}` — and they SHALL derive

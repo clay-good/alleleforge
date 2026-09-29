@@ -86,6 +86,9 @@ aforge data fetch clinvar
 aforge data fetch gencode
 ```
 
+`aforge data status` re-hashes cached and bundled artifacts before calling them available;
+a corrupt file is reported as cached but unverified, with a refresh remedy.
+
 The same pipeline is available in Python:
 
 ```python

@@ -50,6 +50,10 @@ and `show` SHALL inspect the same global cache directory that acquisition uses.
 - **WHEN** a caller fetches a release with `--cache-dir <dir>` and then requests its status with the same option
 - **THEN** `list`/`status` and `show` report that release as cached and available
 
+#### Scenario: Report corrupt cached bytes
+- **WHEN** the selected cache contains bytes that fail a dataset's pinned checksum
+- **THEN** `list`/`status` and `show` report it as cached but unverified and unavailable, and recommend refresh when the release is fetchable
+
 ### Requirement: Every locus states its coordinate convention
 
 Every surface that emits a locus SHALL state the convention it is in. The tool emits
