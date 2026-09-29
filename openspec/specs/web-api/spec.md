@@ -103,7 +103,9 @@ and a job's exception SHALL be captured into its record without crashing the ser
 
 Every job kind's result SHALL be serialized by the status endpoint. A result shape the
 endpoint does not name is reported as `done` with a null result — the work performed and
-the answer discarded.
+the answer discarded. Building and serializing a finished result SHALL run off the event
+loop, because a multi-megabyte cohort response must not stall health checks or other job
+polls at the moment the background work finishes.
 
 #### Scenario: Job failure
 - **WHEN** a submitted job's work raises
@@ -113,6 +115,10 @@ the answer discarded.
 #### Scenario: A finished job of any kind
 - **WHEN** a submitted job reaches `done`
 - **THEN** its result is present in the poll response
+
+#### Scenario: Polling a large finished job
+- **WHEN** a finished result takes time to serialize
+- **THEN** the health endpoint remains responsive while that serialization runs
 
 ### Requirement: The long operation is submittable
 

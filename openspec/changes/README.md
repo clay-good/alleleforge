@@ -21337,3 +21337,21 @@ available at its submitted id.
 
 **Lesson: a bounded result store needs an answer for an item that cannot fit; silently deleting the
 newest item turns a resource limit into an unrecoverable protocol loop.**
+
+## Round 634 — polling moved the finished job back onto the event loop
+
+The async job's callable and retained-byte accounting both ran through worker threads, but
+`GET /api/jobs/{id}` called `DesignReport.model_dump()` or `BatchResponse.model_dump()` directly
+inside its async route. The status response can be multiple megabytes, so one client collecting a
+finished cohort could freeze health checks and every other poll at the moment the background work
+was supposedly ready. Moving only computation and accounting off-loop had left the third complete
+serialization pass behind.
+
+The route now snapshots the terminal record and builds the entire validated JSON response with
+`asyncio.to_thread`; returning a ready `Response` prevents FastAPI from repeating the heavy model
+serialization on the event loop. Pending and failed records, which carry no result, keep the small
+direct path. A thread-controlled regression test blocks `DesignReport.model_dump`, requires it to
+run off the loop thread, and requires `/api/health` to answer before the block is released.
+
+**Lesson: a background operation is not non-blocking if collecting its answer performs the same
+class of work on the event loop; audit the response path as well as execution and finalization.**

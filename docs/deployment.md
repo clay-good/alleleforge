@@ -189,8 +189,9 @@ matter for an operator:
   payload is discarded instead of the whole record vanishing into a `404`. Both bounds
   matter because a finished design keeps the ranked menu *and* its report — 1.25 MiB of
   JSON for a 200-candidate menu — so a count alone permits well over a gigabyte.
-  Serialization for this accounting also runs in a worker thread, so finalizing a large
-  result does not stall health checks or job polling. Size the bounds with
+  Serialization for this accounting and for a finished status response runs in a worker
+  thread, so finalizing or polling a large result does not stall health checks or other
+  requests. Size the bounds with
   `create_app(jobs=JobManager(max_jobs=…, max_result_bytes=…))` for a deployment whose
   menus are larger or whose memory is tighter.
 

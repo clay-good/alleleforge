@@ -30,6 +30,7 @@ Two invariants from the specification:
 
 from __future__ import annotations
 
+import asyncio
 import importlib
 import os
 import tempfile
@@ -824,6 +825,29 @@ def _job_payload(result: Any) -> Any:
     return result
 
 
+def _finished_job_status_response(
+    job_id: str,
+    state: JobState,
+    progress: float,
+    error: str | None,
+    result: Any,
+) -> Response:
+    """Build and serialize a finished job's status off the event loop."""
+    payload = _job_payload(result)
+    status = JobStatusResponse(
+        job_id=job_id,
+        state=state,
+        progress=progress,
+        error=error,
+        result=(
+            payload.model_dump(mode="json")
+            if isinstance(payload, DesignReport | BatchResponse)
+            else None
+        ),
+    )
+    return Response(status.model_dump_json(), media_type="application/json")
+
+
 _FormatT = TypeVar("_FormatT", bound=StrEnum)
 
 
@@ -1177,28 +1201,32 @@ def create_app(
         return JobSubmitResponse(job_id=record.id, state=record.state)
 
     @app.get("/api/jobs/{job_id}", response_model=JobStatusResponse)
-    async def job_status(job_id: str, request: Request) -> JobStatusResponse:
+    async def job_status(job_id: str, request: Request) -> JobStatusResponse | Response:
         """Return an async job's state, progress, and result (when done)."""
         jobs: JobManager = request.app.state.jobs
         record = jobs.get(job_id)
         if record is None:
             raise HTTPException(status_code=404, detail=f"unknown job {job_id!r}")
+        if record.result is not None:
+            # A finished cohort can serialize to many megabytes. Building the whole
+            # response inside this async handler would block health checks and every
+            # other poll at the moment the background job is supposedly ready.
+            return await asyncio.to_thread(
+                _finished_job_status_response,
+                record.id,
+                record.state,
+                record.progress,
+                record.error,
+                record.result,
+            )
         # A job now stores everything its result can be *rendered* from, not only the
         # one document this envelope carries; the envelope itself is unchanged.
-        payload = _job_payload(record.result)
         return JobStatusResponse(
             job_id=record.id,
             state=record.state.value,
             progress=record.progress,
             error=record.error,
-            # Both result shapes, named: the check was `isinstance(result, DesignReport)`
-            # when a design was the only job kind, so a cohort job would have finished
-            # `done` with `result: null` — the job ran and its answer was dropped.
-            result=(
-                payload.model_dump(mode="json")
-                if isinstance(payload, DesignReport | BatchResponse)
-                else None
-            ),
+            result=None,
         )
 
     # `response_model=None`: which model this returns depends on the kind of job that

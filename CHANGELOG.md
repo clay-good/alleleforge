@@ -5516,6 +5516,13 @@ acceptance.
   model cards, benchmark splits, and web frontend — against silent removal.
 
 ### Fixed
+- **Polling a finished web job no longer serializes its result on the event loop.** Job
+  computation and retained-byte accounting already ran in worker threads, but
+  `GET /api/jobs/{id}` converted the complete design or cohort to its response dictionary
+  inside an `async` handler. A multi-megabyte result could therefore freeze health checks
+  and every other poll when the supposedly background job became ready. Finished status
+  responses are now built and encoded off-loop; a thread-controlled regression test holds
+  serialization open while the health endpoint continues to answer.
 - **An accepted web job no longer disappears the instant it finishes.** A result larger
   than `max_result_bytes` was marked `DONE` and immediately evicted, so its job id returned
   only `404`; resubmitting could never succeed under the same limit. The record now remains

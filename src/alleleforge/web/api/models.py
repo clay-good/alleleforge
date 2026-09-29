@@ -845,7 +845,8 @@ class JobStatusResponse(BaseModel):
     )
     error: str | None = Field(default=None, description="The failure message, if the job failed.")
     result: dict[str, object] | None = Field(
-        default=None, description="The design report, present only once the job is done."
+        default=None,
+        description="The design report or cohort response, present only once the job is done.",
     )
 
 
