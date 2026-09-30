@@ -19,7 +19,7 @@ polars==1.44.2
 pyarrow==25.0.1
 pydantic-settings==2.15.0
 pydantic==2.13.5
-pydantic_core==2.46.5
+pydantic_core==2.49.0
 pyfaidx==0.9.0.4
 pyliftover==0.4.1
 python-dotenv==1.2.3
