@@ -78,7 +78,12 @@ models; making it the headline split keeps the benchmark honest about it.
 ```python
 from datetime import UTC, datetime
 from alleleforge.benchmark import (
-    Leaderboard, ModelInfo, Submission, get_task, load_split, run_benchmark,
+    Leaderboard,
+    ModelInfo,
+    Submission,
+    get_task,
+    load_split,
+    run_benchmark,
 )
 
 results = []
@@ -87,12 +92,14 @@ for name in ("cas9-efficiency", "pe-efficiency"):
     results.append(run_benchmark(my_scorer, get_task(name), split=split, dataset=ds))
 
 board = Leaderboard()
-board.add(Submission(
-    submitter="your-lab",
-    model=ModelInfo(name="my-model", version="1.0", license="MIT", citation="…"),
-    results=tuple(results),
-    submitted_at=datetime.now(UTC),
-))
+board.add(
+    Submission(
+        submitter="your-lab",
+        model=ModelInfo(name="my-model", version="1.0", license="MIT", citation="…"),
+        results=tuple(results),
+        submitted_at=datetime.now(UTC),
+    )
+)
 print(board.render_markdown())
 ```
 
