@@ -31,5 +31,13 @@ def test_dependabot_updates_the_reviewed_base_image_pin() -> None:
             "directory": "/",
             "schedule": {"interval": "weekly"},
             "open-pull-requests-limit": 5,
+            # Digest refreshes keep flowing; a new Python minor must move with the CI
+            # matrix, classifiers and container constraints, so it is never a bot bump.
+            "ignore": [
+                {
+                    "dependency-name": "python",
+                    "update-types": ["version-update:semver-major", "version-update:semver-minor"],
+                }
+            ],
         }
     ]
