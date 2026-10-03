@@ -28,6 +28,13 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    # Digest refreshes of the same Python line (security patches) still flow. A move to
+    # a new Python minor is a deliberate decision, not a Dependabot bump: the image must
+    # run an interpreter CI tests and pyproject classifies, and constraints/container.txt
+    # is resolved for that interpreter. Bump all three together by hand.
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   # The GitHub Actions pinned in the CI and release workflows.
   - package-ecosystem: "github-actions"
