@@ -143,3 +143,66 @@ def test_pridict_engine_golden(tmp_path: Path) -> None:
     designs = adapter.design(_GOLDEN_SEQUENCE, sequence_name="af_golden", cell_line="HEK", top_n=3)
     assert designs, "PRIDICT2 returned no designs"
     assert abs(designs[0].efficiency.value - _GOLDEN_TOP_HEK) < 5e-3
+
+
+# -- the subprocess wrapper, against a stand-in checkout (CI) -----------------
+#
+# `design()` was reached only by the opt-in golden test, so CI never ran the code that
+# locates the script, builds the command, and finds PRIDICT2's output file. A stand-in
+# `pridict2_pegRNA_design.py` that writes the fixture CSV exercises all of it.
+
+_STAND_IN = """\
+import argparse, pathlib, shutil, sys
+parser = argparse.ArgumentParser()
+parser.add_argument("mode")
+parser.add_argument("--sequence-name")
+parser.add_argument("--sequence")
+parser.add_argument("--output-dir")
+parser.add_argument("--use_5folds", action="store_true")
+args = parser.parse_args()
+pathlib.Path("argv.txt").write_text(" ".join(sys.argv[1:]))
+out = pathlib.Path(args.output_dir) / f"{{args.sequence_name}}_pegRNA_Pridict_full.csv"
+shutil.copy({fixture!r}, out)
+"""
+
+
+def _stand_in_repo(tmp_path: Path) -> Path:
+    (tmp_path / "pridict2_pegRNA_design.py").write_text(_STAND_IN.format(fixture=str(_FIXTURE)))
+    return tmp_path
+
+
+def test_design_runs_the_checkout_with_the_given_interpreter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import sys
+
+    # An explicit interpreter wins over the environment, which here points nowhere.
+    monkeypatch.setenv("ALLELEFORGE_PRIDICT2_PYTHON", str(tmp_path / "no-such-python"))
+    adapter = PridictEngineAdapter(
+        repo_dir=_stand_in_repo(tmp_path),
+        python_executable=sys.executable,
+        use_5folds=True,
+        consent=True,
+    )
+    designs = adapter.design("ACGT(A/G)ACGT", sequence_name="af_seq", cell_line="HEK", top_n=2)
+    parsed = PridictEngineAdapter._parse_predictions(_FIXTURE, cell_line="HEK", top_n=2)
+    assert [d.efficiency.value for d in designs] == [d.efficiency.value for d in parsed]
+    argv = (tmp_path / "argv.txt").read_text()
+    assert "--sequence-name af_seq" in argv and "--use_5folds" in argv
+
+
+def test_design_names_a_missing_checkout(tmp_path: Path) -> None:
+    adapter = PridictEngineAdapter(repo_dir=tmp_path, consent=True)
+    with pytest.raises(FileNotFoundError, match="PRIDICT2 script not found"):
+        adapter.design("ACGT(A/G)ACGT", cell_line="HEK")
+
+
+@pytest.mark.parametrize(
+    ("score", "interval"),
+    [(50.0, (0.35, 0.65)), (95.0, (0.80, 1.0)), (5.0, (0.0, 0.20))],
+)
+def test_efficiency_interval_is_clamped_to_the_unit_range(
+    score: float, interval: tuple[float, float]
+) -> None:
+    pred = PridictEngineAdapter._efficiency(score, cell_line="HEK")
+    assert pred.interval == pytest.approx(interval)

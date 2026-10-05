@@ -186,3 +186,13 @@ def test_the_embedding_namespace_is_versioned(tmp_path: Path) -> None:
     assert any(
         f"embeddings/{PersistentEmbeddingCache.NAMESPACE_VERSION}/stub-0" in p for p in written
     )
+
+
+def test_stub_spans_its_documented_range() -> None:
+    # The docstring promises [-1, 1]. Mapping a uint32 by `/ 2.0` instead of `* 2.0`
+    # keeps every value in [-1, -0.5], still deterministic and still distinct, so the
+    # two tests above cannot see it; the OOD tests built on this stub then measure
+    # distances in a quarter of the space they think they have.
+    values = [v for i in range(200) for v in StubEmbedder(dim=8).embed([f"ACGT{i}"])[0]]
+    assert all(-1.0 <= v <= 1.0 for v in values)
+    assert min(values) < -0.9 and max(values) > 0.9
