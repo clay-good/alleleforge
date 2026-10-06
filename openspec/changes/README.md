@@ -21645,3 +21645,26 @@ a new subfolder; the second run now shares the first's.
 
 **Lesson: the first element is a boundary too.** Fixtures drawn from "somewhere in the middle"
 never meet the code that exists for the start; for anything indexed, put one case at index 0.
+
+## Round 649 — the report's sentence about itself
+
+`types/offtarget.py` holds the off-target report and the sentence it writes about its own
+search: how much was searched, whether the query is a guide, whether any cut-off was
+unreachable. The constant pass left 37 alive, 28 real.
+
+The default search budgets on the report were free to drift from `search()` and the API's
+request model. All three said 4, 1, 1, 0.20, 0.10 and nothing checked that they agreed; this
+project has found disagreeing shells often enough that the binding is now a test. The coverage
+sentence had four edges, each with a fixture on one side only: "NO SEQUENCE WAS SEARCHED"
+joined by `and` (a clean, empty-handed search must not trigger it), a fraction that divides
+by `searched_bases` (zero must not reach it, one must), the guide-length range (17 and 24
+are guides), and the sub-threshold tail (zero is silent, a small positive sum is not). In the
+population maths a site with no frequency must count in full and be called unweighted, an
+ancestry a site does not name must contribute nothing, and a worst score below 0.1 is still
+the worst score.
+
+Two of my own first fixtures were one-sided: a zero tail proved the note's absence but not its
+presence, and they let `> 0.0` become `< 0.0`.
+
+**Lesson: a threshold has a fixture on each side, or it has no test.** Proving that a message
+is absent at zero says nothing about whether it appears just above; write the pair.
