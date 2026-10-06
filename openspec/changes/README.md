@@ -21544,3 +21544,44 @@ the package has now been swept at least once.
 
 **Lesson: a response field nobody asserts is a field that can say the opposite.** The API's tests
 checked status codes and shapes; the facts inside were left to whoever read them.
+
+## Round 644 — the scorer read a copy of the table it said it read
+
+The operator harness never mutated constants, so I added constant mutants (`n` to `n + 1`,
+`x` to `1.1x`, booleans flipped). `scoring/uncertainty.py` came back 277 of 277; a hand
+spot-check confirmed the kills were genuine, not a harness artifact.
+
+`offtarget/scoring.py` did not. Of the 36 weights in the MIT position table and the CFD PAM
+table, 34 could each move by 10% with the suite green. The tests that touched them compared
+`cfd_score(...)` against `CFD_PAM_WEIGHTS["AG"]`, the table under test, so an edit moved both
+sides together.
+
+The PAM table also had a provenance gap. The module docstring says the PAM weights "default to
+the published Doench 2016 matrix (vendored in `cfd_matrix.json`)", and that file's provenance
+block records a cross-verification against CRISPOR and CRISPRitz. The scorer reads neither: it
+uses a hand-typed `CFD_PAM_WEIGHTS` dict, and the vendored `pam` table is never consumed. The
+values agree today. Nothing kept them agreeing. A test now binds the two, so the docstring's
+claim holds by construction. The MIT weights have no vendored copy, so they are pinned to
+CRISPOR's `hitScoreM`, fetched from its source and checked identical, rather than re-typed
+from this module. Edges are pinned too: a weight just above 1 is refused, and a PAM or
+mismatch the table does not weight scores 0, the module's stated contract.
+
+**Lesson: two copies of one table are one verified copy and one assumption.** When a
+docstring names the verified source, check that the code actually reads it; if it reads a
+copy, the test must bind the copy to the source, not to itself.
+
+## Round 645 — the rationale could misdescribe the score beside it
+
+The same pass over `design/ranking.py` left 21 of 135. Six are equivalent, and six are the
+per-chemistry simplicity heuristics, which no spec fixes; only their documented range and
+order are pinned. The rest would put a wrong sentence next to a rank: an in-distribution
+candidate described as "OOD, ranked on lower bound", that sentence quoting the upper bound,
+the OOD count doubled, and two tied leaders left without the note that their order is
+unresolved. Also loose were an unscored candidate's zero contribution, the zero floor on an
+OOD lower bound, and the immutability of the shared default weights. One of my own first
+assertions was shape-not-value (the rationale always explains the OOD rule, so "contains
+out-of-distribution" is always true); it now matches the count sentence.
+
+**Lesson: a constant is a claim, and the question is whose.** A number with a published or
+specified source should be pinned to that source; a tuning heuristic should be pinned only on
+the properties its documentation promises, or the test merely re-types the guess.
