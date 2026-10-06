@@ -21623,3 +21623,25 @@ must default to top-1.
 **Lesson: a guard against a degenerate input sits right next to ordinary inputs.** A
 threshold written as "exactly zero" has no test unless some fixture lives just above it, and
 ordinary small-valued data is exactly what lives there.
+
+## Round 648 — the first base of a contig
+
+The constant pass over `variant/resolver.py` and `design/cohort.py` was dominated by one
+fixture habit: every indel sat mid-contig and every cohort ran once into fresh directories.
+
+At position 0 the resolver has no preceding base. Left-alignment rolls an indel left
+through a repeat and re-anchors it on the base before, so a deletion in a leading run of
+`A`s must stop at 0 unanchored, and one at position 1 must anchor on base 0. The `pos > 0`
+guards could become `>= 0` or `> 1` with nothing failing. The reference-match check behind
+the off-by-one remedy must answer no for position -1, or a variant at a contig's first base
+could be told its ref sits one base left, before the contig. The same message's statement
+of where the ref really is was never checked; only its `try` suggestion was, by running it.
+`NC_000001` resolving to `chr1` was untested because every RefSeq fixture used
+`NC_000002`.
+
+In the cohort runner both `mkdir(parents=True, exist_ok=True)` calls could lose either flag.
+One of my own fixtures was blind to `exist_ok` on the manifest's folder because each run used
+a new subfolder; the second run now shares the first's.
+
+**Lesson: the first element is a boundary too.** Fixtures drawn from "somewhere in the middle"
+never meet the code that exists for the start; for anything indexed, put one case at index 0.
