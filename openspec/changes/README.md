@@ -21585,3 +21585,41 @@ out-of-distribution" is always true); it now matches the count sentence.
 **Lesson: a constant is a claim, and the question is whose.** A number with a published or
 specified source should be pinned to that source; a tuning heuristic should be pinned only on
 the properties its documentation promises, or the test merely re-types the guess.
+
+## Round 646 — a limit is a boundary, and a boundary has two sides
+
+The constant pass over `web/api/models.py` left 59 alive. Most were the request-size caps,
+and moving a configured cap is not a defect: a good test refers to the cap by name, so it
+moves with it. What the sweep did expose is that seven of the ten caps were never named by any
+test at all, so nothing showed that they were enforced, or enforced at their value rather than
+one off.
+
+The test reads the published JSON schema rather than a hand list: every `maxLength`,
+`maxItems`, `minimum`, and `maximum` on the five request models, 49 bounds in all. Each is
+checked on both sides, at the bound with no size or range error, one past it refused at that
+exact field. A premise test requires the walk to find string, list, and list-item caps, so a
+schema shape change cannot make the file pass vacuously. Bounds whose value follows from the
+quantity are pinned to it: a threshold or an allele frequency is in [0, 1], a coordinate is
+non-negative, and a per-chemistry cap is at least 1. The rest stay configuration. The other
+surviving cluster was `frozen=True` on every model, a policy uniform across the module and now
+checked across it.
+
+**Lesson: test a limit by what it promises, not by what it is.** A configured number changes
+for good reasons; that it is enforced, at exactly its value, on the field it names, does not.
+Derive the cases from the published contract so a new limit cannot arrive untested.
+
+## Round 647 — the variance guard and the end bins
+
+`benchmark/metrics.py` left 23 of 197. Fifteen are equivalent: in a covariance, centring one
+side is enough because the other's deviations sum to zero; Spearman is Pearson on ranks and
+Pearson ignores any affine map of them; an average-precision loop's extra pass adds
+`precision * 0`. Eight were real. The zero-variance guard `sxx <= 0.0` could become `<= 0.1`,
+and efficiencies in [0, 0.3] routinely have a sum of squares below that, so real correlations
+would have been reported undefined. ECE's top and bottom bins could merge with their
+neighbours, which only shows when the two bins hold mixed outcomes. Interval coverage must
+include its endpoints, a missing distribution key must be zero mass, and `topk_accuracy`
+must default to top-1.
+
+**Lesson: a guard against a degenerate input sits right next to ordinary inputs.** A
+threshold written as "exactly zero" has no test unless some fixture lives just above it, and
+ordinary small-valued data is exactly what lives there.
