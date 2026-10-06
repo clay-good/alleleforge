@@ -230,3 +230,25 @@ def test_liftover_from_real_chain_file_roundtrip(forward_chain: Path, reverse_ch
     back = rev.lift_interval(lifted)
     assert back is not None
     assert (back.chrom, back.start, back.end) == ("chr1", 10, 20)
+
+
+def test_liftover_refuses_even_a_one_base_resize_by_default() -> None:
+    # The 5-nt resize above cannot tell a default of 0 from a default of 1. A single
+    # inserted base can: by default the lift must be exact, and only an explicit
+    # tolerance admits the slack.
+    lo = Liftover(
+        lambda c, p: [("chrA", p if p < 15 else p + 1, "+", 100)],
+        source_build="hg38",
+        target_build="t2t",
+    )
+    assert lo.lift_interval(_iv("chr1", 10, 20)) is None
+    assert lo.lift_interval(_iv("chr1", 10, 20), length_tolerance=1) is not None
+
+
+def test_a_build_with_nothing_flagged_is_not_a_recommendation() -> None:
+    from alleleforge.genome.coordinates import ReferenceRecommendation
+
+    rec = ReferenceRecommendation(
+        query=_iv("chr1", 10, 20), source_build="hg38", regions=(), recommended_build="t2t"
+    )
+    assert rec.recommended is False
