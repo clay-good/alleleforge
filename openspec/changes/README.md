@@ -21431,3 +21431,116 @@ flipped sign is hidden by the clamp it runs into.
 this baseline and every one of them asked about the *comparison*, so the thing being compared
 against was assumed rather than measured. A module with heavy incidental traffic and no direct
 assertions is the shape to look for; the kill rate finds it when reading does not.
+
+
+## Round 638 — the chart's thresholds were only ever tested past them
+
+The open backlog's first item was a confirmed cluster in `viz/svg.py`: 12 of 108 mutants alive,
+all in the crowding logic that exists because a 90-candidate prime menu printed its labels on top
+of one another. Rotation, per-bar value labels, label thinning, the caption that states what was
+withheld, and the y-axis range all had tests, and every one sat comfortably past its threshold.
+
+The new fixtures put a chart exactly on each edge by choosing the width: the group slot is
+`(width - 94) / n`, so a width can make it an exact float. A 10-character label in a 65px slot
+(65.0px wide) stays upright and 11 characters rotate. A 26.0px slot prints its values and 25.96px
+withholds them and says so. Rotated strides of exactly 2 and 3 are counted label by label. A
+reference line above the data and a negative bar below the floor each move the axis.
+
+One of my first-draft tests was itself blind. A lone bar's plot is under 26px wide, so the
+caption wraps one word per line, and `"bars are drawn" not in svg` passed with the caption
+present. A single word is the honest match there. A targeted sweep now kills 16 of 16 on those
+lines.
+
+**Lesson: a phrase match is only as good as the layout that keeps the phrase together.** A
+renderer that wraps text can split the very string an assertion looks for, and the assertion then
+passes whether the text is there or not; on a narrow fixture, match a word, not a sentence.
+
+## Round 639 — every board in the suite was a tie
+
+`benchmark/leaderboard.py` left 6 of 46 mutants alive, and the worst was flipping a
+higher-is-better ranking to worst-first. The cause was one fact about the fixtures: every board
+was built from the shipped baseline, which predicts a constant, so every row tied. Two tied rows
+cannot reveal which way a board sorts.
+
+The new tests submit distinct scores through the real signed-submission gate, worst-first so that
+insertion order cannot pass for a sort. They also pin the OOD share as a ratio (9 of 10 is 90%,
+not 90), a row without a split hash not contesting its neighbour, the "not comparable" banner
+absent over a single group in both Markdown and HTML, and the "no ranked submission" placeholder
+on both sides. The module now kills 46 of 46.
+
+**Lesson: a fixture made only of ties cannot test an ordering.** When the convenient fixture is a
+constant, every comparison it reaches is an equality, and the direction of every sort is
+unmeasured.
+
+## Round 640 — binary calibration error is symmetric under a flipped decision
+
+`benchmark/runner.py` left 16 of 44 alive against the benchmark tests. Most were ordinary: the
+generalization gap was asserted `> 0.5`, which `in + held` satisfies as well as `in - held`, and
+its "withhold the gap" path was only reached with both folds undefined, so `or` and `and` agreed.
+
+Two survivors outlived my first fixtures for a structural reason. In binary classification,
+flipping a decision maps confidence `c` to `1 - c` and right to wrong, and `|accuracy -
+confidence|` does not move, so the expected calibration error is blind to the decision itself.
+The `>= 0.5` threshold is only visible where two predictions share a bin with *mixed* outcomes
+(0.5 and 0.55, one right: 0.025 against 0.525 for either mutant). Likewise a distribution's mode
+is distinguishable from its least-likely class only with three or more classes, because with two
+the least-likely class is the mode's complement. The module now kills 44 of 44.
+
+Process note: a background tool timeout stopped the harness mid-mutant and left `runner.py`
+mutated on disk. It was caught by the protocol's `git diff --stat src/` check and restored. The
+harness now traps SIGTERM so its `finally` restores the source.
+
+**Lesson: before trusting a metric to catch a mistake, check whether the metric is symmetric
+under it.** Some errors are invisible to the number by construction, and the fixture has to
+break the symmetry deliberately.
+
+## Round 641 — five modules nobody had swept
+
+`cache.py` (23/23) and `config.py` (13/13) were already fully covered. Three were not.
+
+`scoring/pridict_engine.py` left 6 of 16. `design()` locates the PRIDICT2 checkout, builds its
+command, and reads its output, and it ran only in the opt-in real-weights test, so CI never
+executed it. A stand-in `pridict2_pegRNA_design.py` that copies the fixture CSV now runs the whole
+path, with `ALLELEFORGE_PRIDICT2_PYTHON` pointed at nothing so an explicit interpreter must win.
+The prediction interval's clamp at 0 and 1 is pinned.
+
+`scoring/backbone.py` left 4 of 14. Three are inside weight-only `pragma: no cover` bodies (the
+harness skips only the pragma line, not the body). The fourth was real: the stub embedder
+promises values in [-1, 1], and a mapping that squeezed them into [-1, -0.5] passed, which would
+have shrunk the space the OOD tests measure distances in.
+
+`report/pdf.py` left 17 of 86. Two are equivalent: `int(x / y)` and `x // y` agree for positive
+values. Fifteen were real. Text could start above the top margin or run past the bottom one, a
+report naming a variant could print "(unspecified)", and the xref row count was checked against
+itself. A page filled exactly could gain a blank page, and blank spacer lines could vanish. No
+wrap or pagination threshold had a test on its edge. The edge fixtures come from the Helvetica
+table: `"!" * 50 + "c" * 73` and `"c" * 73 + " " + "!" * 49` both measure exactly 504.0pt.
+
+**Lesson: a test that reads its expected count from the artifact under test checks nothing.**
+The xref test parsed the row count from the table it was validating, so any undercount passed;
+the expected number has to come from somewhere the code cannot change.
+
+## Round 642 — the data layer's edges
+
+A sweep of `data/`, confirmed against the full suite, found `_io` and `haplotypes` clean and two
+equivalents (a zero-length overlap adds nothing; a comment line is also rejected by the
+column-count guard). Six were real. Region queries are half-open and no fixture had a record at
+`end`, in ClinVar or dbSNP, nor at `start` in dbSNP. A ClinVar insertion written with REF `.` is
+kept with an empty REF, and a check that silently dropped every such record passed. A truncated
+GENCODE line could reach an `IndexError`. A descriptor not marked bundled could resolve a bundled
+path.
+
+**Lesson: a half-open interval has two edges, and a fixture inside it tests neither.** Put one
+record at a known position and query the three windows that touch it.
+
+## Round 643 — the API could state the opposite of the truth
+
+`web/api/` had never been swept. `models.py` was clean. `jobs.py` left both caps and the
+per-result limit free to become exclusive, so a server configured for N jobs would keep N - 1.
+`app.py` left 8 of 91, and every one would put a wrong fact in a response rather than crash:
+`changes_the_sequence` and `reference_checked` inverted, "Enabled here: none" printed beside
+enabled models, a 404 for every known model, an explicit cache or index ignored. Every module in
+the package has now been swept at least once.
+
+**Lesson: a response field nobody asserts is a field that can say the opposite.** The API's tests
+checked status codes and shapes; the facts inside were left to whoever read them.
