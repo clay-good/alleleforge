@@ -96,7 +96,7 @@ dev = [
     # formatting evolves across releases, so an unbounded range silently turns the
     # lint job red when CI installs a newer ruff than the tree was formatted with.
     # Bump this deliberately (and reformat in the same commit).
-    "ruff==0.16.9",
+    "ruff==0.16.10",
     "mypy>=1.10",
     # NumPy 2.5's stubs use Python 3.12 `type` statements. Mypy deliberately checks
     # AlleleForge's Python 3.11 contract, so it rejects those stubs before reaching our
