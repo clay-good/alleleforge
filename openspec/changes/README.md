@@ -21942,3 +21942,54 @@ adding a test, or rule 6 measures the wrong thing twice.
 error in the table.** When a check and its subject share a dependency, the shared part is
 unguarded no matter how strict the check looks — find a second source for it, or pin the
 invariants the shared part must satisfy.
+
+## Round 656 — every module has now been constant-swept
+
+`viz/svg.py` was the last entry on the constant-pass backlog, and with it every module in
+the project has been swept for constant mutants as well as operator ones.
+
+The chart writes its own thinning into the caption a reader counts bars against: "every
+21st of 90 bars is labelled". `_ordinal`'s teens window is `10 <= n % 100 <= 20`, and the
+upper bound could become 21 with the suite green — the caption would read "every 21th",
+because the only strides any fixture had ever produced were 2 and 10, and a two-digit
+stride is ordinary on a 90-candidate prime menu. The ordinal is now pinned across the
+teens, the twenties, and past a hundred. The lower bound of that window is **proven
+equivalent** rather than guessed at: `n % 100 == 10` falls through to the suffix table,
+where `n % 10 == 0` yields "th" anyway, checked over 100,000 values.
+
+`_nice_max` is documented as rounding up to "a clean 1/2/5 x 10^n step", and its existing
+cases were 0.4, 1.0, 9.9, 37.0 and two non-positives — not one of which lands in the band
+that selects the `2.0` step. That step could become 2.2, an axis maximum that is not a
+clean step at all. It is now tested as the property the docstring states (the smallest
+clean step that covers the data) rather than as more rows, so every step is covered at
+once. `Series` and `ReferenceLine` are frozen, and `Series.__post_init__` is what rejects a
+colour that would break out of the `fill=` attribute: that check runs once, at
+construction, so the frozen declaration is what makes it worth anything, and neither was
+tested.
+
+The negative cases were the gap behind the rest. Every crowding fixture in the suite was
+*already past* a threshold, so none could tell a stride floor of 1 from a floor of 2 — and
+with a floor of 2 every chart in the world would label half its bars and claim it. A roomy
+three-bar chart now asserts the absence of a thinning caption, two bars too narrow for
+values assert its presence (two is the smallest collection the `len > 1` guard admits),
+one bar asserts silence, and a 94px frame — where the padding alone exhausts the width and
+the slot is non-positive — asserts that the stride falls back to 1 rather than claiming to
+have thinned a chart with nothing in it.
+
+One fixture of mine was blind in the way this log has recorded before: a 120px chart wraps
+its caption to one or two words per `<text>`, so a phrase assertion against the raw markup
+cannot match. The caption is now read by joining the text runs and collapsing whitespace.
+
+**Twelve survivors remain, each measured and deliberate:** the layout magnitudes
+(`_MIN_BAR_W`, `_ROTATION_DEG`, the subtitle character floor, the inset cap, the two 1.0
+degenerate-span fallbacks, the subtitle padding clamp and the empty-category default) are
+unspecified presentation numbers with no published source, where the documented behaviour
+is pinned and a 10% shift is accepted; one is inside a `pragma: no cover` branch the
+preceding step always catches first; one is the proven-equivalent ordinal bound; and one is
+the `group_slot > 0` guard, whose mutant only changes behaviour for a slot in (0, 1] — a
+94-to-95px frame, where both captions are nonsense either way.
+
+**Lesson: a suite full of fixtures past a threshold cannot measure the threshold's floor.**
+Each crowding test was written to demonstrate thinning working, so all of them sat on the
+same side, and the rule that says *do not thin* had no case at all. For every cap, clamp or
+floor, write the case where it must not fire.
