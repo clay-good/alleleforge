@@ -9,6 +9,25 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The chart's ordinal caption, axis steps, and uncrowded behaviour are pinned; every
+  module is now constant-swept.** `viz/svg.py` was the last module on the constant-mutation
+  backlog. The chart writes its thinning into the caption a reader counts bars against
+  ("every 21st of 90 bars is labelled"), and `_ordinal`'s teens window could shift so the
+  caption read "every 21th" — the only strides any fixture produced were 2 and 10, though
+  a two-digit stride is ordinary on a 90-candidate menu. `_nice_max` promises "a clean
+  1/2/5 x 10^n step" and no existing case landed in the band selecting the `2.0` step, so
+  that step could become 2.2; it is now tested as the stated property rather than as more
+  rows. `Series` and `ReferenceLine` are pinned frozen — `Series.__post_init__` is what
+  rejects a colour that escapes the `fill=` attribute, and it runs only at construction, so
+  immutability is what makes the check hold. Most importantly the *negative* cases: every
+  crowding fixture in the suite was already past a threshold, so none could distinguish a
+  stride floor of 1 from 2, and with a floor of 2 every chart would label half its bars and
+  say so. A roomy chart now asserts no thinning caption, two narrow bars assert the note
+  appears (two being the smallest collection its guard admits), one bar asserts silence, and
+  a 94px frame — where padding alone exhausts the width — asserts the stride falls back to
+  1. Twelve survivors remain, each with a measured reason in the round log: presentation
+  magnitudes with no published source, one `pragma: no cover` branch, one proven equivalent
+  over 100,000 values, and one reachable only on a 94-to-95px frame.
 - **The order sheet's width table is complete, and its printed intervals are pinned.** The
   printable report measures text with a hand-typed copy of Adobe's Helvetica advances, and
   a guard checks that no rendered line exceeds the 504pt column — but the guard measures
