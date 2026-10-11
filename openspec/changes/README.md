@@ -21791,3 +21791,54 @@ uses. Second lesson, learned the hard way one round after writing it down: my fi
 `DEFAULT_MAX_DELETION` test built its fixture *from* `DEFAULT_MAX_DELETION`, so the mutant
 survived a green test — the exact self-reference round 651 is about. Rule 6 is not
 optional; re-run the sweep, because a passing test is not evidence it kills anything.
+
+## Round 653 — every fixture scored a middling guide
+
+Both efficiency heads squash their logit through a logistic the docstring says is
+"clamped to ``[0.01, 0.99]``". That clamp is the reason a score of exactly 1.0 — "this
+guide always works" — cannot leave the library, and a constant pass moved both rails
+(0.99 to 1.089, 0.01 to 0.011) with the suite green in both modules. Every fixture scored
+a middling guide, so the logistic never came near either rail and the clamp never decided
+the answer. The same shape, four more times: `context_in_distribution`'s 20-nt minimum
+(every fixture used a 30-nt Rule-Set-3 context, so a minimum of 21 would have called a
+genuine 20-nt context out of distribution — demoted by the ranker and captioned
+untrustworthy); the prime baseline's documented "PBS near 13 nt is best" optimum; the
+base-editor motif model's 5' neighbour, which first exists at position 2, the only
+position that distinguishes `>= 2` from `>= 3`; and the ensemble's disagreement band,
+whose spread runs off **both** ends of [0, 1] on real contexts — its clamp could be
+widened to 1.1 and publish an efficiency interval claiming more than certainty.
+
+The window outcome's `frozen=True` and its `partial=False` were unpinned, as was the
+`strict=True` on the zip inside each ensemble member's head — a real backbone of the
+wrong width would otherwise produce a silently truncated dot product, which is a wrong
+efficiency rather than an error.
+
+Two fixtures of my own were wrong before they were right, both for the same reason. The
+PBS-symmetry fixture sliced an `ACGT` repeat to length, which changes the PBS **GC
+fraction** along with the length, so it compared two different pegRNAs and failed on a
+symmetry the code does honor; an all-G/C PBS holds GC at 1.0 at every length and isolates
+the term under test. And the clamp fixture first used a logit of -1e3, which does not
+return the floor — it raises `OverflowError` from `math.exp`. That fragility is real but
+unreachable: the prime logit bottoms out at -2.3 against validated PBS and RTT ranges, and
+the ensemble's dot product is bounded by its sixteen unit-scale terms, against an overflow
+threshold near -710. It is recorded here rather than given error handling for an input no
+shipped path can produce.
+
+**The remaining survivors are triaged, measured, and deliberate:** the heuristic magnitudes
+in all three scorers (direction and order pinned instead — no published source to pin the
+values to); `calibrated=False` in four places, which is **provably inert** because
+`Prediction` coerces `calibrated=True` to `False` without a module-private capability token
+— the honesty gate is why the mutant cannot be observed; `_prediction`'s `from_trained`
+and `in_distribution` defaults, unreachable because all three call sites pass them
+explicitly; the `0.99` clamp in `_edit_probability` and the interval ceilings in
+`RuleSet3Scorer` and the prime baseline, proven unreachable by exhausting the inputs (the
+highest per-base edit probability anywhere is 0.78, and those two scorers top out at 0.757
+and 0.823 against a ceiling of 1.0); `range(len(editable) + 1)`, where an extra round of
+`itertools.combinations` yields nothing; the `pragma: no cover` trained-model bodies; and
+roughly a dozen `0.0 -> 1.1 * 0.0` mutants, which are not mutants at all — a harness
+defect worth knowing about when reading any kill rate in this log.
+
+**Lesson: a clamp is only tested by an input that reaches it, and a middling fixture
+reaches nothing.** The honest version of a kill rate names which survivors are unreachable
+and proves it by exhausting the inputs, rather than leaving a reader to assume the
+remainder is untested work.
