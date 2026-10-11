@@ -151,11 +151,29 @@ _HELVETICA_W: dict[str, int] = {
             strict=True,
         )
     ),
+    # Non-ASCII glyphs this library's prose really emits. Each is representable in
+    # CP1252, so it reaches the page as itself rather than as `?`, and an em dash
+    # measured at the `?` fallback is 4.44pt narrower than it renders at 10pt. The
+    # caveat sentence about the ranked menu wrapped to 504.1pt on a 504pt column
+    # because of exactly that, and the fits-the-paper guard could not see it: that
+    # guard measures with this table, so a glyph missing from it is invisible to the
+    # one test whose job is catching a line that runs off the page.
+    "\u2014": 1000,  # em dash
+    "\u2013": 556,  # en dash
+    "\u2026": 1000,  # horizontal ellipsis
+    "\u00b1": 584,  # plus-minus
+    "\u00b7": 278,  # middle dot
+    "\u00d7": 584,  # multiplication sign (Helvetica: as `equal` and `plusminus`)
+    "\u0160": 667,  # S with caron (Helvetica: as `S`), for a cited author's name
+    "\u00b0": 400,  # degree sign
 }
 
-#: Advance for a glyph the table does not name (an em dash, an accented letter). The
-#: mid-range default keeps an unusual character from silently widening a line.
-_DEFAULT_ADVANCE = 556
+#: Advance for a glyph the table does not name. Not a mid-range guess: `_escape`
+#: encodes the page to CP1252 with `errors="replace"`, so a character the declared
+#: WinAnsiEncoding cannot represent is *rendered* as `?` — and 556 is exactly what
+#: Helvetica advances for `?`. Measuring the fallback as anything else would describe
+#: a glyph the page does not contain. Tie it to the table so the two cannot drift.
+_DEFAULT_ADVANCE = _HELVETICA_W["?"]
 
 
 def _text_width(text: str) -> float:

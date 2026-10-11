@@ -9,42 +9,22 @@ acceptance.
 ## [Unreleased]
 
 ### Added
-- **The efficiency scorers' clamps, minimums, and optima are tested with inputs that
-  reach them.** Both efficiency heads squash their logit through a logistic their
-  docstring says is clamped to `[0.01, 0.99]` — the reason a score of exactly 1.0 cannot
-  leave the library — and a constant pass moved both rails with the suite green in both
-  modules, because every fixture scored a middling guide and the clamp never decided the
-  answer. Now pinned, in all three scorers: the certainty clamp at both rails and against
-  the sentence that states it; `context_in_distribution`'s 20-nt minimum at 20 and 19,
-  where a minimum of 21 would have called a genuine 20-nt context out of distribution and
-  had the ranker demote it; the prime baseline's documented "PBS near 13 nt is best"
-  optimum, including the symmetry of its penalty; the base-editor motif model's 5'
-  neighbour at position 2, the first position that has one; the ensemble's disagreement
-  band against both ends of [0, 1], where widening the clamp would publish an efficiency
-  interval claiming more than certainty; the window outcome's immutability and complete
-  distribution; and the width guard on each ensemble member's head, since a backbone of
-  the wrong width would otherwise yield a silently truncated dot product — a wrong
-  efficiency rather than an error. The surviving mutants are triaged in the round log with
-  a measured reason each: heuristic magnitudes with no published source (direction and
-  order pinned instead), `calibrated=False` where the `Prediction` capability gate makes
-  the flag provably inert, defaults no call site uses, and three clamps proven unreachable
-  by exhausting their inputs.
-- **The knock-out frame rule, the indel-allele labels, and the trained-model placeholders'
-  call path are pinned.** A constant pass over `scoring/cas9_outcome.py` left 35 of 42
-  mutants alive. The frame rule was the headline: `p_intended` over this distribution is
-  what ranks a knock-out candidate, and `del_len % 3 != 0` could have become `% 4 != 0`
-  with the suite green, because the one fixture asserted only that 1-bp insertions are
-  intended and that `p_intended > 0` — never that an in-frame deletion is *not*. A 3-bp
-  deletion preserves the reading frame and knocks nothing out. Also now pinned: the
-  unmodelled-byproduct floor is never an intended knock-out allele, the microhomology
-  counter (the `mh` in the user-visible `del8:mh3@4` label) against a hand-countable
-  `ACGTACGT` context rather than relative to itself, both ends of the legal cut range,
-  `DEFAULT_MAX_DELETION` at exactly 20 and 21 bp, Lindel's frameshift cut-off at exactly
-  0.5 and just below it, and the in-frame tail never being credited to a knock-out.
-  Sixteen survivors remain deliberately: twelve are heuristic magnitudes behind the
-  documented inDelphi shape, where the direction is pinned and a 10% order-preserving
-  shift is accepted; the rest are unexecutable without a model checkout, a harness no-op,
-  or proven unobservable.
+- **The order sheet's width table is complete, and its printed intervals are pinned.** The
+  printable report measures text with a hand-typed copy of Adobe's Helvetica advances, and
+  a guard checks that no rendered line exceeds the 504pt column — but the guard measures
+  with the same table, so a glyph missing from it was invisible to the one test meant to
+  catch a line running off the page. Five were missing. Seven glyphs now carry their
+  published advances, `_DEFAULT_ADVANCE` is defined as Helvetica's `?` (what an
+  unrepresentable character is actually drawn as) rather than a "mid-range" guess, and a
+  new test scans the shipped package for any non-ASCII character that survives CP1252 and
+  demands a measured width, so the next one fails at the commit that adds it. Separately,
+  three lines print a predictive interval and every `interval[0]` could become
+  `interval[1]` with the suite green — the upper bound quoted as the lower, the band's
+  width collapsed to zero on a printed report. All three are now read back from the
+  rendered page, including the bystander-burden line, which needs a base-editor menu
+  because a pegRNA never reaches it. The individual glyph widths are deliberately not
+  frozen; the invariants a typo breaks are (tabular digits, shared punctuation advance,
+  plausible AFM range).
 
 ### Changed
 
@@ -3041,6 +3021,51 @@ acceptance.
   model cards, benchmark splits, and web frontend — against silent removal.
 
 ### Fixed
+- **Em dashes ran the printable report off the page.** `_escape` encodes the page to CP1252,
+  so a character WinAnsiEncoding cannot represent is drawn as `?` and measuring it at 556
+  (Helvetica's `?`) is correct. An em dash is not such a character: it is CP1252 0x97, it
+  reaches the paper as an em dash with an advance of 1000, and this library's prose holds
+  1,401 of them — each measured 4.44pt narrower than it renders at 10pt. The caveat
+  sentence about the full spectrum being on the ranked menu wrapped to a line 504.1pt wide
+  on a 504pt column, which on paper is past the right margin. The ellipsis, plus-minus,
+  middle dot, multiplication sign, S-caron and degree sign were in the same position. The
+  widest wrapped line is now 502.4pt.
+- **The efficiency scorers' clamps, minimums, and optima are tested with inputs that
+  reach them.** Both efficiency heads squash their logit through a logistic their
+  docstring says is clamped to `[0.01, 0.99]` — the reason a score of exactly 1.0 cannot
+  leave the library — and a constant pass moved both rails with the suite green in both
+  modules, because every fixture scored a middling guide and the clamp never decided the
+  answer. Now pinned, in all three scorers: the certainty clamp at both rails and against
+  the sentence that states it; `context_in_distribution`'s 20-nt minimum at 20 and 19,
+  where a minimum of 21 would have called a genuine 20-nt context out of distribution and
+  had the ranker demote it; the prime baseline's documented "PBS near 13 nt is best"
+  optimum, including the symmetry of its penalty; the base-editor motif model's 5'
+  neighbour at position 2, the first position that has one; the ensemble's disagreement
+  band against both ends of [0, 1], where widening the clamp would publish an efficiency
+  interval claiming more than certainty; the window outcome's immutability and complete
+  distribution; and the width guard on each ensemble member's head, since a backbone of
+  the wrong width would otherwise yield a silently truncated dot product — a wrong
+  efficiency rather than an error. The surviving mutants are triaged in the round log with
+  a measured reason each: heuristic magnitudes with no published source (direction and
+  order pinned instead), `calibrated=False` where the `Prediction` capability gate makes
+  the flag provably inert, defaults no call site uses, and three clamps proven unreachable
+  by exhausting their inputs.
+- **The knock-out frame rule, the indel-allele labels, and the trained-model placeholders'
+  call path are pinned.** A constant pass over `scoring/cas9_outcome.py` left 35 of 42
+  mutants alive. The frame rule was the headline: `p_intended` over this distribution is
+  what ranks a knock-out candidate, and `del_len % 3 != 0` could have become `% 4 != 0`
+  with the suite green, because the one fixture asserted only that 1-bp insertions are
+  intended and that `p_intended > 0` — never that an in-frame deletion is *not*. A 3-bp
+  deletion preserves the reading frame and knocks nothing out. Also now pinned: the
+  unmodelled-byproduct floor is never an intended knock-out allele, the microhomology
+  counter (the `mh` in the user-visible `del8:mh3@4` label) against a hand-countable
+  `ACGTACGT` context rather than relative to itself, both ends of the legal cut range,
+  `DEFAULT_MAX_DELETION` at exactly 20 and 21 bp, Lindel's frameshift cut-off at exactly
+  0.5 and just below it, and the in-frame tail never being credited to a knock-out.
+  Sixteen survivors remain deliberately: twelve are heuristic magnitudes behind the
+  documented inDelphi shape, where the direction is pinned and a 10% order-preserving
+  shift is accepted; the rest are unexecutable without a model checkout, a harness no-op,
+  or proven unobservable.
 - **A license-gated placeholder's refusal is now reachable from the designer.**
   `InDelphiAdapter` and `XCrispAdapter` always raise, and the message names
   `LindelAdapter` as the wired trained model and cites the scope spec. Their `predict`
