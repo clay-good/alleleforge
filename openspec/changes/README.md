@@ -21842,3 +21842,46 @@ defect worth knowing about when reading any kill rate in this log.
 reaches nothing.** The honest version of a kill rate names which survivors are unreachable
 and proves it by exhausting the inputs, rather than leaving a reader to assume the
 remainder is untested work.
+
+## Round 654 — eighty-four findings that were not there
+
+`cli/main.py` is the largest module in the project and the surface a user actually
+touches, and it was the last big entry on the constant-pass backlog. Swept against its
+mirror test directory it left **84 of 150 mutants alive**. Read on their own they looked
+like a round's worth of real work, and some looked serious: the `MISSING_DATA` and
+`UNAVAILABLE` exit codes a pipeline branches on; the `--mismatches 4`, `--cfd 0.20`,
+`--mit 0.10` off-target budgets, which this project has already caught disagreeing across
+shells once; `trained_x or bool(cfg.get("trained_x", False))`, where flipping the fallback
+would enable a trained model for any config file that does not mention it; the batch
+summary's `is False` test, which decides whether the out-of-distribution caveat is printed
+beside the right rows; `strict=True` on the zip that pairs a user's `--weights` with the
+ranking objectives, where `False` silently drops the last one.
+
+**All 84 are killed by the broad list.** Twenty were confirmed first, chosen as the ones
+with real user impact: 20 of 20 dead. The remaining 64 followed: 64 of 64 dead. The module
+kills 150 of 150, and the right description of it is *covered*, not *clean after work*.
+
+The reason is structural and worth stating plainly: `tests/cli/` holds the CLI's own unit
+tests, but the facts that pin the CLI live elsewhere — `test_the_documented_exit_codes_are_the_real_ones.py`,
+`test_the_documented_defaults_are_the_shipped_ones.py`, `test_the_readme_describes_the_real_cli.py`,
+`test_every_shell_ranks_on_the_same_objectives.py`. A shell is tested by the documents and
+the sibling surfaces it must agree with, so the mirror directory is the *least*
+representative list this module could be measured against. Protocol rule 2 exists for this,
+and the historical note of "43 phantom gaps over three rounds" now has a much larger
+sibling: 84 in one.
+
+Round 654's real change is a document. `docs/api/report.md` tells a reader which hazards
+the ordering boundary will warn about and listed two of the four. The unassessed re-cut
+disposition was added in round 650 and never documented, and the unrequested base change a
+blocked donor carries permanently had never been on the page at all — the one hazard whose
+remedy is an action the user must take *before* ordering. The page now carries all four
+with what to do about each, and a guard matches every documented hazard to a warning the
+module emits and counts the branches back, so a hazard added to the code and not the page
+fails the suite.
+
+**Lesson: the less a module looks like a library, the worse its mirror directory
+measures it.** For a shell, a renderer, or anything whose correctness is agreement with a
+document, the test list has to be built from what it must agree with, not from where its
+own tests live. Measuring 84 survivors and reporting zero findings is the honest outcome of
+the round, and cheaper than the alternative: writing 84 tests for behavior that was already
+guarded.
