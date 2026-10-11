@@ -21668,3 +21668,47 @@ presence, and they let `> 0.0` become `< 0.0`.
 
 **Lesson: a threshold has a fixture on each side, or it has no test.** Proving that a message
 is absent at zero says nothing about whether it appears just above; write the pair.
+
+## Round 650 — the unknown is not the negative
+
+`hdr_donor` takes no guide when a caller wants the repair template alone, and in that case
+it cannot say whether the repaired allele is still a Cas9 substrate: there is no guide to
+re-cut it. Its note said exactly that — "re-cut disposition not assessed" — and
+`recut_blocked`, the field every machine consumer reads, was `False`. Falsy reads as
+*assessed and re-cuttable*, so composing the two public calls `hdr_donor(guide=None)` and
+`donor_oligo` printed on the ordering sheet: "the repaired product is still a substrate for
+this guide (no PAM-blocking mutation was available), so the correction can be re-cut after
+repair". Two claims about a guide that was never supplied and a search that was never run,
+at the boundary where the cost of being wrong is a synthesized reagent. The honest third
+state lived in the prose and every boolean consumer destroyed it.
+
+`recut_blocked` is now `bool | None`, `None` meaning not assessed, and the three renders
+that each wrote the two-armed ternary independently share one helper so a fourth cannot
+lose the state again. The flag `hdr-donor:recut-not-assessed` joins the classified caveats,
+and the ordering sheet now says the hazard is unexamined rather than absent. The spec's
+requirement was explicitly scoped to "and is given the guide it must survive", which is why
+nothing caught this: the unguided case was outside the only requirement that mentions the
+field. It now has a scenario of its own.
+
+The constant pass over `enumerate/cas9.py` left 17 of 30 alive, all 17 confirmed against the
+full 1,233-test list. Both advertised defaults were free to drift: a `DEFAULT_ACTIONABLE_RADIUS`
+of 11 would admit a cut the module documents as too distant for HDR, because every fixture
+either passed an explicit radius or sat far inside or far outside the window; `DEFAULT_HDR_ARM`
+and the sentence in this module naming 50 bp as the reach that can touch an assembly gap could
+disagree. `guide_context`'s default 6-bp flank — the window a scorer that declares none
+falls back to — was never exercised, because every caller in the suite passes explicit
+flanks and `design` passes the scorer's own. The blocked donor was asserted only at its
+blocked index, so the splice writing the base in and the trial sequence the search judges it
+against could each drop or shift a base: the recorded mutation stayed right while the shipped
+oligo changed length. And the whole contig-start cluster had no fixture — the fetched
+enumeration window, the carried-allele overlay's lower bound, and the two spans that reach
+behind a guide for its PAM all clamp at 0, and a protospacer beginning at base 0 is simply
+dropped if the window starts one base late. The module now kills 29 of 29.
+
+**Lesson: a two-state field asked to carry three states loses the third at every consumer,
+and the one that reads the prose instead is the one nobody wrote.** Where a value can be
+unknown, make the unknown representable in the type the machines read; a note is not a
+substitute. Second lesson, measured twice this round: I called three survivors "provably
+equivalent" by reading (a short PAM window cannot match, a wider fetch is sliced back, a
+clamp whose boundary no cut can reach) and the new tests killed all three. Run both
+branches, as the protocol says — reading is not proof.
