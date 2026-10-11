@@ -9,6 +9,22 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The off-target report's two-part guards are tested one arm at a time.** A new
+  conjunct-removal mutation — drop each operand of an `and`/`or` chain in turn — aims at
+  the gap this project kept recording: for N guards, a fixture where the other N-1 still
+  fire measures nothing. `offtarget/engine.py` came back 40 of 40 killed.
+  `types/offtarget.py` left 13 of 31, in one cluster: four places ask whether a site is in
+  the reference *or* lacks a frequency, and every population fixture had a frequency while
+  every reference fixture had none, so the arms always agreed. A reference site that
+  carries a frequency — constructible, and what a population database annotating a
+  reference hit produces — separates them: weighted by a 0.001 frequency instead of 1.0, a
+  score of 0.9 becomes a burden of 0.0009, understating a hit every patient has by a
+  thousandfold. Now pinned, with the two sharper cases the arms actually need (an ancestry
+  the site does not name, and a site with a frequency but no ancestry breakdown). Also:
+  a report with no spacer is no longer measured against the guide-length range (so it
+  cannot be told its absent query is the wrong length), the "NO SEQUENCE WAS SEARCHED"
+  guard has its sites-present arm exercised in both copies, and all three non-negative
+  count checks on a site have a fixture. `types/offtarget.py` now kills 31 of 31.
 - **The chart's ordinal caption, axis steps, and uncrowded behaviour are pinned; every
   module is now constant-swept.** `viz/svg.py` was the last module on the constant-mutation
   backlog. The chart writes its thinning into the caption a reader counts bars against
