@@ -21885,3 +21885,60 @@ document, the test list has to be built from what it must agree with, not from w
 own tests live. Measuring 84 survivors and reporting zero findings is the honest outcome of
 the round, and cheaper than the alternative: writing 84 tests for behavior that was already
 guarded.
+
+## Round 655 — the guard measured with the table that was wrong
+
+The printable order sheet measures text with a hand-typed copy of Adobe's Helvetica
+advance widths, because Helvetica is proportional and an earlier round found a 180-nt HDR
+donor running 110pt off the page. `test_the_printable_sheet_fits_the_paper` checks that no
+rendered line exceeds the 504pt column. Both of those are good. Together they had a hole:
+**the guard measures with the same table the renderer does**, so a glyph *missing* from
+the table is invisible to the one test whose job is catching a line that runs off the page.
+
+Five glyphs were missing. `_escape` encodes the page to CP1252 with `errors="replace"`, so
+a character WinAnsiEncoding cannot represent is drawn as `?` — and the fallback advance of
+556 is exactly Helvetica's `?`, which makes it correct for those. But the em dash is
+CP1252 0x97 and reaches the paper *as an em dash*, advance 1000, and this library's prose
+contains 1,401 of them. Each was measured 4.44pt narrow at 10pt. A real caveat sentence —
+the one about the full spectrum being on the ranked menu — wrapped to a line 504.1pt wide
+on a 504pt column: off the page, with a green suite. The ellipsis (1000) was in the same
+position, and the plus-minus, middle dot, multiplication sign, S-caron and degree sign
+were measured as question marks too.
+
+All seven now have their published advances, `_DEFAULT_ADVANCE` is defined as
+`_HELVETICA_W["?"]` with the encoding argument that makes it right rather than as a
+"mid-range" guess, and a test scans the shipped package for any non-ASCII character that
+survives CP1252 and demands a measured width for it — so the next such glyph fails at the
+commit that introduces it. The widest wrapped line is now 502.4pt of 504.
+
+The other finding is the one this project has already caught once in the ranking
+rationale: three lines on the order sheet print a predictive interval as
+`[{p.interval[0]}, {p.interval[1]}]`, and every one of those `interval[0]`s could become
+`interval[1]` with the suite green. The page would print `[0.57, 0.57]` for a band that is
+really `[0.42, 0.57]` — the upper bound quoted as the lower, the width collapsed to zero, a
+report that looks more certain than the model. No test had ever read a rendered interval.
+
+**The 90-odd individual glyph widths are deliberately not frozen.** They are a hand
+transcription of a published table, and a one-unit error moves a line by 0.01pt, below the
+resolution at which anything observable changes, with column fit guarded both ways. What is
+pinned instead are the invariants a *typo* breaks: the ten digits share one advance
+(Helvetica's figures are tabular by design, so a typo in any digit shows up as a column of
+numbers that does not line up), space and the sentence punctuation share theirs, and every
+advance is an integer in the range an Adobe AFM uses. Vendoring the AFM and deriving the
+table from it would remove the transcription entirely; it needs a fetched asset and is
+recorded here as the complete fix rather than done quietly.
+
+**Three process notes, each of which cost a wrong answer.** My first plausibility bound
+was 1000, which fails against `@` at 1015 — a correct entry. My coverage test *passed*
+while the SVG sweep was live, because the harness rewrites a module through `ast.unparse`,
+which drops comments, so the degree sign it should have caught was not in the file it
+scanned: reading a mutated module makes a test pass for the wrong reason, which is rule 5
+from the other direction. And the verification sweep reported the three interval mutants
+alive after I had written tests that pass, because the sweep ran a **static list of test
+files built before those tests existed**. A test list is a snapshot; rebuild it after
+adding a test, or rule 6 measures the wrong thing twice.
+
+**Lesson: a guard that measures with the same table as the code it guards cannot see an
+error in the table.** When a check and its subject share a dependency, the shared part is
+unguarded no matter how strict the check looks — find a second source for it, or pin the
+invariants the shared part must satisfy.

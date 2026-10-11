@@ -23,9 +23,7 @@ _PAGE = Path(__file__).resolve().parents[2] / "docs" / "api" / "report.md"
 #: One distinctive phrase per documented hazard, and the source phrase it describes.
 _HAZARDS = {
     "Longer than a vendor synthesizes as one oligo": "beyond the ~",
-    "The repaired product is still cuttable by its own guide": (
-        "still a substrate for this guide"
-    ),
+    "The repaired product is still cuttable by its own guide": ("still a substrate for this guide"),
     "The re-cut disposition was never **assessed**": "was not assessed",
     "The donor carries a second, unrequested base change": "second, unrequested change",
 }
