@@ -21747,3 +21747,47 @@ to fail and confirm it comes from somewhere else: the literature, a sibling surf
 sentence a reader will see. Second lesson, the protocol's rule 2 earning its place twice in
 one session: confirm every survivor against a broad list before believing it, and the
 narrow list's survivors are indistinguishable from findings until you do.
+
+## Round 652 — the refusal the product could not reach
+
+`InDelphiAdapter` and `XCrispAdapter` are license-gated placeholders that always raise,
+and the message they raise is a good one: it says the upstream is dependency-rotted and
+redundant, names `LindelAdapter` as the wired trained model, and cites the scope spec.
+Their `predict` took `(context, cut)`. The designer calls every outcome predictor as
+`predict(context, cut, mark_frameshift=...)`, so a user who plugged one in — which the
+documented `cas9_outcome_predictor=` override invites — got
+`TypeError: _ModelZooAdapter.predict() got an unexpected keyword argument
+'mark_frameshift'` from inside the library, and never reached the sentence written for
+exactly that moment. The placeholders now take the full predictor signature, and one test
+calls through the designer's own convention. `InDelphiAdapter`'s docstring also called it
+"(default outcome model)" while its own base class calls it an unsupported placeholder and
+the scope spec calls it out of scope; it now says which class really is the default.
+
+The constant pass over `scoring/cas9_outcome.py` left 35 of 42 alive, and the shipped MMEJ
+baseline's frame rule was the headline: `del_len % 3 != 0` could become `% 4 != 0` with the
+suite green. `p_intended` over this distribution is what ranks a knock-out candidate, and
+the one fixture asserted only that 1-bp insertions are intended and that `p_intended > 0`
+— never that an **in-frame** deletion is not. A 3-bp deletion preserves the reading frame
+and knocks nothing out. The unmodelled-byproduct floor could also be marked intended, the
+microhomology counter could start at 1 or advance by 2 (every deletion shifting together,
+which an ordering assertion cannot see), the cut boundary was only ever tested 90 bases
+past it, Lindel's frameshift cut-off was only ever given 1.0 and 0.0, and the in-frame tail
+could be credited to a knock-out. `ACGTACGT` cut at 4 has a hand-countable allele set, so
+the labels now pin the counter absolutely rather than relative to itself.
+
+**16 survivors are left on purpose and recorded here so they are not re-chased:** twelve
+are the heuristic magnitudes behind the documented shape (the exponential's 8.0, the 0.5
+per homology base, the A/T-over-G/C insertion bias, the 5% byproduct floor) — an
+unspecified heuristic with no published source, where a 10% order-preserving shift is an
+accepted survivor and the documented direction is pinned instead; two sit inside
+`_require_lindel`'s `pragma: no cover - needs the checkout`; one (`0.0` scaled by 1.1) is
+a harness no-op rather than a mutant; and one is proven unobservable by exhausting its only
+consumer — an insertion's `del_len` field, which `_is_frameshift` never reads because it
+returns early for every `ins1` label, checked over every value 0-24 rather than argued.
+
+**Lesson: a good error message is a feature, and a feature has a call path.** The sentence
+naming the supported model was unreachable from the only convention the library itself
+uses. Second lesson, learned the hard way one round after writing it down: my first
+`DEFAULT_MAX_DELETION` test built its fixture *from* `DEFAULT_MAX_DELETION`, so the mutant
+survived a green test — the exact self-reference round 651 is about. Rule 6 is not
+optional; re-run the sweep, because a passing test is not evidence it kills anything.
