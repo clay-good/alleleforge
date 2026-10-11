@@ -9,6 +9,20 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The guide-length range is pinned to the literature instead of to itself, and every
+  reagent type's immutability is pinned.** A constant pass over `types/guide.py` left both
+  ends of `GUIDE_SPACER_RANGE` alive against the whole suite: every fixture on that
+  boundary was computed from the constant under test (`GUIDE_SPACER_RANGE[0] - 1`,
+  `parametrize("length", GUIDE_SPACER_RANGE)`), so the range could move to (18, 25) with
+  nothing failing — and a real 17-nt truncated SpCas9 guide would then be reported as "not
+  a guide length". The two values are now written out once against the sources the
+  constant's comment cites (Fu et al. 2014; Cas12a), and the sentence a reader sees is
+  checked to quote the shipped range. Separately, all ten reagent models in that module
+  declare `frozen=True` and none of them was tested: a designed reagent is read by scoring,
+  ranking, rendering, and oligo assembly in turn, and frozen is what stops a later stage
+  retuning it for the earlier ones. The new guard discovers the module's public models
+  rather than keeping a list. `types/guide.py` now kills 33 of 33, and the constant pass
+  found `enumerate/prime.py` (32/32) and `enumerate/base_editor.py` (20/20) already clean.
 - **The Cas9 enumerator's advertised defaults and its donor's own bases are pinned.** A
   constant-mutation pass over `enumerate/cas9.py` left 17 of 30 mutants alive against the
   full 1,233-test list. `DEFAULT_ACTIONABLE_RADIUS` could become 11 bp, admitting a cut the

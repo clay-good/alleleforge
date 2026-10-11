@@ -21712,3 +21712,38 @@ substitute. Second lesson, measured twice this round: I called three survivors "
 equivalent" by reading (a short PAM window cannot match, a wider fetch is sliced back, a
 clamp whose boundary no cut can reach) and the new tests killed all three. Run both
 branches, as the protocol says — reading is not proof.
+
+## Round 651 — both sides of the assertion came from the constant under test
+
+`GUIDE_SPACER_RANGE = (17, 24)` decides whether an off-target report is a reagent's safety
+profile or arithmetic about a 4-mer, and the report says which. Both ends survived a
+constant pass against the **whole** suite. The reason is in the tests: every fixture on
+that boundary was derived from the constant — `GUIDE_SPACER_RANGE[0] - 1`,
+`GUIDE_SPACER_RANGE[1] + 1`, `parametrize("length", GUIDE_SPACER_RANGE)` — so the range
+could move to (18, 25) and every fixture moved with it. A real 17-nt truncated SpCas9
+guide would then be labelled "not a guide length" with nothing failing. The constant's own
+comment cites two sources (Fu et al. 2014 for the truncated low end, Cas12a for the high
+end); the numbers are now written out once, independently, bound to that comment, and the
+rendered sentence is checked to quote the shipped range rather than whatever it holds.
+
+All ten reagent models in `types/guide.py` declare `frozen=True`, and flipping any of them
+to `False` kept the suite green: immutability is the property every stage relies on and no
+test states. A designed reagent passes through scoring, ranking, rendering and oligo
+assembly, all reading one object, and frozen is what stops a later stage retuning a spacer
+or a donor's disposition for the stages after it. The web API's models already had this
+guard; the reagents did not. The new test discovers the module's public models rather than
+keeping a list, so a type added later is covered the day it is added. `types/guide.py` now
+kills 33 of 33.
+
+Two measured negatives, recorded so they are not re-chased: `enumerate/prime.py` is clean
+under the constant pass (32/32), and `enumerate/base_editor.py` is clean (20/20).
+`prime.py` is the cautionary one — against the mirror test directory it left **16 of 32
+alive**, including the PE3 nick rule and both ends of `DEFAULT_PE3_OFFSET`, and every one
+of the 16 died against the broad list. Sixteen findings that were not there.
+
+**Lesson: when a test derives its fixture from the constant it is testing, it pins nothing
+— it only proves the code agrees with itself.** Name the number your assertion must change
+to fail and confirm it comes from somewhere else: the literature, a sibling surface, or a
+sentence a reader will see. Second lesson, the protocol's rule 2 earning its place twice in
+one session: confirm every survivor against a broad list before believing it, and the
+narrow list's survivors are indistinguishable from findings until you do.
