@@ -9,6 +9,26 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The efficiency scorers' clamps, minimums, and optima are tested with inputs that
+  reach them.** Both efficiency heads squash their logit through a logistic their
+  docstring says is clamped to `[0.01, 0.99]` — the reason a score of exactly 1.0 cannot
+  leave the library — and a constant pass moved both rails with the suite green in both
+  modules, because every fixture scored a middling guide and the clamp never decided the
+  answer. Now pinned, in all three scorers: the certainty clamp at both rails and against
+  the sentence that states it; `context_in_distribution`'s 20-nt minimum at 20 and 19,
+  where a minimum of 21 would have called a genuine 20-nt context out of distribution and
+  had the ranker demote it; the prime baseline's documented "PBS near 13 nt is best"
+  optimum, including the symmetry of its penalty; the base-editor motif model's 5'
+  neighbour at position 2, the first position that has one; the ensemble's disagreement
+  band against both ends of [0, 1], where widening the clamp would publish an efficiency
+  interval claiming more than certainty; the window outcome's immutability and complete
+  distribution; and the width guard on each ensemble member's head, since a backbone of
+  the wrong width would otherwise yield a silently truncated dot product — a wrong
+  efficiency rather than an error. The surviving mutants are triaged in the round log with
+  a measured reason each: heuristic magnitudes with no published source (direction and
+  order pinned instead), `calibrated=False` where the `Prediction` capability gate makes
+  the flag provably inert, defaults no call site uses, and three clamps proven unreachable
+  by exhausting their inputs.
 - **The knock-out frame rule, the indel-allele labels, and the trained-model placeholders'
   call path are pinned.** A constant pass over `scoring/cas9_outcome.py` left 35 of 42
   mutants alive. The frame rule was the headline: `p_intended` over this distribution is
