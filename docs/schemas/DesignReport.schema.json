@@ -389,7 +389,7 @@
       "type": "object"
     },
     "DonorOligo": {
-      "description": "A single-stranded HDR repair template to order as-is.\n\nUnlike an sgRNA insert this is not cloned \u2014 there is no vector, no Type IIS\noverhang and no annealed duplex \u2014 so it carries the sequence to synthesize and\nthe disposition of the repaired product, nothing else.\n\nAttributes:\n    kind: Always ``\"hdr-donor-ssodn\"``.\n    sequence: The donor to order, 5'->3'.\n    recut_blocked: Whether the repaired product resists re-cutting by the guide\n        this donor accompanies.\n    note: The donor's own explanation of that disposition.\n    warnings: Prominent ordering hazards (e.g. longer than one oligo).",
+      "description": "A single-stranded HDR repair template to order as-is.\n\nUnlike an sgRNA insert this is not cloned \u2014 there is no vector, no Type IIS\noverhang and no annealed duplex \u2014 so it carries the sequence to synthesize and\nthe disposition of the repaired product, nothing else.\n\nAttributes:\n    kind: Always ``\"hdr-donor-ssodn\"``.\n    sequence: The donor to order, 5'->3'.\n    recut_blocked: Whether the repaired product resists re-cutting by the guide\n        this donor accompanies, or ``None`` when no guide accompanied it and the\n        question was therefore never asked.\n    note: The donor's own explanation of that disposition.\n    warnings: Prominent ordering hazards (e.g. longer than one oligo).",
       "properties": {
         "kind": {
           "default": "hdr-donor-ssodn",
@@ -409,8 +409,15 @@
           "title": "Note"
         },
         "recut_blocked": {
-          "title": "Recut Blocked",
-          "type": "boolean"
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Recut Blocked"
         },
         "sequence": {
           "title": "Sequence",

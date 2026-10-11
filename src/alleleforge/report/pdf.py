@@ -27,6 +27,7 @@ from alleleforge.report.builder import (
     visible_candidates,
 )
 from alleleforge.report.oligos import PegRNAOligos, SgRnaOligos
+from alleleforge.types.guide import recut_disposition
 
 #: US Letter media box (points).
 _PAGE_W, _PAGE_H = 612, 792
@@ -295,7 +296,7 @@ def oligo_lines(oligos: SgRnaOligos | PegRNAOligos) -> list[str]:
         # order sheet listed only the duplex, without the donor sequence or even the
         # word "donor". The candidate line above says "+ HDR donor 100 nt", so a reader
         # knew one existed and had no way to order it from this page.
-        recut = "re-cut blocked" if donor.recut_blocked else "re-cut NOT blocked"
+        recut = recut_disposition(donor.recut_blocked)
         lines += _wrap(f"HDR donor ({donor.kind}, {len(donor)} nt, {recut}):", indent="    ")
         lines += _wrap(f"5'-{donor.sequence}-3'", indent="      ")
         if donor.note:

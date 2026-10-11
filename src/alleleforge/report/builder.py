@@ -23,6 +23,7 @@ from alleleforge.report.oligos import (
 )
 from alleleforge.types.candidate import DesignCandidate, RankedMenu
 from alleleforge.types.edit import AlleleOutcome, Chemistry
+from alleleforge.types.guide import recut_disposition
 from alleleforge.types.prediction import NOMINAL_INTERVAL_NOTE, Prediction
 from alleleforge.types.provenance import DatasetVersion, Provenance
 from alleleforge.types.sequence import GenomicInterval
@@ -138,6 +139,10 @@ CAVEAT_FLAGS: dict[str, str] = {
     "hdr-donor:recut-not-blocked": (
         "the repaired allele is still a substrate for this guide, so the correction can "
         "be cut again after repair"
+    ),
+    "hdr-donor:recut-not-assessed": (
+        "this donor was built without a guide, so nothing checked whether the repaired "
+        "allele can be cut again — an unexamined hazard, not an absent one"
     ),
     "outcome-is-nhej-spectrum": (
         # Not "the outcome distribution below": both human renders draw the allele table
@@ -268,7 +273,7 @@ def _reagent_summary(candidate: DesignCandidate) -> str:
         # as a correction the break alone cannot make.
         donor = candidate.hdr_donor
         if donor is not None:
-            recut = "re-cut blocked" if donor.recut_blocked else "re-cut NOT blocked"
+            recut = recut_disposition(donor.recut_blocked)
             line += f" + HDR donor {len(donor.sequence)} nt ({recut})"
         return line
     if candidate.base_edit_window is not None:

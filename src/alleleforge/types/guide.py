@@ -325,7 +325,11 @@ class HDRDonor(BaseModel):
             ``None`` when the repair already escapes the guide or none was found.
         recut_blocked: ``True`` when the repaired product is not a substrate for
             the guide (either the edit itself escapes it, or a blocking mutation
-            was applied). ``False`` when the donor remains re-cuttable.
+            was applied). ``False`` when the donor remains re-cuttable. ``None``
+            when the question was never asked — a donor built without a guide has
+            no guide to be re-cut by, so its disposition is unknown rather than
+            negative, and a consumer must say so instead of reporting the outcome
+            of a search that never ran.
         note: Human-readable disposition (e.g. why no blocking mutation exists).
     """
 
@@ -333,5 +337,17 @@ class HDRDonor(BaseModel):
 
     sequence: DNASequence
     blocking_mutation: BlockingMutation | None = None
-    recut_blocked: bool = False
+    recut_blocked: bool | None = False
     note: str | None = None
+
+
+def recut_disposition(recut_blocked: bool | None) -> str:
+    """Return the reader-facing phrase for a donor's re-cut disposition.
+
+    Three renders wrote this ternary independently and every one of them had only two
+    arms, so a donor whose disposition was never assessed printed as a definite "NOT
+    blocked". One helper is what stops a fourth consumer losing the third state again.
+    """
+    if recut_blocked is None:
+        return "re-cut NOT assessed"
+    return "re-cut blocked" if recut_blocked else "re-cut NOT blocked"

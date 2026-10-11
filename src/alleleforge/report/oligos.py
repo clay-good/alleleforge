@@ -233,7 +233,8 @@ class DonorOligo(BaseModel):
         kind: Always ``"hdr-donor-ssodn"``.
         sequence: The donor to order, 5'->3'.
         recut_blocked: Whether the repaired product resists re-cutting by the guide
-            this donor accompanies.
+            this donor accompanies, or ``None`` when no guide accompanied it and the
+            question was therefore never asked.
         note: The donor's own explanation of that disposition.
         warnings: Prominent ordering hazards (e.g. longer than one oligo).
     """
@@ -242,7 +243,7 @@ class DonorOligo(BaseModel):
 
     kind: str = "hdr-donor-ssodn"
     sequence: str
-    recut_blocked: bool
+    recut_blocked: bool | None
     note: str | None = None
     warnings: tuple[str, ...] = ()
 
@@ -557,7 +558,17 @@ def donor_oligo(donor: HDRDonor) -> DonorOligo:
             f"HDR donor is {len(sequence)} nt, beyond the ~{MAX_SSODN_NT} nt most vendors "
             "synthesize as a single oligo: order it as a dsDNA fragment or plasmid instead"
         )
-    if not donor.recut_blocked:
+    if donor.recut_blocked is None:
+        # The unknown is not the negative. This donor was built without a guide, so no
+        # PAM-block search ran and there is no guide to re-cut the repair; the warning
+        # below reported the outcome of that search anyway. At the ordering boundary an
+        # unexamined hazard has to read as unexamined.
+        warnings.append(
+            "this donor was built without a guide, so whether the repaired product can "
+            "be re-cut was not assessed: re-check it against the guide you order "
+            "alongside, which may still match the corrected allele"
+        )
+    elif not donor.recut_blocked:
         warnings.append(
             "the repaired product is still a substrate for this guide (no PAM-blocking "
             "mutation was available), so the correction can be re-cut after repair"

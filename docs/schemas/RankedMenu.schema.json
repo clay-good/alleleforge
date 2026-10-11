@@ -468,7 +468,7 @@
       "type": "object"
     },
     "HDRDonor": {
-      "description": "An HDR donor template with an explicit re-cut disposition.\n\nAttributes:\n    sequence: The donor sequence (5'->3' plus strand), including any blocking\n        mutation applied.\n    blocking_mutation: The PAM/seed-disrupting change the donor carries, or\n        ``None`` when the repair already escapes the guide or none was found.\n    recut_blocked: ``True`` when the repaired product is not a substrate for\n        the guide (either the edit itself escapes it, or a blocking mutation\n        was applied). ``False`` when the donor remains re-cuttable.\n    note: Human-readable disposition (e.g. why no blocking mutation exists).",
+      "description": "An HDR donor template with an explicit re-cut disposition.\n\nAttributes:\n    sequence: The donor sequence (5'->3' plus strand), including any blocking\n        mutation applied.\n    blocking_mutation: The PAM/seed-disrupting change the donor carries, or\n        ``None`` when the repair already escapes the guide or none was found.\n    recut_blocked: ``True`` when the repaired product is not a substrate for\n        the guide (either the edit itself escapes it, or a blocking mutation\n        was applied). ``False`` when the donor remains re-cuttable. ``None``\n        when the question was never asked \u2014 a donor built without a guide has\n        no guide to be re-cut by, so its disposition is unknown rather than\n        negative, and a consumer must say so instead of reporting the outcome\n        of a search that never ran.\n    note: Human-readable disposition (e.g. why no blocking mutation exists).",
       "properties": {
         "blocking_mutation": {
           "anyOf": [
@@ -494,9 +494,16 @@
           "title": "Note"
         },
         "recut_blocked": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": false,
-          "title": "Recut Blocked",
-          "type": "boolean"
+          "title": "Recut Blocked"
         },
         "sequence": {
           "$ref": "#/$defs/DNASequence"

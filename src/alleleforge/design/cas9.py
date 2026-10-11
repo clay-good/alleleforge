@@ -37,7 +37,7 @@ from alleleforge.scoring.cas9_efficiency import EnsembleEfficiencyScorer
 from alleleforge.scoring.cas9_outcome import MicrohomologyOutcomePredictor
 from alleleforge.types.candidate import DesignCandidate
 from alleleforge.types.edit import Chemistry, EditIntent, EditOutcome
-from alleleforge.types.guide import PAM, Guide, HDRDonor
+from alleleforge.types.guide import PAM, Guide, HDRDonor, recut_disposition
 from alleleforge.types.offtarget import OffTargetReport
 from alleleforge.types.prediction import Prediction
 from alleleforge.types.provenance import ModelCheckpoint
@@ -128,6 +128,8 @@ def _flags(
         # guide read as a correction it cannot make on its own.
         if donor is None:
             flags.append("hdr-donor:none")
+        elif donor.recut_blocked is None:
+            flags.append("hdr-donor:recut-not-assessed")
         elif donor.recut_blocked:
             flags.append("hdr-donor:recut-blocked")
         else:
@@ -163,7 +165,7 @@ def _rationale(
         return note
     if donor is None:
         return f"{note}; no HDR donor available (a break alone cannot make this edit)"
-    recut = "re-cut blocked" if donor.recut_blocked else "re-cut NOT blocked"
+    recut = recut_disposition(donor.recut_blocked)
     return f"{note}; HDR donor {len(donor.sequence)} nt ({recut})"
 
 

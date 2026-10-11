@@ -9,6 +9,24 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The Cas9 enumerator's advertised defaults and its donor's own bases are pinned.** A
+  constant-mutation pass over `enumerate/cas9.py` left 17 of 30 mutants alive against the
+  full 1,233-test list. `DEFAULT_ACTIONABLE_RADIUS` could become 11 bp, admitting a cut the
+  module documents as too far for HDR, because every fixture passed an explicit radius or
+  sat far inside or outside the window; it is now tested on both sides of its edge, with a
+  cut exactly 10 bp from the edit actionable and one at 11 bp refused. `DEFAULT_HDR_ARM` is
+  bound to the sentence in the same module that names 50 bp as the reach which can touch an
+  assembly gap. `guide_context`'s default 6-bp symmetric flank — the window a scorer that
+  declares none falls back to — had no test, since every caller in the suite passes explicit
+  flanks. The blocked donor was asserted only at its blocked index, so the splice that writes
+  the base in and the trial the search judges it against could drop or shift a base, changing
+  the shipped oligo's length while the recorded mutation stayed right; the donor is now pinned
+  as the unblocked one with exactly one base changed, and its PAM is checked to genuinely fail
+  to match. Finally, no Cas9 fixture had ever put an edit on a contig's first base, so the
+  clamps that exist for the start of a reference — the fetched enumeration window, the
+  carried-allele overlay's lower bound, and the two spans that reach behind a guide for its
+  PAM — were all unreached; a protospacer beginning at base 0 is dropped if the window starts
+  one base late. The module now kills 29 of 29.
 - **The off-target report's validation, defaults, and own description are pinned on their edges.** The constant pass over `types/offtarget.py` left 37 alive. Nine are configuration or immutability flags; the rest were real. The [0, 1] validators on score, MIT score, and frequency are now tested at 0, at 1, and just past 1. The report's default budgets (4 mismatches, 1/1 bulges, CFD 0.20, MIT 0.10) are now bound to the engine's `search()` defaults and the API's request defaults, so the three surfaces cannot drift apart. The coverage sentence could say "NO SEQUENCE WAS SEARCHED" over a clean search that found nothing, divide by zero for an empty one, skip a 1-base search, call a spacer at either end of the 17-24 nt guide range "a sequence search", or omit a small sub-threshold tail. Population-weighted burden is pinned for a population site without a frequency (unweighted, full score), for an ancestry a site does not name (zero contribution), and for a worst-per-ancestry score below 0.1. The headline notes now flag a cut-off above 1 as unreachable and never flag exactly 1.
 - **The resolver holds at a contig's first base, and its off-by-one message states the right coordinate.** The constant pass over `variant/resolver.py` found every indel fixture sitting mid-contig. Left-alignment must roll an indel in a leading repeat to position 0 and leave it unanchored (no base precedes it), and must anchor a deletion at position 1 on base 0. The reference check must answer no for a position before the contig, so a variant at a contig's first base is never offered a remedy pointing before it. An empty-REF insertion must still get a 1-base core in its analysis window. The off-by-one refusal's "the asserted ref is at chr:N in 1-based terms" coordinate is now pinned; only its `try` suggestion was checked before. `NC_000001` is pinned to resolve to `chr1`, which a `range(2, 23)` would have dropped. In `design/cohort.py`, a run now has a test for creating nested manifest and output directories and for re-running into an existing output folder, the ordinary re-run case.
 - **A liftover is exact by default, down to a single base.** The constant-mutation pass over `genome/coordinates.py` found that the default `length_tolerance=0` on `lift_interval` was untested. The existing test resized a span by 5 bp, which a default of 0 and a default of 1 both reject, so a lift silently admitting a 1-bp chain indel would have passed. A 1-bp resize is now refused by default and admitted only with an explicit tolerance. A build recommendation with no flagged region is also pinned as not a recommendation. The same pass found `offtarget/_search.py` (204/204) and `genome/index.py` (160/160) fully covered. The curated hg38 difficult-region coordinates survive 1-bp shifts by design, since they are cytoband-scale approximations.
@@ -5528,11 +5546,24 @@ acceptance.
   model cards, benchmark splits, and web frontend — against silent removal.
 
 ### Fixed
-- **API-token failures now retain the required browser security headers.** The token
+- **A donor with no guide no longer reports a re-cut search that never ran.** `hdr_donor`
+  accepts no guide — a caller wanting the repair template alone need not have chosen one —
+  and then cannot know whether the repaired allele is still a Cas9 substrate. Its note said
+  so ("re-cut disposition not assessed") but `recut_blocked` was `False`, and falsy reads as
+  *assessed and re-cuttable*: the ordering sheet told the user, as fact, that "the repaired
+  product is still a substrate for this guide (no PAM-blocking mutation was available)" —
+  two claims about a guide that was never supplied and a search that was never run.
+  `recut_blocked` is now `bool | None`, where `None` is the unknown, and the three renders
+  that independently wrote the same two-armed ternary share one helper so a fourth consumer
+  cannot lose the third state again. An unassessed donor carries the new
+  `hdr-donor:recut-not-assessed` caveat and an ordering warning that names the hazard as
+  unexamined rather than absent. Published schemas that embed `HDRDonor` or `DonorOligo` now
+  show `recut_blocked` as a nullable boolean.
   middleware returned its `401` directly outside the content-security middleware, so an
   unauthenticated response omitted CSP, `nosniff`, the referrer policy, and frame controls
   despite the every-response contract. Security-header middleware now wraps the
   authentication gate, and a regression checks both successful and rejected responses.
+- **API-token failures now retain the required browser security headers.** The token
 - **Rendering a retained web-job result no longer mutates the job store from a worker thread.** `GET /api/jobs/{id}/result` was a synchronous FastAPI route, so Starlette moved the whole handler into its threadpool. That kept PDF and cohort rendering off the event loop, but it also moved `JobManager.get()` there; `get()` refreshes the LRU dictionary while submissions and completions mutate the same dictionary on the loop. The route now reads and snapshots the terminal result on the owning event loop, then sends only rendering and complete response serialization to a worker. A thread-identity regression pins both halves of that boundary.
 - **Polling a finished web job no longer serializes its result on the event loop.** Job
   computation and retained-byte accounting already ran in worker threads, but

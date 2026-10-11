@@ -536,9 +536,12 @@ def hdr_donor(
         return None
 
     if guide is None:
+        # `False` here would read as *assessed and re-cuttable*, and every machine
+        # consumer reads the flag, not the note: the ordering sheet went on to report
+        # a PAM-block search that was never run, against a guide that does not exist.
         return HDRDonor(
             sequence=DNASequence(donor_seq),
-            recut_blocked=False,
+            recut_blocked=None,
             note="no guide supplied; re-cut disposition not assessed",
         )
 

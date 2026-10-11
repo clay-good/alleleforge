@@ -168,6 +168,12 @@ available — never silently emit a donor whose corrected product the guide stil
 - **WHEN** the correcting edit removes the guide's PAM or seed
 - **THEN** the donor reports `recut_blocked` with no extra mutation needed
 
+#### Scenario: No guide was supplied
+- **WHEN** a donor is built with no guide, so no PAM-block search can run
+- **THEN** `recut_blocked` is `None` — the unknown, not the negative — and every
+  surface that renders the disposition says it was not assessed, rather than
+  reporting the outcome of a search that never ran
+
 ### Requirement: Candidates are ranked and flag their caveats
 
 Cas9 candidates SHALL be ranked by descending efficiency then ascending worst-case
