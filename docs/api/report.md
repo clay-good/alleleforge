@@ -28,11 +28,22 @@ spacer / RTT / PBS**.
 
 A precise nuclease candidate is ordered as a *pair*: the break alone corrects
 nothing, so the donor rides on `SgRnaOligos.donor` and its ordering hazards are
-promoted into the same prominent `warnings` list the guide's use — a donor longer
-than a vendor synthesizes as one oligo (order it as a dsDNA fragment instead), or a
-repaired product still cuttable by its own guide. A donor containing an ambiguous
-base is refused rather than ordered: unlike a spacer, a repair template's bases are
-written into the genome permanently.
+promoted into the same prominent `warnings` list the guide's use. There are four:
+
+| Hazard | What to do |
+|---|---|
+| Longer than a vendor synthesizes as one oligo | Order it as a dsDNA fragment or plasmid instead |
+| The repaired product is still cuttable by its own guide | No PAM-blocking mutation was available; expect re-cutting after repair |
+| The re-cut disposition was never **assessed** | The donor was built without a guide, so nothing checked it; re-check against the guide you order alongside |
+| The donor carries a second, unrequested base change | It blocks re-cutting but is written in permanently — confirm it is synonymous in your reading frame |
+
+The third and fourth are the ones a reader is most likely to miss. An *unassessed*
+disposition is not a clean one: `recut_blocked` is `None` rather than `False` in that
+case, because "nobody looked" and "looked and found nothing" are different facts and
+a boolean cannot hold both.
+
+A donor containing an ambiguous base is refused rather than ordered: unlike a spacer,
+a repair template's bases are written into the genome permanently.
 
 ::: alleleforge.report.oligos
 
