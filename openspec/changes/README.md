@@ -21993,3 +21993,52 @@ the `group_slot > 0` guard, whose mutant only changes behaviour for a slot in (0
 Each crowding test was written to demonstrate thinning working, so all of them sat on the
 same side, and the rule that says *do not thin* had no case at all. For every cap, clamp or
 floor, write the case where it must not fire.
+
+## Round 657 — a new operator, aimed at the blind spot this log named
+
+Every module has now been swept for operator and constant mutants, so this round added the
+operator those two cannot reach, chosen from this log's own diagnosis. The recurring note
+reads: *for N guards, a fixture where the other N-1 still fire measures nothing.* The
+mutation that tests exactly that is **conjunct removal** — drop each operand of an
+`and`/`or` chain in turn and see whether anything notices.
+
+On its first two modules it behaved like a targeted instrument. `offtarget/engine.py`, the
+search orchestration, came back **40 of 40 killed**: its guards are genuinely tested.
+`types/offtarget.py` left 13 of 31 alive, and they were one coherent cluster rather than a
+scatter.
+
+Four places ask the same two-part question — is this site in the reference, *or* does it
+lack a frequency — and treat either answer as "weight it 1.0 and attribute it to no
+ancestry". Every population fixture in the suite is a non-reference site **with** a
+frequency, and every reference fixture has **none**, so the two arms always agreed and
+either could be dropped unnoticed. The fixture that separates them is a reference site that
+carries a frequency, which is constructible and real: a reference-genome hit can be
+annotated from a population database without ceasing to be in every genome. Drop the origin
+arm and such a site is weighted by its frequency — a 0.001 annotation turns a score of 0.9
+into a burden of 0.0009, understating a hit every patient actually has by a thousandfold.
+That is the direction this project has twice found safety numbers failing in.
+
+Two more arms needed fixtures sharper than my first attempt. A site whose `ancestries`
+*include* the ancestry being asked about reaches the same answer down either branch — the
+unattributed path takes it in full, and the attributed path takes it too because its share
+is positive — so the arms only diverge for an ancestry the site does **not** name, which
+needs a second site to put that ancestry in play at all. And `not ancestries` decides
+anything only for a site that has a frequency but no per-ancestry breakdown, which is what
+a frequency source without population structure gives you. Both now have a case.
+
+The smaller finds: a report with **no** spacer was measured against the guide-length range
+anyway (`not 17 <= 0 <= 24` is true), so a report that never carried a query could be told
+its query is the wrong length; the "NO SEQUENCE WAS SEARCHED" guard had its `sites == ()`
+arm unexercised in both of its two copies, so a result holding real hits could have been
+announced as empty; and of the three non-negative count checks on a site, only one had a
+fixture. `types/offtarget.py` now kills 31 of 31.
+
+The harness also lost a defect of its own: a counting run with no `LOG` set wrote
+`mutants.log` into the repository root, which the root-contents guard failed on — twice.
+Its default now lands in the harness's own directory.
+
+**Lesson: when the log keeps describing the same blind spot, build the operator that aims
+at it.** Four rounds of notes said a conjunction's unexercised arm is invisible; one
+afternoon's operator found nine of them in the first safety-relevant type it was pointed
+at, and confirmed a second module was clean. A method that only re-runs the mutations it
+already has will keep finding the same class of thing.
