@@ -9,2561 +9,22 @@ acceptance.
 ## [Unreleased]
 
 ### Added
-- **The guide-length range is pinned to the literature instead of to itself, and every
-  reagent type's immutability is pinned.** A constant pass over `types/guide.py` left both
-  ends of `GUIDE_SPACER_RANGE` alive against the whole suite: every fixture on that
-  boundary was computed from the constant under test (`GUIDE_SPACER_RANGE[0] - 1`,
-  `parametrize("length", GUIDE_SPACER_RANGE)`), so the range could move to (18, 25) with
-  nothing failing — and a real 17-nt truncated SpCas9 guide would then be reported as "not
-  a guide length". The two values are now written out once against the sources the
-  constant's comment cites (Fu et al. 2014; Cas12a), and the sentence a reader sees is
-  checked to quote the shipped range. Separately, all ten reagent models in that module
-  declare `frozen=True` and none of them was tested: a designed reagent is read by scoring,
-  ranking, rendering, and oligo assembly in turn, and frozen is what stops a later stage
-  retuning it for the earlier ones. The new guard discovers the module's public models
-  rather than keeping a list. `types/guide.py` now kills 33 of 33, and the constant pass
-  found `enumerate/prime.py` (32/32) and `enumerate/base_editor.py` (20/20) already clean.
-- **The Cas9 enumerator's advertised defaults and its donor's own bases are pinned.** A
-  constant-mutation pass over `enumerate/cas9.py` left 17 of 30 mutants alive against the
-  full 1,233-test list. `DEFAULT_ACTIONABLE_RADIUS` could become 11 bp, admitting a cut the
-  module documents as too far for HDR, because every fixture passed an explicit radius or
-  sat far inside or outside the window; it is now tested on both sides of its edge, with a
-  cut exactly 10 bp from the edit actionable and one at 11 bp refused. `DEFAULT_HDR_ARM` is
-  bound to the sentence in the same module that names 50 bp as the reach which can touch an
-  assembly gap. `guide_context`'s default 6-bp symmetric flank — the window a scorer that
-  declares none falls back to — had no test, since every caller in the suite passes explicit
-  flanks. The blocked donor was asserted only at its blocked index, so the splice that writes
-  the base in and the trial the search judges it against could drop or shift a base, changing
-  the shipped oligo's length while the recorded mutation stayed right; the donor is now pinned
-  as the unblocked one with exactly one base changed, and its PAM is checked to genuinely fail
-  to match. Finally, no Cas9 fixture had ever put an edit on a contig's first base, so the
-  clamps that exist for the start of a reference — the fetched enumeration window, the
-  carried-allele overlay's lower bound, and the two spans that reach behind a guide for its
-  PAM — were all unreached; a protospacer beginning at base 0 is dropped if the window starts
-  one base late. The module now kills 29 of 29.
-- **The off-target report's validation, defaults, and own description are pinned on their edges.** The constant pass over `types/offtarget.py` left 37 alive. Nine are configuration or immutability flags; the rest were real. The [0, 1] validators on score, MIT score, and frequency are now tested at 0, at 1, and just past 1. The report's default budgets (4 mismatches, 1/1 bulges, CFD 0.20, MIT 0.10) are now bound to the engine's `search()` defaults and the API's request defaults, so the three surfaces cannot drift apart. The coverage sentence could say "NO SEQUENCE WAS SEARCHED" over a clean search that found nothing, divide by zero for an empty one, skip a 1-base search, call a spacer at either end of the 17-24 nt guide range "a sequence search", or omit a small sub-threshold tail. Population-weighted burden is pinned for a population site without a frequency (unweighted, full score), for an ancestry a site does not name (zero contribution), and for a worst-per-ancestry score below 0.1. The headline notes now flag a cut-off above 1 as unreachable and never flag exactly 1.
-- **The resolver holds at a contig's first base, and its off-by-one message states the right coordinate.** The constant pass over `variant/resolver.py` found every indel fixture sitting mid-contig. Left-alignment must roll an indel in a leading repeat to position 0 and leave it unanchored (no base precedes it), and must anchor a deletion at position 1 on base 0. The reference check must answer no for a position before the contig, so a variant at a contig's first base is never offered a remedy pointing before it. An empty-REF insertion must still get a 1-base core in its analysis window. The off-by-one refusal's "the asserted ref is at chr:N in 1-based terms" coordinate is now pinned; only its `try` suggestion was checked before. `NC_000001` is pinned to resolve to `chr1`, which a `range(2, 23)` would have dropped. In `design/cohort.py`, a run now has a test for creating nested manifest and output directories and for re-running into an existing output folder, the ordinary re-run case.
-- **A liftover is exact by default, down to a single base.** The constant-mutation pass over `genome/coordinates.py` found that the default `length_tolerance=0` on `lift_interval` was untested. The existing test resized a span by 5 bp, which a default of 0 and a default of 1 both reject, so a lift silently admitting a 1-bp chain indel would have passed. A 1-bp resize is now refused by default and admitted only with an explicit tolerance. A build recommendation with no flagged region is also pinned as not a recommendation. The same pass found `offtarget/_search.py` (204/204) and `genome/index.py` (160/160) fully covered. The curated hg38 difficult-region coordinates survive 1-bp shifts by design, since they are cytoband-scale approximations.
-- **Every API request limit is checked at its exact boundary, and the benchmark metrics' edges are pinned.** Seven of the ten request-size caps in `web/api/models.py`, the bound the web-API hardening promised, were never named by a test. A new test reads every `maxLength`, `maxItems`, `minimum`, and `maximum` the published JSON schema advertises (30 size limits, 19 numeric bounds) and checks each on both sides: a value at the limit passes, and one past it is refused at that field. A bound added later is covered automatically. The limit *values* are configuration and are not pinned, except where the quantity fixes them: score thresholds and allele frequency lie in [0, 1], coordinates are non-negative, and a per-chemistry cap is at least 1. The uniform immutability of every API model is also pinned. In `benchmark/metrics.py`, 8 of 23 constant and operator survivors were real. The zero-variance guard could reject low-spread correlations, which are routine for efficiencies in [0, 0.3]. A key missing from one distribution must be zero mass, `topk_accuracy` must default to top-1, ECE's end bins must not merge, and interval coverage must include its endpoints. The other 15 are equivalent, by algebra or because a length-checked `zip` cannot be shortened.
-- **The off-target scoring tables are pinned to sources the code does not control, and the ranking's explanations are pinned to the numbers they explain.** A new constant-mutation pass (`n` to `n + 1`, `x` to `1.1x`, `True` to `False`) found what operator mutants cannot. `scoring/uncertainty.py` came back 277/277. In `offtarget/scoring.py`, 34 of the 36 weights in the MIT and CFD-PAM tables could change by 10% with the suite green, because the existing tests compared scores against the table under test. Worse, the module docstring says the PAM weights come from the vendored, cross-verified `cfd_matrix.json`, but the scorer reads a hand-typed copy and never consumes the vendored `pam` table. The two copies are now bound by test, and the MIT weights are pinned to CRISPOR's `hitScoreM`, checked identical. Edges are pinned too: a weight just above 1 is refused, and an unweighted PAM or mismatch scores 0. In `design/ranking.py`, the rationale beside the rank could call an in-distribution candidate "OOD", quote the upper bound as the lower, double the OOD count, or omit the "not resolved" note for exactly two tied leaders. All are now pinned, along with the zero contribution of an unscored candidate and the immutability of the weights, scores, and outcome. The per-chemistry simplicity values are unspecified heuristics, so only their documented range and order are tested.
-- **The web API is mutation-tested, and its responses can no longer state the opposite of the truth with the suite green.** `web/api/` had never been swept. `models.py` was fully covered (6/6). `jobs.py` left 2 of 35 alive: both caps and the per-result byte limit could become exclusive, so a server configured for N retained jobs would keep N - 1, and a result exactly the advertised size would be refused as too large. `app.py` left 8 of 91 alive, and every one put a wrong fact in a response rather than crashing. `/api/resolve` could invert `changes_the_sequence` and `reference_checked`. The trained-model refusal could say "Enabled here: none" while models were enabled, because every fixture enabled nothing. `GET /api/models/{name}` could 404 for every model it knows, because no test fetched one by name. An `offtarget_cache` or `genome_index` passed to `create_app` could be ignored. The missing-reference 503 could lose its explanation, and a 10-item list echoed in an error could be marked truncated. Each is now pinned, with job-store sizes measured from a real run rather than guessed. Every module in the package has now been swept at least once.
-- **The data layer's lookups and parsers are tested on their edges.** A mutation sweep of `data/` was confirmed against the full suite. `_io` and `haplotypes` were already fully covered, and 2 more survivors are provably equivalent: a zero-length overlap adds nothing, and a comment line is also rejected by the column-count guard. Six were real. Region queries are half-open, `[start, end)`, and no fixture had a record exactly at `end`, so including it passed in both ClinVar and dbSNP, and excluding `start` passed in dbSNP. A ClinVar insertion written with REF `.` is kept with an empty REF, but no fixture had one, so a check that silently dropped every such record passed. A truncated GENCODE line could reach an `IndexError` instead of being skipped. A dataset descriptor not marked bundled could resolve a bundled path. Each now has a fixture placed exactly on the edge.
-- **Five never-swept modules are now mutation-tested; three needed work.** `cache.py` (23/23) and `config.py` (13/13) were already fully covered. `scoring/pridict_engine.py` left 6 of 16 alive: `design()`, the code that finds the PRIDICT2 checkout, builds its command, and reads its output, ran only in the opt-in real-weights test, so CI never executed it. An explicit interpreter could also lose to the environment variable, and the prediction interval's clamp at 0 and 1 was unpinned. A stand-in checkout that writes the fixture CSV now runs the whole path in CI. `scoring/backbone.py` left 1 real survivor: the stub embedder promises values in [-1, 1], and a mapping that squeezed every value into [-1, -0.5] passed, which would have quietly shrunk the space the OOD tests measure distances in. Three more sit inside `pragma: no cover` bodies that need real weights. `report/pdf.py` left 17 of 86: 2 are provably equivalent (`int(x / y)` and `x // y` agree for positive values), and 15 were real. Text could start above the page's top margin or run past the bottom one. A report naming a variant could print "(unspecified)". The xref row count was checked against itself. A page filled exactly could gain a trailing blank page, blank spacer lines could vanish, and none of the wrap or pagination thresholds had a test on its edge. Fixtures measured to exactly 504.0pt, the text column, now pin each one.
-- **The benchmark runner's numbers are pinned where the fixtures could not tell them apart.** A mutation sweep of `benchmark/runner.py` left 16 of 44 mutants alive against the benchmark tests. The generalization gap was asserted only as `> 0.5`, which `in + held` satisfies as well as `in - held`. Its "withhold the gap" path was only reached with *both* folds undefined, so `or` and `and` agreed. A classification fold's undefined reason, and `run_benchmark` given a split without a dataset, were never exercised. Two survivors exposed a property of binary ECE worth recording: flipping a class decision maps confidence `c` to `1 - c` and right to wrong, so `|accuracy - confidence|` does not move. The `>= 0.5` threshold is visible only when two predictions share a bin with mixed outcomes, and a distribution's mode is distinguishable from its least-likely class only with three or more classes. New tests use exactly those fixtures. The module now kills 44 of 44.
-- **The leaderboard is tested on boards where the wrong answer looks different.** The shipped baseline predicts a constant, so every board in the suite was made of ties, and a mutation sweep left 6 of 46 mutants alive in `benchmark/leaderboard.py`. The worst: flipping a higher-is-better ranking to worst-first kept the suite green, because two tied rows cannot reveal which way a board sorts. The others: the OOD share could be computed as a product instead of a ratio, a row with no split hash could mark its group "contested", the "not comparable across groups" banner could appear over a single group in both Markdown and HTML, and the "no ranked submission" placeholder could invert. New tests submit distinct scores through the real signed-submission gate (worst-first, so insertion order cannot pass for a sort) and pin each case on both sides of its threshold. The module now kills 46 of 46.
-- **The chart's crowding thresholds are tested on their edges, not only past them.** Rotation, per-bar value labels, label thinning, and the caption that states what was withheld exist because a 90-candidate prime menu printed its labels on top of one another. Every existing test sat well past each threshold, so mutation testing left 12 of 108 mutants alive in `viz/svg.py`: `>` could become `>=`, the axis `max` could become `min`, and the suite stayed green. New tests put a chart exactly on each edge (a label exactly its slot wide, a slot exactly 26px, a rotated stride of exactly 2 or 3, a reference line above the data, a negative bar below the floor). One of my first-draft tests was itself blind: a lone bar's plot is so narrow its caption wraps one word per line, so a phrase match passed with the caption present. A targeted sweep now kills 16 of 16 mutants on those lines.
-- **The benchmark's reference baseline is pinned to the numbers it was fitted to.** `build_baseline` produces the scorer every CRISPR-Bench submission is measured against, and mutation testing killed only 7 of 23 mutants in that module. The 16 survivors were one cluster: the fitted numbers themselves — the train-fold mean, both interval endpoints, the widening applied to a constant fold, the final clamp, the distribution marginal, and the classification heuristic's two saturation points. The module had heavy incidental traffic from the board and acceptance tests, all of which asked about the *comparison* and none about what the baseline predicted. Now pinned on a synthetic fold with hand-computable answers, with labels chosen so the mean is 0.4 rather than 0.5 (0.5 is what the empty-fold fallback returns, so a fixture averaging to it cannot distinguish a fitted baseline from an unfitted one). Three cases needed a fold built for them: a constant fold is widened to `[0.4, 0.6]` rather than given a zero-width interval, which would be a claim of certainty from a baseline whose documented character is that it knows nothing; the distribution marginal sums across examples before normalizing, which a symmetric fixture cannot show because it lands on `{0.5, 0.5}` either way; and an all-zero-mass fold is an empty marginal rather than a `ZeroDivisionError` that would take a whole board run down. The module now kills 23 of 23.
-- **Outcome-summary depth is now selectable from every single-design surface.** `build_report(top_alleles=…)` was reachable only from Python; the CLI, HTTP API, and served page always showed 3 alleles per candidate, even though they already distinguished that report summary from the lossless ranked menu. `aforge design --top-alleles N`, `DesignRequest.top_alleles`, and the page control now select any positive depth while `--format menu`, `--json`, and `format=menu` retain the full outcome spectrum.
-- **GENCODE v47 is now a fetchable, verified release.** The comprehensive GRCh38 GTF now points at its immutable EBI release object and pins SHA-256 `df11938c66d2b39f8ebbdb5f1720919321f9cf9d58f02b019753f6a24ca3db24`, independently checked against GENCODE's published MD5 manifest. `aforge data fetch gencode` therefore acquires the exact annotation `GeneModels` consumes instead of refusing an unverifiable download.
-- **The dataset manager can now fetch what it says is fetchable.** Phase 12 specified dataset status, fetch, refresh, and version/license inspection, but `aforge data` exposed only `list` and `show`; the consent-gated registry was reachable from Python alone, and every external descriptor was unpinned. ClinVar's immutable GRCh38 snapshot from May 28, 2024 is now fixed to its official NCBI archive URL and verified SHA-256. `aforge data fetch clinvar` downloads it into the selected cache, while `data refresh` verifies a replacement before atomically swapping it in and preserves the last good copy after a failed transfer. Both commands emit JSON, and `data status` is the explicit status alias promised by the CLI contract. All status/detail commands inspect the same `--cache-dir`, so a fetched release is immediately reported as available.
-- **Local reference data cannot enter the container build context.** The documented Compose workflow stores the reference under `./data`, but the repository had no `.dockerignore`; classic or remote builders could therefore receive local genomes, caches, credentials, and developer state even though the Dockerfile copied only package inputs. The context now denies everything by default and admits only `pyproject.toml`, `README.md`, the container constraints snapshot, and `src/`. A guard pins that allowlist and rejects a future broad context copy.
-- **The dependency audit now examines what the container actually ships.** The advisory `pip-audit` job checked a broad development install, but that graph deliberately differs from the deployment snapshot: development constrains tooling compatibility while the Python 3.12 image resolves its own exact versions. CI now runs a second strict audit over `constraints/container.txt`, so a vulnerability in a container-only version cannot hide behind a clean development environment. The current snapshot reports no known vulnerabilities.
-- **The runtime image has one authoritative copy of the application.** The builder installed AlleleForge into `/opt/venv`, then copied both that environment and `/app/src` into the runtime even though Python imported only the installed package. The duplicate added bytes and could silently become the executed code after a future path change, bypassing the installed artifact that distribution checks validate. The runtime now copies only the environment; CI proves the live service imports from `/opt/venv` and that `/app/src` is absent.
-- **Release downloads now have one verifiable digest manifest.** The wheel, sdist, and wheel CycloneDX SBOM would be attached to GitHub without checksums, leaving a downloaded file disconnected from the repository's content-addressed release story. A read-only job now downloads the already validated artifacts, writes `SHA256SUMS` over exactly those files, and uploads it beside them. PyPI and GHCR publication both wait for that manifest, so checksum generation is a release gate rather than an after-publication convenience.
-- **The published container now carries evidence for the image itself.** The release produced a CycloneDX inventory for the default Python wheel, but attached no SBOM explicitly to the different artifact pushed to GHCR; provenance also depended on the action's visibility-sensitive default. The multi-platform publisher now requests max-level build provenance and an OCI-attached image SBOM explicitly, covering the operating-system and deployment layers while preserving the wheel inventory as its own release artifact.
-- **Rebuilding one commit no longer silently changes the container's Python dependency graph.** The base image and build actions were content-pinned, but the image still ran an unconstrained `pip install` over compatible ranges, so any new transitive release could alter or break a rebuild. `constraints/container.txt` now pins the complete deployment-only graph while `pyproject.toml` retains broad ranges for library consumers. Both `make image` and CI compare the installed image back to the snapshot, and the dual-architecture build proves the locked versions resolve on every published platform.
-- **The default deployment confines the service beyond its non-root identity.** A fixed UID limited ordinary filesystem access, but the container root filesystem remained writable and Docker's default capability set remained available even though Uvicorn needs neither. Compose now makes the root filesystem read-only, drops every Linux capability, and enables `no-new-privileges`; only an in-memory `/tmp` and the persistent `/cache` volume stay writable. CI boots the real image under the equivalent `docker run` restrictions, queries `/api/health`, and proves the cache can still accept application writes.
-- **Docker and Compose can now tell a running process from a healthy service.** CI queried `/api/health`, but the image itself declared no `HEALTHCHECK`, so operators saw only “running” even if Uvicorn stayed alive while the application stopped answering. The image now uses Python already present to call the public unauthenticated health endpoint under the same non-root identity, with explicit interval, timeout, startup allowance, and retry bounds. Compose inherits the check and exposes `healthy`/`unhealthy` without installing curl or duplicating an internal endpoint.
-- **The network-facing container no longer serves as root.** The image needed a readable reference, writable cache, and unprivileged port 8000, but declared no `USER`, so Docker ran Uvicorn as UID 0. The runtime now creates fixed UID/GID `10001:10001`, provisions `/cache` for that identity, and switches before starting the server. The deployment guide records permissions for operators replacing the named cache volume with bind mounts, and a structural guard keeps the identity after the cache provisioning and before `CMD`; the real container health probe proves that restriction still boots.
-- **The container base can no longer change between 2 builds of the same commit.** Both stages used the mutable `python:3.12-slim` tag, so a rebuild could silently pick up different operating-system and Python bytes despite the newly immutable workflow actions. Builder and runtime now share the current full multi-architecture manifest digest while retaining the human-readable tag. A guard requires every stage to use the same 64-character SHA-256 pin, and Dependabot now monitors the root Dockerfile so base-image fixes arrive as reviewable digest-update PRs rather than invisible tag movement.
-- **The deployment image now has to run, not merely build.** The dual-architecture CI gate executed every Dockerfile instruction but exported no runnable image, so a broken `CMD`, missing runtime import, or startup failure could still reach GHCR after a perfectly green build. CI now reuses the BuildKit cache to load the amd64 image, starts its actual Uvicorn command, and queries `/api/health` from inside the container until the service reports `status: ok` and its version. Cleanup runs even after a failed probe. `make image` adds a host-architecture import smoke for the same runtime package and web app.
-- **Workflow dependencies cannot change underneath a green commit.** Every CI and release action previously used a mutable major tag such as `@v7`, while the release contract already said artifacts are pinned by content hash rather than mutable tag. A compromised upstream account could move one of those tags and silently replace code that receives the checkout, artifacts, Docker credentials, PyPI OIDC identity, or release-write token. All external actions now resolve to full 40-character commit SHAs. Their previous version selectors remain as same-line comments so Dependabot can continue opening explicit, reviewable SHA-update PRs, and a repository-wide guard rejects a mutable reference or a SHA without its update hint.
-- **A release tag is no longer the first real build of the deployment image.** The Dockerfile once contained an install that cannot succeed on Linux, and a static test caught that exact dependency after the fact; ordinary CI still never executed a Docker instruction, so the next base-image, wheel, `COPY`, or architecture failure would appear only while a tag was trying to publish. A blocking `container` job now performs a no-push Buildx build for the same `linux/amd64,linux/arm64` pair and context as the release job. `make image` provides the host-architecture check on demand where Docker is available, and structural tests keep CI and release aligned. The file uses Docker's built-in parser for its standard instructions instead of resolving an otherwise-unused mutable frontend image before every build.
-- **A failed required release artifact now stops publication, and build jobs cannot publish at all.** The release-level token granted content-write, package-write, and PyPI OIDC authority to every job, including the untrusted checkout/build and SBOM jobs; meanwhile PyPI and GHCR depended only on the wheel build, so both could publish even if the required SBOM failed. The workflow now defaults to content-read, grants OIDC only to the PyPI job, package-write only to the GHCR job, and content-write only to the GitHub Release job. Both publication jobs require the SBOM gate first, with a structural test pinning the authority and dependency graph.
-- **The release SBOM now describes the artifact being released.** The tag job previously installed an editable checkout with a hand-picked subset of optional extras, then inventoried that environment together with its SBOM generator; it neither consumed the wheel sent to PyPI nor ran before a tag. `scripts/build_sbom.py` now reads the package identity from the validated wheel, installs that exact artifact and its default runtime closure into a no-pip temporary environment, emits reproducible CycloneDX JSON with the missing dynamic version made explicit, and rejects build-tool contamination or a disconnected root graph. `make sbom` and a blocking ordinary-CI job exercise the same path, while the release job downloads the `dist` artifact it inventories. The heavy `genome` and `ml` extras that this accidental environment used to resolve are now explicitly recorded as opt-in CI omissions, alongside the existing trained-weight and system-library exceptions, instead of being smuggled into an unrelated artifact check.
-- **Release artifacts are now audited before they can be published.** A single distribution check builds the wheel through the sdist, runs current `twine` metadata validation over both artifacts, and compares every non-Python runtime resource in `src/alleleforge` with the wheel so model cards, benchmark fixtures, typing metadata, the CFD matrix, and frontend assets cannot disappear unnoticed. The local `make distribution` target, ordinary CI, and the tag release workflow all run that check; the toolchain requires twine 7 or newer because twine 6.2 rejects the Metadata-Version 2.5 emitted by current Hatchling.
-- **The native-kernel speed record is reproducible and visible again.** The compact README rewrite removed the benchmark link and every measured ratio, reopening R2's only repository-local v1.0 criterion even though the harness and parity suite still existed. The README now records the current arm64 macOS release-build measurements without turning regressions into wins: haplotype materialization is 4.0x, k-mer lookup is 6.1x while its selective end-to-end scan is 0.2x, and FM-index queries are 0.03x versus the default linear scan at both measured sizes. The latter 2 paths remain opt-in. Release readiness now requires a rerunnable harness link and a numeric result for each named R2 kernel rather than passing when the README merely contains the token `native_speedup`.
-- **CI now tests behavior instead of terminal encodings and runner speed.** Rich can split a visible option such as `--vep` across ANSI style runs, so help-contract tests now remove styling before parsing the text a user sees. The parallel cohort guard now observes overlapping reference reads directly instead of inferring concurrency from a wall-clock speedup that shared-runner load can reverse, and async-job helpers use a real deadline instead of assuming that 10,000 zero-duration event-loop yields must span a 50 ms timeout. The supply-chain job now audits a pinned inventory of the installed third-party environment, excluding the editable, unpublished AlleleForge checkout so `pip-audit` reaches the dependencies instead of failing because the development version is absent from PyPI.
-- **A clean Python 3.12 development install type-checks the Python 3.11 contract again.** CI resolved NumPy 2.5.3, whose stubs use Python 3.12 `type` statements; mypy correctly targets AlleleForge's oldest supported Python, 3.11, and therefore stopped on NumPy's stub before checking one project file. The `dev` extra now constrains NumPy below 2.5 while the runtime `core` and `cas9-rs3` extras remain open to newer NumPy, keeping a tooling incompatibility out of the user dependency contract.
-- **A release tag must now name the package version it publishes.** The release workflow called itself tag-only but also exposed `workflow_dispatch`, which could publish from an arbitrary branch, and a pushed tag such as `v9.9.9` could build and publish the checkout's unrelated `0.1.0.dev0` artifact. Releases now start only from a pushed `v*` tag, and the build refuses the tag before creating or publishing artifacts unless it equals `v` plus `alleleforge.__version__`.
-- **The documented source install now stays inside its own Python environment.** The README went directly from `cd alleleforge` to `make install`, although the Makefile invoked bare `pip`. On a clean Homebrew Python that is either `pip: command not found` or a PEP 668 externally-managed-environment refusal; on a machine with several Pythons it can install into a different interpreter from the one that will run the gate. The source and development walkthroughs now create and activate `.venv`, matching `CONTRIBUTING.md`, and `make install` uses `python -m pip` so the installer is tied to that active interpreter.
-- **The five default scorers no longer report as missing.** `aforge models list` said `NOT AVAILABLE - no pinned checksum, so it can be neither fetched nor loaded` for `prime-outcome-baseline`, `pridict2-baseline`, `be-dict-baseline`, `indelphi-mh-baseline` and `cas9-efficiency-ensemble` — the five weight-free baselines that score every design by default, and had just produced every number in the accompanying report. "No checkpoint" has two opposite meanings and `model_status` knew only one: a trained card with no `checkpoint_sha256` is unusable *because* of it, since the registry refuses to fetch what it cannot verify and refuses to load an unverified cached file; a weight-free baseline has no checkpoint because it **is code**. The dataset registry solved this already — `dataset_status` carries `bundled`, computes `available` as `bundled or cached`, and `cache_sweep` records that checking the cache path for packaged bytes "is how a dataset that is always present came to be reported unavailable once already" — and the model registry is the sibling that never got the fix. `ModelCard` now declares `bundled` (declared on the cards, not inferred from a missing URL, because a declaration is checkable and an inference is a guess about why a field is empty), and it reaches every surface reading the one derivation: both CLI commands, both web model-status responses, and `aforge cache verify`, which reported these as "unpinned — no checksum to check" and now says "bundled — ships in the package, no checkpoint". Asking a bundled card for a checkpoint raises `CardError` naming the reason instead of a `ConsentError` asking permission to download weights that do not exist. Both directions are pinned: an unpinned *trained* card is still unavailable, still says "no pinned checksum", and still prints `NOT AVAILABLE`, because a rule calling every checksum-less card available would announce unverified weights as present.
-- **A pegRNA is cloned into the vector the user asked for.** `oligos_for` substitutes the default pegRNA acceptor when the scheme it was handed cannot receive a 3' extension — correct, since an sgRNA vector physically cannot take one — but nothing asserted that a *real* pegRNA scheme survives that gate. All three mutants of `ext_top_overhang is not None and ext_bottom_overhang is not None` lived. Inverted, the requested acceptor is silently swapped for `PEGRNA_GG_BSAI` and the ordered oligos carry the wrong sticky ends for the backbone on the bench: a failed ligation with no error anywhere. Pinned against a pegRNA scheme that is deliberately not the default, because with the default a substitution and a pass-through give the same answer. A scheme defining only one of the two extension overhangs now has both its cases covered too — it does not count as pegRNA-capable, and called directly it is refused by name rather than splicing a `None` into an oligo.
-- **A donor of exactly the vendor limit is not flagged as beyond it.** `len(sequence) > MAX_SSODN_NT` was measured nowhere near 200. Relaxed by one, a 200-nt HDR donor a vendor will synthesize as a single oligo is reported as needing a dsDNA fragment or plasmid instead — real cost and delay for a reagent that was orderable.
-- **The export note saying a chemistry never ran is measured arriving, not just staying away.** `_rationale_notes` exists because the two flat exports dropped the rationale entirely, and its with-rows branch carries only the lines saying a chemistry could not run. The single test of that branch asserts those lines stay *out* of the ordinary case, which passes just as well on a filter that lets nothing through — and `or` mutated to `and` is that filter. No test had built a report with both rows and a skipped chemistry, so the one line the branch exists to carry was never seen to arrive: a spreadsheet of CBE rows with no hint that prime was never attempted, which is the file the function was written to fix.
-- **Every number CRISPR-Bench publishes is pinned to a hand-computed value.** `benchmark/metrics.py` was thoroughly tested in *shape* — a perfect correlation is 1.0, a reversed one -1.0, a degenerate fold is `None` rather than a flattering 0.0, a confidently-wrong model scores ECE 1.0 — and those are exactly the inputs where every candidate implementation agrees. Nineteen mutation survivors sat in the gaps that leaves: the two-point boundary (`len < 2`, where one off-by-one reports a measurable fold as undefined, in the metric and again in its reason function); tie-averaged ranks (the existing test is `spearman(x, x)`, which gives 1.0 under any tie convention); the positive-label test in the AUC reason, whose inversion swaps two sentences that each read plausibly, sending a reader to look for the class they already have; ECE's bin index, where collapsing it turns a badly calibrated model reading 0.9 into a perfectly calibrated one reading 0.0 — the direction that wins the leaderboard's calibration tie-break, and invisible to every existing fixture because all of them put every example in one bin; distribution renormalization, an identity whenever the fixture's masses already sum to 1; the KL epsilon, in the case its docstring names (`q` has mass, just none on a category `p` supports) rather than the all-zero case that falls back to uniform; `topk_accuracy`'s empty-side guard, which with `and` reaches `max()` of an empty sequence; and average precision's tie run, where crediting a tied positive before a tied negative reports a perfect 1.0. Sixteen are closed; the remaining six are equivalent mutants, proved by algebra and by 20,000 random inputs with zero mismatches.
-- **The generalization study names the cell type it held out.** `held_out_context` was asserted with `assert r["held_out_context"]`, and the field's fallback string `"(unlabeled)"` is truthy — so a table whose every row had lost the one thing that field exists to report, which cell type the cross-context gap was measured across, passed the check. It is now pinned by name: the shipped splits validate on K562 and test on HepG2, which is the transfer the whole study is about.
-- **The one status field nothing measured is the one that says a model can be fetched.** `model_status` is the single derivation four surfaces read — `aforge models list`, `models show`, and two web model-status responses — and `model_reason` turns `fetchable` into the sentence a reader acts on. Its siblings `pinned`, `cached` and `available` were pinned by value; `fetchable` was asserted only to *exist*, as a key in a tuple of expected field names, so none of the three terms in `pinned and card.source_url is not None and not cached` had a case. Each wrong answer is a different lie: that an unpinned model can be fetched, when the registry refuses to fetch an unverifiable artifact; that a card naming a source names none; or that a copy already on disk still needs fetching. All four states are now covered, each with the sentence `model_reason` produces from it.
-- **One derivation of where a checkpoint is cached, instead of three that happened to agree.** `MODEL_CACHE_SUBDIR` was extracted with a comment naming its two callers and the failure mode — "a caller spelling it a third way would report a cached model as absent" — and both callers open-coded the layout anyway: `cache_sweep` rebuilt `cache_root / "models" / f"{name}.{version}.ckpt"` by hand and the loader wrote the `"models"` literal. Worse, `ModelRegistry.checkpoint` — the method that actually loads — spelled the filename a second time, against `checkpoint_path`, the function `model_status` reports `cached` from: two derivations on the two sides of "is it there?". The filename now lives once in `checkpoint_filename`, with the two layerings left explicit, and one test pins all three surfaces against a single planted file — status calls it available, the loader resolving its own default returns that path, and the sweep re-hashes it with deliberately wrong bytes, so only a sweep that found the file can report the mismatch. Reporting it missing is what a hand-built path would have said, and it reads as a pass.
-- **Population frequencies are measured at zero, at a choice, and on the threshold.** Three survivors in `data/haplotypes.py` were all fixtures too tidy for a real panel: a population listed at frequency 0.0 counted as a carrier of the haplotype, which names a cohort in an off-target disclosure that does not carry the allele the disclosure is about; `max_freq` over requested populations never had two frequencies to choose between, so taking the smaller understated the risk invisibly; and no haplotype ever sat exactly on `min_freq`, which is a safety floor, so the boundary has to fall on the side that discloses — excluding it drops exactly the haplotype the threshold was set to catch.
-- **A VCF allele using every permitted base is still designable.** `_is_concrete` gates whether a record's REF/ALT is an ACGTN sequence or a symbolic placeholder, and the test is `set(a) <= set("ACGTN")` — subset *or equal*. Tightened to a proper subset, an allele that happens to use all five permitted characters is rejected as symbolic and dropped with the `<DEL>`/breakend family. That is reachable by ordinary data: any indel allele long enough to carry an ambiguous base alongside all four bases, such as `ACGTN` or `NACGTACGT`. The record does not error — it is counted as symbolic and skipped, so a designable variant disappears from a cohort for a reason that does not apply to it. Both sides are now measured, including a character outside the alphabet.
-- **The prime byproduct mix's two length-dependent terms are measured on their own shapes.** Scaffold incorporation is `0.10 + 0.01 * max(0, rtt_len - 20)` — flat to 20 nt, then climbing, because long RTTs read into the scaffold — while partial reverse transcription is `0.08 + 0.004 * rtt_len`, climbing throughout. Every fixture used a single RTT length, so the hinge sat at zero and the linear term was a constant: `min` for `max` credits a short RTT with *less* scaffold incorporation than its floor, and dividing by the length instead of multiplying makes longer RTTs stop early *less* often, inverting the documented behaviour. Both shapes are now pinned, along with the combined effect on `p_intended`, which must fall across the whole range and fall faster past the hinge.
-- **The banner that says part of the menu is missing is measured in both directions.** `unavailable` carries one note per chemistry that contributed nothing for a reason a reader has to act on — a defect in the tool, or an off-target store that failed its integrity check — and the banner sits outside the rationale and outside any disclosure widget because it explains why part of the menu is absent rather than why a candidate ranked where it did. It is gated on `if not report.unavailable`, and dropping the `not` inverts it exactly: the banner vanishes on the reports that need it and renders empty on the reports that do not. Neither side was asserted, so a menu silently missing its prime candidates would have rendered as a complete one. Both directions are now checked, including that every note reaches the page rather than just the first.
-- **The seed prefilter's anchor set is measured at the boundaries where it would come back empty.** The k-mer prefilter is safe only because it is a *proven superset*: it may skip an anchor only where the window provably holds no exact seed. An empty anchor list therefore does not mean "no seeds here" — it means every anchor in the window is skipped, so a real off-target is never looked at and the guide reports clean because nothing looked. Two guard boundaries produce exactly that and both are reachable: `k < 1` relaxed refuses a one-base seed, which `seed_length(n, E) = n // (E + 1)` returns whenever the edit budget approaches the spacer length; and `len(spacer) < k` relaxed refuses a spacer exactly `k` bases long, which contains precisely one k-mer — itself. Both are now pinned, along with the third term for symmetry and the guard's own purpose (`k` of 0 or below yields nothing).
-- **Interval overlap is measured in both argument orders.** `overlaps` is `self.start < other.end and other.start < self.end`, and the existing abutting check asks it only one way round — which reaches the second comparison and leaves the first untested. The other order is what reaches it, and relaxed there two half-open intervals that merely touch are reported as overlapping. `overlaps` decides whether an off-target site lies inside a requested region and whether a nominated placement is the guide's own locus, so treating adjacency as overlap excludes a real neighbouring site as if it were the on-target. Both orders are now checked, with a one-base genuine overlap in both directions so neither check is vacuous. The behaviour of a zero-width span is recorded as it stands rather than asserted to a preference: `[5,5)` reports overlapping `[0,10)` symmetrically, which is a contract question for `GenomicInterval` (it permits `start == end`) and not a defect to settle from a test.
-- **A region restriction's recorded extent is a span, not a sum of coordinates.** Provenance records how many bases an `offtarget_regions` restriction covers so a re-run can prove it searched the same extent, and the existing check uses a region anchored at 0 — where `end - start` and `end + start` are the same number, 140 either way. Two regions away from the origin now exercise both the per-interval span and the sum across intervals.
-- **The reference is measured against files that look like real assemblies.** Two survivors in `genome/reference.py` shared a root: the fixtures are uniform where a real reference is not. `naming_style` asks `any(c.startswith("chr"))`, and hg38 carries chr1..chrY beside `GL000009.2`-style scaffolds — tightened to `all`, a real assembly reports as Ensembl-named and every alias lookup for a `chr`-prefixed query resolves the wrong way round. The contig-naming hint asks whether *some* reference contig canonicalises to the query; its existing check uses a single-contig reference, where `any` and `all` are the same thing, so with more than one contig and `all` a `chr`-style query against a reference holding that locus under another spelling falls through to a plain unknown-contig error — sending the reader to look for a missing chromosome instead of a naming difference, the one diagnosis the message exists to prevent.
-- **The FASTA size check is measured at the byte where a weaker version differs.** `required = offset + rlen + full_lines * (lenb - lenc)` adds back the newlines between a record's lines, so a file may legally end without its final one. For a 24-base record over three 10-base lines that is exactly 32 bytes, the size of the file minus its trailing newline: one byte short is accepted, two is refused by name. Clamp `full_lines` to zero, or subtract or divide the newline term, and `required` becomes 30 — a file short by two bytes passes, and every read through the stale index returns bases shifted by the missing line breaks. The existing truncation test drops six bytes, which the weaker check also catches, so only the boundary separates them.
-- **A window past a contig end comes back the width it asked for.** `right_pad = (end - start) - (real_hi - real_lo) - left_pad` keeps a telomere-adjacent window full length so callers indexing by offset stay correct — the off-target scanner walks the window by position and the resolver reports what fraction of requested bases were searchable. Pinned at four positions relative to the contig end, including a window starting exactly on it, where no real bases are available at all.
-- **The numbers inside the resolver's refusals are measured, not just their wording.** The past-the-contig-end message is the only place a caller is told what range the contig actually has, and it is what they will use to fix their input, so its arithmetic is a specification. Three of its numbers were unpinned, because every existing assertion checked that the message *mentions* the length rather than that it computes correctly: the last valid position (`0-based positions 0-{length - 1}` — off by one and the message invites exactly the position it is refusing, leaving a caller who tries it refused again with no way to tell which number was wrong), whether the span renders as a point or a range (`pos` for a one-base ref, `pos-end` otherwise), and the span's end (`pos + len(ref)`, which mis-signed reads backwards). Also pinned: the unknown-contig message elides with `…` only when it is actually hiding a contig — relaxed, a reference with exactly eight gets an ellipsis while all eight are on screen, telling the reader the name they want might be among ones not shown when there are none.
-- **The working interval covers the allele it brackets.** `end = pos + max(1, len(ref)) + window`, and the `max` is what spans a multi-base reference allele; with `min` the term is always 1, so the interval stops `len(ref) - 1` bases short and every consumer that trusts it to contain the variant reads a window ending inside it. The shared resolver fixture cannot show this: its contig is 30 bases against a 100-base window, so the interval is clamped to the whole contig and covers the allele whatever the arithmetic says. The new check uses a 2,000-base contig to leave the clamp out of it, and pins both sides — a 20-base deletion's full span, and the `1` floor that keeps a zero-length allele from collapsing the interval to a point.
-- **The advertised prime edit budget is measured at its own boundary, in the gate and in the sentence explaining it.** Routing decides which chemistry a variant is offered, and for prime that is two published limits: `PRIME_MAX_EDIT` on the alleles and `PRIME_MAX_TEMPLATED_EDIT` on what the RTT must write. Every fixture sat far past them (a 61-nt allele, a 41-nt insertion), so refusing an edit of *exactly* the budget changed nothing — a silent refusal, since the chemistry simply is not offered and the decline reason still reads correctly. Both comparisons appear twice, in `_prime_eligible` and in `_why_not_prime`, and the two must agree: an allele of exactly `PRIME_MAX_EDIT` is inside the allele budget while its *write* may still exceed the templated budget, and with the reason function's comparison relaxed it blames the allele size instead — telling a caller to shorten an edit already inside the limit the message names, while the real constraint goes unmentioned. Also pinned: each `or` operand at its own boundary (an over-budget allele is over on either reading, so the over-budget case cannot separate them), the decline reason reporting `max(len(ref), len(alt))` with the long allele on each side, and a transversion being declined for its required change rather than told "the variant class is snv" about a single-base variant. The intent decides which allele is written, so one intent per side reaches the allele limit without the templated budget firing first.
-- **The CFD fallback tolerance curve is pinned at its endpoints, and the Cas12a analog's seed is measured on the right end.** The fallback weight is a line from fully tolerated at the PAM-distal end to 0.05 at the seed, and nothing asserted where that line starts or ends — only that scores came out inside [0, 1], which every variant of the denominator also satisfies. The transition boost is asserted mid-window, since at position 0 the weight is already 1.0 and the cap hides the multiplier. The Cas12a analog mirrors the seed to the 5' end because its PAM is 5', which is the whole difference between the two analogs and was unasserted: a wrong mirror scores every Cas12a off-target as though its seed sat at the far end of the protospacer. And the single-base guard is pinned at the seed weight rather than the distal one — with nowhere to measure distance from, a lone base is treated as fully PAM-proximal, making its mismatch maximally damaging rather than free.
-- **The Cas12a matrix label names the table that scored.** `effective_matrix` is how a reader tells a published table from an approximation, and the label is chosen by `elif mismatch_weights is None`. Inverted, a custom table is reported as the built-in analog and the built-in analog as a custom table — the provenance field reads exactly backwards, and since both strings end in "unvalidated" neither looks wrong. An explicit `matrix=` argument outranks both, so a caller supplying a published table can say so.
-- **An indel-bearing haplotype reports its off-target hits at the right locus.** Hits are found on the length-changed alt window and lifted back to genomic coordinates through `applied_edits`, which records each applied variant as a **window-local** offset. Mis-signing that offset does not drop a site: it reports one three bases from where it is, and coordinates are exactly what somebody would go and look at. Two coincidences hid it. Every haplotype fixture in the suite carries only SNVs, and for length-preserving edits the coordinate lift is the identity whatever offsets it is handed; and every fixture's interval starts at 0, so the window start clamps to 0 and `v.pos - start` equals `v.pos + start`. The new fixture breaks both — a four-base deletion upstream of the protospacer, and an interval far enough into the contig that the window starts at 46 — and asserts an invariant that needs no knowledge of the lift's arithmetic: the protospacer sits at one place in the reference, so adding an upstream deletion to the haplotype must not move where the hit is reported.
-- **The haplotype safety threshold is "at or above" in both places it is applied.** Two comparisons implement one rule the code states in a comment — `min_freq` gates whether a haplotype is scanned at all (`max_freq(...) < min_freq` skips it) and, separately, which populations are named as carrying it (`frequencies[p] >= min_freq`). The below-threshold case was covered and equality was not, so tightening either dropped something sitting exactly on the line the caller drew: a haplotype that is never scanned, or an ancestry missing from `populations`, which makes `ancestry_stratification` report no per-ancestry burden for a group the cut-off includes — the axis reads "not measured" for a population that is in fact carrying. Also fixed: attribution over a multi-variant haplotype is `any` of the applied variants' spans, not `all`. A haplotype is a set of co-inherited alleles and a hit needs to overlap only the one that made it dangerous; with `all`, a hit overlapping one variant and not another is discarded, and the more variants a haplotype carries the more certainly every one of its hits is dropped.
-- **The efficiency scorers' hinges are measured on inputs that engage them.** Mutation survivors across both baseline scorers were uniform in cause: every fixture supplied a value the hinge or clamp does not touch, so the call is a no-op and `max` and `min` agree. Closed: `context_in_distribution` admits a context of exactly the minimum length (tightened, an input the model was defined on is called out of distribution, which demotes the candidate to its lower interval bound and raises `ood`); the RuleSet3 baseline's **lower** interval clamp, reachable because a poly-T context scores 0.032 so the unclamped bound would be about -0.12, which is not an efficiency; `_member_weights`' documented `[-1, 1]` range, which had no check at all, so dropping the `* 2.0` or the `- 1.0` moved every projection weight into `[0, 1]` and made the ensemble's members systematically agree; the PridictScorer's long-RTT hinge, `max(0, len(rtt) - 20)`, flat at or below 20 nt and falling beyond it, where `min` in its place turns the documented penalty for long RTTs into a bonus for short ones; and the mid-GC PBS preference `2.0 * abs(_gc(pbs) - 0.5)`, asserted as a peak at 0.5 with a symmetric falloff, a shape no monotonic substitute can produce.
-- **The unreachable clamps are recorded as unreachable rather than given tests that fake a value.** The round's remaining survivors are all accounted for, and none is a gap. Eight sit inside functions marked `pragma: no cover - needs the cas9-rs3 extra`, and lightgbm is not installed, so those lines cannot execute here at all. One is a proven short-circuit equivalence: `trained = heads_are_trained and not _is_weight_free(...)` with `heads_are_trained` a literal `False`, so both branches are `False` for every input. The remaining four are clamps the public API cannot reach — over every valid PBS x RTT x GC combination the PridictScorer's value spans 0.2729 to 0.6733, so its `max(0.0, value - 0.15)`, its `min(1.0, value + 0.15)` and its `min(0.99, …)` chromatin cap (whose factor cannot exceed 1.1) never engage, and the RuleSet3 baseline's upper clamp needs a value above 0.85 against a range topping out near 0.61. They are defensive code for a range these scorers do not produce, which is a reasonable thing for them to be and not something a test can assert from outside.
-- **The reference baseline a population off-target has to beat is measured with more than one hit.** `_reference_best` establishes the *strongest* reference hit per placement — `(max(score), min(edits))` — and `_strengthens` nominates an alt-allele hit only when it beats that, which is what keeps the population pass from attributing sites the variant neither created nor strengthened. Every fixture passed the aggregation a **single** hit per placement, so `prev` was always `None` and the `max`/`min` never ran: swapping either survived 2,087 tests. Understating the baseline is the consequential direction, because then every alt hit looks like a strengthening. Also pinned: the aggregation is per placement and order-independent; the `bulged` flag on both the reference and the alt side comes from that hit's own bulge counts (`> 0`, not `>= 0` — relaxed on the alt side it scores a real site off the bulge fallback, fails the gate, and drops the site, which is the direction that hides population risk); and the gate's documented strictness, since an alt hit matching the reference exactly on both score and edit count must not be attributed to the variant.
-- **A supplied off-target scorer is the scorer that runs.** `enumerate_patient_sites` resolves `scorer if scorer is not None else CfdScorer()`; inverted, a caller's scorer is dropped and a patient's personal off-target sites are scored with the default matrix however the run was configured — the sites still appear, tagged PATIENT, carrying numbers nobody asked for. `enumerate_population_sites` carries the identical line and is now checked with it, a guard holding on one of two parallel call sites being a shape this project keeps meeting. The fixture needs a reference hit in the window: where the variant *creates* the site, `_strengthens` returns early on `prior is None` and never reaches a scorer at all, so a created-site fixture cannot measure this.
-- **The carried-allele cut index is measured against a known number, not against itself.** For a precise intent the outcome context is overlaid with the patient's allele, and a length-changing allele must move the cut index with it — the file that tests this says so in its docstring: overlaying the sequence while leaving the index alone yields "the right sequence with the break in the wrong place: a plausible-looking indel spectrum computed for a different locus, with nothing to flag it". Both of that file's decisive assertions are tautologies: they take `offset = carried.index(context)` and then compare `context[cut]` against `carried[offset + cut]`, which is the same character by construction for every `cut` in range, so the comparison holds whatever index the code recorded. Six mutations in that arithmetic survived it — dropping the shift, reversing its sign, and both bounds of the overlay window. The replacement compares against a number derived independently: `_cut_outcome` fetches `cut_site ± _OUTCOME_FLANK`, so the unshifted index is exactly `_OUTCOME_FLANK`, and a carried allele 5' of the cut must move it by `len(allele) - len(ref)` and nothing else. Covered: a deletion, an insertion, a length-preserving substitution, an allele 3' of the cut, an allele ending exactly at the cut (the boundary that decides whether the shift applies at all, and the common case for a correction), an allele opening the window (the `0 <= rel` bound, whose tightening silently drops the patient's allele), an allele ending exactly at the window's end, and one overrunning it — the last two asserting the *context*, since a mis-written bound splices a partial allele in and truncates the window while leaving the cut alone.
-- **A nuclease disclosure is asserted by value, not by shape.** Three confirmed survivors were disclosure inversions that existing tests could not see, each blind differently: `any(f.startswith("hdr-donor:"))` is a **prefix** check, so inverting `if donor is None` labels a candidate that *has* a template `hdr-donor:none` and still passes; `"HDR donor" in rationale` is a **substring** check, and the inverted sentence "no HDR donor available" contains it; and the `relaxed-pam` flag had no check in either direction, so a fallback guide could lose its caveat and an ordinary NGG guide gain one. A fourth was a **symmetric fixture** — `test_candidates_sorted_by_efficiency` lays two copies of one spacer, so both candidates score identically and any order is sorted, including one produced by a key that ignores efficiency. Each is now pinned by value: the donor flag is exactly one of its three states, the rationale must not carry the absent-template sentence when a template is present (and "re-cut blocked" is asserted against "re-cut NOT blocked", of which it is a substring), and the sort key is measured on pairs differing on one axis at a time. `design/cas9.py` now kills 31 of 31 mutants.
-- **The base-editing candidate cap is measured against a menu that exceeds it.** `max_candidates=1` was asserted against a fixture yielding exactly one candidate, so `candidates[:1]` is the whole list and `len(cands) == 1` holds whether the cap is applied, ignored or inverted — dropping the slice left it green. A C->T install is catalysed by two editors (CBE4max and evoCDA1), so one variant and one protospacer give a two-candidate menu; the check asserts that premise before asserting the cap, and requires the cap to keep the ranked head rather than an arbitrary member.
-- **Every range validator is measured at the value it admits, not only past it.** Mutation sweeps over `types/guide.py`, `types/variant.py` and `design/cohort.py` left survivors that were all one shape: a strict comparison in a validator relaxed by one, so the validator rejects its own boundary. Each survived because the tests fed the value *past* the limit and never the limit itself — the satisfying half to write, and the half a user never hits. Now pinned: a base-edit target or bystander at protospacer position 1 or at `len(spacer)` is legal (and 0 or `len+1` is not); a one-position activity window is legal, since `end < start` rejects a reversed window and not a single-base one; a pegRNA's two homology arms may exactly fill the RTT, which is what a zero-length templated allele means, while one base more may not. Also `CohortReport.manifest_path`, which is documented as "the JSONL manifest written, if any" and had **no reader anywhere in the package or the suite** — inverting its condition makes a run without a manifest report the literal string `"None"` and a run with one report nothing, and nothing noticed, because a provenance pointer nobody reads is a pointer nobody has checked points anywhere.
-- **Variant normalization is measured on indels, not only on symmetric alleles.** Both trim loops guard `len(ref) > 1 and len(alt) > 1` to keep either allele from being trimmed away. Relaxing *one* of the two still leaves the other to stop the loop whenever the alleles are the same length, so a symmetric fixture cannot tell a single relaxed guard from none: `AT>AT` looks untouched while the insertion `T>GT` — whose ref is already at the floor — normalizes to an **empty ref**. The first version of this check used only symmetric pairs and missed it, which is the same trap in the test that the test was written to close. The cases now cover an insertion and a deletion against each loop, and require a variant with an allele already at the floor to come back exactly as it went in, position included.
-- **The uncertainty contract's propagation rule is measured instead of asserted.** `Prediction.combine` propagates the honesty flags conservatively — the aggregate is `calibrated` only if every input was, and `in_distribution` only if every input was — which is the rule the concepts doc states and the whole reason a combined prediction can be trusted. Two of its three `all(...)` propagations had no test that could fail: mutating either to `any(...)` left the suite green. The cause is worth recording, because the test that looked like it covered this was `test_combine_and_flags`, which built its calibrated input as `Prediction(calibrated=True)` — and that flag is gated by a capability token only `calibrated_by` holds, so the constructor silently refused it and *neither* input was calibrated. With both inputs uncalibrated, `all` and `any` agree at `False`, and the assertion `c.calibrated is False` passed however `combine` behaved; it would have passed against a `combine` that forged the guarantee outright. The same fixture made both inputs in-distribution, so the `in_distribution` propagation was invisible for the mirror-image reason. The gate that protects calibration is what neutered the fixture testing it. Inputs are now built through `calibrated_by`, the premise itself is asserted (a constructor-set `calibrated=True` is refused), and the cases the old fixture could not express are covered: one uncalibrated input among calibrated ones, one out-of-distribution input among in-distribution ones, and a calibrated input combined with an out-of-distribution one, which must yield neither flag. `types/prediction.py` now kills 30 of 30 mutants.
-- **The ranker's predicates are measured on the cases they were not written for.** Mutation testing over `design/ranking.py` killed 54 of 60 mutants; the survivors were not in the composite arithmetic R576 pinned but in the simplicity axis, the Pareto strictness, and the rationale. The `nicking_guide is not None` simplicity penalty had nothing asserting it lands on the PE3 reagent (two guides to clone) rather than the PE2 one — inverted, the simplicity axis rewards the more complex reagent, which is R576's finding one module over. `_dominates` had nothing requiring domination to be *strict*, so relaxing `>` to `>=` lets two candidates with identical objective vectors each dominate the other and drop both off the Pareto front — the set `--render-candidates 0` promises to draw in full. The cross-chemistry note had no single-chemistry case, which its own comment asks for ("a note that always appears is not a note"). And the indistinguishable-leaders tolerance was unmeasured at its boundary; the first attempt at that test passed while never approaching it, because it drew the composite from `DEFAULT_WEIGHTS` and the tolerance from the weights under test, so the check now uses exact binary fractions (tolerance `1.0 * (0.25 - 0.0)`, gap `1.0 - 0.75`) and the sweep confirms it bites. `design/ranking.py` now kills 63 of 63 mutants, none by timeout.
-- **Every caveat the off-target report carries is measured in both directions.** Mutation testing over `types/offtarget.py` killed 52 of 60 mutants and left 8 alive, and all 8 sat in the caveat machinery — the clauses that decide what a reader is told about a scan. Each was a predicate whose *negative* case nothing asserted: `is not` → `is` on `population_sites`, `!=` → `==` on the PAM-broadening notice, `> 0` → `>= 0` on the build-mismatch tally, `count >= total` → `>` on the wording that separates "every one of the 2 records" (a file for the wrong build) from "1 of the 2" (one stale record in a good file), and `> 1.0` → `>= 1.0` on both the CFD/MIT and the MAF unreachable-cut-off notes, where 1.0 is a reachable value a caller may deliberately ask for. The sharpest was `population_sites`, which feeds the `population-offtarget` flag: its only test built one reference site and one population site and asserted the count was 1 — true whichever side the filter selects, so a symmetric fixture measured by a count could not say which half came back, and an inverted filter would announce population risk on a reference-only report and stay silent on a population-driven one. Every predicate turned out correct; what was missing is the half of each claim that says the sentence stays away when it does not apply, which matters most here because two of these clauses tell a caller their population file is for the wrong assembly. Also pinned: the 0.99 materiality line below which a coverage warning is deliberately suppressed, the searchable fraction's operands (the default `resolved_bases` of 0 makes a quotient and a product both 0, so a fixture that leaves it unset cannot tell them apart), and the agreement between the two places each of the build-mismatch and empty-search claims is rendered. The file now kills 60 of 60 mutants in 0.24 s.
-- **Each ranking weight is measured against the axis it is named after.** The composite is four weights paired by hand with four objective values, and exchanging two of them left the whole suite green — because `DEFAULT_WEIGHTS` gives cleanliness and safety 0.30 each, making the swap arithmetically invisible to every test that takes the defaults, and the one test that varies weights holds cleanliness constant. `safety` is `1 - worst-case off-target score`: a user weighting it because off-target risk is what they care about would have been ranking on outcome purity, in a plausible order, with their requested weights echoed back faithfully. The pairing is correct; it is now pinned by two guards derived from the objective list — the composite equals the reported axes dotted with their own weights, and weighting one axis alone moves that axis and leaves every other axis's candidates tied.
-- **The efficiency model's scoring window is measured against the genome, on both strands.** The trained Rule Set 3 scorer reads an asymmetric 30-mer (4 nt 5' + protospacer + PAM + 3 nt 3'), and on the minus strand the guide's 5' flank lies at the high plus coordinates, so the two pads swap. The minus-strand test passed a *symmetric* flank, which cannot tell one order from the other, and the asymmetric test ran on the plus strand asserting a length and a containment — both of which a swap preserves. Exchanging the two pads leaves the entire suite green while every minus-strand guide is scored one base off at each end, which is the frame-shifted scorer window this project has met before and which has no symptom. The arithmetic is correct; the window is now required to equal the genome base for base on either strand, over both orders of the asymmetric pair and through the carried-allele overlay, with the population of windows derived from every scorer that declares one.
-- **A config key `aforge batch` accepts is a key `aforge batch` reads.** `_load_config` warns about an unrecognized key, so a whitelisted one is accepted in silence — and the whitelist was a single set holding every knob *either* command has. `aforge batch --config` with `vector_scheme = "aav"` ran to completion, exit 0, no message, having used no cloning scheme and not noticed that no such scheme exists (`design` refuses the same file). The four trained-model opt-ins were the higher-stakes half: each is a consent gate, `batch` read none of them from a config, and a cohort asking for `deepprime` was designed by `pridict2-baseline` with nothing anywhere recording what had been asked for. The existing guard passed throughout, because it asked whether a key is read *somewhere in the module* rather than by the command running. `_RUN_PARAM_KEYS` is now per command, `batch` honors the opt-ins, a key belonging to the other command says so by name instead of being dropped, and the new guard derives each command's reads from its own source in both directions.
-- **A bulge budget names a search that actually ran.** Both alignment kernels consider one ungapped, one single-DNA-bulge and one single-RNA-bulge placement per PAM, so `--dna-bulges 2` returned exactly the hits `--dna-bulges 1` returns — and a genuine two-bulge site is found at no budget at all. Nothing clamped or noted it: the number went into the report and came back out as "2 DNA / 2 RNA bulges", so a caller screening a guide *for* two-bulge off-targets got a clean report that says nothing about them, the direction that reads as safer and is not. The web schema advertised `le=4`, a published contract offering a search that cannot happen. One bulge of each kind is the deliberate design; `MAX_BULGES` now says so, `scan_sequence` and `search()` refuse a larger budget (the latter before a genome is touched), and the schema, the flag's help and the two docs that gave `≤ 1` as a default give it as the ceiling.
-- **"A published benchmark number cannot be silently edited" is checked through the command.** The machinery was well tested — `verify_signature` hashes the whole model, and a test asserts the reproducibility digest changes when `dataset_is_synthetic` flips — but the sentence a reader believes is about the *command*: open the JSON, change a number, run `aforge bench leaderboard`. That is what an editing attack looks like, and it is one line from the digest test in mechanism and a long way from it in evidence. Both edits are covered, because they are different claims: a changed metric, and a forged `dataset_is_synthetic` — the one this project's honesty rests on, since every bundled corpus is a stand-in and flipping the flag turns a toy number into an apparent measurement without touching the number.
-- **"A restriction covers both strands" is measured.** `Region` carries no strand and its docstring said why — *by construction* — which is a statement of confidence about what the scan does with the interval, written in the type that omits the field. It matters more than most such claims: a strand-aware filter would drop a minus-strand off-target from a region a user scoped to, a missing danger that reads as a clean region, in the one feature whose purpose is to make a whole-genome scan practical. Two off-target sites are planted, one per strand, and each region must keep the site inside it whichever strand that site is on.
-- **Principle 2 is checked instead of described.** "No scorer returns a bare float" had prose for evidence — "structural: `ensure_prediction`/`BareFloatError` reject a bare float at the scorer boundary" — which is a claim about a mechanism with nothing asserting the mechanism is reached from every boundary, and a principle with prose for evidence is the state `test_stated_principles` exists to end. Every public `score`/`predict*` in `alleleforge.scoring` must now return a `Prediction` or a container carrying one; the five that do not are listed with the reason each is not a scorer boundary — a raw forward pass wrapped by `score`, an isotonic map that transforms an already-predicted score, an ensemble's members, and an outcome *distribution* whose point estimate `P(intended)` is itself a Prediction.
-- **The HDR donor's re-cut logic is measured on the minus strand.** Every donor and re-cut test used a plus-strand fixture, which is exactly why the two neighbouring minus-strand geometries — the nuclease cut site and the PE3 nicking guide's nick — were each one base wrong. This one is correct, and is now pinned: an edit inside the guide's seed needs no blocking mutation, a PAM-distal edit gets one, and the mutation **actually destroys the PAM as read on the guide's own strand** rather than merely being recorded — `recut_blocked` is the field a reader trusts, and a mutation that leaves an `NGG` in place would be worse than none.
-- **The prime nick is measured from a genome, on both strands.** The pegRNA's whole geometry hangs off it: the PBS anneals to the 3' end the nick creates and the RTT is written from there, so a one-base error is not a smaller edit but a different one, written from the wrong end, with every number in the report computed about the wrong reagent and nothing else about the run looking wrong. SpCas9 cuts three bases 5' of the PAM, which in genomic coordinates is `end - 3` on the plus strand and `start + 2` on the minus — two different expressions, and the test requires both, so a sign error that gave one strand the other's formula fails. It also pins that the spacer is the *patient's* allele: one built from the reference would sit at the same coordinates, be a different reagent, and look identical in every other field.
-- **The base-editing window's edges are measured from a genome, on both strands.** `_editable_positions` is unit-tested against a spacer string and the enumerator is tested at particular loci; neither pinned the *chain* — a variant resolved to a 0-based coordinate, a protospacer placed against a PAM, a 1-based PAM-distal window applied to it. An off-by-one anywhere along it shifts every reagent by one base and changes nothing else: the run still produces candidates, the flags still appear, the report still reads well. This repository's notes record a frame-shifted scorer window reaching production once. The boundary is now required to fall exactly between protospacer positions 3 and 4 and between 8 and 9, on the plus strand and on the minus strand, and the same edges are required of `bystander_positions` — *two* pieces of window arithmetic, of which only the first is exercised by a spacer holding one editable base, and the second feeds the expected burden of unintended edits.
-- **The ranked menu owns the run-level notes, so a per-item file carries them too.** `aforge batch --output-dir` writes one menu JSON per patient, and the cohort's own exemption for those files rests on "the run that wrote it puts the context in the summary TSV and the manifest header beside it" — neither of which mentions a population source built for another assembly, because the header is written before the run discovers it. The file did carry the *count* (`source_build_mismatch`) nested inside each candidate's off-target report, with no statement anywhere: a number, in one file out of five hundred in a directory, which is as far from the reader as this disclosure gets. `RankedMenu.notes` sits beside `unavailable` and is what `DesignReport.notes` now reads, replacing a second derivation in `build_report` with one that every consumer of a menu shares.
-- **A design report has a run-level channel for what a caller can act on.** `aforge design --format html --out r.html` against a gnomAD file built for another assembly printed `wrote r.html and r.html.provenance.json` and nothing else. The disclosure existed — as the sixth clause of each candidate's `offtarget_search` paragraph, repeated once per reagent, in the same neutral style as the PAM broadening. The off-target surfaces lift such clauses onto their headline and the cohort surfaces onto their note block; a design report had no run-level channel at all, which is the third surface of one class and the one where the reader is furthest from the sentence. `DesignReport.notes` is that channel, built through the same `headline_notes` the off-target surfaces use and deduplicated because it is a fact about the run and not about each of forty reagents; the JSON, TSV, Parquet, HTML, PDF, served page and terminal all carry it, and the guard's population is every rendering of a design report.
-- **Every exception list written this cycle is anchored to the reason it exists.** An excuse nobody can trigger is the mirror of the caveat nobody can trigger this project already refuses — "a promise, not a safeguard, and it read as coverage". The response-field guard now fails when a field it excuses is in fact filled, and when an excused model or field no longer exists; the annotation-status sweep fails when its unreachable-error list names a type that is gone; and the two-shell blank-value table fails when either half of a pair is renamed, which would otherwise compare a nonexistent flag against a real field and pass, because "both refused" is agreement.
-- **Four refusals have their remedy run, not just printed.** Each row asserts three things in order: the wrong command fails, its message names the remedy, and the remedy then works — so a message that stops offering a remedy fails the table rather than drifting away from it. The rows are a genome handed to `batch` as the cohort, a variant handed to `batch` as the file, a gnomAD sites file handed to `--dbsnp` (whose refusal names the header it wants, and a file built to that header resolves an rsID), and a report whose provenance lives in a sidecar. Ten remedies were followed by hand across these rounds; nine worked, and the one that did not corrupted the file it was recommended against.
-- **A degraded run is machine-readable on every surface.** `aforge design` exits non-zero when a chemistry contributes nothing for a reason that is not biology — a defect, or a store whose integrity check failed — because "a script or a CI job driving this had no way to tell without re-parsing the summary". An HTTP client asking for the same design got `200`, an empty menu, and the reason in a paragraph of prose. `RankedMenu.unavailable` and `DesignReport.unavailable` carry one note per such chemistry, the same sentences the rationale carries, as data: the CLI now decides its exit code from the field instead of grepping its own marker out of its own prose, a client can branch on an empty list, and the HTML and PDF show it above the rationale rather than inside it — it is why part of the menu is missing, not one of the routing verdicts a reader skims.
-- **The cache-integrity remedy is executed, not only printed.** A refusal's closing sentence is a second piece of software, run by a person, and nothing was running any of them — which is how `--no-resume` came to corrupt the manifest it was recommended against. The integrity refusal is the highest-stakes remedy here, because the state it describes is one a user cannot diagnose from outside, and it makes three executable claims: the digest names a file on this disk, deleting that file makes the next run clean, and `aforge cache verify` reports the same fault. A test now performs all three in order, and checks the fourth thing the message does — saying the tool is not broken, so a reader deletes a file instead of filing a bug.
-
-- **`alleleforge.types` is checked to import on a bare core install.** The guard that keeps a plain `pip install alleleforge` working — no numpy, no polars, no pyfaidx — parametrized over a written-out list of subpackages, and the list was missing the core model layer: the one subpackage every install has, and the one whose accidental `import numpy` would break the install outright rather than one extra's worth of it. The population is derived from the package now, with `cli` and `web` recorded as carrying their own extra (each is checked against the stacks its install does *not* provide), and a second guard fails if one of those excuses points at a test that no longer exists.
-- **The Parquet export is held to the same whole-document facts as the other renders.** `test_every_surface_states_the_same_facts` has checked the disclaimer, the coordinate convention, the reference identity, the build, the seed and the model identity across HTML, TSV, JSON and PDF since the round that found the TSV carrying none of them — over a hand-written list of four surfaces, while `--format` offered six. The fifth is Parquet, a *flat table*, which is the shape whose missing facts started that file, and which keeps them in file-level key/value metadata rather than in comment lines: a place a text search over the document would not look. It carries all six. The surface list is now checked against `OutputFormat` itself, so a new format is a failing test until it is either rendered here or recorded as not being a rendering of this report (`menu` is the ranked menu, a different document).
-- **The two shells are diffed on a whole single-variant design.** "The library is the source of truth; the CLI and the web are thin shells" is checked for the cohort table and, until now, nowhere for the document a reader actually opens. A dozen tests assert pieces of a design report on either side; none had put the two beside each other. Now every format both shells offer — JSON, the flat TSV with its `#` note block, and the rendered HTML — is produced by `aforge design` and by `POST /api/design` over one genome and required to match, with the run timestamp the only thing allowed to differ. A web that forgets to forward `run_offtarget`, or a CLI that renders a different candidate cap, fails it; a rendering change made in the library passes, which is the point.
-- **A test that the deployment answers while a job runs.** `POST /api/jobs/batch` exists because a three-hundred-variant cohort blocked a connection for 3m 40s; every test of it checked that the job is accepted, finishes, and agrees with the synchronous door, and none checked the property the machinery was built for. Two halves are pinned now: the `202` must arrive before the work could have finished, and `GET /api/health` must answer while the job is in flight. A regression that runs the work inline fails both — and would have *skipped* the first draft of this test, which polled for `state == running` and found the inline job already finished.
-- **A test that fails if `--max-workers` stops being faster.** Every guard on the cohort's worker pool asked whether the results were identical at one worker and at four. They were — and the flag was delivering 1.6x on four threads for several phases, because a native kernel held the interpreter for its whole body. Identical results is the *safety* property, and a flag can keep it while being inert. The pool now has a test that runs a cohort whose reads block, at one worker and at four, and requires the second to finish materially sooner; the kernels have one that requires them to release the GIL. The CLI spec gains the matching scenario.
-- **Every surface says whether this install runs the native kernels.** The Rust kernels are held to a parity suite proving they return exactly what the Python implementation returns — the right requirement, and what made them invisible: an install without the extension, or with a **stale** one older than the crate source beside it, produces identical output an order of magnitude slower on the off-target hot path, and nothing said which install you had. `aforge --version` now prints a second line (the version stays alone on the first, for `head -1`), `GET /api/health` reports `native_kernels`, and both read one sentence from `alleleforge._native.acceleration()`. The stale case is called out by name because the kernel it hides is the off-target evaluation path, whose whole safety argument is that parity suite — and those tests skip themselves when the kernel is absent.
-- **`--cache` and `--genome-index` say whether they reused anything.** The flag's whole purpose is not recomputing a scan, and its output is byte-identical whether or not any reuse happened — deliberately, since `scripts/reproduce.py` requires a cached run and a computed run to be the same document. So from outside, the flag was unfalsifiable: a key that stopped matching (a genome re-copied to a new path, a namespace version bumped under the user) looks exactly like a warm cache, and the only symptom is a run that is no faster than before. `OffTargetCache` counts hits and misses and `GenomeIndex` counts contig-strands mapped against built, each wording its own account once (`usage()`); `aforge design`, `batch` and `offtarget` print them under `--verbose`, and never in the artifact. The index is the larger stake — a cold build is minutes and several gigabytes per contig-strand on a real genome, a warm map is milliseconds — and the two runs are the same document.
-- **Every documented input is executed, not just read.** Four guards read this project's prose and a fifth runs the `aforge` commands it documents — all of them about what a reader *invokes*. What a reader **submits** had no check: the `curl` bodies in `README.md` and `docs/api/web.md` (every request model sets `extra="forbid"`, so a renamed field turns a documented body into a 422, and those models gained or lost fields three times in the last dozen rounds) and the `config.toml` in `docs/api/cli.md` (an unknown key produces a warning nobody sees and a run that silently ignores what the reader asked for). Both are now submitted: the bodies to the endpoints they name, and the config through `aforge design --config`, with every key it sets required to appear in the run's own `config_snapshot`.
-- **The examples the served page shows are submitted, not just spell-checked.** A previous round checked that no placeholder *offers a form this deployment refuses* — a check on the shape of the string — and the second half of the variant box's `chr2:71:A>C · 2 71 . A C` answered `unrecognized variant input` for as long as it had been there, because nothing typed it. Every example in an input whose `name` matches a request field is now posted to that field's endpoint and must be readable: the population comes from the page, the `·` and newline separators are split (each is an example a reader copies alone), and a locus no test genome can hold is allowed to fail on the *reference* but never on the parse.
-- **A VCF record is finally an input form, on the surfaces that promised it.** The served page's variant box carries the placeholder `chr2:71:A>C · 2 71 . A C`; its help says "Coordinates ... or a VCF record"; `DesignRequest.variant` and `BatchRequest.variants` say it; `aforge design --help` and `aforge resolve --help` say "a VCF record work[s] everywhere". Typing the placeholder into the box the placeholder is in answered `unrecognized variant input: '2 71 . A C'`. A `VcfRecord` is a *Python object* the resolver has always accepted, and the string parser had no pattern for the text form — so three of the four audiences could not use what five documents promised. A data line now resolves wherever a coordinate does: whitespace of any kind between the fields (a row pasted out of a terminal has lost its tabs), trailing QUAL/FILTER/INFO/sample columns ignored, and the ID column carried when it is an rsID. A row whose ALT is symbolic (`<DEL>`, `<DUP>`, a breakend, a spanning `*`) is refused by name rather than called unreadable — the same rows `iter_vcf` skips with a counted reason when reading a file.
-- **The committed benchmark data is checked against its generator.** `scripts/make_benchmark_fixtures.py` writes the five dataset fixtures and five frozen splits every score, every split integrity hash and the whole leaderboard read, and claims in its docstring to be "fully deterministic ... re-running produces byte-identical files". Nothing ran it: it is not in `make ci`, no CI job invokes it, and of the nine scripts in the repository it was the only one with zero references anywhere in the suite. A fixture edited by hand — or a generator changed and not re-run — left committed data nothing could reproduce, and the split's recorded dataset hash catches a fixture edited *alone* but not a fixture and its hash edited together. The generator now runs in a temporary tree on every suite run, and the committed files must match it byte-for-byte, in both directions, twice.
-- **`ALLELEFORGE_MODEL_USE` — the licence gate is reachable from a shell.** Every model card carries an SPDX-style licence, `ModelUse` is the axis it gates on, and `ModelRegistry.checkpoint(..., use=...)` raises `LicenseError` for a model whose licence forbids that use. Every trained adapter takes the same argument. All of it defaulted to `research` and no shell could set anything else, so a company running `aforge design --trained-prime` loaded a research-only checkpoint with no refusal on any surface — the gate only ever protected a Python caller who already knew to ask for it. The declaration is the operator's (`ALLELEFORGE_MODEL_USE=commercial`, or `model_use` in the config file), never a per-request field: whether the work is commercial is a fact about who runs the tool, which a client of a deployment cannot answer for them. It is recorded in the run's provenance, and a refused model declines with the licence named in the menu's own rationale.
-- **`aforge models list` / `models show`, and `GET /api/models` / `GET /api/models/{name}` — the model zoo is reachable from a shell.** The *dataset* registry has been answerable on four surfaces for several phases, all reading one derivation so they cannot disagree. The **model** registry had none: the cards carrying each model's licence, its intended use, its out-of-scope use, its known failure modes and its pinned checkpoint hash were reachable from Python alone — while every trained-model opt-in is a consent gate on those cards, the leaderboard refuses a submission whose card is incomplete, and `GET /api/health` lists which trained models an operator enabled. A user could opt into a model and read nothing about what they were opting into. `model_status()` derives the same presence-versus-permission split the dataset surfaces were corrected for, with one case sharper: a cached checkpoint whose card pins no hash is **not** usable, because the registry refuses to load an unverifiable artifact exactly as it refuses to fetch one — so "the file is on disk" would be the wrong answer, and a test plants a file at that path to prove all four surfaces still say NO.
-- **`aforge design/batch/resolve --hgvs` — coding and protein HGVS inputs are reachable from the CLI.** A `c.`/`p.` expression was the one input form no shell could resolve, excused on the grounds that a projector "is not a dependency and has no file a flag could name". Both halves are true and neither is a reason: this CLI offers every other optional capability behind a boolean flag and a named `MissingDependencyError` — `--trained-efficiency`, `--trained-prime`, the Parquet writers, the VCF fast path. The flag targets the *run's* assembly rather than the `hgvs` library's `GRCh38` default, because a `c.` expression projected onto GRCh38 and then designed against an hg19 or T2T FASTA is a wrong locus every later check would take at face value. Without the flag, the refusal now names it — and names the coordinate form for the surfaces that have no such flag, like every other resolver refusal.
-- **The web API says which assembly it serves, instead of calling every genome hg38.** `ALLELEFORGE_REFERENCE_FASTA` said which *file* to serve and nothing said which *assembly* it is, so the label was the literal `"hg38"` — and `POST /api/design` resolved every request against that same constant — while the CLI has taken `--build` since it shipped. The label is not decoration: it is stamped into every report's provenance, it is what the off-target engine compares a prebuilt index against, and it is the answer to the question that makes a coordinate a locus, since `chr7:5,530,601` is a different base in hg38 than in T2T-CHM13. New `ALLELEFORGE_REFERENCE_BUILD` (default `hg38`) sets it, `GET /api/health` reports it as `reference_build`, the served page names it beside "reference loaded", and a request may now state its own `build` — matching the served assembly in any spelling is answered, any other is a 422 rather than a result silently relabelled.
-- **The privacy guard derives which modules can reach the network.** The check that any no-egress claim must name its exceptions knew those exceptions — consequence annotation and a trained-model checkpoint fetch — from a hand-written list, which is the shape this project has repeatedly found going stale. What cannot go stale is which modules import a network client: four do, and the two that are not request-time exceptions (`data/registry.py`, `genome/reference.py`) are excluded on the claim that only a Python caller invokes them deliberately. That claim is now itself a test — no module under `cli/` or `web/` may call `from_build(` or `from_registry(` — so the day a shell reaches one, the guard fails instead of the privacy statement quietly becoming wrong.
-- **`alleleforge.cache_sweep.verify_stores()` — the integrity sweep is a library call.** `aforge cache verify` was built in the CLI, whole: the walk over every content-addressed namespace, the FM-index load and optional reconstruction, the re-hash of every pinned dataset and checkpoint, and the pass/fail/nothing-checked distinction. So a Python caller holding a suspect cache directory — or the web API, or a deployment's own health check — had to reimplement it. That is this project's most productive finding class in its mirror image, produced by the round that closed the same gap for `FMIndex.verify()`, and it is what `SPEC.md`'s sixth principle forbids: "the library is the source of truth; CLI and web are thin shells". The command now renders the library's result and picks an exit code, and a test asserts its body contains no hashing, no store walk and no registry.
-- **The cohort's bounded-memory guarantee is now checked, through its premise.** `design_many` opens by promising that "each ranked menu is summarized (and optionally written to disk) and then released, so peak memory does not grow with the cohort size" — the reason `aforge batch` can be pointed at a whole VCF — and `CohortItemResult` says "never the full menu" in its first line. Nothing checked either. Peak memory is not testable here, but what the claim rests on is exact: **no ranked menu, candidate or off-target report may be reachable from a finished `CohortRunReport`.** A new test walks the returned report's object graph and fails if one is, with a companion that smuggles a menu in to prove the walker can see it. Retaining a menu is the single change that would falsify the guarantee, it is the change someone would make for a good reason, and it would be invisible until a 300-variant run on a real genome — a per-item summary is ~540 bytes against 1.25 MiB for a menu.
-- **The per-read checksum on the off-target cache now states what it costs.** Turning verification on was argued for at length and priced nowhere. Measured: a stored report is 521 bytes at the median (880 largest) because it holds the nominated *sites* and not the genome they were found in, so re-hashing one is microseconds inside a warm hit of 0.08 ms — against 3.7 ms for the scan it replaces on a 30 kb contig, a ratio that only grows with the reference since the hit is `O(entry)` and the scan is `O(genome)`. A new test pins the *premise* rather than the timing (timings on a shared machine are not baselines, as this repo's own notes say): a cached report must stay small and must not carry reference sequence, which is what makes the check free.
-- **`aforge cache verify` reports what the on-disk stores weigh, and that nothing evicts them.** Both cross-run caches are content-addressed and append-only *by design*: a changed input is a new key, which is exactly what makes a stale hit impossible and also means the old entry stays forever. An FM-index over a whole genome runs to several gigabytes per contig-strand, and editing the reference mints a new one beside the old rather than replacing it. That is the right correctness trade and the wrong thing to leave invisible in a tool whose caches a user opts into with a flag, so the sweep that already walks these files now says how large each store is, that none of them evicts, and that deleting any of them is safe.
-- **A generated index of the round log.** `openspec/changes/README.md` is this project's primary knowledge artifact and a megabyte of narrative: four hundred and fifty-odd rounds, each with its evidence, its measurements and what it ruled out. That shape is right for writing a round and useless for finding one — a reader asking "has anyone looked at cache integrity" had no way in short of a full-text search over prose that quotes its own historical mistakes. `openspec/changes/ROUNDS.md` is one row per round: its title and the first sentence of the **Lesson** it was written to leave behind, quoted rather than paraphrased and checked to appear verbatim in the round it came from. Generated by `python scripts/round_index.py` (with a `--check` mode) and held to the log by a test, because a hand-maintained index of a thing that grows every round is a list that goes stale by construction.
-- **The example notebooks' prose is read by the prose guards.** Eleven kilobytes of reader-facing markdown live in `markdown` cells inside four `.ipynb` files — the coordinate-convention warning among them — and no link, command, flag or module-path check had seen a character of it: every guard called `read_text()`, which on a notebook returns JSON, and `test_examples_teach_the_contract` reads only the *code* cells. The meta-guard added one entry earlier, whose whole subject is documents being invisible, took its population from `git ls-files "*.md"` — blind for the same reason, one file extension over. Both now go through `tests.prose.prose_text`, which unwraps a notebook's markdown; its code cells stay out, since the gate already executes them with `pytest --nbmake`, which is stronger than reading them.
-- **Every tracked markdown file is opened by some test, or recorded with the reason it is not.** Three consecutive rounds found a guard reading a subset of this repository's prose — one of two spec directories, every surface except the canonical one, `README.md` + `docs/` and not the `CONTRIBUTING.md` whose broken link that same guard's docstring cites. Each was fixed by editing a list, and the list is the defect: written once by someone looking at the files in front of them, inherited forever. This is the check one level up. It cannot say a document is checked *well* — the guards above it do that — only that it is not invisible, which is the failure mode that kept recurring. `RELEASE.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `openspec/AGENTS.md` and `openspec/project.md` joined the prose corpus in the process; the two recorded exceptions are `CHANGELOG.md` (its own structural guard) and the audit log (which quotes historical mistakes verbatim, so checking its prose against today's code would fail by design), and the archived change folders are excluded as history rather than description.
-- **The prose guards read every surface a reader can reach.** The link, module-path, documented-command and snippet-import checks scanned `README.md` + `docs/` — the population of the round that wrote them, not of the question they ask. They now also read `CONTRIBUTING.md`, the two root specs, the seven planning documents in `specs/`, and `src/alleleforge/benchmark/README.md`, which the top-level README links to and which carries the submission snippet a would-be leaderboard entrant copies first. (`openspec/changes/README.md` stays out: it is the audit log and quotes historical mistakes on purpose.) The sweep over the new files is clean, which is the good outcome and not the point — the constraint is what stops the next rename from landing there unseen. That package README also still described the board as displaying "accuracy, calibration and split version", which has been three of five since the out-of-distribution share was added and four of five since an unrankable entry started being listed rather than ranked.
-- **The specification guard reads both specification directories, and checks that a spec's cited proof exists.** `test_the_specs_name_real_things` swept `openspec/specs/` and not `specs/` — seven more requirement documents (the readiness assessment, the model- and scorer-integration plans, the distribution plan) citing the same identifiers with, in this guard's own words, "the most authority and the least readership". The sweep over them is clean apart from exemptions worth recording: upstream PRIDICT2 symbols the integration spec names because AlleleForge would have to call them, third-party packages the distribution plan names as dependencies or as things deliberately not taken on, base-editor *names* (data, like the PAM motifs already exempted), and `--timestamp` — a flag the readiness assessment names in order to say a user must not be able to forge a run's clock, now recorded as deliberately absent with a companion check that it stays absent. New: specs cite tests as their evidence, and this repo renames tests as it sharpens what they claim, so every `test_…` a spec names must resolve to a test function or a test file.
-- **`aforge cache verify` covers all four stores, not two.** Its first version swept the two caches holding *work* a run reuses — the off-target reports and the FM-indexes — and said nothing about the two holding pinned *artifacts* it was given: the dataset cache, the checkpoint cache, and the datasets that ship inside the installed package. Those are re-hashed on every resolve, which is stricter than either work cache and just as reactive, so a damaged checkpoint still announced itself in the middle of the run that needed it — the exact defect the command was written to fix, in the command that fixed it. Sweeping two of four while reporting "ok" is also the honesty failure this project spends its effort on, so the output now separates three things it used to blur: a pass, a failure, and **nothing checked**. An unpinned artifact or a pinned one that is not on this disk is counted apart with a sentence saying so, since almost none of the registry ships or is downloaded by default and absence is the ordinary state of most of that list.
-- **`aforge cache verify` — the two on-disk stores a run reuses work from can now be checked before a run instead of during one.** Each already knew how to detect a corrupted entry and neither could be *asked*. The off-target report cache re-checks its checksum only when a design happens to read that entry, so a damaged cache announces itself in the middle of the run that needed it. The FM-index gets constant-time structural checks on load, and those are honest about their reach — a flipped byte leaves every structural fact intact — while `FMIndex.verify()`, which reconstructs the text and re-hashes it, is the only check that catches an index reporting positions that are not occurrences. It is `O(n)`, so it cannot run on every load, which is exactly what a command is for; there was no command, only a Python method, in a tool whose users are told to use a CLI. `--deep` runs it, and a sweep without it says the indexes got their structural checks only rather than printing "ok". Nothing is repaired or deleted: both stores are content-addressed, so removing a named entry is always safe, and which to remove is the operator's call.
-- **The cohort table has both encodings now: `aforge batch --summary-parquet` and `POST /api/batch?format=parquet`.** The per-candidate table — the one a human scrolls — has shipped as TSV *and* Parquet for months. The cohort table, one row per patient and hundreds of rows long, is the more pipeline-shaped of the two and had only the text form. `BatchFormat`'s own docstring recorded the deferral and named its price: adding Parquet meant a writer **plus** the guard that its columns match the TSV's in order, this project having already shipped two tables of the same numbers disagreeing about their columns. Both exist now. `COHORT_COLUMNS` and `COHORT_COLUMN_TYPES` are declared once and both encodings are built from them — types declared rather than inferred, for the reason the per-design writer records: on a real cohort the first rows are not representative, so an inferred schema either fails or gives two runs of the same tool files a pipeline cannot union. Numbers stay numbers; the three structured columns render exactly as the TSV renders them, including `offtarget_sources`' "reference-only", so the two encodings cannot disagree on the one axis where "we did not look" must never read as "we looked and found nothing". The `#` note block travels as file-level key/value metadata, ordinal-prefixed so sorting the mapping reproduces the document order.
-- **`GET /api/jobs/{job_id}/result?format=…` — a finished job is a result you can ask for, in every format its blocking twin offers.** The async doors are the ones the documentation sends a client behind a proxy timeout to, and the ones the served page uses for a cohort. They returned **one** rendering — the JSON envelope `GET /api/jobs/{id}` carries — of the six `POST /api/design` has and the two `POST /api/batch` has. So the client whose run is long enough to *need* a job was the only one who could not have the PDF, the flat per-patient table, or the untruncated menu shipped a round earlier. The page showed what that cost: **Download TSV** re-`POST`ed the whole cohort to the blocking `/api/batch?format=tsv` — the endpoint the comment three functions above it says "fails exactly on the cohorts this panel exists for" — spending the entire run again (its own note measures a 300-variant cohort at 3m 40s) to format a result already sitting in the browser, over a connection the panel had already concluded could not be held open that long. A job now stores everything its result can be *rendered* from rather than the one document the envelope carries, and the synchronous endpoints and the job result share one renderer apiece, so an async client cannot be handed a different document than a blocking one. `409` while a job is unfinished or failed (carrying the failure reason), `422` for a format that kind of job does not have — a cohort has no PDF, and says so.
-- **`POST /api/design?format=menu`, `aforge design --format menu`, and a "Download full menu" button — the full outcome spectrum reaches the browser and the file system.** Every truncated outcome table says the rest of the alleles are on the ranked menu and names `aforge design --json` — a *terminal* command, rendered into the HTML the served page displays, to the audience the README describes as "users who will not touch a terminal". And there was nowhere for it to point: **no HTTP route returned the menu** — not any `format`, not the async job result, since every one is built from a `DesignReport`, which is where the truncation happens. Verified by driving the page in a browser and capturing what "Download JSON" writes: `outcome_top: 3` of `n_outcome_alleles: 4`. The new format returns the menu uncapped and untruncated, as a `Response` so `response_model=DesignReport` cannot reshape it into the thing it is not, and the page offers it beside the report — two documents on purpose, the report being the richer presentation and the menu the richer data. Confirmed end to end in a browser: the downloaded file carries `intended`, `scaffold_incorporation`, `partial_rtt` and the withheld `indel`. The shell-parity guard then failed, correctly: the two shells were spelling one capability two ways. The CLI could produce the menu — `--json`, fixed a round earlier — but only onto stdout, so it was the one output with nowhere on disk to land and no provenance sidecar. `menu` is now an `OutputFormat` too, written and sidecar'd like every other format; `--json` remains its stdout shorthand.
-- **A command named inside a message the tool prints must be one the tool has.** Command references have three populations — `--help` text (guarded by `test_help_text_names_real_flags`), the documentation (guarded by `test_a_documented_command_survives_a_shell`), and the *remedy inside a refusal*, which nothing looked at. A rename of `--chain`, `--from` or `--to` would leave the build-mismatch refusal — the one whose whole purpose is stopping a design at the wrong place in the genome — pointing a stuck user at a command that does not exist. The new guard reads every `aforge …` out of the string literals in `src/` and checks the command and its flags against the real CLI, taking the longest matching command path so `aforge bench run --out` is not read as the `bench` group's. It is honest about its reach: it catches the name being wrong, not a command that exists and does the wrong thing. Written after running all fourteen mentions by hand — seven distinct commands, all working, including all three routes the build-mismatch refusal offers.
-- **A CI job that runs the contributor path end to end: `make install` then `make ci`.** Two rounds found the same defect twice — the documented install could not run the test member (missing `core`, so `pytest` failed at collection) and then could not run the docs member (missing `docs`, so `mkdocs` was not found) — and **CI could not have caught either**, because every job installs its own subset and runs one member. That is right for parallelism and blind to the question `CONTRIBUTING.md` makes a promise about: can the command we tell a newcomer to run, run the gate we tell them to run? No job built the environment the question is about. The new `gate` job does, duplicating work on purpose. `test_gate_mirrors_ci` records why it is not mirrored locally (mirroring it would be circular — it *is* `make ci`), and a second test pins it to exactly those two commands, so narrowing it back into a per-member job cannot happen quietly. Verified by hand first: a clean venv built from the documented extras runs `make ci` to exit 0.
-- **"Check a spacer" — the served page can now run a standalone off-target search.** The guard added a round earlier recorded `POST /api/offtarget` as a **GAP, not a decision**: `aforge offtarget` is a first-class command, the endpoint is a first-class endpoint, and checking a guide you already hold is the commonest off-target question there is — but the page could only run the search *inside* a design, so the one audience with no terminal could not ask it. The new tab posts to `/api/offtarget` and renders the site count, worst score, specificity, expected burden and the effective scoring matrix, with the search-budget sentence, the coordinate convention and the disclaimer that travel with every other surface. The ancestry table shows the frequency-weighted burden **beside** the per-ancestry worst score rather than the worst score alone, because a CFD score is a property of the sequence and not of who carries it, so the worst-score column is usually identical across ancestries and reads as "risk is spread evenly" — the opposite of the finding this search exists to reproduce. The on-target locus is four inputs (contig / start / end / strand) rather than one `chr2:1000-1020(+)` box: the API takes a structured locus, so a text box would mean a second coordinate parser in the page, and the label carries the 0-based half-open convention where a reader sees it. Verified in a browser end to end — the search returns 3 sites, giving the on-target locus drops it to 2 and lifts specificity from 0.354 to 0.549, and a pasted FASTA header comes back as the sentence the API refuses it with. `OffTargetRequest` is now held to the same field-parity rule as the other two panels.
-- **A parity guard for the one shell pair that had none: the API and the page it serves.** The project guards library→CLI, library→web *request fields* and benchmark→`aforge bench`, each on the stated principle that a gap must be a decision rather than an oversight — and nothing checked *endpoints*, so the served page reached five of eleven with no reason recorded for the other six. Five are decisions and now say so; one is recorded, in those words, as a **GAP, not a decision**: `POST /api/offtarget` has no page surface, so the audience with no terminal cannot check a spacer it already holds, which is the commonest off-target question there is. Each reason must begin `decision:` or `GAP,` and run longer than a line, because an allowance list is where a gap goes to look like a choice. Four of the guard's checks keep the list honest rather than the code: no reason may outlive its endpoint, none may excuse an endpoint the page does reach, and the reader must find a real `fetch` or it is measuring nothing.
-- **`POST /api/jobs/batch` — the async path now covers the operation that actually takes minutes.** The job machinery was wired to the single design, which finishes in seconds, and not to the cohort, which does not: a 300-variant run through `POST /api/batch` held one connection for 3m 40s, past any ordinary reverse-proxy or browser timeout, and this project's stated cohort size is larger than that. The only way to run a cohort over HTTP was the one way that cannot survive it. Submitting returns `202` and a job id, polled at the same `GET /api/jobs/{job_id}` a design job uses. The status endpoint serialized its result with `isinstance(result, DesignReport)` — correct while a design was the only job kind, and silently wrong the moment it was not, since a cohort job would have reported `done` with `result: null`; it now names both shapes. Both entry points run the cohort through one function, so the two doors cannot come to disagree about which configured sources a run was given — a mistake this endpoint has already made once.
-- **`aforge bench gap` — the cross-cell-type generalization gap, which no shell could reach.** `benchmark.generalization_gap` is exported, tested, plotted in the paper and reported by the calibration study; it is the question a cross-context split exists to answer, since a single test-split number says how a model does on the contexts the benchmark happens to hold out and not whether it transfers at all. From any shell there was no way to ask it. The command scores an in-context fold and a held-out one, prints both values and the orientation-corrected gap (positive always means worse held-out, whichever way the primary metric ranks), carries the same synthetic-fixture caveat `bench run` does, and refuses an unknown fold with a usage error. The benchmark package now has the guard the design entry point has had since three of its capabilities went missing the same way: every exported operation is a command or a recorded reason.
-- **The ancestry axis now says how *often*, not only how *bad*.** `ancestry_stratification()` reports the worst-case CFD score per ancestry — and a score does not depend on ancestry, only on the sequence. So on the reference-bias finding this engine exists to reproduce, the CLI printed `worst off-target score by ancestry: afr 1.000, amr 1.000, nfe 1.000` over carrying frequencies of 0.105, 0.012 and 0.001: three identical numbers, reading as risk spread evenly across populations, which is the opposite of the published finding and of the site line beneath it. The blindness was already named one method up — `expected_burden`'s docstring says it separates a rare-variant off-target from a universal one "which the frequency-blind `worst_score` and `specificity_score` cannot" — and the ancestry axis, the one thing the population-aware search is for, was reported with the frequency-blind statistic. `ancestry_expected_burden()` is the frequency-weighted companion, on the CLI (human and JSON), the HTML and PDF reports, and `/api/offtarget`. Added, not substituted: `worst_ancestry` still drives the ranking safety axis untouched, because "is there a dangerous site at all" and "how often is it actually there" are two questions and only the second had no answer.
-- **What ClinVar says about the variant now reaches every surface, not only the prose ones.** The classification is why anyone types an accession rather than the coordinates it stands for, and it reached the menu rationale — so the HTML, PDF and report JSON — and nothing else. `aforge resolve`, whose whole job is saying what an input means, reported `source: clinvar` and not one word of what ClinVar said; the flat TSV and Parquet showed a table of pegRNAs correcting a variant that could equally have been Benign; the cohort summary, the artifact a run of accessions produces, had no column for it. All of them now state it, with the review status alongside on `resolve` (the same class "reviewed by expert panel" and "no assertion criteria provided" is very different evidence), and an absent classification stays distinct from a benign one.
-- **A caller-supplied source is marked as one.** `--gnomad`, `--clinvar` and `--haplotypes` are pinned in provenance by content hash like any other dataset (`--patient-vcf` deliberately is not — fingerprinting it would put an identifier for a person's genotypes into a shareable report — but it is marked too, since it is the one row that can never be re-checked from anywhere), and `aforge verify --cache-dir` went looking for them in the registry cache — where they can never be, since the bytes are on the caller's disk — and reported `not-cached`, which reads as "you have not fetched it yet". Nothing is fetchable there. `DatasetVersion.caller_supplied` now records the difference: verify reports `caller-supplied` and names the check the reader *can* run (compare the file's SHA-256 with the recorded one), and the provenance footer every render shares marks the row, because reproducing a run that used one means obtaining that same file rather than fetching a release.
-- **`aforge verify` now says how much it actually checked.** It already refused to call a run verified when it had re-hashed *nothing* — the note exists and its comment says why. The partial case was never written, so a real run (two baseline models with no checkpoint hash, plus a user-supplied ClinVar release that lives on the caller's disk and can never be in the registry cache) re-hashed one artifact of four and closed with the same sentence as a fully checked run. It now states the coverage and names what it did not check. Each row also says whether it is a `model` or a `dataset`; every row previously began with the word "checkpoint", datasets included, while the line above them counted the two separately.
-- `aforge lift` and `aforge verify` appear in the CLI reference's own command table, and `--format` there lists Parquet. Both commands were shipped, tested and documented in the README — and absent from the page a reader opens to find out what the tool does. The guard that exists to catch undocumented commands concatenates the README with every page under `docs/`, so a command named anywhere counted as documented everywhere; the table is now checked as its own surface.
-- **The flat table now says what it is a table of.** `DesignReport` carries nine fields and the TSV/Parquet notes were built from two, so the format a scientist opens in a spreadsheet and forwards showed a ranked list of pegRNAs with no statement of the variant they edit, the intent they were designed for, or the ranking weights that produced the `rank` column they are sorted by — all three of which sit on the HTML and PDF header line. The `locus` column was not the missing fact: it says where each *guide* sits, and an accession input makes the gap plain, since no locus in the document is the edit.
-- **A cohort row now says which variant it is about.** `item_id` is the string that was typed: an accession or an rsID names no locus, and left-alignment routinely moves a coordinate away from what was typed — so the summary TSV, the per-item menu JSON, `/api/batch` and the browser's cohort table all identified a row by an input string and nothing else. `RankedMenu` carries the resolved variant (a menu did not say what it was for; `build_report` takes the variant from *its* caller, which is why the single-design path looked complete), and every cohort surface shows it beside the input. The browser table's first column was even *headed* "variant" while holding the input; it is now two columns.
-- The cohort run header pins the datasets its items actually read, in a deterministic order, so a cohort resolved through a ClinVar release names that release and one made population-aware by a gnomAD file names that file. It pinned the reference genome's shape and nothing else, while every per-item menu recorded the lot — and nobody opens 500 menus.
-- **The four trained models are reachable over HTTP and from the served page.** `design()` takes five scorer overrides; the web-parity guard excused all five as "a Python object, not expressible in JSON" — true of the object, and beside the point, since `aforge design --trained-efficiency` had reached the same capability with a boolean all along. Every menu the API returned was scored by the weight-free baseline, and nothing on it said so or that a trained model existed. The operator lists what this deployment offers (`ALLELEFORGE_TRAINED_MODELS`, or `create_app(trained_models=...)`) because the weights are a consent-gated download onto their disk; a request picks one per call with `trained_efficiency` / `trained_outcome` / `trained_base_outcome` / `trained_prime`, the same names the CLI uses as flags. `GET /api/health` lists them under `trained_models`, the page's *More options* panel greys out the ones this deployment lacks, and asking for one that is not enabled is a 422 rather than a silent fall back to a different model.
-- **`--clinvar` and `--dbsnp` on `resolve`, `design` and `batch`**, so a ClinVar accession (`VCV…`) or a dbSNP rsID (`rs…`) is a usable input on the command line. Every shell had refused both on the grounds that the lookups were "Protocols with no shipped implementation" — `ClinVarDB` and `DbSnpDB` had shipped all along, exported and tested, satisfying those Protocols method for method. They are file-backed like `--gnomad`: nothing downloads a release, you supply one. The project's own flagship example, `aforge design VCV000012345`, had never run. With the flag, ClinVar's classification reaches the menu rationale, which is the whole reason to type an accession rather than the coordinates it stands for.
-- The lookup release a run resolved through is now pinned by content hash: in the menu's provenance `datasets`, and under `resolved_from` on `aforge resolve --json`. Two dbSNP builds can place one rsID at two loci, and naming the input *form* ("rsid") could not tell those two runs apart.
-- **Download TSV** on the cohort panel: `/api/batch` renders the flat per-patient table and the page could only take away the nested JSON, though a cohort is exactly the result someone opens in a spreadsheet.
-- **Download HTML** on the served page: the one rendering it could not give you was the one it was showing you, through a fixed 1400px frame onto a report that is routinely tens of thousands of pixels tall. The page now also says the frame is not the whole report.
-- A deployment can enable off-target scan reuse (`ALLELEFORGE_OFFTARGET_CACHE`, `ALLELEFORGE_GENOME_INDEX`, or `create_app(...)`), and `GET /api/health` reports which under `scan_reuse`. The shell-parity guard had recorded reuse as the operator's call rather than the client's while no operator could make it.
-- `aforge design` and `aforge batch` can reuse a reference scan too (`--cache`, `--genome-index`), which is what the cross-run cache was built for — a cohort re-runs the same guide against the same reference constantly. Neither changes a result.
-- `aforge offtarget --cache` and `--genome-index` expose the two ways to avoid repeating a reference scan — a cross-run report cache and a persistent memory-mapped FM-index — which existed, were parity-tested, and could be reached only from Python.
-- The scope decision that says which trained adapters are real models and which are deliberate placeholders is now checked against the code: a supported model must implement a forward pass, an out-of-scope one must not, and a newly added adapter cannot go unclassified. One integration spec's header had claimed for three months that work its own execution log recorded as shipped was still next.
-- Consequence annotation over HTTP and in the served page, behind two keys: the operator enables it (`ALLELEFORGE_VEP`) because their server makes the outbound request, and the client asks per request (`annotate_consequence`) because the variant is theirs. `GET /api/health` reports `vep_enabled`, and a deployment that enables it stops claiming that no sequence data is transmitted externally.
-- `--vep` on `resolve`, `design` and `batch` annotates the variant's predicted molecular consequence, the last thing `design()` could do that no command-line user could reach. `design()` now refuses a resolver backend it would have silently dropped, which is why no such flag could have worked before.
-- The readiness assessment's list of what no CLI user can reach is now derived from the code instead of remembered: every entry on the old list had shipped to the command line within two days of it being written, and its verification numbers were three months stale.
-
-- **Nine capabilities the API accepted and the served page could not ask for.** `readForm()` sent five
-  fields; `DesignRequest` has fourteen. Four of the missing ones changed what a run could *reach*:
-  `allow_ng` / `allow_spry` (without them a locus with no NGG guide returns an empty menu and the page
-  offered no remedy), `cell_context` (the input that raises the out-of-distribution flag on a prime
-  efficiency prediction), `chromatin_track` — which the status line *already named for this deployment*,
-  so the page was listing a capability it could not use — and `vector_scheme`. All four are now in a
-  *More options* panel, the track list filled from `/api/health` and disabled when the deployment has
-  none. The remaining four are recorded with reasons, and the check reads the request body the page
-  actually builds, so a field added to the API and not to the page fails in the suite rather than in
-  someone's browser.
-
-- **Removed a stray file named `G` from the repository root.** One line of captured stderr — `error:
-  unrecognized variant input: 'chr1:144500000:A'` — from a shell redirection typo during an earlier
-  round, swept in by a `git add -A` and shipped in every clone since. Nothing was going to notice: it
-  broke no test, imported nowhere, and a one-character filename is the least conspicuous thing in a
-  listing next to `CHANGELOG.md`. The root now has an explicit inventory — every tracked file named with
-  what a repository root has it for — so a stray is a failing test and a genuinely new root file is a
-  decision.
-
-- **An on-target exclusion now says how much it removed.** `--on-target` drops the guide's own
-  protospacer from the count, correctly — and nothing constrained how wide that interval may be, so
-  `--on-target chr1:0-3000` excluded every nominated placement and reported `0 site(s), specificity
-  1.000`, byte-identical to the same guide excluded precisely. The realistic mistake is a gene span
-  pasted instead of the 20-nt protospacer, or a liftover that returned a generous interval, and the
-  result is a guide that looks perfect. Every other route to that number on this report explains itself
-  — an unsearchable scope, a hidden sub-threshold tail, a source that contributed nothing — while this
-  one said `on_target_excluded: true` and no count. `OffTargetReport` now carries
-  `on_target_excluded_placements` and the search description states it, so it reaches every machine
-  surface; nothing is said when nothing was excluded. Export schemas regenerated.
-
-- **A cloning vector no candidate could use now says so.** `--vector-scheme px330-bbsi` on an all-prime
-  menu is inert: an sgRNA acceptor has no pegRNA 3'-extension overhangs, so every candidate stays on the
-  pegRNA acceptor — deliberate, since failing the whole report would be worse. The consequence is that a
-  pX330 user's inserts were screened for **BsaI**, not their BbsI, and the only signal was a scheme name
-  they would have to notice differed from the one they typed. This report states an inert input
-  everywhere else it has one (a cell context prime alone consumes, a PAM fallback only the nuclease takes);
-  a vector is the same shape with a sharper consequence. The rationale now names the requested vector, the
-  scheme used instead, and the enzyme the screen did not run against — and says nothing when the vector
-  was used or no oligos were built.
-
-- **The empty-interval rule is now enumerated rather than claimed.** Three surfaces take an interval
-  from outside the process — a locus string, a web request region, a BED row — and each refuses a
-  zero-width one in its own words. They agree today; the BED reader did not until the previous round,
-  and `GenomicInterval.parse`'s docstring had claimed to be "shared by every surface that accepts a locus
-  from a user", which was true of the surfaces its author had in view. The surfaces are now a list a test
-  walks, so a fourth one has to appear there, and each is checked to refuse an empty and an inverted
-  interval and to accept a real one.
-
-- **Fixed: `chr1:100-100` was a usage error and the same interval in a BED file was accepted.**
-  `GenomicInterval.parse` refuses an interval naming no bases and says why it exists — "shared by every
-  surface that accepts a locus from a user, so the CLI and the web API cannot drift into accepting
-  different spellings". The BED reader was written inline in `cli/main.py` and constructed intervals
-  directly, so it never reached that check: one command, one restriction, two answers — and a scope of
-  zero bases reports every guide as perfectly specific. BED reading moves to
-  `alleleforge.genome.read_bed_intervals`, both spellings go through one function, and a malformed row
-  is refused by line number (a panel file is long, and "invalid literal for int()" is not a location).
-
-- **`aforge offtarget --json` now carries the search description.** A BED panel of zero-length intervals
-  restricts a scan to nothing, and the tool catches it: the human line reads "NO SEQUENCE WAS SEARCHED —
-  … this is not a clean result, it is an empty one". Two of the three machine surfaces carried that
-  sentence — the design report's JSON in `offtarget_search`, the web response in `search_description` —
-  and the CLI's own payload carried `searched_bases: 0` and no sentence. Its comment says exactly why
-  that number is there, so the inputs to the inference shipped and the inference did not, on the surface
-  most likely to be scripted against. The sentence now sits beside the structured budgets, and one guard
-  covers all three surfaces.
-
-- **`POST /api/batch?format=tsv` serves the per-patient table.** The summary having moved into the
-  library, the cohort endpoint can now return the same file `aforge batch --summary-tsv` writes — one
-  row per person with the disclaimer, the coordinate convention, the reference identity and the seed —
-  instead of leaving an HTTP client to rebuild the flattening and the note block. Both shells call one
-  function, and a test asserts their headers are byte-identical. No `html`/`pdf` (a cohort has no single
-  document) and no `parquet` yet, with the reason recorded on the enum: there is no cohort Parquet
-  writer, and adding one needs the guard that its columns match the TSV's in order — a defect this
-  project has shipped once already.
-
-- **The cohort summary moved out of the CLI into the library.** About 170 lines that flatten a
-  `CohortRunReport` into one row per patient and lead the table with the research-use disclaimer, the
-  coordinate convention, the reference genome's identity and the seed — all of it in `cli/main.py`, in a
-  project whose README says of both shells that they carry "no business logic of its own". That table is
-  a product: it is the file a run over a patient VCF gets forwarded in, and a Python caller had to
-  re-implement it, note block included, while `/api/batch` could not serve it at all. The single-design
-  flat table went through this same correction on the argument that a flat table is what a pipeline
-  reads; a per-patient table is more pipeline-shaped than that one. Now `alleleforge.design.cohort_rows`
-  and `cohort_to_tsv`, called by the CLI, with the two existing guards (API-reference coverage and
-  package re-export) catching the new public module on the first run.
-
-- **Fixed: the build-mismatch refusal offered one remedy, usable by one of three callers.** It is raised
-  in the resolver, so it reaches a Python caller of `resolve()`, an `aforge design` user and an HTTP
-  client alike — and it named only `aforge lift`. A library caller has `Liftover.from_chain_file` and no
-  reason to shell out; an HTTP client has no shell on the server and there is no lift endpoint. This is
-  the refusal whose whole purpose is stopping a design at the wrong place in the genome, so it is the
-  last one that should leave two of its three audiences without a next step. It now names all three,
-  including that HTTP callers must lift before sending — and a guard fails if a lift endpoint is ever
-  added, since the message would then be stale.
-
-- **Fixed: `aforge offtarget --scorer mit` refused with a Python keyword as the remedy.** One of the
-  three advertised scorers fails on the default bulge budget — correctly, since the MIT score is
-  undefined for bulged alignments — and the message said "set dna_bulges=0 and rna_bulges=0", which is
-  not something a command line can be given. Worse than it looks: that refusal is what a caller meets the
-  *first* time they choose that scorer, and the check was deliberately moved out of the CLI into the
-  engine so every caller would reach it, which makes a Python-only spelling reach further. It now names
-  both spellings, and a guard runs each CLI-reachable refusal, checks it offers no bare `keyword=value`
-  outside quoted code, and runs the remedy it names to confirm it works.
-
-- **Fixed: the flagship CLI example in the README could not run.** `aforge design VCV000012345
-  --reference-fasta hg38.fa …` answers `error: resolving a ClinVar accession requires a clinvar=
-  database`. `ClinVarLookup` and `DbSnpLookup` are Protocols with no shipped implementation, the CLI has
-  no code path that constructs one, `create_app` takes no such argument, and the registry lists no
-  fetchable ClinVar or dbSNP release — so three of the five input forms the argument help advertised
-  cannot be used from either shell, and two CLI examples plus one `curl` example used the first of them.
-  The refusal made it worse by naming `clinvar=`, a *Python keyword argument*, to a caller who arrived
-  from a command line. It now says no shell can supply a lookup and why, and names the coordinate form
-  every surface accepts; both argument helps say the same; the examples use coordinates; and a guard
-  rejects any documented shell example whose input form that shell cannot resolve unaided. The Python
-  snippets that pass `clinvar=clinvar_db` are correct and stay.
-
-- **The site-rows note now names the population-aware fields.** It listed "locus, PAM, mismatch and
-  bulge counts, per-site score and matrix" — every one of which exists, and which left out `origin`,
-  `ancestries` and `frequency`: the columns that separate a rare-variant off-target from a universal one,
-  and the reason this tool exists. An accurate enumeration that omits the important entries reads as a
-  complete description of the row. The guard now checks both directions — every field the note promises
-  exists on `OffTargetSite` and is populated in the export the note names, and the population-aware ones
-  are named.
-
-- **Fixed: one page said 30 candidates are missing from the exports, and that none are.** The report has
-  two caps meaning opposite things about the data. `max_candidates_per_chemistry` removes candidates
-  during ranking, before the menu exists, so they are in no export — its note says so. The render cap
-  draws the top 50 plus the Pareto front and everything is still exported, and its note said "no export
-  is capped — every candidate is in the JSON report": true of the render cap, and phrased as a claim
-  about exports in general. With `--max-per-chemistry 60` on a 90-candidate menu both fire and a reader
-  gets both sentences. Scoping the second to *this menu* makes them true together, which they always were.
-
-- **`aforge resolve` now says that its own output is not its own input.** It prints `chr1:1017:T>A` for
-  the input `chr1:1018:T>A` and said only "coordinates 0-based half-open (BED-style)" — a statement about
-  loci, which is true, and which intervals satisfy by round-tripping unchanged. The variant is the one
-  printed locus that does not, and `resolve` is the command whose entire purpose is handing a caller a
-  normalized variant, so it is the surface most likely to have its output pasted straight back in. It was
-  the last one saying nothing, after the refusal message and both renders had been given the sentence.
-
-- **The example notebooks now state the coordinate convention they encode.** Both notebooks that print a
-  resolved variant had the 1-based-in / 0-based-out conversion right and unexplained — `chr2:71` for the
-  base at offset 70 in one, a bare `EDIT_POS + 1` in the other — and then printed a position one lower
-  than the string the cell above built, with nothing said. A reader who copies that printed variant
-  designs one base away: the failure `aforge resolve` now names in its refusal and both renders carry a
-  note about, absent from the file people are most likely to paste from. Pinned by the notebook-contract
-  test, over prose as well as code, since markdown is where a reader will actually meet it.
-
-- **Fixed: a failed async job reported the running progress value, forever.** `progress` is documented
-  as three values — "0.0 queued, 0.1 running, 1.0 finished" — with an explicit instruction to render it
-  as a state rather than a percentage. The 0.1 is assigned on entry to the run and only the success path
-  replaced it, so `{"state": "error", "progress": 0.1}` showed as *running* to any client that followed
-  that instruction, for a job that had finished and would never advance. `state` was right the whole
-  time; the field the documentation says to display was not. A terminal job now reports `1.0` whatever
-  kind of terminal it is, and the field's description says so.
-
-- **Fixed: printing the HTML report cut 340px off every cloning duplex.** The report had no `@media
-  print` rules at all, and the oligo block is a horizontally scrolling box — an affordance paper does not
-  have. Measured at a 624px print column, with the print rules applied and removed on the same page: 876px
-  of sequence in a 536px box, so 340px hidden on screen and 0px with the rules in place. That is the third
-  route by which this report has handed someone a truncated sequence, after the PDF's right margin and its
-  page breaks. Sequences now wrap on paper (recoverable) while still scrolling on screen (so a copyable
-  sequence stays on one line); candidates, figures and tables are kept off page seams; and the panels that
-  separate a cloning-lethal warning from a footnote are marked to print, since browsers drop backgrounds
-  by default and would otherwise undo that distinction on paper.
-
-- **Fixed: a 180-nt donor could be divided by a page break.** Pages were a blind fixed-size chunk of the
-  line list. A long HDR donor wraps to three lines, and with the right amount of content above it those
-  land at 46, 47 and 48 — two at the foot of one page, one at the head of the next. The person copying
-  that donor into a vendor form off the printed sheet has to notice it continues overleaf, and the
-  failure when they do not is a truncated reagent: the same consequence measured line wrapping was
-  introduced to prevent, by a different route. A sequence run that would straddle a break now moves whole
-  to the next page; prose still flows across breaks, and a run longer than a page is emitted as it comes.
-  Checked at every offset that can produce the collision, for no lost line, no over-long page and no
-  divided run.
-
-- **Fixed: the chart ignored the responsive rule written for it.** `.chart { width:100%; max-width:760px;
-  height:320px; }` says the intent plainly — but the chart is an *inlined* SVG carrying its own
-  `width="720" height="380"`, and those win. Measured in a browser: a 320px box around a 380px drawing,
-  so 60px of chart painted over the heading below it; and on a 375px viewport the 720px SVG made the
-  document 744px wide, so the whole page scrolled sideways to show a figure that has a `viewBox` and
-  could have scaled all along. Styling the element rather than the box gives 760x401 on a desktop and
-  327x173 at 375px with no sideways scroll — both states measured on the same page, before and after.
-
-- **Fixed: a 180-nt HDR donor ran 110pt off the right edge of the page it is printed on.** The PDF wrapped
-  at a fixed character count — `_WRAP = 92`, "characters per line at 10pt Helvetica within the margins".
-  Helvetica is proportional: 92 characters is 460pt of lowercase prose and 614pt of upper-case DNA, on a
-  504pt column. An HDR donor is a single unbroken token of the widest glyphs in the face, and it is the
-  sequence a bench scientist copies into a vendor form off the printed sheet — it was cut off at the
-  paper's edge. The `=` rule under the title overflowed by 33pt on the first page of every report ever
-  produced. Wrapping is measured now, against real Adobe Helvetica advance widths; an over-wide token is
-  broken at the last character that fits and is checked to reassemble exactly, and the section rules fill
-  the column without exceeding it. Two PDF tests that asserted on raw bytes were rewritten to reassemble
-  the text runs — a byte-substring check against a hard-wrapped document is really an assertion about
-  where the line happens to break.
-
-- **Fixed: a chart with more than ~120 candidates rendered as an empty frame.** The 2px bar inset assumed
-  a wide bar, so past that point `bar_w - 4` went negative: a 150-bar chart emitted 150 rects of width
-  `-0.6` and a 470-bar one — an ordinary large prime menu, where every PBS x RTT x PAM combination is its
-  own pegRNA — emitted 470 of width `-2.9`. A negative `width` is invalid SVG and browsers draw nothing,
-  so the efficiency figure came out as axes with no bars: no error, and nothing on the page saying the
-  picture was missing. The inset now scales with the bar and the width is floored above zero; a 470-bar
-  chart draws its whole distribution, and the guards check every count from 1 to 2,000 for a positive
-  width and for neighbours that do not overlap.
-
-- **Fixed: the report's headline chart was an unreadable smear and its caption ran off the image.**
-  Measured on an ordinary 90-candidate prime menu: 90 x-axis labels at 6.9px pitch each ~44px wide, and
-  95 value labels at 0.0px minimum spacing — printed on top of one another. Rotation was the only
-  crowding relief the renderer had. Every bar is still drawn (the bars are the distribution); what is
-  capped is the labelling, and the chart says which — "every 5th of 90 bars is labelled" — while per-bar
-  values are omitted rather than stacked. The subtitle, 243 characters carrying the calibration and
-  trained-model qualifiers, was one unwrapped line running 735px past a 720px chart; it now wraps and the
-  plot moves down. Regenerating the committed docs figures caught a wrong model in the fix itself:
-  rotated labels collide by perpendicular baseline distance, not width, and the width rule had started
-  hiding half the task names on a five-bar chart.
-- **Fixed: the report scrolled sideways.** The rationale is one long line per routing decision in a
-  `<pre>`, which defaults to `white-space: pre` with no overflow rule: 5,903px laid out in a 1,217px
-  column, pushing the *document* to 5,927px and dragging the disclaimer, the charts and every candidate
-  off-screen. The two `<pre>` blocks want different answers and now get them — the rationale wraps; the
-  oligo block keeps its lines and scrolls inside its own box, because a spacer broken across two lines is
-  one someone mis-copies into a vendor form.
-
-- **Fixed: a caveat pointed readers down at a table both renders draw above it.** "the outcome
-  distribution below is the NHEJ indel spectrum" — and `_candidate_html` and `_candidate_lines` both
-  build the allele table first and the caveats afterwards, so "below" sent a reader looking past the
-  flags, the oligo block and the score line for something they had already scrolled by. The sentence was
-  written where the flag is *set*, in `cas9.py`, which is the one place with no view of where it lands.
-  The guard forbids *deictic* use specifically, not the words: `offtarget-high` legitimately says a site
-  "scores at or above the triage band", and a check that could not tell the two apart would need an
-  exception list that hides the next real one.
-
-- **Fixed: the search description pointed at rows one of its two readers does not draw.** It is composed
-  once by the engine and rendered both by `aforge offtarget`, which prints a row per nominated site, and
-  by the design report, which prints none. Two clauses were written for the first reader and shipped to
-  both: "each site's own PAM is on its row", and a sub-threshold tail that "is not shown". On the report
-  a reader checking the PAM of a low-stringency hit was sent to a table nobody rendered, and "not shown"
-  contrasted a hidden tail with a visible list that was also absent. Both now describe the data — a site
-  records the PAM it was found with; a sub-threshold placement is not among the nominated sites — which
-  is true on both surfaces and loses nothing on the one with rows.
-
-- **Fixed: the ranking rationale described two mechanisms whether or not either had run.** It said "the
-  safety term uses the worst-affected ancestry and the efficiency term is uncertainty-discounted"
-  unconditionally. Both are conditional in the code: `_safety` takes the worst-affected ancestry only
-  when the off-target report carries ancestry annotation and the worst nominated site otherwise, and
-  `_efficiency` discounts only an out-of-distribution prediction. So a reference-only run — the common
-  case, whose search description two lines away says `reference-only` in as many words — asserted the
-  population-aware behaviour this project exists to provide, and a run with no OOD candidate claimed a
-  discount nothing received. Each clause now describes what happened and names the mechanism that did
-  not apply, so "did not apply" is distinguishable from "does not exist".
-
-- **An objective weighted zero is now said out loud.** `--weights 1,0,0,0` is a legitimate request and
-  may put the least specific guide first. The only disclosure was `safety 0.00` inside a parenthetical —
-  in a sentence that goes on to explain how the safety term works, for a term that contributed nothing to
-  the order it describes. The rationale now names the zeroed objectives, says the ordering does not
-  reflect them, and points at the Pareto front, which is computed on all four objectives regardless of
-  the weights. Nothing is said when every objective carries weight. The guard pins the second half too:
-  if the front ever starts depending on the weights, the sentence pointing readers at it becomes false
-  and a test fails rather than the prose rotting.
-
-- **Fixed: the README's provenance example named two models no default run invokes.** The one line
-  demonstrating `menu.provenance.models`, commented "every model invoked", showed `['be-dict',
-  'pridict2']`. Both are real model cards — the *trained* ones. A default run records
-  `be-dict-baseline`, `pridict2-baseline`, `prime-outcome-baseline`, and that suffix is the load-bearing
-  part of this project's stance: it is how an artifact says the number did not come from the published
-  model. The example now shows what a default run produces and says why the suffix matters, and a guard
-  rejects any snippet that presents a trained model's name as example provenance output. The
-  self-contained snippets are also executed now and their stated outputs compared — a `# → value` comment
-  is a claim and nothing was reading them (all of them were correct).
-
-- **A PAM fallback that applied to one chemistry now says so.** `--allow-ng` reads as a statement about
-  the run — "fall back to SpCas9-NG guides when no NGG guide is actionable" — and is routed to the SpCas9
-  nuclease vertical alone. Prime and base editing never see it, and prime's decline reason is a bare "no
-  PAM match at this offset", so a caller who enabled the flag, got an empty prime menu and read that
-  sentence had no way to learn the flag never applied. The nuclease vertical names the fallbacks it did
-  *not* use, which is what made the gap visible: two chemistries decline for the same reason and only one
-  explains itself. The rationale now says when an enabled fallback was inert, and the scope is stated in
-  `design()`'s docstring, both CLI helps and both request models. Widening the fallbacks to prime is a
-  scientific decision — a PE-NG pegRNA is a different reagent and the efficiency scorers are trained on
-  SpCas9 PE2 — so this states the scope rather than quietly changing it.
-
-- **One account of what each export carries, instead of four.** Grepping for the *sentence* rather than
-  the bug turned up "lossless" in four more places, all describing `report_to_json`. It is the complete
-  serialization of the report and the report is a summary, so the word was true of the candidate list
-  and false of the per-allele and per-site detail — including in the note added two rounds earlier to fix
-  the same claim, which then sat on the same page as two notes saying that detail is elsewhere. The
-  ranked menu (`menu_to_json`, `aforge design --json`) is the lossless form and is now named as such in
-  the module docstring, the API reference and the two withheld-detail notes; the candidate note says the
-  narrower thing that is entirely true — the render capped, no export did. A guard rejects the word in
-  any render's prose.
-
-- **Fixed: an off-target site count with no route to the sites.** A candidate's safety section gives a
-  count, a specificity, the scorer, the matrix and the search budget — and no site rows, by design, since
-  the report summarises. `--format json` writes that same summary: `CandidateReport` has
-  `n_offtarget_sites` and no `sites`. A comment beside the code said "the lossless export has the sites",
-  which is true of the ranked menu one level up and not of the file a reader opens. For a safety artifact
-  that is the wrong thing to leave implicit — "2 nominated site(s)" is a number acted on and not
-  checkable — so both renders now name where the rows are, sharing one constant with the allele note that
-  was fixed the same way. Only where sites exist: nothing nominated, nothing to point at.
-
-- **Fixed: a capped menu reported the count it discarded.** `--max-per-chemistry 2` produced a result
-  with two candidates whose rationale said `cas9_nuclease: 23 candidate(s)`. The run notes are written by
-  each vertical as it finishes, so they report what was *enumerated*; the cap runs afterwards, during
-  ranking, and nothing said so. This is not the render cap, which keeps every candidate in the export and
-  says where they are — this one removes them from the result and every export of it, so there is no
-  other copy to point at. The rationale now names the number dropped and says they are not recoverable
-  from this result; a cap that removes nothing says nothing.
-- **`config_snapshot` now records the inputs that decide what the menu is.** The chemistry restriction,
-  the per-chemistry cap and the two PAM fallbacks were read at the top of `design()` and never written
-  down, so a re-run from the record returned a different — larger — result. Each is recorded, and each
-  is routed in `CONFIG_SNAPSHOT_ROUTES` to where a reader can actually see its effect, which is this
-  project's standing rule for that dict.
-
-- **A scored run now records the weight matrix that scored it.** `aforge design --region ...` labelled
-  every candidate `matrix doench-2016-cfd`, with the citation, and its provenance said `0 dataset(s)`.
-  The matrix is a registered dataset with a pinned sha256 and it is the only one whose bytes actually
-  ship. So the footer that "names the datasets and tools a run consumed" named none, and — the part that
-  matters — `verify --cache-dir` re-hashes `provenance.datasets`, meaning the tamper contract did not
-  cover the file that produced every safety number on the result. The matrices are read off the reported
-  *sites*, not the scorer's configuration (a fixed published matrix falls back to the length-relative
-  approximation per hit, and that approximation is code with no bytes to pin), and a run with no search
-  records none.
-- **Fixed: `verify` reported the one always-available dataset as `not-cached`.** `bundled` said the bytes
-  ship inside the installed package and nothing said *where*, so every consumer looked in the cache — the
-  one place a bundled file never is. `DatasetDescriptor` now resolves its shipped path, `verify` hashes
-  it there, and a test pins that path equal to the one the scorer loads, since two paths to the same
-  bytes are two paths that drift.
-
-- **`aforge verify` now checks the record against the result.** Every check it ran was verifiable from
-  the provenance block by itself — a version string, a config snapshot, a name and version on each entry
-  that is *listed*. Nothing looked at the artifact the block is attached to, so emptying `models` (one
-  edit, in the obvious place, on a report full of efficiency predictions in the same file) still reported
-  "provenance is complete and consistent". A prediction implies a scorer ran, and provenance's whole job
-  is naming what produced the numbers; that case is now a refusal with exit `4`. The bare
-  `.provenance.json` sidecar has no result to cross-check and is still accepted — it is the only
-  machine-readable provenance the tsv, html and pdf formats leave behind.
-
-- **Fixed: on the HTML report, a cloning-lethal hazard was typeset as de-emphasis.** Measured in a
-  browser, `oligo warning: internal-BbsI-site` computed to 13.6px in grey on no background — it carried
-  `class="muted"`, and so did every neighbour: the "showing 3 of 54 alleles" pagination note, the flag
-  list, and the ligation-prep reminder. The same was true of every `caveat —` line, which is the *hazard
-  subset* of the flags and exists so that hazards do not read with the weight of `epegRNA:tevopreQ1`.
-  Hazards now use the amber the research-use panel at the top of the page already uses, at full size and
-  full ink; the routine notes stay muted. The guard pins the relationship, not the hex: a hazard may not
-  be smaller or greyer than the paragraphs it sits among.
-
-- **Fixed: the printable order sheet buried its hazards and printed half of them twice.** The oligo
-  block read header, `top`, `bottom`, U6 note, `WARNING: internal-BbsI-site`, prep — so the line saying
-  the assembly enzyme cuts this very insert sat *below* the two sequences a person copies into a vendor
-  form, in the same indent as the note and the ligation prep. Hazards now come first, directly under the
-  block header. And a precise nuclease candidate printed every donor hazard twice, once as `WARNING - `
-  from the donor block and once as `WARNING: ` from the consolidated list, differing by one character:
-  four hazards on the page where there were two. The donor block no longer repeats them, and the
-  promotion is prefixed `donor:` — which `SgRnaOligos.warnings` already documented and did not do —
-  because consolidated with the guide's own hazards, "is 250 nt, beyond what most vendors synthesize"
-  does not say which reagent is too long, and the flat table's `oligo_warnings` column has no other
-  column to say it either.
-
-- **The cohort panel now offers what the single-variant one does.** The round that gave the served page
-  its *More options* controls gave them to one tab. `aforge batch` and `BatchRequest` are each guarded
-  against falling behind their single-variant sibling — the page was not, and fell behind immediately. A
-  cohort is where these matter most: a variant with no NGG guide is the row that comes back empty, and a
-  run left going over a whole VCF is not one anyone re-runs to change a setting they could not find. The
-  cohort form now carries cell context, chromatin track (filled from `/api/health` for both tabs from one
-  place) and the two PAM fallbacks; the cloning vector stays single-variant-only with the reason
-  recorded, and the guard compares the two forms' request bodies directly.
-
-- **Fixed: the served page offered three Download buttons before anything had been designed.** The page
-  hides sections with the `hidden` attribute, which works by a user-agent `[hidden] { display: none }`
-  rule that *any* author rule setting `display` outranks — and `.actions { display: flex }` did. Both
-  download bars were `hidden === true` and `display: flex` at once, so the page opened offering *Download
-  PDF / JSON / TSV* for a result that did not exist, and pressing one returned in silence. The stylesheet
-  now neutralizes the collision for every element toggled that way, and both handlers say why they are
-  doing nothing (the cohort one on the cohort's own status line, not the single-variant one that is not
-  even on screen). Found by opening the page.
-
-- **Fixed: the CRISPR-Bench leaderboard page was unreadable in dark mode too, and the guard for that
-  could not see it.** The report and the frontend were fixed by painting the ground their palettes
-  assume; the board failed the same way for the opposite reason — it declared no colours at all, which
-  is not neutral: with no `color-scheme` the user agent applies its default *light* text rules while the
-  browser paints a dark canvas, so the board rendered dark grey on near-black. The guard added in the
-  previous round read *stylesheet sources*, so a page with no stylesheet was invisible to it. It now
-  renders each of the three pages and asks of the document what a reader would — does it say which
-  scheme it was drawn for, and does it paint its own ground — and is verified to fail on the old board.
-
-- **Fixed: `--json` produced a stream no parser accepts.** `aforge design --out report.json --json >
-  menu.json` wrote the `wrote <path>` confirmation and the ranked-menu JSON to the same stream. The test
-  covering that path documented the defect instead of failing on it — it dropped the first line before
-  parsing — and it kept passing after the fix because `result.output` is click's *mixed* stream, not
-  stdout. Every `wrote <path>` line now goes to stderr, where every other status message in this CLI
-  already goes, and the guards assert on `result.stdout`.
-
-- **Fixed: the withheld alleles were not in "the lossless export".** A Cas9 spectrum routinely has 65
-  alleles; the renders show three and used to say the rest were in the lossless export. `--format json`
-  writes `report_to_json`, whose `outcome_top` is the same three — a reader chasing the other 62 opened
-  the file and found the page again. The full spectrum lives one level up, on the `RankedMenu`
-  (`menu_to_json`, `aforge design --json`), and both renders now say so. The PDF said the count and
-  nothing about where the rest went; it says both now. Pinned as a fact about the data rather than a
-  string match, so if either export's truncation changes the note fails.
-
-- **Fixed: a render told readers to look in an export that does not exist.** Both render caps ended
-  "the remaining N are in the lossless JSON/CSV export" — wrong twice. There is no CSV export (the
-  formats are JSON, TSV, Parquet, HTML, PDF), and "lossless" is true of the JSON alone: the flat tables
-  carry one scalar row per candidate, without the allele spectrum, the oligo sequences or the off-target
-  site list. A reader chasing a withheld candidate's details looked for a file that is not written and,
-  settling for the TSV, read a row that cannot answer. One shared sentence now names the lossless form
-  and the complete-but-flat ones separately, and a new guard rejects any format name in a render's prose
-  that this tool does not write — verified to fail on the old string.
-
-- **Fixed: the report's headline chart was titled *Calibrated efficiency* on a page where nothing was
-  calibrated.** Every candidate underneath it prints `(nominal — coverage not measured)` and
-  `(heuristic point estimate — not from a trained model)`, because with the bundled models `calibrated`
-  and `point_from_trained_model` are both `False`. The chart is the first thing a reader looks at and it
-  asserted the opposite of every line below it — the honesty machinery reached the prose and stopped at
-  the figure. The title now tracks the bars (*Predicted efficiency* unless every one is calibrated) and
-  the subtitle carries the same qualifiers the text does, quantified when only some bars are affected so
-  a report mixing a trained prime scorer with the heuristic Cas9 one is not described by either extreme.
-
-- **Fixed: pasting the tool's own printed variant back into it blamed the build.** `chrom:pos:ref>alt`
-  is *read* as a 1-based VCF record and *printed* with a 0-based position, both documented — but the
-  printed form is syntactically the input form, so `aforge resolve chr1:1018:T>A` prints
-  `chr1:1017:T>A`, and handing that back either failed with `(wrong build?)` — the one thing that was
-  not wrong — or, when the neighbouring base happened to match, silently designed an edit one base
-  away. The refusal now checks whether the asserted ref sits one base to either side and, when it does,
-  names the convention and hands back the string that works; a genuine mismatch still blames the build.
-  The HTML and PDF renders carry the warning beside the variant, where the surprise is, rather than
-  relying on the footer's general note about loci. The comment above `COORDINATE_NOTE` claimed every
-  printed locus round-trips; it now records the one exception.
-
-- **Fixed: the HTML design report rendered as a blank page in dark mode.** The same defect as the served
-  frontend and a worse consequence: the report is the artifact a collaborator is *sent*, opened on a
-  machine whose theme the author never sees. `body` carried `color: #1a1a1a` and no background, so it
-  inherited the user agent's — dark ink on a dark ground. (Its charts were fine; the inlined SVG paints a
-  white rect first.) The report now declares the light scheme its palette assumes and paints its own
-  ground, and the mechanical rule — a `body` rule that sets a foreground sets a background, and the
-  scheme is declared not inherited — now covers every stylesheet the project ships.
-
-- **Fixed: the served page was unreadable in dark mode.** `styles.css` is a light design throughout and
-  set `color: #1a1a1a` on `body` without ever setting a background, so `body` inherited the user agent's
-  — near-black text on a dark ground. Every field label, every help line and the tagline were invisible,
-  and the form controls rendered dark against the white panels for want of a `color-scheme`. Found by
-  loading the page in a browser; the frontend tests read it as text, which is the right trade for a
-  build-free page and blind to exactly this. Two mechanical guards stand in for a renderer.
-
-- **The served page can hand a user the flat table.** Its export buttons were *Download PDF* and
-  *Download JSON* — a printable document and a nested object — so the one format a bench scientist opens
-  in a spreadsheet had to be produced from another shell, which for a browser user means not at all. A
-  *Download TSV* button now sits beside them, and a test pins the two properties that matter: every
-  `?format=` the page requests is one the API accepts (a mismatch fails only at runtime, in the browser),
-  and each one actually returns a body.
-
-- **The flat table now names the enzyme that cleared each insert.** `oligo_warnings` is the ordering
-  hazard a pipeline filters on before placing a DNA order, and it became interpretable only against a fact
-  the table did not carry the moment the cloning vector became the caller's to choose: an empty cell means
-  "clean for **this** enzyme", and pX330's BbsI and lentiGuide's BsmBI clear different sequences. One report
-  can even mix them — an sgRNA-only vector cannot receive a pegRNA extension, so those rows stay on the
-  pegRNA acceptor — which is the `offtarget_worst_matrix` situation and is solved the same way, per row.
-  New `oligo_scheme` and `oligo_enzyme` columns, empty alongside `oligo_warnings` when no oligos were built.
-  Export schema version 11 → 12.
-
-- **The flat table a pipeline reads is now obtainable from both shells.** `report_to_parquet` was
-  reachable from Python alone — so the round that gave Parquet its disclaimer, reference build and
-  coordinate convention improved a file no shell could produce, while `docs/api/cli.md` documented it under
-  `--format`. And the web API offered `json|html|pdf` only, leaving the one audience that cannot open an
-  HTML page with nothing to read over HTTP. `aforge design --format parquet --out menu.parquet` now writes
-  it (requiring `--out`, since the notes live in the file's metadata, and leaving the same
-  `.provenance.json` sidecar every other format does; exit `4` naming the extra when `polars` is absent),
-  and `POST /api/design?format=` accepts the same five formats the CLI does, pinned equal by a test.
-
-- **Fixed: the TSV and the Parquet disagreed about column order.** They are documented as the same table.
-  The TSV projects each row onto `TSV_COLUMNS`; the Parquet writer handed polars a list of dicts and took
-  whatever order `_row` built, which had drifted by one adjacent swap — `offtarget_specificity` and
-  `offtarget_expected_burden`, two numbers on unrelated scales, at the same index in the two files. A
-  positional reader (`frame[:, 17]`, `df[[18]]`) silently read the wrong one. The guard that existed asked
-  `set(TSV_COLUMNS) <= set(frame.columns)`, true under any permutation; both halves are now pinned as
-  sequences, and the empty-table branch — built from the constant, so already ordered differently from a
-  populated file written by the same function — agrees with the populated one by construction.
-
-- **The cloning vector is now the caller's to name, and the ordering-hazard screen follows it.** Every
-  insert is screened for a copy of its scheme's Type IIS recognition site — the classic Golden-Gate
-  failure, where the enzyme that assembles the construct also cuts it and the clone silently dies. That
-  screen is only as right as the scheme, and the scheme was a Python-only argument to `build_report`: the
-  CLI and the web API always screened for lentiGuide's BsmBI. pX330 / pSpCas9(BB) is the other standard
-  sgRNA protocol and cuts with **BbsI**; its overhangs are the same `CACC`/`AAAC`, so the printed oligos
-  are correct to order either way, and a spacer carrying `GAAGAC` came back clean. `aforge design
-  --vector-scheme px330-bbsi`, the `vector_scheme` request field on `POST /api/design`, and the
-  `vector_scheme` config key now select it; an unknown name is a usage error (or a 422) listing the
-  registered schemes, and the OpenAPI enumeration is derived from the registry rather than retyped beside
-  it. An sgRNA-only vector has no 3'-extension overhangs and cannot receive a pegRNA, so selecting one
-  leaves pegRNA candidates on the pegRNA acceptor instead of failing the whole report — every candidate's
-  block names the scheme it was built with. `aforge batch` is exempt with the reason recorded: the cohort
-  path writes raw ranked menus and builds no oligos at all, so it has nothing to screen.
-- **`build_report()` is now under the same shell-parity check `design()` and `search()` are.** Two entry
-  points had a test asserting that a parameter a shell does not forward is a recorded decision rather than
-  an oversight; the third — the one that decides what the *document* says — had none, which is how
-  `scheme` stayed library-only. Adding the check immediately paid: the repository's own cohort-parity
-  guards then failed on the new option and forced the exemption to be written down.
-
-- **The Parquet export states its own provenance.** The flat table grew a leading `#` note block in
-  schema v6 so the one surface a result gets forwarded in would not show efficiencies, specificities and
-  genomic loci with nothing saying they are uncertain predictions, against which genome, in which
-  coordinate convention. Parquet holds the same columns and is the format a *batch* consumer reads, and it
-  carried none of those notes — it has no comment lines. It now carries them where Parquet puts them, as
-  file-level key/value metadata (`disclaimer`, `provenance_1..n`, read with
-  `polars.read_parquet_metadata`). Both writers draw from one source and a test pins the reverse direction,
-  so two tables of identical numbers cannot disagree about which genome they are against. Export schema
-  version 10 → 11; the optional `polars` floor rises to 1.30, the first release whose Parquet writer accepts
-  file metadata.
-
-- **The chromatin adjustment is reachable over HTTP, and `/api/batch` uses every configured source.** The
-  accessibility tracks are operator-configured (`ALLELEFORGE_ENCODE_TRACKS`) while the track *name* is
-  per-request, since one bedGraph holds several cell types; `GET /api/health` lists the names a client can
-  choose from, and an unknown one is a 422 carrying the vocabulary rather than the CLI's old failure mode
-  (an empty menu and a success status). The cohort endpoint builds its design call separately from the
-  single-variant one and was still running reference-only after the sources were wired into the latter — a
-  cohort row and a one-variant result look identical either way.
-- **The haplotype-aware pass is reachable over HTTP too.** The population source's sibling, wired the same
-  way (`create_app(haplotypes=...)` or `ALLELEFORGE_HAPLOTYPES`) and reported the same way
-  (`haplotypes_loaded` on `/api/health`). It finds a site that exists only on a co-inherited combination of
-  alleles — something no single-variant source can nominate — and wiring one ancestry source without the
-  other would have left the capability half-reachable.
-- **The population-aware off-target search is reachable over HTTP.** `OffTargetRequest` accepted
-  `populations` and `maf` but no population source, `create_app` took none, and no environment variable
-  supplied one — so every API scan was reference-only whatever ancestry labels a client asked for, and every
-  breakdown came back empty, which reads as "no ancestry-specific risk" rather than "nothing was searched".
-  The same gap was found and closed for the CLI rounds ago; the web shell kept it. The source is
-  operator-configured (`create_app(gnomad=...)` or `ALLELEFORGE_GNOMAD_TSV`) because a client-supplied path
-  would be an arbitrary file read, and `GET /api/health` now reports `gnomad_loaded` so a client can tell
-  which deployment it is talking to.
-- **Every native kernel's speedup is re-measurable.** `scripts/native_speedup.py` timed four things while
-  the crate exposed six, and the R223 contig fold was timed by nothing — so several claims in the round log
-  existed only as prose. It now also times the bulged-alignment kernel (R208), the per-anchor evaluation
-  kernel (R224) and the fold to the index alphabet, each against the fallback it replaced: **9.5x**, **8.9x**
-  and **13.5x/19.4x** on this machine. A `TIMED_KERNELS` map ties each function registered in
-  `rust/src/lib.rs` to the section that times it, and a test fails in both directions — a kernel with no
-  section, or a section naming a kernel that no longer exists.
-- **The specificity says what else went into it.** `specificity_score()` is
-  `1 / (1 + Σ reported + subthreshold_score_sum)`: the tail is deliberate, so a guide does not become clean
-  because the caller asked to see fewer of its off-targets. Nothing disclosed it, so the headline number could
-  not be derived from the printed rows — and with the cut-offs raised past every hit the report read
-  `0 site(s), worst score 0.000, specificity 0.130`, three numbers of which only the unexplainable one carried
-  the risk. The description now names the suppressed tail's placement count (recorded as
-  `subthreshold_placements`, because `0.19` of mass is one near-miss or twenty faint ones) and its
-  contribution, and states that raising the cut-off cannot improve the specificity.
-
-- **The off-target report says when it broadened the PAM.** `search()` widens SpCas9's `NGG` to `NRG` so
-  low-stringency `NAG` sites — which SpCas9 cuts, less efficiently — are nominated rather than missed. That is
-  deliberate and specified, and no surface said it: a report headed `PAM NGG` listed sites reading `pam=CAG`
-  with nothing reconciling them, while the search description enumerated every *other* condition the numbers
-  rest on. It is load-bearing — over a CAG repeat, 24 of 25 sites are NAG, so the specificity is almost
-  entirely produced by low-stringency PAMs — and both available readings (real NGG hits, or a bug) were
-  wrong. `OffTargetReport.scanned_pam` records it and the description states it, only when the scan really
-  did broaden.
-
-- **The identifiers the capability specs name are checked against the code.** Across 4,400 lines of spec
-  there are 467 backticked tokens — CLI flags, class names, enum members — and nothing verified that any of
-  them still named something real. All of them do today, so this is preventive and mutation-verified: renaming
-  a cited enum member in a spec fails it. The resolver understands enum members (`ZERO_BASED_HALF_OPEN`,
-  `NOT_PROVIDED`, `PATHOGENIC`), which are most of what a requirement cites and none of which is a
-  module-level name, and an exemption list covers tokens that look like code and are not — DNA motifs, VCF
-  column values, and the browser APIs the web spec names to promise the frontend avoids them.
-
-- **The capability specs are checked against the shipped CLI.** `openspec/specs/` holds nineteen
-  specifications — the requirements a change folds into when it ships — and no test in the suite read them.
-  `aforge lift` shipped with a CLI test, a README row and a docs entry and appeared in none of them, while
-  the CLI spec's own subcommand requirement enumerated five commands for a tool that ships eight. The `lift`
-  requirement is now written (and was checked against the real command, including `UNMAPPED` and its non-zero
-  exit), and a new check runs both directions: a command the specs name must exist, and a command that exists
-  must be named. The exit codes the requirement lists are compared to the `ExitCode` enum.
-
-- **The design principles agree with themselves.** `openspec/project.md` — the file the tests call the source
-  of truth — still stated *"Population-aware by default. Off-target search covers population variation and
-  stratifies by ancestry"*, the overclaim the README and docs had already been corrected for; the guard
-  against that claim read `README.md` and `docs/index.md` and not the canonical file. The source of truth now
-  carries the honest wording, the guard reads it, and a new check requires the README's restatement of the
-  principles to match it. `_PRINCIPLE_EVIDENCE` also now records the *title* each entry was written against,
-  not just the number, so rewording a principle cannot silently transfer its evidence.
-
-- **A `genome-light` extra names the set every build was assembling by hand.** `"pyfaidx>=0.8"
-  `"pyliftover>=0.4"` was appended to an extra in seven CI jobs, the Makefile and the Docker image — the
-  light half of `genome` (pure-Python FASTA reader and liftover, without the compiled pysam/cyvcf2/mappy
-  chain), described in prose by the Dockerfile's own comment and nameable by nobody outside the repository.
-  `genome` is now defined in terms of it so the two cannot diverge, and a new check fails any `pip install`
-  line in the Makefile, Dockerfile or workflows that names a package dependency beside an extra — such a line
-  is either an extra missing something (which broke `pip install "alleleforge[web]"`) or a set that deserves
-  a name.
-
-- **`pip install "alleleforge[web]"` can actually serve.** The extra was `fastapi`, `uvicorn`, `httpx` — no
-  FASTA reader — so the documented three-line quickstart died at import on
-  `uvicorn alleleforge.web.api.app:app`, because `create_app()` runs at module scope and reads
-  `ALLELEFORGE_REFERENCE_FASTA`. The Dockerfile already compensated by adding `pyfaidx` by hand, with a
-  comment explaining that the API needs only the light reader and not the heavy pysam/cyvcf2/mappy chain;
-  that reasoning now lives in the extra, the image no longer re-adds it, and a test pins that it does not
-  come back. The web app's reference loader also catches `ImportError` alongside `OSError`, so an
-  environment that cannot supply a reader leaves a running service with a recorded reason rather than a
-  traceback in a container log.
-
-- **`aforge bench` explains a missing optional dependency instead of tracebacking.** On a
-  `pip install "alleleforge[cli]"` — a documented install — `design`, `batch` and `offtarget` all report
-  *"needs the optional dependency pyfaidx … pip install 'alleleforge[genome]'"* and exit 4; all four `bench`
-  subcommands died with a raw `ModuleNotFoundError` and exit 1, because `_missing_dependency` — the handler
-  written for exactly this — was wired into three of the four places that needed it. Verified against a wheel
-  installed into a clean interpreter, not only in-process. Two links of the underlying import chain were also
-  removed: the `enumerate` modules annotate with `ReferenceGenome` and now import it under `TYPE_CHECKING`,
-  and `alleleforge.genome` defers its `reference` re-exports (PEP 562) so importing any genome submodule no
-  longer pulls in pyfaidx.
-
-- **A symbol a documented snippet imports must exist.** The docs already check every CLI command the prose
-  invokes, every flag it names, every local link and every module path it cites; the `from alleleforge… import
-  X` lines inside the Python fences were the one unchecked claim, and only their modules were verified. A
-  renamed export would have left every documented snippet importing a name that is not there, with the suite
-  green and an `ImportError` on the reader's first line. All eighteen resolve today, so this is preventive —
-  and mutation-verified, after a first attempt that edited `__all__` and proved nothing (it does not bind or
-  unbind names, only `import *`).
-
-- **The shipped Docker deployment starts without a pre-built `.fai`.** Opening a reference writes
-  `<fasta>.fai` beside it when none exists; the bundled `docker-compose.yml` mounts the reference read-only
-  (correctly) while calling the index optional (wrongly). Without one, `uvicorn alleleforge.web.api.app:app`
-  — the command in the deployment guide and the Dockerfile — **died at import**, because `create_app()` runs
-  at module scope; the CLI relayed pyfaidx's advice about a Python API it already passes; and nothing named
-  the remedy. `ReferenceIndexError` now names the missing index, why it cannot be created and the
-  `samtools faidx` that fixes it; the web loader catches it so the service starts and answers `503` with that
-  text; and the compose header and deployment guide say the index is required on a read-only mount.
-
-- **A corrupt FM-index cache is refused instead of answering "no occurrences".** The cache directory is named
-  for the sequence hash, so a wrong *directory* was impossible and a corrupt *file inside the right one* was
-  never checked: a truncated `bwt.bin` loaded silently and reported zero hits — which renders as
-  "0 site(s), specificity 1.000" — and a one-byte tamper dropped a real occurrence while returning two
-  positions that are not occurrences. `FMIndex.verify()` catches both and **nothing called it**, so its
-  documented "fails closed" guarantee held for nobody; it is `O(n)` and cannot run on every load, so
-  `FMIndex.load` now checks in constant time what `meta.json` already records — the BWT's length, and that
-  `c_table` is a non-decreasing set of offsets inside it. Same-length tampering still needs `verify()`, and
-  the check says so.
-
-- **The native FM-index says which cache arguments it ignores.** With the Rust crate built — the configuration
-  the README recommends for real genomes — `FMIndex.build` dispatches to the in-memory kernel and silently
-  dropped `cache_dir`, `rebuild`, `occ_rate` and `sa_rate`, so a caller passing `cache_dir=` (or
-  `search(..., fm_cache_dir=...)`) got no cache, no error, and a rebuild on every call. It now warns, naming
-  the dropped arguments and `prefer_native=False`, and only when one was actually supplied.
-
-- **One check over every artifact the tool writes.** Four rounds running found the same missing
-  document-level context one artifact over, each missed because the existing check is keyed to a *type*.
-  `test_every_artifact_says_what_it_is` enumerates the writers instead: the design HTML/PDF/TSV/JSON, the
-  cohort summary, the off-target payload and both leaderboard renders are produced through their real CLI
-  paths and asserted to say what they are. Two artifacts are exempt with recorded reasons — the signed
-  benchmark result (adding a prose field would invalidate every previously signed result's signature) and a
-  cohort's per-item menu JSON (a library type, with the context beside it in the summary and manifest).
-
-- **The CRISPR-Bench leaderboard says what it is.** The artifact most likely to be published, linked and
-  quoted marked its synthetic splits — the fact it most needs — and carried no research-use statement, no
-  version and no generation time. Both renders (and the empty board, the one most likely to be published
-  first) now lead with a shared context block. `RESEARCH_USE_DISCLAIMER` is split into a
-  `RESEARCH_USE_CORE` true of every artifact plus the design report's fuller sentence, because reusing the
-  full one verbatim put "The candidates below are ranked…" at the top of a board of *models*; the board adds
-  that a benchmark score on a frozen split is not evidence a model is fit for a therapeutic decision.
-
-- **`resolve` says when a variant changes nothing.** `chr1:1000:A>A` — reference and alternate identical —
-  came back as `[snv, build hg38, from coordinates]`, because `variant_class` is computed from allele
-  *lengths*: one base against one base is an `snv` whether or not they differ. The design path already refuses
-  to build a reagent for such an input, by name and with a non-zero exit; `resolve`, the command whose job is
-  to say what an input means, was silent. Both shells now report `changes_the_sequence`. Reported rather than
-  refused — a reference call is a legitimate VCF row and `aforge batch` reads VCFs.
-
-- **`P(intended)` ships with its uncertainty, like the two numbers beside it.** A candidate carried
-  `efficiency` and `bystander_burden` as `Prediction[float]` and `p_intended` — the probability the edit
-  produces the allele you asked for, the number a reader is most likely to act on — as a bare float on every
-  surface. It was not missing but *discarded*: `PrimeOutcomePredictor` returns a `Prediction` for it that
-  `prime.py` dropped in one line, and base editing's `p_intended_exact` never reached the candidate; both were
-  recomputed downstream as a plain sum. `DesignCandidate.p_intended` now carries the scorer's prediction, the
-  HTML and PDF show its interval and flags, and the TSV gains `p_intended_low/high/in_distribution/calibrated`
-  (`EXPORT_SCHEMA_VERSION` 7). SpCas9's outcome predictor makes no such prediction, so there the field is
-  `None` and the renders say *derived from the outcome distribution; no calibrated interval* instead of
-  inventing a band.
-
-- **`aforge verify` names the three artifact shapes it accepts.** It parsed everything as a `RankedMenu`, and
-  a `DesignReport` — what `design --format json` actually writes — had been validating as one by structural
-  coincidence, so `verify` was reading a different object than the file described. Adding a field to
-  `DesignCandidate` ended the coincidence and would have made `verify` reject the tool's own primary output;
-  it now tries `DesignReport`, `RankedMenu` and the bare `Provenance` sidecar explicitly, and the middle one
-  is pinned so it is accepted on purpose.
-
-- **Every closed-set refusal names the values it accepts.** Three of the CLI's five did (`--scorer`,
-  `bench run`, `data show`); `--intent` and `--chemistry` — the flags on the primary command a first-time
-  caller most often gets wrong — did not. The chemistry message echoed pydantic's `'PRIME' is not a valid
-  Chemistry`, which names the *class* rather than a word from the caller's vocabulary, and reported only the
-  first bad value of a repeatable flag. Both now list the accepted values, on the CLI and on the web API,
-  where it matters more because there is no `--help` on the other end of a `422`. All five are pinned by one
-  parametrized test, so the next closed-set input joins the list or fails.
-
-- **An unexamined ancestry now names the labels that would have worked.** `docs/data.md` documents three
-  ancestry vocabularies (gnomAD `afr`, 1000 Genomes `AFR`, HGDP `africa`), so `--populations AFR` against a
-  gnomAD slice whose columns are `afr`/`nfe` produced a true but unactionable warning: the request went
-  unexamined, and the report — which had computed the backed set to decide that very sentence — did not say
-  what the sources carry. `OffTargetReport.available_populations` now does, and where no ancestry source was
-  supplied at all it says that instead, since an empty list of alternatives would read as "these exist and
-  yours is not among them". The labels are deliberately **not** case-folded: gnomAD's `afr` and 1000 Genomes'
-  `AFR` are different groupings, and matching them would silently answer a question about one with data about
-  the other.
-
-- **A reported locus is named the way the searched reference names it.** The same off-target site in the same
-  genome was called `chr2:43-63` unscoped and `2:43-63` when scoped with `--region 2:0-183`: unscoped the
-  contigs come from the reference, scoped they carried whatever the caller typed, so **the identity of a site
-  depended on an unrelated flag** and two runs over one genome produced lists that do not join or
-  deduplicate. Nothing was mis-searched — `canonical_contig` reconciles the styles — but the name written down
-  afterwards was the caller's, not the genome's. Regions are now renamed where they meet the reference in
-  `search()`, and a variant in `resolve()` when a reference is supplied, so a `2:71:A>C` input against a
-  `chr2` genome no longer yields a candidate at `2:43-63` beside off-target sites at `chr2:…`. The rename is
-  always toward the supplied genome: a bare-named FASTA yields bare-named output, `resolve` without a
-  reference renames nothing, and an unknown contig is still refused rather than renamed onto another sequence.
-
-- **A fifth native kernel: the per-anchor protospacer evaluation.** `_evaluate` runs once per PAM-positive
-  anchor — 500,000 times over 2 Mb — doing the ungapped comparison in Python and crossing the FFI boundary
-  twice more for the two bulge directions. `rust/src/evaluate.rs` does the whole decision, so a scan crosses
-  once per anchor instead of three times: **a 2 Mb scan goes ~1.25s to ~0.89s, 28%**, measured as interleaved
-  A/B pairs, with the specificity identical to nine decimal places. Same contract as every other kernel — an
-  unbuilt crate changes the speed of a run and not its results, pinned by a parity suite.
-
-  Writing the port forced two decisions the Python had never made, both off-contract and both worse than an
-  error: `pam_at` past the end of the sequence raised `ValueError` from a `zip` three frames down, and the
-  same with an *empty spacer* returned a zero-mismatch hit at a coordinate outside the sequence. Both paths
-  now refuse. Nothing in contract changes.
-
-- **Folding a contig to the index alphabet runs in C, not per base in Python.** `_sanitize` maps every base
-  outside `ACGTN` to `N` so the linear scan and the FM-index path agree about what a window holds; it did so
-  with `all(b in _INDEX_ALPHABET for b in seq)` plus a comprehension — one pass of interpreter overhead per
-  character of a reference, once per sequence per `search()`, uncached, with `search()` running per candidate.
-  Two `str.translate` calls replace it: **2 Mb 59.8ms -> 3.3ms (+94.5%), 20 Mb 775ms -> 35ms**. The
-  substitution derives its table from the offending characters themselves, which keeps it faster on every
-  input distribution (clean +92%, one stray base +94%, a synthetic 44%-IUPAC sequence +78%) rather than
-  trading the clean path against the dirty one, and cannot mishandle a non-ASCII byte the way a fixed
-  256-entry table would. Equivalence is pinned by property tests against the previous implementation. The
-  end-to-end 2 Mb scan does not visibly move — 56ms is below this harness's ±7% noise — so the case is the
-  scaling, not a stopwatch on a toy contig.
-
-- **The browser cohort table shows specificity and the off-target basis, not a bare worst-case score.** The
-  column beside the one an earlier round fixed for bare efficiency estimates rendered `worst off-target 0.000`
-  alone — the most reassuring number the system can produce. The batch response also carries
-  `best_specificity` and `offtarget_sources` (`{}` when nothing backed the scan, which over HTTP is always,
-  since no file-backed population source can reach a deployment), and the table ignored both, so every cohort
-  row in the browser showed a reference-only result as a clean one. It now shows the specificity and marks the
-  basis `reference-only` in the error style. Verified by driving the served SPA in a browser and reading the
-  rendered row back from the DOM, not only by asserting on `app.js`.
-
-- **A standalone off-target result says which genome it searched.** `aforge offtarget --json` and
-  `POST /api/offtarget` carried extensive per-search honesty (`on_target_excluded`, `searched_bases`,
-  `effective_matrix`, the ancestry stratification) and no document-level context at all: no reference
-  identity, no coordinate convention, no disclaimer. Two scans over different FASTAs give different
-  specificities and produced indistinguishable payloads, and the `locus` strings are 0-based half-open with
-  nothing saying so. Both shells now carry `reference` (the shape descriptor), `coordinate_system` and
-  `disclaimer`; the CLI prints one line under the search description rather than repeating it per site. The
-  HTTP surface is where this matters most — a client cannot see the FASTA the server opened.
-
-- **The cohort summary TSV carries its caveats, and the run records which genome it screened against.**
-  `aforge batch --summary-tsv` — the file a whole-cohort run is read through, one row per patient — carried no
-  disclaimer, no coordinate convention, no reference identity and no seed. It now leads with the same `#` note
-  block the per-design export got, so the column header is still the first non-comment line. Building those
-  notes exposed the second half: `CohortRunReport.provenance` is a dict the cohort assembles by hand, and it
-  recorded `reference_build` (a label) and nothing about the genome — the same gap the design path closed
-  earlier, still standing here because the fix landed on an object the cohort does not use. The run header now
-  carries the same shape descriptor. Under `--max-workers` there is no run-wide reference, and the summary now
-  says each item's own result records the genome it used, rather than printing `reference build None`.
-
-- **Every render of a report is checked to state the same whole-document facts.** A `fact x surface` table
-  (disclaimer, coordinate convention, reference identity, build, seed, models across HTML/TSV/JSON/PDF) is now
-  a test with an explicit, reasoned omission list, so a fact added to one render cannot quietly skip the
-  others. Writing it found the last gap: `report_to_json` stated **no coordinate convention at all** — its
-  `locus` is a formatted string and the embedded `Provenance` has no coordinate note, because that note lives
-  in a render helper the JSON never calls. `DesignReport.coordinate_system` (`"0-based-half-open"`) is now a
-  field rather than a sentence, since the consumer of that surface is a machine; it reaches `/api/design` too.
-
-- **A malformed gnomAD sites file is refused with the line and the reason.** `--gnomad` was the one
-  user-supplied format whose parse errors escaped as a bare traceback (`KeyError: 'af'` on a row with its
-  trailing columns lost, because `zip(..., strict=False)` truncates silently and `_load_gnomad` catches only
-  `OSError`/`ValueError`) — and it is the input that makes a scan population-aware. Three cases now get three
-  answers: a header missing a core column prints the expected header, a row that cannot supply the core
-  columns names the line and its field count, and a header naming the same column twice is refused rather
-  than silently keeping the last of two frequencies for one ancestry. A row omitting only trailing population
-  columns stays legal.
-
-- **The specificity scorer is reachable over HTTP, and unknown request fields are refused.**
-  `OffTargetRequest` had no `scorer` field, so `POST /api/offtarget {"scorer": "cfd-cas12a"}` returned `200`
-  scored by the SpCas9 CFD matrix — pydantic ignores an unknown key by default. Because `pam` *is* settable,
-  a Cas12a search was already reachable and came back labelled `doench-2016-cfd`, the published matrix, where
-  the CLI labels the same run `cas12a-analog-approximation (unvalidated)`: a wrong honesty label on the
-  surface most likely to be read by a machine. `scorer` now resolves through the same `scorer_for` the CLI
-  uses (an unknown name is a `422` listing the valid ones), and **every** API request model now forbids
-  unknown fields, so `populatoins`, `intnet` or `buidl` is a `422` naming the key rather than a `200`
-  describing a run the client did not ask for.
-
-- **The accessibility track is pinned in provenance, and its name is checked.** Two runs over bedGraphs
-  differing only in signal produced different efficiencies (0.484 vs 0.457) and identical provenance with an
-  empty `datasets` list: `_attach_source` pins gnomAD and the haplotype panel by content hash, and the ENCODE
-  loader was the one that never called it, so `_collect_datasets` looked for a descriptor the CLI never
-  attached. Recording `chromatin_track` — a name the caller chose — cannot tell two accessibility files apart.
-  Separately, `--chromatin-track` naming a track absent from the file raised `KeyError` inside the chemistry,
-  which caught it as a decline reason: an **empty menu and exit 0**, with the cause buried in a rationale
-  paragraph. The name is now validated where it is supplied and the refusal lists the names the file has; a
-  bedGraph that parses to no tracks at all is refused too, explaining that lines beginning `track`, `browser`
-  or `#` are skipped as UCSC directives.
-
-- **Provenance identifies the reference genome, not just its label.** Two designs over two different
-  reference FASTAs produced byte-identical provenance while their safety verdicts differed twofold
-  (specificity 0.879 vs 0.468), and `aforge verify` called both complete: the block recorded
-  `reference_build`, a label that stays `hg38` whatever FASTA is opened, and `_collect_datasets` names the
-  reference only for a registry-resolved build, never for the `--reference-fasta` path everyone uses.
-  `config_snapshot.reference` now carries build, contig count, base count and a hash of the canonicalized
-  `name:length` list, read from the `.fai` so the cost is O(contigs) — exposed as
-  `ReferenceGenome.contig_lengths()`. It pins the reference's *shape*, and says so in the record and in the
-  report footer (`pins contig names and lengths, not the bases`), because two FASTAs with the same contigs
-  and lengths are indistinguishable to it and a digest that overclaims its reach is worse than none.
-
-- **A run-config TOML can be written as TOML.** `weights` and `populations` are whitelisted config keys —
-  so `--config` accepted them without a typo warning — and both were then handed to a parser that only knew
-  the CLI's comma-separated string, crashing with `AttributeError: 'list' object has no attribute 'split'` on
-  the natural TOML spellings. The `[weights]` table is exactly the shape a result's own
-  `provenance.config_snapshot` records, so the user most likely to hit it was the one reconstructing a run
-  from its provenance. Both keys now accept either spelling (weights also as a 4-element array), a malformed
-  one is a usage error naming what was expected instead of a traceback, and the three weight spellings are
-  pinned as producing the same run. `docs/api/cli.md` now shows the run-config file it referenced in three
-  places and never displayed, and a test extracts that block from the markdown and runs it.
-
-- **The API reference lists every endpoint, and a check keeps it that way.** `docs/api/web.md` heads a
-  table "Endpoints" and omitted `POST /api/batch` — cohort design over a variant list, a whole capability —
-  while the README's copy of the same table had it. Nothing was broken, which is why nothing caught it: the
-  route works and its tests pass, and the omission is visible only by diffing two documents. A new check
-  asserts every `/api` route the app serves appears on both surfaces, normalizing `{...}` so a renamed path
-  parameter is not a failure. It is the mirror of the environment-variable check: that one asks whether every
-  documented name is real, this one whether every real name is documented.
-
-- **The documented environment variables are checked against the ones the software reads.**
-  `docs/deployment.md` named the reference build `ALLELEFORGE_REFERENCE_BUILD`; the `Settings` field is
-  `reference`, so the real variable is `ALLELEFORGE_REFERENCE` and exporting the documented name silently left
-  the build on `hg38` — a deployer aiming at mm39 would have had every downstream coordinate interpreted
-  against the wrong genome, with nothing said. The table also omitted `ALLELEFORGE_ALLOW_NETWORK` and credited
-  the cache directory to `XDG_CACHE_HOME` alone when `ALLELEFORGE_CACHE_DIR` takes precedence. All three are
-  fixed, and a new check fails the suite for any `ALLELEFORGE_*` name in the docs that is neither a `Settings`
-  field nor read from `os.environ` in `src/`, with three variables additionally exercised end to end so the
-  derived "honored" list cannot drift into agreeing with a wrong table.
-
-- **CLI help is checked against the flags it names.** `--region`'s help on `design`, `batch` and
-  `offtarget` warned that the locus is 0-based "unlike `--variant` and `--pop-freqs`" — two flags that do not
-  exist (the variant is a positional argument; the frequency file is `--gnomad`), a wrong pair repeated in
-  `docs/data.md`. The sentence is the tool's only warning about the coordinate convention that, mixed up,
-  moves a scan one base off target, so an unfollowable version of it is worse than none. A new check walks
-  every command and requires each long option named in its help to be its own or qualified by the command that
-  owns it; it also caught `lift`'s bare `--region` and, in `verify`, `--format`/`--out`, which belong to
-  `design`. What is true is now stated too: `--gnomad` and `--patient-vcf` take 1-based VCF positions, and
-  `--haplotypes` is 0-based in both its span and the `pos` of each `chrom:pos:ref>alt`.
-
-- **`aforge verify` reads the provenance sidecar `aforge design` writes.** `design --out X` leaves a
-  `X.provenance.json` block beside the result; `verify` — the command that turns provenance from a record into
-  a checkable contract — parsed only a full `RankedMenu` and rejected that sidecar with a pydantic error about
-  a missing `candidates` field. For `--format tsv`, `html` and `pdf` the sidecar is the *only* machine-readable
-  provenance a run produces, so the contract was out of reach of three of the four output formats, and the
-  error named the wrong file. Every check `verify` performs reads the provenance block and nothing else, so it
-  now accepts either shape and reaches a byte-identical `--json` report from both. A file that is neither is
-  still a usage error and now names both accepted shapes; a result whose `provenance` is `null` is still
-  reported as unverifiable rather than mistaken for a bare block.
-
-- **A fourth native kernel: the scan's innermost bulged alignment.** `_best_with_removed_base` was 57% of the
-  off-target scan's self time after the cheaper Python wins — a million calls over 2 Mb, two per PAM-positive
-  anchor — and the previous round measured three Python variants that all bought the reject path with the
-  survivor path and shipped none of them. Moved to the Rust crate (`rust/src/align.rs`) behind the same
-  fallback-plus-parity contract the FM-index, k-mer and haplotype kernels keep: **43% off a whole scan**, with
-  byte-identical results pinned by a 30,000-case differential against the Python path, which is itself pinned
-  against the naive definition. A scan that took 2.62 s at the start of this work now takes 1.16 s.
-
-  Writing the kernel surfaced a latent trap in the Python it mirrors. The function documented but never
-  checked its precondition that `longer` is exactly one base longer than `shorter`; violated, it raised
-  `IndexError` for most shapes and, for a two-base-longer input, silently returned a **wrong alignment**
-  (`("ACGTAC", "ACGT")` gave `(0, "ACGTC")`). Unreachable from the scan, which slices the window to exactly
-  `n + 1` — but the native kernel had to decide what to do off-contract, and making both refuse is what lets
-  the parity claim hold everywhere rather than only where the caller happens to be correct.
-
-- **Capping the menu is pinned as returning a prefix of the full ranking.** `--max-per-chemistry` is applied
-  after the composite sort, so "the top three" means the first three of "all of them" rather than three of
-  them. That the cap keeps the *best* of each chemistry was already covered; that it keeps them *in order* was
-  not. The fixture lists candidates out of ranked order deliberately — sorted, it cannot distinguish a cap
-  applied before the sort from one applied after.
-
-- **Two documented "this must not matter" claims are now checked.** `--render-candidates` caps the drawing,
-  not the data: the CLI help, the web request model and a handler comment all say the JSON and TSV exports are
-  never capped, and nothing checked it. A prime design yields ~90 candidates; a leak would have written three
-  of them to the JSON a pipeline consumes, with only the HTML mentioning the other eighty-seven. And a cohort's
-  written artifacts must not depend on worker count — the existing parallel-vs-sequential test compares
-  in-memory summaries and never uses `output_dir`, which is the surface the temp-file collision fixed in the
-  previous round actually lived on. Both hold; both are pinned.
-
-- **The specificity score is pinned as independent of the display filter.** `specificity_score` is
-  `1 / (1 + Σ reported + subthreshold_score_sum)`, and the second term exists so the reporting cut-off decides
-  what is *shown* and not what is *counted*. Measured across the whole range on a reference carrying four
-  graded near-matches: the displayed site count falls from 5 to 1 while the score stays at 0.216718 to six
-  decimals, the tail absorbing exactly what leaves. The pieces were unit-tested — the formula includes the
-  tail, merging two nick reports sums it, the engine produces a non-zero one — and the property they exist to
-  produce was not. Its failure has a direction: without it, raising `--cfd-threshold` would drop sites out of
-  the sum and the aggregate safety number would go **up**, so a guide could be made to look more specific by
-  asking to be shown less. Pinned as an equality across thresholds and, separately, as the inequality that
-  showing less must never score better.
-
-- **`aforge lift`'s documented promises are now checked.** Its help says the output "pipes straight back in"
-  to `--region`, that an unmappable locus prints `UNMAPPED` rather than being dropped ("a shorter list is a
-  smaller search"), and that the run exits non-zero. All three held and none were tested; the two commands sit
-  on opposite sides of the tool, one formatting a `GenomicInterval` and the other parsing one, and the promise
-  is the only reason the liftover is usable from a shell.
-
-- **Five checks that could pass while examining nothing now have a floor.** A test whose only assertion is
-  that a scanned collection is empty — `assert not broken` — is satisfied perfectly by finding nothing to
-  check, and that is invisible in a green run. Measured, not argued: neutralizing the prose corpus in
-  `test_readme_documents_the_cli.py` left **five of its six tests green**, including "every local link
-  resolves" and "every module path the prose cites is importable" — both had been checking zero of each.
-  Floors added to the two prose scans, the docs cross-reference scan, both shell-parity parameter sets, and
-  the cohort/design parity check, each mutation-checked by neutralizing its own extraction. The rule is
-  recorded in `openspec/project.md`, since the next check of this kind is written next round.
-
-- **The README's CLI claims are now checked.** 1,400 lines of specific, checkable assertions and nothing
-  checked any of them. Three guards: every command the README *invokes* exists (read from shell fences and
-  inline code, so prose and mermaid node labels are not mistaken for commands), every `--flag` it documents
-  exists on some command (with the flags belonging to docker, ruff, pytest, uvicorn, maturin and mypy listed
-  by owner), and the cell-context claim names the vertical that consumes it. Two claims were verified in
-  passing and hold: every `design()` capability really is reachable from `aforge design`, and all eight
-  documented commands exist.
-
-- **The cohort endpoint now accepts everything the single-design one does.** Checking `design()`'s parameter
-  list against each shell is the query that has found the most in this project. Run against the web API it
-  turned up a gap inside the API: `DesignRequest` carried four options `BatchRequest` did not, all four of
-  which `aforge batch` has had all along. `offtarget_regions` — so the most expensive path was the one that
-  could not be scoped; `allow_ng` / `allow_spry` — a cohort is where a variant with no actionable NGG guide is
-  certain to turn up, and the fallback built for that case was unreachable, so the item came back empty with
-  nothing the caller could do; and `cell_context`, so no out-of-distribution flag was obtainable on the batch
-  path. A structural test now fails when an option is added to one request model and not the other.
-
-- **Every setting recorded in provenance is now pinned to a route that reaches a reader.** The report footer
-  is a curated summary, and `PROVENANCE_FOOTER_OMITTED` is the mechanism that forces "every omission must be a
-  decision". It had one entry — `config_snapshot`, excused as "rendered inline beside the results". The
-  snapshot holds eight keys; two are rendered inline, and the footer was skipping all eight on the strength of
-  those two. `CONFIG_SNAPSHOT_ROUTES` now records where each key reaches a reader, every route verified by
-  varying the setting and reading the rendered page, and a test fails when a new key is added without one.
-
-- **Every candidate now says where in the genome it edits.** A prior round labelled the report's coordinate
-  convention on the reasoning that "a printed cut site is the number a reader pastes into a genome browser" —
-  and then the coordinates themselves went unaudited. SpCas9 printed `cut 117` inside the reagent line, a bare
-  integer with **no contig**. Prime editing printed no genomic coordinate at all: five candidates differing
-  only in RTT length, none saying where the edit lands. Base editing gave a protospacer-relative window and no
-  locus. Rendering a report and searching the whole page for a contig name returned nothing — not one `chr…`
-  token anywhere, while the provenance block described the convention those absent coordinates were in. A
-  locus without its contig cannot be opened in a browser and is not even unique in a cohort report spanning
-  genes. `CandidateReport.locus` now carries the contig-qualified interval plus the cut or nick site, on all
-  three chemistries, and reaches the HTML page, the printable PDF and a new `locus` TSV/Parquet column
-  (`EXPORT_SCHEMA_VERSION` 4 → 5). An unplaced candidate still reports `None` rather than inventing one.
-
-- **A non-finite allele frequency is pinned as rejected.** `nan > 1.0` and `nan < 0.0` are both False, so a
-  range check written `if af > 1 or af < 0` admits `NaN` — which then compares False against every MAF
-  threshold and silently drops the variant from the search. The validator is written `not 0.0 <= af <= 1.0`,
-  whose negation catches it: correct by construction and one refactor away from not being. The same property
-  already cost this project a fix in `RankingWeights`. Pinned for gnomAD and for the haplotype panel, which
-  feeds the same ancestry stratification.
-
-- **The OOD detector's conservative degeneration is pinned.** Checked alongside the conformal shortfall,
-  since both ask what a mechanism claims when the data is too thin: with a one- or two-point reference the
-  threshold collapses, and it collapses toward refusing to vouch for anything rather than toward vouching
-  for everything. A far input is never called in-distribution. Now a test, not a check done once.
-
-- **Every number that gates what a user sees now says what kind of number it is.** The CFD and MIT thresholds
-  decide which off-target sites appear in a report *at all*; the MAF threshold decides which population
-  variants are considered; the GC band decides which spacers get a quality caveat. None is a published cutoff
-  and three said nothing about that — `DEFAULT_CFD_THRESHOLD` carried the comment "spec defaults", which reads
-  as though a specification had derived it. Each now states plainly that it is a project default, what it
-  costs to be wrong, and that lowering it only ever adds sites. A test requires it, so a new judgement
-  constant cannot arrive unlabeled.
-
-- **`aforge offtarget --scorer`: the three specificity scorers are selectable at last.** `search(scorer=…)`
-  took an `OffTargetScorer` object, so a scorer could only be chosen by importing its class — MIT was
-  unreachable from every shell, and so was the **Cas12a analog**, a whole nuclease's scoring, implemented,
-  carded and cited. The report already *named* which scorer produced its numbers; the user could not choose
-  it. The off-target engine also had no shell-parity check at all — only `design()` did — which is now fixed,
-  with the remaining gaps (the R4 cross-run cache and prebuilt genome index) recorded with reasons rather
-  than left silent.
-
-- **`scripts/release_readiness.py` measures the v1.0 criteria instead of leaving them as prose.** `SPEC_V2.md`
-  lists five conditions for cutting v1.0 and nothing checked any of them, so "how close are we" was answered
-  by reading bullet points. Four are blocked outside the repository — which is exactly why measuring is worth
-  it: it separates *blocked* from *forgotten*, and it will notice the day one stops being blocked. Current
-  state: **1/5 met**; 1 of 12 artifact-backed model cards pins a checkpoint hash (5 further cards are
-  heuristic baselines with nothing to pin, and are excluded from the denominator rather than counted as
-  failures), 0 of 5 benchmark corpora are real, and the Zenodo DOI is minted on the first tagged release. It
-  exits non-zero while any criterion is open and is now a step in `RELEASE.md`.
-
-- **`aforge batch` offers the design options it was missing.** The cohort path — the run someone leaves going
-  over a whole VCF, where a trained model or a PAM-flexible fallback matters most — could not select a
-  trained model or a fallback **by any means**, config file included, while `aforge design` could.
-  `--chemistry` and `--cell-context` were config-file-only there: honoured if you knew to write TOML,
-  invisible from `--help`. All eight are now flags on `batch`, and a test requires every `design` option to
-  exist on `batch` or be recorded with a reason (`--format`, `--out` and `--render-candidates` shape a single
-  rendered document, which `batch` does not produce).
-
-- **`--trained-prime`, and shell/library parity is now pinned.** `design()` is the one entry point behind all
-  three audiences, and a parameter it accepts that a shell does not forward is a capability that exists and
-  cannot be reached. Three instances: the PAM fallbacks (previous entry); the trained prime-efficiency model,
-  which had no CLI flag while its Cas9 and base-editor siblings did — on the flagship chemistry; and
-  `--allow-ng`/`--allow-spry`, which the previous entry added to the CLI and not to the web API. All three are
-  closed, and a test now requires every `design()` parameter to be forwarded by each shell or recorded with
-  the reason it is not (the web API's file-backed exclusions, for instance, are a deliberate refusal to accept
-  client-supplied filesystem paths on a server).
-
-- **`--allow-ng` and `--allow-spry`: the PAM-flexible fallbacks are reachable at last.** `enumerate_cas9`
-  falls back to SpCas9-NG (`NG`) and SpRY (`NRN`/`NYN`) when no `NGG` guide is actionable, and `design_cas9`
-  exposed both — but `design()`, which the CLI, the web API and the cohort path all use, did not, so no shell
-  could ask for them. At a locus with no NGG in range the default run produces **0 candidates** and enabling
-  both produces **190**. Off by default, deliberately: an NG guide is a different reagent with different
-  specificity, so it is offered rather than assumed. An empty Cas9 vertical now also names the variants it
-  did not try, which is the difference between a dead end and a next step.
-
-- **Every field on the report models must now reach a renderer.** The recurring defect here is not a wrong
-  number but a correct one nothing shows — `search_description()` dropped by the web envelope, the CFD
-  citation left in a docstring, `sources_considered` needing separate wiring. `project.md` prescribes the
-  guard ("a test that iterates `Model.model_fields` covers the fields that do not exist yet") and `Provenance`
-  and `OffTargetReport` had one; the two models a reader actually reads did not, while two fields were added
-  to `CandidateReport` in recent work with nothing to notice if either had been left unrendered. Both are
-  currently clean. A new field that no renderer mentions now fails, unless recorded with a reason.
-
-- **Each of the eight non-negotiable principles now has its evidence written down.** `test_stated_principles`
-  checked three of them while reading as though it covered "the principles" — the same shape as the
-  principle-8 gap it sat next to. It now parses the numbered list from `openspec/project.md` and requires
-  every principle to name either the test that checks it or the reason it cannot be checked mechanically
-  (principle 4, "wrap don't rebuild", is a judgement no assertion decides). A named test must actually exist.
-  A ninth principle added to the list fails the suite until its evidence is recorded.
-
-- **The frontend's "loads no third-party scripts" promise is now enforced.** The README, the deployment guide
-  and the page itself all state it, and it is a privacy claim about a page a lab opens while pasting patient
-  variants into it — a CDN font leaks the fact and timing of every visit, and a third-party script leaks
-  whatever it likes. The claim holds today (every `src`, `<link href>` and `fetch` is a same-origin relative
-  path) and was one `<script src="https://…">` from being false with nothing to notice. A scan now rejects
-  any off-origin target in a position the browser fetches on its own; an `<a href>` the *user* clicks is
-  still allowed, since a link is not a load. Verified against injected CDN script, stylesheet, `fetch`, and
-  CSS `@import` references.
-
-- **The "deliberately minimal core" claim is now a test.** `pip install alleleforge` really does pull eight
-  transitive dependencies, none of them numpy, and `import alleleforge` really is ~85 ms — but nothing checked
-  it, and a single top-level `import numpy` added anywhere in the `__init__` chain would break the core
-  install outright on a machine that has no numpy, invisibly to a CI that installs every extra. A subprocess
-  probe now asserts that importing the package loads none of the optional stacks.
-
-- **The citation metadata is now checked against the package it ships with.** `CITATION.cff` and
-  `.zenodo.json` restate the version, license, title, repository URL, authors, and keywords that live
-  authoritatively in `_version.py` and `pyproject.toml` — and nothing checked any of it, so the next version
-  bump would leave `CITATION.cff` naming a release that never existed and every citation of the software
-  pointing at it. For a project whose stated purpose is reproducible open science that is not a cosmetic
-  defect. The check found a live divergence on its first run: the two files listed different keywords
-  (`.zenodo.json` had `benchmark`, which is right — the project ships CRISPR-Bench). `RELEASE.md`'s
-  version-bump step now names the file too.
-
-- **`openspec/project.md`'s conventions are current again.** The file distils the audit into durable rules
-  and had stopped at R128, so a stretch of process lessons existed only inside individual round entries.
-  Seven added: co-presented numbers must range over the same population; an aggregate can be a claim even
-  when it is not a number; for an opt-in check the question is *who opted in*; a guard in a convenience
-  wrapper is not a guard on the documented path; a duplicated exception is a duplicated `except`; an audit
-  returning implausible results has two suspects and one is the audit; and audit the artifacts the audit
-  produces. A test pins that every round a convention cites resolves to a log entry — which immediately
-  caught a dangling `R117`.
-
-- **The audit log is navigable again, and pinned.** `openspec/changes/README.md` ran ascending for rounds
-  1–134 and then **descending** for 135–145, because each of those rounds prepended its entry ahead of the
-  previous one — the log read chronologically and then reversed. Two round numbers (50, 71) had shipped work
-  and were cited by later entries but had no section at all; both are now written from their commits and
-  labeled as reconstructions. Round 117 turns out to be a skipped *number*, not lost work — R116's entry
-  covers it — and that is now recorded where a reader following the citation looks. Tests pin ascending order
-  and that every number in the range resolves to an entry or to a documented, still-accurate skip.
-
-- **The changelog was an append-only log, not a changelog.** `[Unreleased]` had grown **77** change-type
-  headings — 36 separate `### Fixed`, 32 `### Added` — because every change prepended its own instead of
-  merging into the existing one, and nothing checked it. Consolidated to one section per type in Keep a
-  Changelog's order, with all 300 bullets preserved verbatim (verified by diffing the bullet sets), and pinned
-  by a test so it cannot drift back.
-
-- **Every copy-pasteable `aforge` command in the prose is now checked against the real CLI.** One direction
-  was pinned — every command appears somewhere in the docs — and not the other, so a renamed flag would turn
-  a quickstart into a usage error with nothing to notice. All 25 documented commands currently resolve.
-
-- **`SECURITY.md`.** A public repository that ships a web API, downloads pinned artifacts, and accepts signed
-  leaderboard submissions from strangers had no stated way to report a vulnerability privately. Reports go
-  through a GitHub private advisory — the same channel the code of conduct uses. It states what is in scope
-  (untrusted-input parsing, the API and frontend, the artifact gates, generated leave-behinds), what is not
-  (a wrong scientific prediction is a modeling issue, not a vulnerability), and the deployment facts an
-  operator needs.
-
-- **`aforge lift` — a build mismatch now has a remedy inside the tool.** `resolve` refuses a record whose
-  native assembly disagrees with the requested build (relabeling a coordinate designs a guide at the wrong
-  place in the genome) and told the caller to lift the coordinates first — naming an operation the CLI did
-  not offer. `Liftover` was implemented, tested, and called by nothing in the library; `from_chain_file` had
-  no callers outside its own tests. The new command takes loci in the same form `--region` accepts and emits
-  them the same way, so its output pipes straight back in, and an unmappable locus prints `UNMAPPED` and
-  exits non-zero rather than being silently dropped — a shorter region list searches less than was asked for.
-
-- **Seven public names are now re-exported from their packages.** `alleleforge.design` did not export
-  `PRIME_MAX_EDIT` or `PRIME_MAX_TEMPLATED_EDIT` — the two prime budgets `routing.__all__` declares public
-  and the README cites by name — and `alleleforge.data` exported `ClinicalSignificance` but not the
-  `ClinicalAssertion` that carries it. `alleleforge.report` gained `caveats`, `provenance_lines`,
-  `model_limitation_lines` and `visible_candidates`, which is everything a caller needs to build a report
-  view of their own; they were reachable only from `alleleforge.report.builder`.
-
-  Two mechanical rules now hold this, so neither depends on anyone's taste about what "the API" is: a name
-  in a submodule's `__all__` is a declaration the package must honor, and a dotted name the docs cite must
-  resolve. The second catches a renamed or deleted name that a cross-reference still points at.
-
-- **Eight modules reached the API reference for the first time**, including `design_many` — the cohort
-  entry point, with its own README section and its own example notebook, absent from the reference since it
-  was written. Also `alleleforge.config` (the `Settings` and network-consent surface), the cross-run caches,
-  VCF ingestion, the model-checkpoint loader, the PRIDICT engine adapter, and the shared spacer-quality
-  checks. The docs build passed throughout: mkdocstrings renders what it is pointed at and says nothing
-  about what it is not.
-
-  `tests/test_api_docs_cover_the_package.py` now fails when a public module has no `:::` directive and is
-  not listed in `_NOT_IN_API_REFERENCE` with a reason — currently four entries, all documented as endpoints
-  or commands rather than as functions. A second test rejects an exclusion naming a module that no longer
-  exists, so the list cannot become a stale excuse.
-
-- **A cohort row now says which safety sources it was actually screened against** (`offtarget_sources`, in
-  the JSON row and the summary TSV). This is where a per-item difference hides: one variant screened against
-  a haplotype panel and the next screened without it produce identical-looking rows, the candidate counts do
-  not move, and the row is what a reader scans across hundreds of variants. It is also what made the bug
-  above observable at all.
-
-- **The "config file is honored" contract now has a test.** `_load_config` warns on an *unknown* key, which
-  means a key inside the whitelist gets no warning — so a whitelisted key that no command reads would be
-  accepted silently and do nothing, and the user's run would differ from the one their config describes. The
-  comment beside the run-param handling names that exact failure; nothing checked it. Two tests now do: every
-  whitelisted key is read somewhere in the CLI, and a config-only run produces the same candidates,
-  rationale and provenance snapshot as the equivalent flags.
-
-  All ten keys are honored today, `populations` included — a negative result worth recording, since it is
-  the safety-relevant one.
-
-- **An ambiguous spacer position now says that it biases the safety score downward.** A non-ACGT base in a
-  spacer cannot be scored — the CFD matrix has no entry for it — so the aligner counts it as a mismatch and
-  the site's score falls toward 0. On a safety axis that is exactly backwards: the true base is unknown and
-  may match perfectly, so an ambiguous position should make a reader *less* confident and instead made the
-  number look better. A degenerate spacer with an `N` at position 20 reported `worst score 0.000` on its own
-  locus. It is recorded rather than refused — a degenerate spacer is a legitimate reagent, and the oligo
-  layer says so explicitly — and `OffTargetReport` carries `ambiguous_spacer_positions`, with the search
-  description naming the positions and stating the direction of the bias.
-
-- **An ancestry requested for stratification that no supplied source carries data for is now named.**
-  Asking to stratify by `sas` against a frequency file whose records carry only `afr` and `nfe` contributed
-  nothing and was dropped in silence — while the provenance snapshot recorded `sas` among the populations
-  considered, so the artifact asserted an ancestry had been examined when no data for it existed, and its
-  absence from the breakdown read as *no risk in that population* rather than *no data*. On a tool whose
-  differentiator is ancestry-stratified safety, that is the wrong silence. `OffTargetReport` records
-  `unbacked_populations`, checked across every supplied source (a haplotype panel backs its own ancestries),
-  and the search description names them. It stays empty when no source was supplied at all — that case has
-  its own warning, and two warnings for one situation is worse than one.
-
-- **A chromatin track that covers none of the candidate loci is now reported, and an adjusted candidate is
-  flagged.** The per-candidate path was already careful — an uncovered locus produces no chromatin note, so
-  the tool never claims evidence the track did not have. What was missing is the menu-level statement: a
-  track supplied and named in provenance can cover nothing, leaving every efficiency the unadjusted estimate
-  while the run reads as chromatin-aware. The menu now says so, and candidates the track actually moved
-  carry a `chromatin-adjusted` flag — previously that fact existed only in prose inside the candidate
-  rationale.
-
-- **A safety source that is supplied but covers nothing in the searched region now says so.** The warning
-  for a *missing* frequency source has existed for a while; a source that is **present and inert** produced
-  nothing at all — and its report is byte-identical to a reference-only scan, empty ancestry breakdown
-  included, while the user believes they supplied the data. A per-chromosome gnomAD download, a region
-  subset, a haplotype panel for another locus, a patient VCF from a different sample: all land here, and
-  this is the more dangerous case, because nothing is absent to prompt a second look.
-
-  `OffTargetReport` carries `sources_considered`, a mapping from each **supplied** source to how many of its
-  entries fell in the searched region. An absent key means "not supplied", `0` means "supplied and covered
-  nothing here", and those are different statements. A mapping rather than a field per source deliberately:
-  the sources are a growing set, and checking one while its siblings go unchecked is exactly how this gap
-  arose.
-
-  Two things checked and found sound, worth recording: **contig naming** (an Ensembl-style `11` gnomAD file
-  against a UCSC `chr11` reference gives identical results — `canonical_contig` does its job), and
-  **soft-masked reference sequence**, which a repeat-masked hg38 would otherwise have silently failed to
-  match in exactly the regions where off-targets live.
-
-- **An off-target report now says how much of the requested region could actually be searched.** A window
-  holding an assembly gap or an IUPAC ambiguity code cannot be scanned, and the report looked identical
-  either way: a scan over a contig that is **99% `N`** returned the same shape of answer as one over
-  fully-resolved sequence. On a real genome that is the difference between "no off-targets" and "no
-  off-targets in the 1% of your region that is sequenced" — and a region overlapping a centromere or a
-  scaffold gap is not exotic. `OffTargetReport` records `searched_bases` and `resolved_bases`, and the search
-  description appends *"only 1% of the 4,038 requested bases were searchable"* when the fraction is below
-  99%. A fully-resolved reference says nothing, so the caveat is information rather than furniture. The count
-  uses four `str.count` passes, so it costs nothing next to the scan that walks the same bytes.
-
-- **`aforge bench compare` — the operation the reproducibility digest exists for, which had no
-  implementation.** Every benchmark run computed a platform- and release-stable digest over its scientific
-  body, stored it, and nothing ever read it back. Its docstring promises that two independent runs of the
-  same model on the same frozen `(task, split)` match across releases and platforms; nothing could test that
-  promise, and nothing recomputed the digest either — so a runner that computed it wrongly would have
-  shipped a wrong digest in every result while the signature (which covers the digest as one more field)
-  went on passing.
-
-  `BenchmarkResult` gains `scientific_body()`, `verify_reproducibility_digest()` — the counterpart
-  `verify_signature()` never had — and `agrees_with()`. The new command re-derives each result's digest from
-  its own body, then reports whether the two are the same scientific result and, when they are not, **names
-  the fields that differ** rather than leaving a user to diff JSON. Two runs at different wall clocks now
-  demonstrably agree while their signatures differ, which is precisely the gap the digest was introduced to
-  fill.
-
-- `tests/test_examples_teach_the_contract.py` — the notebooks checked as documentation people copy: an
-  example that renders `best_efficiency` must also render its interval, and none may default a summary
-  value with `or`, which fires on the meaningful zeros (`0.0` efficiency, `0` candidates).
-
-- **A truncated outcome table now says it is truncated.** A knock-out card read `P(intended) = 0.87` above
-  three alleles of 0.069, 0.060 and 0.055 — a headline and a table that look like they contradict each other
-  until you know the NHEJ spectrum has forty-six alleles and the table is showing three. The renders now
-  add *"showing 3 of 46 predicted alleles (0.18 of the probability mass); the rest are in the lossless
-  export"*, and `CandidateReport` carries `n_outcome_alleles` and `outcome_shown_mass`. The candidate list
-  has said "Showing 50 of 470" since it was capped; the outcome table made the same omission and looked far
-  more like an arithmetic error. A complete table says nothing.
-
-- `tests/test_stated_principles.py` — the README's design principles checked as claims. It pins the
-  citation-and-version guarantee over both registries and guards the specific "by default" overclaims,
-  including an assertion that the honest wording is still present, so the test cannot be satisfied by
-  deleting the claim rather than correcting it.
-
-- **The flat TSV/Parquet export now carries what makes its own numbers readable** (export
-  `schema_version` 2 → 3). It had `n_offtarget_sites` and nothing to interpret it with: not the aggregate
-  specificity, not the scorer or weight matrix, not the search settings. Every one of those has been on the
-  HTML page and the PDF leave-behind since it was added — and missing from the format something *automated*
-  reads, which is where an uninterpreted number does the most damage, because a pipeline filtering on
-  `n_offtarget_sites = 0` cannot tell a clean scan from a narrow one and never asks.
-
-  New columns: `offtarget_specificity`, `offtarget_scorer`, `offtarget_matrix`, `offtarget_search`,
-  `caveats` (the hazard subset of `flags`, so a pipeline can filter on "needs attention" without hard-coding
-  a flag-name list that keeps growing), and `rationale` (the per-candidate score breakdown, previously
-  human-renders-only).
-
-- **An off-target site now records the PAM that anchored it.** Two things were undecidable from a report
-  without it. A canonical `NGG` site and a low-stringency `NAG` one carry very different real risk and
-  appeared identical on the table. And with bulges allowed the same 20 bp of genome is reachable from two
-  *adjacent* PAMs, so a report showed what looked like one locus printed twice —
-  `chr11:2019-2038(-)` and `chr11:2018-2038(-)`, both scoring 1.0. Recording the PAM settles it: `AGG` and
-  `GGG`, one base apart, two genuinely distinct cut registers rather than a duplicate. `OffTargetSite`
-  gains `pam_sequence`, the CLI prints `pam=AGG` on each row and in the JSON payload, and the web API
-  carries it automatically with the report.
-
-  Worth noting what did *not* change: nothing is merged and no aggregate is adjusted. Deciding that two
-  overlapping registers should count as one site would be inventing a convention; recording the PAM lets
-  the reader decide, which is the information they were missing.
-
-- **A menu now says when its own ranking is not resolved by the evidence.** Measured on a realistic
-  single-SNV correction: the top fifty pegRNAs spanned **0.027** of composite score while the leader's own
-  efficiency interval was **0.30** wide — eleven times the entire spread — and **248 of 470** candidates
-  were within the leader's uncertainty. The order was arithmetically exact and, past the first few places,
-  meaningless, with nothing on the page saying so. A ranked list reads as a claim that #1 beats #12; here it
-  was not one.
-
-  `indistinguishable_leaders()` counts the leading group using a deliberately transparent rule rather than
-  a statistical one, because a real test would need an error model the project does not have: the
-  efficiency term contributes `w_efficiency × efficiency` to the composite, so the honest uncertainty in
-  that single largest term is `w_efficiency × (upper − lower)`, and any composite gap smaller than that is
-  inside the noise of its own biggest input. The rule can only ever report that candidates are
-  *unseparated* — never that one is better — so being wrong makes the menu more cautious, not less.
-  Nothing is reordered; the menu simply says *treat them as one group and choose on the reagent, not the
-  rank*, and stays silent when the spread genuinely resolves.
-
-- **A code of conduct, which the README and `CONTRIBUTING.md` had both promised and neither delivered.**
-  Two public documents told contributors to read a Contributor Covenant behind a link that 404s — a
-  governance claim with nothing behind it. `CODE_OF_CONDUCT.md` now adopts the Contributor Covenant 2.1 **by
-  reference** to its canonical URL rather than reproducing it, so the file cannot drift from the version it
-  names, and states the reporting channels that actually exist today (a private GitHub security advisory for
-  anything sensitive, issues otherwise). Two calls in it are properly the maintainer's — adoption by
-  reference versus verbatim text, and whether to publish a direct contact address — and have been flagged
-  for review rather than decided quietly.
-
-- **The prose is now checked mechanically for claims the repository cannot back.** Alongside the
-  every-CLI-command check, `tests/test_readme_documents_the_cli.py` asserts that every local link in
-  `README.md` and `docs/` resolves to a file that exists, and that every `alleleforge.x.y` module path the
-  prose cites is importable. Documentation drift is invisible to a test suite by construction — the code
-  keeps working while the sentences about it rot — so the checkable half is now checked. Paths the prose may
-  legitimately cite before they exist go in an explicit allow-list with a reason, so it cannot quietly become
-  a place to park a broken promise.
-
-- **The leaderboard now shows how much of its output each model disclaimed.** The uncertainty contract
-  makes every model declare which predictions are out of distribution, and `BenchmarkResult` records the
-  count — and the board dropped it. A model that stood behind every prediction and one that flagged nine in
-  ten of them as out-of-distribution and scored the same appeared on identical rows. ECE was already shown
-  for exactly this reason; its sibling was left behind. Both renders gain an **OOD** column showing the
-  share of the scored test fold (`87% (261/300)`), with `n/a` — not `0%` — when it is unmeasurable, the same
-  distinction the board already draws for an undefined ECE: silence and a clean bill are different claims.
-
-  Ranking is unchanged. The OOD share is reported, not scored: turning it into a ranking term would need a
-  defensible exchange rate between accuracy and coverage, and inventing one would be a worse dishonesty
-  than the omission it replaces.
-
-- **The predicted molecular consequence now appears in the menu; it was computed and read by nothing.**
-  Supplying an effect predictor made AlleleForge annotate the variant, store a full `VariantEffect` on
-  `ResolvedVariant.effect` — gene, Sequence-Ontology consequence, VEP impact tier, HGVS c./p., transcript,
-  canonical flag — and then use none of it. The user paid a network round trip for that, and since the
-  lookup goes to a third-party API, an explicit decision to disclose their variant, and got no answer
-  anywhere in the output. The menu rationale now leads with `Predicted effect: missense variant (moderate
-  impact) in HBB, p.Glu7Val on ENST00000335295`, and says so when the transcript is not the canonical one —
-  the same variant is missense on one transcript and intronic on another, so an unqualified consequence is
-  half a statement. A correction targeting a variant with only **modifier** impact gets a note to confirm
-  the intent; a correction with real predicted impact stays quiet, so the note carries information.
-  Annotates only — a silent variant can still be a splice or regulatory target, and the predictor speaks
-  for one transcript.
-
-- **Model-card limitations now appear in the report; they were carried "for safety audit" and shown to
-  nobody.** Two breaks in the same chain. `ModelCard.to_checkpoint()` — a hand-written field list — carried
-  `known_failure_modes` into provenance and dropped `intended_use` and `out_of_scope_use`, so a result
-  recorded *how* its models fail but not *what they were never meant to do*. And no human-facing render
-  printed any of it, including the failure modes, whose docstring says they are carried so a consumer can
-  audit a design "without re-opening the cards" — which still required re-opening the cards.
-
-  The shipped `cas9-efficiency-ensemble` card, the default Cas9 efficiency scorer, states that trusting its
-  point estimate as a trained activity prediction is out of scope because "the heads are an unfitted
-  pseudo-random scaffold". Every report was silent on that. The HTML page and PDF leave-behind now carry a
-  **Model limitations** section listing, per model, what it is not for and how it fails, from one shared
-  `model_limitation_lines()` so the two renders cannot drift. A model documenting nothing produces no line
-  and no section — an empty heading reads as "no known limits", which is the opposite of the truth.
-
-  A regression test compares `to_checkpoint()` against the card over the two models' shared field *names*
-  rather than naming fields, so a field added to both tomorrow is covered without editing the test.
-
-- **A ClinVar accession's clinical significance now reaches the design menu; it used to be read and
-  discarded.** `_from_clinvar` returned `record.variant` and nothing else, so the classification — the
-  reason anyone picks an accession over coordinates — never left the resolver. A menu for a variant ClinVar
-  calls **Benign** read exactly like a menu for a pathogenic one: the tool designed a "correction" for an
-  allele the database says is harmless, and said nothing. (`docs/data.md` had ClinVar's role listed as
-  "accession → normalized variant + clinical significance"; only the first half was true.)
-
-  `ResolvedVariant` now carries a `ClinicalAssertion` — the normalized class, the raw review status, and
-  the verbatim source token. The review status is carried alongside the class deliberately: "Pathogenic, no
-  assertion criteria provided" and "Pathogenic, reviewed by expert panel" are the same class and very
-  different evidence. The menu rationale — which every render already prints — leads with the assertion,
-  and adds a note when the requested intent and the classification pull in different directions: correcting
-  a benign variant, correcting a VUS, or installing a pathogenic allele (a disease model, not a therapy).
-  These annotate; nothing is refused. A congruent design stays quiet, so the note carries information
-  rather than appearing on everything.
-
-  `ClinicalSignificance` moves to `alleleforge.types.variant` (still importable from `data.clinvar`) so the
-  resolver can carry an assertion without depending on the data layer, which it deliberately reaches only
-  through a Protocol. A ClinVar stub that supplies only coordinates still resolves — it simply asserts
-  nothing.
-
-- **The PE3 nick-to-nick distance is now shown, and a dangerously close nick is flagged.** `nick_offset`
-  was computed by the enumerator, stored on `NickingGuide`, and read by nothing — not the reagent line, not
-  the flags, not the ranking. It is *the* PE3 design parameter: two PE3 candidates differ in essentially
-  nothing else, and two nicks placed close together on opposite strands are a staggered double-strand
-  break, the outcome prime editing is chosen to avoid. Candidates now carry a signed
-  `nick-distance:+62nt` flag, the reagent line reads `PE3 (+62 nt nick)`, and a nick closer than
-  `CLOSE_NICK_NT` (30 nt) adds `close-nick`. The test fixture's only PE3 nick turned out to sit **4 nt**
-  from the pegRNA nick — previously unremarked anywhere in the output.
-
-  The distance deliberately does **not** enter ranking. Scoring it would need a byproduct model calibrated
-  against real PE3 data, which AlleleForge does not have; the constant is labelled in the source as a
-  conservative floor rather than a fitted threshold, and it has been flagged for verification against the
-  primary literature.
-
-- **The off-target cut-offs are now printed where the site count is, on every surface that shows one.**
-  R84 put the mismatch budget, the DNA/RNA bulge budgets, and the CFD/MIT cut-offs on `OffTargetReport`;
-  nothing rendered them, so an HTML page, a PDF leave-behind, the CLI's human line and its JSON payload all
-  still showed "2 nominated site(s), specificity 0.82" as if those numbers were absolute. They are not:
-  the same guide yields two sites at a 0.20 CFD cut-off and fifteen at 0.05, and the report a collaborator
-  is handed is precisely where that has to be visible. `OffTargetReport.search_description()` states the
-  settings in one line, `CandidateReport.offtarget_search` carries it (alongside the existing
-  `offtarget_scorer` / `offtarget_matrix` labels, which exist for the same reason), and the HTML, PDF and
-  CLI renders print it. The JSON payload gains a structured `search` object. The description is
-  deliberately ASCII — the PDF's WinAnsi font has no glyph for a mathematical `<=` and would have printed
-  `?3 mismatches` on the handed-out page.
-
-- **An off-target report said how many mismatches it allowed, but not the four other knobs that decided
-  what it found.** `OffTargetReport` carried `mismatch_threshold` — recorded, correctly, so that a site
-  count could be read against the budget that produced it — and nothing about the DNA/RNA bulge budgets or
-  the CFD/MIT reporting cut-offs, which narrow the result just as hard: the same guide yields two sites at
-  a 0.20 CFD cut-off and fifteen at 0.05, and a zero-bulge scan cannot report the bulged hits a one-bulge
-  scan finds. Two reports could disagree by an order of magnitude with nothing on either of them to explain
-  it. The report now records `dna_bulge_budget`, `rna_bulge_budget`, `cfd_threshold` and `mit_threshold`
-  beside the mismatch budget. This is the R83 rule — *any parameter that narrows what was examined must
-  appear beside the result* — applied as a sweep rather than a one-off: the tell was five settings of the
-  same kind with one recorded.
-
-- **Region scoping is now available over HTTP too — I had mis-classified it as a file input.** The
-  file-backed safety sources stay CLI-only for a real reason (a client-supplied path is a server-side
-  file-read primitive), but a *region restriction* is data, not a path, and carries none of that risk.
-  `POST /api/design` and `POST /api/offtarget` now take `offtarget_regions`. They accept a small `Region`
-  shape that does **not** require a strand — a restriction covers both by construction — while still
-  accepting a `locus` copied verbatim out of a previous response, whose extra `strand` and
-  `coordinate_system` keys are ignored. An empty interval is a 422 rather than a silent scoping of the scan
-  to nothing, which would report every guide spotless; an empty *list* means "search everything", not
-  "search nowhere".
-
-- **`design()` could not scope an off-target search at all, and now can — reachable as `--region` /
-  `--regions-bed`.** Every *vertical* (`design_cas9`, `design_prime`, the base-editor path) accepts
-  `offtarget_regions`, and `search()` takes `regions`. The unified `design()` entry point — the one the CLI
-  and web API are thin shells over — accepted neither and passed nothing through, so a whole-genome scan
-  could not be narrowed from anywhere except by calling a vertical directly. Over a real reference that
-  scoping is the difference between a practical run and an impractical one. `design()` now takes
-  `offtarget_regions` and threads it to all three verticals; the CLI exposes repeatable
-  `--region chrom:start-end` and `--regions-bed panel.bed` on `design`, `batch` and `offtarget`. A
-  malformed region is a usage error rather than a silent widening back to the whole genome, and an empty
-  restriction stays `None` ("search everything") rather than becoming an empty list, which would restrict
-  the search to nothing and report every guide spotless.
-
-- **`--haplotypes` and `--patient-vcf` complete the safety inputs on the CLI.** The same reachability
-  sweep that found `--gnomad` left two more: the *haplotype*-aware pass (the second half of the README's
-  "population- **and haplotype**-aware" claim, which catches a site existing only on a co-inherited
-  combination of alleles) and patient-specific personalization (a site present in *this* genome but not the
-  reference). Both are now loadable — a phased-panel TSV and a VCF or variant list — on `design`, `batch`
-  and `offtarget`. Patient variants are resolved against the reference, so an allele asserting a base the
-  genome does not have fails loudly rather than silently personalizing the scan with a wrong-build variant.
-  `HaplotypePanel` gained `__iter__`/`__len__`, since the engine consumes a flat iterable and a caller with
-  a whole panel and no single interval to query had to reach into its buckets. Verified through the CLI:
-  0 sites reference-only, then one `patient`-origin site with `--patient-vcf`, and one causally-attributed
-  site with `--haplotypes`. **Also corrected an inaccuracy introduced one commit earlier:** the
-  "reference-only" warning keyed on `--gnomad` alone, so a run supplying `--haplotypes` was told its scan
-  was reference-only while the haplotype pass was actively finding sites. It now fires only when neither
-  ancestry-bearing source is present, and a test parametrizes all three cases.
-
-- **The README's CLI examples advertised population-awareness they could not deliver.** `aforge design
-  ... --populations afr,eur,eas` was captioned "ranked, safety-annotated menu", and the `offtarget` example
-  listed "the carrying MAF" among the tunable engine knobs — while `--maf` filters population alleles that,
-  with no way to load any, were never there. Both examples now pass `--gnomad`, and the `design` one also
-  shows `--cell-context`; the batch example notes that an empty `worst_offtarget` column means "not
-  measured", not "clean".
-
-- **`--gnomad` on `design`, `batch`, and `offtarget`: the population-aware off-target search is reachable
-  from the CLI for the first time.** This is the capability the project is built around — the README calls
-  reference-only off-target "a known safety gap" and cites the Casgevy / BCL11A `rs114518452` case — and
-  `design()` and `search()` have always taken a `gnomad=` database. **No CLI command could supply one.**
-  `--populations` names ancestry *labels* to stratify by; it carries no alleles. So every command-line scan
-  was reference-only, and a user passing `--populations afr,eur` got an empty ancestry breakdown back with
-  nothing saying why — silence that reads as "no ancestry-specific risk found" rather than "nothing was
-  searched". The three commands now take `--gnomad <sites.tsv[.gz]>` (`#chrom pos ref alt af <pop>...`,
-  1-based `pos` as in a VCF), warn explicitly when ancestries are requested without one, and exit with a
-  data error on an unreadable path rather than falling back to a reference-only scan the caller believes is
-  population-aware. Verified by reproducing the reference-bias case end to end through the CLI: 0 sites
-  reference-only, then one `population`-origin site at score 1.0 whose risk is concentrated in African
-  ancestry (`afr` 0.105 vs `nfe` 0.001).
-
-- **`cell_context` — the input that raises the OOD flag — is now settable from the CLI and the web API.**
-  It was reachable only through a CLI *config file*, and not at all from the web API, whose `DesignRequest`
-  had no such field. So every design the web API returned reported `in_distribution: true` whatever cell
-  line the user was actually targeting — the exact opposite of what the flag exists for, on the surface most
-  likely to be used casually. `aforge design --cell-context HepG2` (overriding the config key, matching the
-  other options' precedence) and the API's `cell_context` field now set it. Verified end to end: with no
-  context or with `HEK293T`/`K562` the prediction stays in-distribution; with `HepG2` it flips to
-  `in_distribution: false` and the candidate carries `ood`. Found by asking which `design()` capabilities
-  the shells cannot reach — the query the previous entry's lesson suggested.
-
-- **The report render cap is now reachable from the CLI and the web API.** `render_html` / `render_pdf`
-  have taken `max_candidates` since the cap was introduced, but neither surface exposed it — so a user who
-  wanted the full 720-candidate page had no way to ask for it, and the parameter was library-only. `aforge
-  design --render-candidates N` and the API's `render_candidates` field now set it, with `0` spelling "draw
-  them all" (the command line has no natural way to write `None`, and a zero-candidate render is not
-  something anyone wants). Both surfaces were done together rather than one now and one later — the same
-  fix reaching one shell and not the other is how the `specificity` labeling ended up inconsistent for five
-  rounds. Tests pin, on both surfaces, that the cap changes the HTML and **never** the lossless export.
-
-- **Every pegRNA 3' motif is now round-tripped through the oligo output; `mpknot` previously reached no
-  test and no caller.** `MOTIF_SEQUENCES` ships three options, but the enumerator only ever emits
-  `tevopreQ1`, so `ThreePrimeMotif.MPKNOT` was a sequence that goes into a **synthesized** extension oligo
-  with nothing exercising it. The oligo module's cardinal invariant is that the oligos reconstruct the
-  declared RTT and PBS, and `reconstruct()` strips the declared motif off the 3' end first — so a motif it
-  mishandled would either corrupt that boundary or silently ship the wrong bases. All three motifs are now
-  parametrized through `pegrna_oligos` → `reconstruct()`, with checks that the declared motif's bases are
-  actually present in the ordered sense oligo, are concrete `ACGT`, and that no two motifs produce the same
-  oligo. Found by asking which enum members no test names — the same query that surfaced `REVERT` above.
-  **Not** verified: that the two motif *sequences* match the publication they cite. Both are 46 nt and share
-  a 9-nt prefix, which may be correct; confirming a published sequence needs the source, so it is flagged
-  for a human rather than guessed at.
-
-- **`REVERT` — a CLI-exposed edit intent — had no test coverage at all, and no documentation of what it
-  means.** It reaches five *independent* `intent in (CORRECT, REVERT)` checks: routing, all three
-  enumerators, and the HDR donor. Nothing centralizes that, so a sixth branch added later that forgot
-  `REVERT` would silently fall through to the `INSTALL` behavior — writing the **alternate** allele where
-  the user asked for the reference. A wrong reagent from a one-word omission, on a path nothing exercised.
-  `EditIntent` now documents all four intents, including why `REVERT` exists (mechanically identical to
-  `CORRECT`; it records in provenance *why* the edit was made — repairing a pathogenic allele versus
-  returning an engineered line to wild type). A new suite pins the equivalence at every layer — routing,
-  carried allele, each enumerator, the donor, both design verticals, and `design()` — and each assertion is
-  paired with a check that `CORRECT` and `INSTALL` genuinely *differ* at that locus, so the equivalence
-  cannot pass vacuously. Mutation-checked: dropping `REVERT` from the prime enumerator or from routing
-  fails it.
-
-- **The prime byproduct model now has a card, so the flagship's provenance names both its models — and
-  `design()` can finally be given prime overrides.** Two gaps, found by running `aforge verify` and
-  noticing it reported **1 model** for a prime design:
-  - `PrimeOutcomePredictor` had no model card, and `prime_model_checkpoints()` documented this as "a
-    card-free heuristic, so it contributes no checkpoint". Its siblings do not work that way:
-    `indelphi-mh-baseline` (nuclease) and `be-dict-baseline` (base editing) each carry one. So the
-    *flagship* was the single chemistry whose outcome model went unrecorded — the model whose
-    `p_intended` feeds the menu's cleanliness objective directly. A `prime-outcome-baseline` card now
-    records its version, citation, and three known failure modes (geometry-keyed only; no sequence
-    context, cell type, or edit-size term; three modeled byproduct channels, not an exhaustive account).
-  - `prime_model_checkpoints()` took no arguments while `cas9_model_checkpoints(scorer, predictor)` and
-    `base_editor_model_checkpoints(predictor)` took the overrides — because `design()` exposed no prime
-    overrides at all, so a caller could substitute a scorer for the nuclease and for base editing but not
-    for the flagship. `design()` now accepts `prime_efficiency_scorer` / `prime_outcome_predictor` and
-    records the override's card instead of the default's, matching the other two verticals. **What this
-    does not do** is make a trained model reachable: there is no drop-in trained per-pegRNA prime scorer
-    today. `PridictEngineAdapter` is the real PRIDICT2.0 path but a *sequence-level* `design()` API rather
-    than a `score(pegrna, ...)` one, and `DeepPrimeAdapter` / `GenETAdapter` implement the scorer protocol
-    only to refuse — documented placeholders, because DeepPrime's per-pegRNA API needs edit metadata a
-    `PegRNA` does not carry. That remains an R1 gap. The reproducibility golden moved by exactly one added
-    model, verified by diffing the canonical run's body; no number changed.
-
-- **`POST /api/offtarget` gained the same on-target handling as the CLI.** The previous entry fixed the CLI
-  and left the web API reporting the identical unlabelled `specificity` — the envelope's own docstring
-  promises "the same summary the `aforge offtarget` CLI surfaces", which had quietly stopped being true.
-  The request now takes `on_target` **as a `GenomicInterval`**, the same shape a reported site's `locus`
-  has, so a client can copy one straight back; the response carries `on_target_excluded`; a malformed
-  locus is a 422. (The string form was tried first and was wrong: the API emits loci as objects and never
-  as `chrom:start-end(strand)`, so a field accepting only the string would have taken a spelling the API
-  itself never produces — caught by driving the round trip.) The locus parser the CLI uses is now
-  `GenomicInterval.parse`, the exact inverse of `__str__`, so the two surfaces cannot drift into accepting
-  different spellings.
-
-- **`aforge offtarget` gained `--on-target`, and says when it is missing.** The standalone command passed
-  no on-target locus, so the guide's own perfect match was reported like any other site: the worst score
-  pegged at `1.0` and specificity capped at `0.5` for even a spotless guide — the failure mode the engine's
-  own `_is_on_target` docstring warns about, on the one call site that could not opt in. Reporting every
-  perfect match *is* the honest answer when the tool has not been told which one is intended, so the fix is
-  not to guess: `--on-target 'chrom:start-end(strand)'` excludes it when the caller knows, and when they do
-  not, the output now states `[on-target locus NOT excluded]` and the JSON carries
-  `on_target_excluded: false`. Without that, the same word — "specificity" — named two different quantities
-  in the CLI and in a design report. A malformed locus is a usage error, never a silently skipped
-  exclusion. Found by running the command.
-
-- **An acceptance test carries a large precise edit from variant to orderable reagent**, and the README's
-  SpCas9 section now describes the shipped behavior rather than a dotted side-branch. Correcting a 41-base
-  restoration is beyond every break-free chemistry; it must not return a blank menu, and it must not return
-  a bare double-strand break dressed as a correction. The test asserts the whole chain connects — routing
-  admits only the nuclease, the top candidate carries a gap-free donor and its `hdr-donor:*` /
-  `outcome-is-nhej-spectrum` flags, the reagent line names the pair, and the donor is emitted as an
-  orderable `hdr-donor-ssodn` beside the guide duplex and reaches the rendered HTML. Each hop had a unit
-  test; nothing asserted they joined up.
-
-- **A precise nuclease candidate is now *orderable*: the HDR donor is emitted as a template to synthesize,
-  alongside the sgRNA duplex.** `oligos_for` returned only the guide duplex — the half of the reagent that
-  cannot make the edit. A new `DonorOligo` (`kind="hdr-donor-ssodn"`) carries the sequence to order and the
-  repaired product's re-cut disposition; it rides on `SgRnaOligos.donor`, and its hazards are promoted into
-  the same prominent warnings list the guide's use rather than buried in the JSON block. Two hazards are
-  flagged: a donor longer than the ~200 nt most vendors synthesize as one oligo (order it as a dsDNA
-  fragment or plasmid instead — a 300 nt "oligo" should not reach a shopping cart unremarked), and a
-  repaired product that is still a substrate for its own guide.
-
-- **A fixed heuristic interval no longer masquerades as a measured 80% coverage.** Every
-  scorer stamped a constant ±0.15 band with `interval_level = 0.80`, so a consumer
-  thresholding on `interval_level` could read an unmeasured placeholder as a calibrated
-  coverage. Each fixed-band heuristic prediction now carries an auditable
-  `NOMINAL_INTERVAL_NOTE` ("coverage not measured"), and the count-valued `bystander_burden`
-  carries a `COUNT_INTERVAL_NOTE` (its spread is not a coverage band at all). The reproduce
-  golden was re-derived (the menu now carries the honest notes). (Task 4 of
-  `compute-honest-uncertainty`; only task 2 — computing `in_distribution` — remains.)
-- **A trained point estimate is now distinguishable from a heuristic one by the honesty
-  flags alone.** The real Rule Set 3, PRIDICT2, and BE-DICT scorers ship a trained point
-  with an *uncalibrated* heuristic interval — byte-identical in `method`/`calibrated`/
-  `in_distribution` to a purely heuristic prediction, so a consumer could not tell a
-  trained activity from a rule-of-thumb without reading provenance. `Prediction` gains
-  `point_from_trained_model` (default `False`, threaded through `calibrated_by` and AND-ed
-  in `combine`), set `True` on the trained Rule Set 3 / PRIDICT2 / BE-DICT paths and left
-  `False` on the transparent baselines. Published JSON schemas regenerated (this also syncs
-  the off-target `score_matrix` / `subthreshold_score_sum` fields). (Task 3 of
-  `compute-honest-uncertainty`; tasks 2 and 4 remain.)
-- **Off-target strengthening is now score-based, the aggregate covers the sub-threshold
-  tail, and a frequency-aware burden joins the worst-case.** Four gaps that let the
-  population/haplotype differentiator under-state risk or report an optimistic summary are
-  closed (`guard-offtarget-strengthening`):
-  - *Strengthening was edit-count-only.* The population and haplotype passes nominated an
-    alt-allele hit only when its edit count fell, so a minor allele upgrading a weak PAM
-    (`NAG`→`NGG`, CFD 0.07→0.28) at an unchanged edit count was silently dropped — a pure
-    false negative. Nomination now keeps an alt hit that beats the best reference hit at
-    the same placement by **either** a higher specificity score (catches the PAM upgrade)
-    **or** fewer edits (catches a mismatch/bulge removal the bulge-blind CFD misses).
-  - *The genome-wide `specificity_score` summed only reporting-threshold survivors*, so a
-    guide with a large near-threshold tail could report the same specificity as a clean
-    one. The engine now carries the best per-placement sub-threshold score into the
-    aggregate (`OffTargetReport.subthreshold_score_sum`), matching the CRISPOR/Hsu sum
-    over all candidate sites.
-  - *CFD scored any length under a "published" label.* `cfd_score` now raises when the
-    published/fixed matrix (positions 0–19) is applied to a non-20-nt alignment; the
-    default `CfdScorer` falls back to the length-relative approximation for a
-    bulge-collapsed/off-length hit and records the approximation as that site's matrix
-    (`OffTargetSite.score_matrix`), so an off-length score is never mislabeled published
-    CFD while recall is preserved.
-  - *The aggregates were frequency-blind.* `OffTargetReport.expected_burden()` weights
-    each site by the probability a genome carries it (reference/patient 1.0, population by
-    carrying frequency), so a MAF-floor off-target and a universal one are now
-    distinguishable in the summary numbers.
-- **The published Doench 2016 CFD matrix is now the default off-target scorer.**
-  The default `CfdScorer` used a transparent seed-tolerance *approximation*, so
-  out-of-the-box CFD numbers were not the values a reviewer comparing against CRISPOR
-  expects. The authentic 240-weight Doench 2016 mismatch matrix (plus its 16 PAM
-  weights) is now vendored at `offtarget/cfd_matrix.json` and used by default (labeled
-  `doench-2016-cfd`). It was sourced from CRISPOR and **cross-verified byte-for-byte
-  against CRISPRitz** (an independent tool; max abs difference 0.0), and the conversion
-  into the scorer was proven exact against the reference CFD calculator over 20,000
-  random pairs — nothing fabricated or approximated. The transparent approximation stays
-  available via `CfdScorer(approximate=True)`. **Off-target scores change for real runs
-  with mismatched sites**: they now return published CFD instead of the approximation
-  (perfect-match sites, which depend only on the unchanged PAM weights, are unaffected —
-  hence the reproduce golden's only drift was the honest matrix label). Completes
-  `ship-published-cfd-matrix`.
-- **The recorded seed is now load-bearing.** `provenance.seed` drove no randomness: the
-  only genuine stochastic step (the conformal-recalibration demo) drew from its own
-  hardcoded `SEED = 20240501` duplicate, so the seed was decorative. `Settings.rng()` is
-  now the single run-scoped RNG (`random.Random(seed)`) that stochastic steps draw from,
-  the conformal demo takes that RNG, and its callers (`viz.figures`, `calibration_study`)
-  thread `get_settings().rng()` — so changing the seed changes the output and fixing it
-  reproduces byte-for-byte. Because the default resolved seed equals the retired constant,
-  the committed figures and reproduce golden are unchanged. The design path still has no
-  stochastic step; the seam is in place for the first one that does. (Completes
-  `complete-provenance`, task 2.)
-- **pegRNA candidates flag Pol-III transcription caveats.** A prime candidate whose
-  spacer does not start with G (needs a prepended U6-start G) or whose GC content
-  falls outside the 0.30–0.80 band now carries an inspectable `no-5prime-g` /
-  `gc-out-of-band:<frac>` flag, surfacing the caveat as an annotation rather than
-  silent absence. (Part of the in-progress `align-prime-coverage`, task 2.)
-- **The CLI warns on unknown config-file keys.** `aforge --config` silently ignored
-  any key it didn't consume, so a typo like `maf_treshold` vanished without effect.
-  `_load_config` now warns (to stderr) on any config key that is neither a `Settings`
-  field nor a recognized run-param knob, so a mistake is surfaced. (Part of the
-  in-progress `complete-provenance`, task 4.3.)
-- **The FM-index can re-verify itself against its build-time content hash.**
-  `FMIndex.verify()` reconstructs the indexed text from the persisted BWT via the
-  LF-mapping and re-hashes it, raising `FMIndexIntegrityError` if it no longer matches
-  the `content_hash` recorded at build — an on-demand `O(n)` integrity check so a
-  corrupted or tampered cached index fails closed instead of serving wrong locations.
-  With this, the hash-on-read machinery, required failure-modes, and opt-in cache
-  content-verify, only the maintainer release step of pinning real checkpoint hashes
-  (blocked on the external artifacts) remains in `verify-artifact-integrity`.
-
-- **Optional per-job wall-clock timeout completes the web-API hardening.**
-  `JobManager` now accepts `max_job_seconds`: a job that runs past it is marked
-  `ERROR` (a soft timeout — the worker thread cannot be cancelled, so it finishes in
-  the background but its result is discarded and the caller sees the timeout). Off by
-  default. With this and the durable-job-backend seam documented behind the
-  `JobManager` interface, `harden-web-api` is complete — its size cap, in-flight cap,
-  bounded job store, optional off-loopback auth, and timeout are folded into the
-  `web-api` spec and the change is archived.
-- **The content-addressed cache can verify payload integrity on read.**
-  `ContentAddressedCache` served whatever bytes were on disk, so a corrupted or
-  externally-modified entry was returned as-is. It now takes an opt-in
-  `verify=True`: each entry gets a checksum sidecar on write, and reads re-hash the
-  payload and raise `CacheIntegrityError` on a mismatch. Off by default (no sidecars,
-  no overhead), so existing caches are unchanged. (Part of the in-progress
-  `verify-artifact-integrity`, task 4.)
-
-- **`aforge verify <result>` turns provenance into a checkable contract.** A new CLI
-  command loads a result's ranked-menu JSON and confirms its provenance block is
-  complete and self-consistent — it names every model and dataset used and carries a
-  seed, version, and config snapshot — then, given `--cache-dir`, re-hashes each
-  pinned model checkpoint found there against the hash recorded in provenance. It
-  exits non-zero on incomplete provenance or a checkpoint hash mismatch. (Part of the
-  in-progress `complete-provenance`, task 5; the reproduce-style determinism re-run
-  needs the original reference and is a follow-up.)
-- **Off-target reports now say which scorer and weight matrix produced the scores.**
-  CFD is the number bench scientists compare against CRISPOR, but nothing in the
-  output said whether a score came from the published Doench matrix or the shipped
-  transparent approximation. `CfdScorer`/`Cas12aCfdScorer` now expose a `matrix`
-  identity, `OffTargetReport` carries `scorer`/`score_matrix`, the engine populates
-  them, and `aforge offtarget` surfaces them — so the default is honestly labeled
-  `doench-2016-seed-tolerance-approximation` and the Cas12a analog is flagged
-  `unvalidated`. (Part of the in-progress `ship-published-cfd-matrix`, task 3;
-  defaulting to the authentic Doench matrix stays blocked on an authoritatively
-  sourced, cross-verified copy. Off-target and reproduce goldens were regenerated.)
-- **Provenance snapshots the full resolved settings.** `config_snapshot` was a
-  hand-built subset of run parameters that could drift from the `Settings` that
-  actually governed a run. It now also embeds the full resolved settings via the
-  new `Settings.snapshot()` (seed, reference, interval level, MAF threshold,
-  network policy — minus the volatile per-machine `cache_dir`), so a result is
-  re-derivable from what governed it. (Part of the in-progress `complete-provenance`,
-  task 3; the load-bearing seed/RNG, CLI/web config-file honoring, and `aforge
-  verify` remain open.)
-
-- **Design provenance records the datasets it consumed.** `Provenance` defaulted
-  `datasets`/`tools` to empty and the designer populated only `models`, so a menu's
-  provenance under-reported its own inputs even though the dataset-capture helpers
-  existed — they were never wired in. The design path now collects the reference
-  build's `DatasetVersion` (and gnomAD/ClinVar once they carry a version) into
-  `Provenance.datasets` via `_collect_datasets`, mirroring `_collect_model_checkpoints`,
-  so a result no longer silently omits a dataset it read. (First slice of the
-  in-progress `complete-provenance`; the load-bearing seed, full config snapshot,
-  CLI/web config-file honoring, and `aforge verify` remain open.)
-- **Cached artifacts are re-verified on every load (hash-on-read).** The
-  consent + license + checksum gate was bypassed exactly where tampering matters —
-  on cache hits: `ModelRegistry.checkpoint`, `DatasetRegistry.resolve`, and
-  `ReferenceGenome.from_build` only hashed bytes on download and returned an
-  existing cached file unverified. Each now re-verifies a cached checkpoint,
-  dataset, or reference FASTA against its pinned hash on every load and fails
-  closed (`ChecksumError`) on a mismatch, so a tampered or truncated cache entry
-  can no longer pass silently. Artifacts with no pinned hash are served as before.
-  Relatedly, `known_failure_modes` is now a **required**, non-empty `ModelCard`
-  field (validated at construction), so every model's audit surface is complete and
-  rides into provenance rather than being an optional afterthought. (Part of the
-  in-progress `verify-artifact-integrity`; pinning real hashes for the remaining
-  cards is a maintainer release step, and the cache content-verify remains open.)
-- **Wet-lab oligo path is now alphabet-, scaffold-, and boundary-safe**
-  (`validate-oligo-alphabet`). The oligo module emits the exact duplexes a bench
-  scientist orders, so a wrong sequence wastes reagents. `revcomp` used
-  `str.maketrans` and silently passed any non-`ACGTN` character through
-  untranslated (an RNA `U`, an IUPAC code, stray whitespace) — a mis-complemented
-  antisense oligo that could still round-trip because both strands shared the bad
-  complement. Now: (1) `revcomp` and every oligo-construction input are validated
-  against the `ACGTN` DNA alphabet and raise a clear error naming the offending
-  character; (2) the pegRNA scaffold is verified against the canonical SpCas9
-  scaffold constant, so a wrong or empty scaffold is caught rather than shipped;
-  (3) the pegRNA extension carries an RTT/PBS boundary check that compares the
-  whole extension body to `RTT + PBS` (independent of the stored slice length), so
-  a mis-split extension is detected, plus a `component_lengths` annotation. Valid
-  DNA inputs are unchanged.
-- **Bulletproofed population/haplotype off-target nomination** — the tool's
-  differentiated capability — on four correctness fronts (`bulletproof-offtarget-nomination`):
-  (1) **Best alignment per anchor.** Each PAM anchor now reports the *edit-minimal*
-  alignment across ungapped / single-DNA-bulge / single-RNA-bulge candidates, with a
-  deterministic tie-break, instead of the first in-budget one found — so a bulged
-  near-perfect match (higher CFD, more dangerous) is never under-scored behind a
-  many-mismatch ungapped alignment. (2) **Indel-aware coordinates.** When a population,
-  haplotype, or patient variant changes the window length, hits are scanned in
-  alt-local coordinates and *lifted back* to true genomic coordinates through the
-  indel, so insertions and deletions place downstream sites correctly (a capability
-  CRISPOR and Cas-OFFinder lack); the equal-length (SNV) path is byte-for-byte
-  unchanged. (3) **Partial haplotype application.** One ref-clashing variant no longer
-  discards a whole haplotype's nominations — the non-clashing subset is applied and the
-  skipped variants are recorded on the site provenance (`SiteProvenance.skipped_variants`).
-  (4) **Unified dirty-input handling.** Bases outside `ACGTN` are folded to `N` up front
-  so the linear scan and the FM-index/native path agree — both skip an unexpected base
-  rather than one silently mis-scoring while the other raises.
-- **Honest-uncertainty contract, enforced end to end.** The `calibrated` and
-  out-of-distribution flags are no longer honor-system, and ranking now acts on
-  uncertainty instead of ignoring it (`harden-uncertainty-honesty`). Four hardenings:
-  (1) `calibrated = True` is **unforgeable** — only a fitted calibrator can set it,
-  through the new `Prediction.calibrated_by` classmethod; a scorer that constructs a
-  `Prediction` asserting calibration directly is silently coerced to
-  `calibrated = False`. (2) An **out-of-distribution prediction can never be
-  calibrated** and its interval is **widened, never narrowed** (`OOD_WIDEN_FACTOR`), so
-  an OOD input can't present a narrow, confident interval even when ensemble members
-  agree. (3) The **weight-free stub embedder path is labeled honestly** — the default
-  ensemble on the stub reports `method = heuristic`, `calibrated = False`, so
-  content-hashed noise is never mistaken for a trained model. (4) **Interval repair is
-  recorded, not silent** — when a point estimate falls outside its own interval (an
-  inconsistent-head signal), the interval is widened to contain it *and* an auditable
-  note is attached (new `Prediction.notes` field). Ranking became
-  **uncertainty-aware**: the efficiency objective uses the point estimate
-  in-distribution but the **lower interval bound out-of-distribution**, so a
-  confident-looking OOD candidate can no longer outrank an otherwise-equal
-  in-distribution one, and each candidate's interval and OOD status now appear in its
-  score breakdown and the menu rationale. The reproducibility golden was regenerated to
-  reflect the new, honest ranking output.
-
-- **Aggregate genome-wide off-target specificity score.** `OffTargetReport`
-  gained `specificity_score()` — the CFD-scale analog of the Hsu 2013 / MIT guide
-  specificity (`100/(100+Σ)`), i.e. `1/(1 + Σ site scores)` ∈ (0, 1], **1.0** for a
-  guide with no nominated off-targets and decreasing as the total burden grows.
-  The report already aggregated site count, worst-case, and ancestry strata, but
-  lacked the field-standard single-number specificity that distinguishes two guides
-  with the same worst-case off-target but a different *number* of off-targets. It is
-  now a `CandidateReport.offtarget_specificity` export field (schemas regenerated)
-  and is rendered in the HTML and PDF reports. It is surfaced across every output
-  surface that summarizes off-target: the standalone `aforge offtarget` command
-  (JSON `specificity` + the human one-liner) and the cohort batch summary
-  (`best_specificity`, the top candidate's specificity — in the JSONL manifest, the
-  per-item TSV, and `design.design_many`'s summaries), so cohort triage can rank by
-  total off-target burden, not just the single worst site. The web API closes the
-  last gap: `POST /api/offtarget` now returns an `OffTargetResponse` envelope —
-  the full report **plus** the aggregate summary (`n_sites`, `worst_score`,
-  `specificity`, `ancestry_stratification`) — because those aggregates are
-  *methods* on `OffTargetReport` and so were absent from its serialized fields,
-  leaving an API client to recompute what the CLI already prints.
-
-- **Phase 0 — Repository bootstrap.** Hatchling build, `aforge` console-script
-  entry point, dependency groups (`core`/`genome`/`variant`/`ml`/`web`/`docs`/`dev`),
-  pinned tool configuration (ruff line-length 100; mypy `strict`; pytest with an
-  85% coverage gate). Rust PyO3 crate `aforge_native` (built with maturin)
-  exposing `version()` to prove the toolchain end to end. Single-source version
-  in `_version.py`; typed `Settings` (pydantic-settings) carrying every
-  cross-cutting default (seed `20240501`, reference `hg38`, 80% interval level,
-  MAF threshold `0.001`, XDG cache dir). MIT license for all code, schemas,
-  benchmark, and first-party weights; `CITATION.cff`, Contributor
-  Covenant 2.1 code of conduct, contributing guide, multi-stage `Dockerfile`,
-  `docker-compose.yml` stub, conda environment file, and a GitHub Actions CI
-  matrix (lint, type-check, test, strict docs build).
-- **Phase 1 — Core domain types & schemas.** The typed vocabulary under
-  `alleleforge.types`: strand-aware `DNASequence` with ambiguity-aware
-  reverse-complement, `GenomicInterval` (0-based half-open), `Variant` with
-  idempotent normalization, guide/pegRNA/nicking-guide models with structural
-  validation, edit-outcome and strategy models, off-target site/report models
-  with ancestry stratification, the generic `Prediction[T]` uncertainty
-  contract (80% interval, method tag, in-distribution and calibration flags),
-  design-candidate and ranked-menu models, and the provenance block. JSON
-  Schemas for every public model are emitted to `docs/schemas/`.
-- **Phase 2 — Genome access & indexing.** `alleleforge.genome`: a strand-aware,
-  bounds-checked `ReferenceGenome` over pyfaidx that N-pads contig ends and
-  flags the over-run rather than crashing, with a registry of built-in builds
-  (hg38, T2T-CHM13 v2, mm39) and consent-gated, checksum-verified download; a
-  content-addressed, memory-mapped FM-index (with a correct pure-Python fallback
-  when the Rust kernels are not built) for PAM-anchored candidate search; and
-  cross-build liftover plus `flag_ambiguous_regions()`, which recommends
-  T2T-CHM13 for segmentally-duplicated / centromeric / hg38-difficult loci and
-  wires the recommendation into the Phase 1 result types.
-- **Phase 3 — Data registry & population datasets.** `alleleforge.data`: a
-  license-aware, versioned `DatasetRegistry` that never vendors a
-  non-redistributable source and refuses to fetch an artifact it cannot
-  checksum-verify; ClinVar parsing into normalized variants with
-  significance/review-status and `get`/`by_rsid`/`by_gene`/`in_region` lookups;
-  gnomAD per-population allele-frequency queries; 1000 Genomes and HGDP phased
-  common-haplotype enumeration; dbSNP rsID ↔ locus resolution; and GENCODE gene
-  models plus ENCODE bedGraph signal lookups. Every parser reads plain-text
-  fixtures so CI needs no `pysam`/`cyvcf2`. Dataset versions, licenses, and
-  citations are documented in `docs/data.md`.
-- **Phase 4 — Variant resolver.** `alleleforge.variant`: `resolve(...)` turns a
-  ClinVar accession, dbSNP rsID, HGVS (`g.`/`c.`/`p.`), VCF record, raw
-  coordinates, or a raw target sequence into one canonical, **left-aligned**,
-  reference-validated `Variant` (a ref/reference disagreement is a hard error)
-  with its working interval and molecular consequence. Includes a
-  dependency-free genomic-HGVS parser, an `HgvsAdapter` that projects coding /
-  protein expressions through an injected backend, and a VEP-style
-  `EffectPredictor` protocol with a deterministic static implementation.
-- **Phase 5 — Off-target engine (population & haplotype aware).**
-  `alleleforge.offtarget`: a five-stage [`search`][] — reference candidate
-  search (PAM-anchored, ≤4 mismatches, ≤1 DNA + ≤1 RNA bulge, both strands;
-  Rust FM-index with a correct linear-scan fallback), gnomAD **population
-  augmentation** that finds *de novo* PAMs and strengthened seed-mismatch sites,
-  **haplotype-aware** walking of common 1000G/HGDP haplotypes, an optional
-  patient-VCF pass, then CFD+MIT scoring, thresholding (CFD ≥ 0.20 or MIT ≥ 0.10),
-  de-duplication, and **ancestry stratification by default**. Published MIT/Hsu
-  and CFD scorers (the exact Doench PAM table; an injectable mismatch table) plus
-  a Cas12a CFD analog, behind a swappable `OffTargetScorer` protocol; an optional
-  Cas-OFFinder cross-check. The reference-bias / `rs114518452` finding is
-  reproduced as an integration test: a reference-only scan is blind to the
-  ancestry-enriched off-target the population-aware scan nominates. Cites
-  Hsu et al. *Nat Biotechnol* 2013, Doench et al. *Nat Biotechnol* 2016, and
-  Cancellieri & Pinello *Nat Genet* 2023.
-
-[`search`]: https://github.com/clay-good/alleleforge/blob/main/src/alleleforge/offtarget/engine.py
-- **Phase 6 — Scoring foundations (model zoo, embeddings, uncertainty).** The
-  reusable ML substrate before any chemistry-specific predictor.
-  `alleleforge.model_zoo`: a `ModelRegistry` over required, validated YAML
-  **model cards** that refuses a missing card, a license that forbids the use
-  (non-commercial cards block commercial use; unknown/proprietary refused), or an
-  unverifiable checkpoint, surfacing each as a Phase 1 `ModelCheckpoint`; bundled
-  cards for Nucleotide Transformer v2 (500M) and Rule Set 3.
-  `alleleforge.scoring`: a swappable `SequenceEmbedder` protocol (NT v2 default;
-  Caduceus and Evo 2 adapters; a deterministic weight-free `StubEmbedder` and a
-  hash-keyed embedding cache for CI); calibrated-uncertainty machinery — a
-  deep ensemble (N=5, the default) whose interval widens on disagreement, an
-  evidential (Normal-Inverse-Gamma) single-model fallback, quantile intervals,
-  isotonic post-hoc calibration with `expected_calibration_error`, and an
-  embedding-space `OODDetector`, all packaged into the Phase 1 `Prediction`; and
-  the `Scorer` protocol with a runtime `ensure_prediction` guard enforcing the
-  no-bare-float contract. Pure stdlib — no numpy/torch in the core path; real
-  backbones are gated behind the `real_weights` marker. PyYAML joins the core
-  dependencies for card parsing. Cites Hsu/Doench, Amini et al. *NeurIPS* 2020
-  (deep evidential regression), and Dalla-Torre et al. *Nat Methods* 2024 (NT).
-- **Phase 7 — Chemistry: SpCas9 nuclease.** The first full vertical slice
-  (enumerate -> efficiency -> outcome -> off-target -> candidate).
-  `alleleforge.enumerate.cas9`: strand-aware enumeration of every PAM-anchored
-  guide whose blunt cut (3 bp 5' of the PAM) falls in the actionable window, with
-  `NG`/SpRY fallback only when no `NGG` guide is actionable, an HDR donor for
-  precise intents, and a guide-context helper. `alleleforge.scoring.cas9_efficiency`:
-  a transparent Rule-Set-3-style baseline (with the DeWeirdt-Doench tracrRNA-aware
-  term) and a backbone-fine-tuned deep-ensemble scorer with embedding-space OOD
-  flagging — both calibrated `Prediction`s, never bare floats.
-  `alleleforge.scoring.cas9_outcome`: a microhomology/MMEJ + templated-1-bp-insertion
-  indel-spectrum baseline (the inDelphi mechanism) plus license-gated inDelphi /
-  Lindel / X-CRISP adapters and an ensemble mode reporting inter-model top-allele
-  agreement. `alleleforge.design.cas9`: `design_cas9` wires the slice into ranked
-  `DesignCandidate`s, each with a calibrated efficiency interval, predicted outcome
-  distribution, and ancestry-stratified off-target report. Bundled model cards for
-  the efficiency ensemble and inDelphi. Cites DeWeirdt & Doench *Nat Commun* 2022
-  (Rule Set 3) and Shen et al. *Nature* 2018 (inDelphi).
-- **Phase 8 — Chemistry: base editing (ABE / CBE).** A declarative `BaseEditor`
-  registry (deaminase, chemistry, window, PAM, motif preference) seeded with
-  ABE8e, CBE4max, and evoCDA1 — adding an editor is a data change.
-  `alleleforge.enumerate.base_editor.enumerate_base_edits` finds, for the
-  transition a variant requires (only transition SNVs are base-editable;
-  strand-aware), every sgRNA placing the target base in the activity window,
-  annotated with target / bystander positions and the in-window composition.
-  `alleleforge.scoring.base_outcome`: a transparent window-outcome baseline (the
-  BE-DICT mechanism — per-position editing probability × motif preference,
-  enumerating the 2^k window alleles) yielding the allele distribution plus
-  calibrated `p_intended_exact` and `bystander_burden`, license-gated BE-DICT /
-  BE-Hive adapters, and a cross-editor recommendation. `alleleforge.design.base_editor.design_base_editor`
-  wires enumerate -> outcome -> off-target into `DesignCandidate`s ranked by exact-
-  intended probability then bystander burden, flagging the cleanest as
-  recommended and surfacing the tradeoff on every candidate. Phase 1
-  `BaseEditWindow` gains optional placement/PAM and a `window_bases` property;
-  `DesignCandidate` gains a `base_edit_window` reagent slot. Bundled BE-DICT
-  model card. Cites Richter et al. 2020 (ABE8e), Koblan et al. 2018 (BE4max),
-  Thuronyi et al. 2019 (evoCDA1), and Marquart et al. 2021 (BE-DICT).
-- **Phase 9 — Chemistry: prime editing (the flagship).** The chemistry where no
-  open-source tool combines all four axes — AlleleForge unifies them.
-  `alleleforge.enumerate.prime.enumerate_prime`: full pegRNA enumeration (both
-  strands via a reverse-complement frame) — for each PAM whose nick sits 5' of the
-  edit, it enumerates **PBS 8-17 nt** and **RTT 7-34 nt** (covering the edit + >= 5
-  nt 3' homology), attaches a **tevopreQ1** epegRNA motif by default, and selects a
-  **PE3/PE3b** nicking guide (preferring a seed-disrupting PE3b ngRNA). Emits
-  structurally-validated `PegRNA` + `NickingGuide` pairs.
-  `alleleforge.scoring.prime_efficiency`: a transparent PRIDICT2.0-style baseline
-  over the pegRNA geometry with an **ePRIDICT** chromatin adjustment (ENCODE
-  tracks) and **prominent OOD honesty** — any context outside PRIDICT's HEK293T /
-  K562 training distribution flags `in_distribution=False`; plus license-gated
-  DeepPrime / GenET cross-check adapters. `alleleforge.scoring.prime_outcome`: an
-  intended-vs-byproduct distribution (scaffold incorporation, partial RTT, indels)
-  with calibrated intended probability. `alleleforge.design.prime.design_prime`
-  wires enumerate -> efficiency -> outcome -> off-target into ranked
-  `DesignCandidate`s, running the off-target engine on **both** nicks and merging
-  them into one ancestry-stratified report. Phase 1 `PegRNA` gains optional
-  placement / nick-site fields. Bundled PRIDICT2.0 card; canonical example
-  `examples/01_clinvar_to_design.ipynb`. Cites Mathis et al. 2023/2024
-  (PRIDICT / PRIDICT2.0 / ePRIDICT).
-- **Phase 10 — Designer: routing, multi-chemistry menu, ranking.** The
-  orchestrator that turns one variant into a ranked, explained menu across every
-  eligible chemistry. `alleleforge.design.routing`: `eligible_chemistries` and
-  `route` over a small table of transparent, inspectable `RoutingRule`s — each a
-  chemistry paired with a one-line biological rationale and a pure
-  `(resolved, intent)` predicate (a transition SNV → base editing; any precise
-  small edit → prime; disruption intent → nuclease). Adding or relaxing a rule is
-  a one-line data change and every verdict is explained.
-  `alleleforge.design.ranking`: multi-objective ranking projecting every
-  candidate — regardless of chemistry — onto four shared, higher-is-better
-  objectives (calibrated efficiency, outcome cleanliness, off-target safety,
-  reagent simplicity), ordered by a transparent weighted sum (defaults 0.35 /
-  0.30 / 0.30 / 0.05, all overridable and echoed in output) **and** a Pareto
-  front. The safety term is computed against the **worst-affected ancestry**, not
-  the average, so a guide safe on average but dangerous in one population is
-  correctly down-ranked. `alleleforge.design.designer.design`: resolves any input
-  form (or an already-`ResolvedVariant`), routes, enumerates and scores per
-  chemistry, ranks across them, and returns a `RankedMenu` with the Pareto front
-  and a full provenance block. **Degrades gracefully** — an unavailable model, a
-  failing enumeration, or a chemistry that finds nothing is recorded with its
-  reason in the menu rationale while the rest of the menu still returns.
-- **Phase 11 — Reporting & oligo output.** Turns a ranked menu into the
-  artifacts users consume, leading with the research-use disclaimer and ending
-  with full provenance on every render — **dependency-free**.
-  `alleleforge.report.oligos`: cloning-ready annealed oligo duplexes per
-  chemistry — SpCas9 / base-editor sgRNAs (vector overhangs + U6 `G`) and
-  pegRNAs (spacer duplex + 3' extension carrying RTT + PBS + the epegRNA motif,
-  plus the PE3/PE3b ngRNA duplex) — parameterized by named `VectorScheme`s
-  (lentiGuide BsmBI, pX330 BbsI, pegRNA GG BsaI). Every set `reconstruct()`s the
-  intended spacer / RTT / PBS, the headline round-trip invariant.
-  `alleleforge.report.builder`: assembles a `RankedMenu` into a serializable
-  `DesignReport` (per-candidate reagent summary, calibrated efficiency, top
-  outcome alleles, ancestry-stratified off-target table, oligos, flags,
-  rationale). `alleleforge.report.export`: JSON (full report, or the menu
-  validated against the Phase 1 schemas), one-row-per-candidate TSV, and
-  lazy-`polars` Parquet. `alleleforge.report.html`: a self-contained interactive
-  HTML page — Plotly charts pulled from a CDN with figure specs inlined as JSON
-  (no Python plotting dependency, no sequence data leaves the page) — and
-  `alleleforge.report.pdf`: a small pure-Python writer emitting a valid,
-  print-ready multi-page PDF. JSON Schemas emitted for the new report and oligo
-  models. Cites the lentiCRISPRv2 (Sanjana et al. 2014), pX330 (Ran et al.
-  2013), pegRNA GG-acceptor (Anzalone et al. 2019), and epegRNA motif (Nelson
-  et al. 2022) cloning protocols.
-- **Phase 12 — CLI (`aforge`).** A thin, reproducible, config-driven Typer shell
-  over the library (new optional `cli` extra) with **no business logic** of its
-  own. `aforge resolve` normalizes any input form; `aforge design` runs the full
-  variant→ranked-menu pipeline and renders JSON / TSV / HTML / PDF (writing a
-  `.provenance.json` sidecar next to file output); `aforge offtarget` runs a
-  standalone population-aware search for a spacer; `aforge data list`/`show`
-  inspects the dataset registry; `aforge bench` is wired for Phase 14. Global
-  `--seed` / `--reference` / `--cache-dir` / `--verbose` / `--version`, a
-  `--json` flag on every command, `--config run.toml` with CLI overrides, and
-  ranking-`--weights` parsing. Meaningful, distinct exit codes (`0` ok, `2`
-  usage, `3` missing data, `4` unavailable feature); runs are reproducible from
-  the echoed seed + config modulo timestamp. The `aforge` entry point now
-  resolves to the real Typer app; the CI test and type-check jobs install the
-  `cli` extra. CLI usage page added to the docs.
-- **Phase 13 — Web UI & API.** A FastAPI backend (`alleleforge.web.api`) exposing
-  the library over HTTP and a dependency-free served single-page frontend
-  (`alleleforge.web.frontend`). `create_app(...)` builds a thin async layer with
-  **no business logic beyond orchestration**: `resolve`, `design`
-  (`?format=json|html|pdf`), `offtarget`, `data` list/show, `bench`, and
-  `health` endpoints, each validating requests/responses against the Phase 1 /
-  Phase 11 pydantic schemas with auto-generated OpenAPI. Long design runs go
-  through an **in-process async job queue** (`POST /api/jobs/design` →
-  `GET /api/jobs/{id}`) that runs work in a worker thread with a state/progress
-  status endpoint. The reference genome is supplied by the deployment
-  (`create_app(reference=...)` or `ALLELEFORGE_REFERENCE_FASTA`); endpoints that
-  need it return `503` until one is configured. The served frontend implements
-  the variant-first journey (entry → ranked menu with interactive Plotly +
-  ancestry-stratified off-target → oligo/report export) by embedding the
-  server-rendered HTML report, with a prominent research-use disclaimer and a
-  no-egress notice. **All compute is local: the app makes no outbound network
-  call and transmits no sequence data externally**, asserted by a test that
-  fails if any socket connects during a design request. New `Dockerfile` and
-  `docker-compose.yml` for one-command local deploy; `httpx` added to the `web`
-  extra and `pytest-asyncio` to `dev`; `GenomicInterval` gains a clean
-  `chrom:start-end(strand)` `__str__`. 31 async endpoint tests (httpx +
-  ASGITransport) cover every route, schema validation, the job lifecycle, exit
-  paths, and the no-egress guarantee. Web API page added to the docs.
-- **Phase 14 — CRISPR-Bench.** A standardized, calibration-first benchmark for
-  guide- and edit-design models under `alleleforge.benchmark` (an installed
-  subpackage, pure-Python and dependency-light, held to the same
-  `mypy --strict`/ruff/coverage gates as the rest of the library). Five fixed
-  task contracts (`tasks.py`): Cas9-efficiency and PE-efficiency (regression),
-  Cas9-outcome and BE-outcome (distribution), and off-target-classification.
-  Provenance-stamped, license-aware datasets (`datasets/`) shipped as small
-  **synthetic fixtures** for CI, with the real corpora (Rule Set 3, FORECasT,
-  BE-Hive, PRIDICT2, GUIDE-seq) fetched at runtime through the consent-gated
-  registry. **Frozen, content-hashed splits** (`splits/`) with deliberate
-  cross-cell-type test folds; `load_split()` re-verifies both the dataset content
-  hash and the split membership hash on read and raises `SplitIntegrityError` on
-  any drift — changing the data or the split requires a new version. A
-  pure-Python metric battery (`metrics.py`): Spearman/Pearson, KL/top-k,
-  AUROC/AUPRC, and **Expected Calibration Error required on every task**
-  (interval coverage for regression, binned reliability for classification,
-  predicted-mode reliability for distributions). A `runner.py` that evaluates any
-  `BenchScorer` (the library's efficiency `Scorer`s already conform), enforces
-  the no-bare-float contract at the seam, and emits a **signed** (content-hashed),
-  provenance-stamped `BenchmarkResult`. A model-card-gated `leaderboard.py`
-  (`Submission`/`Leaderboard`) that rejects unsigned, edited, or uncarded entries,
-  ranks by metric direction (KL/ECE ascending), and renders static
-  Markdown/HTML with calibration shown next to accuracy. A reference
-  `BaselineScorer` fit on the train-fold marginal so every task runs out of the
-  box. `aforge bench list` / `aforge bench run` wired over the runner. 63 tests
-  (metrics vs hand-computed values, split-integrity tamper/drift detection,
-  end-to-end runner across all kinds with signature reproducibility, leaderboard
-  gating, and CLI). New `benchmark/README.md` (datasets/licenses/citations, split
-  philosophy, submission format, launch plan), a CRISPR-Bench docs page,
-  benchmark JSON schemas, and a deterministic fixture generator
-  (`scripts/make_benchmark_fixtures.py`).
-- **Phase 15 — Documentation, examples, and release.** Two new runnable example
-  notebooks: `examples/02_population_offtarget.ipynb` (reproduces the
-  reference-bias / `rs114518452` ancestry-stratified off-target finding;
-  Cancellieri & Pinello, *Nat Genet* 2023) and `examples/03_batch_vcf.ipynb`
-  (cohort-scale design reduced to one auditable summary with provenance). All
-  three notebooks are **self-contained against the stub models** and **executed in
-  CI** via a new `examples` job (`pytest --nbmake examples/ --no-cov`); `nbmake`
-  and `ipykernel` added to the `dev` extra, and `01_clinvar_to_design.ipynb`
-  normalized to nbformat 4.5 (cell ids). New docs pages: a deployment & operations
-  guide (`docs/deployment.md`), an examples/tutorials gallery (`docs/examples.md`),
-  and a methods-preprint outline (`docs/paper/outline.md`), all wired into the
-  mkdocs nav and built strictly in CI. Release engineering: a tag-triggered
-  `release.yml` workflow (build → PyPI via OIDC Trusted Publishing → multi-arch
-  `linux/amd64`+`linux/arm64` Docker image to GHCR → GitHub Release), a Zenodo
-  metadata file (`.zenodo.json`) for DOI minting on first tag, and a bioconda-style
-  recipe (`conda/meta.yaml`). README updated with the runnable-examples gallery and
-  the release/packaging matrix; all fifteen build phases are now complete.
-- **v0.1.0 acceptance suite (`tests/test_acceptance.py`).** Encodes the
-  specification's §16 "definition of done" as six executable end-to-end checks,
-  complementing the per-component unit tests: a **ClinVar accession** flows
-  through `design()` to a complete menu (every candidate carrying a calibrated
-  efficiency interval, an outcome distribution, and an off-target report or an
-  explicit reason); the unified entry point **reaches every chemistry** (base,
-  prime, nuclease); a run is **reproducible from seed** (identical serialized
-  menu); the **reference-bias / `rs114518452`** off-target case is reproduced;
-  **prime editing unifies all four axes**; and **CRISPR-Bench publishes** the
-  Cas9-efficiency, PE-efficiency, and off-target tasks with frozen splits,
-  calibration, signed results, and a working leaderboard. All run against the stub
-  models, so the release contract is verified on every CI run.
-- **Native FM-index kernel (`aforge_native::bwt`).** The Rust crate now implements
-  the genome-scale FM-index off-target search path the layout reserved for it:
-  `fm_build` / `fm_count` / `fm_locate` and a `NativeFmIndex` object exposing
-  `count`, `locate`, `pam_sites` (with IUPAC PAM expansion), `content_hash`, and
-  `length`. `FMIndex.build(prefer_native=True)` transparently uses it when the
-  crate is present and falls back to pure Python otherwise. Construction mirrors
-  the Python fallback exactly (sentinel, C-table, checkpointed occ/rank, sampled
-  suffix array, LF-walk, SHA-256 content hash), and a new parity test module
-  (`tests/genome/test_native.py`, marked `native`) pins the native output to be
-  **byte-identical** to the fallback across texts, patterns, and PAM sites. The
-  CI `rust` job now builds the wheel and runs the parity suite; the existing
-  FM-index tests are pinned to the pure-Python path so they stay deterministic
-  whether or not the crate is built. Adds the `sha2` crate dependency.
-- **Post-v0.1.0 roadmap (`SPEC_V2.md`).** A phase-structured contract for the work
-  to "bake" the release before v1.0: R0 release hardening (pin real artifact
-  hashes), R1 real-weights integration, R2 native `kmer`/`haplotype` kernels +
-  SA-IS wired onto the off-target hot paths, R3 external-tool adapters, R4 scale,
-  R5 validation/calibration + methods preprint, and the R6 v1.0 criteria.
-- **R1 — consent-gated real backbone weights (first slice).** Real
-  sequence-embedding backbones now resolve their weights through the
-  license-gated, consent-required, checksum-verified model zoo instead of a bare
-  `from_pretrained(model_id)`. Adds `ModelRegistry.authorize(name, *, use,
-  consent)` (the license + consent gate for hub-resolved models, returning the
-  provenance `ModelCheckpoint`); `SequenceEmbedder.resolve_weights()` (uses the
-  pinned-artifact download+checksum path when the card pins a hash, else the
-  authorize gate, recording the resolved checkpoint) and `model_checkpoint()`;
-  and `EnsembleEfficiencyScorer.backbone_checkpoint()` so the cas9 efficiency
-  chemistry stamps the backbone into provenance. Adds model cards for the
-  `caduceus` and `evo2` backbones. The full consent/license/checksum flow is
-  CI-tested with an injected downloader (no network, no torch — 8 new tests); the
-  real tensor load stays behind the `real_weights` marker. The default backbone
-  (Nucleotide Transformer v2, CC-BY-NC-SA) is loadable for research and refused
-  for commercial use by the license gate.
-- **R1 — backbone ONNX export path (`export_onnx`).** The HuggingFace backbone
-  embedders now export the consent-resolved model to a portable ONNX graph
-  (`_HuggingFaceEmbedder.export_onnx(path, *, sample_sequence=...)`): the model is
-  resolved through the same consent gate, traced on a sample sequence, and written
-  with **dynamic batch and sequence axes** (opset 17) so it runs under any ONNX
-  runtime without torch/transformers at inference time. This replaces the prior
-  `NotImplementedError` stub. The export code is wired now; running it needs the
-  `ml` extra and real weights, so — like the tensor forward pass — it stays behind
-  the `real_weights` marker.
-- **R5 — reproducible SVG figures for the docs & preprint (`alleleforge.viz`).** A
-  dependency-free, hand-rolled SVG bar-chart renderer (`viz.svg`, the same
-  no-plotting-stack discipline as the PDF report) plus four figures (`viz.figures`)
-  computed from the **weight-free, deterministic** pipeline: the reference-bias
-  reproduction (reference-only vs population-aware off-target nomination), the
-  split-conformal coverage restoration, per-task CRISPR-Bench ECE, and the
-  cross-cell-type generalization gap. Figures regenerate byte-for-byte from config +
-  seed (`scripts/figures.py`, `make figures`), are committed under
-  `docs/assets/figures/`, and are embedded in the README and methods preprint. The
-  deterministic calibration/generalization computations moved into a library module
-  (`alleleforge.benchmark.calibration`) so the markdown report and the figures share
-  one source of truth; `scripts/calibration_study.py` now delegates to it. 26 new
-  tests; no new runtime dependency.
-- **R1 — menu provenance now records every model invoked.** `design()` stamps the
-  card-backed `ModelCheckpoint` of each eligible chemistry's scorers into
-  `RankedMenu.provenance.models`, which previously always shipped empty despite the
-  field documenting "checkpoints of every model invoked." Each vertical exposes its
-  default checkpoints (`cas9_model_checkpoints()`, `prime_model_checkpoints()`,
-  `base_editor_model_checkpoints()`); the designer aggregates and dedupes them by
-  name + version, scoped to the chemistries that were actually eligible (a
-  knock-out records only the Cas9 efficiency + outcome models, an A→G install
-  records BE-DICT + PRIDICT2.0). The HTML and PDF report footers now render the
-  invoked models, and the reproducibility golden captures them (they are
-  deterministic and scientifically meaningful, so they belong in the digest).
-- **R1 — consent-gated trained prime-efficiency adapters.** The trained
-  prime-editing efficiency adapters (`DeepPrimeAdapter`, `GenETAdapter`) now
-  resolve their weights through the same consent/license/checksum flow as the
-  backbone: `resolve_weights()` (pinned-artifact download+checksum or the
-  `authorize` gate) and `model_checkpoint()`, and `score()` runs the consent gate
-  before any inference. Adds bundled, license-gated model cards for `deepprime`
-  and `genet` (both research-only, so the license gate refuses commercial use).
-  The flow is CI-tested with an injected downloader (no ML stack); the trained
-  forward pass stays gated behind real weights. The `PridictScorer` heuristic
-  baseline remains the CI default.
-- **R1 — shared `WeightGate` + consent-gated outcome adapters.** Extracted the
-  consent/license/checksum weight-resolution flow into a single
-  `model_zoo.loader.WeightGate` mixin and refactored every trained model onto it
-  (the sequence backbone, the prime-efficiency adapters, and now the cas9-outcome
-  `InDelphi`/`Lindel`/`X-CRISP` and base-edit-outcome `BE-DICT`/`BE-Hive`
-  adapters), removing four copies of the same logic. Each outcome adapter's
-  `predict()` now runs the consent gate before inference. Adds bundled,
-  license-gated cards for `lindel`, `x-crisp`, and `be-hive` (all research-only).
-  The consent/license/checksum flow is CI-tested per chemistry with an injected
-  downloader (no ML stack); the trained forward passes stay behind real weights.
-  `loader.py` is at 100% coverage.
-- **R2 — k-mer seed kernel on the off-target scan.** A native Rust k-mer kernel
-  (`kmer.rs`: `kmer_seed_positions`) with a pure-Python fallback
-  (`offtarget._kmer`) and a seed-and-extend prefilter wired into the off-target
-  scan (`scan_sequence(..., seed=...)`). By the pigeonhole bound (partition the
-  spacer into `E+1 = mismatches+dna_bulges+rna_bulges+1` blocks; ≥1 is uncut and
-  substitution-free) any in-budget alignment shares an exact length-`k` seed with
-  the spacer, so the prefilter is a **proven superset** — it never drops a hit.
-  Equivalence is pinned by an exhaustive randomized test (400+ cases, seeded ≡
-  brute-force across budgets/PAMs/strands), and the native seeding is pinned
-  byte-for-byte to the Python path. The prefilter **auto-engages only when the
-  seed is selective** (`k >= 5`); a micro-benchmark
-  (`scripts/native_speedup.py`) measures **~2–4x** for high-stringency scans, a
-  native seed lookup **~5–6x**, and a transparent no-op at the default
-  ≤4-mismatch+bulge budget (where the FM-index is the genome-scale path). The CI
-  rust job runs the native k-mer parity suite.
-- **R2 — true-linear FM-index suffix array build (SA-IS).** The native FM-index
-  suffix array (`bwt.rs`) is built by **SA-IS** (`sais.rs`, Nong–Zhang–Chan
-  induced sorting, `O(n)`) — superseding the interim prefix-doubling
-  (`O(n log² n)`) build, which itself superseded the direct sort's `O(n² log n)`
-  that collapsed on the long poly-A / poly-N runs and tandem repeats real genomes
-  contain. The unique sentinel keeps the suffix array unique, so it is
-  byte-identical to the direct sort: pinned **directly** by a parity test of the
-  newly-exposed `fm_suffix_array` against the ground-truth direct sort (textbook
-  pathological inputs — all-same/alternating runs, tandem repeats — plus a 500-case
-  fuzz) *and* end-to-end by the FM-index `count`/`locate`/`pam_sites` parity over
-  low-complexity and random-long inputs. The CI rust job runs all of it.
-- **R2 — FM-index seed-and-extend wired into the reference scan.** The
-  off-target engine's stage-1 reference search now runs FM-index seed-and-extend
-  (`scan_sequence(..., use_fm_index=...)`, threaded from `engine.search`): each
-  concrete PAM is *located* in a content-addressed FM-index (the PAM is the seed)
-  and only those anchors are *extended* by the shared alignment, replacing the
-  linear `O(n)` PAM pass. It returns **byte-identical hits** to the brute-force
-  scan — pinned by a randomized parity test at both the `scan_sequence` and
-  `engine.search` levels (across mismatch/bulge budgets and both strands) — and
-  **auto-engages per region** past `FM_INDEX_AUTO_THRESHOLD` (1 Mb), so
-  genome-scale contigs take the indexed path while small inputs stay on the
-  linear scan. The native Rust `bwt` kernel and the pure-Python FM-index share
-  the interface; CI exercises the Python path, the rust job the native parity.
-- **R2 — native haplotype-walk kernel wired into the haplotype engine.** A Rust
-  kernel (`haplotype.rs`: `haplotype_apply_variants`) with a pure-Python fallback
-  (`offtarget._haplotype`) materializes a common haplotype's alternative sequence
-  by applying its full variant set to the reference window — applied right-to-left
-  so indels keep later edits' coordinates valid, returning `None` on a
-  reference-base clash (a phasing/coordinate mismatch the engine skips rather than
-  mis-applying). It is wired into `offtarget.haplotype._apply_all` (the hot inner
-  step of stage 3) and is **byte-identical** to the Python path, pinned by a fuzz
-  parity test over lowercase refs, `N` bases, indels, overlaps, and
-  out-of-window positions. The R2 micro-benchmark
-  ([`scripts/native_speedup.py`](scripts/native_speedup.py)) measures **~4x**. With
-  this the three spec kernels — `bwt`, `kmer`, `haplotype` — are all on their hot
-  paths behind the fallback-plus-parity discipline; the CI rust job runs the
-  native parity suite for each.
-- **R3 — external tool adapters made real (Cas-OFFinder · VEP · HGVS).** The
-  three previously-inert `NotImplementedError` adapters now have working
-  implementations, each tested against **recorded fixtures** with the live
-  network/binary call factored behind an injection point (opt-in,
-  `live_integration`-marked, never run in CI):
-  - **Cas-OFFinder** (`offtarget.cas_offinder_adapter`): `format_input` builds the
-    binary's three-line input deck; `parse_output` reads both the legacy 6-column
-    and bulge-aware 8-column result layouts into `(chrom, position, strand)` loci;
-    `run(..., runner=...)` orchestrates write→invoke→parse with an injectable
-    runner, and the existing `disagreements()` cross-check flags divergence from
-    the native engine.
-  - **VEP** (`variant.effect`): `VepRestPredictor` queries the Ensembl region
-    endpoint through an injectable fetcher; `parse_vep_response` maps the JSON to a
-    `VariantEffect` (MANE/canonical or named-transcript selection, most-severe SO
-    term, impact tier), cached by `(variant, assembly, transcript)`.
-  - **HGVS** (`variant.hgvs_adapter`): `HgvsLibraryProjector` wraps the real `hgvs`
-    library (UTA + SeqRepo `AssemblyMapper.c_to_g`) behind the existing
-    `HgvsProjector` interface, degrading to a clear `RuntimeError` when the
-    optional library is absent.
-  Adds the `live_integration` pytest marker for the opt-in live tests.
-- **R4 — cohort-scale batch design (`design.design_many`).** Streams a whole
-  cohort through `design`: the input is consumed lazily (a `cyvcf2` stream, a
-  generator, or a list), and only the per-item working set is held — each ranked
-  menu is summarized (and optionally written to `output_dir`), then released, so
-  peak memory does not grow with cohort size (`on_result` makes the run `O(1)` in
-  cohort size). Runs are **resumable** through a JSONL run manifest that opens
-  with a provenance header (version, seed, reference build, intent, start time)
-  and against which a re-run **skips items already recorded**; per-item failures
-  are **captured, not fatal** (an unresolvable variant is recorded with its error
-  and the cohort continues). A thread-parallel path (`max_workers` +
-  `reference_factory`, since a pyfaidx handle is not thread-safe to share)
-  produces summaries identical to the sequential run. Returns a `CohortRunReport`
-  with the run counts and provenance.
-- **R4 — `cyvcf2` fast path (`variant.iter_vcf`).** The streaming VCF adapter that
-  *produces* the lazy iterator `design_many` consumes: it reads a VCF with
-  `cyvcf2` (htslib-backed) and yields one `VcfRecord` per **concrete ALT allele**,
-  splitting multi-allelic rows, skipping symbolic/`<DEL>`/spanning-`*`/non-ACGTN
-  alleles, and dropping non-`PASS` records by default — so a whole-VCF cohort flows
-  through the designer with bounded memory. The reader is **injectable**: a path is
-  opened with `cyvcf2` lazily (a clear `RuntimeError` names the `genome` extra when
-  it is absent), but any iterable duck-typed to the cyvcf2 `Variant` shape works,
-  so the split/filter logic is fully CI-tested with a fake reader and **no native
-  dependency**. (Whole-genome scale validation on a real VCF remains an opt-in
-  nightly.)
-- **R4 / Phase 12 — `aforge batch` cohort command.** The cohort path now reaches
-  the CLI audience (the "three audiences, one core" principle): `aforge batch
-  <input>` streams a whole cohort through `design_many`, **auto-detecting** a VCF
-  (`.vcf`/`.vcf.gz`/`.bcf` → the `iter_vcf` cyvcf2 fast path) from a plain
-  one-variant-per-line list (`#` comments skipped). It exposes the full streaming
-  contract as flags — `--manifest` (resumable JSONL run), `--output-dir` (durable
-  per-item menu JSON), `--max-workers` (thread-parallel with a per-worker
-  reference), `--summary-tsv` (per-item table), plus `--intent`/`--populations`/
-  `--weights`/`--no-offtarget` forwarded to `design`. Emits a human summary or, with
-  `--json`, the full provenance-stamped run report; a VCF input without `cyvcf2`
-  surfaces as a clean exit code `4` (unavailable), not a crash.
-- **R4 / Phase 13 — `POST /api/batch` cohort endpoint.** Cohort design now reaches
-  the **third audience** (the web): the endpoint takes a JSON variant list, runs
-  `design_many`, and returns the per-item summaries, counts, and run provenance
-  (per-item failures isolated, not fatal), all behind the same `503`-until-a
-  -reference-is-configured contract as `/api/design`. The shared design knobs
-  (intent/chemistries/weights) are factored into one `_design_options` helper used
-  by both `/api/design` and `/api/batch`. Cohort design is now reachable from all
-  three surfaces (library `design_many`, `aforge batch`, `POST /api/batch`) over one
-  core.
-- **R4 / Phase 13 — browser cohort UI.** The served single-page frontend gains a
-  **cohort (batch) tab** beside the single-variant one: a one-variant-per-line
-  textarea (blank/`#`-comment lines skipped) posts to `/api/batch` and renders the
-  per-item summary table (status, best chemistry, efficiency, worst off-target,
-  candidate count), with a JSON download. It keeps the no-egress, no-third-party
-  -script guarantee — cohort design is now usable end to end from the browser.
-- **Phase 13 fix — `GET /api/bench` lists the CRISPR-Bench tasks.** The endpoint
-  previously returned a stale `501 "arrives in Phase 14"`; Phase 14 has shipped, so
-  it now returns the five tasks with their kind, chemistry, dataset, primary metric,
-  and metric battery (ECE included) — the HTTP mirror of `aforge bench list`.
-- **Phase 14 — `aforge bench leaderboard` command.** `bench run` already emitted
-  signed, provenance-stamped result JSONs but nothing aggregated them; the new
-  command reads one or more result files, groups them by model into **card-gated
-  submissions**, and renders the leaderboard as Markdown (default) or HTML. It
-  enforces both honesty gates on read — every result must verify its own signature
-  and carry a complete model card (name/license/citation) — so a number edited
-  after signing, or a model without a card, is refused (exit `2`); a missing file
-  exits `3`. The benchmark's "publish the leaderboard" story is now reachable from
-  the CLI, not just the `Leaderboard` API.
-- **R4 — content-addressed cross-run caches.** A shared
-  `alleleforge.cache.ContentAddressedCache` — a sharded, atomically-written
-  (temp-file-then-rename) disk key/value store under the cache dir, keyed by the
-  SHA-256 of the inputs that determine a result — backs two cross-run memos:
-  - **Embeddings:** `CachedEmbedder.persistent(embedder)` reuses embeddings across
-    runs via a `PersistentEmbeddingCache` scoped per backbone identity (so two
-    backbones never collide); a sequence embedded in one run is free in the next.
-  - **Off-target:** `OffTargetCache` + `search(..., cache=...)` reuse the expensive
-    reference scan. It is **safety-gated**: used only when the result is a pure
-    function of the reference — the default scorer and no gnomAD/haplotype/patient
-    augmentation — so a stale entry can never be served for a query whose external
-    data the content key does not capture. A changed budget/PAM/threshold/reference
-    is a distinct key; a custom scorer or any augmentation bypasses the cache.
-- **R4 — whole-genome on-disk, memory-mapped FM-index (`genome.GenomeIndex`).**
-  Builds one content-addressed FM-index per contig (both strands) over a
-  reference, driven by **R2's native SA-IS**: the on-disk `FMIndex` build now uses
-  the linear-time kernel (`_suffix_array` → `fm_suffix_array` when the crate is
-  built), so the persistent + memory-mapped path scales to whole chromosomes
-  instead of being limited to the pure-Python direct sort. The index **survives
-  across runs** (a re-run memory-maps the cached contig index rather than
-  rebuilding) and is queried over its memory map without pinning it in RAM. The
-  off-target engine consumes it via `search(..., genome_index=...)` (and
-  `scan_sequence(..., fm_plus=, fm_minus=)`) for the reference scan — **identical
-  hits** to the per-call build (a parity test pins this across budgets and both
-  strands), but built once and reused. Validated in CI on a downsampled-chromosome
-  fixture in the rust job (native SA-IS build → mmap query → linear-scan parity →
-  cross-run reuse); full hg38 / T2T-CHM13 builds are an opt-in nightly.
-- **R5 — conformal interval recalibration + calibration-study script.**
-  `scoring.ConformalCalibrator` recalibrates predictive *intervals* to a target
-  coverage with the finite-sample **split-conformal guarantee** — the regression
-  analog of `IsotonicCalibrator` for probabilities, and the first producer of the
-  long-reserved `UncertaintyMethod.CONFORMAL`. It learns a single multiplicative
-  width scale from a held-out calibration set, so recalibrated intervals meet the
-  nominal coverage while the model's *relative* per-example uncertainty shape is
-  preserved (normalized conformal). `empirical_coverage` measures interval coverage
-  to decide when recalibration is needed. `scripts/calibration_study.py`
-  regenerates the calibration report — every CRISPR-Bench task's primary metric and
-  ECE, plus a conformal recalibration demonstration (coverage before/after at the
-  spec's 80%/90% levels) — deterministically from config + seed. The recalibration
-  machinery and the report are CI-tested on the weight-free splits; the real-data
-  ECE numbers fill in with R1.
-- **R5 — cross-cell-type generalization gap.** `benchmark.generalization_gap`
-  quantifies the drop in a model's primary metric from an in-context fold (a
-  training-seen cell type, default `val`) to the held-out cell type (default
-  `test`) — the field-wide reality that a model tuned on one cellular context
-  predicts an unseen one worse. The gap is **orientation-corrected** (positive
-  always means worse held-out generalization, whether the metric is higher- or
-  lower-is-better) via a `HIGHER_IS_BETTER` map, and computed through a shared
-  `evaluate_fold` primitive. `scripts/calibration_study.py` now reports the
-  per-task gap table (the cross-cell-type chemistry tasks; off-target, stratified
-  by sequence pair, is excluded). Pinned by a test where a scorer that memorizes
-  the in-context fold but is ignorant on the held-out one shows a positive gap.
-- **R5 — methods-preprint draft.** `docs/paper/preprint.md` drafts the working
-  outline into a full manuscript: abstract, methods (the domain model & provenance,
-  the genome/variant front end, the population/haplotype off-target engine, the
-  license-gated scoring substrate and uncertainty methods, the three chemistries,
-  conformal recalibration, and the native kernels), the CRISPR-Bench design, the
-  **weight-free end-to-end results** (the `rs114518452` reference-bias reproduction
-  and the split-conformal coverage-before/after table regenerated from
-  `scripts/calibration_study.py`), reproducibility, and discussion. The
-  accuracy-vs-published-numbers results are explicitly fenced off as `[pending R1]`,
-  so the draft never overstates what is measured. Wired into the docs nav (under a
-  *Methods preprint* section) and linked from the outline, the README roadmap, and
-  the citation block.
-- **Docs — rendered diagrams on the published site + status fix.** Enabled
-  Material's native **Mermaid** rendering (`pymdownx.superfences` custom fence) so
-  the documentation site renders architecture and sequence diagrams as figures
-  rather than code blocks, and gave the docs home (`docs/index.md`) the layered
-  **architecture flowchart** and the **variant-first journey** sequence diagram that
-  the README already carried. Fixed the stale build-status table on the docs home
-  (Phase 14 CRISPR-Bench and Phase 15 docs/examples/release were still marked
-  *next*/*planned* — both have shipped; all fifteen v0.1.0 phases now read *done*),
-  and pointed the post-v0.1.0 roadmap at `SPEC_V2.md`.
-- **R0 — supply-chain hardening.** Dependabot now tracks all three dependency
-  surfaces — `pip`, `cargo`, and `github-actions` (`.github/dependabot.yml`,
-  grouped weekly PRs); a CI `security` job runs `pip-audit` (PyPI advisory DB)
-  and `cargo audit` (RustSec); and the release pipeline emits a **CycloneDX
-  SBOM** over the resolved dependency closure (`sbom` job) and attaches it to the
-  GitHub Release alongside the sdist/wheel.
-- **R0 — reproducibility audit.** `scripts/reproduce.py` (and `make reproduce`)
-  re-derives the canonical weight-free design run (a ClinVar accession → ranked
-  menu, the §16.1 acceptance scenario) from config + seed, asserts run-to-run
-  determinism, and diffs a canonicalized digest — volatile provenance stripped,
-  floats rounded for cross-platform stability — against a committed golden
-  manifest (`scripts/reproduce_golden.json`). A CI `reproduce` job gates it.
-- **R0 — CI/CD runner hardening (Node 24).** Bumped every pinned GitHub Action off
-  the deprecated Node 20 runtime, which GitHub force-migrates on 2026-06-16:
-  `actions/checkout@v4→v5`, `actions/setup-python@v5→v6`, and (in the release
-  pipeline) `actions/upload-artifact@v4→v7` + `actions/download-artifact@v4→v7` (the
-  matched Node-24 pair, chosen over v8 to avoid its ESM/hash-mismatch breaking
-  changes for the trivial named-artifact handoff), `softprops/action-gh-release@v2→v3`,
-  and the Docker buildx stack (`setup-qemu@v3→v4`, `setup-buildx@v3→v4`,
-  `login@v3→v4`, `metadata@v5→v6`, `build-push@v6→v7`). Both workflows now run
-  entirely on Node 24; the CI workflow is verified green on the new majors, and the
-  Docker/composite actions (`gh-action-pypi-publish`, `dtolnay/rust-toolchain`) are
-  unaffected by the Node deprecation.
-
-- **`aforge offtarget` and `POST /api/offtarget` now expose every engine knob.**
-  The off-target engine's `search()` has always accepted a tunable bulge budget
-  (`dna_bulges` / `rna_bulges`), CFD/MIT reporting thresholds (`cfd_threshold` /
-  `mit_threshold`), and a carrying-frequency floor (`maf`) — and the docs state
-  "every threshold is a parameter" — but the CLI command and the web request
-  hardcoded all of them to the defaults, exposing only `mismatches` and
-  `populations`. Both surfaces now pass the full set through (CLI options with
-  range validation; `OffTargetRequest` fields with `ge`/`le` bounds), so a user
-  can tighten the thresholds, drop bulges for speed, or change the population
-  stringency without dropping to the Python API. The library, CLI, and web are
-  again faithful mirrors of one engine. Pinned by monotonic tests on both
-  surfaces (tightening a knob can only remove nominations, never add).
+- **The knock-out frame rule, the indel-allele labels, and the trained-model placeholders'
+  call path are pinned.** A constant pass over `scoring/cas9_outcome.py` left 35 of 42
+  mutants alive. The frame rule was the headline: `p_intended` over this distribution is
+  what ranks a knock-out candidate, and `del_len % 3 != 0` could have become `% 4 != 0`
+  with the suite green, because the one fixture asserted only that 1-bp insertions are
+  intended and that `p_intended > 0` — never that an in-frame deletion is *not*. A 3-bp
+  deletion preserves the reading frame and knocks nothing out. Also now pinned: the
+  unmodelled-byproduct floor is never an intended knock-out allele, the microhomology
+  counter (the `mh` in the user-visible `del8:mh3@4` label) against a hand-countable
+  `ACGTACGT` context rather than relative to itself, both ends of the legal cut range,
+  `DEFAULT_MAX_DELETION` at exactly 20 and 21 bp, Lindel's frameshift cut-off at exactly
+  0.5 and just below it, and the in-frame tail never being credited to a knock-out.
+  Sixteen survivors remain deliberately: twelve are heuristic magnitudes behind the
+  documented inDelphi shape, where the direction is pinned and a 10% order-preserving
+  shift is accepted; the rest are unexecutable without a model checkout, a harness no-op,
+  or proven unobservable.
 
 ### Changed
 
@@ -5560,6 +3021,2390 @@ acceptance.
   model cards, benchmark splits, and web frontend — against silent removal.
 
 ### Fixed
+- **A license-gated placeholder's refusal is now reachable from the designer.**
+  `InDelphiAdapter` and `XCrispAdapter` always raise, and the message names
+  `LindelAdapter` as the wired trained model and cites the scope spec. Their `predict`
+  took `(context, cut)` while `design/cas9.py` calls every outcome predictor as
+  `predict(context, cut, mark_frameshift=...)`, so a user plugging one into the documented
+  `cas9_outcome_predictor=` override got `TypeError: unexpected keyword argument
+  'mark_frameshift'` from inside the library and never saw it. The placeholders now take
+  the full predictor signature. `InDelphiAdapter`'s docstring also described it as the
+  "default outcome model" while its base class describes it as an unsupported
+  placeholder; it now names `MicrohomologyOutcomePredictor` as the real default.
+- **The guide-length range is pinned to the literature instead of to itself, and every
+  reagent type's immutability is pinned.** A constant pass over `types/guide.py` left both
+  ends of `GUIDE_SPACER_RANGE` alive against the whole suite: every fixture on that
+  boundary was computed from the constant under test (`GUIDE_SPACER_RANGE[0] - 1`,
+  `parametrize("length", GUIDE_SPACER_RANGE)`), so the range could move to (18, 25) with
+  nothing failing — and a real 17-nt truncated SpCas9 guide would then be reported as "not
+  a guide length". The two values are now written out once against the sources the
+  constant's comment cites (Fu et al. 2014; Cas12a), and the sentence a reader sees is
+  checked to quote the shipped range. Separately, all ten reagent models in that module
+  declare `frozen=True` and none of them was tested: a designed reagent is read by scoring,
+  ranking, rendering, and oligo assembly in turn, and frozen is what stops a later stage
+  retuning it for the earlier ones. The new guard discovers the module's public models
+  rather than keeping a list. `types/guide.py` now kills 33 of 33, and the constant pass
+  found `enumerate/prime.py` (32/32) and `enumerate/base_editor.py` (20/20) already clean.
+- **The Cas9 enumerator's advertised defaults and its donor's own bases are pinned.** A
+  constant-mutation pass over `enumerate/cas9.py` left 17 of 30 mutants alive against the
+  full 1,233-test list. `DEFAULT_ACTIONABLE_RADIUS` could become 11 bp, admitting a cut the
+  module documents as too far for HDR, because every fixture passed an explicit radius or
+  sat far inside or outside the window; it is now tested on both sides of its edge, with a
+  cut exactly 10 bp from the edit actionable and one at 11 bp refused. `DEFAULT_HDR_ARM` is
+  bound to the sentence in the same module that names 50 bp as the reach which can touch an
+  assembly gap. `guide_context`'s default 6-bp symmetric flank — the window a scorer that
+  declares none falls back to — had no test, since every caller in the suite passes explicit
+  flanks. The blocked donor was asserted only at its blocked index, so the splice that writes
+  the base in and the trial the search judges it against could drop or shift a base, changing
+  the shipped oligo's length while the recorded mutation stayed right; the donor is now pinned
+  as the unblocked one with exactly one base changed, and its PAM is checked to genuinely fail
+  to match. Finally, no Cas9 fixture had ever put an edit on a contig's first base, so the
+  clamps that exist for the start of a reference — the fetched enumeration window, the
+  carried-allele overlay's lower bound, and the two spans that reach behind a guide for its
+  PAM — were all unreached; a protospacer beginning at base 0 is dropped if the window starts
+  one base late. The module now kills 29 of 29.
+- **The off-target report's validation, defaults, and own description are pinned on their edges.** The constant pass over `types/offtarget.py` left 37 alive. Nine are configuration or immutability flags; the rest were real. The [0, 1] validators on score, MIT score, and frequency are now tested at 0, at 1, and just past 1. The report's default budgets (4 mismatches, 1/1 bulges, CFD 0.20, MIT 0.10) are now bound to the engine's `search()` defaults and the API's request defaults, so the three surfaces cannot drift apart. The coverage sentence could say "NO SEQUENCE WAS SEARCHED" over a clean search that found nothing, divide by zero for an empty one, skip a 1-base search, call a spacer at either end of the 17-24 nt guide range "a sequence search", or omit a small sub-threshold tail. Population-weighted burden is pinned for a population site without a frequency (unweighted, full score), for an ancestry a site does not name (zero contribution), and for a worst-per-ancestry score below 0.1. The headline notes now flag a cut-off above 1 as unreachable and never flag exactly 1.
+- **The resolver holds at a contig's first base, and its off-by-one message states the right coordinate.** The constant pass over `variant/resolver.py` found every indel fixture sitting mid-contig. Left-alignment must roll an indel in a leading repeat to position 0 and leave it unanchored (no base precedes it), and must anchor a deletion at position 1 on base 0. The reference check must answer no for a position before the contig, so a variant at a contig's first base is never offered a remedy pointing before it. An empty-REF insertion must still get a 1-base core in its analysis window. The off-by-one refusal's "the asserted ref is at chr:N in 1-based terms" coordinate is now pinned; only its `try` suggestion was checked before. `NC_000001` is pinned to resolve to `chr1`, which a `range(2, 23)` would have dropped. In `design/cohort.py`, a run now has a test for creating nested manifest and output directories and for re-running into an existing output folder, the ordinary re-run case.
+- **A liftover is exact by default, down to a single base.** The constant-mutation pass over `genome/coordinates.py` found that the default `length_tolerance=0` on `lift_interval` was untested. The existing test resized a span by 5 bp, which a default of 0 and a default of 1 both reject, so a lift silently admitting a 1-bp chain indel would have passed. A 1-bp resize is now refused by default and admitted only with an explicit tolerance. A build recommendation with no flagged region is also pinned as not a recommendation. The same pass found `offtarget/_search.py` (204/204) and `genome/index.py` (160/160) fully covered. The curated hg38 difficult-region coordinates survive 1-bp shifts by design, since they are cytoband-scale approximations.
+- **Every API request limit is checked at its exact boundary, and the benchmark metrics' edges are pinned.** Seven of the ten request-size caps in `web/api/models.py`, the bound the web-API hardening promised, were never named by a test. A new test reads every `maxLength`, `maxItems`, `minimum`, and `maximum` the published JSON schema advertises (30 size limits, 19 numeric bounds) and checks each on both sides: a value at the limit passes, and one past it is refused at that field. A bound added later is covered automatically. The limit *values* are configuration and are not pinned, except where the quantity fixes them: score thresholds and allele frequency lie in [0, 1], coordinates are non-negative, and a per-chemistry cap is at least 1. The uniform immutability of every API model is also pinned. In `benchmark/metrics.py`, 8 of 23 constant and operator survivors were real. The zero-variance guard could reject low-spread correlations, which are routine for efficiencies in [0, 0.3]. A key missing from one distribution must be zero mass, `topk_accuracy` must default to top-1, ECE's end bins must not merge, and interval coverage must include its endpoints. The other 15 are equivalent, by algebra or because a length-checked `zip` cannot be shortened.
+- **The off-target scoring tables are pinned to sources the code does not control, and the ranking's explanations are pinned to the numbers they explain.** A new constant-mutation pass (`n` to `n + 1`, `x` to `1.1x`, `True` to `False`) found what operator mutants cannot. `scoring/uncertainty.py` came back 277/277. In `offtarget/scoring.py`, 34 of the 36 weights in the MIT and CFD-PAM tables could change by 10% with the suite green, because the existing tests compared scores against the table under test. Worse, the module docstring says the PAM weights come from the vendored, cross-verified `cfd_matrix.json`, but the scorer reads a hand-typed copy and never consumes the vendored `pam` table. The two copies are now bound by test, and the MIT weights are pinned to CRISPOR's `hitScoreM`, checked identical. Edges are pinned too: a weight just above 1 is refused, and an unweighted PAM or mismatch scores 0. In `design/ranking.py`, the rationale beside the rank could call an in-distribution candidate "OOD", quote the upper bound as the lower, double the OOD count, or omit the "not resolved" note for exactly two tied leaders. All are now pinned, along with the zero contribution of an unscored candidate and the immutability of the weights, scores, and outcome. The per-chemistry simplicity values are unspecified heuristics, so only their documented range and order are tested.
+- **The web API is mutation-tested, and its responses can no longer state the opposite of the truth with the suite green.** `web/api/` had never been swept. `models.py` was fully covered (6/6). `jobs.py` left 2 of 35 alive: both caps and the per-result byte limit could become exclusive, so a server configured for N retained jobs would keep N - 1, and a result exactly the advertised size would be refused as too large. `app.py` left 8 of 91 alive, and every one put a wrong fact in a response rather than crashing. `/api/resolve` could invert `changes_the_sequence` and `reference_checked`. The trained-model refusal could say "Enabled here: none" while models were enabled, because every fixture enabled nothing. `GET /api/models/{name}` could 404 for every model it knows, because no test fetched one by name. An `offtarget_cache` or `genome_index` passed to `create_app` could be ignored. The missing-reference 503 could lose its explanation, and a 10-item list echoed in an error could be marked truncated. Each is now pinned, with job-store sizes measured from a real run rather than guessed. Every module in the package has now been swept at least once.
+- **The data layer's lookups and parsers are tested on their edges.** A mutation sweep of `data/` was confirmed against the full suite. `_io` and `haplotypes` were already fully covered, and 2 more survivors are provably equivalent: a zero-length overlap adds nothing, and a comment line is also rejected by the column-count guard. Six were real. Region queries are half-open, `[start, end)`, and no fixture had a record exactly at `end`, so including it passed in both ClinVar and dbSNP, and excluding `start` passed in dbSNP. A ClinVar insertion written with REF `.` is kept with an empty REF, but no fixture had one, so a check that silently dropped every such record passed. A truncated GENCODE line could reach an `IndexError` instead of being skipped. A dataset descriptor not marked bundled could resolve a bundled path. Each now has a fixture placed exactly on the edge.
+- **Five never-swept modules are now mutation-tested; three needed work.** `cache.py` (23/23) and `config.py` (13/13) were already fully covered. `scoring/pridict_engine.py` left 6 of 16 alive: `design()`, the code that finds the PRIDICT2 checkout, builds its command, and reads its output, ran only in the opt-in real-weights test, so CI never executed it. An explicit interpreter could also lose to the environment variable, and the prediction interval's clamp at 0 and 1 was unpinned. A stand-in checkout that writes the fixture CSV now runs the whole path in CI. `scoring/backbone.py` left 1 real survivor: the stub embedder promises values in [-1, 1], and a mapping that squeezed every value into [-1, -0.5] passed, which would have quietly shrunk the space the OOD tests measure distances in. Three more sit inside `pragma: no cover` bodies that need real weights. `report/pdf.py` left 17 of 86: 2 are provably equivalent (`int(x / y)` and `x // y` agree for positive values), and 15 were real. Text could start above the page's top margin or run past the bottom one. A report naming a variant could print "(unspecified)". The xref row count was checked against itself. A page filled exactly could gain a trailing blank page, blank spacer lines could vanish, and none of the wrap or pagination thresholds had a test on its edge. Fixtures measured to exactly 504.0pt, the text column, now pin each one.
+- **The benchmark runner's numbers are pinned where the fixtures could not tell them apart.** A mutation sweep of `benchmark/runner.py` left 16 of 44 mutants alive against the benchmark tests. The generalization gap was asserted only as `> 0.5`, which `in + held` satisfies as well as `in - held`. Its "withhold the gap" path was only reached with *both* folds undefined, so `or` and `and` agreed. A classification fold's undefined reason, and `run_benchmark` given a split without a dataset, were never exercised. Two survivors exposed a property of binary ECE worth recording: flipping a class decision maps confidence `c` to `1 - c` and right to wrong, so `|accuracy - confidence|` does not move. The `>= 0.5` threshold is visible only when two predictions share a bin with mixed outcomes, and a distribution's mode is distinguishable from its least-likely class only with three or more classes. New tests use exactly those fixtures. The module now kills 44 of 44.
+- **The leaderboard is tested on boards where the wrong answer looks different.** The shipped baseline predicts a constant, so every board in the suite was made of ties, and a mutation sweep left 6 of 46 mutants alive in `benchmark/leaderboard.py`. The worst: flipping a higher-is-better ranking to worst-first kept the suite green, because two tied rows cannot reveal which way a board sorts. The others: the OOD share could be computed as a product instead of a ratio, a row with no split hash could mark its group "contested", the "not comparable across groups" banner could appear over a single group in both Markdown and HTML, and the "no ranked submission" placeholder could invert. New tests submit distinct scores through the real signed-submission gate (worst-first, so insertion order cannot pass for a sort) and pin each case on both sides of its threshold. The module now kills 46 of 46.
+- **The chart's crowding thresholds are tested on their edges, not only past them.** Rotation, per-bar value labels, label thinning, and the caption that states what was withheld exist because a 90-candidate prime menu printed its labels on top of one another. Every existing test sat well past each threshold, so mutation testing left 12 of 108 mutants alive in `viz/svg.py`: `>` could become `>=`, the axis `max` could become `min`, and the suite stayed green. New tests put a chart exactly on each edge (a label exactly its slot wide, a slot exactly 26px, a rotated stride of exactly 2 or 3, a reference line above the data, a negative bar below the floor). One of my first-draft tests was itself blind: a lone bar's plot is so narrow its caption wraps one word per line, so a phrase match passed with the caption present. A targeted sweep now kills 16 of 16 mutants on those lines.
+- **The benchmark's reference baseline is pinned to the numbers it was fitted to.** `build_baseline` produces the scorer every CRISPR-Bench submission is measured against, and mutation testing killed only 7 of 23 mutants in that module. The 16 survivors were one cluster: the fitted numbers themselves — the train-fold mean, both interval endpoints, the widening applied to a constant fold, the final clamp, the distribution marginal, and the classification heuristic's two saturation points. The module had heavy incidental traffic from the board and acceptance tests, all of which asked about the *comparison* and none about what the baseline predicted. Now pinned on a synthetic fold with hand-computable answers, with labels chosen so the mean is 0.4 rather than 0.5 (0.5 is what the empty-fold fallback returns, so a fixture averaging to it cannot distinguish a fitted baseline from an unfitted one). Three cases needed a fold built for them: a constant fold is widened to `[0.4, 0.6]` rather than given a zero-width interval, which would be a claim of certainty from a baseline whose documented character is that it knows nothing; the distribution marginal sums across examples before normalizing, which a symmetric fixture cannot show because it lands on `{0.5, 0.5}` either way; and an all-zero-mass fold is an empty marginal rather than a `ZeroDivisionError` that would take a whole board run down. The module now kills 23 of 23.
+- **Outcome-summary depth is now selectable from every single-design surface.** `build_report(top_alleles=…)` was reachable only from Python; the CLI, HTTP API, and served page always showed 3 alleles per candidate, even though they already distinguished that report summary from the lossless ranked menu. `aforge design --top-alleles N`, `DesignRequest.top_alleles`, and the page control now select any positive depth while `--format menu`, `--json`, and `format=menu` retain the full outcome spectrum.
+- **GENCODE v47 is now a fetchable, verified release.** The comprehensive GRCh38 GTF now points at its immutable EBI release object and pins SHA-256 `df11938c66d2b39f8ebbdb5f1720919321f9cf9d58f02b019753f6a24ca3db24`, independently checked against GENCODE's published MD5 manifest. `aforge data fetch gencode` therefore acquires the exact annotation `GeneModels` consumes instead of refusing an unverifiable download.
+- **The dataset manager can now fetch what it says is fetchable.** Phase 12 specified dataset status, fetch, refresh, and version/license inspection, but `aforge data` exposed only `list` and `show`; the consent-gated registry was reachable from Python alone, and every external descriptor was unpinned. ClinVar's immutable GRCh38 snapshot from May 28, 2024 is now fixed to its official NCBI archive URL and verified SHA-256. `aforge data fetch clinvar` downloads it into the selected cache, while `data refresh` verifies a replacement before atomically swapping it in and preserves the last good copy after a failed transfer. Both commands emit JSON, and `data status` is the explicit status alias promised by the CLI contract. All status/detail commands inspect the same `--cache-dir`, so a fetched release is immediately reported as available.
+- **Local reference data cannot enter the container build context.** The documented Compose workflow stores the reference under `./data`, but the repository had no `.dockerignore`; classic or remote builders could therefore receive local genomes, caches, credentials, and developer state even though the Dockerfile copied only package inputs. The context now denies everything by default and admits only `pyproject.toml`, `README.md`, the container constraints snapshot, and `src/`. A guard pins that allowlist and rejects a future broad context copy.
+- **The dependency audit now examines what the container actually ships.** The advisory `pip-audit` job checked a broad development install, but that graph deliberately differs from the deployment snapshot: development constrains tooling compatibility while the Python 3.12 image resolves its own exact versions. CI now runs a second strict audit over `constraints/container.txt`, so a vulnerability in a container-only version cannot hide behind a clean development environment. The current snapshot reports no known vulnerabilities.
+- **The runtime image has one authoritative copy of the application.** The builder installed AlleleForge into `/opt/venv`, then copied both that environment and `/app/src` into the runtime even though Python imported only the installed package. The duplicate added bytes and could silently become the executed code after a future path change, bypassing the installed artifact that distribution checks validate. The runtime now copies only the environment; CI proves the live service imports from `/opt/venv` and that `/app/src` is absent.
+- **Release downloads now have one verifiable digest manifest.** The wheel, sdist, and wheel CycloneDX SBOM would be attached to GitHub without checksums, leaving a downloaded file disconnected from the repository's content-addressed release story. A read-only job now downloads the already validated artifacts, writes `SHA256SUMS` over exactly those files, and uploads it beside them. PyPI and GHCR publication both wait for that manifest, so checksum generation is a release gate rather than an after-publication convenience.
+- **The published container now carries evidence for the image itself.** The release produced a CycloneDX inventory for the default Python wheel, but attached no SBOM explicitly to the different artifact pushed to GHCR; provenance also depended on the action's visibility-sensitive default. The multi-platform publisher now requests max-level build provenance and an OCI-attached image SBOM explicitly, covering the operating-system and deployment layers while preserving the wheel inventory as its own release artifact.
+- **Rebuilding one commit no longer silently changes the container's Python dependency graph.** The base image and build actions were content-pinned, but the image still ran an unconstrained `pip install` over compatible ranges, so any new transitive release could alter or break a rebuild. `constraints/container.txt` now pins the complete deployment-only graph while `pyproject.toml` retains broad ranges for library consumers. Both `make image` and CI compare the installed image back to the snapshot, and the dual-architecture build proves the locked versions resolve on every published platform.
+- **The default deployment confines the service beyond its non-root identity.** A fixed UID limited ordinary filesystem access, but the container root filesystem remained writable and Docker's default capability set remained available even though Uvicorn needs neither. Compose now makes the root filesystem read-only, drops every Linux capability, and enables `no-new-privileges`; only an in-memory `/tmp` and the persistent `/cache` volume stay writable. CI boots the real image under the equivalent `docker run` restrictions, queries `/api/health`, and proves the cache can still accept application writes.
+- **Docker and Compose can now tell a running process from a healthy service.** CI queried `/api/health`, but the image itself declared no `HEALTHCHECK`, so operators saw only “running” even if Uvicorn stayed alive while the application stopped answering. The image now uses Python already present to call the public unauthenticated health endpoint under the same non-root identity, with explicit interval, timeout, startup allowance, and retry bounds. Compose inherits the check and exposes `healthy`/`unhealthy` without installing curl or duplicating an internal endpoint.
+- **The network-facing container no longer serves as root.** The image needed a readable reference, writable cache, and unprivileged port 8000, but declared no `USER`, so Docker ran Uvicorn as UID 0. The runtime now creates fixed UID/GID `10001:10001`, provisions `/cache` for that identity, and switches before starting the server. The deployment guide records permissions for operators replacing the named cache volume with bind mounts, and a structural guard keeps the identity after the cache provisioning and before `CMD`; the real container health probe proves that restriction still boots.
+- **The container base can no longer change between 2 builds of the same commit.** Both stages used the mutable `python:3.12-slim` tag, so a rebuild could silently pick up different operating-system and Python bytes despite the newly immutable workflow actions. Builder and runtime now share the current full multi-architecture manifest digest while retaining the human-readable tag. A guard requires every stage to use the same 64-character SHA-256 pin, and Dependabot now monitors the root Dockerfile so base-image fixes arrive as reviewable digest-update PRs rather than invisible tag movement.
+- **The deployment image now has to run, not merely build.** The dual-architecture CI gate executed every Dockerfile instruction but exported no runnable image, so a broken `CMD`, missing runtime import, or startup failure could still reach GHCR after a perfectly green build. CI now reuses the BuildKit cache to load the amd64 image, starts its actual Uvicorn command, and queries `/api/health` from inside the container until the service reports `status: ok` and its version. Cleanup runs even after a failed probe. `make image` adds a host-architecture import smoke for the same runtime package and web app.
+- **Workflow dependencies cannot change underneath a green commit.** Every CI and release action previously used a mutable major tag such as `@v7`, while the release contract already said artifacts are pinned by content hash rather than mutable tag. A compromised upstream account could move one of those tags and silently replace code that receives the checkout, artifacts, Docker credentials, PyPI OIDC identity, or release-write token. All external actions now resolve to full 40-character commit SHAs. Their previous version selectors remain as same-line comments so Dependabot can continue opening explicit, reviewable SHA-update PRs, and a repository-wide guard rejects a mutable reference or a SHA without its update hint.
+- **A release tag is no longer the first real build of the deployment image.** The Dockerfile once contained an install that cannot succeed on Linux, and a static test caught that exact dependency after the fact; ordinary CI still never executed a Docker instruction, so the next base-image, wheel, `COPY`, or architecture failure would appear only while a tag was trying to publish. A blocking `container` job now performs a no-push Buildx build for the same `linux/amd64,linux/arm64` pair and context as the release job. `make image` provides the host-architecture check on demand where Docker is available, and structural tests keep CI and release aligned. The file uses Docker's built-in parser for its standard instructions instead of resolving an otherwise-unused mutable frontend image before every build.
+- **A failed required release artifact now stops publication, and build jobs cannot publish at all.** The release-level token granted content-write, package-write, and PyPI OIDC authority to every job, including the untrusted checkout/build and SBOM jobs; meanwhile PyPI and GHCR depended only on the wheel build, so both could publish even if the required SBOM failed. The workflow now defaults to content-read, grants OIDC only to the PyPI job, package-write only to the GHCR job, and content-write only to the GitHub Release job. Both publication jobs require the SBOM gate first, with a structural test pinning the authority and dependency graph.
+- **The release SBOM now describes the artifact being released.** The tag job previously installed an editable checkout with a hand-picked subset of optional extras, then inventoried that environment together with its SBOM generator; it neither consumed the wheel sent to PyPI nor ran before a tag. `scripts/build_sbom.py` now reads the package identity from the validated wheel, installs that exact artifact and its default runtime closure into a no-pip temporary environment, emits reproducible CycloneDX JSON with the missing dynamic version made explicit, and rejects build-tool contamination or a disconnected root graph. `make sbom` and a blocking ordinary-CI job exercise the same path, while the release job downloads the `dist` artifact it inventories. The heavy `genome` and `ml` extras that this accidental environment used to resolve are now explicitly recorded as opt-in CI omissions, alongside the existing trained-weight and system-library exceptions, instead of being smuggled into an unrelated artifact check.
+- **Release artifacts are now audited before they can be published.** A single distribution check builds the wheel through the sdist, runs current `twine` metadata validation over both artifacts, and compares every non-Python runtime resource in `src/alleleforge` with the wheel so model cards, benchmark fixtures, typing metadata, the CFD matrix, and frontend assets cannot disappear unnoticed. The local `make distribution` target, ordinary CI, and the tag release workflow all run that check; the toolchain requires twine 7 or newer because twine 6.2 rejects the Metadata-Version 2.5 emitted by current Hatchling.
+- **The native-kernel speed record is reproducible and visible again.** The compact README rewrite removed the benchmark link and every measured ratio, reopening R2's only repository-local v1.0 criterion even though the harness and parity suite still existed. The README now records the current arm64 macOS release-build measurements without turning regressions into wins: haplotype materialization is 4.0x, k-mer lookup is 6.1x while its selective end-to-end scan is 0.2x, and FM-index queries are 0.03x versus the default linear scan at both measured sizes. The latter 2 paths remain opt-in. Release readiness now requires a rerunnable harness link and a numeric result for each named R2 kernel rather than passing when the README merely contains the token `native_speedup`.
+- **CI now tests behavior instead of terminal encodings and runner speed.** Rich can split a visible option such as `--vep` across ANSI style runs, so help-contract tests now remove styling before parsing the text a user sees. The parallel cohort guard now observes overlapping reference reads directly instead of inferring concurrency from a wall-clock speedup that shared-runner load can reverse, and async-job helpers use a real deadline instead of assuming that 10,000 zero-duration event-loop yields must span a 50 ms timeout. The supply-chain job now audits a pinned inventory of the installed third-party environment, excluding the editable, unpublished AlleleForge checkout so `pip-audit` reaches the dependencies instead of failing because the development version is absent from PyPI.
+- **A clean Python 3.12 development install type-checks the Python 3.11 contract again.** CI resolved NumPy 2.5.3, whose stubs use Python 3.12 `type` statements; mypy correctly targets AlleleForge's oldest supported Python, 3.11, and therefore stopped on NumPy's stub before checking one project file. The `dev` extra now constrains NumPy below 2.5 while the runtime `core` and `cas9-rs3` extras remain open to newer NumPy, keeping a tooling incompatibility out of the user dependency contract.
+- **A release tag must now name the package version it publishes.** The release workflow called itself tag-only but also exposed `workflow_dispatch`, which could publish from an arbitrary branch, and a pushed tag such as `v9.9.9` could build and publish the checkout's unrelated `0.1.0.dev0` artifact. Releases now start only from a pushed `v*` tag, and the build refuses the tag before creating or publishing artifacts unless it equals `v` plus `alleleforge.__version__`.
+- **The documented source install now stays inside its own Python environment.** The README went directly from `cd alleleforge` to `make install`, although the Makefile invoked bare `pip`. On a clean Homebrew Python that is either `pip: command not found` or a PEP 668 externally-managed-environment refusal; on a machine with several Pythons it can install into a different interpreter from the one that will run the gate. The source and development walkthroughs now create and activate `.venv`, matching `CONTRIBUTING.md`, and `make install` uses `python -m pip` so the installer is tied to that active interpreter.
+- **The five default scorers no longer report as missing.** `aforge models list` said `NOT AVAILABLE - no pinned checksum, so it can be neither fetched nor loaded` for `prime-outcome-baseline`, `pridict2-baseline`, `be-dict-baseline`, `indelphi-mh-baseline` and `cas9-efficiency-ensemble` — the five weight-free baselines that score every design by default, and had just produced every number in the accompanying report. "No checkpoint" has two opposite meanings and `model_status` knew only one: a trained card with no `checkpoint_sha256` is unusable *because* of it, since the registry refuses to fetch what it cannot verify and refuses to load an unverified cached file; a weight-free baseline has no checkpoint because it **is code**. The dataset registry solved this already — `dataset_status` carries `bundled`, computes `available` as `bundled or cached`, and `cache_sweep` records that checking the cache path for packaged bytes "is how a dataset that is always present came to be reported unavailable once already" — and the model registry is the sibling that never got the fix. `ModelCard` now declares `bundled` (declared on the cards, not inferred from a missing URL, because a declaration is checkable and an inference is a guess about why a field is empty), and it reaches every surface reading the one derivation: both CLI commands, both web model-status responses, and `aforge cache verify`, which reported these as "unpinned — no checksum to check" and now says "bundled — ships in the package, no checkpoint". Asking a bundled card for a checkpoint raises `CardError` naming the reason instead of a `ConsentError` asking permission to download weights that do not exist. Both directions are pinned: an unpinned *trained* card is still unavailable, still says "no pinned checksum", and still prints `NOT AVAILABLE`, because a rule calling every checksum-less card available would announce unverified weights as present.
+- **A pegRNA is cloned into the vector the user asked for.** `oligos_for` substitutes the default pegRNA acceptor when the scheme it was handed cannot receive a 3' extension — correct, since an sgRNA vector physically cannot take one — but nothing asserted that a *real* pegRNA scheme survives that gate. All three mutants of `ext_top_overhang is not None and ext_bottom_overhang is not None` lived. Inverted, the requested acceptor is silently swapped for `PEGRNA_GG_BSAI` and the ordered oligos carry the wrong sticky ends for the backbone on the bench: a failed ligation with no error anywhere. Pinned against a pegRNA scheme that is deliberately not the default, because with the default a substitution and a pass-through give the same answer. A scheme defining only one of the two extension overhangs now has both its cases covered too — it does not count as pegRNA-capable, and called directly it is refused by name rather than splicing a `None` into an oligo.
+- **A donor of exactly the vendor limit is not flagged as beyond it.** `len(sequence) > MAX_SSODN_NT` was measured nowhere near 200. Relaxed by one, a 200-nt HDR donor a vendor will synthesize as a single oligo is reported as needing a dsDNA fragment or plasmid instead — real cost and delay for a reagent that was orderable.
+- **The export note saying a chemistry never ran is measured arriving, not just staying away.** `_rationale_notes` exists because the two flat exports dropped the rationale entirely, and its with-rows branch carries only the lines saying a chemistry could not run. The single test of that branch asserts those lines stay *out* of the ordinary case, which passes just as well on a filter that lets nothing through — and `or` mutated to `and` is that filter. No test had built a report with both rows and a skipped chemistry, so the one line the branch exists to carry was never seen to arrive: a spreadsheet of CBE rows with no hint that prime was never attempted, which is the file the function was written to fix.
+- **Every number CRISPR-Bench publishes is pinned to a hand-computed value.** `benchmark/metrics.py` was thoroughly tested in *shape* — a perfect correlation is 1.0, a reversed one -1.0, a degenerate fold is `None` rather than a flattering 0.0, a confidently-wrong model scores ECE 1.0 — and those are exactly the inputs where every candidate implementation agrees. Nineteen mutation survivors sat in the gaps that leaves: the two-point boundary (`len < 2`, where one off-by-one reports a measurable fold as undefined, in the metric and again in its reason function); tie-averaged ranks (the existing test is `spearman(x, x)`, which gives 1.0 under any tie convention); the positive-label test in the AUC reason, whose inversion swaps two sentences that each read plausibly, sending a reader to look for the class they already have; ECE's bin index, where collapsing it turns a badly calibrated model reading 0.9 into a perfectly calibrated one reading 0.0 — the direction that wins the leaderboard's calibration tie-break, and invisible to every existing fixture because all of them put every example in one bin; distribution renormalization, an identity whenever the fixture's masses already sum to 1; the KL epsilon, in the case its docstring names (`q` has mass, just none on a category `p` supports) rather than the all-zero case that falls back to uniform; `topk_accuracy`'s empty-side guard, which with `and` reaches `max()` of an empty sequence; and average precision's tie run, where crediting a tied positive before a tied negative reports a perfect 1.0. Sixteen are closed; the remaining six are equivalent mutants, proved by algebra and by 20,000 random inputs with zero mismatches.
+- **The generalization study names the cell type it held out.** `held_out_context` was asserted with `assert r["held_out_context"]`, and the field's fallback string `"(unlabeled)"` is truthy — so a table whose every row had lost the one thing that field exists to report, which cell type the cross-context gap was measured across, passed the check. It is now pinned by name: the shipped splits validate on K562 and test on HepG2, which is the transfer the whole study is about.
+- **The one status field nothing measured is the one that says a model can be fetched.** `model_status` is the single derivation four surfaces read — `aforge models list`, `models show`, and two web model-status responses — and `model_reason` turns `fetchable` into the sentence a reader acts on. Its siblings `pinned`, `cached` and `available` were pinned by value; `fetchable` was asserted only to *exist*, as a key in a tuple of expected field names, so none of the three terms in `pinned and card.source_url is not None and not cached` had a case. Each wrong answer is a different lie: that an unpinned model can be fetched, when the registry refuses to fetch an unverifiable artifact; that a card naming a source names none; or that a copy already on disk still needs fetching. All four states are now covered, each with the sentence `model_reason` produces from it.
+- **One derivation of where a checkpoint is cached, instead of three that happened to agree.** `MODEL_CACHE_SUBDIR` was extracted with a comment naming its two callers and the failure mode — "a caller spelling it a third way would report a cached model as absent" — and both callers open-coded the layout anyway: `cache_sweep` rebuilt `cache_root / "models" / f"{name}.{version}.ckpt"` by hand and the loader wrote the `"models"` literal. Worse, `ModelRegistry.checkpoint` — the method that actually loads — spelled the filename a second time, against `checkpoint_path`, the function `model_status` reports `cached` from: two derivations on the two sides of "is it there?". The filename now lives once in `checkpoint_filename`, with the two layerings left explicit, and one test pins all three surfaces against a single planted file — status calls it available, the loader resolving its own default returns that path, and the sweep re-hashes it with deliberately wrong bytes, so only a sweep that found the file can report the mismatch. Reporting it missing is what a hand-built path would have said, and it reads as a pass.
+- **Population frequencies are measured at zero, at a choice, and on the threshold.** Three survivors in `data/haplotypes.py` were all fixtures too tidy for a real panel: a population listed at frequency 0.0 counted as a carrier of the haplotype, which names a cohort in an off-target disclosure that does not carry the allele the disclosure is about; `max_freq` over requested populations never had two frequencies to choose between, so taking the smaller understated the risk invisibly; and no haplotype ever sat exactly on `min_freq`, which is a safety floor, so the boundary has to fall on the side that discloses — excluding it drops exactly the haplotype the threshold was set to catch.
+- **A VCF allele using every permitted base is still designable.** `_is_concrete` gates whether a record's REF/ALT is an ACGTN sequence or a symbolic placeholder, and the test is `set(a) <= set("ACGTN")` — subset *or equal*. Tightened to a proper subset, an allele that happens to use all five permitted characters is rejected as symbolic and dropped with the `<DEL>`/breakend family. That is reachable by ordinary data: any indel allele long enough to carry an ambiguous base alongside all four bases, such as `ACGTN` or `NACGTACGT`. The record does not error — it is counted as symbolic and skipped, so a designable variant disappears from a cohort for a reason that does not apply to it. Both sides are now measured, including a character outside the alphabet.
+- **The prime byproduct mix's two length-dependent terms are measured on their own shapes.** Scaffold incorporation is `0.10 + 0.01 * max(0, rtt_len - 20)` — flat to 20 nt, then climbing, because long RTTs read into the scaffold — while partial reverse transcription is `0.08 + 0.004 * rtt_len`, climbing throughout. Every fixture used a single RTT length, so the hinge sat at zero and the linear term was a constant: `min` for `max` credits a short RTT with *less* scaffold incorporation than its floor, and dividing by the length instead of multiplying makes longer RTTs stop early *less* often, inverting the documented behaviour. Both shapes are now pinned, along with the combined effect on `p_intended`, which must fall across the whole range and fall faster past the hinge.
+- **The banner that says part of the menu is missing is measured in both directions.** `unavailable` carries one note per chemistry that contributed nothing for a reason a reader has to act on — a defect in the tool, or an off-target store that failed its integrity check — and the banner sits outside the rationale and outside any disclosure widget because it explains why part of the menu is absent rather than why a candidate ranked where it did. It is gated on `if not report.unavailable`, and dropping the `not` inverts it exactly: the banner vanishes on the reports that need it and renders empty on the reports that do not. Neither side was asserted, so a menu silently missing its prime candidates would have rendered as a complete one. Both directions are now checked, including that every note reaches the page rather than just the first.
+- **The seed prefilter's anchor set is measured at the boundaries where it would come back empty.** The k-mer prefilter is safe only because it is a *proven superset*: it may skip an anchor only where the window provably holds no exact seed. An empty anchor list therefore does not mean "no seeds here" — it means every anchor in the window is skipped, so a real off-target is never looked at and the guide reports clean because nothing looked. Two guard boundaries produce exactly that and both are reachable: `k < 1` relaxed refuses a one-base seed, which `seed_length(n, E) = n // (E + 1)` returns whenever the edit budget approaches the spacer length; and `len(spacer) < k` relaxed refuses a spacer exactly `k` bases long, which contains precisely one k-mer — itself. Both are now pinned, along with the third term for symmetry and the guard's own purpose (`k` of 0 or below yields nothing).
+- **Interval overlap is measured in both argument orders.** `overlaps` is `self.start < other.end and other.start < self.end`, and the existing abutting check asks it only one way round — which reaches the second comparison and leaves the first untested. The other order is what reaches it, and relaxed there two half-open intervals that merely touch are reported as overlapping. `overlaps` decides whether an off-target site lies inside a requested region and whether a nominated placement is the guide's own locus, so treating adjacency as overlap excludes a real neighbouring site as if it were the on-target. Both orders are now checked, with a one-base genuine overlap in both directions so neither check is vacuous. The behaviour of a zero-width span is recorded as it stands rather than asserted to a preference: `[5,5)` reports overlapping `[0,10)` symmetrically, which is a contract question for `GenomicInterval` (it permits `start == end`) and not a defect to settle from a test.
+- **A region restriction's recorded extent is a span, not a sum of coordinates.** Provenance records how many bases an `offtarget_regions` restriction covers so a re-run can prove it searched the same extent, and the existing check uses a region anchored at 0 — where `end - start` and `end + start` are the same number, 140 either way. Two regions away from the origin now exercise both the per-interval span and the sum across intervals.
+- **The reference is measured against files that look like real assemblies.** Two survivors in `genome/reference.py` shared a root: the fixtures are uniform where a real reference is not. `naming_style` asks `any(c.startswith("chr"))`, and hg38 carries chr1..chrY beside `GL000009.2`-style scaffolds — tightened to `all`, a real assembly reports as Ensembl-named and every alias lookup for a `chr`-prefixed query resolves the wrong way round. The contig-naming hint asks whether *some* reference contig canonicalises to the query; its existing check uses a single-contig reference, where `any` and `all` are the same thing, so with more than one contig and `all` a `chr`-style query against a reference holding that locus under another spelling falls through to a plain unknown-contig error — sending the reader to look for a missing chromosome instead of a naming difference, the one diagnosis the message exists to prevent.
+- **The FASTA size check is measured at the byte where a weaker version differs.** `required = offset + rlen + full_lines * (lenb - lenc)` adds back the newlines between a record's lines, so a file may legally end without its final one. For a 24-base record over three 10-base lines that is exactly 32 bytes, the size of the file minus its trailing newline: one byte short is accepted, two is refused by name. Clamp `full_lines` to zero, or subtract or divide the newline term, and `required` becomes 30 — a file short by two bytes passes, and every read through the stale index returns bases shifted by the missing line breaks. The existing truncation test drops six bytes, which the weaker check also catches, so only the boundary separates them.
+- **A window past a contig end comes back the width it asked for.** `right_pad = (end - start) - (real_hi - real_lo) - left_pad` keeps a telomere-adjacent window full length so callers indexing by offset stay correct — the off-target scanner walks the window by position and the resolver reports what fraction of requested bases were searchable. Pinned at four positions relative to the contig end, including a window starting exactly on it, where no real bases are available at all.
+- **The numbers inside the resolver's refusals are measured, not just their wording.** The past-the-contig-end message is the only place a caller is told what range the contig actually has, and it is what they will use to fix their input, so its arithmetic is a specification. Three of its numbers were unpinned, because every existing assertion checked that the message *mentions* the length rather than that it computes correctly: the last valid position (`0-based positions 0-{length - 1}` — off by one and the message invites exactly the position it is refusing, leaving a caller who tries it refused again with no way to tell which number was wrong), whether the span renders as a point or a range (`pos` for a one-base ref, `pos-end` otherwise), and the span's end (`pos + len(ref)`, which mis-signed reads backwards). Also pinned: the unknown-contig message elides with `…` only when it is actually hiding a contig — relaxed, a reference with exactly eight gets an ellipsis while all eight are on screen, telling the reader the name they want might be among ones not shown when there are none.
+- **The working interval covers the allele it brackets.** `end = pos + max(1, len(ref)) + window`, and the `max` is what spans a multi-base reference allele; with `min` the term is always 1, so the interval stops `len(ref) - 1` bases short and every consumer that trusts it to contain the variant reads a window ending inside it. The shared resolver fixture cannot show this: its contig is 30 bases against a 100-base window, so the interval is clamped to the whole contig and covers the allele whatever the arithmetic says. The new check uses a 2,000-base contig to leave the clamp out of it, and pins both sides — a 20-base deletion's full span, and the `1` floor that keeps a zero-length allele from collapsing the interval to a point.
+- **The advertised prime edit budget is measured at its own boundary, in the gate and in the sentence explaining it.** Routing decides which chemistry a variant is offered, and for prime that is two published limits: `PRIME_MAX_EDIT` on the alleles and `PRIME_MAX_TEMPLATED_EDIT` on what the RTT must write. Every fixture sat far past them (a 61-nt allele, a 41-nt insertion), so refusing an edit of *exactly* the budget changed nothing — a silent refusal, since the chemistry simply is not offered and the decline reason still reads correctly. Both comparisons appear twice, in `_prime_eligible` and in `_why_not_prime`, and the two must agree: an allele of exactly `PRIME_MAX_EDIT` is inside the allele budget while its *write* may still exceed the templated budget, and with the reason function's comparison relaxed it blames the allele size instead — telling a caller to shorten an edit already inside the limit the message names, while the real constraint goes unmentioned. Also pinned: each `or` operand at its own boundary (an over-budget allele is over on either reading, so the over-budget case cannot separate them), the decline reason reporting `max(len(ref), len(alt))` with the long allele on each side, and a transversion being declined for its required change rather than told "the variant class is snv" about a single-base variant. The intent decides which allele is written, so one intent per side reaches the allele limit without the templated budget firing first.
+- **The CFD fallback tolerance curve is pinned at its endpoints, and the Cas12a analog's seed is measured on the right end.** The fallback weight is a line from fully tolerated at the PAM-distal end to 0.05 at the seed, and nothing asserted where that line starts or ends — only that scores came out inside [0, 1], which every variant of the denominator also satisfies. The transition boost is asserted mid-window, since at position 0 the weight is already 1.0 and the cap hides the multiplier. The Cas12a analog mirrors the seed to the 5' end because its PAM is 5', which is the whole difference between the two analogs and was unasserted: a wrong mirror scores every Cas12a off-target as though its seed sat at the far end of the protospacer. And the single-base guard is pinned at the seed weight rather than the distal one — with nowhere to measure distance from, a lone base is treated as fully PAM-proximal, making its mismatch maximally damaging rather than free.
+- **The Cas12a matrix label names the table that scored.** `effective_matrix` is how a reader tells a published table from an approximation, and the label is chosen by `elif mismatch_weights is None`. Inverted, a custom table is reported as the built-in analog and the built-in analog as a custom table — the provenance field reads exactly backwards, and since both strings end in "unvalidated" neither looks wrong. An explicit `matrix=` argument outranks both, so a caller supplying a published table can say so.
+- **An indel-bearing haplotype reports its off-target hits at the right locus.** Hits are found on the length-changed alt window and lifted back to genomic coordinates through `applied_edits`, which records each applied variant as a **window-local** offset. Mis-signing that offset does not drop a site: it reports one three bases from where it is, and coordinates are exactly what somebody would go and look at. Two coincidences hid it. Every haplotype fixture in the suite carries only SNVs, and for length-preserving edits the coordinate lift is the identity whatever offsets it is handed; and every fixture's interval starts at 0, so the window start clamps to 0 and `v.pos - start` equals `v.pos + start`. The new fixture breaks both — a four-base deletion upstream of the protospacer, and an interval far enough into the contig that the window starts at 46 — and asserts an invariant that needs no knowledge of the lift's arithmetic: the protospacer sits at one place in the reference, so adding an upstream deletion to the haplotype must not move where the hit is reported.
+- **The haplotype safety threshold is "at or above" in both places it is applied.** Two comparisons implement one rule the code states in a comment — `min_freq` gates whether a haplotype is scanned at all (`max_freq(...) < min_freq` skips it) and, separately, which populations are named as carrying it (`frequencies[p] >= min_freq`). The below-threshold case was covered and equality was not, so tightening either dropped something sitting exactly on the line the caller drew: a haplotype that is never scanned, or an ancestry missing from `populations`, which makes `ancestry_stratification` report no per-ancestry burden for a group the cut-off includes — the axis reads "not measured" for a population that is in fact carrying. Also fixed: attribution over a multi-variant haplotype is `any` of the applied variants' spans, not `all`. A haplotype is a set of co-inherited alleles and a hit needs to overlap only the one that made it dangerous; with `all`, a hit overlapping one variant and not another is discarded, and the more variants a haplotype carries the more certainly every one of its hits is dropped.
+- **The efficiency scorers' hinges are measured on inputs that engage them.** Mutation survivors across both baseline scorers were uniform in cause: every fixture supplied a value the hinge or clamp does not touch, so the call is a no-op and `max` and `min` agree. Closed: `context_in_distribution` admits a context of exactly the minimum length (tightened, an input the model was defined on is called out of distribution, which demotes the candidate to its lower interval bound and raises `ood`); the RuleSet3 baseline's **lower** interval clamp, reachable because a poly-T context scores 0.032 so the unclamped bound would be about -0.12, which is not an efficiency; `_member_weights`' documented `[-1, 1]` range, which had no check at all, so dropping the `* 2.0` or the `- 1.0` moved every projection weight into `[0, 1]` and made the ensemble's members systematically agree; the PridictScorer's long-RTT hinge, `max(0, len(rtt) - 20)`, flat at or below 20 nt and falling beyond it, where `min` in its place turns the documented penalty for long RTTs into a bonus for short ones; and the mid-GC PBS preference `2.0 * abs(_gc(pbs) - 0.5)`, asserted as a peak at 0.5 with a symmetric falloff, a shape no monotonic substitute can produce.
+- **The unreachable clamps are recorded as unreachable rather than given tests that fake a value.** The round's remaining survivors are all accounted for, and none is a gap. Eight sit inside functions marked `pragma: no cover - needs the cas9-rs3 extra`, and lightgbm is not installed, so those lines cannot execute here at all. One is a proven short-circuit equivalence: `trained = heads_are_trained and not _is_weight_free(...)` with `heads_are_trained` a literal `False`, so both branches are `False` for every input. The remaining four are clamps the public API cannot reach — over every valid PBS x RTT x GC combination the PridictScorer's value spans 0.2729 to 0.6733, so its `max(0.0, value - 0.15)`, its `min(1.0, value + 0.15)` and its `min(0.99, …)` chromatin cap (whose factor cannot exceed 1.1) never engage, and the RuleSet3 baseline's upper clamp needs a value above 0.85 against a range topping out near 0.61. They are defensive code for a range these scorers do not produce, which is a reasonable thing for them to be and not something a test can assert from outside.
+- **The reference baseline a population off-target has to beat is measured with more than one hit.** `_reference_best` establishes the *strongest* reference hit per placement — `(max(score), min(edits))` — and `_strengthens` nominates an alt-allele hit only when it beats that, which is what keeps the population pass from attributing sites the variant neither created nor strengthened. Every fixture passed the aggregation a **single** hit per placement, so `prev` was always `None` and the `max`/`min` never ran: swapping either survived 2,087 tests. Understating the baseline is the consequential direction, because then every alt hit looks like a strengthening. Also pinned: the aggregation is per placement and order-independent; the `bulged` flag on both the reference and the alt side comes from that hit's own bulge counts (`> 0`, not `>= 0` — relaxed on the alt side it scores a real site off the bulge fallback, fails the gate, and drops the site, which is the direction that hides population risk); and the gate's documented strictness, since an alt hit matching the reference exactly on both score and edit count must not be attributed to the variant.
+- **A supplied off-target scorer is the scorer that runs.** `enumerate_patient_sites` resolves `scorer if scorer is not None else CfdScorer()`; inverted, a caller's scorer is dropped and a patient's personal off-target sites are scored with the default matrix however the run was configured — the sites still appear, tagged PATIENT, carrying numbers nobody asked for. `enumerate_population_sites` carries the identical line and is now checked with it, a guard holding on one of two parallel call sites being a shape this project keeps meeting. The fixture needs a reference hit in the window: where the variant *creates* the site, `_strengthens` returns early on `prior is None` and never reaches a scorer at all, so a created-site fixture cannot measure this.
+- **The carried-allele cut index is measured against a known number, not against itself.** For a precise intent the outcome context is overlaid with the patient's allele, and a length-changing allele must move the cut index with it — the file that tests this says so in its docstring: overlaying the sequence while leaving the index alone yields "the right sequence with the break in the wrong place: a plausible-looking indel spectrum computed for a different locus, with nothing to flag it". Both of that file's decisive assertions are tautologies: they take `offset = carried.index(context)` and then compare `context[cut]` against `carried[offset + cut]`, which is the same character by construction for every `cut` in range, so the comparison holds whatever index the code recorded. Six mutations in that arithmetic survived it — dropping the shift, reversing its sign, and both bounds of the overlay window. The replacement compares against a number derived independently: `_cut_outcome` fetches `cut_site ± _OUTCOME_FLANK`, so the unshifted index is exactly `_OUTCOME_FLANK`, and a carried allele 5' of the cut must move it by `len(allele) - len(ref)` and nothing else. Covered: a deletion, an insertion, a length-preserving substitution, an allele 3' of the cut, an allele ending exactly at the cut (the boundary that decides whether the shift applies at all, and the common case for a correction), an allele opening the window (the `0 <= rel` bound, whose tightening silently drops the patient's allele), an allele ending exactly at the window's end, and one overrunning it — the last two asserting the *context*, since a mis-written bound splices a partial allele in and truncates the window while leaving the cut alone.
+- **A nuclease disclosure is asserted by value, not by shape.** Three confirmed survivors were disclosure inversions that existing tests could not see, each blind differently: `any(f.startswith("hdr-donor:"))` is a **prefix** check, so inverting `if donor is None` labels a candidate that *has* a template `hdr-donor:none` and still passes; `"HDR donor" in rationale` is a **substring** check, and the inverted sentence "no HDR donor available" contains it; and the `relaxed-pam` flag had no check in either direction, so a fallback guide could lose its caveat and an ordinary NGG guide gain one. A fourth was a **symmetric fixture** — `test_candidates_sorted_by_efficiency` lays two copies of one spacer, so both candidates score identically and any order is sorted, including one produced by a key that ignores efficiency. Each is now pinned by value: the donor flag is exactly one of its three states, the rationale must not carry the absent-template sentence when a template is present (and "re-cut blocked" is asserted against "re-cut NOT blocked", of which it is a substring), and the sort key is measured on pairs differing on one axis at a time. `design/cas9.py` now kills 31 of 31 mutants.
+- **The base-editing candidate cap is measured against a menu that exceeds it.** `max_candidates=1` was asserted against a fixture yielding exactly one candidate, so `candidates[:1]` is the whole list and `len(cands) == 1` holds whether the cap is applied, ignored or inverted — dropping the slice left it green. A C->T install is catalysed by two editors (CBE4max and evoCDA1), so one variant and one protospacer give a two-candidate menu; the check asserts that premise before asserting the cap, and requires the cap to keep the ranked head rather than an arbitrary member.
+- **Every range validator is measured at the value it admits, not only past it.** Mutation sweeps over `types/guide.py`, `types/variant.py` and `design/cohort.py` left survivors that were all one shape: a strict comparison in a validator relaxed by one, so the validator rejects its own boundary. Each survived because the tests fed the value *past* the limit and never the limit itself — the satisfying half to write, and the half a user never hits. Now pinned: a base-edit target or bystander at protospacer position 1 or at `len(spacer)` is legal (and 0 or `len+1` is not); a one-position activity window is legal, since `end < start` rejects a reversed window and not a single-base one; a pegRNA's two homology arms may exactly fill the RTT, which is what a zero-length templated allele means, while one base more may not. Also `CohortReport.manifest_path`, which is documented as "the JSONL manifest written, if any" and had **no reader anywhere in the package or the suite** — inverting its condition makes a run without a manifest report the literal string `"None"` and a run with one report nothing, and nothing noticed, because a provenance pointer nobody reads is a pointer nobody has checked points anywhere.
+- **Variant normalization is measured on indels, not only on symmetric alleles.** Both trim loops guard `len(ref) > 1 and len(alt) > 1` to keep either allele from being trimmed away. Relaxing *one* of the two still leaves the other to stop the loop whenever the alleles are the same length, so a symmetric fixture cannot tell a single relaxed guard from none: `AT>AT` looks untouched while the insertion `T>GT` — whose ref is already at the floor — normalizes to an **empty ref**. The first version of this check used only symmetric pairs and missed it, which is the same trap in the test that the test was written to close. The cases now cover an insertion and a deletion against each loop, and require a variant with an allele already at the floor to come back exactly as it went in, position included.
+- **The uncertainty contract's propagation rule is measured instead of asserted.** `Prediction.combine` propagates the honesty flags conservatively — the aggregate is `calibrated` only if every input was, and `in_distribution` only if every input was — which is the rule the concepts doc states and the whole reason a combined prediction can be trusted. Two of its three `all(...)` propagations had no test that could fail: mutating either to `any(...)` left the suite green. The cause is worth recording, because the test that looked like it covered this was `test_combine_and_flags`, which built its calibrated input as `Prediction(calibrated=True)` — and that flag is gated by a capability token only `calibrated_by` holds, so the constructor silently refused it and *neither* input was calibrated. With both inputs uncalibrated, `all` and `any` agree at `False`, and the assertion `c.calibrated is False` passed however `combine` behaved; it would have passed against a `combine` that forged the guarantee outright. The same fixture made both inputs in-distribution, so the `in_distribution` propagation was invisible for the mirror-image reason. The gate that protects calibration is what neutered the fixture testing it. Inputs are now built through `calibrated_by`, the premise itself is asserted (a constructor-set `calibrated=True` is refused), and the cases the old fixture could not express are covered: one uncalibrated input among calibrated ones, one out-of-distribution input among in-distribution ones, and a calibrated input combined with an out-of-distribution one, which must yield neither flag. `types/prediction.py` now kills 30 of 30 mutants.
+- **The ranker's predicates are measured on the cases they were not written for.** Mutation testing over `design/ranking.py` killed 54 of 60 mutants; the survivors were not in the composite arithmetic R576 pinned but in the simplicity axis, the Pareto strictness, and the rationale. The `nicking_guide is not None` simplicity penalty had nothing asserting it lands on the PE3 reagent (two guides to clone) rather than the PE2 one — inverted, the simplicity axis rewards the more complex reagent, which is R576's finding one module over. `_dominates` had nothing requiring domination to be *strict*, so relaxing `>` to `>=` lets two candidates with identical objective vectors each dominate the other and drop both off the Pareto front — the set `--render-candidates 0` promises to draw in full. The cross-chemistry note had no single-chemistry case, which its own comment asks for ("a note that always appears is not a note"). And the indistinguishable-leaders tolerance was unmeasured at its boundary; the first attempt at that test passed while never approaching it, because it drew the composite from `DEFAULT_WEIGHTS` and the tolerance from the weights under test, so the check now uses exact binary fractions (tolerance `1.0 * (0.25 - 0.0)`, gap `1.0 - 0.75`) and the sweep confirms it bites. `design/ranking.py` now kills 63 of 63 mutants, none by timeout.
+- **Every caveat the off-target report carries is measured in both directions.** Mutation testing over `types/offtarget.py` killed 52 of 60 mutants and left 8 alive, and all 8 sat in the caveat machinery — the clauses that decide what a reader is told about a scan. Each was a predicate whose *negative* case nothing asserted: `is not` → `is` on `population_sites`, `!=` → `==` on the PAM-broadening notice, `> 0` → `>= 0` on the build-mismatch tally, `count >= total` → `>` on the wording that separates "every one of the 2 records" (a file for the wrong build) from "1 of the 2" (one stale record in a good file), and `> 1.0` → `>= 1.0` on both the CFD/MIT and the MAF unreachable-cut-off notes, where 1.0 is a reachable value a caller may deliberately ask for. The sharpest was `population_sites`, which feeds the `population-offtarget` flag: its only test built one reference site and one population site and asserted the count was 1 — true whichever side the filter selects, so a symmetric fixture measured by a count could not say which half came back, and an inverted filter would announce population risk on a reference-only report and stay silent on a population-driven one. Every predicate turned out correct; what was missing is the half of each claim that says the sentence stays away when it does not apply, which matters most here because two of these clauses tell a caller their population file is for the wrong assembly. Also pinned: the 0.99 materiality line below which a coverage warning is deliberately suppressed, the searchable fraction's operands (the default `resolved_bases` of 0 makes a quotient and a product both 0, so a fixture that leaves it unset cannot tell them apart), and the agreement between the two places each of the build-mismatch and empty-search claims is rendered. The file now kills 60 of 60 mutants in 0.24 s.
+- **Each ranking weight is measured against the axis it is named after.** The composite is four weights paired by hand with four objective values, and exchanging two of them left the whole suite green — because `DEFAULT_WEIGHTS` gives cleanliness and safety 0.30 each, making the swap arithmetically invisible to every test that takes the defaults, and the one test that varies weights holds cleanliness constant. `safety` is `1 - worst-case off-target score`: a user weighting it because off-target risk is what they care about would have been ranking on outcome purity, in a plausible order, with their requested weights echoed back faithfully. The pairing is correct; it is now pinned by two guards derived from the objective list — the composite equals the reported axes dotted with their own weights, and weighting one axis alone moves that axis and leaves every other axis's candidates tied.
+- **The efficiency model's scoring window is measured against the genome, on both strands.** The trained Rule Set 3 scorer reads an asymmetric 30-mer (4 nt 5' + protospacer + PAM + 3 nt 3'), and on the minus strand the guide's 5' flank lies at the high plus coordinates, so the two pads swap. The minus-strand test passed a *symmetric* flank, which cannot tell one order from the other, and the asymmetric test ran on the plus strand asserting a length and a containment — both of which a swap preserves. Exchanging the two pads leaves the entire suite green while every minus-strand guide is scored one base off at each end, which is the frame-shifted scorer window this project has met before and which has no symptom. The arithmetic is correct; the window is now required to equal the genome base for base on either strand, over both orders of the asymmetric pair and through the carried-allele overlay, with the population of windows derived from every scorer that declares one.
+- **A config key `aforge batch` accepts is a key `aforge batch` reads.** `_load_config` warns about an unrecognized key, so a whitelisted one is accepted in silence — and the whitelist was a single set holding every knob *either* command has. `aforge batch --config` with `vector_scheme = "aav"` ran to completion, exit 0, no message, having used no cloning scheme and not noticed that no such scheme exists (`design` refuses the same file). The four trained-model opt-ins were the higher-stakes half: each is a consent gate, `batch` read none of them from a config, and a cohort asking for `deepprime` was designed by `pridict2-baseline` with nothing anywhere recording what had been asked for. The existing guard passed throughout, because it asked whether a key is read *somewhere in the module* rather than by the command running. `_RUN_PARAM_KEYS` is now per command, `batch` honors the opt-ins, a key belonging to the other command says so by name instead of being dropped, and the new guard derives each command's reads from its own source in both directions.
+- **A bulge budget names a search that actually ran.** Both alignment kernels consider one ungapped, one single-DNA-bulge and one single-RNA-bulge placement per PAM, so `--dna-bulges 2` returned exactly the hits `--dna-bulges 1` returns — and a genuine two-bulge site is found at no budget at all. Nothing clamped or noted it: the number went into the report and came back out as "2 DNA / 2 RNA bulges", so a caller screening a guide *for* two-bulge off-targets got a clean report that says nothing about them, the direction that reads as safer and is not. The web schema advertised `le=4`, a published contract offering a search that cannot happen. One bulge of each kind is the deliberate design; `MAX_BULGES` now says so, `scan_sequence` and `search()` refuse a larger budget (the latter before a genome is touched), and the schema, the flag's help and the two docs that gave `≤ 1` as a default give it as the ceiling.
+- **"A published benchmark number cannot be silently edited" is checked through the command.** The machinery was well tested — `verify_signature` hashes the whole model, and a test asserts the reproducibility digest changes when `dataset_is_synthetic` flips — but the sentence a reader believes is about the *command*: open the JSON, change a number, run `aforge bench leaderboard`. That is what an editing attack looks like, and it is one line from the digest test in mechanism and a long way from it in evidence. Both edits are covered, because they are different claims: a changed metric, and a forged `dataset_is_synthetic` — the one this project's honesty rests on, since every bundled corpus is a stand-in and flipping the flag turns a toy number into an apparent measurement without touching the number.
+- **"A restriction covers both strands" is measured.** `Region` carries no strand and its docstring said why — *by construction* — which is a statement of confidence about what the scan does with the interval, written in the type that omits the field. It matters more than most such claims: a strand-aware filter would drop a minus-strand off-target from a region a user scoped to, a missing danger that reads as a clean region, in the one feature whose purpose is to make a whole-genome scan practical. Two off-target sites are planted, one per strand, and each region must keep the site inside it whichever strand that site is on.
+- **Principle 2 is checked instead of described.** "No scorer returns a bare float" had prose for evidence — "structural: `ensure_prediction`/`BareFloatError` reject a bare float at the scorer boundary" — which is a claim about a mechanism with nothing asserting the mechanism is reached from every boundary, and a principle with prose for evidence is the state `test_stated_principles` exists to end. Every public `score`/`predict*` in `alleleforge.scoring` must now return a `Prediction` or a container carrying one; the five that do not are listed with the reason each is not a scorer boundary — a raw forward pass wrapped by `score`, an isotonic map that transforms an already-predicted score, an ensemble's members, and an outcome *distribution* whose point estimate `P(intended)` is itself a Prediction.
+- **The HDR donor's re-cut logic is measured on the minus strand.** Every donor and re-cut test used a plus-strand fixture, which is exactly why the two neighbouring minus-strand geometries — the nuclease cut site and the PE3 nicking guide's nick — were each one base wrong. This one is correct, and is now pinned: an edit inside the guide's seed needs no blocking mutation, a PAM-distal edit gets one, and the mutation **actually destroys the PAM as read on the guide's own strand** rather than merely being recorded — `recut_blocked` is the field a reader trusts, and a mutation that leaves an `NGG` in place would be worse than none.
+- **The prime nick is measured from a genome, on both strands.** The pegRNA's whole geometry hangs off it: the PBS anneals to the 3' end the nick creates and the RTT is written from there, so a one-base error is not a smaller edit but a different one, written from the wrong end, with every number in the report computed about the wrong reagent and nothing else about the run looking wrong. SpCas9 cuts three bases 5' of the PAM, which in genomic coordinates is `end - 3` on the plus strand and `start + 2` on the minus — two different expressions, and the test requires both, so a sign error that gave one strand the other's formula fails. It also pins that the spacer is the *patient's* allele: one built from the reference would sit at the same coordinates, be a different reagent, and look identical in every other field.
+- **The base-editing window's edges are measured from a genome, on both strands.** `_editable_positions` is unit-tested against a spacer string and the enumerator is tested at particular loci; neither pinned the *chain* — a variant resolved to a 0-based coordinate, a protospacer placed against a PAM, a 1-based PAM-distal window applied to it. An off-by-one anywhere along it shifts every reagent by one base and changes nothing else: the run still produces candidates, the flags still appear, the report still reads well. This repository's notes record a frame-shifted scorer window reaching production once. The boundary is now required to fall exactly between protospacer positions 3 and 4 and between 8 and 9, on the plus strand and on the minus strand, and the same edges are required of `bystander_positions` — *two* pieces of window arithmetic, of which only the first is exercised by a spacer holding one editable base, and the second feeds the expected burden of unintended edits.
+- **The ranked menu owns the run-level notes, so a per-item file carries them too.** `aforge batch --output-dir` writes one menu JSON per patient, and the cohort's own exemption for those files rests on "the run that wrote it puts the context in the summary TSV and the manifest header beside it" — neither of which mentions a population source built for another assembly, because the header is written before the run discovers it. The file did carry the *count* (`source_build_mismatch`) nested inside each candidate's off-target report, with no statement anywhere: a number, in one file out of five hundred in a directory, which is as far from the reader as this disclosure gets. `RankedMenu.notes` sits beside `unavailable` and is what `DesignReport.notes` now reads, replacing a second derivation in `build_report` with one that every consumer of a menu shares.
+- **A design report has a run-level channel for what a caller can act on.** `aforge design --format html --out r.html` against a gnomAD file built for another assembly printed `wrote r.html and r.html.provenance.json` and nothing else. The disclosure existed — as the sixth clause of each candidate's `offtarget_search` paragraph, repeated once per reagent, in the same neutral style as the PAM broadening. The off-target surfaces lift such clauses onto their headline and the cohort surfaces onto their note block; a design report had no run-level channel at all, which is the third surface of one class and the one where the reader is furthest from the sentence. `DesignReport.notes` is that channel, built through the same `headline_notes` the off-target surfaces use and deduplicated because it is a fact about the run and not about each of forty reagents; the JSON, TSV, Parquet, HTML, PDF, served page and terminal all carry it, and the guard's population is every rendering of a design report.
+- **Every exception list written this cycle is anchored to the reason it exists.** An excuse nobody can trigger is the mirror of the caveat nobody can trigger this project already refuses — "a promise, not a safeguard, and it read as coverage". The response-field guard now fails when a field it excuses is in fact filled, and when an excused model or field no longer exists; the annotation-status sweep fails when its unreachable-error list names a type that is gone; and the two-shell blank-value table fails when either half of a pair is renamed, which would otherwise compare a nonexistent flag against a real field and pass, because "both refused" is agreement.
+- **Four refusals have their remedy run, not just printed.** Each row asserts three things in order: the wrong command fails, its message names the remedy, and the remedy then works — so a message that stops offering a remedy fails the table rather than drifting away from it. The rows are a genome handed to `batch` as the cohort, a variant handed to `batch` as the file, a gnomAD sites file handed to `--dbsnp` (whose refusal names the header it wants, and a file built to that header resolves an rsID), and a report whose provenance lives in a sidecar. Ten remedies were followed by hand across these rounds; nine worked, and the one that did not corrupted the file it was recommended against.
+- **A degraded run is machine-readable on every surface.** `aforge design` exits non-zero when a chemistry contributes nothing for a reason that is not biology — a defect, or a store whose integrity check failed — because "a script or a CI job driving this had no way to tell without re-parsing the summary". An HTTP client asking for the same design got `200`, an empty menu, and the reason in a paragraph of prose. `RankedMenu.unavailable` and `DesignReport.unavailable` carry one note per such chemistry, the same sentences the rationale carries, as data: the CLI now decides its exit code from the field instead of grepping its own marker out of its own prose, a client can branch on an empty list, and the HTML and PDF show it above the rationale rather than inside it — it is why part of the menu is missing, not one of the routing verdicts a reader skims.
+- **The cache-integrity remedy is executed, not only printed.** A refusal's closing sentence is a second piece of software, run by a person, and nothing was running any of them — which is how `--no-resume` came to corrupt the manifest it was recommended against. The integrity refusal is the highest-stakes remedy here, because the state it describes is one a user cannot diagnose from outside, and it makes three executable claims: the digest names a file on this disk, deleting that file makes the next run clean, and `aforge cache verify` reports the same fault. A test now performs all three in order, and checks the fourth thing the message does — saying the tool is not broken, so a reader deletes a file instead of filing a bug.
+- **`alleleforge.types` is checked to import on a bare core install.** The guard that keeps a plain `pip install alleleforge` working — no numpy, no polars, no pyfaidx — parametrized over a written-out list of subpackages, and the list was missing the core model layer: the one subpackage every install has, and the one whose accidental `import numpy` would break the install outright rather than one extra's worth of it. The population is derived from the package now, with `cli` and `web` recorded as carrying their own extra (each is checked against the stacks its install does *not* provide), and a second guard fails if one of those excuses points at a test that no longer exists.
+- **The Parquet export is held to the same whole-document facts as the other renders.** `test_every_surface_states_the_same_facts` has checked the disclaimer, the coordinate convention, the reference identity, the build, the seed and the model identity across HTML, TSV, JSON and PDF since the round that found the TSV carrying none of them — over a hand-written list of four surfaces, while `--format` offered six. The fifth is Parquet, a *flat table*, which is the shape whose missing facts started that file, and which keeps them in file-level key/value metadata rather than in comment lines: a place a text search over the document would not look. It carries all six. The surface list is now checked against `OutputFormat` itself, so a new format is a failing test until it is either rendered here or recorded as not being a rendering of this report (`menu` is the ranked menu, a different document).
+- **The two shells are diffed on a whole single-variant design.** "The library is the source of truth; the CLI and the web are thin shells" is checked for the cohort table and, until now, nowhere for the document a reader actually opens. A dozen tests assert pieces of a design report on either side; none had put the two beside each other. Now every format both shells offer — JSON, the flat TSV with its `#` note block, and the rendered HTML — is produced by `aforge design` and by `POST /api/design` over one genome and required to match, with the run timestamp the only thing allowed to differ. A web that forgets to forward `run_offtarget`, or a CLI that renders a different candidate cap, fails it; a rendering change made in the library passes, which is the point.
+- **A test that the deployment answers while a job runs.** `POST /api/jobs/batch` exists because a three-hundred-variant cohort blocked a connection for 3m 40s; every test of it checked that the job is accepted, finishes, and agrees with the synchronous door, and none checked the property the machinery was built for. Two halves are pinned now: the `202` must arrive before the work could have finished, and `GET /api/health` must answer while the job is in flight. A regression that runs the work inline fails both — and would have *skipped* the first draft of this test, which polled for `state == running` and found the inline job already finished.
+- **A test that fails if `--max-workers` stops being faster.** Every guard on the cohort's worker pool asked whether the results were identical at one worker and at four. They were — and the flag was delivering 1.6x on four threads for several phases, because a native kernel held the interpreter for its whole body. Identical results is the *safety* property, and a flag can keep it while being inert. The pool now has a test that runs a cohort whose reads block, at one worker and at four, and requires the second to finish materially sooner; the kernels have one that requires them to release the GIL. The CLI spec gains the matching scenario.
+- **Every surface says whether this install runs the native kernels.** The Rust kernels are held to a parity suite proving they return exactly what the Python implementation returns — the right requirement, and what made them invisible: an install without the extension, or with a **stale** one older than the crate source beside it, produces identical output an order of magnitude slower on the off-target hot path, and nothing said which install you had. `aforge --version` now prints a second line (the version stays alone on the first, for `head -1`), `GET /api/health` reports `native_kernels`, and both read one sentence from `alleleforge._native.acceleration()`. The stale case is called out by name because the kernel it hides is the off-target evaluation path, whose whole safety argument is that parity suite — and those tests skip themselves when the kernel is absent.
+- **`--cache` and `--genome-index` say whether they reused anything.** The flag's whole purpose is not recomputing a scan, and its output is byte-identical whether or not any reuse happened — deliberately, since `scripts/reproduce.py` requires a cached run and a computed run to be the same document. So from outside, the flag was unfalsifiable: a key that stopped matching (a genome re-copied to a new path, a namespace version bumped under the user) looks exactly like a warm cache, and the only symptom is a run that is no faster than before. `OffTargetCache` counts hits and misses and `GenomeIndex` counts contig-strands mapped against built, each wording its own account once (`usage()`); `aforge design`, `batch` and `offtarget` print them under `--verbose`, and never in the artifact. The index is the larger stake — a cold build is minutes and several gigabytes per contig-strand on a real genome, a warm map is milliseconds — and the two runs are the same document.
+- **Every documented input is executed, not just read.** Four guards read this project's prose and a fifth runs the `aforge` commands it documents — all of them about what a reader *invokes*. What a reader **submits** had no check: the `curl` bodies in `README.md` and `docs/api/web.md` (every request model sets `extra="forbid"`, so a renamed field turns a documented body into a 422, and those models gained or lost fields three times in the last dozen rounds) and the `config.toml` in `docs/api/cli.md` (an unknown key produces a warning nobody sees and a run that silently ignores what the reader asked for). Both are now submitted: the bodies to the endpoints they name, and the config through `aforge design --config`, with every key it sets required to appear in the run's own `config_snapshot`.
+- **The examples the served page shows are submitted, not just spell-checked.** A previous round checked that no placeholder *offers a form this deployment refuses* — a check on the shape of the string — and the second half of the variant box's `chr2:71:A>C · 2 71 . A C` answered `unrecognized variant input` for as long as it had been there, because nothing typed it. Every example in an input whose `name` matches a request field is now posted to that field's endpoint and must be readable: the population comes from the page, the `·` and newline separators are split (each is an example a reader copies alone), and a locus no test genome can hold is allowed to fail on the *reference* but never on the parse.
+- **A VCF record is finally an input form, on the surfaces that promised it.** The served page's variant box carries the placeholder `chr2:71:A>C · 2 71 . A C`; its help says "Coordinates ... or a VCF record"; `DesignRequest.variant` and `BatchRequest.variants` say it; `aforge design --help` and `aforge resolve --help` say "a VCF record work[s] everywhere". Typing the placeholder into the box the placeholder is in answered `unrecognized variant input: '2 71 . A C'`. A `VcfRecord` is a *Python object* the resolver has always accepted, and the string parser had no pattern for the text form — so three of the four audiences could not use what five documents promised. A data line now resolves wherever a coordinate does: whitespace of any kind between the fields (a row pasted out of a terminal has lost its tabs), trailing QUAL/FILTER/INFO/sample columns ignored, and the ID column carried when it is an rsID. A row whose ALT is symbolic (`<DEL>`, `<DUP>`, a breakend, a spanning `*`) is refused by name rather than called unreadable — the same rows `iter_vcf` skips with a counted reason when reading a file.
+- **The committed benchmark data is checked against its generator.** `scripts/make_benchmark_fixtures.py` writes the five dataset fixtures and five frozen splits every score, every split integrity hash and the whole leaderboard read, and claims in its docstring to be "fully deterministic ... re-running produces byte-identical files". Nothing ran it: it is not in `make ci`, no CI job invokes it, and of the nine scripts in the repository it was the only one with zero references anywhere in the suite. A fixture edited by hand — or a generator changed and not re-run — left committed data nothing could reproduce, and the split's recorded dataset hash catches a fixture edited *alone* but not a fixture and its hash edited together. The generator now runs in a temporary tree on every suite run, and the committed files must match it byte-for-byte, in both directions, twice.
+- **`ALLELEFORGE_MODEL_USE` — the licence gate is reachable from a shell.** Every model card carries an SPDX-style licence, `ModelUse` is the axis it gates on, and `ModelRegistry.checkpoint(..., use=...)` raises `LicenseError` for a model whose licence forbids that use. Every trained adapter takes the same argument. All of it defaulted to `research` and no shell could set anything else, so a company running `aforge design --trained-prime` loaded a research-only checkpoint with no refusal on any surface — the gate only ever protected a Python caller who already knew to ask for it. The declaration is the operator's (`ALLELEFORGE_MODEL_USE=commercial`, or `model_use` in the config file), never a per-request field: whether the work is commercial is a fact about who runs the tool, which a client of a deployment cannot answer for them. It is recorded in the run's provenance, and a refused model declines with the licence named in the menu's own rationale.
+- **`aforge models list` / `models show`, and `GET /api/models` / `GET /api/models/{name}` — the model zoo is reachable from a shell.** The *dataset* registry has been answerable on four surfaces for several phases, all reading one derivation so they cannot disagree. The **model** registry had none: the cards carrying each model's licence, its intended use, its out-of-scope use, its known failure modes and its pinned checkpoint hash were reachable from Python alone — while every trained-model opt-in is a consent gate on those cards, the leaderboard refuses a submission whose card is incomplete, and `GET /api/health` lists which trained models an operator enabled. A user could opt into a model and read nothing about what they were opting into. `model_status()` derives the same presence-versus-permission split the dataset surfaces were corrected for, with one case sharper: a cached checkpoint whose card pins no hash is **not** usable, because the registry refuses to load an unverifiable artifact exactly as it refuses to fetch one — so "the file is on disk" would be the wrong answer, and a test plants a file at that path to prove all four surfaces still say NO.
+- **`aforge design/batch/resolve --hgvs` — coding and protein HGVS inputs are reachable from the CLI.** A `c.`/`p.` expression was the one input form no shell could resolve, excused on the grounds that a projector "is not a dependency and has no file a flag could name". Both halves are true and neither is a reason: this CLI offers every other optional capability behind a boolean flag and a named `MissingDependencyError` — `--trained-efficiency`, `--trained-prime`, the Parquet writers, the VCF fast path. The flag targets the *run's* assembly rather than the `hgvs` library's `GRCh38` default, because a `c.` expression projected onto GRCh38 and then designed against an hg19 or T2T FASTA is a wrong locus every later check would take at face value. Without the flag, the refusal now names it — and names the coordinate form for the surfaces that have no such flag, like every other resolver refusal.
+- **The web API says which assembly it serves, instead of calling every genome hg38.** `ALLELEFORGE_REFERENCE_FASTA` said which *file* to serve and nothing said which *assembly* it is, so the label was the literal `"hg38"` — and `POST /api/design` resolved every request against that same constant — while the CLI has taken `--build` since it shipped. The label is not decoration: it is stamped into every report's provenance, it is what the off-target engine compares a prebuilt index against, and it is the answer to the question that makes a coordinate a locus, since `chr7:5,530,601` is a different base in hg38 than in T2T-CHM13. New `ALLELEFORGE_REFERENCE_BUILD` (default `hg38`) sets it, `GET /api/health` reports it as `reference_build`, the served page names it beside "reference loaded", and a request may now state its own `build` — matching the served assembly in any spelling is answered, any other is a 422 rather than a result silently relabelled.
+- **The privacy guard derives which modules can reach the network.** The check that any no-egress claim must name its exceptions knew those exceptions — consequence annotation and a trained-model checkpoint fetch — from a hand-written list, which is the shape this project has repeatedly found going stale. What cannot go stale is which modules import a network client: four do, and the two that are not request-time exceptions (`data/registry.py`, `genome/reference.py`) are excluded on the claim that only a Python caller invokes them deliberately. That claim is now itself a test — no module under `cli/` or `web/` may call `from_build(` or `from_registry(` — so the day a shell reaches one, the guard fails instead of the privacy statement quietly becoming wrong.
+- **`alleleforge.cache_sweep.verify_stores()` — the integrity sweep is a library call.** `aforge cache verify` was built in the CLI, whole: the walk over every content-addressed namespace, the FM-index load and optional reconstruction, the re-hash of every pinned dataset and checkpoint, and the pass/fail/nothing-checked distinction. So a Python caller holding a suspect cache directory — or the web API, or a deployment's own health check — had to reimplement it. That is this project's most productive finding class in its mirror image, produced by the round that closed the same gap for `FMIndex.verify()`, and it is what `SPEC.md`'s sixth principle forbids: "the library is the source of truth; CLI and web are thin shells". The command now renders the library's result and picks an exit code, and a test asserts its body contains no hashing, no store walk and no registry.
+- **The cohort's bounded-memory guarantee is now checked, through its premise.** `design_many` opens by promising that "each ranked menu is summarized (and optionally written to disk) and then released, so peak memory does not grow with the cohort size" — the reason `aforge batch` can be pointed at a whole VCF — and `CohortItemResult` says "never the full menu" in its first line. Nothing checked either. Peak memory is not testable here, but what the claim rests on is exact: **no ranked menu, candidate or off-target report may be reachable from a finished `CohortRunReport`.** A new test walks the returned report's object graph and fails if one is, with a companion that smuggles a menu in to prove the walker can see it. Retaining a menu is the single change that would falsify the guarantee, it is the change someone would make for a good reason, and it would be invisible until a 300-variant run on a real genome — a per-item summary is ~540 bytes against 1.25 MiB for a menu.
+- **The per-read checksum on the off-target cache now states what it costs.** Turning verification on was argued for at length and priced nowhere. Measured: a stored report is 521 bytes at the median (880 largest) because it holds the nominated *sites* and not the genome they were found in, so re-hashing one is microseconds inside a warm hit of 0.08 ms — against 3.7 ms for the scan it replaces on a 30 kb contig, a ratio that only grows with the reference since the hit is `O(entry)` and the scan is `O(genome)`. A new test pins the *premise* rather than the timing (timings on a shared machine are not baselines, as this repo's own notes say): a cached report must stay small and must not carry reference sequence, which is what makes the check free.
+- **`aforge cache verify` reports what the on-disk stores weigh, and that nothing evicts them.** Both cross-run caches are content-addressed and append-only *by design*: a changed input is a new key, which is exactly what makes a stale hit impossible and also means the old entry stays forever. An FM-index over a whole genome runs to several gigabytes per contig-strand, and editing the reference mints a new one beside the old rather than replacing it. That is the right correctness trade and the wrong thing to leave invisible in a tool whose caches a user opts into with a flag, so the sweep that already walks these files now says how large each store is, that none of them evicts, and that deleting any of them is safe.
+- **A generated index of the round log.** `openspec/changes/README.md` is this project's primary knowledge artifact and a megabyte of narrative: four hundred and fifty-odd rounds, each with its evidence, its measurements and what it ruled out. That shape is right for writing a round and useless for finding one — a reader asking "has anyone looked at cache integrity" had no way in short of a full-text search over prose that quotes its own historical mistakes. `openspec/changes/ROUNDS.md` is one row per round: its title and the first sentence of the **Lesson** it was written to leave behind, quoted rather than paraphrased and checked to appear verbatim in the round it came from. Generated by `python scripts/round_index.py` (with a `--check` mode) and held to the log by a test, because a hand-maintained index of a thing that grows every round is a list that goes stale by construction.
+- **The example notebooks' prose is read by the prose guards.** Eleven kilobytes of reader-facing markdown live in `markdown` cells inside four `.ipynb` files — the coordinate-convention warning among them — and no link, command, flag or module-path check had seen a character of it: every guard called `read_text()`, which on a notebook returns JSON, and `test_examples_teach_the_contract` reads only the *code* cells. The meta-guard added one entry earlier, whose whole subject is documents being invisible, took its population from `git ls-files "*.md"` — blind for the same reason, one file extension over. Both now go through `tests.prose.prose_text`, which unwraps a notebook's markdown; its code cells stay out, since the gate already executes them with `pytest --nbmake`, which is stronger than reading them.
+- **Every tracked markdown file is opened by some test, or recorded with the reason it is not.** Three consecutive rounds found a guard reading a subset of this repository's prose — one of two spec directories, every surface except the canonical one, `README.md` + `docs/` and not the `CONTRIBUTING.md` whose broken link that same guard's docstring cites. Each was fixed by editing a list, and the list is the defect: written once by someone looking at the files in front of them, inherited forever. This is the check one level up. It cannot say a document is checked *well* — the guards above it do that — only that it is not invisible, which is the failure mode that kept recurring. `RELEASE.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `openspec/AGENTS.md` and `openspec/project.md` joined the prose corpus in the process; the two recorded exceptions are `CHANGELOG.md` (its own structural guard) and the audit log (which quotes historical mistakes verbatim, so checking its prose against today's code would fail by design), and the archived change folders are excluded as history rather than description.
+- **The prose guards read every surface a reader can reach.** The link, module-path, documented-command and snippet-import checks scanned `README.md` + `docs/` — the population of the round that wrote them, not of the question they ask. They now also read `CONTRIBUTING.md`, the two root specs, the seven planning documents in `specs/`, and `src/alleleforge/benchmark/README.md`, which the top-level README links to and which carries the submission snippet a would-be leaderboard entrant copies first. (`openspec/changes/README.md` stays out: it is the audit log and quotes historical mistakes on purpose.) The sweep over the new files is clean, which is the good outcome and not the point — the constraint is what stops the next rename from landing there unseen. That package README also still described the board as displaying "accuracy, calibration and split version", which has been three of five since the out-of-distribution share was added and four of five since an unrankable entry started being listed rather than ranked.
+- **The specification guard reads both specification directories, and checks that a spec's cited proof exists.** `test_the_specs_name_real_things` swept `openspec/specs/` and not `specs/` — seven more requirement documents (the readiness assessment, the model- and scorer-integration plans, the distribution plan) citing the same identifiers with, in this guard's own words, "the most authority and the least readership". The sweep over them is clean apart from exemptions worth recording: upstream PRIDICT2 symbols the integration spec names because AlleleForge would have to call them, third-party packages the distribution plan names as dependencies or as things deliberately not taken on, base-editor *names* (data, like the PAM motifs already exempted), and `--timestamp` — a flag the readiness assessment names in order to say a user must not be able to forge a run's clock, now recorded as deliberately absent with a companion check that it stays absent. New: specs cite tests as their evidence, and this repo renames tests as it sharpens what they claim, so every `test_…` a spec names must resolve to a test function or a test file.
+- **`aforge cache verify` covers all four stores, not two.** Its first version swept the two caches holding *work* a run reuses — the off-target reports and the FM-indexes — and said nothing about the two holding pinned *artifacts* it was given: the dataset cache, the checkpoint cache, and the datasets that ship inside the installed package. Those are re-hashed on every resolve, which is stricter than either work cache and just as reactive, so a damaged checkpoint still announced itself in the middle of the run that needed it — the exact defect the command was written to fix, in the command that fixed it. Sweeping two of four while reporting "ok" is also the honesty failure this project spends its effort on, so the output now separates three things it used to blur: a pass, a failure, and **nothing checked**. An unpinned artifact or a pinned one that is not on this disk is counted apart with a sentence saying so, since almost none of the registry ships or is downloaded by default and absence is the ordinary state of most of that list.
+- **`aforge cache verify` — the two on-disk stores a run reuses work from can now be checked before a run instead of during one.** Each already knew how to detect a corrupted entry and neither could be *asked*. The off-target report cache re-checks its checksum only when a design happens to read that entry, so a damaged cache announces itself in the middle of the run that needed it. The FM-index gets constant-time structural checks on load, and those are honest about their reach — a flipped byte leaves every structural fact intact — while `FMIndex.verify()`, which reconstructs the text and re-hashes it, is the only check that catches an index reporting positions that are not occurrences. It is `O(n)`, so it cannot run on every load, which is exactly what a command is for; there was no command, only a Python method, in a tool whose users are told to use a CLI. `--deep` runs it, and a sweep without it says the indexes got their structural checks only rather than printing "ok". Nothing is repaired or deleted: both stores are content-addressed, so removing a named entry is always safe, and which to remove is the operator's call.
+- **The cohort table has both encodings now: `aforge batch --summary-parquet` and `POST /api/batch?format=parquet`.** The per-candidate table — the one a human scrolls — has shipped as TSV *and* Parquet for months. The cohort table, one row per patient and hundreds of rows long, is the more pipeline-shaped of the two and had only the text form. `BatchFormat`'s own docstring recorded the deferral and named its price: adding Parquet meant a writer **plus** the guard that its columns match the TSV's in order, this project having already shipped two tables of the same numbers disagreeing about their columns. Both exist now. `COHORT_COLUMNS` and `COHORT_COLUMN_TYPES` are declared once and both encodings are built from them — types declared rather than inferred, for the reason the per-design writer records: on a real cohort the first rows are not representative, so an inferred schema either fails or gives two runs of the same tool files a pipeline cannot union. Numbers stay numbers; the three structured columns render exactly as the TSV renders them, including `offtarget_sources`' "reference-only", so the two encodings cannot disagree on the one axis where "we did not look" must never read as "we looked and found nothing". The `#` note block travels as file-level key/value metadata, ordinal-prefixed so sorting the mapping reproduces the document order.
+- **`GET /api/jobs/{job_id}/result?format=…` — a finished job is a result you can ask for, in every format its blocking twin offers.** The async doors are the ones the documentation sends a client behind a proxy timeout to, and the ones the served page uses for a cohort. They returned **one** rendering — the JSON envelope `GET /api/jobs/{id}` carries — of the six `POST /api/design` has and the two `POST /api/batch` has. So the client whose run is long enough to *need* a job was the only one who could not have the PDF, the flat per-patient table, or the untruncated menu shipped a round earlier. The page showed what that cost: **Download TSV** re-`POST`ed the whole cohort to the blocking `/api/batch?format=tsv` — the endpoint the comment three functions above it says "fails exactly on the cohorts this panel exists for" — spending the entire run again (its own note measures a 300-variant cohort at 3m 40s) to format a result already sitting in the browser, over a connection the panel had already concluded could not be held open that long. A job now stores everything its result can be *rendered* from rather than the one document the envelope carries, and the synchronous endpoints and the job result share one renderer apiece, so an async client cannot be handed a different document than a blocking one. `409` while a job is unfinished or failed (carrying the failure reason), `422` for a format that kind of job does not have — a cohort has no PDF, and says so.
+- **`POST /api/design?format=menu`, `aforge design --format menu`, and a "Download full menu" button — the full outcome spectrum reaches the browser and the file system.** Every truncated outcome table says the rest of the alleles are on the ranked menu and names `aforge design --json` — a *terminal* command, rendered into the HTML the served page displays, to the audience the README describes as "users who will not touch a terminal". And there was nowhere for it to point: **no HTTP route returned the menu** — not any `format`, not the async job result, since every one is built from a `DesignReport`, which is where the truncation happens. Verified by driving the page in a browser and capturing what "Download JSON" writes: `outcome_top: 3` of `n_outcome_alleles: 4`. The new format returns the menu uncapped and untruncated, as a `Response` so `response_model=DesignReport` cannot reshape it into the thing it is not, and the page offers it beside the report — two documents on purpose, the report being the richer presentation and the menu the richer data. Confirmed end to end in a browser: the downloaded file carries `intended`, `scaffold_incorporation`, `partial_rtt` and the withheld `indel`. The shell-parity guard then failed, correctly: the two shells were spelling one capability two ways. The CLI could produce the menu — `--json`, fixed a round earlier — but only onto stdout, so it was the one output with nowhere on disk to land and no provenance sidecar. `menu` is now an `OutputFormat` too, written and sidecar'd like every other format; `--json` remains its stdout shorthand.
+- **A command named inside a message the tool prints must be one the tool has.** Command references have three populations — `--help` text (guarded by `test_help_text_names_real_flags`), the documentation (guarded by `test_a_documented_command_survives_a_shell`), and the *remedy inside a refusal*, which nothing looked at. A rename of `--chain`, `--from` or `--to` would leave the build-mismatch refusal — the one whose whole purpose is stopping a design at the wrong place in the genome — pointing a stuck user at a command that does not exist. The new guard reads every `aforge …` out of the string literals in `src/` and checks the command and its flags against the real CLI, taking the longest matching command path so `aforge bench run --out` is not read as the `bench` group's. It is honest about its reach: it catches the name being wrong, not a command that exists and does the wrong thing. Written after running all fourteen mentions by hand — seven distinct commands, all working, including all three routes the build-mismatch refusal offers.
+- **A CI job that runs the contributor path end to end: `make install` then `make ci`.** Two rounds found the same defect twice — the documented install could not run the test member (missing `core`, so `pytest` failed at collection) and then could not run the docs member (missing `docs`, so `mkdocs` was not found) — and **CI could not have caught either**, because every job installs its own subset and runs one member. That is right for parallelism and blind to the question `CONTRIBUTING.md` makes a promise about: can the command we tell a newcomer to run, run the gate we tell them to run? No job built the environment the question is about. The new `gate` job does, duplicating work on purpose. `test_gate_mirrors_ci` records why it is not mirrored locally (mirroring it would be circular — it *is* `make ci`), and a second test pins it to exactly those two commands, so narrowing it back into a per-member job cannot happen quietly. Verified by hand first: a clean venv built from the documented extras runs `make ci` to exit 0.
+- **"Check a spacer" — the served page can now run a standalone off-target search.** The guard added a round earlier recorded `POST /api/offtarget` as a **GAP, not a decision**: `aforge offtarget` is a first-class command, the endpoint is a first-class endpoint, and checking a guide you already hold is the commonest off-target question there is — but the page could only run the search *inside* a design, so the one audience with no terminal could not ask it. The new tab posts to `/api/offtarget` and renders the site count, worst score, specificity, expected burden and the effective scoring matrix, with the search-budget sentence, the coordinate convention and the disclaimer that travel with every other surface. The ancestry table shows the frequency-weighted burden **beside** the per-ancestry worst score rather than the worst score alone, because a CFD score is a property of the sequence and not of who carries it, so the worst-score column is usually identical across ancestries and reads as "risk is spread evenly" — the opposite of the finding this search exists to reproduce. The on-target locus is four inputs (contig / start / end / strand) rather than one `chr2:1000-1020(+)` box: the API takes a structured locus, so a text box would mean a second coordinate parser in the page, and the label carries the 0-based half-open convention where a reader sees it. Verified in a browser end to end — the search returns 3 sites, giving the on-target locus drops it to 2 and lifts specificity from 0.354 to 0.549, and a pasted FASTA header comes back as the sentence the API refuses it with. `OffTargetRequest` is now held to the same field-parity rule as the other two panels.
+- **A parity guard for the one shell pair that had none: the API and the page it serves.** The project guards library→CLI, library→web *request fields* and benchmark→`aforge bench`, each on the stated principle that a gap must be a decision rather than an oversight — and nothing checked *endpoints*, so the served page reached five of eleven with no reason recorded for the other six. Five are decisions and now say so; one is recorded, in those words, as a **GAP, not a decision**: `POST /api/offtarget` has no page surface, so the audience with no terminal cannot check a spacer it already holds, which is the commonest off-target question there is. Each reason must begin `decision:` or `GAP,` and run longer than a line, because an allowance list is where a gap goes to look like a choice. Four of the guard's checks keep the list honest rather than the code: no reason may outlive its endpoint, none may excuse an endpoint the page does reach, and the reader must find a real `fetch` or it is measuring nothing.
+- **`POST /api/jobs/batch` — the async path now covers the operation that actually takes minutes.** The job machinery was wired to the single design, which finishes in seconds, and not to the cohort, which does not: a 300-variant run through `POST /api/batch` held one connection for 3m 40s, past any ordinary reverse-proxy or browser timeout, and this project's stated cohort size is larger than that. The only way to run a cohort over HTTP was the one way that cannot survive it. Submitting returns `202` and a job id, polled at the same `GET /api/jobs/{job_id}` a design job uses. The status endpoint serialized its result with `isinstance(result, DesignReport)` — correct while a design was the only job kind, and silently wrong the moment it was not, since a cohort job would have reported `done` with `result: null`; it now names both shapes. Both entry points run the cohort through one function, so the two doors cannot come to disagree about which configured sources a run was given — a mistake this endpoint has already made once.
+- **`aforge bench gap` — the cross-cell-type generalization gap, which no shell could reach.** `benchmark.generalization_gap` is exported, tested, plotted in the paper and reported by the calibration study; it is the question a cross-context split exists to answer, since a single test-split number says how a model does on the contexts the benchmark happens to hold out and not whether it transfers at all. From any shell there was no way to ask it. The command scores an in-context fold and a held-out one, prints both values and the orientation-corrected gap (positive always means worse held-out, whichever way the primary metric ranks), carries the same synthetic-fixture caveat `bench run` does, and refuses an unknown fold with a usage error. The benchmark package now has the guard the design entry point has had since three of its capabilities went missing the same way: every exported operation is a command or a recorded reason.
+- **The ancestry axis now says how *often*, not only how *bad*.** `ancestry_stratification()` reports the worst-case CFD score per ancestry — and a score does not depend on ancestry, only on the sequence. So on the reference-bias finding this engine exists to reproduce, the CLI printed `worst off-target score by ancestry: afr 1.000, amr 1.000, nfe 1.000` over carrying frequencies of 0.105, 0.012 and 0.001: three identical numbers, reading as risk spread evenly across populations, which is the opposite of the published finding and of the site line beneath it. The blindness was already named one method up — `expected_burden`'s docstring says it separates a rare-variant off-target from a universal one "which the frequency-blind `worst_score` and `specificity_score` cannot" — and the ancestry axis, the one thing the population-aware search is for, was reported with the frequency-blind statistic. `ancestry_expected_burden()` is the frequency-weighted companion, on the CLI (human and JSON), the HTML and PDF reports, and `/api/offtarget`. Added, not substituted: `worst_ancestry` still drives the ranking safety axis untouched, because "is there a dangerous site at all" and "how often is it actually there" are two questions and only the second had no answer.
+- **What ClinVar says about the variant now reaches every surface, not only the prose ones.** The classification is why anyone types an accession rather than the coordinates it stands for, and it reached the menu rationale — so the HTML, PDF and report JSON — and nothing else. `aforge resolve`, whose whole job is saying what an input means, reported `source: clinvar` and not one word of what ClinVar said; the flat TSV and Parquet showed a table of pegRNAs correcting a variant that could equally have been Benign; the cohort summary, the artifact a run of accessions produces, had no column for it. All of them now state it, with the review status alongside on `resolve` (the same class "reviewed by expert panel" and "no assertion criteria provided" is very different evidence), and an absent classification stays distinct from a benign one.
+- **A caller-supplied source is marked as one.** `--gnomad`, `--clinvar` and `--haplotypes` are pinned in provenance by content hash like any other dataset (`--patient-vcf` deliberately is not — fingerprinting it would put an identifier for a person's genotypes into a shareable report — but it is marked too, since it is the one row that can never be re-checked from anywhere), and `aforge verify --cache-dir` went looking for them in the registry cache — where they can never be, since the bytes are on the caller's disk — and reported `not-cached`, which reads as "you have not fetched it yet". Nothing is fetchable there. `DatasetVersion.caller_supplied` now records the difference: verify reports `caller-supplied` and names the check the reader *can* run (compare the file's SHA-256 with the recorded one), and the provenance footer every render shares marks the row, because reproducing a run that used one means obtaining that same file rather than fetching a release.
+- **`aforge verify` now says how much it actually checked.** It already refused to call a run verified when it had re-hashed *nothing* — the note exists and its comment says why. The partial case was never written, so a real run (two baseline models with no checkpoint hash, plus a user-supplied ClinVar release that lives on the caller's disk and can never be in the registry cache) re-hashed one artifact of four and closed with the same sentence as a fully checked run. It now states the coverage and names what it did not check. Each row also says whether it is a `model` or a `dataset`; every row previously began with the word "checkpoint", datasets included, while the line above them counted the two separately.
+- `aforge lift` and `aforge verify` appear in the CLI reference's own command table, and `--format` there lists Parquet. Both commands were shipped, tested and documented in the README — and absent from the page a reader opens to find out what the tool does. The guard that exists to catch undocumented commands concatenates the README with every page under `docs/`, so a command named anywhere counted as documented everywhere; the table is now checked as its own surface.
+- **The flat table now says what it is a table of.** `DesignReport` carries nine fields and the TSV/Parquet notes were built from two, so the format a scientist opens in a spreadsheet and forwards showed a ranked list of pegRNAs with no statement of the variant they edit, the intent they were designed for, or the ranking weights that produced the `rank` column they are sorted by — all three of which sit on the HTML and PDF header line. The `locus` column was not the missing fact: it says where each *guide* sits, and an accession input makes the gap plain, since no locus in the document is the edit.
+- **A cohort row now says which variant it is about.** `item_id` is the string that was typed: an accession or an rsID names no locus, and left-alignment routinely moves a coordinate away from what was typed — so the summary TSV, the per-item menu JSON, `/api/batch` and the browser's cohort table all identified a row by an input string and nothing else. `RankedMenu` carries the resolved variant (a menu did not say what it was for; `build_report` takes the variant from *its* caller, which is why the single-design path looked complete), and every cohort surface shows it beside the input. The browser table's first column was even *headed* "variant" while holding the input; it is now two columns.
+- The cohort run header pins the datasets its items actually read, in a deterministic order, so a cohort resolved through a ClinVar release names that release and one made population-aware by a gnomAD file names that file. It pinned the reference genome's shape and nothing else, while every per-item menu recorded the lot — and nobody opens 500 menus.
+- **The four trained models are reachable over HTTP and from the served page.** `design()` takes five scorer overrides; the web-parity guard excused all five as "a Python object, not expressible in JSON" — true of the object, and beside the point, since `aforge design --trained-efficiency` had reached the same capability with a boolean all along. Every menu the API returned was scored by the weight-free baseline, and nothing on it said so or that a trained model existed. The operator lists what this deployment offers (`ALLELEFORGE_TRAINED_MODELS`, or `create_app(trained_models=...)`) because the weights are a consent-gated download onto their disk; a request picks one per call with `trained_efficiency` / `trained_outcome` / `trained_base_outcome` / `trained_prime`, the same names the CLI uses as flags. `GET /api/health` lists them under `trained_models`, the page's *More options* panel greys out the ones this deployment lacks, and asking for one that is not enabled is a 422 rather than a silent fall back to a different model.
+- **`--clinvar` and `--dbsnp` on `resolve`, `design` and `batch`**, so a ClinVar accession (`VCV…`) or a dbSNP rsID (`rs…`) is a usable input on the command line. Every shell had refused both on the grounds that the lookups were "Protocols with no shipped implementation" — `ClinVarDB` and `DbSnpDB` had shipped all along, exported and tested, satisfying those Protocols method for method. They are file-backed like `--gnomad`: nothing downloads a release, you supply one. The project's own flagship example, `aforge design VCV000012345`, had never run. With the flag, ClinVar's classification reaches the menu rationale, which is the whole reason to type an accession rather than the coordinates it stands for.
+- The lookup release a run resolved through is now pinned by content hash: in the menu's provenance `datasets`, and under `resolved_from` on `aforge resolve --json`. Two dbSNP builds can place one rsID at two loci, and naming the input *form* ("rsid") could not tell those two runs apart.
+- **Download TSV** on the cohort panel: `/api/batch` renders the flat per-patient table and the page could only take away the nested JSON, though a cohort is exactly the result someone opens in a spreadsheet.
+- **Download HTML** on the served page: the one rendering it could not give you was the one it was showing you, through a fixed 1400px frame onto a report that is routinely tens of thousands of pixels tall. The page now also says the frame is not the whole report.
+- A deployment can enable off-target scan reuse (`ALLELEFORGE_OFFTARGET_CACHE`, `ALLELEFORGE_GENOME_INDEX`, or `create_app(...)`), and `GET /api/health` reports which under `scan_reuse`. The shell-parity guard had recorded reuse as the operator's call rather than the client's while no operator could make it.
+- `aforge design` and `aforge batch` can reuse a reference scan too (`--cache`, `--genome-index`), which is what the cross-run cache was built for — a cohort re-runs the same guide against the same reference constantly. Neither changes a result.
+- `aforge offtarget --cache` and `--genome-index` expose the two ways to avoid repeating a reference scan — a cross-run report cache and a persistent memory-mapped FM-index — which existed, were parity-tested, and could be reached only from Python.
+- The scope decision that says which trained adapters are real models and which are deliberate placeholders is now checked against the code: a supported model must implement a forward pass, an out-of-scope one must not, and a newly added adapter cannot go unclassified. One integration spec's header had claimed for three months that work its own execution log recorded as shipped was still next.
+- Consequence annotation over HTTP and in the served page, behind two keys: the operator enables it (`ALLELEFORGE_VEP`) because their server makes the outbound request, and the client asks per request (`annotate_consequence`) because the variant is theirs. `GET /api/health` reports `vep_enabled`, and a deployment that enables it stops claiming that no sequence data is transmitted externally.
+- `--vep` on `resolve`, `design` and `batch` annotates the variant's predicted molecular consequence, the last thing `design()` could do that no command-line user could reach. `design()` now refuses a resolver backend it would have silently dropped, which is why no such flag could have worked before.
+- The readiness assessment's list of what no CLI user can reach is now derived from the code instead of remembered: every entry on the old list had shipped to the command line within two days of it being written, and its verification numbers were three months stale.
+- **Nine capabilities the API accepted and the served page could not ask for.** `readForm()` sent five
+  fields; `DesignRequest` has fourteen. Four of the missing ones changed what a run could *reach*:
+  `allow_ng` / `allow_spry` (without them a locus with no NGG guide returns an empty menu and the page
+  offered no remedy), `cell_context` (the input that raises the out-of-distribution flag on a prime
+  efficiency prediction), `chromatin_track` — which the status line *already named for this deployment*,
+  so the page was listing a capability it could not use — and `vector_scheme`. All four are now in a
+  *More options* panel, the track list filled from `/api/health` and disabled when the deployment has
+  none. The remaining four are recorded with reasons, and the check reads the request body the page
+  actually builds, so a field added to the API and not to the page fails in the suite rather than in
+  someone's browser.
+- **Removed a stray file named `G` from the repository root.** One line of captured stderr — `error:
+  unrecognized variant input: 'chr1:144500000:A'` — from a shell redirection typo during an earlier
+  round, swept in by a `git add -A` and shipped in every clone since. Nothing was going to notice: it
+  broke no test, imported nowhere, and a one-character filename is the least conspicuous thing in a
+  listing next to `CHANGELOG.md`. The root now has an explicit inventory — every tracked file named with
+  what a repository root has it for — so a stray is a failing test and a genuinely new root file is a
+  decision.
+- **An on-target exclusion now says how much it removed.** `--on-target` drops the guide's own
+  protospacer from the count, correctly — and nothing constrained how wide that interval may be, so
+  `--on-target chr1:0-3000` excluded every nominated placement and reported `0 site(s), specificity
+  1.000`, byte-identical to the same guide excluded precisely. The realistic mistake is a gene span
+  pasted instead of the 20-nt protospacer, or a liftover that returned a generous interval, and the
+  result is a guide that looks perfect. Every other route to that number on this report explains itself
+  — an unsearchable scope, a hidden sub-threshold tail, a source that contributed nothing — while this
+  one said `on_target_excluded: true` and no count. `OffTargetReport` now carries
+  `on_target_excluded_placements` and the search description states it, so it reaches every machine
+  surface; nothing is said when nothing was excluded. Export schemas regenerated.
+- **A cloning vector no candidate could use now says so.** `--vector-scheme px330-bbsi` on an all-prime
+  menu is inert: an sgRNA acceptor has no pegRNA 3'-extension overhangs, so every candidate stays on the
+  pegRNA acceptor — deliberate, since failing the whole report would be worse. The consequence is that a
+  pX330 user's inserts were screened for **BsaI**, not their BbsI, and the only signal was a scheme name
+  they would have to notice differed from the one they typed. This report states an inert input
+  everywhere else it has one (a cell context prime alone consumes, a PAM fallback only the nuclease takes);
+  a vector is the same shape with a sharper consequence. The rationale now names the requested vector, the
+  scheme used instead, and the enzyme the screen did not run against — and says nothing when the vector
+  was used or no oligos were built.
+- **The empty-interval rule is now enumerated rather than claimed.** Three surfaces take an interval
+  from outside the process — a locus string, a web request region, a BED row — and each refuses a
+  zero-width one in its own words. They agree today; the BED reader did not until the previous round,
+  and `GenomicInterval.parse`'s docstring had claimed to be "shared by every surface that accepts a locus
+  from a user", which was true of the surfaces its author had in view. The surfaces are now a list a test
+  walks, so a fourth one has to appear there, and each is checked to refuse an empty and an inverted
+  interval and to accept a real one.
+- **Fixed: `chr1:100-100` was a usage error and the same interval in a BED file was accepted.**
+  `GenomicInterval.parse` refuses an interval naming no bases and says why it exists — "shared by every
+  surface that accepts a locus from a user, so the CLI and the web API cannot drift into accepting
+  different spellings". The BED reader was written inline in `cli/main.py` and constructed intervals
+  directly, so it never reached that check: one command, one restriction, two answers — and a scope of
+  zero bases reports every guide as perfectly specific. BED reading moves to
+  `alleleforge.genome.read_bed_intervals`, both spellings go through one function, and a malformed row
+  is refused by line number (a panel file is long, and "invalid literal for int()" is not a location).
+- **`aforge offtarget --json` now carries the search description.** A BED panel of zero-length intervals
+  restricts a scan to nothing, and the tool catches it: the human line reads "NO SEQUENCE WAS SEARCHED —
+  … this is not a clean result, it is an empty one". Two of the three machine surfaces carried that
+  sentence — the design report's JSON in `offtarget_search`, the web response in `search_description` —
+  and the CLI's own payload carried `searched_bases: 0` and no sentence. Its comment says exactly why
+  that number is there, so the inputs to the inference shipped and the inference did not, on the surface
+  most likely to be scripted against. The sentence now sits beside the structured budgets, and one guard
+  covers all three surfaces.
+- **`POST /api/batch?format=tsv` serves the per-patient table.** The summary having moved into the
+  library, the cohort endpoint can now return the same file `aforge batch --summary-tsv` writes — one
+  row per person with the disclaimer, the coordinate convention, the reference identity and the seed —
+  instead of leaving an HTTP client to rebuild the flattening and the note block. Both shells call one
+  function, and a test asserts their headers are byte-identical. No `html`/`pdf` (a cohort has no single
+  document) and no `parquet` yet, with the reason recorded on the enum: there is no cohort Parquet
+  writer, and adding one needs the guard that its columns match the TSV's in order — a defect this
+  project has shipped once already.
+- **The cohort summary moved out of the CLI into the library.** About 170 lines that flatten a
+  `CohortRunReport` into one row per patient and lead the table with the research-use disclaimer, the
+  coordinate convention, the reference genome's identity and the seed — all of it in `cli/main.py`, in a
+  project whose README says of both shells that they carry "no business logic of its own". That table is
+  a product: it is the file a run over a patient VCF gets forwarded in, and a Python caller had to
+  re-implement it, note block included, while `/api/batch` could not serve it at all. The single-design
+  flat table went through this same correction on the argument that a flat table is what a pipeline
+  reads; a per-patient table is more pipeline-shaped than that one. Now `alleleforge.design.cohort_rows`
+  and `cohort_to_tsv`, called by the CLI, with the two existing guards (API-reference coverage and
+  package re-export) catching the new public module on the first run.
+- **Fixed: the build-mismatch refusal offered one remedy, usable by one of three callers.** It is raised
+  in the resolver, so it reaches a Python caller of `resolve()`, an `aforge design` user and an HTTP
+  client alike — and it named only `aforge lift`. A library caller has `Liftover.from_chain_file` and no
+  reason to shell out; an HTTP client has no shell on the server and there is no lift endpoint. This is
+  the refusal whose whole purpose is stopping a design at the wrong place in the genome, so it is the
+  last one that should leave two of its three audiences without a next step. It now names all three,
+  including that HTTP callers must lift before sending — and a guard fails if a lift endpoint is ever
+  added, since the message would then be stale.
+- **Fixed: `aforge offtarget --scorer mit` refused with a Python keyword as the remedy.** One of the
+  three advertised scorers fails on the default bulge budget — correctly, since the MIT score is
+  undefined for bulged alignments — and the message said "set dna_bulges=0 and rna_bulges=0", which is
+  not something a command line can be given. Worse than it looks: that refusal is what a caller meets the
+  *first* time they choose that scorer, and the check was deliberately moved out of the CLI into the
+  engine so every caller would reach it, which makes a Python-only spelling reach further. It now names
+  both spellings, and a guard runs each CLI-reachable refusal, checks it offers no bare `keyword=value`
+  outside quoted code, and runs the remedy it names to confirm it works.
+- **Fixed: the flagship CLI example in the README could not run.** `aforge design VCV000012345
+  --reference-fasta hg38.fa …` answers `error: resolving a ClinVar accession requires a clinvar=
+  database`. `ClinVarLookup` and `DbSnpLookup` are Protocols with no shipped implementation, the CLI has
+  no code path that constructs one, `create_app` takes no such argument, and the registry lists no
+  fetchable ClinVar or dbSNP release — so three of the five input forms the argument help advertised
+  cannot be used from either shell, and two CLI examples plus one `curl` example used the first of them.
+  The refusal made it worse by naming `clinvar=`, a *Python keyword argument*, to a caller who arrived
+  from a command line. It now says no shell can supply a lookup and why, and names the coordinate form
+  every surface accepts; both argument helps say the same; the examples use coordinates; and a guard
+  rejects any documented shell example whose input form that shell cannot resolve unaided. The Python
+  snippets that pass `clinvar=clinvar_db` are correct and stay.
+- **The site-rows note now names the population-aware fields.** It listed "locus, PAM, mismatch and
+  bulge counts, per-site score and matrix" — every one of which exists, and which left out `origin`,
+  `ancestries` and `frequency`: the columns that separate a rare-variant off-target from a universal one,
+  and the reason this tool exists. An accurate enumeration that omits the important entries reads as a
+  complete description of the row. The guard now checks both directions — every field the note promises
+  exists on `OffTargetSite` and is populated in the export the note names, and the population-aware ones
+  are named.
+- **Fixed: one page said 30 candidates are missing from the exports, and that none are.** The report has
+  two caps meaning opposite things about the data. `max_candidates_per_chemistry` removes candidates
+  during ranking, before the menu exists, so they are in no export — its note says so. The render cap
+  draws the top 50 plus the Pareto front and everything is still exported, and its note said "no export
+  is capped — every candidate is in the JSON report": true of the render cap, and phrased as a claim
+  about exports in general. With `--max-per-chemistry 60` on a 90-candidate menu both fire and a reader
+  gets both sentences. Scoping the second to *this menu* makes them true together, which they always were.
+- **`aforge resolve` now says that its own output is not its own input.** It prints `chr1:1017:T>A` for
+  the input `chr1:1018:T>A` and said only "coordinates 0-based half-open (BED-style)" — a statement about
+  loci, which is true, and which intervals satisfy by round-tripping unchanged. The variant is the one
+  printed locus that does not, and `resolve` is the command whose entire purpose is handing a caller a
+  normalized variant, so it is the surface most likely to have its output pasted straight back in. It was
+  the last one saying nothing, after the refusal message and both renders had been given the sentence.
+- **The example notebooks now state the coordinate convention they encode.** Both notebooks that print a
+  resolved variant had the 1-based-in / 0-based-out conversion right and unexplained — `chr2:71` for the
+  base at offset 70 in one, a bare `EDIT_POS + 1` in the other — and then printed a position one lower
+  than the string the cell above built, with nothing said. A reader who copies that printed variant
+  designs one base away: the failure `aforge resolve` now names in its refusal and both renders carry a
+  note about, absent from the file people are most likely to paste from. Pinned by the notebook-contract
+  test, over prose as well as code, since markdown is where a reader will actually meet it.
+- **Fixed: a failed async job reported the running progress value, forever.** `progress` is documented
+  as three values — "0.0 queued, 0.1 running, 1.0 finished" — with an explicit instruction to render it
+  as a state rather than a percentage. The 0.1 is assigned on entry to the run and only the success path
+  replaced it, so `{"state": "error", "progress": 0.1}` showed as *running* to any client that followed
+  that instruction, for a job that had finished and would never advance. `state` was right the whole
+  time; the field the documentation says to display was not. A terminal job now reports `1.0` whatever
+  kind of terminal it is, and the field's description says so.
+- **Fixed: printing the HTML report cut 340px off every cloning duplex.** The report had no `@media
+  print` rules at all, and the oligo block is a horizontally scrolling box — an affordance paper does not
+  have. Measured at a 624px print column, with the print rules applied and removed on the same page: 876px
+  of sequence in a 536px box, so 340px hidden on screen and 0px with the rules in place. That is the third
+  route by which this report has handed someone a truncated sequence, after the PDF's right margin and its
+  page breaks. Sequences now wrap on paper (recoverable) while still scrolling on screen (so a copyable
+  sequence stays on one line); candidates, figures and tables are kept off page seams; and the panels that
+  separate a cloning-lethal warning from a footnote are marked to print, since browsers drop backgrounds
+  by default and would otherwise undo that distinction on paper.
+- **Fixed: a 180-nt donor could be divided by a page break.** Pages were a blind fixed-size chunk of the
+  line list. A long HDR donor wraps to three lines, and with the right amount of content above it those
+  land at 46, 47 and 48 — two at the foot of one page, one at the head of the next. The person copying
+  that donor into a vendor form off the printed sheet has to notice it continues overleaf, and the
+  failure when they do not is a truncated reagent: the same consequence measured line wrapping was
+  introduced to prevent, by a different route. A sequence run that would straddle a break now moves whole
+  to the next page; prose still flows across breaks, and a run longer than a page is emitted as it comes.
+  Checked at every offset that can produce the collision, for no lost line, no over-long page and no
+  divided run.
+- **Fixed: the chart ignored the responsive rule written for it.** `.chart { width:100%; max-width:760px;
+  height:320px; }` says the intent plainly — but the chart is an *inlined* SVG carrying its own
+  `width="720" height="380"`, and those win. Measured in a browser: a 320px box around a 380px drawing,
+  so 60px of chart painted over the heading below it; and on a 375px viewport the 720px SVG made the
+  document 744px wide, so the whole page scrolled sideways to show a figure that has a `viewBox` and
+  could have scaled all along. Styling the element rather than the box gives 760x401 on a desktop and
+  327x173 at 375px with no sideways scroll — both states measured on the same page, before and after.
+- **Fixed: a 180-nt HDR donor ran 110pt off the right edge of the page it is printed on.** The PDF wrapped
+  at a fixed character count — `_WRAP = 92`, "characters per line at 10pt Helvetica within the margins".
+  Helvetica is proportional: 92 characters is 460pt of lowercase prose and 614pt of upper-case DNA, on a
+  504pt column. An HDR donor is a single unbroken token of the widest glyphs in the face, and it is the
+  sequence a bench scientist copies into a vendor form off the printed sheet — it was cut off at the
+  paper's edge. The `=` rule under the title overflowed by 33pt on the first page of every report ever
+  produced. Wrapping is measured now, against real Adobe Helvetica advance widths; an over-wide token is
+  broken at the last character that fits and is checked to reassemble exactly, and the section rules fill
+  the column without exceeding it. Two PDF tests that asserted on raw bytes were rewritten to reassemble
+  the text runs — a byte-substring check against a hard-wrapped document is really an assertion about
+  where the line happens to break.
+- **Fixed: a chart with more than ~120 candidates rendered as an empty frame.** The 2px bar inset assumed
+  a wide bar, so past that point `bar_w - 4` went negative: a 150-bar chart emitted 150 rects of width
+  `-0.6` and a 470-bar one — an ordinary large prime menu, where every PBS x RTT x PAM combination is its
+  own pegRNA — emitted 470 of width `-2.9`. A negative `width` is invalid SVG and browsers draw nothing,
+  so the efficiency figure came out as axes with no bars: no error, and nothing on the page saying the
+  picture was missing. The inset now scales with the bar and the width is floored above zero; a 470-bar
+  chart draws its whole distribution, and the guards check every count from 1 to 2,000 for a positive
+  width and for neighbours that do not overlap.
+- **Fixed: the report's headline chart was an unreadable smear and its caption ran off the image.**
+  Measured on an ordinary 90-candidate prime menu: 90 x-axis labels at 6.9px pitch each ~44px wide, and
+  95 value labels at 0.0px minimum spacing — printed on top of one another. Rotation was the only
+  crowding relief the renderer had. Every bar is still drawn (the bars are the distribution); what is
+  capped is the labelling, and the chart says which — "every 5th of 90 bars is labelled" — while per-bar
+  values are omitted rather than stacked. The subtitle, 243 characters carrying the calibration and
+  trained-model qualifiers, was one unwrapped line running 735px past a 720px chart; it now wraps and the
+  plot moves down. Regenerating the committed docs figures caught a wrong model in the fix itself:
+  rotated labels collide by perpendicular baseline distance, not width, and the width rule had started
+  hiding half the task names on a five-bar chart.
+- **Fixed: the report scrolled sideways.** The rationale is one long line per routing decision in a
+  `<pre>`, which defaults to `white-space: pre` with no overflow rule: 5,903px laid out in a 1,217px
+  column, pushing the *document* to 5,927px and dragging the disclaimer, the charts and every candidate
+  off-screen. The two `<pre>` blocks want different answers and now get them — the rationale wraps; the
+  oligo block keeps its lines and scrolls inside its own box, because a spacer broken across two lines is
+  one someone mis-copies into a vendor form.
+- **Fixed: a caveat pointed readers down at a table both renders draw above it.** "the outcome
+  distribution below is the NHEJ indel spectrum" — and `_candidate_html` and `_candidate_lines` both
+  build the allele table first and the caveats afterwards, so "below" sent a reader looking past the
+  flags, the oligo block and the score line for something they had already scrolled by. The sentence was
+  written where the flag is *set*, in `cas9.py`, which is the one place with no view of where it lands.
+  The guard forbids *deictic* use specifically, not the words: `offtarget-high` legitimately says a site
+  "scores at or above the triage band", and a check that could not tell the two apart would need an
+  exception list that hides the next real one.
+- **Fixed: the search description pointed at rows one of its two readers does not draw.** It is composed
+  once by the engine and rendered both by `aforge offtarget`, which prints a row per nominated site, and
+  by the design report, which prints none. Two clauses were written for the first reader and shipped to
+  both: "each site's own PAM is on its row", and a sub-threshold tail that "is not shown". On the report
+  a reader checking the PAM of a low-stringency hit was sent to a table nobody rendered, and "not shown"
+  contrasted a hidden tail with a visible list that was also absent. Both now describe the data — a site
+  records the PAM it was found with; a sub-threshold placement is not among the nominated sites — which
+  is true on both surfaces and loses nothing on the one with rows.
+- **Fixed: the ranking rationale described two mechanisms whether or not either had run.** It said "the
+  safety term uses the worst-affected ancestry and the efficiency term is uncertainty-discounted"
+  unconditionally. Both are conditional in the code: `_safety` takes the worst-affected ancestry only
+  when the off-target report carries ancestry annotation and the worst nominated site otherwise, and
+  `_efficiency` discounts only an out-of-distribution prediction. So a reference-only run — the common
+  case, whose search description two lines away says `reference-only` in as many words — asserted the
+  population-aware behaviour this project exists to provide, and a run with no OOD candidate claimed a
+  discount nothing received. Each clause now describes what happened and names the mechanism that did
+  not apply, so "did not apply" is distinguishable from "does not exist".
+- **An objective weighted zero is now said out loud.** `--weights 1,0,0,0` is a legitimate request and
+  may put the least specific guide first. The only disclosure was `safety 0.00` inside a parenthetical —
+  in a sentence that goes on to explain how the safety term works, for a term that contributed nothing to
+  the order it describes. The rationale now names the zeroed objectives, says the ordering does not
+  reflect them, and points at the Pareto front, which is computed on all four objectives regardless of
+  the weights. Nothing is said when every objective carries weight. The guard pins the second half too:
+  if the front ever starts depending on the weights, the sentence pointing readers at it becomes false
+  and a test fails rather than the prose rotting.
+- **Fixed: the README's provenance example named two models no default run invokes.** The one line
+  demonstrating `menu.provenance.models`, commented "every model invoked", showed `['be-dict',
+  'pridict2']`. Both are real model cards — the *trained* ones. A default run records
+  `be-dict-baseline`, `pridict2-baseline`, `prime-outcome-baseline`, and that suffix is the load-bearing
+  part of this project's stance: it is how an artifact says the number did not come from the published
+  model. The example now shows what a default run produces and says why the suffix matters, and a guard
+  rejects any snippet that presents a trained model's name as example provenance output. The
+  self-contained snippets are also executed now and their stated outputs compared — a `# → value` comment
+  is a claim and nothing was reading them (all of them were correct).
+- **A PAM fallback that applied to one chemistry now says so.** `--allow-ng` reads as a statement about
+  the run — "fall back to SpCas9-NG guides when no NGG guide is actionable" — and is routed to the SpCas9
+  nuclease vertical alone. Prime and base editing never see it, and prime's decline reason is a bare "no
+  PAM match at this offset", so a caller who enabled the flag, got an empty prime menu and read that
+  sentence had no way to learn the flag never applied. The nuclease vertical names the fallbacks it did
+  *not* use, which is what made the gap visible: two chemistries decline for the same reason and only one
+  explains itself. The rationale now says when an enabled fallback was inert, and the scope is stated in
+  `design()`'s docstring, both CLI helps and both request models. Widening the fallbacks to prime is a
+  scientific decision — a PE-NG pegRNA is a different reagent and the efficiency scorers are trained on
+  SpCas9 PE2 — so this states the scope rather than quietly changing it.
+- **One account of what each export carries, instead of four.** Grepping for the *sentence* rather than
+  the bug turned up "lossless" in four more places, all describing `report_to_json`. It is the complete
+  serialization of the report and the report is a summary, so the word was true of the candidate list
+  and false of the per-allele and per-site detail — including in the note added two rounds earlier to fix
+  the same claim, which then sat on the same page as two notes saying that detail is elsewhere. The
+  ranked menu (`menu_to_json`, `aforge design --json`) is the lossless form and is now named as such in
+  the module docstring, the API reference and the two withheld-detail notes; the candidate note says the
+  narrower thing that is entirely true — the render capped, no export did. A guard rejects the word in
+  any render's prose.
+- **Fixed: an off-target site count with no route to the sites.** A candidate's safety section gives a
+  count, a specificity, the scorer, the matrix and the search budget — and no site rows, by design, since
+  the report summarises. `--format json` writes that same summary: `CandidateReport` has
+  `n_offtarget_sites` and no `sites`. A comment beside the code said "the lossless export has the sites",
+  which is true of the ranked menu one level up and not of the file a reader opens. For a safety artifact
+  that is the wrong thing to leave implicit — "2 nominated site(s)" is a number acted on and not
+  checkable — so both renders now name where the rows are, sharing one constant with the allele note that
+  was fixed the same way. Only where sites exist: nothing nominated, nothing to point at.
+- **Fixed: a capped menu reported the count it discarded.** `--max-per-chemistry 2` produced a result
+  with two candidates whose rationale said `cas9_nuclease: 23 candidate(s)`. The run notes are written by
+  each vertical as it finishes, so they report what was *enumerated*; the cap runs afterwards, during
+  ranking, and nothing said so. This is not the render cap, which keeps every candidate in the export and
+  says where they are — this one removes them from the result and every export of it, so there is no
+  other copy to point at. The rationale now names the number dropped and says they are not recoverable
+  from this result; a cap that removes nothing says nothing.
+- **`config_snapshot` now records the inputs that decide what the menu is.** The chemistry restriction,
+  the per-chemistry cap and the two PAM fallbacks were read at the top of `design()` and never written
+  down, so a re-run from the record returned a different — larger — result. Each is recorded, and each
+  is routed in `CONFIG_SNAPSHOT_ROUTES` to where a reader can actually see its effect, which is this
+  project's standing rule for that dict.
+- **A scored run now records the weight matrix that scored it.** `aforge design --region ...` labelled
+  every candidate `matrix doench-2016-cfd`, with the citation, and its provenance said `0 dataset(s)`.
+  The matrix is a registered dataset with a pinned sha256 and it is the only one whose bytes actually
+  ship. So the footer that "names the datasets and tools a run consumed" named none, and — the part that
+  matters — `verify --cache-dir` re-hashes `provenance.datasets`, meaning the tamper contract did not
+  cover the file that produced every safety number on the result. The matrices are read off the reported
+  *sites*, not the scorer's configuration (a fixed published matrix falls back to the length-relative
+  approximation per hit, and that approximation is code with no bytes to pin), and a run with no search
+  records none.
+- **Fixed: `verify` reported the one always-available dataset as `not-cached`.** `bundled` said the bytes
+  ship inside the installed package and nothing said *where*, so every consumer looked in the cache — the
+  one place a bundled file never is. `DatasetDescriptor` now resolves its shipped path, `verify` hashes
+  it there, and a test pins that path equal to the one the scorer loads, since two paths to the same
+  bytes are two paths that drift.
+- **`aforge verify` now checks the record against the result.** Every check it ran was verifiable from
+  the provenance block by itself — a version string, a config snapshot, a name and version on each entry
+  that is *listed*. Nothing looked at the artifact the block is attached to, so emptying `models` (one
+  edit, in the obvious place, on a report full of efficiency predictions in the same file) still reported
+  "provenance is complete and consistent". A prediction implies a scorer ran, and provenance's whole job
+  is naming what produced the numbers; that case is now a refusal with exit `4`. The bare
+  `.provenance.json` sidecar has no result to cross-check and is still accepted — it is the only
+  machine-readable provenance the tsv, html and pdf formats leave behind.
+- **Fixed: on the HTML report, a cloning-lethal hazard was typeset as de-emphasis.** Measured in a
+  browser, `oligo warning: internal-BbsI-site` computed to 13.6px in grey on no background — it carried
+  `class="muted"`, and so did every neighbour: the "showing 3 of 54 alleles" pagination note, the flag
+  list, and the ligation-prep reminder. The same was true of every `caveat —` line, which is the *hazard
+  subset* of the flags and exists so that hazards do not read with the weight of `epegRNA:tevopreQ1`.
+  Hazards now use the amber the research-use panel at the top of the page already uses, at full size and
+  full ink; the routine notes stay muted. The guard pins the relationship, not the hex: a hazard may not
+  be smaller or greyer than the paragraphs it sits among.
+- **Fixed: the printable order sheet buried its hazards and printed half of them twice.** The oligo
+  block read header, `top`, `bottom`, U6 note, `WARNING: internal-BbsI-site`, prep — so the line saying
+  the assembly enzyme cuts this very insert sat *below* the two sequences a person copies into a vendor
+  form, in the same indent as the note and the ligation prep. Hazards now come first, directly under the
+  block header. And a precise nuclease candidate printed every donor hazard twice, once as `WARNING - `
+  from the donor block and once as `WARNING: ` from the consolidated list, differing by one character:
+  four hazards on the page where there were two. The donor block no longer repeats them, and the
+  promotion is prefixed `donor:` — which `SgRnaOligos.warnings` already documented and did not do —
+  because consolidated with the guide's own hazards, "is 250 nt, beyond what most vendors synthesize"
+  does not say which reagent is too long, and the flat table's `oligo_warnings` column has no other
+  column to say it either.
+- **The cohort panel now offers what the single-variant one does.** The round that gave the served page
+  its *More options* controls gave them to one tab. `aforge batch` and `BatchRequest` are each guarded
+  against falling behind their single-variant sibling — the page was not, and fell behind immediately. A
+  cohort is where these matter most: a variant with no NGG guide is the row that comes back empty, and a
+  run left going over a whole VCF is not one anyone re-runs to change a setting they could not find. The
+  cohort form now carries cell context, chromatin track (filled from `/api/health` for both tabs from one
+  place) and the two PAM fallbacks; the cloning vector stays single-variant-only with the reason
+  recorded, and the guard compares the two forms' request bodies directly.
+- **Fixed: the served page offered three Download buttons before anything had been designed.** The page
+  hides sections with the `hidden` attribute, which works by a user-agent `[hidden] { display: none }`
+  rule that *any* author rule setting `display` outranks — and `.actions { display: flex }` did. Both
+  download bars were `hidden === true` and `display: flex` at once, so the page opened offering *Download
+  PDF / JSON / TSV* for a result that did not exist, and pressing one returned in silence. The stylesheet
+  now neutralizes the collision for every element toggled that way, and both handlers say why they are
+  doing nothing (the cohort one on the cohort's own status line, not the single-variant one that is not
+  even on screen). Found by opening the page.
+- **Fixed: the CRISPR-Bench leaderboard page was unreadable in dark mode too, and the guard for that
+  could not see it.** The report and the frontend were fixed by painting the ground their palettes
+  assume; the board failed the same way for the opposite reason — it declared no colours at all, which
+  is not neutral: with no `color-scheme` the user agent applies its default *light* text rules while the
+  browser paints a dark canvas, so the board rendered dark grey on near-black. The guard added in the
+  previous round read *stylesheet sources*, so a page with no stylesheet was invisible to it. It now
+  renders each of the three pages and asks of the document what a reader would — does it say which
+  scheme it was drawn for, and does it paint its own ground — and is verified to fail on the old board.
+- **Fixed: `--json` produced a stream no parser accepts.** `aforge design --out report.json --json >
+  menu.json` wrote the `wrote <path>` confirmation and the ranked-menu JSON to the same stream. The test
+  covering that path documented the defect instead of failing on it — it dropped the first line before
+  parsing — and it kept passing after the fix because `result.output` is click's *mixed* stream, not
+  stdout. Every `wrote <path>` line now goes to stderr, where every other status message in this CLI
+  already goes, and the guards assert on `result.stdout`.
+- **Fixed: the withheld alleles were not in "the lossless export".** A Cas9 spectrum routinely has 65
+  alleles; the renders show three and used to say the rest were in the lossless export. `--format json`
+  writes `report_to_json`, whose `outcome_top` is the same three — a reader chasing the other 62 opened
+  the file and found the page again. The full spectrum lives one level up, on the `RankedMenu`
+  (`menu_to_json`, `aforge design --json`), and both renders now say so. The PDF said the count and
+  nothing about where the rest went; it says both now. Pinned as a fact about the data rather than a
+  string match, so if either export's truncation changes the note fails.
+- **Fixed: a render told readers to look in an export that does not exist.** Both render caps ended
+  "the remaining N are in the lossless JSON/CSV export" — wrong twice. There is no CSV export (the
+  formats are JSON, TSV, Parquet, HTML, PDF), and "lossless" is true of the JSON alone: the flat tables
+  carry one scalar row per candidate, without the allele spectrum, the oligo sequences or the off-target
+  site list. A reader chasing a withheld candidate's details looked for a file that is not written and,
+  settling for the TSV, read a row that cannot answer. One shared sentence now names the lossless form
+  and the complete-but-flat ones separately, and a new guard rejects any format name in a render's prose
+  that this tool does not write — verified to fail on the old string.
+- **Fixed: the report's headline chart was titled *Calibrated efficiency* on a page where nothing was
+  calibrated.** Every candidate underneath it prints `(nominal — coverage not measured)` and
+  `(heuristic point estimate — not from a trained model)`, because with the bundled models `calibrated`
+  and `point_from_trained_model` are both `False`. The chart is the first thing a reader looks at and it
+  asserted the opposite of every line below it — the honesty machinery reached the prose and stopped at
+  the figure. The title now tracks the bars (*Predicted efficiency* unless every one is calibrated) and
+  the subtitle carries the same qualifiers the text does, quantified when only some bars are affected so
+  a report mixing a trained prime scorer with the heuristic Cas9 one is not described by either extreme.
+- **Fixed: pasting the tool's own printed variant back into it blamed the build.** `chrom:pos:ref>alt`
+  is *read* as a 1-based VCF record and *printed* with a 0-based position, both documented — but the
+  printed form is syntactically the input form, so `aforge resolve chr1:1018:T>A` prints
+  `chr1:1017:T>A`, and handing that back either failed with `(wrong build?)` — the one thing that was
+  not wrong — or, when the neighbouring base happened to match, silently designed an edit one base
+  away. The refusal now checks whether the asserted ref sits one base to either side and, when it does,
+  names the convention and hands back the string that works; a genuine mismatch still blames the build.
+  The HTML and PDF renders carry the warning beside the variant, where the surprise is, rather than
+  relying on the footer's general note about loci. The comment above `COORDINATE_NOTE` claimed every
+  printed locus round-trips; it now records the one exception.
+- **Fixed: the HTML design report rendered as a blank page in dark mode.** The same defect as the served
+  frontend and a worse consequence: the report is the artifact a collaborator is *sent*, opened on a
+  machine whose theme the author never sees. `body` carried `color: #1a1a1a` and no background, so it
+  inherited the user agent's — dark ink on a dark ground. (Its charts were fine; the inlined SVG paints a
+  white rect first.) The report now declares the light scheme its palette assumes and paints its own
+  ground, and the mechanical rule — a `body` rule that sets a foreground sets a background, and the
+  scheme is declared not inherited — now covers every stylesheet the project ships.
+- **Fixed: the served page was unreadable in dark mode.** `styles.css` is a light design throughout and
+  set `color: #1a1a1a` on `body` without ever setting a background, so `body` inherited the user agent's
+  — near-black text on a dark ground. Every field label, every help line and the tagline were invisible,
+  and the form controls rendered dark against the white panels for want of a `color-scheme`. Found by
+  loading the page in a browser; the frontend tests read it as text, which is the right trade for a
+  build-free page and blind to exactly this. Two mechanical guards stand in for a renderer.
+- **The served page can hand a user the flat table.** Its export buttons were *Download PDF* and
+  *Download JSON* — a printable document and a nested object — so the one format a bench scientist opens
+  in a spreadsheet had to be produced from another shell, which for a browser user means not at all. A
+  *Download TSV* button now sits beside them, and a test pins the two properties that matter: every
+  `?format=` the page requests is one the API accepts (a mismatch fails only at runtime, in the browser),
+  and each one actually returns a body.
+- **The flat table now names the enzyme that cleared each insert.** `oligo_warnings` is the ordering
+  hazard a pipeline filters on before placing a DNA order, and it became interpretable only against a fact
+  the table did not carry the moment the cloning vector became the caller's to choose: an empty cell means
+  "clean for **this** enzyme", and pX330's BbsI and lentiGuide's BsmBI clear different sequences. One report
+  can even mix them — an sgRNA-only vector cannot receive a pegRNA extension, so those rows stay on the
+  pegRNA acceptor — which is the `offtarget_worst_matrix` situation and is solved the same way, per row.
+  New `oligo_scheme` and `oligo_enzyme` columns, empty alongside `oligo_warnings` when no oligos were built.
+  Export schema version 11 → 12.
+- **The flat table a pipeline reads is now obtainable from both shells.** `report_to_parquet` was
+  reachable from Python alone — so the round that gave Parquet its disclaimer, reference build and
+  coordinate convention improved a file no shell could produce, while `docs/api/cli.md` documented it under
+  `--format`. And the web API offered `json|html|pdf` only, leaving the one audience that cannot open an
+  HTML page with nothing to read over HTTP. `aforge design --format parquet --out menu.parquet` now writes
+  it (requiring `--out`, since the notes live in the file's metadata, and leaving the same
+  `.provenance.json` sidecar every other format does; exit `4` naming the extra when `polars` is absent),
+  and `POST /api/design?format=` accepts the same five formats the CLI does, pinned equal by a test.
+- **Fixed: the TSV and the Parquet disagreed about column order.** They are documented as the same table.
+  The TSV projects each row onto `TSV_COLUMNS`; the Parquet writer handed polars a list of dicts and took
+  whatever order `_row` built, which had drifted by one adjacent swap — `offtarget_specificity` and
+  `offtarget_expected_burden`, two numbers on unrelated scales, at the same index in the two files. A
+  positional reader (`frame[:, 17]`, `df[[18]]`) silently read the wrong one. The guard that existed asked
+  `set(TSV_COLUMNS) <= set(frame.columns)`, true under any permutation; both halves are now pinned as
+  sequences, and the empty-table branch — built from the constant, so already ordered differently from a
+  populated file written by the same function — agrees with the populated one by construction.
+- **The cloning vector is now the caller's to name, and the ordering-hazard screen follows it.** Every
+  insert is screened for a copy of its scheme's Type IIS recognition site — the classic Golden-Gate
+  failure, where the enzyme that assembles the construct also cuts it and the clone silently dies. That
+  screen is only as right as the scheme, and the scheme was a Python-only argument to `build_report`: the
+  CLI and the web API always screened for lentiGuide's BsmBI. pX330 / pSpCas9(BB) is the other standard
+  sgRNA protocol and cuts with **BbsI**; its overhangs are the same `CACC`/`AAAC`, so the printed oligos
+  are correct to order either way, and a spacer carrying `GAAGAC` came back clean. `aforge design
+  --vector-scheme px330-bbsi`, the `vector_scheme` request field on `POST /api/design`, and the
+  `vector_scheme` config key now select it; an unknown name is a usage error (or a 422) listing the
+  registered schemes, and the OpenAPI enumeration is derived from the registry rather than retyped beside
+  it. An sgRNA-only vector has no 3'-extension overhangs and cannot receive a pegRNA, so selecting one
+  leaves pegRNA candidates on the pegRNA acceptor instead of failing the whole report — every candidate's
+  block names the scheme it was built with. `aforge batch` is exempt with the reason recorded: the cohort
+  path writes raw ranked menus and builds no oligos at all, so it has nothing to screen.
+- **`build_report()` is now under the same shell-parity check `design()` and `search()` are.** Two entry
+  points had a test asserting that a parameter a shell does not forward is a recorded decision rather than
+  an oversight; the third — the one that decides what the *document* says — had none, which is how
+  `scheme` stayed library-only. Adding the check immediately paid: the repository's own cohort-parity
+  guards then failed on the new option and forced the exemption to be written down.
+- **The Parquet export states its own provenance.** The flat table grew a leading `#` note block in
+  schema v6 so the one surface a result gets forwarded in would not show efficiencies, specificities and
+  genomic loci with nothing saying they are uncertain predictions, against which genome, in which
+  coordinate convention. Parquet holds the same columns and is the format a *batch* consumer reads, and it
+  carried none of those notes — it has no comment lines. It now carries them where Parquet puts them, as
+  file-level key/value metadata (`disclaimer`, `provenance_1..n`, read with
+  `polars.read_parquet_metadata`). Both writers draw from one source and a test pins the reverse direction,
+  so two tables of identical numbers cannot disagree about which genome they are against. Export schema
+  version 10 → 11; the optional `polars` floor rises to 1.30, the first release whose Parquet writer accepts
+  file metadata.
+- **The chromatin adjustment is reachable over HTTP, and `/api/batch` uses every configured source.** The
+  accessibility tracks are operator-configured (`ALLELEFORGE_ENCODE_TRACKS`) while the track *name* is
+  per-request, since one bedGraph holds several cell types; `GET /api/health` lists the names a client can
+  choose from, and an unknown one is a 422 carrying the vocabulary rather than the CLI's old failure mode
+  (an empty menu and a success status). The cohort endpoint builds its design call separately from the
+  single-variant one and was still running reference-only after the sources were wired into the latter — a
+  cohort row and a one-variant result look identical either way.
+- **The haplotype-aware pass is reachable over HTTP too.** The population source's sibling, wired the same
+  way (`create_app(haplotypes=...)` or `ALLELEFORGE_HAPLOTYPES`) and reported the same way
+  (`haplotypes_loaded` on `/api/health`). It finds a site that exists only on a co-inherited combination of
+  alleles — something no single-variant source can nominate — and wiring one ancestry source without the
+  other would have left the capability half-reachable.
+- **The population-aware off-target search is reachable over HTTP.** `OffTargetRequest` accepted
+  `populations` and `maf` but no population source, `create_app` took none, and no environment variable
+  supplied one — so every API scan was reference-only whatever ancestry labels a client asked for, and every
+  breakdown came back empty, which reads as "no ancestry-specific risk" rather than "nothing was searched".
+  The same gap was found and closed for the CLI rounds ago; the web shell kept it. The source is
+  operator-configured (`create_app(gnomad=...)` or `ALLELEFORGE_GNOMAD_TSV`) because a client-supplied path
+  would be an arbitrary file read, and `GET /api/health` now reports `gnomad_loaded` so a client can tell
+  which deployment it is talking to.
+- **Every native kernel's speedup is re-measurable.** `scripts/native_speedup.py` timed four things while
+  the crate exposed six, and the R223 contig fold was timed by nothing — so several claims in the round log
+  existed only as prose. It now also times the bulged-alignment kernel (R208), the per-anchor evaluation
+  kernel (R224) and the fold to the index alphabet, each against the fallback it replaced: **9.5x**, **8.9x**
+  and **13.5x/19.4x** on this machine. A `TIMED_KERNELS` map ties each function registered in
+  `rust/src/lib.rs` to the section that times it, and a test fails in both directions — a kernel with no
+  section, or a section naming a kernel that no longer exists.
+- **The specificity says what else went into it.** `specificity_score()` is
+  `1 / (1 + Σ reported + subthreshold_score_sum)`: the tail is deliberate, so a guide does not become clean
+  because the caller asked to see fewer of its off-targets. Nothing disclosed it, so the headline number could
+  not be derived from the printed rows — and with the cut-offs raised past every hit the report read
+  `0 site(s), worst score 0.000, specificity 0.130`, three numbers of which only the unexplainable one carried
+  the risk. The description now names the suppressed tail's placement count (recorded as
+  `subthreshold_placements`, because `0.19` of mass is one near-miss or twenty faint ones) and its
+  contribution, and states that raising the cut-off cannot improve the specificity.
+- **The off-target report says when it broadened the PAM.** `search()` widens SpCas9's `NGG` to `NRG` so
+  low-stringency `NAG` sites — which SpCas9 cuts, less efficiently — are nominated rather than missed. That is
+  deliberate and specified, and no surface said it: a report headed `PAM NGG` listed sites reading `pam=CAG`
+  with nothing reconciling them, while the search description enumerated every *other* condition the numbers
+  rest on. It is load-bearing — over a CAG repeat, 24 of 25 sites are NAG, so the specificity is almost
+  entirely produced by low-stringency PAMs — and both available readings (real NGG hits, or a bug) were
+  wrong. `OffTargetReport.scanned_pam` records it and the description states it, only when the scan really
+  did broaden.
+- **The identifiers the capability specs name are checked against the code.** Across 4,400 lines of spec
+  there are 467 backticked tokens — CLI flags, class names, enum members — and nothing verified that any of
+  them still named something real. All of them do today, so this is preventive and mutation-verified: renaming
+  a cited enum member in a spec fails it. The resolver understands enum members (`ZERO_BASED_HALF_OPEN`,
+  `NOT_PROVIDED`, `PATHOGENIC`), which are most of what a requirement cites and none of which is a
+  module-level name, and an exemption list covers tokens that look like code and are not — DNA motifs, VCF
+  column values, and the browser APIs the web spec names to promise the frontend avoids them.
+- **The capability specs are checked against the shipped CLI.** `openspec/specs/` holds nineteen
+  specifications — the requirements a change folds into when it ships — and no test in the suite read them.
+  `aforge lift` shipped with a CLI test, a README row and a docs entry and appeared in none of them, while
+  the CLI spec's own subcommand requirement enumerated five commands for a tool that ships eight. The `lift`
+  requirement is now written (and was checked against the real command, including `UNMAPPED` and its non-zero
+  exit), and a new check runs both directions: a command the specs name must exist, and a command that exists
+  must be named. The exit codes the requirement lists are compared to the `ExitCode` enum.
+- **The design principles agree with themselves.** `openspec/project.md` — the file the tests call the source
+  of truth — still stated *"Population-aware by default. Off-target search covers population variation and
+  stratifies by ancestry"*, the overclaim the README and docs had already been corrected for; the guard
+  against that claim read `README.md` and `docs/index.md` and not the canonical file. The source of truth now
+  carries the honest wording, the guard reads it, and a new check requires the README's restatement of the
+  principles to match it. `_PRINCIPLE_EVIDENCE` also now records the *title* each entry was written against,
+  not just the number, so rewording a principle cannot silently transfer its evidence.
+- **A `genome-light` extra names the set every build was assembling by hand.** `"pyfaidx>=0.8"
+  `"pyliftover>=0.4"` was appended to an extra in seven CI jobs, the Makefile and the Docker image — the
+  light half of `genome` (pure-Python FASTA reader and liftover, without the compiled pysam/cyvcf2/mappy
+  chain), described in prose by the Dockerfile's own comment and nameable by nobody outside the repository.
+  `genome` is now defined in terms of it so the two cannot diverge, and a new check fails any `pip install`
+  line in the Makefile, Dockerfile or workflows that names a package dependency beside an extra — such a line
+  is either an extra missing something (which broke `pip install "alleleforge[web]"`) or a set that deserves
+  a name.
+- **`pip install "alleleforge[web]"` can actually serve.** The extra was `fastapi`, `uvicorn`, `httpx` — no
+  FASTA reader — so the documented three-line quickstart died at import on
+  `uvicorn alleleforge.web.api.app:app`, because `create_app()` runs at module scope and reads
+  `ALLELEFORGE_REFERENCE_FASTA`. The Dockerfile already compensated by adding `pyfaidx` by hand, with a
+  comment explaining that the API needs only the light reader and not the heavy pysam/cyvcf2/mappy chain;
+  that reasoning now lives in the extra, the image no longer re-adds it, and a test pins that it does not
+  come back. The web app's reference loader also catches `ImportError` alongside `OSError`, so an
+  environment that cannot supply a reader leaves a running service with a recorded reason rather than a
+  traceback in a container log.
+- **`aforge bench` explains a missing optional dependency instead of tracebacking.** On a
+  `pip install "alleleforge[cli]"` — a documented install — `design`, `batch` and `offtarget` all report
+  *"needs the optional dependency pyfaidx … pip install 'alleleforge[genome]'"* and exit 4; all four `bench`
+  subcommands died with a raw `ModuleNotFoundError` and exit 1, because `_missing_dependency` — the handler
+  written for exactly this — was wired into three of the four places that needed it. Verified against a wheel
+  installed into a clean interpreter, not only in-process. Two links of the underlying import chain were also
+  removed: the `enumerate` modules annotate with `ReferenceGenome` and now import it under `TYPE_CHECKING`,
+  and `alleleforge.genome` defers its `reference` re-exports (PEP 562) so importing any genome submodule no
+  longer pulls in pyfaidx.
+- **A symbol a documented snippet imports must exist.** The docs already check every CLI command the prose
+  invokes, every flag it names, every local link and every module path it cites; the `from alleleforge… import
+  X` lines inside the Python fences were the one unchecked claim, and only their modules were verified. A
+  renamed export would have left every documented snippet importing a name that is not there, with the suite
+  green and an `ImportError` on the reader's first line. All eighteen resolve today, so this is preventive —
+  and mutation-verified, after a first attempt that edited `__all__` and proved nothing (it does not bind or
+  unbind names, only `import *`).
+- **The shipped Docker deployment starts without a pre-built `.fai`.** Opening a reference writes
+  `<fasta>.fai` beside it when none exists; the bundled `docker-compose.yml` mounts the reference read-only
+  (correctly) while calling the index optional (wrongly). Without one, `uvicorn alleleforge.web.api.app:app`
+  — the command in the deployment guide and the Dockerfile — **died at import**, because `create_app()` runs
+  at module scope; the CLI relayed pyfaidx's advice about a Python API it already passes; and nothing named
+  the remedy. `ReferenceIndexError` now names the missing index, why it cannot be created and the
+  `samtools faidx` that fixes it; the web loader catches it so the service starts and answers `503` with that
+  text; and the compose header and deployment guide say the index is required on a read-only mount.
+- **A corrupt FM-index cache is refused instead of answering "no occurrences".** The cache directory is named
+  for the sequence hash, so a wrong *directory* was impossible and a corrupt *file inside the right one* was
+  never checked: a truncated `bwt.bin` loaded silently and reported zero hits — which renders as
+  "0 site(s), specificity 1.000" — and a one-byte tamper dropped a real occurrence while returning two
+  positions that are not occurrences. `FMIndex.verify()` catches both and **nothing called it**, so its
+  documented "fails closed" guarantee held for nobody; it is `O(n)` and cannot run on every load, so
+  `FMIndex.load` now checks in constant time what `meta.json` already records — the BWT's length, and that
+  `c_table` is a non-decreasing set of offsets inside it. Same-length tampering still needs `verify()`, and
+  the check says so.
+- **The native FM-index says which cache arguments it ignores.** With the Rust crate built — the configuration
+  the README recommends for real genomes — `FMIndex.build` dispatches to the in-memory kernel and silently
+  dropped `cache_dir`, `rebuild`, `occ_rate` and `sa_rate`, so a caller passing `cache_dir=` (or
+  `search(..., fm_cache_dir=...)`) got no cache, no error, and a rebuild on every call. It now warns, naming
+  the dropped arguments and `prefer_native=False`, and only when one was actually supplied.
+- **One check over every artifact the tool writes.** Four rounds running found the same missing
+  document-level context one artifact over, each missed because the existing check is keyed to a *type*.
+  `test_every_artifact_says_what_it_is` enumerates the writers instead: the design HTML/PDF/TSV/JSON, the
+  cohort summary, the off-target payload and both leaderboard renders are produced through their real CLI
+  paths and asserted to say what they are. Two artifacts are exempt with recorded reasons — the signed
+  benchmark result (adding a prose field would invalidate every previously signed result's signature) and a
+  cohort's per-item menu JSON (a library type, with the context beside it in the summary and manifest).
+- **The CRISPR-Bench leaderboard says what it is.** The artifact most likely to be published, linked and
+  quoted marked its synthetic splits — the fact it most needs — and carried no research-use statement, no
+  version and no generation time. Both renders (and the empty board, the one most likely to be published
+  first) now lead with a shared context block. `RESEARCH_USE_DISCLAIMER` is split into a
+  `RESEARCH_USE_CORE` true of every artifact plus the design report's fuller sentence, because reusing the
+  full one verbatim put "The candidates below are ranked…" at the top of a board of *models*; the board adds
+  that a benchmark score on a frozen split is not evidence a model is fit for a therapeutic decision.
+- **`resolve` says when a variant changes nothing.** `chr1:1000:A>A` — reference and alternate identical —
+  came back as `[snv, build hg38, from coordinates]`, because `variant_class` is computed from allele
+  *lengths*: one base against one base is an `snv` whether or not they differ. The design path already refuses
+  to build a reagent for such an input, by name and with a non-zero exit; `resolve`, the command whose job is
+  to say what an input means, was silent. Both shells now report `changes_the_sequence`. Reported rather than
+  refused — a reference call is a legitimate VCF row and `aforge batch` reads VCFs.
+- **`P(intended)` ships with its uncertainty, like the two numbers beside it.** A candidate carried
+  `efficiency` and `bystander_burden` as `Prediction[float]` and `p_intended` — the probability the edit
+  produces the allele you asked for, the number a reader is most likely to act on — as a bare float on every
+  surface. It was not missing but *discarded*: `PrimeOutcomePredictor` returns a `Prediction` for it that
+  `prime.py` dropped in one line, and base editing's `p_intended_exact` never reached the candidate; both were
+  recomputed downstream as a plain sum. `DesignCandidate.p_intended` now carries the scorer's prediction, the
+  HTML and PDF show its interval and flags, and the TSV gains `p_intended_low/high/in_distribution/calibrated`
+  (`EXPORT_SCHEMA_VERSION` 7). SpCas9's outcome predictor makes no such prediction, so there the field is
+  `None` and the renders say *derived from the outcome distribution; no calibrated interval* instead of
+  inventing a band.
+- **`aforge verify` names the three artifact shapes it accepts.** It parsed everything as a `RankedMenu`, and
+  a `DesignReport` — what `design --format json` actually writes — had been validating as one by structural
+  coincidence, so `verify` was reading a different object than the file described. Adding a field to
+  `DesignCandidate` ended the coincidence and would have made `verify` reject the tool's own primary output;
+  it now tries `DesignReport`, `RankedMenu` and the bare `Provenance` sidecar explicitly, and the middle one
+  is pinned so it is accepted on purpose.
+- **Every closed-set refusal names the values it accepts.** Three of the CLI's five did (`--scorer`,
+  `bench run`, `data show`); `--intent` and `--chemistry` — the flags on the primary command a first-time
+  caller most often gets wrong — did not. The chemistry message echoed pydantic's `'PRIME' is not a valid
+  Chemistry`, which names the *class* rather than a word from the caller's vocabulary, and reported only the
+  first bad value of a repeatable flag. Both now list the accepted values, on the CLI and on the web API,
+  where it matters more because there is no `--help` on the other end of a `422`. All five are pinned by one
+  parametrized test, so the next closed-set input joins the list or fails.
+- **An unexamined ancestry now names the labels that would have worked.** `docs/data.md` documents three
+  ancestry vocabularies (gnomAD `afr`, 1000 Genomes `AFR`, HGDP `africa`), so `--populations AFR` against a
+  gnomAD slice whose columns are `afr`/`nfe` produced a true but unactionable warning: the request went
+  unexamined, and the report — which had computed the backed set to decide that very sentence — did not say
+  what the sources carry. `OffTargetReport.available_populations` now does, and where no ancestry source was
+  supplied at all it says that instead, since an empty list of alternatives would read as "these exist and
+  yours is not among them". The labels are deliberately **not** case-folded: gnomAD's `afr` and 1000 Genomes'
+  `AFR` are different groupings, and matching them would silently answer a question about one with data about
+  the other.
+- **A reported locus is named the way the searched reference names it.** The same off-target site in the same
+  genome was called `chr2:43-63` unscoped and `2:43-63` when scoped with `--region 2:0-183`: unscoped the
+  contigs come from the reference, scoped they carried whatever the caller typed, so **the identity of a site
+  depended on an unrelated flag** and two runs over one genome produced lists that do not join or
+  deduplicate. Nothing was mis-searched — `canonical_contig` reconciles the styles — but the name written down
+  afterwards was the caller's, not the genome's. Regions are now renamed where they meet the reference in
+  `search()`, and a variant in `resolve()` when a reference is supplied, so a `2:71:A>C` input against a
+  `chr2` genome no longer yields a candidate at `2:43-63` beside off-target sites at `chr2:…`. The rename is
+  always toward the supplied genome: a bare-named FASTA yields bare-named output, `resolve` without a
+  reference renames nothing, and an unknown contig is still refused rather than renamed onto another sequence.
+- **A fifth native kernel: the per-anchor protospacer evaluation.** `_evaluate` runs once per PAM-positive
+  anchor — 500,000 times over 2 Mb — doing the ungapped comparison in Python and crossing the FFI boundary
+  twice more for the two bulge directions. `rust/src/evaluate.rs` does the whole decision, so a scan crosses
+  once per anchor instead of three times: **a 2 Mb scan goes ~1.25s to ~0.89s, 28%**, measured as interleaved
+  A/B pairs, with the specificity identical to nine decimal places. Same contract as every other kernel — an
+  unbuilt crate changes the speed of a run and not its results, pinned by a parity suite.
+  Writing the port forced two decisions the Python had never made, both off-contract and both worse than an
+  error: `pam_at` past the end of the sequence raised `ValueError` from a `zip` three frames down, and the
+  same with an *empty spacer* returned a zero-mismatch hit at a coordinate outside the sequence. Both paths
+  now refuse. Nothing in contract changes.
+- **Folding a contig to the index alphabet runs in C, not per base in Python.** `_sanitize` maps every base
+  outside `ACGTN` to `N` so the linear scan and the FM-index path agree about what a window holds; it did so
+  with `all(b in _INDEX_ALPHABET for b in seq)` plus a comprehension — one pass of interpreter overhead per
+  character of a reference, once per sequence per `search()`, uncached, with `search()` running per candidate.
+  Two `str.translate` calls replace it: **2 Mb 59.8ms -> 3.3ms (+94.5%), 20 Mb 775ms -> 35ms**. The
+  substitution derives its table from the offending characters themselves, which keeps it faster on every
+  input distribution (clean +92%, one stray base +94%, a synthetic 44%-IUPAC sequence +78%) rather than
+  trading the clean path against the dirty one, and cannot mishandle a non-ASCII byte the way a fixed
+  256-entry table would. Equivalence is pinned by property tests against the previous implementation. The
+  end-to-end 2 Mb scan does not visibly move — 56ms is below this harness's ±7% noise — so the case is the
+  scaling, not a stopwatch on a toy contig.
+- **The browser cohort table shows specificity and the off-target basis, not a bare worst-case score.** The
+  column beside the one an earlier round fixed for bare efficiency estimates rendered `worst off-target 0.000`
+  alone — the most reassuring number the system can produce. The batch response also carries
+  `best_specificity` and `offtarget_sources` (`{}` when nothing backed the scan, which over HTTP is always,
+  since no file-backed population source can reach a deployment), and the table ignored both, so every cohort
+  row in the browser showed a reference-only result as a clean one. It now shows the specificity and marks the
+  basis `reference-only` in the error style. Verified by driving the served SPA in a browser and reading the
+  rendered row back from the DOM, not only by asserting on `app.js`.
+- **A standalone off-target result says which genome it searched.** `aforge offtarget --json` and
+  `POST /api/offtarget` carried extensive per-search honesty (`on_target_excluded`, `searched_bases`,
+  `effective_matrix`, the ancestry stratification) and no document-level context at all: no reference
+  identity, no coordinate convention, no disclaimer. Two scans over different FASTAs give different
+  specificities and produced indistinguishable payloads, and the `locus` strings are 0-based half-open with
+  nothing saying so. Both shells now carry `reference` (the shape descriptor), `coordinate_system` and
+  `disclaimer`; the CLI prints one line under the search description rather than repeating it per site. The
+  HTTP surface is where this matters most — a client cannot see the FASTA the server opened.
+- **The cohort summary TSV carries its caveats, and the run records which genome it screened against.**
+  `aforge batch --summary-tsv` — the file a whole-cohort run is read through, one row per patient — carried no
+  disclaimer, no coordinate convention, no reference identity and no seed. It now leads with the same `#` note
+  block the per-design export got, so the column header is still the first non-comment line. Building those
+  notes exposed the second half: `CohortRunReport.provenance` is a dict the cohort assembles by hand, and it
+  recorded `reference_build` (a label) and nothing about the genome — the same gap the design path closed
+  earlier, still standing here because the fix landed on an object the cohort does not use. The run header now
+  carries the same shape descriptor. Under `--max-workers` there is no run-wide reference, and the summary now
+  says each item's own result records the genome it used, rather than printing `reference build None`.
+- **Every render of a report is checked to state the same whole-document facts.** A `fact x surface` table
+  (disclaimer, coordinate convention, reference identity, build, seed, models across HTML/TSV/JSON/PDF) is now
+  a test with an explicit, reasoned omission list, so a fact added to one render cannot quietly skip the
+  others. Writing it found the last gap: `report_to_json` stated **no coordinate convention at all** — its
+  `locus` is a formatted string and the embedded `Provenance` has no coordinate note, because that note lives
+  in a render helper the JSON never calls. `DesignReport.coordinate_system` (`"0-based-half-open"`) is now a
+  field rather than a sentence, since the consumer of that surface is a machine; it reaches `/api/design` too.
+- **A malformed gnomAD sites file is refused with the line and the reason.** `--gnomad` was the one
+  user-supplied format whose parse errors escaped as a bare traceback (`KeyError: 'af'` on a row with its
+  trailing columns lost, because `zip(..., strict=False)` truncates silently and `_load_gnomad` catches only
+  `OSError`/`ValueError`) — and it is the input that makes a scan population-aware. Three cases now get three
+  answers: a header missing a core column prints the expected header, a row that cannot supply the core
+  columns names the line and its field count, and a header naming the same column twice is refused rather
+  than silently keeping the last of two frequencies for one ancestry. A row omitting only trailing population
+  columns stays legal.
+- **The specificity scorer is reachable over HTTP, and unknown request fields are refused.**
+  `OffTargetRequest` had no `scorer` field, so `POST /api/offtarget {"scorer": "cfd-cas12a"}` returned `200`
+  scored by the SpCas9 CFD matrix — pydantic ignores an unknown key by default. Because `pam` *is* settable,
+  a Cas12a search was already reachable and came back labelled `doench-2016-cfd`, the published matrix, where
+  the CLI labels the same run `cas12a-analog-approximation (unvalidated)`: a wrong honesty label on the
+  surface most likely to be read by a machine. `scorer` now resolves through the same `scorer_for` the CLI
+  uses (an unknown name is a `422` listing the valid ones), and **every** API request model now forbids
+  unknown fields, so `populatoins`, `intnet` or `buidl` is a `422` naming the key rather than a `200`
+  describing a run the client did not ask for.
+- **The accessibility track is pinned in provenance, and its name is checked.** Two runs over bedGraphs
+  differing only in signal produced different efficiencies (0.484 vs 0.457) and identical provenance with an
+  empty `datasets` list: `_attach_source` pins gnomAD and the haplotype panel by content hash, and the ENCODE
+  loader was the one that never called it, so `_collect_datasets` looked for a descriptor the CLI never
+  attached. Recording `chromatin_track` — a name the caller chose — cannot tell two accessibility files apart.
+  Separately, `--chromatin-track` naming a track absent from the file raised `KeyError` inside the chemistry,
+  which caught it as a decline reason: an **empty menu and exit 0**, with the cause buried in a rationale
+  paragraph. The name is now validated where it is supplied and the refusal lists the names the file has; a
+  bedGraph that parses to no tracks at all is refused too, explaining that lines beginning `track`, `browser`
+  or `#` are skipped as UCSC directives.
+- **Provenance identifies the reference genome, not just its label.** Two designs over two different
+  reference FASTAs produced byte-identical provenance while their safety verdicts differed twofold
+  (specificity 0.879 vs 0.468), and `aforge verify` called both complete: the block recorded
+  `reference_build`, a label that stays `hg38` whatever FASTA is opened, and `_collect_datasets` names the
+  reference only for a registry-resolved build, never for the `--reference-fasta` path everyone uses.
+  `config_snapshot.reference` now carries build, contig count, base count and a hash of the canonicalized
+  `name:length` list, read from the `.fai` so the cost is O(contigs) — exposed as
+  `ReferenceGenome.contig_lengths()`. It pins the reference's *shape*, and says so in the record and in the
+  report footer (`pins contig names and lengths, not the bases`), because two FASTAs with the same contigs
+  and lengths are indistinguishable to it and a digest that overclaims its reach is worse than none.
+- **A run-config TOML can be written as TOML.** `weights` and `populations` are whitelisted config keys —
+  so `--config` accepted them without a typo warning — and both were then handed to a parser that only knew
+  the CLI's comma-separated string, crashing with `AttributeError: 'list' object has no attribute 'split'` on
+  the natural TOML spellings. The `[weights]` table is exactly the shape a result's own
+  `provenance.config_snapshot` records, so the user most likely to hit it was the one reconstructing a run
+  from its provenance. Both keys now accept either spelling (weights also as a 4-element array), a malformed
+  one is a usage error naming what was expected instead of a traceback, and the three weight spellings are
+  pinned as producing the same run. `docs/api/cli.md` now shows the run-config file it referenced in three
+  places and never displayed, and a test extracts that block from the markdown and runs it.
+- **The API reference lists every endpoint, and a check keeps it that way.** `docs/api/web.md` heads a
+  table "Endpoints" and omitted `POST /api/batch` — cohort design over a variant list, a whole capability —
+  while the README's copy of the same table had it. Nothing was broken, which is why nothing caught it: the
+  route works and its tests pass, and the omission is visible only by diffing two documents. A new check
+  asserts every `/api` route the app serves appears on both surfaces, normalizing `{...}` so a renamed path
+  parameter is not a failure. It is the mirror of the environment-variable check: that one asks whether every
+  documented name is real, this one whether every real name is documented.
+- **The documented environment variables are checked against the ones the software reads.**
+  `docs/deployment.md` named the reference build `ALLELEFORGE_REFERENCE_BUILD`; the `Settings` field is
+  `reference`, so the real variable is `ALLELEFORGE_REFERENCE` and exporting the documented name silently left
+  the build on `hg38` — a deployer aiming at mm39 would have had every downstream coordinate interpreted
+  against the wrong genome, with nothing said. The table also omitted `ALLELEFORGE_ALLOW_NETWORK` and credited
+  the cache directory to `XDG_CACHE_HOME` alone when `ALLELEFORGE_CACHE_DIR` takes precedence. All three are
+  fixed, and a new check fails the suite for any `ALLELEFORGE_*` name in the docs that is neither a `Settings`
+  field nor read from `os.environ` in `src/`, with three variables additionally exercised end to end so the
+  derived "honored" list cannot drift into agreeing with a wrong table.
+- **CLI help is checked against the flags it names.** `--region`'s help on `design`, `batch` and
+  `offtarget` warned that the locus is 0-based "unlike `--variant` and `--pop-freqs`" — two flags that do not
+  exist (the variant is a positional argument; the frequency file is `--gnomad`), a wrong pair repeated in
+  `docs/data.md`. The sentence is the tool's only warning about the coordinate convention that, mixed up,
+  moves a scan one base off target, so an unfollowable version of it is worse than none. A new check walks
+  every command and requires each long option named in its help to be its own or qualified by the command that
+  owns it; it also caught `lift`'s bare `--region` and, in `verify`, `--format`/`--out`, which belong to
+  `design`. What is true is now stated too: `--gnomad` and `--patient-vcf` take 1-based VCF positions, and
+  `--haplotypes` is 0-based in both its span and the `pos` of each `chrom:pos:ref>alt`.
+- **`aforge verify` reads the provenance sidecar `aforge design` writes.** `design --out X` leaves a
+  `X.provenance.json` block beside the result; `verify` — the command that turns provenance from a record into
+  a checkable contract — parsed only a full `RankedMenu` and rejected that sidecar with a pydantic error about
+  a missing `candidates` field. For `--format tsv`, `html` and `pdf` the sidecar is the *only* machine-readable
+  provenance a run produces, so the contract was out of reach of three of the four output formats, and the
+  error named the wrong file. Every check `verify` performs reads the provenance block and nothing else, so it
+  now accepts either shape and reaches a byte-identical `--json` report from both. A file that is neither is
+  still a usage error and now names both accepted shapes; a result whose `provenance` is `null` is still
+  reported as unverifiable rather than mistaken for a bare block.
+- **A fourth native kernel: the scan's innermost bulged alignment.** `_best_with_removed_base` was 57% of the
+  off-target scan's self time after the cheaper Python wins — a million calls over 2 Mb, two per PAM-positive
+  anchor — and the previous round measured three Python variants that all bought the reject path with the
+  survivor path and shipped none of them. Moved to the Rust crate (`rust/src/align.rs`) behind the same
+  fallback-plus-parity contract the FM-index, k-mer and haplotype kernels keep: **43% off a whole scan**, with
+  byte-identical results pinned by a 30,000-case differential against the Python path, which is itself pinned
+  against the naive definition. A scan that took 2.62 s at the start of this work now takes 1.16 s.
+  Writing the kernel surfaced a latent trap in the Python it mirrors. The function documented but never
+  checked its precondition that `longer` is exactly one base longer than `shorter`; violated, it raised
+  `IndexError` for most shapes and, for a two-base-longer input, silently returned a **wrong alignment**
+  (`("ACGTAC", "ACGT")` gave `(0, "ACGTC")`). Unreachable from the scan, which slices the window to exactly
+  `n + 1` — but the native kernel had to decide what to do off-contract, and making both refuse is what lets
+  the parity claim hold everywhere rather than only where the caller happens to be correct.
+- **Capping the menu is pinned as returning a prefix of the full ranking.** `--max-per-chemistry` is applied
+  after the composite sort, so "the top three" means the first three of "all of them" rather than three of
+  them. That the cap keeps the *best* of each chemistry was already covered; that it keeps them *in order* was
+  not. The fixture lists candidates out of ranked order deliberately — sorted, it cannot distinguish a cap
+  applied before the sort from one applied after.
+- **Two documented "this must not matter" claims are now checked.** `--render-candidates` caps the drawing,
+  not the data: the CLI help, the web request model and a handler comment all say the JSON and TSV exports are
+  never capped, and nothing checked it. A prime design yields ~90 candidates; a leak would have written three
+  of them to the JSON a pipeline consumes, with only the HTML mentioning the other eighty-seven. And a cohort's
+  written artifacts must not depend on worker count — the existing parallel-vs-sequential test compares
+  in-memory summaries and never uses `output_dir`, which is the surface the temp-file collision fixed in the
+  previous round actually lived on. Both hold; both are pinned.
+- **The specificity score is pinned as independent of the display filter.** `specificity_score` is
+  `1 / (1 + Σ reported + subthreshold_score_sum)`, and the second term exists so the reporting cut-off decides
+  what is *shown* and not what is *counted*. Measured across the whole range on a reference carrying four
+  graded near-matches: the displayed site count falls from 5 to 1 while the score stays at 0.216718 to six
+  decimals, the tail absorbing exactly what leaves. The pieces were unit-tested — the formula includes the
+  tail, merging two nick reports sums it, the engine produces a non-zero one — and the property they exist to
+  produce was not. Its failure has a direction: without it, raising `--cfd-threshold` would drop sites out of
+  the sum and the aggregate safety number would go **up**, so a guide could be made to look more specific by
+  asking to be shown less. Pinned as an equality across thresholds and, separately, as the inequality that
+  showing less must never score better.
+- **`aforge lift`'s documented promises are now checked.** Its help says the output "pipes straight back in"
+  to `--region`, that an unmappable locus prints `UNMAPPED` rather than being dropped ("a shorter list is a
+  smaller search"), and that the run exits non-zero. All three held and none were tested; the two commands sit
+  on opposite sides of the tool, one formatting a `GenomicInterval` and the other parsing one, and the promise
+  is the only reason the liftover is usable from a shell.
+- **Five checks that could pass while examining nothing now have a floor.** A test whose only assertion is
+  that a scanned collection is empty — `assert not broken` — is satisfied perfectly by finding nothing to
+  check, and that is invisible in a green run. Measured, not argued: neutralizing the prose corpus in
+  `test_readme_documents_the_cli.py` left **five of its six tests green**, including "every local link
+  resolves" and "every module path the prose cites is importable" — both had been checking zero of each.
+  Floors added to the two prose scans, the docs cross-reference scan, both shell-parity parameter sets, and
+  the cohort/design parity check, each mutation-checked by neutralizing its own extraction. The rule is
+  recorded in `openspec/project.md`, since the next check of this kind is written next round.
+- **The README's CLI claims are now checked.** 1,400 lines of specific, checkable assertions and nothing
+  checked any of them. Three guards: every command the README *invokes* exists (read from shell fences and
+  inline code, so prose and mermaid node labels are not mistaken for commands), every `--flag` it documents
+  exists on some command (with the flags belonging to docker, ruff, pytest, uvicorn, maturin and mypy listed
+  by owner), and the cell-context claim names the vertical that consumes it. Two claims were verified in
+  passing and hold: every `design()` capability really is reachable from `aforge design`, and all eight
+  documented commands exist.
+- **The cohort endpoint now accepts everything the single-design one does.** Checking `design()`'s parameter
+  list against each shell is the query that has found the most in this project. Run against the web API it
+  turned up a gap inside the API: `DesignRequest` carried four options `BatchRequest` did not, all four of
+  which `aforge batch` has had all along. `offtarget_regions` — so the most expensive path was the one that
+  could not be scoped; `allow_ng` / `allow_spry` — a cohort is where a variant with no actionable NGG guide is
+  certain to turn up, and the fallback built for that case was unreachable, so the item came back empty with
+  nothing the caller could do; and `cell_context`, so no out-of-distribution flag was obtainable on the batch
+  path. A structural test now fails when an option is added to one request model and not the other.
+- **Every setting recorded in provenance is now pinned to a route that reaches a reader.** The report footer
+  is a curated summary, and `PROVENANCE_FOOTER_OMITTED` is the mechanism that forces "every omission must be a
+  decision". It had one entry — `config_snapshot`, excused as "rendered inline beside the results". The
+  snapshot holds eight keys; two are rendered inline, and the footer was skipping all eight on the strength of
+  those two. `CONFIG_SNAPSHOT_ROUTES` now records where each key reaches a reader, every route verified by
+  varying the setting and reading the rendered page, and a test fails when a new key is added without one.
+- **Every candidate now says where in the genome it edits.** A prior round labelled the report's coordinate
+  convention on the reasoning that "a printed cut site is the number a reader pastes into a genome browser" —
+  and then the coordinates themselves went unaudited. SpCas9 printed `cut 117` inside the reagent line, a bare
+  integer with **no contig**. Prime editing printed no genomic coordinate at all: five candidates differing
+  only in RTT length, none saying where the edit lands. Base editing gave a protospacer-relative window and no
+  locus. Rendering a report and searching the whole page for a contig name returned nothing — not one `chr…`
+  token anywhere, while the provenance block described the convention those absent coordinates were in. A
+  locus without its contig cannot be opened in a browser and is not even unique in a cohort report spanning
+  genes. `CandidateReport.locus` now carries the contig-qualified interval plus the cut or nick site, on all
+  three chemistries, and reaches the HTML page, the printable PDF and a new `locus` TSV/Parquet column
+  (`EXPORT_SCHEMA_VERSION` 4 → 5). An unplaced candidate still reports `None` rather than inventing one.
+- **A non-finite allele frequency is pinned as rejected.** `nan > 1.0` and `nan < 0.0` are both False, so a
+  range check written `if af > 1 or af < 0` admits `NaN` — which then compares False against every MAF
+  threshold and silently drops the variant from the search. The validator is written `not 0.0 <= af <= 1.0`,
+  whose negation catches it: correct by construction and one refactor away from not being. The same property
+  already cost this project a fix in `RankingWeights`. Pinned for gnomAD and for the haplotype panel, which
+  feeds the same ancestry stratification.
+- **The OOD detector's conservative degeneration is pinned.** Checked alongside the conformal shortfall,
+  since both ask what a mechanism claims when the data is too thin: with a one- or two-point reference the
+  threshold collapses, and it collapses toward refusing to vouch for anything rather than toward vouching
+  for everything. A far input is never called in-distribution. Now a test, not a check done once.
+- **Every number that gates what a user sees now says what kind of number it is.** The CFD and MIT thresholds
+  decide which off-target sites appear in a report *at all*; the MAF threshold decides which population
+  variants are considered; the GC band decides which spacers get a quality caveat. None is a published cutoff
+  and three said nothing about that — `DEFAULT_CFD_THRESHOLD` carried the comment "spec defaults", which reads
+  as though a specification had derived it. Each now states plainly that it is a project default, what it
+  costs to be wrong, and that lowering it only ever adds sites. A test requires it, so a new judgement
+  constant cannot arrive unlabeled.
+- **`aforge offtarget --scorer`: the three specificity scorers are selectable at last.** `search(scorer=…)`
+  took an `OffTargetScorer` object, so a scorer could only be chosen by importing its class — MIT was
+  unreachable from every shell, and so was the **Cas12a analog**, a whole nuclease's scoring, implemented,
+  carded and cited. The report already *named* which scorer produced its numbers; the user could not choose
+  it. The off-target engine also had no shell-parity check at all — only `design()` did — which is now fixed,
+  with the remaining gaps (the R4 cross-run cache and prebuilt genome index) recorded with reasons rather
+  than left silent.
+- **`scripts/release_readiness.py` measures the v1.0 criteria instead of leaving them as prose.** `SPEC_V2.md`
+  lists five conditions for cutting v1.0 and nothing checked any of them, so "how close are we" was answered
+  by reading bullet points. Four are blocked outside the repository — which is exactly why measuring is worth
+  it: it separates *blocked* from *forgotten*, and it will notice the day one stops being blocked. Current
+  state: **1/5 met**; 1 of 12 artifact-backed model cards pins a checkpoint hash (5 further cards are
+  heuristic baselines with nothing to pin, and are excluded from the denominator rather than counted as
+  failures), 0 of 5 benchmark corpora are real, and the Zenodo DOI is minted on the first tagged release. It
+  exits non-zero while any criterion is open and is now a step in `RELEASE.md`.
+- **`aforge batch` offers the design options it was missing.** The cohort path — the run someone leaves going
+  over a whole VCF, where a trained model or a PAM-flexible fallback matters most — could not select a
+  trained model or a fallback **by any means**, config file included, while `aforge design` could.
+  `--chemistry` and `--cell-context` were config-file-only there: honoured if you knew to write TOML,
+  invisible from `--help`. All eight are now flags on `batch`, and a test requires every `design` option to
+  exist on `batch` or be recorded with a reason (`--format`, `--out` and `--render-candidates` shape a single
+  rendered document, which `batch` does not produce).
+- **`--trained-prime`, and shell/library parity is now pinned.** `design()` is the one entry point behind all
+  three audiences, and a parameter it accepts that a shell does not forward is a capability that exists and
+  cannot be reached. Three instances: the PAM fallbacks (previous entry); the trained prime-efficiency model,
+  which had no CLI flag while its Cas9 and base-editor siblings did — on the flagship chemistry; and
+  `--allow-ng`/`--allow-spry`, which the previous entry added to the CLI and not to the web API. All three are
+  closed, and a test now requires every `design()` parameter to be forwarded by each shell or recorded with
+  the reason it is not (the web API's file-backed exclusions, for instance, are a deliberate refusal to accept
+  client-supplied filesystem paths on a server).
+- **`--allow-ng` and `--allow-spry`: the PAM-flexible fallbacks are reachable at last.** `enumerate_cas9`
+  falls back to SpCas9-NG (`NG`) and SpRY (`NRN`/`NYN`) when no `NGG` guide is actionable, and `design_cas9`
+  exposed both — but `design()`, which the CLI, the web API and the cohort path all use, did not, so no shell
+  could ask for them. At a locus with no NGG in range the default run produces **0 candidates** and enabling
+  both produces **190**. Off by default, deliberately: an NG guide is a different reagent with different
+  specificity, so it is offered rather than assumed. An empty Cas9 vertical now also names the variants it
+  did not try, which is the difference between a dead end and a next step.
+- **Every field on the report models must now reach a renderer.** The recurring defect here is not a wrong
+  number but a correct one nothing shows — `search_description()` dropped by the web envelope, the CFD
+  citation left in a docstring, `sources_considered` needing separate wiring. `project.md` prescribes the
+  guard ("a test that iterates `Model.model_fields` covers the fields that do not exist yet") and `Provenance`
+  and `OffTargetReport` had one; the two models a reader actually reads did not, while two fields were added
+  to `CandidateReport` in recent work with nothing to notice if either had been left unrendered. Both are
+  currently clean. A new field that no renderer mentions now fails, unless recorded with a reason.
+- **Each of the eight non-negotiable principles now has its evidence written down.** `test_stated_principles`
+  checked three of them while reading as though it covered "the principles" — the same shape as the
+  principle-8 gap it sat next to. It now parses the numbered list from `openspec/project.md` and requires
+  every principle to name either the test that checks it or the reason it cannot be checked mechanically
+  (principle 4, "wrap don't rebuild", is a judgement no assertion decides). A named test must actually exist.
+  A ninth principle added to the list fails the suite until its evidence is recorded.
+- **The frontend's "loads no third-party scripts" promise is now enforced.** The README, the deployment guide
+  and the page itself all state it, and it is a privacy claim about a page a lab opens while pasting patient
+  variants into it — a CDN font leaks the fact and timing of every visit, and a third-party script leaks
+  whatever it likes. The claim holds today (every `src`, `<link href>` and `fetch` is a same-origin relative
+  path) and was one `<script src="https://…">` from being false with nothing to notice. A scan now rejects
+  any off-origin target in a position the browser fetches on its own; an `<a href>` the *user* clicks is
+  still allowed, since a link is not a load. Verified against injected CDN script, stylesheet, `fetch`, and
+  CSS `@import` references.
+- **The "deliberately minimal core" claim is now a test.** `pip install alleleforge` really does pull eight
+  transitive dependencies, none of them numpy, and `import alleleforge` really is ~85 ms — but nothing checked
+  it, and a single top-level `import numpy` added anywhere in the `__init__` chain would break the core
+  install outright on a machine that has no numpy, invisibly to a CI that installs every extra. A subprocess
+  probe now asserts that importing the package loads none of the optional stacks.
+- **The citation metadata is now checked against the package it ships with.** `CITATION.cff` and
+  `.zenodo.json` restate the version, license, title, repository URL, authors, and keywords that live
+  authoritatively in `_version.py` and `pyproject.toml` — and nothing checked any of it, so the next version
+  bump would leave `CITATION.cff` naming a release that never existed and every citation of the software
+  pointing at it. For a project whose stated purpose is reproducible open science that is not a cosmetic
+  defect. The check found a live divergence on its first run: the two files listed different keywords
+  (`.zenodo.json` had `benchmark`, which is right — the project ships CRISPR-Bench). `RELEASE.md`'s
+  version-bump step now names the file too.
+- **`openspec/project.md`'s conventions are current again.** The file distils the audit into durable rules
+  and had stopped at R128, so a stretch of process lessons existed only inside individual round entries.
+  Seven added: co-presented numbers must range over the same population; an aggregate can be a claim even
+  when it is not a number; for an opt-in check the question is *who opted in*; a guard in a convenience
+  wrapper is not a guard on the documented path; a duplicated exception is a duplicated `except`; an audit
+  returning implausible results has two suspects and one is the audit; and audit the artifacts the audit
+  produces. A test pins that every round a convention cites resolves to a log entry — which immediately
+  caught a dangling `R117`.
+- **The audit log is navigable again, and pinned.** `openspec/changes/README.md` ran ascending for rounds
+  1–134 and then **descending** for 135–145, because each of those rounds prepended its entry ahead of the
+  previous one — the log read chronologically and then reversed. Two round numbers (50, 71) had shipped work
+  and were cited by later entries but had no section at all; both are now written from their commits and
+  labeled as reconstructions. Round 117 turns out to be a skipped *number*, not lost work — R116's entry
+  covers it — and that is now recorded where a reader following the citation looks. Tests pin ascending order
+  and that every number in the range resolves to an entry or to a documented, still-accurate skip.
+- **The changelog was an append-only log, not a changelog.** `[Unreleased]` had grown **77** change-type
+  headings — 36 separate `### Fixed`, 32 `### Added` — because every change prepended its own instead of
+  merging into the existing one, and nothing checked it. Consolidated to one section per type in Keep a
+  Changelog's order, with all 300 bullets preserved verbatim (verified by diffing the bullet sets), and pinned
+  by a test so it cannot drift back.
+- **Every copy-pasteable `aforge` command in the prose is now checked against the real CLI.** One direction
+  was pinned — every command appears somewhere in the docs — and not the other, so a renamed flag would turn
+  a quickstart into a usage error with nothing to notice. All 25 documented commands currently resolve.
+- **`SECURITY.md`.** A public repository that ships a web API, downloads pinned artifacts, and accepts signed
+  leaderboard submissions from strangers had no stated way to report a vulnerability privately. Reports go
+  through a GitHub private advisory — the same channel the code of conduct uses. It states what is in scope
+  (untrusted-input parsing, the API and frontend, the artifact gates, generated leave-behinds), what is not
+  (a wrong scientific prediction is a modeling issue, not a vulnerability), and the deployment facts an
+  operator needs.
+- **`aforge lift` — a build mismatch now has a remedy inside the tool.** `resolve` refuses a record whose
+  native assembly disagrees with the requested build (relabeling a coordinate designs a guide at the wrong
+  place in the genome) and told the caller to lift the coordinates first — naming an operation the CLI did
+  not offer. `Liftover` was implemented, tested, and called by nothing in the library; `from_chain_file` had
+  no callers outside its own tests. The new command takes loci in the same form `--region` accepts and emits
+  them the same way, so its output pipes straight back in, and an unmappable locus prints `UNMAPPED` and
+  exits non-zero rather than being silently dropped — a shorter region list searches less than was asked for.
+- **Seven public names are now re-exported from their packages.** `alleleforge.design` did not export
+  `PRIME_MAX_EDIT` or `PRIME_MAX_TEMPLATED_EDIT` — the two prime budgets `routing.__all__` declares public
+  and the README cites by name — and `alleleforge.data` exported `ClinicalSignificance` but not the
+  `ClinicalAssertion` that carries it. `alleleforge.report` gained `caveats`, `provenance_lines`,
+  `model_limitation_lines` and `visible_candidates`, which is everything a caller needs to build a report
+  view of their own; they were reachable only from `alleleforge.report.builder`.
+  Two mechanical rules now hold this, so neither depends on anyone's taste about what "the API" is: a name
+  in a submodule's `__all__` is a declaration the package must honor, and a dotted name the docs cite must
+  resolve. The second catches a renamed or deleted name that a cross-reference still points at.
+- **Eight modules reached the API reference for the first time**, including `design_many` — the cohort
+  entry point, with its own README section and its own example notebook, absent from the reference since it
+  was written. Also `alleleforge.config` (the `Settings` and network-consent surface), the cross-run caches,
+  VCF ingestion, the model-checkpoint loader, the PRIDICT engine adapter, and the shared spacer-quality
+  checks. The docs build passed throughout: mkdocstrings renders what it is pointed at and says nothing
+  about what it is not.
+  `tests/test_api_docs_cover_the_package.py` now fails when a public module has no `:::` directive and is
+  not listed in `_NOT_IN_API_REFERENCE` with a reason — currently four entries, all documented as endpoints
+  or commands rather than as functions. A second test rejects an exclusion naming a module that no longer
+  exists, so the list cannot become a stale excuse.
+- **A cohort row now says which safety sources it was actually screened against** (`offtarget_sources`, in
+  the JSON row and the summary TSV). This is where a per-item difference hides: one variant screened against
+  a haplotype panel and the next screened without it produce identical-looking rows, the candidate counts do
+  not move, and the row is what a reader scans across hundreds of variants. It is also what made the bug
+  above observable at all.
+- **The "config file is honored" contract now has a test.** `_load_config` warns on an *unknown* key, which
+  means a key inside the whitelist gets no warning — so a whitelisted key that no command reads would be
+  accepted silently and do nothing, and the user's run would differ from the one their config describes. The
+  comment beside the run-param handling names that exact failure; nothing checked it. Two tests now do: every
+  whitelisted key is read somewhere in the CLI, and a config-only run produces the same candidates,
+  rationale and provenance snapshot as the equivalent flags.
+  All ten keys are honored today, `populations` included — a negative result worth recording, since it is
+  the safety-relevant one.
+- **An ambiguous spacer position now says that it biases the safety score downward.** A non-ACGT base in a
+  spacer cannot be scored — the CFD matrix has no entry for it — so the aligner counts it as a mismatch and
+  the site's score falls toward 0. On a safety axis that is exactly backwards: the true base is unknown and
+  may match perfectly, so an ambiguous position should make a reader *less* confident and instead made the
+  number look better. A degenerate spacer with an `N` at position 20 reported `worst score 0.000` on its own
+  locus. It is recorded rather than refused — a degenerate spacer is a legitimate reagent, and the oligo
+  layer says so explicitly — and `OffTargetReport` carries `ambiguous_spacer_positions`, with the search
+  description naming the positions and stating the direction of the bias.
+- **An ancestry requested for stratification that no supplied source carries data for is now named.**
+  Asking to stratify by `sas` against a frequency file whose records carry only `afr` and `nfe` contributed
+  nothing and was dropped in silence — while the provenance snapshot recorded `sas` among the populations
+  considered, so the artifact asserted an ancestry had been examined when no data for it existed, and its
+  absence from the breakdown read as *no risk in that population* rather than *no data*. On a tool whose
+  differentiator is ancestry-stratified safety, that is the wrong silence. `OffTargetReport` records
+  `unbacked_populations`, checked across every supplied source (a haplotype panel backs its own ancestries),
+  and the search description names them. It stays empty when no source was supplied at all — that case has
+  its own warning, and two warnings for one situation is worse than one.
+- **A chromatin track that covers none of the candidate loci is now reported, and an adjusted candidate is
+  flagged.** The per-candidate path was already careful — an uncovered locus produces no chromatin note, so
+  the tool never claims evidence the track did not have. What was missing is the menu-level statement: a
+  track supplied and named in provenance can cover nothing, leaving every efficiency the unadjusted estimate
+  while the run reads as chromatin-aware. The menu now says so, and candidates the track actually moved
+  carry a `chromatin-adjusted` flag — previously that fact existed only in prose inside the candidate
+  rationale.
+- **A safety source that is supplied but covers nothing in the searched region now says so.** The warning
+  for a *missing* frequency source has existed for a while; a source that is **present and inert** produced
+  nothing at all — and its report is byte-identical to a reference-only scan, empty ancestry breakdown
+  included, while the user believes they supplied the data. A per-chromosome gnomAD download, a region
+  subset, a haplotype panel for another locus, a patient VCF from a different sample: all land here, and
+  this is the more dangerous case, because nothing is absent to prompt a second look.
+  `OffTargetReport` carries `sources_considered`, a mapping from each **supplied** source to how many of its
+  entries fell in the searched region. An absent key means "not supplied", `0` means "supplied and covered
+  nothing here", and those are different statements. A mapping rather than a field per source deliberately:
+  the sources are a growing set, and checking one while its siblings go unchecked is exactly how this gap
+  arose.
+  Two things checked and found sound, worth recording: **contig naming** (an Ensembl-style `11` gnomAD file
+  against a UCSC `chr11` reference gives identical results — `canonical_contig` does its job), and
+  **soft-masked reference sequence**, which a repeat-masked hg38 would otherwise have silently failed to
+  match in exactly the regions where off-targets live.
+- **An off-target report now says how much of the requested region could actually be searched.** A window
+  holding an assembly gap or an IUPAC ambiguity code cannot be scanned, and the report looked identical
+  either way: a scan over a contig that is **99% `N`** returned the same shape of answer as one over
+  fully-resolved sequence. On a real genome that is the difference between "no off-targets" and "no
+  off-targets in the 1% of your region that is sequenced" — and a region overlapping a centromere or a
+  scaffold gap is not exotic. `OffTargetReport` records `searched_bases` and `resolved_bases`, and the search
+  description appends *"only 1% of the 4,038 requested bases were searchable"* when the fraction is below
+  99%. A fully-resolved reference says nothing, so the caveat is information rather than furniture. The count
+  uses four `str.count` passes, so it costs nothing next to the scan that walks the same bytes.
+- **`aforge bench compare` — the operation the reproducibility digest exists for, which had no
+  implementation.** Every benchmark run computed a platform- and release-stable digest over its scientific
+  body, stored it, and nothing ever read it back. Its docstring promises that two independent runs of the
+  same model on the same frozen `(task, split)` match across releases and platforms; nothing could test that
+  promise, and nothing recomputed the digest either — so a runner that computed it wrongly would have
+  shipped a wrong digest in every result while the signature (which covers the digest as one more field)
+  went on passing.
+  `BenchmarkResult` gains `scientific_body()`, `verify_reproducibility_digest()` — the counterpart
+  `verify_signature()` never had — and `agrees_with()`. The new command re-derives each result's digest from
+  its own body, then reports whether the two are the same scientific result and, when they are not, **names
+  the fields that differ** rather than leaving a user to diff JSON. Two runs at different wall clocks now
+  demonstrably agree while their signatures differ, which is precisely the gap the digest was introduced to
+  fill.
+- `tests/test_examples_teach_the_contract.py` — the notebooks checked as documentation people copy: an
+  example that renders `best_efficiency` must also render its interval, and none may default a summary
+  value with `or`, which fires on the meaningful zeros (`0.0` efficiency, `0` candidates).
+- **A truncated outcome table now says it is truncated.** A knock-out card read `P(intended) = 0.87` above
+  three alleles of 0.069, 0.060 and 0.055 — a headline and a table that look like they contradict each other
+  until you know the NHEJ spectrum has forty-six alleles and the table is showing three. The renders now
+  add *"showing 3 of 46 predicted alleles (0.18 of the probability mass); the rest are in the lossless
+  export"*, and `CandidateReport` carries `n_outcome_alleles` and `outcome_shown_mass`. The candidate list
+  has said "Showing 50 of 470" since it was capped; the outcome table made the same omission and looked far
+  more like an arithmetic error. A complete table says nothing.
+- `tests/test_stated_principles.py` — the README's design principles checked as claims. It pins the
+  citation-and-version guarantee over both registries and guards the specific "by default" overclaims,
+  including an assertion that the honest wording is still present, so the test cannot be satisfied by
+  deleting the claim rather than correcting it.
+- **The flat TSV/Parquet export now carries what makes its own numbers readable** (export
+  `schema_version` 2 → 3). It had `n_offtarget_sites` and nothing to interpret it with: not the aggregate
+  specificity, not the scorer or weight matrix, not the search settings. Every one of those has been on the
+  HTML page and the PDF leave-behind since it was added — and missing from the format something *automated*
+  reads, which is where an uninterpreted number does the most damage, because a pipeline filtering on
+  `n_offtarget_sites = 0` cannot tell a clean scan from a narrow one and never asks.
+  New columns: `offtarget_specificity`, `offtarget_scorer`, `offtarget_matrix`, `offtarget_search`,
+  `caveats` (the hazard subset of `flags`, so a pipeline can filter on "needs attention" without hard-coding
+  a flag-name list that keeps growing), and `rationale` (the per-candidate score breakdown, previously
+  human-renders-only).
+- **An off-target site now records the PAM that anchored it.** Two things were undecidable from a report
+  without it. A canonical `NGG` site and a low-stringency `NAG` one carry very different real risk and
+  appeared identical on the table. And with bulges allowed the same 20 bp of genome is reachable from two
+  *adjacent* PAMs, so a report showed what looked like one locus printed twice —
+  `chr11:2019-2038(-)` and `chr11:2018-2038(-)`, both scoring 1.0. Recording the PAM settles it: `AGG` and
+  `GGG`, one base apart, two genuinely distinct cut registers rather than a duplicate. `OffTargetSite`
+  gains `pam_sequence`, the CLI prints `pam=AGG` on each row and in the JSON payload, and the web API
+  carries it automatically with the report.
+  Worth noting what did *not* change: nothing is merged and no aggregate is adjusted. Deciding that two
+  overlapping registers should count as one site would be inventing a convention; recording the PAM lets
+  the reader decide, which is the information they were missing.
+- **A menu now says when its own ranking is not resolved by the evidence.** Measured on a realistic
+  single-SNV correction: the top fifty pegRNAs spanned **0.027** of composite score while the leader's own
+  efficiency interval was **0.30** wide — eleven times the entire spread — and **248 of 470** candidates
+  were within the leader's uncertainty. The order was arithmetically exact and, past the first few places,
+  meaningless, with nothing on the page saying so. A ranked list reads as a claim that #1 beats #12; here it
+  was not one.
+  `indistinguishable_leaders()` counts the leading group using a deliberately transparent rule rather than
+  a statistical one, because a real test would need an error model the project does not have: the
+  efficiency term contributes `w_efficiency × efficiency` to the composite, so the honest uncertainty in
+  that single largest term is `w_efficiency × (upper − lower)`, and any composite gap smaller than that is
+  inside the noise of its own biggest input. The rule can only ever report that candidates are
+  *unseparated* — never that one is better — so being wrong makes the menu more cautious, not less.
+  Nothing is reordered; the menu simply says *treat them as one group and choose on the reagent, not the
+  rank*, and stays silent when the spread genuinely resolves.
+- **A code of conduct, which the README and `CONTRIBUTING.md` had both promised and neither delivered.**
+  Two public documents told contributors to read a Contributor Covenant behind a link that 404s — a
+  governance claim with nothing behind it. `CODE_OF_CONDUCT.md` now adopts the Contributor Covenant 2.1 **by
+  reference** to its canonical URL rather than reproducing it, so the file cannot drift from the version it
+  names, and states the reporting channels that actually exist today (a private GitHub security advisory for
+  anything sensitive, issues otherwise). Two calls in it are properly the maintainer's — adoption by
+  reference versus verbatim text, and whether to publish a direct contact address — and have been flagged
+  for review rather than decided quietly.
+- **The prose is now checked mechanically for claims the repository cannot back.** Alongside the
+  every-CLI-command check, `tests/test_readme_documents_the_cli.py` asserts that every local link in
+  `README.md` and `docs/` resolves to a file that exists, and that every `alleleforge.x.y` module path the
+  prose cites is importable. Documentation drift is invisible to a test suite by construction — the code
+  keeps working while the sentences about it rot — so the checkable half is now checked. Paths the prose may
+  legitimately cite before they exist go in an explicit allow-list with a reason, so it cannot quietly become
+  a place to park a broken promise.
+- **The leaderboard now shows how much of its output each model disclaimed.** The uncertainty contract
+  makes every model declare which predictions are out of distribution, and `BenchmarkResult` records the
+  count — and the board dropped it. A model that stood behind every prediction and one that flagged nine in
+  ten of them as out-of-distribution and scored the same appeared on identical rows. ECE was already shown
+  for exactly this reason; its sibling was left behind. Both renders gain an **OOD** column showing the
+  share of the scored test fold (`87% (261/300)`), with `n/a` — not `0%` — when it is unmeasurable, the same
+  distinction the board already draws for an undefined ECE: silence and a clean bill are different claims.
+  Ranking is unchanged. The OOD share is reported, not scored: turning it into a ranking term would need a
+  defensible exchange rate between accuracy and coverage, and inventing one would be a worse dishonesty
+  than the omission it replaces.
+- **The predicted molecular consequence now appears in the menu; it was computed and read by nothing.**
+  Supplying an effect predictor made AlleleForge annotate the variant, store a full `VariantEffect` on
+  `ResolvedVariant.effect` — gene, Sequence-Ontology consequence, VEP impact tier, HGVS c./p., transcript,
+  canonical flag — and then use none of it. The user paid a network round trip for that, and since the
+  lookup goes to a third-party API, an explicit decision to disclose their variant, and got no answer
+  anywhere in the output. The menu rationale now leads with `Predicted effect: missense variant (moderate
+  impact) in HBB, p.Glu7Val on ENST00000335295`, and says so when the transcript is not the canonical one —
+  the same variant is missense on one transcript and intronic on another, so an unqualified consequence is
+  half a statement. A correction targeting a variant with only **modifier** impact gets a note to confirm
+  the intent; a correction with real predicted impact stays quiet, so the note carries information.
+  Annotates only — a silent variant can still be a splice or regulatory target, and the predictor speaks
+  for one transcript.
+- **Model-card limitations now appear in the report; they were carried "for safety audit" and shown to
+  nobody.** Two breaks in the same chain. `ModelCard.to_checkpoint()` — a hand-written field list — carried
+  `known_failure_modes` into provenance and dropped `intended_use` and `out_of_scope_use`, so a result
+  recorded *how* its models fail but not *what they were never meant to do*. And no human-facing render
+  printed any of it, including the failure modes, whose docstring says they are carried so a consumer can
+  audit a design "without re-opening the cards" — which still required re-opening the cards.
+  The shipped `cas9-efficiency-ensemble` card, the default Cas9 efficiency scorer, states that trusting its
+  point estimate as a trained activity prediction is out of scope because "the heads are an unfitted
+  pseudo-random scaffold". Every report was silent on that. The HTML page and PDF leave-behind now carry a
+  **Model limitations** section listing, per model, what it is not for and how it fails, from one shared
+  `model_limitation_lines()` so the two renders cannot drift. A model documenting nothing produces no line
+  and no section — an empty heading reads as "no known limits", which is the opposite of the truth.
+  A regression test compares `to_checkpoint()` against the card over the two models' shared field *names*
+  rather than naming fields, so a field added to both tomorrow is covered without editing the test.
+- **A ClinVar accession's clinical significance now reaches the design menu; it used to be read and
+  discarded.** `_from_clinvar` returned `record.variant` and nothing else, so the classification — the
+  reason anyone picks an accession over coordinates — never left the resolver. A menu for a variant ClinVar
+  calls **Benign** read exactly like a menu for a pathogenic one: the tool designed a "correction" for an
+  allele the database says is harmless, and said nothing. (`docs/data.md` had ClinVar's role listed as
+  "accession → normalized variant + clinical significance"; only the first half was true.)
+  `ResolvedVariant` now carries a `ClinicalAssertion` — the normalized class, the raw review status, and
+  the verbatim source token. The review status is carried alongside the class deliberately: "Pathogenic, no
+  assertion criteria provided" and "Pathogenic, reviewed by expert panel" are the same class and very
+  different evidence. The menu rationale — which every render already prints — leads with the assertion,
+  and adds a note when the requested intent and the classification pull in different directions: correcting
+  a benign variant, correcting a VUS, or installing a pathogenic allele (a disease model, not a therapy).
+  These annotate; nothing is refused. A congruent design stays quiet, so the note carries information
+  rather than appearing on everything.
+  `ClinicalSignificance` moves to `alleleforge.types.variant` (still importable from `data.clinvar`) so the
+  resolver can carry an assertion without depending on the data layer, which it deliberately reaches only
+  through a Protocol. A ClinVar stub that supplies only coordinates still resolves — it simply asserts
+  nothing.
+- **The PE3 nick-to-nick distance is now shown, and a dangerously close nick is flagged.** `nick_offset`
+  was computed by the enumerator, stored on `NickingGuide`, and read by nothing — not the reagent line, not
+  the flags, not the ranking. It is *the* PE3 design parameter: two PE3 candidates differ in essentially
+  nothing else, and two nicks placed close together on opposite strands are a staggered double-strand
+  break, the outcome prime editing is chosen to avoid. Candidates now carry a signed
+  `nick-distance:+62nt` flag, the reagent line reads `PE3 (+62 nt nick)`, and a nick closer than
+  `CLOSE_NICK_NT` (30 nt) adds `close-nick`. The test fixture's only PE3 nick turned out to sit **4 nt**
+  from the pegRNA nick — previously unremarked anywhere in the output.
+  The distance deliberately does **not** enter ranking. Scoring it would need a byproduct model calibrated
+  against real PE3 data, which AlleleForge does not have; the constant is labelled in the source as a
+  conservative floor rather than a fitted threshold, and it has been flagged for verification against the
+  primary literature.
+- **The off-target cut-offs are now printed where the site count is, on every surface that shows one.**
+  R84 put the mismatch budget, the DNA/RNA bulge budgets, and the CFD/MIT cut-offs on `OffTargetReport`;
+  nothing rendered them, so an HTML page, a PDF leave-behind, the CLI's human line and its JSON payload all
+  still showed "2 nominated site(s), specificity 0.82" as if those numbers were absolute. They are not:
+  the same guide yields two sites at a 0.20 CFD cut-off and fifteen at 0.05, and the report a collaborator
+  is handed is precisely where that has to be visible. `OffTargetReport.search_description()` states the
+  settings in one line, `CandidateReport.offtarget_search` carries it (alongside the existing
+  `offtarget_scorer` / `offtarget_matrix` labels, which exist for the same reason), and the HTML, PDF and
+  CLI renders print it. The JSON payload gains a structured `search` object. The description is
+  deliberately ASCII — the PDF's WinAnsi font has no glyph for a mathematical `<=` and would have printed
+  `?3 mismatches` on the handed-out page.
+- **An off-target report said how many mismatches it allowed, but not the four other knobs that decided
+  what it found.** `OffTargetReport` carried `mismatch_threshold` — recorded, correctly, so that a site
+  count could be read against the budget that produced it — and nothing about the DNA/RNA bulge budgets or
+  the CFD/MIT reporting cut-offs, which narrow the result just as hard: the same guide yields two sites at
+  a 0.20 CFD cut-off and fifteen at 0.05, and a zero-bulge scan cannot report the bulged hits a one-bulge
+  scan finds. Two reports could disagree by an order of magnitude with nothing on either of them to explain
+  it. The report now records `dna_bulge_budget`, `rna_bulge_budget`, `cfd_threshold` and `mit_threshold`
+  beside the mismatch budget. This is the R83 rule — *any parameter that narrows what was examined must
+  appear beside the result* — applied as a sweep rather than a one-off: the tell was five settings of the
+  same kind with one recorded.
+- **Region scoping is now available over HTTP too — I had mis-classified it as a file input.** The
+  file-backed safety sources stay CLI-only for a real reason (a client-supplied path is a server-side
+  file-read primitive), but a *region restriction* is data, not a path, and carries none of that risk.
+  `POST /api/design` and `POST /api/offtarget` now take `offtarget_regions`. They accept a small `Region`
+  shape that does **not** require a strand — a restriction covers both by construction — while still
+  accepting a `locus` copied verbatim out of a previous response, whose extra `strand` and
+  `coordinate_system` keys are ignored. An empty interval is a 422 rather than a silent scoping of the scan
+  to nothing, which would report every guide spotless; an empty *list* means "search everything", not
+  "search nowhere".
+- **`design()` could not scope an off-target search at all, and now can — reachable as `--region` /
+  `--regions-bed`.** Every *vertical* (`design_cas9`, `design_prime`, the base-editor path) accepts
+  `offtarget_regions`, and `search()` takes `regions`. The unified `design()` entry point — the one the CLI
+  and web API are thin shells over — accepted neither and passed nothing through, so a whole-genome scan
+  could not be narrowed from anywhere except by calling a vertical directly. Over a real reference that
+  scoping is the difference between a practical run and an impractical one. `design()` now takes
+  `offtarget_regions` and threads it to all three verticals; the CLI exposes repeatable
+  `--region chrom:start-end` and `--regions-bed panel.bed` on `design`, `batch` and `offtarget`. A
+  malformed region is a usage error rather than a silent widening back to the whole genome, and an empty
+  restriction stays `None` ("search everything") rather than becoming an empty list, which would restrict
+  the search to nothing and report every guide spotless.
+- **`--haplotypes` and `--patient-vcf` complete the safety inputs on the CLI.** The same reachability
+  sweep that found `--gnomad` left two more: the *haplotype*-aware pass (the second half of the README's
+  "population- **and haplotype**-aware" claim, which catches a site existing only on a co-inherited
+  combination of alleles) and patient-specific personalization (a site present in *this* genome but not the
+  reference). Both are now loadable — a phased-panel TSV and a VCF or variant list — on `design`, `batch`
+  and `offtarget`. Patient variants are resolved against the reference, so an allele asserting a base the
+  genome does not have fails loudly rather than silently personalizing the scan with a wrong-build variant.
+  `HaplotypePanel` gained `__iter__`/`__len__`, since the engine consumes a flat iterable and a caller with
+  a whole panel and no single interval to query had to reach into its buckets. Verified through the CLI:
+  0 sites reference-only, then one `patient`-origin site with `--patient-vcf`, and one causally-attributed
+  site with `--haplotypes`. **Also corrected an inaccuracy introduced one commit earlier:** the
+  "reference-only" warning keyed on `--gnomad` alone, so a run supplying `--haplotypes` was told its scan
+  was reference-only while the haplotype pass was actively finding sites. It now fires only when neither
+  ancestry-bearing source is present, and a test parametrizes all three cases.
+- **The README's CLI examples advertised population-awareness they could not deliver.** `aforge design
+  ... --populations afr,eur,eas` was captioned "ranked, safety-annotated menu", and the `offtarget` example
+  listed "the carrying MAF" among the tunable engine knobs — while `--maf` filters population alleles that,
+  with no way to load any, were never there. Both examples now pass `--gnomad`, and the `design` one also
+  shows `--cell-context`; the batch example notes that an empty `worst_offtarget` column means "not
+  measured", not "clean".
+- **`--gnomad` on `design`, `batch`, and `offtarget`: the population-aware off-target search is reachable
+  from the CLI for the first time.** This is the capability the project is built around — the README calls
+  reference-only off-target "a known safety gap" and cites the Casgevy / BCL11A `rs114518452` case — and
+  `design()` and `search()` have always taken a `gnomad=` database. **No CLI command could supply one.**
+  `--populations` names ancestry *labels* to stratify by; it carries no alleles. So every command-line scan
+  was reference-only, and a user passing `--populations afr,eur` got an empty ancestry breakdown back with
+  nothing saying why — silence that reads as "no ancestry-specific risk found" rather than "nothing was
+  searched". The three commands now take `--gnomad <sites.tsv[.gz]>` (`#chrom pos ref alt af <pop>...`,
+  1-based `pos` as in a VCF), warn explicitly when ancestries are requested without one, and exit with a
+  data error on an unreadable path rather than falling back to a reference-only scan the caller believes is
+  population-aware. Verified by reproducing the reference-bias case end to end through the CLI: 0 sites
+  reference-only, then one `population`-origin site at score 1.0 whose risk is concentrated in African
+  ancestry (`afr` 0.105 vs `nfe` 0.001).
+- **`cell_context` — the input that raises the OOD flag — is now settable from the CLI and the web API.**
+  It was reachable only through a CLI *config file*, and not at all from the web API, whose `DesignRequest`
+  had no such field. So every design the web API returned reported `in_distribution: true` whatever cell
+  line the user was actually targeting — the exact opposite of what the flag exists for, on the surface most
+  likely to be used casually. `aforge design --cell-context HepG2` (overriding the config key, matching the
+  other options' precedence) and the API's `cell_context` field now set it. Verified end to end: with no
+  context or with `HEK293T`/`K562` the prediction stays in-distribution; with `HepG2` it flips to
+  `in_distribution: false` and the candidate carries `ood`. Found by asking which `design()` capabilities
+  the shells cannot reach — the query the previous entry's lesson suggested.
+- **The report render cap is now reachable from the CLI and the web API.** `render_html` / `render_pdf`
+  have taken `max_candidates` since the cap was introduced, but neither surface exposed it — so a user who
+  wanted the full 720-candidate page had no way to ask for it, and the parameter was library-only. `aforge
+  design --render-candidates N` and the API's `render_candidates` field now set it, with `0` spelling "draw
+  them all" (the command line has no natural way to write `None`, and a zero-candidate render is not
+  something anyone wants). Both surfaces were done together rather than one now and one later — the same
+  fix reaching one shell and not the other is how the `specificity` labeling ended up inconsistent for five
+  rounds. Tests pin, on both surfaces, that the cap changes the HTML and **never** the lossless export.
+- **Every pegRNA 3' motif is now round-tripped through the oligo output; `mpknot` previously reached no
+  test and no caller.** `MOTIF_SEQUENCES` ships three options, but the enumerator only ever emits
+  `tevopreQ1`, so `ThreePrimeMotif.MPKNOT` was a sequence that goes into a **synthesized** extension oligo
+  with nothing exercising it. The oligo module's cardinal invariant is that the oligos reconstruct the
+  declared RTT and PBS, and `reconstruct()` strips the declared motif off the 3' end first — so a motif it
+  mishandled would either corrupt that boundary or silently ship the wrong bases. All three motifs are now
+  parametrized through `pegrna_oligos` → `reconstruct()`, with checks that the declared motif's bases are
+  actually present in the ordered sense oligo, are concrete `ACGT`, and that no two motifs produce the same
+  oligo. Found by asking which enum members no test names — the same query that surfaced `REVERT` above.
+  **Not** verified: that the two motif *sequences* match the publication they cite. Both are 46 nt and share
+  a 9-nt prefix, which may be correct; confirming a published sequence needs the source, so it is flagged
+  for a human rather than guessed at.
+- **`REVERT` — a CLI-exposed edit intent — had no test coverage at all, and no documentation of what it
+  means.** It reaches five *independent* `intent in (CORRECT, REVERT)` checks: routing, all three
+  enumerators, and the HDR donor. Nothing centralizes that, so a sixth branch added later that forgot
+  `REVERT` would silently fall through to the `INSTALL` behavior — writing the **alternate** allele where
+  the user asked for the reference. A wrong reagent from a one-word omission, on a path nothing exercised.
+  `EditIntent` now documents all four intents, including why `REVERT` exists (mechanically identical to
+  `CORRECT`; it records in provenance *why* the edit was made — repairing a pathogenic allele versus
+  returning an engineered line to wild type). A new suite pins the equivalence at every layer — routing,
+  carried allele, each enumerator, the donor, both design verticals, and `design()` — and each assertion is
+  paired with a check that `CORRECT` and `INSTALL` genuinely *differ* at that locus, so the equivalence
+  cannot pass vacuously. Mutation-checked: dropping `REVERT` from the prime enumerator or from routing
+  fails it.
+- **The prime byproduct model now has a card, so the flagship's provenance names both its models — and
+  `design()` can finally be given prime overrides.** Two gaps, found by running `aforge verify` and
+  noticing it reported **1 model** for a prime design:
+  - `PrimeOutcomePredictor` had no model card, and `prime_model_checkpoints()` documented this as "a
+    card-free heuristic, so it contributes no checkpoint". Its siblings do not work that way:
+    `indelphi-mh-baseline` (nuclease) and `be-dict-baseline` (base editing) each carry one. So the
+    *flagship* was the single chemistry whose outcome model went unrecorded — the model whose
+    `p_intended` feeds the menu's cleanliness objective directly. A `prime-outcome-baseline` card now
+    records its version, citation, and three known failure modes (geometry-keyed only; no sequence
+    context, cell type, or edit-size term; three modeled byproduct channels, not an exhaustive account).
+  - `prime_model_checkpoints()` took no arguments while `cas9_model_checkpoints(scorer, predictor)` and
+    `base_editor_model_checkpoints(predictor)` took the overrides — because `design()` exposed no prime
+    overrides at all, so a caller could substitute a scorer for the nuclease and for base editing but not
+    for the flagship. `design()` now accepts `prime_efficiency_scorer` / `prime_outcome_predictor` and
+    records the override's card instead of the default's, matching the other two verticals. **What this
+    does not do** is make a trained model reachable: there is no drop-in trained per-pegRNA prime scorer
+    today. `PridictEngineAdapter` is the real PRIDICT2.0 path but a *sequence-level* `design()` API rather
+    than a `score(pegrna, ...)` one, and `DeepPrimeAdapter` / `GenETAdapter` implement the scorer protocol
+    only to refuse — documented placeholders, because DeepPrime's per-pegRNA API needs edit metadata a
+    `PegRNA` does not carry. That remains an R1 gap. The reproducibility golden moved by exactly one added
+    model, verified by diffing the canonical run's body; no number changed.
+- **`POST /api/offtarget` gained the same on-target handling as the CLI.** The previous entry fixed the CLI
+  and left the web API reporting the identical unlabelled `specificity` — the envelope's own docstring
+  promises "the same summary the `aforge offtarget` CLI surfaces", which had quietly stopped being true.
+  The request now takes `on_target` **as a `GenomicInterval`**, the same shape a reported site's `locus`
+  has, so a client can copy one straight back; the response carries `on_target_excluded`; a malformed
+  locus is a 422. (The string form was tried first and was wrong: the API emits loci as objects and never
+  as `chrom:start-end(strand)`, so a field accepting only the string would have taken a spelling the API
+  itself never produces — caught by driving the round trip.) The locus parser the CLI uses is now
+  `GenomicInterval.parse`, the exact inverse of `__str__`, so the two surfaces cannot drift into accepting
+  different spellings.
+- **`aforge offtarget` gained `--on-target`, and says when it is missing.** The standalone command passed
+  no on-target locus, so the guide's own perfect match was reported like any other site: the worst score
+  pegged at `1.0` and specificity capped at `0.5` for even a spotless guide — the failure mode the engine's
+  own `_is_on_target` docstring warns about, on the one call site that could not opt in. Reporting every
+  perfect match *is* the honest answer when the tool has not been told which one is intended, so the fix is
+  not to guess: `--on-target 'chrom:start-end(strand)'` excludes it when the caller knows, and when they do
+  not, the output now states `[on-target locus NOT excluded]` and the JSON carries
+  `on_target_excluded: false`. Without that, the same word — "specificity" — named two different quantities
+  in the CLI and in a design report. A malformed locus is a usage error, never a silently skipped
+  exclusion. Found by running the command.
+- **An acceptance test carries a large precise edit from variant to orderable reagent**, and the README's
+  SpCas9 section now describes the shipped behavior rather than a dotted side-branch. Correcting a 41-base
+  restoration is beyond every break-free chemistry; it must not return a blank menu, and it must not return
+  a bare double-strand break dressed as a correction. The test asserts the whole chain connects — routing
+  admits only the nuclease, the top candidate carries a gap-free donor and its `hdr-donor:*` /
+  `outcome-is-nhej-spectrum` flags, the reagent line names the pair, and the donor is emitted as an
+  orderable `hdr-donor-ssodn` beside the guide duplex and reaches the rendered HTML. Each hop had a unit
+  test; nothing asserted they joined up.
+- **A precise nuclease candidate is now *orderable*: the HDR donor is emitted as a template to synthesize,
+  alongside the sgRNA duplex.** `oligos_for` returned only the guide duplex — the half of the reagent that
+  cannot make the edit. A new `DonorOligo` (`kind="hdr-donor-ssodn"`) carries the sequence to order and the
+  repaired product's re-cut disposition; it rides on `SgRnaOligos.donor`, and its hazards are promoted into
+  the same prominent warnings list the guide's use rather than buried in the JSON block. Two hazards are
+  flagged: a donor longer than the ~200 nt most vendors synthesize as one oligo (order it as a dsDNA
+  fragment or plasmid instead — a 300 nt "oligo" should not reach a shopping cart unremarked), and a
+  repaired product that is still a substrate for its own guide.
+- **A fixed heuristic interval no longer masquerades as a measured 80% coverage.** Every
+  scorer stamped a constant ±0.15 band with `interval_level = 0.80`, so a consumer
+  thresholding on `interval_level` could read an unmeasured placeholder as a calibrated
+  coverage. Each fixed-band heuristic prediction now carries an auditable
+  `NOMINAL_INTERVAL_NOTE` ("coverage not measured"), and the count-valued `bystander_burden`
+  carries a `COUNT_INTERVAL_NOTE` (its spread is not a coverage band at all). The reproduce
+  golden was re-derived (the menu now carries the honest notes). (Task 4 of
+  `compute-honest-uncertainty`; only task 2 — computing `in_distribution` — remains.)
+- **A trained point estimate is now distinguishable from a heuristic one by the honesty
+  flags alone.** The real Rule Set 3, PRIDICT2, and BE-DICT scorers ship a trained point
+  with an *uncalibrated* heuristic interval — byte-identical in `method`/`calibrated`/
+  `in_distribution` to a purely heuristic prediction, so a consumer could not tell a
+  trained activity from a rule-of-thumb without reading provenance. `Prediction` gains
+  `point_from_trained_model` (default `False`, threaded through `calibrated_by` and AND-ed
+  in `combine`), set `True` on the trained Rule Set 3 / PRIDICT2 / BE-DICT paths and left
+  `False` on the transparent baselines. Published JSON schemas regenerated (this also syncs
+  the off-target `score_matrix` / `subthreshold_score_sum` fields). (Task 3 of
+  `compute-honest-uncertainty`; tasks 2 and 4 remain.)
+- **Off-target strengthening is now score-based, the aggregate covers the sub-threshold
+  tail, and a frequency-aware burden joins the worst-case.** Four gaps that let the
+  population/haplotype differentiator under-state risk or report an optimistic summary are
+  closed (`guard-offtarget-strengthening`):
+  - *Strengthening was edit-count-only.* The population and haplotype passes nominated an
+    alt-allele hit only when its edit count fell, so a minor allele upgrading a weak PAM
+    (`NAG`→`NGG`, CFD 0.07→0.28) at an unchanged edit count was silently dropped — a pure
+    false negative. Nomination now keeps an alt hit that beats the best reference hit at
+    the same placement by **either** a higher specificity score (catches the PAM upgrade)
+    **or** fewer edits (catches a mismatch/bulge removal the bulge-blind CFD misses).
+  - *The genome-wide `specificity_score` summed only reporting-threshold survivors*, so a
+    guide with a large near-threshold tail could report the same specificity as a clean
+    one. The engine now carries the best per-placement sub-threshold score into the
+    aggregate (`OffTargetReport.subthreshold_score_sum`), matching the CRISPOR/Hsu sum
+    over all candidate sites.
+  - *CFD scored any length under a "published" label.* `cfd_score` now raises when the
+    published/fixed matrix (positions 0–19) is applied to a non-20-nt alignment; the
+    default `CfdScorer` falls back to the length-relative approximation for a
+    bulge-collapsed/off-length hit and records the approximation as that site's matrix
+    (`OffTargetSite.score_matrix`), so an off-length score is never mislabeled published
+    CFD while recall is preserved.
+  - *The aggregates were frequency-blind.* `OffTargetReport.expected_burden()` weights
+    each site by the probability a genome carries it (reference/patient 1.0, population by
+    carrying frequency), so a MAF-floor off-target and a universal one are now
+    distinguishable in the summary numbers.
+- **The published Doench 2016 CFD matrix is now the default off-target scorer.**
+  The default `CfdScorer` used a transparent seed-tolerance *approximation*, so
+  out-of-the-box CFD numbers were not the values a reviewer comparing against CRISPOR
+  expects. The authentic 240-weight Doench 2016 mismatch matrix (plus its 16 PAM
+  weights) is now vendored at `offtarget/cfd_matrix.json` and used by default (labeled
+  `doench-2016-cfd`). It was sourced from CRISPOR and **cross-verified byte-for-byte
+  against CRISPRitz** (an independent tool; max abs difference 0.0), and the conversion
+  into the scorer was proven exact against the reference CFD calculator over 20,000
+  random pairs — nothing fabricated or approximated. The transparent approximation stays
+  available via `CfdScorer(approximate=True)`. **Off-target scores change for real runs
+  with mismatched sites**: they now return published CFD instead of the approximation
+  (perfect-match sites, which depend only on the unchanged PAM weights, are unaffected —
+  hence the reproduce golden's only drift was the honest matrix label). Completes
+  `ship-published-cfd-matrix`.
+- **The recorded seed is now load-bearing.** `provenance.seed` drove no randomness: the
+  only genuine stochastic step (the conformal-recalibration demo) drew from its own
+  hardcoded `SEED = 20240501` duplicate, so the seed was decorative. `Settings.rng()` is
+  now the single run-scoped RNG (`random.Random(seed)`) that stochastic steps draw from,
+  the conformal demo takes that RNG, and its callers (`viz.figures`, `calibration_study`)
+  thread `get_settings().rng()` — so changing the seed changes the output and fixing it
+  reproduces byte-for-byte. Because the default resolved seed equals the retired constant,
+  the committed figures and reproduce golden are unchanged. The design path still has no
+  stochastic step; the seam is in place for the first one that does. (Completes
+  `complete-provenance`, task 2.)
+- **pegRNA candidates flag Pol-III transcription caveats.** A prime candidate whose
+  spacer does not start with G (needs a prepended U6-start G) or whose GC content
+  falls outside the 0.30–0.80 band now carries an inspectable `no-5prime-g` /
+  `gc-out-of-band:<frac>` flag, surfacing the caveat as an annotation rather than
+  silent absence. (Part of the in-progress `align-prime-coverage`, task 2.)
+- **The CLI warns on unknown config-file keys.** `aforge --config` silently ignored
+  any key it didn't consume, so a typo like `maf_treshold` vanished without effect.
+  `_load_config` now warns (to stderr) on any config key that is neither a `Settings`
+  field nor a recognized run-param knob, so a mistake is surfaced. (Part of the
+  in-progress `complete-provenance`, task 4.3.)
+- **The FM-index can re-verify itself against its build-time content hash.**
+  `FMIndex.verify()` reconstructs the indexed text from the persisted BWT via the
+  LF-mapping and re-hashes it, raising `FMIndexIntegrityError` if it no longer matches
+  the `content_hash` recorded at build — an on-demand `O(n)` integrity check so a
+  corrupted or tampered cached index fails closed instead of serving wrong locations.
+  With this, the hash-on-read machinery, required failure-modes, and opt-in cache
+  content-verify, only the maintainer release step of pinning real checkpoint hashes
+  (blocked on the external artifacts) remains in `verify-artifact-integrity`.
+- **Optional per-job wall-clock timeout completes the web-API hardening.**
+  `JobManager` now accepts `max_job_seconds`: a job that runs past it is marked
+  `ERROR` (a soft timeout — the worker thread cannot be cancelled, so it finishes in
+  the background but its result is discarded and the caller sees the timeout). Off by
+  default. With this and the durable-job-backend seam documented behind the
+  `JobManager` interface, `harden-web-api` is complete — its size cap, in-flight cap,
+  bounded job store, optional off-loopback auth, and timeout are folded into the
+  `web-api` spec and the change is archived.
+- **The content-addressed cache can verify payload integrity on read.**
+  `ContentAddressedCache` served whatever bytes were on disk, so a corrupted or
+  externally-modified entry was returned as-is. It now takes an opt-in
+  `verify=True`: each entry gets a checksum sidecar on write, and reads re-hash the
+  payload and raise `CacheIntegrityError` on a mismatch. Off by default (no sidecars,
+  no overhead), so existing caches are unchanged. (Part of the in-progress
+  `verify-artifact-integrity`, task 4.)
+- **`aforge verify <result>` turns provenance into a checkable contract.** A new CLI
+  command loads a result's ranked-menu JSON and confirms its provenance block is
+  complete and self-consistent — it names every model and dataset used and carries a
+  seed, version, and config snapshot — then, given `--cache-dir`, re-hashes each
+  pinned model checkpoint found there against the hash recorded in provenance. It
+  exits non-zero on incomplete provenance or a checkpoint hash mismatch. (Part of the
+  in-progress `complete-provenance`, task 5; the reproduce-style determinism re-run
+  needs the original reference and is a follow-up.)
+- **Off-target reports now say which scorer and weight matrix produced the scores.**
+  CFD is the number bench scientists compare against CRISPOR, but nothing in the
+  output said whether a score came from the published Doench matrix or the shipped
+  transparent approximation. `CfdScorer`/`Cas12aCfdScorer` now expose a `matrix`
+  identity, `OffTargetReport` carries `scorer`/`score_matrix`, the engine populates
+  them, and `aforge offtarget` surfaces them — so the default is honestly labeled
+  `doench-2016-seed-tolerance-approximation` and the Cas12a analog is flagged
+  `unvalidated`. (Part of the in-progress `ship-published-cfd-matrix`, task 3;
+  defaulting to the authentic Doench matrix stays blocked on an authoritatively
+  sourced, cross-verified copy. Off-target and reproduce goldens were regenerated.)
+- **Provenance snapshots the full resolved settings.** `config_snapshot` was a
+  hand-built subset of run parameters that could drift from the `Settings` that
+  actually governed a run. It now also embeds the full resolved settings via the
+  new `Settings.snapshot()` (seed, reference, interval level, MAF threshold,
+  network policy — minus the volatile per-machine `cache_dir`), so a result is
+  re-derivable from what governed it. (Part of the in-progress `complete-provenance`,
+  task 3; the load-bearing seed/RNG, CLI/web config-file honoring, and `aforge
+  verify` remain open.)
+- **Design provenance records the datasets it consumed.** `Provenance` defaulted
+  `datasets`/`tools` to empty and the designer populated only `models`, so a menu's
+  provenance under-reported its own inputs even though the dataset-capture helpers
+  existed — they were never wired in. The design path now collects the reference
+  build's `DatasetVersion` (and gnomAD/ClinVar once they carry a version) into
+  `Provenance.datasets` via `_collect_datasets`, mirroring `_collect_model_checkpoints`,
+  so a result no longer silently omits a dataset it read. (First slice of the
+  in-progress `complete-provenance`; the load-bearing seed, full config snapshot,
+  CLI/web config-file honoring, and `aforge verify` remain open.)
+- **Cached artifacts are re-verified on every load (hash-on-read).** The
+  consent + license + checksum gate was bypassed exactly where tampering matters —
+  on cache hits: `ModelRegistry.checkpoint`, `DatasetRegistry.resolve`, and
+  `ReferenceGenome.from_build` only hashed bytes on download and returned an
+  existing cached file unverified. Each now re-verifies a cached checkpoint,
+  dataset, or reference FASTA against its pinned hash on every load and fails
+  closed (`ChecksumError`) on a mismatch, so a tampered or truncated cache entry
+  can no longer pass silently. Artifacts with no pinned hash are served as before.
+  Relatedly, `known_failure_modes` is now a **required**, non-empty `ModelCard`
+  field (validated at construction), so every model's audit surface is complete and
+  rides into provenance rather than being an optional afterthought. (Part of the
+  in-progress `verify-artifact-integrity`; pinning real hashes for the remaining
+  cards is a maintainer release step, and the cache content-verify remains open.)
+- **Wet-lab oligo path is now alphabet-, scaffold-, and boundary-safe**
+  (`validate-oligo-alphabet`). The oligo module emits the exact duplexes a bench
+  scientist orders, so a wrong sequence wastes reagents. `revcomp` used
+  `str.maketrans` and silently passed any non-`ACGTN` character through
+  untranslated (an RNA `U`, an IUPAC code, stray whitespace) — a mis-complemented
+  antisense oligo that could still round-trip because both strands shared the bad
+  complement. Now: (1) `revcomp` and every oligo-construction input are validated
+  against the `ACGTN` DNA alphabet and raise a clear error naming the offending
+  character; (2) the pegRNA scaffold is verified against the canonical SpCas9
+  scaffold constant, so a wrong or empty scaffold is caught rather than shipped;
+  (3) the pegRNA extension carries an RTT/PBS boundary check that compares the
+  whole extension body to `RTT + PBS` (independent of the stored slice length), so
+  a mis-split extension is detected, plus a `component_lengths` annotation. Valid
+  DNA inputs are unchanged.
+- **Bulletproofed population/haplotype off-target nomination** — the tool's
+  differentiated capability — on four correctness fronts (`bulletproof-offtarget-nomination`):
+  (1) **Best alignment per anchor.** Each PAM anchor now reports the *edit-minimal*
+  alignment across ungapped / single-DNA-bulge / single-RNA-bulge candidates, with a
+  deterministic tie-break, instead of the first in-budget one found — so a bulged
+  near-perfect match (higher CFD, more dangerous) is never under-scored behind a
+  many-mismatch ungapped alignment. (2) **Indel-aware coordinates.** When a population,
+  haplotype, or patient variant changes the window length, hits are scanned in
+  alt-local coordinates and *lifted back* to true genomic coordinates through the
+  indel, so insertions and deletions place downstream sites correctly (a capability
+  CRISPOR and Cas-OFFinder lack); the equal-length (SNV) path is byte-for-byte
+  unchanged. (3) **Partial haplotype application.** One ref-clashing variant no longer
+  discards a whole haplotype's nominations — the non-clashing subset is applied and the
+  skipped variants are recorded on the site provenance (`SiteProvenance.skipped_variants`).
+  (4) **Unified dirty-input handling.** Bases outside `ACGTN` are folded to `N` up front
+  so the linear scan and the FM-index/native path agree — both skip an unexpected base
+  rather than one silently mis-scoring while the other raises.
+- **Honest-uncertainty contract, enforced end to end.** The `calibrated` and
+  out-of-distribution flags are no longer honor-system, and ranking now acts on
+  uncertainty instead of ignoring it (`harden-uncertainty-honesty`). Four hardenings:
+  (1) `calibrated = True` is **unforgeable** — only a fitted calibrator can set it,
+  through the new `Prediction.calibrated_by` classmethod; a scorer that constructs a
+  `Prediction` asserting calibration directly is silently coerced to
+  `calibrated = False`. (2) An **out-of-distribution prediction can never be
+  calibrated** and its interval is **widened, never narrowed** (`OOD_WIDEN_FACTOR`), so
+  an OOD input can't present a narrow, confident interval even when ensemble members
+  agree. (3) The **weight-free stub embedder path is labeled honestly** — the default
+  ensemble on the stub reports `method = heuristic`, `calibrated = False`, so
+  content-hashed noise is never mistaken for a trained model. (4) **Interval repair is
+  recorded, not silent** — when a point estimate falls outside its own interval (an
+  inconsistent-head signal), the interval is widened to contain it *and* an auditable
+  note is attached (new `Prediction.notes` field). Ranking became
+  **uncertainty-aware**: the efficiency objective uses the point estimate
+  in-distribution but the **lower interval bound out-of-distribution**, so a
+  confident-looking OOD candidate can no longer outrank an otherwise-equal
+  in-distribution one, and each candidate's interval and OOD status now appear in its
+  score breakdown and the menu rationale. The reproducibility golden was regenerated to
+  reflect the new, honest ranking output.
+- **Aggregate genome-wide off-target specificity score.** `OffTargetReport`
+  gained `specificity_score()` — the CFD-scale analog of the Hsu 2013 / MIT guide
+  specificity (`100/(100+Σ)`), i.e. `1/(1 + Σ site scores)` ∈ (0, 1], **1.0** for a
+  guide with no nominated off-targets and decreasing as the total burden grows.
+  The report already aggregated site count, worst-case, and ancestry strata, but
+  lacked the field-standard single-number specificity that distinguishes two guides
+  with the same worst-case off-target but a different *number* of off-targets. It is
+  now a `CandidateReport.offtarget_specificity` export field (schemas regenerated)
+  and is rendered in the HTML and PDF reports. It is surfaced across every output
+  surface that summarizes off-target: the standalone `aforge offtarget` command
+  (JSON `specificity` + the human one-liner) and the cohort batch summary
+  (`best_specificity`, the top candidate's specificity — in the JSONL manifest, the
+  per-item TSV, and `design.design_many`'s summaries), so cohort triage can rank by
+  total off-target burden, not just the single worst site. The web API closes the
+  last gap: `POST /api/offtarget` now returns an `OffTargetResponse` envelope —
+  the full report **plus** the aggregate summary (`n_sites`, `worst_score`,
+  `specificity`, `ancestry_stratification`) — because those aggregates are
+  *methods* on `OffTargetReport` and so were absent from its serialized fields,
+  leaving an API client to recompute what the CLI already prints.
+- **Phase 0 — Repository bootstrap.** Hatchling build, `aforge` console-script
+  entry point, dependency groups (`core`/`genome`/`variant`/`ml`/`web`/`docs`/`dev`),
+  pinned tool configuration (ruff line-length 100; mypy `strict`; pytest with an
+  85% coverage gate). Rust PyO3 crate `aforge_native` (built with maturin)
+  exposing `version()` to prove the toolchain end to end. Single-source version
+  in `_version.py`; typed `Settings` (pydantic-settings) carrying every
+  cross-cutting default (seed `20240501`, reference `hg38`, 80% interval level,
+  MAF threshold `0.001`, XDG cache dir). MIT license for all code, schemas,
+  benchmark, and first-party weights; `CITATION.cff`, Contributor
+  Covenant 2.1 code of conduct, contributing guide, multi-stage `Dockerfile`,
+  `docker-compose.yml` stub, conda environment file, and a GitHub Actions CI
+  matrix (lint, type-check, test, strict docs build).
+- **Phase 1 — Core domain types & schemas.** The typed vocabulary under
+  `alleleforge.types`: strand-aware `DNASequence` with ambiguity-aware
+  reverse-complement, `GenomicInterval` (0-based half-open), `Variant` with
+  idempotent normalization, guide/pegRNA/nicking-guide models with structural
+  validation, edit-outcome and strategy models, off-target site/report models
+  with ancestry stratification, the generic `Prediction[T]` uncertainty
+  contract (80% interval, method tag, in-distribution and calibration flags),
+  design-candidate and ranked-menu models, and the provenance block. JSON
+  Schemas for every public model are emitted to `docs/schemas/`.
+- **Phase 2 — Genome access & indexing.** `alleleforge.genome`: a strand-aware,
+  bounds-checked `ReferenceGenome` over pyfaidx that N-pads contig ends and
+  flags the over-run rather than crashing, with a registry of built-in builds
+  (hg38, T2T-CHM13 v2, mm39) and consent-gated, checksum-verified download; a
+  content-addressed, memory-mapped FM-index (with a correct pure-Python fallback
+  when the Rust kernels are not built) for PAM-anchored candidate search; and
+  cross-build liftover plus `flag_ambiguous_regions()`, which recommends
+  T2T-CHM13 for segmentally-duplicated / centromeric / hg38-difficult loci and
+  wires the recommendation into the Phase 1 result types.
+- **Phase 3 — Data registry & population datasets.** `alleleforge.data`: a
+  license-aware, versioned `DatasetRegistry` that never vendors a
+  non-redistributable source and refuses to fetch an artifact it cannot
+  checksum-verify; ClinVar parsing into normalized variants with
+  significance/review-status and `get`/`by_rsid`/`by_gene`/`in_region` lookups;
+  gnomAD per-population allele-frequency queries; 1000 Genomes and HGDP phased
+  common-haplotype enumeration; dbSNP rsID ↔ locus resolution; and GENCODE gene
+  models plus ENCODE bedGraph signal lookups. Every parser reads plain-text
+  fixtures so CI needs no `pysam`/`cyvcf2`. Dataset versions, licenses, and
+  citations are documented in `docs/data.md`.
+- **Phase 4 — Variant resolver.** `alleleforge.variant`: `resolve(...)` turns a
+  ClinVar accession, dbSNP rsID, HGVS (`g.`/`c.`/`p.`), VCF record, raw
+  coordinates, or a raw target sequence into one canonical, **left-aligned**,
+  reference-validated `Variant` (a ref/reference disagreement is a hard error)
+  with its working interval and molecular consequence. Includes a
+  dependency-free genomic-HGVS parser, an `HgvsAdapter` that projects coding /
+  protein expressions through an injected backend, and a VEP-style
+  `EffectPredictor` protocol with a deterministic static implementation.
+- **Phase 5 — Off-target engine (population & haplotype aware).**
+  `alleleforge.offtarget`: a five-stage [`search`][] — reference candidate
+  search (PAM-anchored, ≤4 mismatches, ≤1 DNA + ≤1 RNA bulge, both strands;
+  Rust FM-index with a correct linear-scan fallback), gnomAD **population
+  augmentation** that finds *de novo* PAMs and strengthened seed-mismatch sites,
+  **haplotype-aware** walking of common 1000G/HGDP haplotypes, an optional
+  patient-VCF pass, then CFD+MIT scoring, thresholding (CFD ≥ 0.20 or MIT ≥ 0.10),
+  de-duplication, and **ancestry stratification by default**. Published MIT/Hsu
+  and CFD scorers (the exact Doench PAM table; an injectable mismatch table) plus
+  a Cas12a CFD analog, behind a swappable `OffTargetScorer` protocol; an optional
+  Cas-OFFinder cross-check. The reference-bias / `rs114518452` finding is
+  reproduced as an integration test: a reference-only scan is blind to the
+  ancestry-enriched off-target the population-aware scan nominates. Cites
+  Hsu et al. *Nat Biotechnol* 2013, Doench et al. *Nat Biotechnol* 2016, and
+  Cancellieri & Pinello *Nat Genet* 2023.
+[`search`]: https://github.com/clay-good/alleleforge/blob/main/src/alleleforge/offtarget/engine.py
+- **Phase 6 — Scoring foundations (model zoo, embeddings, uncertainty).** The
+  reusable ML substrate before any chemistry-specific predictor.
+  `alleleforge.model_zoo`: a `ModelRegistry` over required, validated YAML
+  **model cards** that refuses a missing card, a license that forbids the use
+  (non-commercial cards block commercial use; unknown/proprietary refused), or an
+  unverifiable checkpoint, surfacing each as a Phase 1 `ModelCheckpoint`; bundled
+  cards for Nucleotide Transformer v2 (500M) and Rule Set 3.
+  `alleleforge.scoring`: a swappable `SequenceEmbedder` protocol (NT v2 default;
+  Caduceus and Evo 2 adapters; a deterministic weight-free `StubEmbedder` and a
+  hash-keyed embedding cache for CI); calibrated-uncertainty machinery — a
+  deep ensemble (N=5, the default) whose interval widens on disagreement, an
+  evidential (Normal-Inverse-Gamma) single-model fallback, quantile intervals,
+  isotonic post-hoc calibration with `expected_calibration_error`, and an
+  embedding-space `OODDetector`, all packaged into the Phase 1 `Prediction`; and
+  the `Scorer` protocol with a runtime `ensure_prediction` guard enforcing the
+  no-bare-float contract. Pure stdlib — no numpy/torch in the core path; real
+  backbones are gated behind the `real_weights` marker. PyYAML joins the core
+  dependencies for card parsing. Cites Hsu/Doench, Amini et al. *NeurIPS* 2020
+  (deep evidential regression), and Dalla-Torre et al. *Nat Methods* 2024 (NT).
+- **Phase 7 — Chemistry: SpCas9 nuclease.** The first full vertical slice
+  (enumerate -> efficiency -> outcome -> off-target -> candidate).
+  `alleleforge.enumerate.cas9`: strand-aware enumeration of every PAM-anchored
+  guide whose blunt cut (3 bp 5' of the PAM) falls in the actionable window, with
+  `NG`/SpRY fallback only when no `NGG` guide is actionable, an HDR donor for
+  precise intents, and a guide-context helper. `alleleforge.scoring.cas9_efficiency`:
+  a transparent Rule-Set-3-style baseline (with the DeWeirdt-Doench tracrRNA-aware
+  term) and a backbone-fine-tuned deep-ensemble scorer with embedding-space OOD
+  flagging — both calibrated `Prediction`s, never bare floats.
+  `alleleforge.scoring.cas9_outcome`: a microhomology/MMEJ + templated-1-bp-insertion
+  indel-spectrum baseline (the inDelphi mechanism) plus license-gated inDelphi /
+  Lindel / X-CRISP adapters and an ensemble mode reporting inter-model top-allele
+  agreement. `alleleforge.design.cas9`: `design_cas9` wires the slice into ranked
+  `DesignCandidate`s, each with a calibrated efficiency interval, predicted outcome
+  distribution, and ancestry-stratified off-target report. Bundled model cards for
+  the efficiency ensemble and inDelphi. Cites DeWeirdt & Doench *Nat Commun* 2022
+  (Rule Set 3) and Shen et al. *Nature* 2018 (inDelphi).
+- **Phase 8 — Chemistry: base editing (ABE / CBE).** A declarative `BaseEditor`
+  registry (deaminase, chemistry, window, PAM, motif preference) seeded with
+  ABE8e, CBE4max, and evoCDA1 — adding an editor is a data change.
+  `alleleforge.enumerate.base_editor.enumerate_base_edits` finds, for the
+  transition a variant requires (only transition SNVs are base-editable;
+  strand-aware), every sgRNA placing the target base in the activity window,
+  annotated with target / bystander positions and the in-window composition.
+  `alleleforge.scoring.base_outcome`: a transparent window-outcome baseline (the
+  BE-DICT mechanism — per-position editing probability × motif preference,
+  enumerating the 2^k window alleles) yielding the allele distribution plus
+  calibrated `p_intended_exact` and `bystander_burden`, license-gated BE-DICT /
+  BE-Hive adapters, and a cross-editor recommendation. `alleleforge.design.base_editor.design_base_editor`
+  wires enumerate -> outcome -> off-target into `DesignCandidate`s ranked by exact-
+  intended probability then bystander burden, flagging the cleanest as
+  recommended and surfacing the tradeoff on every candidate. Phase 1
+  `BaseEditWindow` gains optional placement/PAM and a `window_bases` property;
+  `DesignCandidate` gains a `base_edit_window` reagent slot. Bundled BE-DICT
+  model card. Cites Richter et al. 2020 (ABE8e), Koblan et al. 2018 (BE4max),
+  Thuronyi et al. 2019 (evoCDA1), and Marquart et al. 2021 (BE-DICT).
+- **Phase 9 — Chemistry: prime editing (the flagship).** The chemistry where no
+  open-source tool combines all four axes — AlleleForge unifies them.
+  `alleleforge.enumerate.prime.enumerate_prime`: full pegRNA enumeration (both
+  strands via a reverse-complement frame) — for each PAM whose nick sits 5' of the
+  edit, it enumerates **PBS 8-17 nt** and **RTT 7-34 nt** (covering the edit + >= 5
+  nt 3' homology), attaches a **tevopreQ1** epegRNA motif by default, and selects a
+  **PE3/PE3b** nicking guide (preferring a seed-disrupting PE3b ngRNA). Emits
+  structurally-validated `PegRNA` + `NickingGuide` pairs.
+  `alleleforge.scoring.prime_efficiency`: a transparent PRIDICT2.0-style baseline
+  over the pegRNA geometry with an **ePRIDICT** chromatin adjustment (ENCODE
+  tracks) and **prominent OOD honesty** — any context outside PRIDICT's HEK293T /
+  K562 training distribution flags `in_distribution=False`; plus license-gated
+  DeepPrime / GenET cross-check adapters. `alleleforge.scoring.prime_outcome`: an
+  intended-vs-byproduct distribution (scaffold incorporation, partial RTT, indels)
+  with calibrated intended probability. `alleleforge.design.prime.design_prime`
+  wires enumerate -> efficiency -> outcome -> off-target into ranked
+  `DesignCandidate`s, running the off-target engine on **both** nicks and merging
+  them into one ancestry-stratified report. Phase 1 `PegRNA` gains optional
+  placement / nick-site fields. Bundled PRIDICT2.0 card; canonical example
+  `examples/01_clinvar_to_design.ipynb`. Cites Mathis et al. 2023/2024
+  (PRIDICT / PRIDICT2.0 / ePRIDICT).
+- **Phase 10 — Designer: routing, multi-chemistry menu, ranking.** The
+  orchestrator that turns one variant into a ranked, explained menu across every
+  eligible chemistry. `alleleforge.design.routing`: `eligible_chemistries` and
+  `route` over a small table of transparent, inspectable `RoutingRule`s — each a
+  chemistry paired with a one-line biological rationale and a pure
+  `(resolved, intent)` predicate (a transition SNV → base editing; any precise
+  small edit → prime; disruption intent → nuclease). Adding or relaxing a rule is
+  a one-line data change and every verdict is explained.
+  `alleleforge.design.ranking`: multi-objective ranking projecting every
+  candidate — regardless of chemistry — onto four shared, higher-is-better
+  objectives (calibrated efficiency, outcome cleanliness, off-target safety,
+  reagent simplicity), ordered by a transparent weighted sum (defaults 0.35 /
+  0.30 / 0.30 / 0.05, all overridable and echoed in output) **and** a Pareto
+  front. The safety term is computed against the **worst-affected ancestry**, not
+  the average, so a guide safe on average but dangerous in one population is
+  correctly down-ranked. `alleleforge.design.designer.design`: resolves any input
+  form (or an already-`ResolvedVariant`), routes, enumerates and scores per
+  chemistry, ranks across them, and returns a `RankedMenu` with the Pareto front
+  and a full provenance block. **Degrades gracefully** — an unavailable model, a
+  failing enumeration, or a chemistry that finds nothing is recorded with its
+  reason in the menu rationale while the rest of the menu still returns.
+- **Phase 11 — Reporting & oligo output.** Turns a ranked menu into the
+  artifacts users consume, leading with the research-use disclaimer and ending
+  with full provenance on every render — **dependency-free**.
+  `alleleforge.report.oligos`: cloning-ready annealed oligo duplexes per
+  chemistry — SpCas9 / base-editor sgRNAs (vector overhangs + U6 `G`) and
+  pegRNAs (spacer duplex + 3' extension carrying RTT + PBS + the epegRNA motif,
+  plus the PE3/PE3b ngRNA duplex) — parameterized by named `VectorScheme`s
+  (lentiGuide BsmBI, pX330 BbsI, pegRNA GG BsaI). Every set `reconstruct()`s the
+  intended spacer / RTT / PBS, the headline round-trip invariant.
+  `alleleforge.report.builder`: assembles a `RankedMenu` into a serializable
+  `DesignReport` (per-candidate reagent summary, calibrated efficiency, top
+  outcome alleles, ancestry-stratified off-target table, oligos, flags,
+  rationale). `alleleforge.report.export`: JSON (full report, or the menu
+  validated against the Phase 1 schemas), one-row-per-candidate TSV, and
+  lazy-`polars` Parquet. `alleleforge.report.html`: a self-contained interactive
+  HTML page — Plotly charts pulled from a CDN with figure specs inlined as JSON
+  (no Python plotting dependency, no sequence data leaves the page) — and
+  `alleleforge.report.pdf`: a small pure-Python writer emitting a valid,
+  print-ready multi-page PDF. JSON Schemas emitted for the new report and oligo
+  models. Cites the lentiCRISPRv2 (Sanjana et al. 2014), pX330 (Ran et al.
+  2013), pegRNA GG-acceptor (Anzalone et al. 2019), and epegRNA motif (Nelson
+  et al. 2022) cloning protocols.
+- **Phase 12 — CLI (`aforge`).** A thin, reproducible, config-driven Typer shell
+  over the library (new optional `cli` extra) with **no business logic** of its
+  own. `aforge resolve` normalizes any input form; `aforge design` runs the full
+  variant→ranked-menu pipeline and renders JSON / TSV / HTML / PDF (writing a
+  `.provenance.json` sidecar next to file output); `aforge offtarget` runs a
+  standalone population-aware search for a spacer; `aforge data list`/`show`
+  inspects the dataset registry; `aforge bench` is wired for Phase 14. Global
+  `--seed` / `--reference` / `--cache-dir` / `--verbose` / `--version`, a
+  `--json` flag on every command, `--config run.toml` with CLI overrides, and
+  ranking-`--weights` parsing. Meaningful, distinct exit codes (`0` ok, `2`
+  usage, `3` missing data, `4` unavailable feature); runs are reproducible from
+  the echoed seed + config modulo timestamp. The `aforge` entry point now
+  resolves to the real Typer app; the CI test and type-check jobs install the
+  `cli` extra. CLI usage page added to the docs.
+- **Phase 13 — Web UI & API.** A FastAPI backend (`alleleforge.web.api`) exposing
+  the library over HTTP and a dependency-free served single-page frontend
+  (`alleleforge.web.frontend`). `create_app(...)` builds a thin async layer with
+  **no business logic beyond orchestration**: `resolve`, `design`
+  (`?format=json|html|pdf`), `offtarget`, `data` list/show, `bench`, and
+  `health` endpoints, each validating requests/responses against the Phase 1 /
+  Phase 11 pydantic schemas with auto-generated OpenAPI. Long design runs go
+  through an **in-process async job queue** (`POST /api/jobs/design` →
+  `GET /api/jobs/{id}`) that runs work in a worker thread with a state/progress
+  status endpoint. The reference genome is supplied by the deployment
+  (`create_app(reference=...)` or `ALLELEFORGE_REFERENCE_FASTA`); endpoints that
+  need it return `503` until one is configured. The served frontend implements
+  the variant-first journey (entry → ranked menu with interactive Plotly +
+  ancestry-stratified off-target → oligo/report export) by embedding the
+  server-rendered HTML report, with a prominent research-use disclaimer and a
+  no-egress notice. **All compute is local: the app makes no outbound network
+  call and transmits no sequence data externally**, asserted by a test that
+  fails if any socket connects during a design request. New `Dockerfile` and
+  `docker-compose.yml` for one-command local deploy; `httpx` added to the `web`
+  extra and `pytest-asyncio` to `dev`; `GenomicInterval` gains a clean
+  `chrom:start-end(strand)` `__str__`. 31 async endpoint tests (httpx +
+  ASGITransport) cover every route, schema validation, the job lifecycle, exit
+  paths, and the no-egress guarantee. Web API page added to the docs.
+- **Phase 14 — CRISPR-Bench.** A standardized, calibration-first benchmark for
+  guide- and edit-design models under `alleleforge.benchmark` (an installed
+  subpackage, pure-Python and dependency-light, held to the same
+  `mypy --strict`/ruff/coverage gates as the rest of the library). Five fixed
+  task contracts (`tasks.py`): Cas9-efficiency and PE-efficiency (regression),
+  Cas9-outcome and BE-outcome (distribution), and off-target-classification.
+  Provenance-stamped, license-aware datasets (`datasets/`) shipped as small
+  **synthetic fixtures** for CI, with the real corpora (Rule Set 3, FORECasT,
+  BE-Hive, PRIDICT2, GUIDE-seq) fetched at runtime through the consent-gated
+  registry. **Frozen, content-hashed splits** (`splits/`) with deliberate
+  cross-cell-type test folds; `load_split()` re-verifies both the dataset content
+  hash and the split membership hash on read and raises `SplitIntegrityError` on
+  any drift — changing the data or the split requires a new version. A
+  pure-Python metric battery (`metrics.py`): Spearman/Pearson, KL/top-k,
+  AUROC/AUPRC, and **Expected Calibration Error required on every task**
+  (interval coverage for regression, binned reliability for classification,
+  predicted-mode reliability for distributions). A `runner.py` that evaluates any
+  `BenchScorer` (the library's efficiency `Scorer`s already conform), enforces
+  the no-bare-float contract at the seam, and emits a **signed** (content-hashed),
+  provenance-stamped `BenchmarkResult`. A model-card-gated `leaderboard.py`
+  (`Submission`/`Leaderboard`) that rejects unsigned, edited, or uncarded entries,
+  ranks by metric direction (KL/ECE ascending), and renders static
+  Markdown/HTML with calibration shown next to accuracy. A reference
+  `BaselineScorer` fit on the train-fold marginal so every task runs out of the
+  box. `aforge bench list` / `aforge bench run` wired over the runner. 63 tests
+  (metrics vs hand-computed values, split-integrity tamper/drift detection,
+  end-to-end runner across all kinds with signature reproducibility, leaderboard
+  gating, and CLI). New `benchmark/README.md` (datasets/licenses/citations, split
+  philosophy, submission format, launch plan), a CRISPR-Bench docs page,
+  benchmark JSON schemas, and a deterministic fixture generator
+  (`scripts/make_benchmark_fixtures.py`).
+- **Phase 15 — Documentation, examples, and release.** Two new runnable example
+  notebooks: `examples/02_population_offtarget.ipynb` (reproduces the
+  reference-bias / `rs114518452` ancestry-stratified off-target finding;
+  Cancellieri & Pinello, *Nat Genet* 2023) and `examples/03_batch_vcf.ipynb`
+  (cohort-scale design reduced to one auditable summary with provenance). All
+  three notebooks are **self-contained against the stub models** and **executed in
+  CI** via a new `examples` job (`pytest --nbmake examples/ --no-cov`); `nbmake`
+  and `ipykernel` added to the `dev` extra, and `01_clinvar_to_design.ipynb`
+  normalized to nbformat 4.5 (cell ids). New docs pages: a deployment & operations
+  guide (`docs/deployment.md`), an examples/tutorials gallery (`docs/examples.md`),
+  and a methods-preprint outline (`docs/paper/outline.md`), all wired into the
+  mkdocs nav and built strictly in CI. Release engineering: a tag-triggered
+  `release.yml` workflow (build → PyPI via OIDC Trusted Publishing → multi-arch
+  `linux/amd64`+`linux/arm64` Docker image to GHCR → GitHub Release), a Zenodo
+  metadata file (`.zenodo.json`) for DOI minting on first tag, and a bioconda-style
+  recipe (`conda/meta.yaml`). README updated with the runnable-examples gallery and
+  the release/packaging matrix; all fifteen build phases are now complete.
+- **v0.1.0 acceptance suite (`tests/test_acceptance.py`).** Encodes the
+  specification's §16 "definition of done" as six executable end-to-end checks,
+  complementing the per-component unit tests: a **ClinVar accession** flows
+  through `design()` to a complete menu (every candidate carrying a calibrated
+  efficiency interval, an outcome distribution, and an off-target report or an
+  explicit reason); the unified entry point **reaches every chemistry** (base,
+  prime, nuclease); a run is **reproducible from seed** (identical serialized
+  menu); the **reference-bias / `rs114518452`** off-target case is reproduced;
+  **prime editing unifies all four axes**; and **CRISPR-Bench publishes** the
+  Cas9-efficiency, PE-efficiency, and off-target tasks with frozen splits,
+  calibration, signed results, and a working leaderboard. All run against the stub
+  models, so the release contract is verified on every CI run.
+- **Native FM-index kernel (`aforge_native::bwt`).** The Rust crate now implements
+  the genome-scale FM-index off-target search path the layout reserved for it:
+  `fm_build` / `fm_count` / `fm_locate` and a `NativeFmIndex` object exposing
+  `count`, `locate`, `pam_sites` (with IUPAC PAM expansion), `content_hash`, and
+  `length`. `FMIndex.build(prefer_native=True)` transparently uses it when the
+  crate is present and falls back to pure Python otherwise. Construction mirrors
+  the Python fallback exactly (sentinel, C-table, checkpointed occ/rank, sampled
+  suffix array, LF-walk, SHA-256 content hash), and a new parity test module
+  (`tests/genome/test_native.py`, marked `native`) pins the native output to be
+  **byte-identical** to the fallback across texts, patterns, and PAM sites. The
+  CI `rust` job now builds the wheel and runs the parity suite; the existing
+  FM-index tests are pinned to the pure-Python path so they stay deterministic
+  whether or not the crate is built. Adds the `sha2` crate dependency.
+- **Post-v0.1.0 roadmap (`SPEC_V2.md`).** A phase-structured contract for the work
+  to "bake" the release before v1.0: R0 release hardening (pin real artifact
+  hashes), R1 real-weights integration, R2 native `kmer`/`haplotype` kernels +
+  SA-IS wired onto the off-target hot paths, R3 external-tool adapters, R4 scale,
+  R5 validation/calibration + methods preprint, and the R6 v1.0 criteria.
+- **R1 — consent-gated real backbone weights (first slice).** Real
+  sequence-embedding backbones now resolve their weights through the
+  license-gated, consent-required, checksum-verified model zoo instead of a bare
+  `from_pretrained(model_id)`. Adds `ModelRegistry.authorize(name, *, use,
+  consent)` (the license + consent gate for hub-resolved models, returning the
+  provenance `ModelCheckpoint`); `SequenceEmbedder.resolve_weights()` (uses the
+  pinned-artifact download+checksum path when the card pins a hash, else the
+  authorize gate, recording the resolved checkpoint) and `model_checkpoint()`;
+  and `EnsembleEfficiencyScorer.backbone_checkpoint()` so the cas9 efficiency
+  chemistry stamps the backbone into provenance. Adds model cards for the
+  `caduceus` and `evo2` backbones. The full consent/license/checksum flow is
+  CI-tested with an injected downloader (no network, no torch — 8 new tests); the
+  real tensor load stays behind the `real_weights` marker. The default backbone
+  (Nucleotide Transformer v2, CC-BY-NC-SA) is loadable for research and refused
+  for commercial use by the license gate.
+- **R1 — backbone ONNX export path (`export_onnx`).** The HuggingFace backbone
+  embedders now export the consent-resolved model to a portable ONNX graph
+  (`_HuggingFaceEmbedder.export_onnx(path, *, sample_sequence=...)`): the model is
+  resolved through the same consent gate, traced on a sample sequence, and written
+  with **dynamic batch and sequence axes** (opset 17) so it runs under any ONNX
+  runtime without torch/transformers at inference time. This replaces the prior
+  `NotImplementedError` stub. The export code is wired now; running it needs the
+  `ml` extra and real weights, so — like the tensor forward pass — it stays behind
+  the `real_weights` marker.
+- **R5 — reproducible SVG figures for the docs & preprint (`alleleforge.viz`).** A
+  dependency-free, hand-rolled SVG bar-chart renderer (`viz.svg`, the same
+  no-plotting-stack discipline as the PDF report) plus four figures (`viz.figures`)
+  computed from the **weight-free, deterministic** pipeline: the reference-bias
+  reproduction (reference-only vs population-aware off-target nomination), the
+  split-conformal coverage restoration, per-task CRISPR-Bench ECE, and the
+  cross-cell-type generalization gap. Figures regenerate byte-for-byte from config +
+  seed (`scripts/figures.py`, `make figures`), are committed under
+  `docs/assets/figures/`, and are embedded in the README and methods preprint. The
+  deterministic calibration/generalization computations moved into a library module
+  (`alleleforge.benchmark.calibration`) so the markdown report and the figures share
+  one source of truth; `scripts/calibration_study.py` now delegates to it. 26 new
+  tests; no new runtime dependency.
+- **R1 — menu provenance now records every model invoked.** `design()` stamps the
+  card-backed `ModelCheckpoint` of each eligible chemistry's scorers into
+  `RankedMenu.provenance.models`, which previously always shipped empty despite the
+  field documenting "checkpoints of every model invoked." Each vertical exposes its
+  default checkpoints (`cas9_model_checkpoints()`, `prime_model_checkpoints()`,
+  `base_editor_model_checkpoints()`); the designer aggregates and dedupes them by
+  name + version, scoped to the chemistries that were actually eligible (a
+  knock-out records only the Cas9 efficiency + outcome models, an A→G install
+  records BE-DICT + PRIDICT2.0). The HTML and PDF report footers now render the
+  invoked models, and the reproducibility golden captures them (they are
+  deterministic and scientifically meaningful, so they belong in the digest).
+- **R1 — consent-gated trained prime-efficiency adapters.** The trained
+  prime-editing efficiency adapters (`DeepPrimeAdapter`, `GenETAdapter`) now
+  resolve their weights through the same consent/license/checksum flow as the
+  backbone: `resolve_weights()` (pinned-artifact download+checksum or the
+  `authorize` gate) and `model_checkpoint()`, and `score()` runs the consent gate
+  before any inference. Adds bundled, license-gated model cards for `deepprime`
+  and `genet` (both research-only, so the license gate refuses commercial use).
+  The flow is CI-tested with an injected downloader (no ML stack); the trained
+  forward pass stays gated behind real weights. The `PridictScorer` heuristic
+  baseline remains the CI default.
+- **R1 — shared `WeightGate` + consent-gated outcome adapters.** Extracted the
+  consent/license/checksum weight-resolution flow into a single
+  `model_zoo.loader.WeightGate` mixin and refactored every trained model onto it
+  (the sequence backbone, the prime-efficiency adapters, and now the cas9-outcome
+  `InDelphi`/`Lindel`/`X-CRISP` and base-edit-outcome `BE-DICT`/`BE-Hive`
+  adapters), removing four copies of the same logic. Each outcome adapter's
+  `predict()` now runs the consent gate before inference. Adds bundled,
+  license-gated cards for `lindel`, `x-crisp`, and `be-hive` (all research-only).
+  The consent/license/checksum flow is CI-tested per chemistry with an injected
+  downloader (no ML stack); the trained forward passes stay behind real weights.
+  `loader.py` is at 100% coverage.
+- **R2 — k-mer seed kernel on the off-target scan.** A native Rust k-mer kernel
+  (`kmer.rs`: `kmer_seed_positions`) with a pure-Python fallback
+  (`offtarget._kmer`) and a seed-and-extend prefilter wired into the off-target
+  scan (`scan_sequence(..., seed=...)`). By the pigeonhole bound (partition the
+  spacer into `E+1 = mismatches+dna_bulges+rna_bulges+1` blocks; ≥1 is uncut and
+  substitution-free) any in-budget alignment shares an exact length-`k` seed with
+  the spacer, so the prefilter is a **proven superset** — it never drops a hit.
+  Equivalence is pinned by an exhaustive randomized test (400+ cases, seeded ≡
+  brute-force across budgets/PAMs/strands), and the native seeding is pinned
+  byte-for-byte to the Python path. The prefilter **auto-engages only when the
+  seed is selective** (`k >= 5`); a micro-benchmark
+  (`scripts/native_speedup.py`) measures **~2–4x** for high-stringency scans, a
+  native seed lookup **~5–6x**, and a transparent no-op at the default
+  ≤4-mismatch+bulge budget (where the FM-index is the genome-scale path). The CI
+  rust job runs the native k-mer parity suite.
+- **R2 — true-linear FM-index suffix array build (SA-IS).** The native FM-index
+  suffix array (`bwt.rs`) is built by **SA-IS** (`sais.rs`, Nong–Zhang–Chan
+  induced sorting, `O(n)`) — superseding the interim prefix-doubling
+  (`O(n log² n)`) build, which itself superseded the direct sort's `O(n² log n)`
+  that collapsed on the long poly-A / poly-N runs and tandem repeats real genomes
+  contain. The unique sentinel keeps the suffix array unique, so it is
+  byte-identical to the direct sort: pinned **directly** by a parity test of the
+  newly-exposed `fm_suffix_array` against the ground-truth direct sort (textbook
+  pathological inputs — all-same/alternating runs, tandem repeats — plus a 500-case
+  fuzz) *and* end-to-end by the FM-index `count`/`locate`/`pam_sites` parity over
+  low-complexity and random-long inputs. The CI rust job runs all of it.
+- **R2 — FM-index seed-and-extend wired into the reference scan.** The
+  off-target engine's stage-1 reference search now runs FM-index seed-and-extend
+  (`scan_sequence(..., use_fm_index=...)`, threaded from `engine.search`): each
+  concrete PAM is *located* in a content-addressed FM-index (the PAM is the seed)
+  and only those anchors are *extended* by the shared alignment, replacing the
+  linear `O(n)` PAM pass. It returns **byte-identical hits** to the brute-force
+  scan — pinned by a randomized parity test at both the `scan_sequence` and
+  `engine.search` levels (across mismatch/bulge budgets and both strands) — and
+  **auto-engages per region** past `FM_INDEX_AUTO_THRESHOLD` (1 Mb), so
+  genome-scale contigs take the indexed path while small inputs stay on the
+  linear scan. The native Rust `bwt` kernel and the pure-Python FM-index share
+  the interface; CI exercises the Python path, the rust job the native parity.
+- **R2 — native haplotype-walk kernel wired into the haplotype engine.** A Rust
+  kernel (`haplotype.rs`: `haplotype_apply_variants`) with a pure-Python fallback
+  (`offtarget._haplotype`) materializes a common haplotype's alternative sequence
+  by applying its full variant set to the reference window — applied right-to-left
+  so indels keep later edits' coordinates valid, returning `None` on a
+  reference-base clash (a phasing/coordinate mismatch the engine skips rather than
+  mis-applying). It is wired into `offtarget.haplotype._apply_all` (the hot inner
+  step of stage 3) and is **byte-identical** to the Python path, pinned by a fuzz
+  parity test over lowercase refs, `N` bases, indels, overlaps, and
+  out-of-window positions. The R2 micro-benchmark
+  ([`scripts/native_speedup.py`](scripts/native_speedup.py)) measures **~4x**. With
+  this the three spec kernels — `bwt`, `kmer`, `haplotype` — are all on their hot
+  paths behind the fallback-plus-parity discipline; the CI rust job runs the
+  native parity suite for each.
+- **R3 — external tool adapters made real (Cas-OFFinder · VEP · HGVS).** The
+  three previously-inert `NotImplementedError` adapters now have working
+  implementations, each tested against **recorded fixtures** with the live
+  network/binary call factored behind an injection point (opt-in,
+  `live_integration`-marked, never run in CI):
+  - **Cas-OFFinder** (`offtarget.cas_offinder_adapter`): `format_input` builds the
+    binary's three-line input deck; `parse_output` reads both the legacy 6-column
+    and bulge-aware 8-column result layouts into `(chrom, position, strand)` loci;
+    `run(..., runner=...)` orchestrates write→invoke→parse with an injectable
+    runner, and the existing `disagreements()` cross-check flags divergence from
+    the native engine.
+  - **VEP** (`variant.effect`): `VepRestPredictor` queries the Ensembl region
+    endpoint through an injectable fetcher; `parse_vep_response` maps the JSON to a
+    `VariantEffect` (MANE/canonical or named-transcript selection, most-severe SO
+    term, impact tier), cached by `(variant, assembly, transcript)`.
+  - **HGVS** (`variant.hgvs_adapter`): `HgvsLibraryProjector` wraps the real `hgvs`
+    library (UTA + SeqRepo `AssemblyMapper.c_to_g`) behind the existing
+    `HgvsProjector` interface, degrading to a clear `RuntimeError` when the
+    optional library is absent.
+  Adds the `live_integration` pytest marker for the opt-in live tests.
+- **R4 — cohort-scale batch design (`design.design_many`).** Streams a whole
+  cohort through `design`: the input is consumed lazily (a `cyvcf2` stream, a
+  generator, or a list), and only the per-item working set is held — each ranked
+  menu is summarized (and optionally written to `output_dir`), then released, so
+  peak memory does not grow with cohort size (`on_result` makes the run `O(1)` in
+  cohort size). Runs are **resumable** through a JSONL run manifest that opens
+  with a provenance header (version, seed, reference build, intent, start time)
+  and against which a re-run **skips items already recorded**; per-item failures
+  are **captured, not fatal** (an unresolvable variant is recorded with its error
+  and the cohort continues). A thread-parallel path (`max_workers` +
+  `reference_factory`, since a pyfaidx handle is not thread-safe to share)
+  produces summaries identical to the sequential run. Returns a `CohortRunReport`
+  with the run counts and provenance.
+- **R4 — `cyvcf2` fast path (`variant.iter_vcf`).** The streaming VCF adapter that
+  *produces* the lazy iterator `design_many` consumes: it reads a VCF with
+  `cyvcf2` (htslib-backed) and yields one `VcfRecord` per **concrete ALT allele**,
+  splitting multi-allelic rows, skipping symbolic/`<DEL>`/spanning-`*`/non-ACGTN
+  alleles, and dropping non-`PASS` records by default — so a whole-VCF cohort flows
+  through the designer with bounded memory. The reader is **injectable**: a path is
+  opened with `cyvcf2` lazily (a clear `RuntimeError` names the `genome` extra when
+  it is absent), but any iterable duck-typed to the cyvcf2 `Variant` shape works,
+  so the split/filter logic is fully CI-tested with a fake reader and **no native
+  dependency**. (Whole-genome scale validation on a real VCF remains an opt-in
+  nightly.)
+- **R4 / Phase 12 — `aforge batch` cohort command.** The cohort path now reaches
+  the CLI audience (the "three audiences, one core" principle): `aforge batch
+  <input>` streams a whole cohort through `design_many`, **auto-detecting** a VCF
+  (`.vcf`/`.vcf.gz`/`.bcf` → the `iter_vcf` cyvcf2 fast path) from a plain
+  one-variant-per-line list (`#` comments skipped). It exposes the full streaming
+  contract as flags — `--manifest` (resumable JSONL run), `--output-dir` (durable
+  per-item menu JSON), `--max-workers` (thread-parallel with a per-worker
+  reference), `--summary-tsv` (per-item table), plus `--intent`/`--populations`/
+  `--weights`/`--no-offtarget` forwarded to `design`. Emits a human summary or, with
+  `--json`, the full provenance-stamped run report; a VCF input without `cyvcf2`
+  surfaces as a clean exit code `4` (unavailable), not a crash.
+- **R4 / Phase 13 — `POST /api/batch` cohort endpoint.** Cohort design now reaches
+  the **third audience** (the web): the endpoint takes a JSON variant list, runs
+  `design_many`, and returns the per-item summaries, counts, and run provenance
+  (per-item failures isolated, not fatal), all behind the same `503`-until-a
+  -reference-is-configured contract as `/api/design`. The shared design knobs
+  (intent/chemistries/weights) are factored into one `_design_options` helper used
+  by both `/api/design` and `/api/batch`. Cohort design is now reachable from all
+  three surfaces (library `design_many`, `aforge batch`, `POST /api/batch`) over one
+  core.
+- **R4 / Phase 13 — browser cohort UI.** The served single-page frontend gains a
+  **cohort (batch) tab** beside the single-variant one: a one-variant-per-line
+  textarea (blank/`#`-comment lines skipped) posts to `/api/batch` and renders the
+  per-item summary table (status, best chemistry, efficiency, worst off-target,
+  candidate count), with a JSON download. It keeps the no-egress, no-third-party
+  -script guarantee — cohort design is now usable end to end from the browser.
+- **Phase 13 fix — `GET /api/bench` lists the CRISPR-Bench tasks.** The endpoint
+  previously returned a stale `501 "arrives in Phase 14"`; Phase 14 has shipped, so
+  it now returns the five tasks with their kind, chemistry, dataset, primary metric,
+  and metric battery (ECE included) — the HTTP mirror of `aforge bench list`.
+- **Phase 14 — `aforge bench leaderboard` command.** `bench run` already emitted
+  signed, provenance-stamped result JSONs but nothing aggregated them; the new
+  command reads one or more result files, groups them by model into **card-gated
+  submissions**, and renders the leaderboard as Markdown (default) or HTML. It
+  enforces both honesty gates on read — every result must verify its own signature
+  and carry a complete model card (name/license/citation) — so a number edited
+  after signing, or a model without a card, is refused (exit `2`); a missing file
+  exits `3`. The benchmark's "publish the leaderboard" story is now reachable from
+  the CLI, not just the `Leaderboard` API.
+- **R4 — content-addressed cross-run caches.** A shared
+  `alleleforge.cache.ContentAddressedCache` — a sharded, atomically-written
+  (temp-file-then-rename) disk key/value store under the cache dir, keyed by the
+  SHA-256 of the inputs that determine a result — backs two cross-run memos:
+  - **Embeddings:** `CachedEmbedder.persistent(embedder)` reuses embeddings across
+    runs via a `PersistentEmbeddingCache` scoped per backbone identity (so two
+    backbones never collide); a sequence embedded in one run is free in the next.
+  - **Off-target:** `OffTargetCache` + `search(..., cache=...)` reuse the expensive
+    reference scan. It is **safety-gated**: used only when the result is a pure
+    function of the reference — the default scorer and no gnomAD/haplotype/patient
+    augmentation — so a stale entry can never be served for a query whose external
+    data the content key does not capture. A changed budget/PAM/threshold/reference
+    is a distinct key; a custom scorer or any augmentation bypasses the cache.
+- **R4 — whole-genome on-disk, memory-mapped FM-index (`genome.GenomeIndex`).**
+  Builds one content-addressed FM-index per contig (both strands) over a
+  reference, driven by **R2's native SA-IS**: the on-disk `FMIndex` build now uses
+  the linear-time kernel (`_suffix_array` → `fm_suffix_array` when the crate is
+  built), so the persistent + memory-mapped path scales to whole chromosomes
+  instead of being limited to the pure-Python direct sort. The index **survives
+  across runs** (a re-run memory-maps the cached contig index rather than
+  rebuilding) and is queried over its memory map without pinning it in RAM. The
+  off-target engine consumes it via `search(..., genome_index=...)` (and
+  `scan_sequence(..., fm_plus=, fm_minus=)`) for the reference scan — **identical
+  hits** to the per-call build (a parity test pins this across budgets and both
+  strands), but built once and reused. Validated in CI on a downsampled-chromosome
+  fixture in the rust job (native SA-IS build → mmap query → linear-scan parity →
+  cross-run reuse); full hg38 / T2T-CHM13 builds are an opt-in nightly.
+- **R5 — conformal interval recalibration + calibration-study script.**
+  `scoring.ConformalCalibrator` recalibrates predictive *intervals* to a target
+  coverage with the finite-sample **split-conformal guarantee** — the regression
+  analog of `IsotonicCalibrator` for probabilities, and the first producer of the
+  long-reserved `UncertaintyMethod.CONFORMAL`. It learns a single multiplicative
+  width scale from a held-out calibration set, so recalibrated intervals meet the
+  nominal coverage while the model's *relative* per-example uncertainty shape is
+  preserved (normalized conformal). `empirical_coverage` measures interval coverage
+  to decide when recalibration is needed. `scripts/calibration_study.py`
+  regenerates the calibration report — every CRISPR-Bench task's primary metric and
+  ECE, plus a conformal recalibration demonstration (coverage before/after at the
+  spec's 80%/90% levels) — deterministically from config + seed. The recalibration
+  machinery and the report are CI-tested on the weight-free splits; the real-data
+  ECE numbers fill in with R1.
+- **R5 — cross-cell-type generalization gap.** `benchmark.generalization_gap`
+  quantifies the drop in a model's primary metric from an in-context fold (a
+  training-seen cell type, default `val`) to the held-out cell type (default
+  `test`) — the field-wide reality that a model tuned on one cellular context
+  predicts an unseen one worse. The gap is **orientation-corrected** (positive
+  always means worse held-out generalization, whether the metric is higher- or
+  lower-is-better) via a `HIGHER_IS_BETTER` map, and computed through a shared
+  `evaluate_fold` primitive. `scripts/calibration_study.py` now reports the
+  per-task gap table (the cross-cell-type chemistry tasks; off-target, stratified
+  by sequence pair, is excluded). Pinned by a test where a scorer that memorizes
+  the in-context fold but is ignorant on the held-out one shows a positive gap.
+- **R5 — methods-preprint draft.** `docs/paper/preprint.md` drafts the working
+  outline into a full manuscript: abstract, methods (the domain model & provenance,
+  the genome/variant front end, the population/haplotype off-target engine, the
+  license-gated scoring substrate and uncertainty methods, the three chemistries,
+  conformal recalibration, and the native kernels), the CRISPR-Bench design, the
+  **weight-free end-to-end results** (the `rs114518452` reference-bias reproduction
+  and the split-conformal coverage-before/after table regenerated from
+  `scripts/calibration_study.py`), reproducibility, and discussion. The
+  accuracy-vs-published-numbers results are explicitly fenced off as `[pending R1]`,
+  so the draft never overstates what is measured. Wired into the docs nav (under a
+  *Methods preprint* section) and linked from the outline, the README roadmap, and
+  the citation block.
+- **Docs — rendered diagrams on the published site + status fix.** Enabled
+  Material's native **Mermaid** rendering (`pymdownx.superfences` custom fence) so
+  the documentation site renders architecture and sequence diagrams as figures
+  rather than code blocks, and gave the docs home (`docs/index.md`) the layered
+  **architecture flowchart** and the **variant-first journey** sequence diagram that
+  the README already carried. Fixed the stale build-status table on the docs home
+  (Phase 14 CRISPR-Bench and Phase 15 docs/examples/release were still marked
+  *next*/*planned* — both have shipped; all fifteen v0.1.0 phases now read *done*),
+  and pointed the post-v0.1.0 roadmap at `SPEC_V2.md`.
+- **R0 — supply-chain hardening.** Dependabot now tracks all three dependency
+  surfaces — `pip`, `cargo`, and `github-actions` (`.github/dependabot.yml`,
+  grouped weekly PRs); a CI `security` job runs `pip-audit` (PyPI advisory DB)
+  and `cargo audit` (RustSec); and the release pipeline emits a **CycloneDX
+  SBOM** over the resolved dependency closure (`sbom` job) and attaches it to the
+  GitHub Release alongside the sdist/wheel.
+- **R0 — reproducibility audit.** `scripts/reproduce.py` (and `make reproduce`)
+  re-derives the canonical weight-free design run (a ClinVar accession → ranked
+  menu, the §16.1 acceptance scenario) from config + seed, asserts run-to-run
+  determinism, and diffs a canonicalized digest — volatile provenance stripped,
+  floats rounded for cross-platform stability — against a committed golden
+  manifest (`scripts/reproduce_golden.json`). A CI `reproduce` job gates it.
+- **R0 — CI/CD runner hardening (Node 24).** Bumped every pinned GitHub Action off
+  the deprecated Node 20 runtime, which GitHub force-migrates on 2026-06-16:
+  `actions/checkout@v4→v5`, `actions/setup-python@v5→v6`, and (in the release
+  pipeline) `actions/upload-artifact@v4→v7` + `actions/download-artifact@v4→v7` (the
+  matched Node-24 pair, chosen over v8 to avoid its ESM/hash-mismatch breaking
+  changes for the trivial named-artifact handoff), `softprops/action-gh-release@v2→v3`,
+  and the Docker buildx stack (`setup-qemu@v3→v4`, `setup-buildx@v3→v4`,
+  `login@v3→v4`, `metadata@v5→v6`, `build-push@v6→v7`). Both workflows now run
+  entirely on Node 24; the CI workflow is verified green on the new majors, and the
+  Docker/composite actions (`gh-action-pypi-publish`, `dtolnay/rust-toolchain`) are
+  unaffected by the Node deprecation.
+- **`aforge offtarget` and `POST /api/offtarget` now expose every engine knob.**
+  The off-target engine's `search()` has always accepted a tunable bulge budget
+  (`dna_bulges` / `rna_bulges`), CFD/MIT reporting thresholds (`cfd_threshold` /
+  `mit_threshold`), and a carrying-frequency floor (`maf`) — and the docs state
+  "every threshold is a parameter" — but the CLI command and the web request
+  hardcoded all of them to the defaults, exposing only `mismatches` and
+  `populations`. Both surfaces now pass the full set through (CLI options with
+  range validation; `OffTargetRequest` fields with `ge`/`le` bounds), so a user
+  can tighten the thresholds, drop bulges for speed, or change the population
+  stringency without dropping to the Python API. The library, CLI, and web are
+  again faithful mirrors of one engine. Pinned by monotonic tests on both
+  surfaces (tightening a knob can only remove nominations, never add).
 - **A donor with no guide no longer reports a re-cut search that never ran.** `hdr_donor`
   accepts no guide — a caller wanting the repair template alone need not have chosen one —
   and then cannot know whether the repaired allele is still a Cas9 substrate. Its note said

@@ -215,8 +215,22 @@ class _ModelZooAdapter(WeightGate):
         """Return the adapter's model card (raises if not registered)."""
         return self._registry.get(self.card_name)
 
-    def predict(self, context: str, cut: int) -> EditOutcome:
+    def predict(
+        self,
+        context: str,
+        cut: int,
+        *,
+        max_del: int = DEFAULT_MAX_DELETION,
+        mark_frameshift: bool = False,
+    ) -> EditOutcome:
         """Resolve the license gate, then refuse — this is an out-of-scope placeholder.
+
+        Takes the same keywords as the predictors it stands in for, even though it
+        returns nothing: the designer calls every outcome predictor as
+        ``predict(context, cut, mark_frameshift=...)``, so a narrower signature meant a
+        caller who plugged one of these in got ``TypeError: unexpected keyword argument
+        'mark_frameshift'`` and never reached the refusal below — the one message that
+        names the model to use instead.
 
         ``InDelphiAdapter`` / ``XCrispAdapter`` are license-gated placeholders, not
         supported models: their upstreams are dependency-rotted (TF1/Theano, old
@@ -237,7 +251,12 @@ class _ModelZooAdapter(WeightGate):
 
 
 class InDelphiAdapter(_ModelZooAdapter):
-    """Adapter to the trained inDelphi model (default outcome model)."""
+    """License-gated placeholder for the trained inDelphi model; see the base class.
+
+    Not the default outcome model, and not a supported one: the shipped default on this
+    axis is :class:`MicrohomologyOutcomePredictor` and the wired trained model is
+    :class:`LindelAdapter`.
+    """
 
     name = "inDelphi"
     card_name = "indelphi"
@@ -409,7 +428,7 @@ class LindelAdapter(_ModelZooAdapter):
 
 
 class XCrispAdapter(_ModelZooAdapter):
-    """Adapter to the trained X-CRISP model (optional)."""
+    """License-gated placeholder for the trained X-CRISP model; see the base class."""
 
     name = "X-CRISP"
     card_name = "x-crisp"
