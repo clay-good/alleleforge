@@ -33,7 +33,7 @@ jobs:
       - run: pip install build "twine>=7.0"
       - run: python scripts/check_distribution.py --outdir dist
       - run: pip install dist/*.whl && python -c "import alleleforge; print(alleleforge.__version__)"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: dist
           path: dist/*
@@ -56,7 +56,7 @@ jobs:
       # the dependency list.
       - run: pip install "cyclonedx-bom>=7.4,<8"
       - run: python scripts/build_sbom.py dist/*.whl --output alleleforge.cdx.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: sbom
           path: alleleforge.cdx.json
@@ -76,7 +76,7 @@ jobs:
           path: artifacts
       - name: Hash every downloadable release artifact
         run: (cd artifacts && sha256sum * > ../SHA256SUMS)
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: checksums
           path: SHA256SUMS
