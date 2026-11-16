@@ -97,3 +97,38 @@ def test_the_remedy_it_names_actually_resolves(reference: ReferenceGenome, offse
     assert resolved is not None, message
     # And it is the locus the caller meant: the base they asserted, where it really is.
     assert str(resolved.variant.ref) == wanted, (message, resolved.variant)
+
+
+@pytest.mark.parametrize("offset,side", [(1, "right"), (-1, "left")])
+def test_a_deletions_remedy_spells_out_its_empty_alt(
+    reference: ReferenceGenome, offset: int, side: str
+) -> None:
+    """A deletion has no alt, and an alt that prints as nothing is not a remedy.
+
+    Both branches end on ``{variant.alt or '-'}``, and the fallback had no case: every
+    fixture here asserts ``>A``, so the ``or '-'`` arm could be dropped with the suite
+    green. Drop it and a deletion's suggestion is printed as ``chr1:1000:C>`` — the alt
+    is simply absent, which reads as a message cut off mid-word rather than as "this
+    deletes the C". The resolver happens to parse that truncated form too, so "run the
+    remedy and see that it resolves" cannot see the difference either; only the printed
+    dash can.
+    """
+    bases = _bases(reference)
+    for index in range(1000, 1500):
+        wanted, actual = bases[index + offset], bases[index]
+        if wanted != actual:
+            break
+    else:  # pragma: no cover - a 500-base run of one base is not a real reference
+        pytest.fail("no usable locus in the fixture")
+
+    message = _refusal(f"chr1:{index + 1}:{wanted}>", reference)
+    assert f"one base {side}" in message, (side, message)
+    suggestion = _suggested(message)
+    assert suggestion.endswith(f":{wanted}>-"), (side, message)
+    # And the dash is a form this tool reads back, deleting the base they asserted:
+    # the resolved deletion is re-anchored, so its ref is the anchor plus that base.
+    resolved = resolve(suggestion, reference=reference)
+    assert str(resolved.variant.ref) == str(resolved.variant.alt) + wanted, (
+        message,
+        resolved.variant,
+    )

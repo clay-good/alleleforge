@@ -3075,6 +3075,31 @@ acceptance.
   model cards, benchmark splits, and web frontend — against silent removal.
 
 ### Fixed
+- **AlleleForge refused its own printed indels.** `Variant.__str__` prints an absent
+  allele as a dash — `chr1:999:C>-` for a deletion, `chr1:999:->CA` for an insertion —
+  and the coordinate parser read `[ACGTN]*` on both sides and nothing else, so every one
+  of those strings came back `unrecognized variant input`. It was not only a round-trip
+  nicety: `_off_by_one_remedy`, the refusal that exists to hand a caller a string that
+  works when they have pasted a 0-based position into a 1-based input, builds its
+  suggestion from the same fallback — so for a **deletion** it ended `; try
+  chr1:1000:C>-`, a remedy that could not be run, inside the one message whose whole job
+  is to be runnable. The guard that runs every remedy had only ever been given
+  substitutions, where both alleles are present and the dash never appears. Both
+  spellings now resolve identically, and a dash beside real bases (`A->GG`) is still
+  refused.
+- **An off-by-one remedy could name a locus past the end of the contig.** `_ref_matches_at`
+  asks that the fetch was not padded *and* that the bases match, and every fixture sat
+  mid-contig where nothing is padded. A fetch past a contig end returns `N` padding, so an
+  assembly-gap record (`N` in the ref, which this project accepts) at the last base matched
+  its own padding one place right and would be told to try `chr2:32` of a thirty-base
+  contig. Pinned, with the in-contig case beside it so the guard cannot pass by refusing
+  everything.
+- **A cohort file with no extension was told to check its variant syntax.** The
+  wrong-argument sentence asks whether the text holds a path separator *or* ends in a data
+  suffix, and every fixture did both, so the separator arm had no case of its own.
+  `runs/2026-03/batch` and `/data/patients/cohort` now get the sentence naming the commands
+  that take files.
+
 - **Em dashes ran the printable report off the page.** `_escape` encodes the page to CP1252,
   so a character WinAnsiEncoding cannot represent is drawn as `?` and measuring it at 556
   (Helvetica's `?`) is correct. An em dash is not such a character: it is CP1252 0x97, it

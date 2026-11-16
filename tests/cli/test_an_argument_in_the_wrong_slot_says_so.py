@@ -45,6 +45,26 @@ def test_a_file_in_the_variant_slot_names_the_commands_that_take_files(text: str
     assert "--patient-vcf" in message
 
 
+@pytest.mark.parametrize(
+    "text",
+    ["/data/patients/cohort", "runs/2026-03/batch", "~/cohorts/run1"],
+)
+def test_a_path_without_a_data_suffix_is_still_a_path(text: str) -> None:
+    """The shape test is a *disjunction*, and only one arm had a case.
+
+    `_a_file_in_a_variant_slot` asks whether the text holds a separator **or** ends in
+    a data suffix, and every fixture above does both — `./variants.txt` and
+    `/data/patients/cohort.vcf` satisfy the suffix arm on their own, so dropping the
+    separator arm changed nothing the suite could see. An extensionless file, a
+    directory, or one named `.dat` is the ordinary case that only the separator arm
+    catches, and without it the reader is told to check a variant syntax that was never
+    the problem.
+    """
+    with pytest.raises(ValueError) as excinfo:
+        resolve(text)
+    assert "takes one variant, not a file" in str(excinfo.value)
+
+
 def test_the_sentence_is_offered_only_for_that_shape() -> None:
     """An ordinary typo is not told a story about files it has nothing to do with."""
     with pytest.raises(ValueError) as excinfo:

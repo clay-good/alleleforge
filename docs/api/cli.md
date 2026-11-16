@@ -138,8 +138,11 @@ Coordinates (`chrom:pos:ref>alt`, 1-based as in a VCF), a VCF data line (`chr2 7
 C` — whitespace of any kind, trailing QUAL/FILTER/INFO/sample columns ignored, an rsID in
 the ID column carried) and a genomic `g.` HGVS expression work on every surface with
 nothing extra. A row whose ALT is symbolic (`<DEL>`, a breakend, a spanning `*`) is
-refused by name: it says a variant is there without saying what it writes. The two
-*database* input forms need the release that defines them. AlleleForge can fetch its
+refused by name: it says a variant is there without saying what it writes. In the
+coordinate form an absent allele may be written either as nothing or as a dash —
+`chr2:71:A>` and `chr2:71:A>-` are the same deletion — because a dash is how AlleleForge
+*prints* one, and a tool that cannot read its own output is a trap. The two *database*
+input forms need the release that defines them. AlleleForge can fetch its
 checksum-pinned ClinVar snapshot; dbSNP remains a file you supply because its descriptor
 has no pinned checksum:
 

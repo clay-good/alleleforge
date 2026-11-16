@@ -22096,3 +22096,65 @@ seven ghosts, because a runner is held in place by everything downstream of it. 
 list from what the module must agree with, measure the survivors there, and when a
 survivor looks equivalent, run both branches — the three I argued away by reading were
 all killed by tests I had not thought to look for.
+
+## Round 659 — the remedy it printed could not be run
+
+`variant/resolver.py`, swept for conjunct removal: 33 mutants, 12 alive against
+`tests/variant/`, **6 against the full suite** — the same phantom ratio Round 658 found,
+and for the same reason. Among the ghosts was the whole five-armed `or` of
+`parses_as_variant`: every input form *is* pinned, in `tests/cli/`, because the question
+that function answers is a CLI routing question.
+
+**The instrument was wrong first.** Of the six that lived, two sat on the module's one
+*nested* boolean, `pos > 0 and (ref == "" or alt == "")`. The harness collects sites in
+pre-order — a node's own sites before its children's — and the mutator was numbering them
+the other way round, so for a nested `BoolOp` the index handed in named one mutation and
+the mutator applied another. The log line said "Or drop#1" and the code it ran had dropped
+the outer `and`'s second operand. I spent a while reasoning about why a deletion could
+lose its anchor base with the suite green; it cannot, and no such mutant had ever run.
+Fixed, verified against a toy module whose six sites now map one-to-one, and re-checked:
+`design/cohort.py` has no nested boolean, so Round 658's numbers stand unchanged.
+
+With the mapping right, both of those two are **provably equivalent**, and proved rather
+than argued: `_left_align` was run against the original and against each mutant over
+71,400 constructed inputs — every position of the fixture contig crossed with every
+ref/alt pair up to three bases — and they agreed on all of them. `indel` is never empty
+where it is tested (the function returns early unless the alleles differ in length, so
+exactly one side is empty and rolling preserves length), and `(ref == "" or alt == "")` is
+true wherever it is asked. The other four sites of the same nesting *do* differ, on 101 to
+4,265 of those inputs, and the suite kills all four.
+
+**The real defect was in a remedy.** `_off_by_one_remedy` ends both of its branches on
+`{variant.alt or '-'}`, and the fallback had no fixture: every case in the file asserts
+`>A`, where the alt is present and the dash never appears. Writing the deletion case
+produced a failure I did not expect — not in the assertion about the dash, but in the line
+below it, which runs the remedy. The suggestion `chr1:1000:C>-` came back
+**`unrecognized variant input`**.
+
+`Variant.__str__` renders `f"{ref or '-'}>{alt or '-'}"`. The coordinate pattern read
+`[ACGTN]*` on both sides and nothing else. So this tool printed every deletion as
+`chr1:999:C>-` and every insertion as `chr1:999:->CA`, and refused both on the way back
+in — the identical sin to the 0-based/1-based mismatch that `_off_by_one_remedy` was
+written to explain, sitting inside the explanation. The file's own docstring says *a
+remedy that does not resolve is worse than no remedy*, and
+`test_the_remedy_it_names_actually_resolves` had been running every remedy it was handed
+— for substitutions only, the one shape where the fallback cannot fire. The pattern now
+reads a dash as the empty allele on both sides, `C>` and `C>-` resolve identically, and a
+dash beside real bases (`A->GG`) is still refused.
+
+Two smaller arms: `_ref_matches_at` asks `not result.padded` **and** that the bases match,
+and every fixture sits mid-contig where nothing is padded — a fetch past a contig end
+comes back padded with `N`, so an assembly-gap record (`N` in the ref, which this project
+accepts and documents) at the last base matches its own padding and would be offered a
+remedy at `chr2:32` of a thirty-base contig. And `_a_file_in_a_variant_slot` asks whether
+the text holds a separator **or** ends in a data suffix, where every fixture did both — so
+an extensionless cohort file, or `runs/2026-03/batch`, got "unrecognized variant input"
+instead of the sentence naming the command that takes files.
+
+`variant/resolver.py` now kills 31 of 33, with both survivors proven equivalent.
+
+**Lesson: a tool that prints a form it cannot read has two defects, and the second one is
+in the message offering to help.** The round-trip gap had been there since the dash was
+introduced; what exposed it was writing the *shape* no fixture had — a deletion — into a
+test that did not merely inspect the message but ran what the message told a user to run.
+And before trusting any of it: check that the instrument applied the mutation it named.
