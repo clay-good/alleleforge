@@ -9,6 +9,25 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The resume refusal's renderer is tested one arm at a time.** `design/cohort.py` was
+  swept for conjunct removal: 52 mutants, 11 alive against the module's own test
+  directory and **only 4 against the full suite** — a cohort runner is pinned by the
+  surfaces it must agree with far more than by `tests/design/`. All four real ones were
+  in the machinery that *describes* a refusal rather than in the refusal itself.
+  `_render` turns a manifest header field into the sentence a human reads when a resume
+  is refused, and asks two conjunctions — the right key *and* the right type. The suite's
+  only case was a `reference` dict differing from another `reference` dict, satisfying
+  both arms at once. Without the key arm, any list is announced as datasets it does not
+  hold; without the type arm, the renderer **crashes on a value a real run produces** — a
+  manifest written against a run-wide reference, resumed by a run that builds one per
+  worker, carries `reference: None`, and `None.get("contigs")` raises, so the exception
+  replacing the refusal says nothing about the mismatch it was raised to report. The
+  `or "nothing"` fallback had no case either, so a run with no dataset inputs rendered as
+  `inputs: manifest has , this run has ...`. Fourth: `_read_done_ids` asks for an
+  `item_id` *and* a status of `ok`, and every manifest the suite builds is one the runner
+  wrote, so the arms always agreed — a hand-edited line recording a status without an
+  item raised a bare `KeyError` instead of the `ValueError` naming the file and line that
+  every other damage it finds raises. `design/cohort.py` now kills 52 of 52.
 - **The off-target report's two-part guards are tested one arm at a time.** A new
   conjunct-removal mutation — drop each operand of an `and`/`or` chain in turn — aims at
   the gap this project kept recording: for N guards, a fixture where the other N-1 still

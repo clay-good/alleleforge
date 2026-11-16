@@ -22042,3 +22042,57 @@ at it.** Four rounds of notes said a conjunction's unexercised arm is invisible;
 afternoon's operator found nine of them in the first safety-relevant type it was pointed
 at, and confirmed a second module was clean. A method that only re-runs the mutations it
 already has will keep finding the same class of thing.
+
+## Round 658 — the renderer the refusal depends on
+
+The conjunct-removal operator built last round was pointed at `design/cohort.py`, the
+module that runs a whole cohort and decides what a resume may skip. Fifty-two conjunction
+mutants; against the module's own mirror directory, eleven lived.
+
+**Seven of those eleven were not there.** Against the full suite they died — a 64% phantom
+rate, the second-worst on record after `cli/main.py`'s eighty-four, and for the same
+reason: a cohort runner is pinned by the surfaces it must agree with (the CLI, the
+artifact guards, the provenance tests) far more than by `tests/design/`. Three of the
+seven are worth naming, because I had read all three as *provably equivalent* before the
+broad list spoke. `manifest is not None and resume` guarding the mismatched-resume
+refusal, and the same pair guarding the done-ids read, both looked unreachable to me:
+the rerun guard above them refuses a non-empty manifest under `--no-resume`, so the only
+way to arrive with `resume=False` is a manifest that is absent or empty, and both
+consumers return trivially on those. That argument is wrong somewhere, because tests
+killed both mutants. **Reading is not proof — this log has now recorded that four times,
+and I made the mistake again in the same session that quotes it.**
+
+What was genuinely unmeasured was all in one place: `_render`, the four-line function
+that turns a header field into the sentence a human reads when a resume is refused. It
+exists because `repr` once buried the two ClinVar hashes that differed under three lines
+of `None`s — it is an honesty mechanism, and this project has found more defects inside
+honesty mechanisms than inside the arithmetic they describe.
+
+`_render` asks two conjunctions: *is this the `inputs` key* **and** *is the value a
+list*; *is this the `reference` key* **and** *is the value a dict*. The suite's only case
+was a `reference` dict differing from another `reference` dict, which satisfies both arms
+at once and so measures neither. Drop the key arm and any list is announced as datasets
+it does not hold. Drop the type arm and the renderer **crashes on the value a real run
+hands it**: a manifest written against a run-wide reference, resumed by a run that builds
+one per worker, carries `reference: None` on this side, and `None.get("contigs")` raises
+— the exception replacing the refusal says nothing about the mismatch it was raised to
+report. The `or "nothing"` fallback had no case either, so a run with no dataset inputs
+rendered as the empty string: `inputs: manifest has , this run has ...`, which reads as a
+truncated message rather than as "no inputs".
+
+The fourth was in `_read_done_ids`: `"item_id" in record and record.get("status") == "ok"`.
+Every manifest the suite builds is one the runner wrote, where a status line always
+carries an item id, so the arms always agreed. The reader's own docstring is about
+manifests that are *not* pristine — truncated, hand-edited, corrupt — and a status
+without an item is exactly that case. Drop the arm and it raises a bare `KeyError`, where
+every other damage it finds raises a `ValueError` naming the file, the line and why
+skipping it would silently recompute or silently drop an item.
+
+`design/cohort.py` now kills 52 of 52.
+
+**Lesson: a conjunction's phantom rate is a property of the module's audience, not of the
+operator.** The same sweep that found nine real arms in a type found four in a runner and
+seven ghosts, because a runner is held in place by everything downstream of it. Build the
+list from what the module must agree with, measure the survivors there, and when a
+survivor looks equivalent, run both branches — the three I argued away by reading were
+all killed by tests I had not thought to look for.
