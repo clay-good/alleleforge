@@ -9,6 +9,24 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The downloader a real model fetch uses is now exercised.** `ModelRegistry.checkpoint`
+  passes `downloader or _default_downloader`, and every fetch test injects a fake —
+  correctly, since CI does not go to the network — so the left side always won and
+  nothing established that the production path has a downloader at all. Without the
+  fallback, a user running `aforge models fetch` and supplying no downloader (the API
+  does not ask for one) calls `None(url, dest)`. The dataset registry writes the
+  identical line and was already covered. Pinned by replacing the default with a
+  recorder, so the network is still never touched.
+- **A MANE Select transcript is canonical without a `canonical` flag.** `is_canonical`
+  reads `canonical` **or** `mane_select` and every canonical fixture set both; VEP's MANE
+  blocks do not always carry `canonical`, and that flag is what a reader uses to decide
+  whether the consequence shown is the one that matters. Also pinned on the VEP path: a
+  transcript block with no `consequence_terms` falls back to the record's
+  `most_severe_consequence` (without it the severity `max()` is handed `None`), and an
+  empty `build` is looked up against GRCh38 rather than producing a request URL that
+  names no assembly.
+- **`genome/index.py` was swept for conjunct removal and is clean** (19/19); all twelve
+  of its survivors against its own test directory died against the full suite.
 - **A broken install falls back to the cache instead of raising.** `resolve` and
   `dataset_status` both ask whether a descriptor *names* a bundled path **and** whether
   that path is a file, and every fixture runs against the real registry where the one

@@ -1,13 +1,21 @@
-"""``fetchable`` is a three-term conjunction; each term is the answer on its own.
+"""``fetchable`` is a four-term conjunction; each term is the answer on its own.
 
 ``model_status`` is the one derivation four surfaces read -- ``aforge models list``
 and ``show``, and the two web model-status responses -- and ``model_reason`` turns
 ``fetchable`` into the sentence a reader acts on. Its siblings ``pinned``, ``cached``
 and ``available`` were pinned by value; ``fetchable`` was only ever asserted to
-*exist* as a key, so none of its three terms had a case. Each gets one here, because
-each wrong answer is a different lie: that an unpinned model can be fetched, that a
-card naming a source names none, or that the copy already on disk still needs
-fetching.
+*exist* as a key, so none of its terms had a case. Each gets one here, because each
+wrong answer is a different lie: that an unpinned model can be fetched, that a card
+naming a source names none, or that the copy already on disk still needs fetching.
+
+This file counted **three** terms and the expression has four. The fourth,
+``not card.bundled``, cannot be given a case: a ``ModelCard`` validator refuses a
+bundled card that defines ``checkpoint_sha256`` or ``source_url`` (pinned by
+``test_a_bundled_card_cannot_describe_external_weights`` in ``test_registry.py``), so a
+bundled card fails the first two terms before the fourth is reached. The term is
+belt-and-braces resting on that validator. What *is* reachable, and was not asserted,
+is the state a bundled card does arrive in — available, unpinned, nothing to fetch —
+so that is the case below.
 """
 
 from __future__ import annotations
@@ -84,3 +92,12 @@ def test_what_is_already_cached_is_not_fetchable(tmp_path: Path) -> None:
     assert status["fetchable"] is False
     assert status["available"] is True
     assert model_reason(status) == "cached and pinned"
+
+
+def test_a_bundled_card_without_them_is_available_and_not_fetchable(tmp_path: Path) -> None:
+    """And the state a bundled card actually reaches: here already, nothing to fetch."""
+    status = model_status(_card(bundled=True), tmp_path)
+    assert status["bundled"] is True
+    assert status["pinned"] is False
+    assert status["available"] is True
+    assert status["fetchable"] is False

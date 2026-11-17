@@ -22322,3 +22322,55 @@ Four modules into this pass, the phantom rate predicts the module's kind better 
 reading of it does — near zero for a type, near total for a shell, a renderer or a numeric
 library consumed elsewhere. Sweep the mirror directory as a cheap filter, never as
 evidence, and read the rate itself as the finding when it is high.
+
+## Round 663 — the `or` that nothing ever reached
+
+Three more modules under conjunct removal. `genome/index.py`: 19 of 19, clean — all
+twelve of its survivors against `tests/genome/` died against the full suite.
+`variant/effect.py` left five and `model_zoo/registry.py` three, and between them they
+are almost entirely one shape: **`x or <default>`, where every fixture supplies `x`**.
+
+That shape has now produced a finding in six modules this pass — the cohort refusal's
+`or "nothing"`, the menu heading's `or "none"`, the chromatin track's `or 'none'`, the
+registry's `matrix or <label>`, and now four more. It is worth stating plainly why it
+hides so well: a defensive default is written for the case the author could imagine but
+had no example of, and a test is written from an example. The two are disjoint by
+construction. **For every `or` in the codebase, the fixture that measures it is the one
+the author did not have.**
+
+The real ones:
+
+* `_assembly_of` ends `return variant.build or "GRCh38"`. `build` is a `str` that may be
+  empty, matches neither GRCh38 nor GRCh37, and falls to the default — without which the
+  request URL becomes `.../vep//region/...`, naming no assembly at all.
+* `parse_vep_response` reads `chosen.get("consequence_terms") or [most_severe]`. VEP
+  returns transcript blocks with no terms; without the fallback the severity `max()` is
+  handed `None`.
+* `is_canonical` reads `canonical` **or** `mane_select`, and every canonical fixture here
+  sets both. VEP's MANE Select blocks do not always carry `canonical`, and that flag is
+  what a reader uses to decide whether the consequence shown is the one that matters.
+* `ModelRegistry.checkpoint` passes `downloader or _default_downloader`. Every fetch test
+  injects a fake — correctly; CI does not go to the network — so the left side always won
+  and **nothing established that the production path has a downloader at all**. Drop the
+  fallback and a user running `aforge models fetch`, who supplies no downloader because
+  the API does not ask for one, calls `None(url, dest)`. The dataset registry writes the
+  identical line and is covered, which is what makes this a hole rather than a limit: the
+  two gated fetchers are meant to behave alike, and one of them did not. Pinned by
+  replacing the default with a recorder, so the network is still never touched.
+
+Three survivors are equivalent and were proved, not argued. `(variant.build or "")` one
+line above the real finding is dead: `build` is typed `str` and cannot be `None`.
+`record.get("transcript_consequences") or []` is dead: the `if not cons:` immediately
+below returns on every falsy value, checked against nine payload shapes including
+`None`, `[]`, `""` and `{}`. And `fetchable`'s fourth term, `not card.bundled`, is
+unreachable because a `ModelCard` validator refuses a bundled card that defines
+`checkpoint_sha256` or `source_url`, so such a card fails the first two terms first —
+the term rests entirely on that validator, and the file whose whole job is to give each
+term a case now says so and names the test that holds it up. That file was called
+`test_fetchable_names_all_three_of_its_conditions.py` while the expression had four;
+it is renamed.
+
+**Lesson: a defensive default and a test fixture come from opposite directions.** The
+default exists for the input the author could imagine and had no example of; the fixture
+is an example. Six modules in, the `or` fallback is the single most productive thing this
+operator finds, and the reason is structural rather than careless.
