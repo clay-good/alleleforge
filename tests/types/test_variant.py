@@ -74,6 +74,28 @@ def test_variant_class(ref: str, alt: str, expected: VariantClass) -> None:
         assert v.variant_class is expected
 
 
+@pytest.mark.parametrize(
+    ("ref", "alt"),
+    [("A", "ACGT"), ("A", "AA"), ("ACGT", "A"), ("CTT", "C"), ("A", "AC")],
+)
+def test_an_anchored_indel_is_classified_as_one(ref: str, alt: str) -> None:
+    """The form `normalized()` actually produces is the form nothing classified.
+
+    `test_variant_class` carries anchored alleles in its table and then *swaps them
+    out*: for an insertion or a deletion it builds the pure, anchor-free variant and
+    classifies that instead. So the anchored shape — one base on one side, more on the
+    other, which is what `normalized()` and `_left_align` emit and therefore what the
+    rest of the library handles — never reached this property at all.
+
+    The first test is a conjunction, `len(ref) == 1 and len(alt) == 1`, and the table's
+    only ref of length one is the SNV. Drop the `alt` arm and every anchored *insertion*
+    is classified `SNV`: `A>ACGT`, a four-base insert, announced as a single-base
+    substitution. The deletion direction is held by the other arm, so one fixture cannot
+    stand in for the other.
+    """
+    assert Variant(chrom="c", pos=1, ref=ref, alt=alt).variant_class is VariantClass.INDEL
+
+
 def test_complex_empty_alleles() -> None:
     assert Variant(chrom="c", pos=1, ref="", alt="").variant_class is VariantClass.COMPLEX
 

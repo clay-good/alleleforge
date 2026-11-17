@@ -28,7 +28,7 @@ from pathlib import Path
 
 import pytest
 
-from alleleforge.design.designer import design
+from alleleforge.design.designer import _menu_rationale, design
 from alleleforge.genome.reference import ReferenceGenome
 
 MakeRef = Callable[[dict[str, str]], ReferenceGenome]
@@ -80,3 +80,18 @@ def test_the_run_outcomes_have_their_own_heading(reference: ReferenceGenome) -> 
         "the per-chemistry outcome notes are not under their own heading"
     )
     assert rationale.index("Why the other chemistries declined:") < rationale.index("Run notes:")
+
+
+def test_an_empty_eligible_list_is_printed_as_the_word_none() -> None:
+    """The heading has to say something, and the empty string says nothing.
+
+    `eligible_str` is `", ".join(...) or "none"`, and the fallback had no case: every
+    fixture here runs at least one chemistry. The one test that touches the empty menu
+    reads `if "Eligible and run: none" in rationale:` and asserts inside that branch —
+    so with the fallback dropped the line became `Eligible and run: .`, the condition
+    went false, and the test passed by checking nothing. That is the same shape as the
+    cohort refusal's `or "nothing"`: a heading whose value is absent reads as a message
+    cut short rather than as an answer.
+    """
+    rationale = _menu_rationale([], [], [], "ranked on nothing")
+    assert "Eligible and run: none." in rationale, rationale

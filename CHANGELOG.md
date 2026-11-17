@@ -9,6 +9,38 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The anchored indel — the form the library actually handles — is now classified as
+  one.** `Variant.variant_class` asks `len(ref) == 1 and len(alt) == 1` for a
+  substitution, and the only ref of length one in its test table was the SNV: the table
+  carried `("A", "ACGT", INSERTION)` and the test body then *swapped it out*, building
+  the pure anchor-free variant and classifying that instead. So the anchored shape that
+  `normalized()` and `_left_align` emit never reached the property. With the `alt` arm
+  dropped, `A>ACGT` — a four-base insert — classifies as `SNV`, and 324 of 7,225 allele
+  pairs change class. Both directions are now pinned on the anchored form.
+- **Three clinical notes are pinned to the intent each one names.** `_clinical_notes`
+  writes sentences that put the requested intent beside what ClinVar or the effect
+  predictor asserts, each guarded by *this intent* **and** *this fact*, with every
+  fixture satisfying both arms at once. An `install` could be told to "confirm this is
+  the change you mean to make" about a modifier consequence, which is advice for a
+  correction; a **knock-out**, which reaches the same `elif` and writes no allele, could
+  be told it is installing a disease model; and the disease-model sentence could be
+  printed over a **benign** classification. Each now has its negative case beside it.
+- **An empty menu no longer blames the chromatin track.** The note saying a track
+  "covers none of the candidate loci — every efficiency here is the unadjusted estimate"
+  counts adjusted candidates and speaks when the count is zero, which is what no
+  candidates gives. Its `and candidates` arm had no fixture, and a reader with an empty
+  menu would have been pointed at their track instead of at the routing rationale above
+  it. (Its neighbour for `cell_context` is suppressed by an inner guard and is recorded
+  as redundant rather than removed.)
+- **A reference with no build label accepts the build it is given.** The refusal fires
+  when the reference *has* a label **and** that label disagrees, and no fixture separated
+  the arms — the unlabelled test passes no `build` at all, returning before the
+  comparison. Dropping the label arm refused the one caller an unlabelled genome has:
+  someone supplying the assembly themselves.
+- **`Eligible and run: none`** — the `or "none"` fallback on the menu rationale had no
+  case, and the one test that touched the empty menu asserted *inside*
+  `if "Eligible and run: none" in rationale:`, so dropping the fallback turned the line
+  into `Eligible and run: .` and the test passed having checked nothing.
 - **The resume refusal's renderer is tested one arm at a time.** `design/cohort.py` was
   swept for conjunct removal: 52 mutants, 11 alive against the module's own test
   directory and **only 4 against the full suite** — a cohort runner is pinned by the

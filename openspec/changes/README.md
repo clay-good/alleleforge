@@ -22158,3 +22158,63 @@ in the message offering to help.** The round-trip gap had been there since the d
 introduced; what exposed it was writing the *shape* no fixture had — a deletion — into a
 test that did not merely inspect the message but ran what the message told a user to run.
 And before trusting any of it: check that the instrument applied the mutation it named.
+
+## Round 660 — the assertion the test declined to make
+
+Two modules swept for conjunct removal. `types/variant.py`: 20 mutants, 3 alive, and the
+broad list killed none of them — the first module in this pass with a zero phantom rate,
+because a type is pinned by its own unit tests and nothing else. `design/designer.py`: 26
+mutants, 9 alive against `tests/design/`, 7 against the full suite.
+
+Of the ten survivors, three are equivalent and were proved so rather than argued.
+`variant_class`'s last two guards, `if ref and alt`, cannot be reached with one allele
+empty — the insertion and deletion branches above have already returned — so either
+operand decides alone; lifted out of the class and run against every ref/alt pair up to
+three bases, 7,225 cases, the mutants agreed with the original on all of them. The third,
+`cell_context is not None and candidates`, is suppressed by its own inner
+`if unconsidered:` for an empty menu. Its neighbour four lines up, written identically,
+is not: `chromatin_track is not None and candidates` guards a note that fires when the
+adjusted count is zero, and zero is what an empty menu gives. Two guards of the same
+shape, one dead and one load-bearing, and only a sweep tells them apart.
+
+**The headline is a test that swapped its own fixture out.** `variant_class` asks
+`len(ref) == 1 and len(alt) == 1` for a substitution, and the table in
+`test_variant_class` holds `("A", "ACGT", INSERTION)` — the anchored form, which is
+exactly what `normalized()` and `_left_align` emit and therefore what the rest of the
+library handles. The body then reads: *if the expected class is an insertion or a
+deletion, build the pure anchor-free variant instead and classify that*. So the anchored
+shape was carried into the test and never classified. The table's only other ref of
+length one is the SNV, so the `alt` arm had no case at all: drop it and `A>ACGT`, a
+four-base insert, is classified `SNV` — 324 of those 7,225 pairs change class, including
+every anchored insertion there is.
+
+The rationale heading had the same shape in a different disguise.
+`"Eligible and run: " + (", ".join(...) or "none")` — and the one test that touches the
+empty case reads `if "Eligible and run: none" in rationale:` and asserts *inside* that
+branch. Drop the fallback, the line becomes `Eligible and run: .`, the condition goes
+false, and the test passes having checked nothing. The same `or <fallback>` shape as
+Round 658's `or "nothing"`, two modules away.
+
+The rest are notes attached to runs they are not about. `_clinical_notes` writes three
+sentences that each name an intent, and each is guarded by *this intent* **and** *this
+fact*, with every fixture satisfying both at once. Without its intent arm, an `install`
+— deliberately writing a variant in — is told to "confirm this is the change you mean to
+make" about a modifier consequence. The disease-model sentence sits in an `elif` that
+**knock-out** also reaches, so without its intent arm a knock-out, which writes no allele
+at all, is told it is installing one; and without its significance arm the same sentence
+is printed over a **benign** classification, which is the opposite claim. Finally,
+`_agreed_build` refuses when the reference has a label **and** the label disagrees, and
+no fixture separated those: the unlabelled test passes no `build`, so it returns on the
+`build is None` branch before the comparison. Drop the label arm and the one caller an
+unlabelled genome has — someone supplying the assembly themselves, which is what the
+argument is for — is refused by a message quoting a label that does not exist.
+
+`types/variant.py` kills 18 of 20 and `design/designer.py` 25 of 26, with every survivor
+proved equivalent or redundant.
+
+**Lesson: an assertion a test can decline to make is not an assertion.** Two of this
+round's findings are the same defect in the test, not in the code: one swapped its
+awkward fixture for an easier one inside the test body, the other wrapped its assertion
+in an `if` whose condition is the very string under test. Both read as thorough. Grep for
+an `assert` nested under a condition computed from the subject, and for a parametrize
+table whose body branches on which case it was handed.
