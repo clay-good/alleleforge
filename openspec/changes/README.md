@@ -22978,3 +22978,57 @@ nothing to fix" was true of 99.6% of these findings and false of the ones that w
 one-line configuration failure in the project's own file. The cost of checking was one
 `detect` run on a single page; the cost of not checking was shipping an inaccessible site
 and saying, twice, that there was nothing to do.
+
+## Round 676 — both answers survived, which means the question was never asked
+
+A third operator, built because this log has named the blind spot since Round 643 and
+never aimed at it: **forced type guards.** Every `isinstance(x, T)` call is replaced in
+turn by `True` and by `False`, which asks the two halves of one question — does any
+fixture supply a value of the *wrong* type here, and does any supply the *right* one. 148
+mutants across 22 files, which makes it the cheapest operator built here by a wide margin.
+
+**The result is mostly a negative one, and it is worth stating as a number.** Twenty-nine
+survived their own package's tests; **three survived the full suite.** Twenty-six of
+twenty-nine were phantoms. The type guards in this project are, with two exceptions,
+exercised on both sides — including every one of the sixteen in the cohort summary's cell
+dispatch and the bool-before-int guards in `report/precision.py` and
+`types/prediction.py`, which are the classic trap (`isinstance(True, int)` is `True`, so a
+bool checked second formats as a number) and are properly pinned.
+
+**The one real finding is not a missing test. It is dead code, and the signature that
+found it is new.** Both directions of the guard in `DNASequence.__getitem__` survived:
+
+```python
+if isinstance(key, slice):
+    return DNASequence(self.sequence[key])
+return DNASequence(self.sequence[key])
+```
+
+The two arms are byte-identical. `str.__getitem__` already handles an `int` and a `slice`,
+and both branches wrap the result the same way, so the branch decided nothing and **no
+test could ever have distinguished its answers.** It read as though integer indexing were
+handled specially — the docstring says integer indexing returns a single-base sequence
+rather than a raw character, which is true and is what the *wrap* does, not the branch.
+Removed, with the contract it hinted at finally pinned: an `int` key and a `slice` key
+both come back as a `DNASequence`, because every caller goes on to call sequence methods
+on the result and a bare `str` would fail somewhere else entirely.
+
+**When both forced answers of a predicate survive, the predicate is not untested — it is
+inert.** One answer surviving is a missing fixture; both surviving is a branch with
+nothing behind it. No operator here could say that before, because every previous one
+produced a single mutant per site.
+
+The third survivor is unobservable and recorded rather than given an invented test:
+`isinstance(data, Mapping)` opening `Prediction`'s before-validator. No constructible
+public path reaches it with a non-mapping — `42`, `"nope"`, `[1, 2]`, `None` and a tuple
+all raise before validation, with the guard and without it. The documented contract next
+to it (a certified prediction is not downgraded by being revalidated inside a
+`RankedMenu`) *was* untested and now has one, described for what it is: pydantic
+short-circuits a correctly-typed instance today, so the test guards against a future
+`revalidate_instances` config change rather than against an edit to the validator.
+
+**Lesson: a mutation that can be forced both ways tells you something a single mutant
+cannot.** Three operators in, the pattern is that each new one earns its keep not by
+finding more of the same but by making a different question askable — "is the other arm
+tested", "does anything observe this ran", and now "does this predicate decide anything
+at all".

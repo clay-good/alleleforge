@@ -399,3 +399,41 @@ def test_calibrated_by_preserves_trained_flag() -> None:
         notes=("hello",),
     )
     assert p.notes == ("hello",)
+
+
+def test_a_calibrated_prediction_survives_revalidation() -> None:
+    """Revalidating a `Prediction` must not downgrade its calibration.
+
+    The validator's docstring states it: *"a certified prediction is never silently
+    downgraded, nor mutated in place, just because it was placed inside a `RankedMenu`
+    or revalidated."* The gate below refuses a `calibrated=True` claim on fresh mapping
+    input without the capability token — correctly — so if revalidation ever routed an
+    already-certified instance through that gate, a genuine calibration would be
+    stripped by nothing more than being nested in another model.
+
+    Today pydantic short-circuits an instance of the right type, so this passes without
+    the project's own code deciding anything; the contract is pinned here anyway,
+    because the thing that would break it is a config change (`revalidate_instances`)
+    rather than an edit to the validator, and that is exactly the kind of change no
+    existing test would have caught.
+
+    The `isinstance(data, Mapping)` guard that opens the validator is a separate matter:
+    a type-guard sweep forced it to always pass and nothing noticed, and no public path
+    could be found that reaches it with a non-mapping — every junk payload tried
+    (`42`, `"nope"`, `[1, 2]`, `None`, a tuple) raises before validation either way. It
+    is recorded as unobservable rather than given an invented test.
+    """
+    certified = _calibrated(0.4, 0.3, 0.5)
+    assert certified.calibrated is True
+
+    revalidated = Prediction[float].model_validate(certified)
+    assert revalidated.calibrated is True, "revalidation stripped a certified flag"
+    assert revalidated.value == certified.value
+    assert revalidated.interval == certified.interval
+
+
+def test_an_uncertified_prediction_is_not_promoted_by_revalidation() -> None:
+    """The other side: revalidation is a pass-through, not a second door into the gate."""
+    plain = _pred(0.4, 0.3, 0.5, calibrated=True)
+    assert plain.calibrated is False
+    assert Prediction[float].model_validate(plain).calibrated is False

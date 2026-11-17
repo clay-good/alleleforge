@@ -166,11 +166,13 @@ class DNASequence(BaseModel):
     def __getitem__(self, key: int | slice) -> DNASequence:
         """Slice or index, returning a new :class:`DNASequence`.
 
-        Integer indexing returns a single-base sequence rather than a raw
-        character, keeping the type uniform across the codebase.
+        Integer indexing returns a single-base sequence rather than a raw character,
+        keeping the type uniform across the codebase — that is what the wrap does, and
+        it is the same wrap either way. There was a `isinstance(key, slice)` branch here
+        whose two arms were byte-identical; `str.__getitem__` already handles both, so
+        the test it suggested existed could not have failed, and both directions of a
+        type-guard mutation survived the whole suite because the branch decided nothing.
         """
-        if isinstance(key, slice):
-            return DNASequence(self.sequence[key])
         return DNASequence(self.sequence[key])
 
     @property

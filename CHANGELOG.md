@@ -9,6 +9,18 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **Every `isinstance` type guard has been swept by forcing it both ways** — 148 mutants
+  across 22 files, asking in turn whether any fixture supplies a value of the wrong type
+  and whether any supplies the right one. 26 of 29 narrow survivors were phantoms: the
+  guards are exercised on both sides, including the bool-before-int checks in
+  `report/precision.py` and `types/prediction.py` where `isinstance(True, int)` being
+  `True` is the classic trap.
+- **A certified prediction is checked to survive revalidation.** The validator promises a
+  calibrated prediction is not downgraded "just because it was placed inside a
+  `RankedMenu` or revalidated", and nothing asserted it. Pydantic short-circuits a
+  correctly-typed instance today, so the test guards against a future
+  `revalidate_instances` change rather than an edit to the validator — stated that way in
+  the test.
 - **Every module has now been swept for statement deletion** — removing one side-effect
   statement at a time and asking whether anything observes that it ran. 950 mutants
   across 72 files over rounds 666–673; seventy-two modules clean, every survivor fixed,
@@ -3310,6 +3322,16 @@ acceptance.
   Added `src/alleleforge/py.typed` (hatchling bundles it into the wheel and sdist
   automatically) and a packaging test that guards the marker — plus the bundled
   model cards, benchmark splits, and web frontend — against silent removal.
+
+### Removed
+- **A branch in `DNASequence.__getitem__` whose two arms were byte-identical.** A
+  type-guard sweep forced `isinstance(key, slice)` to both answers and the suite stayed
+  green for both — the signature of a predicate that decides nothing. `str.__getitem__`
+  already handles an `int` and a `slice`, and both arms wrapped the result identically, so
+  no test could have distinguished them. The branch read as though integer indexing were
+  special; the contract it hinted at (an `int` key and a `slice` key both return a
+  `DNASequence`, so callers can call sequence methods on the result) is real and is now
+  pinned.
 
 ### Fixed
 - **The documentation site failed WCAG AA contrast on its own primary colour.**
