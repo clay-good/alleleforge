@@ -39,7 +39,10 @@ ancestry-stratified report:
    *alternate* allele and keep any hit the variant **creates or strengthens** versus the reference.
 3. **Haplotype-aware** — walk the common 1000G/HGDP haplotypes, applying each haplotype's full
    variant set, so off-targets that need a *combination* of co-inherited variants are found.
-4. **Patient VCF** — optionally personalize the search to one genome.
+4. **Patient VCF** — optionally personalize the search to one genome. `--patient-vcf`
+   reads only `PASS` calls, and says on stderr how many rows it dropped and why: a
+   soft-filtered call can still create a de-novo PAM in the person who carries it, and
+   a scan that skipped one must not be read as a scan that found nothing.
 5. **Score & aggregate** — CFD and MIT, threshold (CFD ≥ 0.20 **or** MIT ≥ 0.10), de-duplicate by
    placement keeping the strongest, sort, and stratify by ancestry.
 

@@ -51,7 +51,7 @@ def harness() -> ModuleType:
 #: A nested boolean, a closure, a two-ended span, a type guard and a literal — every
 #: shape that has broken the index mapping, in one module.
 _SOURCE = '''
-def outer(a, b, c, iv, d):
+def outer(a, b, c, iv, d, strict=True, *, verify=True, quiet=False):
     """Doc."""
     out = []
     if a > 0 and (b or c):
@@ -59,7 +59,7 @@ def outer(a, b, c, iv, d):
     if isinstance(a, str):
         out.append("y")
 
-    def inner(y):
+    def inner(y, loud=False):
         out.append("z")
         return y
 
@@ -81,7 +81,7 @@ def _applied(harness: ModuleType, mode: str, index: int) -> str:
     return ast.unparse(tree)
 
 
-@pytest.mark.parametrize("mode", ["ops", "const", "conj", "del", "side", "isinst", "pair"])
+@pytest.mark.parametrize("mode", ["ops", "const", "conj", "del", "side", "isinst", "pair", "dflt"])
 def test_every_site_the_collector_reports_can_be_applied(harness: ModuleType, mode: str) -> None:
     """The floor: an index that applies nothing is an index that measured nothing."""
     sites = _sites(harness, mode)
@@ -91,7 +91,7 @@ def test_every_site_the_collector_reports_can_be_applied(harness: ModuleType, mo
         assert mutant != _SOURCE.strip(), f"{mode}[{index}] changed nothing"
 
 
-@pytest.mark.parametrize("mode", ["ops", "const", "conj", "del", "side", "isinst", "pair"])
+@pytest.mark.parametrize("mode", ["ops", "const", "conj", "del", "side", "isinst", "pair", "dflt"])
 def test_each_index_changes_the_source_differently(harness: ModuleType, mode: str) -> None:
     """Two indices producing one mutant means the numbering collapsed somewhere."""
     sites = _sites(harness, mode)
@@ -161,3 +161,42 @@ def test_the_default_log_stays_out_of_the_repository_root(harness: ModuleType) -
     assert 'default=str(HERE / "mutants.log")' in source, (
         "the default log path must be beside the script, not the working directory"
     )
+
+
+def test_a_boolean_default_is_flipped_only_in_its_own_slot(harness: ModuleType) -> None:
+    """`defaults` right-aligns against the parameter list, which is the trap here.
+
+    `outer(a, b, c, iv, d, strict=True, *, verify=True, quiet=False)` has five
+    parameters with no default and three with one. Zipping `args.args` against
+    `args.defaults` from the left would pair `strict`'s default with `a`, so the index
+    would name a parameter the mutator did not touch -- the same class of defect as the
+    three the rest of this file pins.
+    """
+    sites = _sites(harness, "dflt")
+    assert [detail for _, _, detail in sites] == [
+        "outer(strict=True -> False)",
+        "outer(verify=True -> False)",
+        "outer(quiet=False -> True)",
+        "inner(loud=False -> True)",
+    ]
+
+
+def test_each_flipped_default_changes_only_that_parameter(harness: ModuleType) -> None:
+    """A flip that moved another parameter's default would be measured as this one's."""
+    expected = [
+        ("strict=False", "verify=True", "quiet=False"),
+        ("strict=True", "verify=False", "quiet=False"),
+        ("strict=True", "verify=True", "quiet=True"),
+    ]
+    for index, signature in enumerate(expected):
+        mutant = _applied(harness, "dflt", index)
+        for fragment in signature:
+            assert fragment in mutant, f"dflt[{index}] lost {fragment}"
+        assert "loud=False" in mutant, "the closure's default must be untouched"
+
+
+def test_a_closure_default_is_reached(harness: ModuleType) -> None:
+    """Deletion mode once skipped closures entirely; the same walk feeds this mode."""
+    mutant = _applied(harness, "dflt", 3)
+    assert "loud=True" in mutant
+    assert "strict=True" in mutant and "verify=True" in mutant and "quiet=False" in mutant

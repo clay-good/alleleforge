@@ -105,6 +105,35 @@ def _clone(tree: ast.AST) -> ast.AST:
     return ast.parse(ast.unparse(tree))
 
 
+def _default_sites(fn: ast.AST) -> list[tuple[str, bool]]:
+    """Return ``(parameter, current)`` for every boolean default in ``fn``'s signature.
+
+    A boolean keyword default is a *decision the caller did not make*, which is what
+    makes it the project's recurring defect shape: a safety posture (`verify=True`,
+    `consent=True`, `strict=True`) that every call site inherits silently, so nothing
+    fails when it is wrong. `const` mode reaches these too, but it fires on every int
+    and float as well and buries them; this operator asks only the one question.
+
+    Positional and keyword-only defaults are walked in signature order so the index is
+    stable, and `*args`/`**kwargs` carry no defaults to flip.
+    """
+    args = getattr(fn, "args", None)
+    if args is None:
+        return []
+    out: list[tuple[str, bool]] = []
+    positional = [*getattr(args, "posonlyargs", []), *args.args]
+    # `defaults` right-aligns against the positional parameters.
+    for arg, default in zip(
+        positional[len(positional) - len(args.defaults) :], args.defaults, strict=True
+    ):
+        if isinstance(default, ast.Constant) and isinstance(default.value, bool):
+            out.append((arg.arg, default.value))
+    for arg, kw_default in zip(args.kwonlyargs, args.kw_defaults, strict=True):
+        if isinstance(kw_default, ast.Constant) and isinstance(kw_default.value, bool):
+            out.append((arg.arg, kw_default.value))
+    return out
+
+
 class Collector(ast.NodeVisitor):
     """Assign a stable index to every mutable site."""
 
@@ -139,6 +168,8 @@ class Collector(ast.NodeVisitor):
             self._body_sites(node)
         elif self.mode == "pair":
             self._pair_body(node)
+        elif self.mode == "dflt":
+            self._default_body(node)
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
@@ -146,6 +177,8 @@ class Collector(ast.NodeVisitor):
             self._body_sites(node)
         elif self.mode == "pair":
             self._pair_body(node)
+        elif self.mode == "dflt":
+            self._default_body(node)
         self.generic_visit(node)
 
     def _body_sites(self, fn: ast.AST) -> None:
@@ -156,6 +189,11 @@ class Collector(ast.NodeVisitor):
         """
         for stmt in _deletable(fn, side_only=self.mode == "side"):
             self.sites.append((self.mode, stmt.lineno, _describe(stmt)))
+
+    def _default_body(self, fn: ast.AST) -> None:
+        name = getattr(fn, "name", "?")
+        for param, current in _default_sites(fn):
+            self.sites.append(("dflt", fn.lineno, f"{name}({param}={current} -> {not current})"))
 
     def _pair_body(self, fn: ast.AST) -> None:
         for receiver, kind, name, other in _pair_sites(fn):
@@ -247,8 +285,31 @@ class Mutator(ast.NodeTransformer):
             if not self.applied:
                 self.generic_visit(node)
             return node
+        if self.mode == "dflt":
+            self._default_in(node)
+            if not self.applied:
+                self.generic_visit(node)
+            return node
         self.generic_visit(node)
         return node
+
+    def _default_in(self, fn: ast.AST) -> None:
+        """Flip the targeted boolean default in ``fn``'s signature."""
+        args = getattr(fn, "args", None)
+        if args is None:
+            return
+        positional = [*getattr(args, "posonlyargs", []), *args.args]
+        slots = [
+            *zip(positional[len(positional) - len(args.defaults) :], args.defaults, strict=True),
+            *zip(args.kwonlyargs, args.kw_defaults, strict=True),
+        ]
+        for _arg, default in slots:
+            if not (isinstance(default, ast.Constant) and isinstance(default.value, bool)):
+                continue
+            if self._hit():
+                default.value = not default.value
+                self.applied = True
+                return
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> ast.AST:
         if self.mode in ("del", "side"):
@@ -512,7 +573,9 @@ def main() -> int:
     ap.add_argument("--target", required=True)
     ap.add_argument("--tests", required=True)
     ap.add_argument(
-        "--mode", default="conj", choices=["ops", "const", "conj", "del", "side", "isinst", "pair"]
+        "--mode",
+        default="conj",
+        choices=["ops", "const", "conj", "del", "side", "isinst", "pair", "dflt"],
     )
     ap.add_argument("--only", type=int, default=-1)
     ap.add_argument("--timeout", type=int, default=300)

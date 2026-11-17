@@ -1131,8 +1131,27 @@ def _load_patient_variants(path: Path | None, reference: Any) -> list[Variant] |
     try:
         if path.name.endswith((".vcf", ".vcf.gz", ".bcf")):
             from alleleforge.variant import iter_vcf
+            from alleleforge.variant.vcf import VcfIngestCounts
 
-            records: list[Any] = list(iter_vcf(path))
+            # `aforge batch` has counted these drops since the cohort was found to be
+            # silently smaller than its file. This path never did, and the asymmetry
+            # runs the wrong way: for a cohort a dropped row is one guide fewer, which
+            # shows up as a shorter output. Here a dropped row is a safety check that
+            # was never performed, and "no patient off-targets" reads exactly like
+            # "this person carries nothing risky". `pass_only` defaults to True with a
+            # rationale written for the cohort use -- a run should not *design against*
+            # a soft-filtered call -- which the safety use inherited unexamined: a
+            # low-confidence call can still create a de-novo PAM in the person who
+            # carries it.
+            ingest = VcfIngestCounts()
+            records: list[Any] = list(iter_vcf(path, counts=ingest))
+            if ingest.skipped:
+                detail = ", ".join(f"{n} {why}" for why, n in sorted(ingest.skipped.items()))
+                _echo_err(
+                    f"note: --patient-vcf {path}: {ingest.total_skipped} of {ingest.rows} "
+                    f"row(s) dropped ({detail}). Those alleles were NOT scanned for "
+                    "off-targets; a site one of them creates will not appear below."
+                )
         else:
             records = _read_variant_list(path)
         variants = _PatientVariants(

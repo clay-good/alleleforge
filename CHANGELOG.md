@@ -9,6 +9,13 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The mutation harness flips boolean defaults (`--mode dflt`).** A boolean default is
+  a decision no call site has to make, which is where this project's safety postures live
+  (`verify=`, `consent=`, `pass_only=`, `in_distribution=`). `const` mode reaches the same
+  nodes but buries them under every int and float in the module, so the class had never
+  been swept; asking only the one question leaves ~110 sites across the library. The
+  harness's contract test gained the right-aligned-defaults shape that would otherwise let
+  an index name a parameter the mutator never touched.
 - **A real benchmark corpus can be supplied, so the readiness report can notice one.**
   `ALLELEFORGE_BENCH_DATASETS` and `ALLELEFORGE_BENCH_SPLITS` point the benchmark at
   corpora and frozen splits outside the package. Until now `load_dataset`'s
@@ -3384,6 +3391,16 @@ acceptance.
   pinned.
 
 ### Fixed
+- **`--patient-vcf` says which of a person's alleles it did not scan.** `iter_vcf`
+  drops soft-filtered calls by default and `aforge batch` has counted those drops since
+  a cohort was found to be silently smaller than its file; the patient off-target path
+  called `list(iter_vcf(path))` and counted nothing. The asymmetry ran the wrong way —
+  for a cohort a dropped row is one guide fewer and the output visibly shortens, while
+  for `--patient-vcf` it is a safety check that was never performed, after which the run
+  reports no patient-origin sites, which reads exactly like a person who carries nothing
+  risky. A low-confidence call can still create a de-novo PAM in the person who carries
+  it. The drops are now counted and named on stderr; `pass_only`'s rationale, written for
+  designing against a cohort, is unchanged for that caller.
 - **A partly-real calibration corpus still says which rows are stand-ins.** The
   synthetic-data caveat on the calibration report and on the committed figures fired only
   when *every* row was a stand-in, so the first real corpus deleted it from a table whose

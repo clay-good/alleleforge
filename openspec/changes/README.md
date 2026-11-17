@@ -23284,3 +23284,95 @@ The banner was correct in the repo's present (all stand-ins) and correct in its 
 future (all real), and wrong in the only state the project will actually pass through.
 A warning worth having is one that survives partial progress — so check a conditional
 caveat against the mixed case, which is usually the first case that will really occur.
+
+## Round 682 — the default nobody chose
+
+The eighth mutation operator, and the first finding it produced.
+
+### `--mode dflt`
+
+`scripts/mutate.py` gained an operator that flips every `True`/`False` **default in a
+function signature**. `const` mode already reaches those nodes, but it fires on every
+int and float in the module too and buries the ~110 signature defaults under thousands
+of literals — which is why `const` has never been run repo-wide. Asking only the one
+question makes the class tractable: 47 sites in `cli/main.py` and at most six in any
+other module.
+
+The question is worth asking on its own because a boolean default is *a decision the
+caller did not make*. `verify=`, `consent=`, `pass_only=`, `in_distribution=`,
+`bulged=` — each is a safety posture that every call site inherits in silence, and
+nothing fails when it is wrong. That is this project's recurring defect shape stated as
+a syntax.
+
+The harness's contract test grew the shape that would have broken it: **`args.defaults`
+right-aligns** against the parameter list. `outer(a, b, c, iv, d, strict=True, *,
+verify=True, quiet=False)` has five parameters without a default and three with one;
+zipping from the left pairs `strict`'s default with `a`, and the index then names a
+parameter the mutator never touched — the same class as the three index-mapping bugs
+this file already pins.
+
+### What the sweep said, and what actually found the bug
+
+`in_distribution=True` looked like the finding: six declarations, the optimistic
+direction, on the flag that decides whether an interval is widened for being out of
+distribution *and* whether `calibrated=True` is allowed. All four mutants in
+`scoring/uncertainty.py` were **killed**, and an AST query for production call sites
+that omit the keyword returned exactly one — inside the conformal demo, whose data is
+synthetic by construction. The default is never silently relied upon. `bulged=False`
+read the same way and came back the same: every off-target call passes it explicitly,
+and the two survivors in `offtarget/scoring.py` are the `OffTargetScorer` **Protocol**
+stub (body `...`, nothing to observe) and the Cas12a analog, whose docstring already
+says the parameter is "accepted for interface parity" because the score is
+length-relative. Every hardcoded `consent=True` in `src/` sits in a shell behind an
+explicit user flag or an operator environment variable.
+
+The bug was in the one default whose *rationale was written for a different caller*.
+`iter_vcf(pass_only=True)` documents itself: "a cohort run should not design against
+soft-filtered calls." True, and the cohort path proves it takes the consequence
+seriously — `aforge batch` passes a `VcfIngestCounts` and prints `ingest: …`, because a
+cohort was once found to be silently smaller than the file it came from.
+
+`cli/main._load_patient_variants` calls `list(iter_vcf(path))`. No counter.
+
+The asymmetry runs the wrong way:
+
+| | a dropped row is | how it shows |
+|---|---|---|
+| `aforge batch` (cohort) | one guide fewer | a shorter output, and a counted `ingest:` line |
+| `--patient-vcf` (safety) | **a check never performed** | nothing |
+
+`--patient-vcf` exists to find off-targets a *person's own genome* creates. A
+soft-filtered call — low depth, strand bias, routine in real patient VCFs — can still
+create a de-novo PAM in the person who carries it. Dropped, it is never scanned, and the
+run then prints the most reassuring thing this tool can say: no patient-origin sites.
+That output is byte-identical to a scan of someone who carries nothing risky.
+
+The test makes exactly that run: one allele, soft-filtered, that would otherwise
+nominate a site. `n_sites == 0` either way — what changed is that stderr now names the
+allele that was not looked at. Only the file opening is stubbed (cyvcf2 is not installed
+here), so the drop counting under test is the shipped reader.
+
+### What this round actually swept
+
+Four modules, 13 mutants, all triaged — not a repo-wide pass. `scoring/uncertainty.py`
+4/4 killed. `offtarget/_search.py` 2/2 killed (`seed=True`, `use_fm_index=False`).
+`offtarget/scoring.py` 4 killed, 2 unobservable-by-construction (the Protocol stub and
+the length-relative Cas12a analog). `offtarget/_haplotype.py` 1 survivor,
+`apply_variants(prefer_native=True -> False)`, which is **unexecutable here**: the Rust
+kernel is not built in this worktree, so both settings take the Python path. That is the
+third triage category, not a finding.
+
+Left for a later round, named so it is a backlog and not a silence: the ~95 remaining
+`dflt` sites — `scoring/base_outcome.py` (5), `cas9_outcome.py` (4), `genome/index.py`
+(5), `design/designer.py` (4), `design/cas9.py` (4), `types/prediction.py` (2), the
+`consent=`/`__init__` defaults across the adapters, and the 47 in `cli/main.py`. The CLI
+set was read without mutating: every flag there defaults to the opt-in `False` direction
+(`no_offtarget=False` means off-target runs), so none of them is a safety posture facing
+the wrong way.
+
+**Lesson: a default's rationale is written for the caller its author had in mind.**
+`pass_only=True` was argued, documented and correct for designing guides. A second
+caller arrived whose question was the opposite — not *should I design against this?* but
+*could this hurt the person?* — and inherited the argument without re-reading it. When
+the same flag serves two callers, check whether the justification survives the second
+one; a default is the one parameter no call site has to defend.
