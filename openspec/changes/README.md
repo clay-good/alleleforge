@@ -23032,3 +23032,65 @@ cannot.** Three operators in, the pattern is that each new one earns its keep no
 finding more of the same but by making a different question askable — "is the other arm
 tested", "does anything observe this ran", and now "does this predicate decide anything
 at all".
+
+## Round 677 — the two ends of one span
+
+The fourth operator, and the last blind spot this log had named and never aimed at:
+**ordered-opposite swaps.** For every member read off an object, substitute its opposite
+where the opposite is read off the same object in the same function — `start` for `end`,
+`low` for `high`, `ref` for `alt`, `top` for `bottom`, subscript `0` for `1`.
+
+The first version was useless and the reason is worth recording. Swapping *any* member
+for *any other* on the same receiver produced **11,380 mutants**, almost all of which
+confuse two unrelated fields and die on the first assertion. Restricting to ordered
+opposites — a token-wise match so `start`/`end` pairs `interval_start` with
+`interval_end` and leaves `restart` alone — cut it to **272**, and those 272 are the
+defect class this project has already shipped twice: an interval printed low-for-high,
+and a coordinate lift reporting a haplotype off-target three bases from where it is.
+**Confusing two unrelated fields explodes; confusing the two ends of one span stays
+plausible and silent, and that is precisely what makes it worth a mutant.**
+
+Forty survived their own package's tests, twelve the full suite. The alarming ones were
+all phantoms, which is the reassuring half of the result: `_plus` for `_minus` in the
+FM-index, `var.alt` for `var.ref` in the pegRNA enumerator, `best_efficiency_high` for
+`best_efficiency_low` on a cohort row, `nicking.top` for `nicking.bottom` on an oligo
+sheet, and `interval[0]` for `interval[1]` in both the HTML and the flat exports are all
+genuinely pinned.
+
+The twelve that held are four findings.
+
+**The off-target cache key.** `search_signature` folds in `on_target` and the scanned
+`regions`, and its docstring says why: *"otherwise a bare scan and an
+on-target-excluding scan collide on one key and one is served the other's report."* Swap
+one span's `start` for its `end` and the key is built from `(end, end)`. It still changes
+when the span moves as a whole; it stops distinguishing two spans that share one end. A
+guide whose self-match was dropped at `chr1:100-120` and another at `chr1:95-120` hash
+alike, and the second is served the first's off-target report. Both searches return a
+report, promptly, and the wrong one is indistinguishable from the right one.
+
+**The haplotype dedup, and this is the serious one.** The population pass asks whether
+each alt hit is created or strengthened relative to the reference:
+`ref_best.get((h.strand, h.start, h.end))`. `_reference_best` builds that dictionary with
+the same key, and `_strengthens(hit, None, ...)` returns `True` — *no reference hit here,
+so this one is created.* Reverse the lookup key and every lookup misses, so **every**
+haplotype hit is reported as newly created. On a contig that already carries the site the
+count goes from **0 to 2**: the reference pass finds it, the haplotype pass finds it
+again, and the report presents one locus twice with a copy attributed to a population.
+This is the module whose whole purpose is saying honestly which off-targets a population
+carries and which the reference already had.
+
+**Two printed spans**, in the locus line (`chrom:start-end`) and the base-editor reagent
+line (`window N-M`). `chr2:117-97` is a locus a reader pastes into a browser; an inverted
+window is the range a bench scientist takes for the bases the editor acts on. The
+report's existing checks ask whether the contig is present and the cut position printed —
+questions an inverted span answers correctly.
+
+**One quoted coordinate**, in the ambiguous-region verdict's negative branch: *"no
+hg38-ambiguous region overlaps chr1:144000000"*. Naming the far end of the window makes
+the reassurance about a different position, wrong by exactly the margin.
+
+**Lesson: narrow the operator until its survivors are worth reading.** The unrestricted
+version would have buried four real findings under eleven thousand mutants, and the
+restriction that made it useful came from this log — from knowing which confusions this
+codebase has actually shipped. An operator is a hypothesis about where defects live, and
+a hypothesis with no prior is just a cost.

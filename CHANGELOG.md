@@ -9,6 +9,27 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **An off-target cache key is checked to distinguish two spans that share one end.**
+  `search_signature` folds the on-target locus and the scanned regions into the key
+  precisely so one search is not served another's report, and nothing checked that each
+  span's *ends* separate it: built from `(end, end)` instead of `(start, end)` the key
+  still changes when a span moves as a whole, but a self-match dropped at `chr1:100-120`
+  and one at `chr1:95-120` hash alike.
+- **A haplotype hit the reference already carries is not reported as new.** The
+  population pass dedups each alt hit against the reference by `(strand, start, end)`,
+  and `_strengthens(hit, None, …)` means "created". With the lookup key's two ends
+  reversed every lookup misses, so on a contig that already carries the site the count
+  goes from 0 to 2 — one locus reported twice, one copy attributed to a population, in
+  the module whose purpose is saying which off-targets a population actually carries.
+- **Printed spans are checked to read low-to-high**, in the locus line
+  (`chrom:start-end`) and the base-editor reagent line (`window N-M`), and the
+  ambiguous-region verdict is checked to quote the position it was asked about rather
+  than the far end of the window.
+- **Every ordered-opposite member access has been swept** — `start`/`end`, `low`/`high`,
+  `ref`/`alt`, `top`/`bottom`, subscript `0`/`1` — 272 mutants across 45 files. The
+  alarming candidates are all genuinely pinned: `_plus`/`_minus` in the FM-index,
+  `var.alt`/`var.ref` in the pegRNA enumerator, `best_efficiency_high`/`low` on a cohort
+  row, `nicking.top`/`bottom` on an oligo sheet, and `interval[0]`/`[1]` in both renders.
 - **Every `isinstance` type guard has been swept by forcing it both ways** — 148 mutants
   across 22 files, asking in turn whether any fixture supplies a value of the wrong type
   and whether any supplies the right one. 26 of 29 narrow survivors were phantoms: the
