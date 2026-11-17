@@ -9,6 +9,15 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **A `ReferenceGenome` is checked to release the handle it opened.** `close()`'s entire
+  body is `self._fasta.close()` and `__exit__`'s entire body is `self.close()`, and a
+  statement-deletion sweep removed each with the whole suite green — a reference that
+  never closes returns exactly the same bases, so a suite that reads bases cannot tell.
+  Also pinned: a consented download creates the cache directory it writes into.
+- **Eight more modules were swept for statement deletion and are clean**, including
+  `cli/main.py` at 233 of 233 and `web/api/app.py` at 21 of 21, alongside `viz/svg.py`,
+  `offtarget/_search.py`, `design/cohort_summary.py`, `report/export.py`,
+  `scoring/uncertainty.py` and `scoring/cas9_outcome.py`.
 - **The job store's liveness and memory bounds are tested, not only its answers.** A
   statement-deletion sweep removed ten statements from `web/api/jobs.py` one at a time
   with the suite green. Four were real: the strong reference that stops asyncio

@@ -22658,3 +22658,45 @@ real this round governs memory, handles or liveness, and every one of those line
 invisible to a test that checks what came back. Deletion is the operator that reaches
 them, and when it reports a survivor in that territory the next question is not "is this
 tested" but "is this observable at all" — four times out of ten here, it was not.
+
+## Round 669 — the context manager that did not close
+
+Statement deletion across the rest of the project's substantial modules. Eight came back
+clean against the full suite, including the two largest: **`cli/main.py` at 233 of 233**
+and `web/api/app.py` at 21 of 21, with `viz/svg.py`, `offtarget/_search.py`,
+`design/cohort_summary.py`, `report/export.py`, `scoring/uncertainty.py` and
+`scoring/cas9_outcome.py` beside them. The shell is now the only module in this project to
+have been swept by every operator built here and survived all of them intact.
+
+Ten survivors looked promising and were all phantom — among them `found.append(...)` in
+the off-target scan, which would have been the most alarming finding of the pass had it
+held, and the capability list the deployment advertises. The narrow list is a filter and
+nothing else; this round is the clearest demonstration yet, at ten for ten.
+
+`genome/reference.py` left three, and they are the same kind of thing Round 668 found:
+
+* ``self._fasta.close()`` is **the entire body of `close()`**, whose docstring is *"Close
+  the underlying FASTA handle"*;
+* ``self.close()`` is **the entire body of `__exit__`**, so `with ReferenceGenome(...)`
+  would leave the handle open on the way out;
+* ``root.mkdir(parents=True, exist_ok=True)`` precedes a consented download, without
+  which the fetch writes into a directory that is not there.
+
+A reference that never closes returns exactly the same bases, so a suite that reads bases
+cannot tell. That is how a cohort could open the genome once per item for as long as it
+did — and both findings are the same sentence from different ends: *correctness is not
+the only property, and it is the only one the tests were checking.*
+
+Fourteen more survivors are **unexecutable here**, not untested, and are recorded rather
+than carried: nine in `scoring/backbone.py` and two in `scoring/cas9_efficiency.py` are
+inside `pragma: no cover` bodies that need torch, LightGBM or real weights; the trained
+Rule Set 3 scorer's `self.tracr` *is* covered — by `test_rs3_parity_against_upstream`,
+which is opt-in behind `ALLELEFORGE_REAL_WEIGHTS` and skipped in CI. Triaging those apart
+from real gaps is the difference between a backlog you can act on and a list of items
+nobody can close.
+
+**Lesson: the third triage category is the one that keeps a backlog honest.** A survivor
+is reachable-and-untested, unobservable, or unexecutable in this environment, and only
+the first is work. This pass has now produced all three in quantity, and every one of the
+latter two is written down by name — because the cost of re-deriving them next time is
+the same as the cost of finding them was.
