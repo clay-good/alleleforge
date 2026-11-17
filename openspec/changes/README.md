@@ -22877,3 +22877,54 @@ this pass were unambiguous — a line whose absence is a defect, and a test that
 This one is not: the line is fine, the reader is missing, and what should read it is a
 question about what the artifact promises. Writing a test that invented an answer would
 have buried that question under a green check.
+
+## Round 674 — the gap the last round declined to close
+
+Round 673 found that `HaplotypePanel.source` has no reader, traced it to the web API
+recording no provenance descriptor for a caller-supplied panel, and left it standing on
+the grounds that closing it meant choosing what the web surface writes into a published
+artifact. **That reasoning was wrong, and the check that exposed it was the readiness
+report, not another sweep.**
+
+The format was never open. `_describe_source` in `cli/main.py` already defines the
+descriptor for exactly this case — a file a user points at, which has no upstream version
+string, pinned by what it *contained* on this run and marked `caller_supplied` so `verify`
+does not report it as something a reader could go and fetch. There was nothing to decide;
+there was one implementation, in one shell, and the other shell loaded the same files and
+recorded nothing.
+
+It is also wider than reported. The web API loads **two** caller-supplied sources from the
+environment — `ALLELEFORGE_GNOMAD_TSV` and `ALLELEFORGE_HAPLOTYPES` — and neither carried
+a descriptor. A served run could be population-aware *and* haplotype-aware, say so in its
+rationale, and pin neither of the files that made it so, while the identical run from the
+command line pinned both.
+
+Three changes, and the third is the one that stops it recurring:
+
+* `describe_file_source` moves to `types/provenance.py`, beside `DatasetVersion`. The
+  CLI's `_describe_source` delegates to it, so the two surfaces cannot drift — a test
+  asserts they return the same descriptor for the same file, because two copies is how
+  this started.
+* Both web loaders attach it.
+* **`dataset_version` is now a declared attribute on `HaplotypePanel` and `GnomadDB`**
+  rather than one bolted on from outside by whichever caller remembered.
+  `_collect_datasets` reads it with `getattr(source, "dataset_version", None)` and the
+  CLI attached it through a `contextlib.suppress(AttributeError)` — a contract held up
+  entirely by duck typing, which is why a surface could simply not participate and
+  nothing said so. `mypy --strict` rejected the first version of this fix for precisely
+  that reason, and was right to.
+
+**Lesson: "this needs a decision" is a conclusion, and it has to be checked like one.**
+The decision had already been taken, in a helper one import away, and a round's worth of
+careful prose went into declining to look. Before deferring on design grounds, find out
+whether the design exists.
+
+### On the release criteria
+
+Also settled this round, by running `scripts/release_readiness.py` rather than reasoning
+about it: **1 of 5 v1.0 criteria is met, and every open one is blocked outside this
+repository** — upstream artifacts to pin hashes against (R0), real corpora in place of
+the synthetic stand-ins (R1/R5), calibration measured on that real data (R5), and a DOI
+minted on the first tagged release. The bundled corpora are labelled synthetic in every
+artifact that reports over them, and the consent gate refuses a null-hash fetch, so no
+open criterion is a silent one. No amount of in-repo work closes them.

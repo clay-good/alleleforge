@@ -3312,6 +3312,17 @@ acceptance.
   model cards, benchmark splits, and web frontend — against silent removal.
 
 ### Fixed
+- **A served run records the data it was given.** The web API loads two caller-supplied
+  sources from the environment — `ALLELEFORGE_GNOMAD_TSV` and `ALLELEFORGE_HAPLOTYPES` —
+  and attached no provenance descriptor to either, so a served result could be
+  population-aware *and* haplotype-aware, say so in its rationale, and pin neither of the
+  files that made it so, while the identical run from the command line pinned both. The
+  descriptor the CLI already wrote (content hash, marked `caller_supplied`) now lives in
+  `types/provenance.py` as `describe_file_source`, both shells call it, and a test asserts
+  they agree for the same file. `dataset_version` is also now a declared attribute on
+  `HaplotypePanel` and `GnomadDB` rather than one attached from outside through a
+  suppressed `AttributeError` — the duck-typed contract is what let a surface silently
+  not participate.
 - **`MODEL LIMITATIONS` ran on from the provenance line above it.** The printable sheet
   emitted the heading with no blank line, so the block naming what the models cannot do
   read as a continuation of the sentence listing their versions. It is its own block now.

@@ -61,7 +61,7 @@ from alleleforge.types.offtarget import (
     ANCESTRY_BURDEN_PRECISION,
     headline_notes,
 )
-from alleleforge.types.provenance import DatasetVersion
+from alleleforge.types.provenance import DatasetVersion, describe_file_source
 from alleleforge.types.sequence import GenomicInterval
 from alleleforge.types.variant import Variant
 
@@ -1182,22 +1182,11 @@ class _PatientVariants(list[Variant]):
 def _describe_source(path: Path, name: str) -> DatasetVersion:
     """Return a provenance descriptor pinning ``path`` by its content hash.
 
-    A file a user supplies has no upstream version string, so the honest pin is
-    what it *contained* on this run: two runs agree iff the bytes did. Without
-    this a population- or haplotype-aware result records neither which data made
-    it so nor whether any was supplied at all — and the whole point of the
-    provenance block is that a result can be re-derived from it.
+    Delegates to :func:`~alleleforge.types.provenance.describe_file_source`, which both
+    shells now share: this logic lived here alone, so the web API loaded the same
+    caller-supplied files and recorded nothing about them.
     """
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    return DatasetVersion(
-        name=name,
-        version=f"sha256:{digest[:12]}",
-        sha256=digest,
-        # Marked, because the pin means something different for a reader: nothing in a
-        # cache or a bundle holds these bytes, so `verify` cannot re-hash them and must
-        # not report them as an artifact the reader could go and fetch.
-        caller_supplied=True,
-    )
+    return describe_file_source(path, name)
 
 
 _T = TypeVar("_T")

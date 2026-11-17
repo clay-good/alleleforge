@@ -25,6 +25,7 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict
 
 from alleleforge.data._io import open_text
+from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import GenomicInterval, Strand, canonical_contig
 from alleleforge.types.variant import Variant
 
@@ -84,6 +85,12 @@ class HaplotypePanel:
     def __init__(self, haplotypes: Iterable[Haplotype], *, source: str) -> None:
         """Hold ``haplotypes`` grouped by contig; record the panel ``source``."""
         self.source = source
+        #: The provenance descriptor pinning the bytes this panel was read from, set by
+        #: whichever shell loaded it. Declared here rather than attached from outside:
+        #: `_collect_datasets` reads it off this object, and when only one shell knew to
+        #: attach it the other recorded nothing about the panel that made a run
+        #: haplotype-aware.
+        self.dataset_version: DatasetVersion | None = None
         # Index by canonical contig so a query named in the other style ("chr1"
         # vs "1") still resolves — a panel built from a bare-named 1000G/HGDP VCF
         # queried with a chr-named hg38 interval would otherwise miss its bucket

@@ -74,6 +74,7 @@ from alleleforge.report.html import render_html
 from alleleforge.report.oligos import scheme_by_name
 from alleleforge.report.pdf import render_pdf
 from alleleforge.report.precision import published
+from alleleforge.types.provenance import describe_file_source
 from alleleforge.types.sequence import GenomicInterval
 from alleleforge.types.variant import assembly_matches
 from alleleforge.web.api.jobs import JobCapacityError, JobManager
@@ -250,7 +251,11 @@ def _load_gnomad_from_env() -> Any | None:
     try:
         from alleleforge.data.gnomad import GnomadDB
 
-        return GnomadDB.from_sites_tsv(Path(path))
+        db = GnomadDB.from_sites_tsv(Path(path))
+        # As for the haplotype panel below: the CLI pins a caller-supplied frequency
+        # file by its contents and this surface recorded nothing.
+        db.dataset_version = describe_file_source(Path(path), "gnomad")
+        return db
     except (OSError, ValueError, ImportError) as exc:
         _GNOMAD_LOAD_ERROR = reason(exc)
         return None
@@ -279,7 +284,12 @@ def _load_haplotypes_from_env() -> Any:
     try:
         from alleleforge.data.haplotypes import HaplotypePanel
 
-        return HaplotypePanel.from_tsv(Path(path), source=path)
+        panel = HaplotypePanel.from_tsv(Path(path), source=path)
+        # The same descriptor the CLI attaches. Without it a run made haplotype-aware
+        # over HTTP records no pin for the panel that made it so, while the identical
+        # run from the command line records one.
+        panel.dataset_version = describe_file_source(Path(path), "haplotype-panel")
+        return panel
     except (OSError, ValueError, KeyError, ImportError) as exc:
         _HAPLOTYPES_LOAD_ERROR = reason(exc)
         return ()
