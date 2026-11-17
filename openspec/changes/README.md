@@ -23094,3 +23094,46 @@ version would have buried four real findings under eleven thousand mutants, and 
 restriction that made it useful came from this log — from knowing which confusions this
 codebase has actually shipped. An operator is a hypothesis about where defects live, and
 a hypothesis with no prior is just a cost.
+
+## Round 678 — the method was in a scratch directory
+
+Four operators have been built here and all four are exhausted, so this round asked a
+different question: where does the method live? The answer was a temporary directory. The
+harness was rebuilt from scratch at the start of this arc, and rebuilding it produced
+**three wrong answers before it produced a right one** — each a case where the index a
+mutant was logged under named a different mutation than the one applied:
+
+* the collector recorded a node's own sites before descending and the mutator descended
+  first, so for `a and (b or c)` every index past the first nesting was misattributed;
+* in statement-deletion mode the mutator returned early from a function and never visited
+  nested `def`s, so a module with a closure ran out of sites and reported them invalid;
+* the two-mutants-per-site operators need their pair in a fixed order for an index to
+  mean anything at all.
+
+None of those is a subtle bug. Each is the kind that a single toy module would have
+caught, and each cost a round's worth of careful reasoning about a defect that did not
+exist. The log recorded them as lessons; a lesson in a log does not prevent the next
+rebuild from reintroducing them.
+
+So `scripts/mutate.py` is now a project script beside `release_readiness.py` and
+`round_index.py`, with the pattern those established: a script with a guarding test.
+`tests/test_the_mutation_harness_applies_what_it_reports.py` pins the one property every
+conclusion in nine rounds of this log rests on — **for every mode, applying index *i*
+produces exactly the change the collector described at index *i*** — on fixtures that are
+deliberately the shapes that broke it: a nested boolean, a closure, a two-ended span, a
+type guard. It also checks that no two indices produce the same mutant (numbering
+collapsing somewhere), that an out-of-range index applies nothing rather than something,
+and that the default log path stays out of the repository root, which a root-contents
+guard failed on twice.
+
+`CONTRIBUTING.md` gains the method rather than the mechanics: what a survivor is, and the
+three things that make a result untrustworthy — a failing test in the chosen list turns
+every mutant into a "kill"; a module's own directory is a filter and its survivors are
+routinely 50–100% phantom; and a survivor is reachable-and-untested, unobservable, or
+unexecutable here, of which only the first is work.
+
+**Lesson: a method that lives in one session's memory is a method the project does not
+have.** Nine rounds of findings came out of a file that would have vanished with the
+scratch directory, and the first thing the next session would have done is rebuild it and
+re-earn its three bugs. The fix is unglamorous and it is the difference between a
+technique and a tool.

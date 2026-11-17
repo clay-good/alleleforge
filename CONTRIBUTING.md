@@ -89,6 +89,43 @@ its tests are green.
   tests. With the crate installed the library takes its native branches everywhere, and that is the
   configuration the docs recommend for real work, while every other job runs the pure-Python one.
 
+### Mutation testing
+
+A green suite says the tests pass, not that they would notice a change. `scripts/mutate.py`
+answers the second question: it edits one thing in a source file, runs a chosen slice of the
+suite, restores the file, and records whether anything failed. A *survivor* — a mutation no
+test objected to — is a claim nothing is checking.
+
+```bash
+python scripts/mutate.py --target src/alleleforge/x.py --tests "tests/x" --mode conj
+python scripts/mutate.py --target src/alleleforge/x.py --tests x --mode conj --only 0   # list sites
+python scripts/mutate.py --target src/alleleforge/x.py --tests tests --mode conj --index 3,7
+```
+
+Each `--mode` asks a different question — `ops` and `const` whether a computation or a
+threshold is pinned, `conj` whether a condition's other arm is tested, `side` whether
+anything observes that a statement ran at all, `isinst` which side of a type guard a
+fixture supplies, `pair` whether the two ends of a span are interchangeable. The script's
+own docstring says what each finds and why.
+
+Three things to know before trusting a result, each of which has produced a confidently
+wrong answer here:
+
+- **Run your chosen test list green first.** A failing test makes the run exit non-zero
+  whatever the mutation did, so every mutant reports "killed".
+- **A module's own test directory is a filter, not evidence.** Survivors against it are
+  routinely 50–100% phantom; re-run each against the whole suite before reading it as a
+  gap. Confirm with `--index`.
+- **A survivor is one of three things**: reachable and untested (write the test),
+  unobservable (prove it by running both branches over an exhaustive space, and record
+  it), or unexecutable here (an optional dependency, a network path). Only the first is
+  work, and conflating them produces a backlog nobody can close.
+
+Never commit while a sweep may be live, and check `git diff --stat src/` afterwards: the
+harness restores the file it mutated, but a killed process can leave it rewritten.
+`tests/test_the_mutation_harness_applies_what_it_reports.py` guards the harness's own
+index mapping — the property every conclusion above rests on.
+
 ## Commit &amp; PR conventions
 
 - Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `test:`,

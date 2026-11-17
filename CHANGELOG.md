@@ -9,6 +9,15 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The mutation-testing harness is a project script.** `scripts/mutate.py` was a file in
+  a temporary directory, rebuilt from scratch each time and producing three wrong answers
+  in the process — each one an index that named a different mutation than it applied
+  (nested booleans, closures in deletion mode, the ordering of two-mutants-per-site
+  operators). It now sits beside `release_readiness.py` with a guarding test,
+  `tests/test_the_mutation_harness_applies_what_it_reports.py`, pinning the property every
+  result rests on: for each mode, applying index *i* produces the change the collector
+  described at index *i*. `CONTRIBUTING.md` documents what a survivor means and the three
+  ways a sweep's result can be untrustworthy.
 - **An off-target cache key is checked to distinguish two spans that share one end.**
   `search_signature` folds the on-target locus and the scanned regions into the key
   precisely so one search is not served another's report, and nothing checked that each
