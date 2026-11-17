@@ -22430,3 +22430,58 @@ establish.** Half of this round's survivors were defensive reads made unreachabl
 check below them, a delegation, or an arithmetic identity — and in each case the only way
 to know was to run both branches. Reporting "five fixed" and quietly dropping the rest
 would have left the next sweep to re-derive them; they are recorded here by name.
+
+## Round 665 — the shell was already right, and the pass is complete
+
+`cli/main.py` was the last module on the conjunct-removal backlog and the largest: 104
+conjunction mutants, against a list of `tests/cli/` plus the root guards. **104 of 104
+killed.** Not one survivor to triage.
+
+That is the opposite of what this log predicted. The constant pass through the same file
+(Round 654) reported 84 survivors against its mirror directory and killed every one of
+them against a broader list — the largest phantom count on record — and the lesson taken
+from it was that a shell is the hardest kind of module to measure. It is; the list used
+here was built from that lesson, `tests/cli/` plus the documents and sibling surfaces the
+shell must agree with, and it runs in thirty seconds. Given the right list the answer came
+back immediately and unambiguously: **every two-part condition in this project's largest
+shell has a fixture on each arm.** The expensive thing was never the module. It was
+knowing what to compare it against.
+
+### The pass, end to end
+
+Twenty-one modules, 540 conjunction mutants, nine rounds (657–665). Forty-one real
+findings, one of which was a defect in shipped behaviour rather than a gap in a test:
+`_COORD_RE` could not read the dash this tool prints for an absent allele, so AlleleForge
+refused every indel it printed, and the off-by-one remedy — the message whose entire job
+is to hand back a string that works — ended `; try chr1:1000:C>-`, which did not.
+
+Eleven modules came back clean. What the clean ones have in common is not simplicity:
+`offtarget/engine.py`, `scoring/uncertainty.py`, `enumerate/cas9.py` and `cli/main.py` are
+among the most intricate files here. They are the ones with a consumer that insists on
+their answers.
+
+Three results are worth carrying forward more than any individual fix:
+
+**The phantom rate measures the module's audience, not the sweep.** Zero for a pure type,
+which its own unit tests pin completely. Near total for a shell, a renderer, or a numeric
+library, which are pinned by whatever compares their answer to someone else's. Fifty to
+sixty-five percent for a runner. A survivor against a mirror directory is not evidence of
+anything, and the rate itself says what kind of module you are looking at.
+
+**`x or <default>` was the single most productive shape.** Six modules, nine findings.
+The reason is structural rather than careless: a defensive default is written for the
+input the author could imagine and had no example of, and a fixture is an example. The
+two are disjoint by construction.
+
+**Half of what survives is unobservable, and proving that is the work.** Guards made
+unreachable by a check below them, a delegation, or an arithmetic identity. Every one in
+this pass was settled by running both branches over an exhaustive or near-exhaustive
+space — 71,400 inputs for `_left_align`, 18,000 texts for `_wrap`, 7,225 allele pairs for
+`variant_class`, 72 states for `dataset_status` — and in three separate rounds a reading
+that looked airtight was wrong.
+
+**Lesson: when an operator stops finding things, that is a measurement, not an ending.**
+The conjunct operator was built in Round 657 because this log had written the same
+diagnosis four times. Nine rounds later it is exhausted, and the thing it leaves behind is
+not the forty-one fixes but the table of which modules its narrow list could and could not
+measure — which is the input to whatever operator comes next.

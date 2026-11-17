@@ -9,6 +9,13 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **Every module in the project has now been swept for conjunct removal** — dropping each
+  operand of an `and`/`or` chain in turn, the mutation that asks whether a two-part
+  condition has a fixture on *each* arm. Twenty-one modules, 540 mutants, forty-one real
+  findings over rounds 657–665, all now pinned. Eleven modules came back clean, including
+  `cli/main.py`, the largest shell here, at 104 of 104. The one defect in shipped
+  behaviour the pass found (the resolver refusing the dash it prints for an absent
+  allele) is recorded under **Fixed**.
 - **A sequence run is no longer split across a page break when the sheet continues below
   it.** `_paginate`'s run scan stops at the end of its input *and* at the first
   non-sequence line, and every fixture puts the donor block at the tail of the page
