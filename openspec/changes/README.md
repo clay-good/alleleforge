@@ -22267,3 +22267,58 @@ non-canonical PAM and proves nothing about the three-base prefix test, because i
 one step earlier. For a conjunction of N reads, the fixture that measures read *i* is the
 one where the other N−1 all pass — which is the same sentence this log has written about
 guards, now about the characters inside one.
+
+## Round 662 — three modules, two of them already right
+
+`web/api/app.py` (28 mutants), `design/cohort_summary.py` (22) and `data/registry.py`
+(20), swept for conjunct removal. The first two came back **completely clean against the
+full suite** — 28 of 28 and 22 of 22 — after showing five and ten survivors respectively
+against their own test directories. Every one was a phantom.
+
+That is now the third and fourth module whose own directory is the wrong list, and the
+pattern has stopped being a surprise and started being a rule. The web app is pinned by
+the cross-surface agreement tests (`test_shells_expose_the_library`,
+`test_every_registry_surface_answers_the_same_question`) far more than by `tests/web/`;
+the cohort summary is pinned by the artifact and disclosure guards at the root. Both are
+*renderers of other modules' answers*, and a renderer is held in place by whatever insists
+its answer matches someone else's.
+
+`data/registry.py` left five, and three are real — all in the two places that ask whether
+a bundled dataset is actually there.
+
+`resolve` asks `bundled is not None and bundled.is_file()`, and `dataset_status` writes
+the same pair. Every fixture runs against the real registry, where the one bundled row's
+file is present, so the second read never decided anything. `dataset_reason` already
+carries a sentence for the case neither was tested on — *"bundled file is missing or
+failed checksum verification; reinstall AlleleForge"* — which is reachable only through
+it. Drop the `is_file()` read and a partial install stops being a degradation and becomes
+a wall: `resolve` raises `FileNotFoundError` out of the checksum read instead of falling
+through to the cache, and `dataset_status` reports a present, verified cache entry as
+unavailable, while the bytes that would answer the question sit in the cache directory
+the whole time. Pinned now with a registry of one deliberately-missing bundled row, plus
+the no-cache case so the reinstall sentence has a test.
+
+The third is `fetchable`, a flag this project has already had to repair once for meaning
+"the two fields a fetch needs are set" rather than "a fetch would work". It reads
+`bool(sha256 and source_url) and not bundled`, and the file that guards it runs `resolve`
+for every registered row — but every registered row that carries a digest also carries a
+URL, so that comparison cannot separate the two reads. A pinned row with no source gets
+`MissingDependencyError` from `resolve`, saying a source is what is missing rather than
+consent; without the `source_url` read the status beside it says `fetchable: True`.
+
+The remaining two are equivalent, and proved so rather than read: the original and each
+mutant were run over all 72 combinations of bundled/path-present/cached/digest/source,
+and both agreed everywhere. `if artifact is None and cached` without `cached` hands
+`_verify_sha256` a path that does not exist, and `FileNotFoundError` is an `OSError`,
+which the surrounding `except` already swallows; `if artifact is not None and
+descriptor.sha256 is not None` without the digest read hands it `None` as the expected
+value, and no real digest equals `None`, so `ChecksumError` lands in the same `except`.
+Two guards that look load-bearing and are merely polite.
+
+`data/registry.py` now kills 18 of 20.
+
+**Lesson: a renderer is pinned by whatever insists its answer matches someone else's.**
+Four modules into this pass, the phantom rate predicts the module's kind better than any
+reading of it does — near zero for a type, near total for a shell, a renderer or a numeric
+library consumed elsewhere. Sweep the mirror directory as a cheap filter, never as
+evidence, and read the rate itself as the finding when it is high.

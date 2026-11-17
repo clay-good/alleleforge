@@ -9,6 +9,27 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **A broken install falls back to the cache instead of raising.** `resolve` and
+  `dataset_status` both ask whether a descriptor *names* a bundled path **and** whether
+  that path is a file, and every fixture runs against the real registry where the one
+  bundled row is present — so the second read never decided anything.
+  `dataset_reason` already carried the sentence for the untested case ("bundled file is
+  missing or failed checksum verification; reinstall AlleleForge"), reachable only
+  through it. Without that read, a partial install turns a degradation into a wall:
+  `resolve` raises `FileNotFoundError` out of the checksum read rather than using a
+  valid cached copy, and the status reports a present, verified cache entry as
+  unavailable. Both halves are now pinned against a registry whose bundled file is
+  deliberately absent.
+- **`fetchable` needs a source, not just a digest.** The flag reads
+  `sha256 and source_url`, and the guard that checks it against `resolve`'s real
+  behaviour runs over the registered rows — every one of which carries both, so the two
+  reads could not be separated. A pinned row with no `source_url` gets
+  `MissingDependencyError` from `resolve` while the status beside it would have said
+  `fetchable: True`.
+- **`web/api/app.py` and `design/cohort_summary.py` were swept for conjunct removal and
+  are clean** (28/28 and 22/22). All fifteen of their survivors against their own test
+  directories died against the full suite: both are renderers of other modules' answers,
+  and are pinned by the cross-surface agreement and artifact-disclosure guards.
 - **A near-miss Cas12a PAM is no longer scored as a canonical one.** `TTTV` means the
   fourth base is A, C or G, and the only non-canonical fixture was `AAAA` — which fails
   on the `TTT` prefix alone, so the arm that reads the fourth base had no case. `TTTT`
