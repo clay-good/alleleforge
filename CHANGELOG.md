@@ -9,6 +9,18 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **A real benchmark corpus can be supplied, so the readiness report can notice one.**
+  `ALLELEFORGE_BENCH_DATASETS` and `ALLELEFORGE_BENCH_SPLITS` point the benchmark at
+  corpora and frozen splits outside the package. Until now `load_dataset`'s
+  `fixtures_dir` argument was documented "(tests)", nothing in `src/` ever passed it and
+  `aforge bench` had no option for it — so a maintainer holding real data could only run
+  the benchmark by editing JSON inside the installed package, and R1+R5 (*0/5 datasets
+  are real corpora*) could not change however much data arrived. Both directories are
+  resolved by one function each, so the library, both shells and the readiness report
+  follow together; absent, the bundled synthetic stand-ins are used exactly as before.
+  The splits variable is required rather than convenient: a frozen split pins its
+  dataset's content hash, so a bundled split over replaced data correctly fails its
+  integrity check.
 - **The mutation-testing harness is a project script.** `scripts/mutate.py` was a file in
   a temporary directory, rebuilt from scratch each time and producing three wrong answers
   in the process — each one an index that named a different mutation than it applied

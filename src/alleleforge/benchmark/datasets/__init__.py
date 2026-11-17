@@ -15,6 +15,7 @@ split is invalidated the instant its underlying data changes.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
@@ -25,6 +26,39 @@ from alleleforge.types.provenance import DatasetVersion
 
 #: Directory of bundled synthetic dataset fixtures shipped for CI.
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+#: Where to read benchmark corpora from instead of the bundled fixtures.
+#:
+#: The fixtures that ship here are synthetic stand-ins, and the v1.0 criterion they
+#: block (`scripts/release_readiness.py`, R1+R5) is waiting on real corpora. Until this
+#: existed the waiting was longer than it looked: `fixtures_dir` was an argument only
+#: tests passed, nothing in `src/` ever set it, and `aforge bench` had no option for it —
+#: so a maintainer holding the real PRIDICT2 library could not run the benchmark on it
+#: without editing files inside the installed package. The readiness report could not
+#: notice either, which defeats its stated purpose of noticing "the day one of them
+#: stops being blocked".
+#:
+#: Point it at a directory of `<task>.json` corpora and every caller follows: the
+#: library, both shells, and the readiness report. A corpus that is not a stand-in sets
+#: `synthetic: false`, which is what the criterion reads.
+DATASETS_DIR_ENV = "ALLELEFORGE_BENCH_DATASETS"
+
+
+def datasets_dir(fixtures_dir: Path | None = None) -> Path:
+    """Return the directory benchmark corpora are read from.
+
+    Args:
+        fixtures_dir: An explicit directory, which always wins — a caller who names one
+            is not asking about the environment.
+
+    Returns:
+        ``fixtures_dir`` if given, else the directory named by
+        :data:`DATASETS_DIR_ENV`, else the bundled synthetic fixtures.
+    """
+    if fixtures_dir is not None:
+        return fixtures_dir
+    supplied = os.environ.get(DATASETS_DIR_ENV)
+    return Path(supplied) if supplied else FIXTURES_DIR
 
 
 class BenchmarkDataset(BaseModel):
@@ -83,12 +117,13 @@ class BenchmarkDataset(BaseModel):
         )
 
 
-def load_dataset(name: str, *, fixtures_dir: Path = FIXTURES_DIR) -> BenchmarkDataset:
-    """Load the bundled fixture for dataset ``name``.
+def load_dataset(name: str, *, fixtures_dir: Path | None = None) -> BenchmarkDataset:
+    """Load the corpus for dataset ``name``.
 
     Args:
-        name: The dataset name (matches a ``fixtures/<name>.json`` file).
-        fixtures_dir: Override for the fixtures directory (tests).
+        name: The dataset name (matches a ``<name>.json`` file).
+        fixtures_dir: Read from this directory instead of the one
+            :func:`datasets_dir` resolves.
 
     Returns:
         The parsed, validated :class:`BenchmarkDataset`.
@@ -96,14 +131,15 @@ def load_dataset(name: str, *, fixtures_dir: Path = FIXTURES_DIR) -> BenchmarkDa
     Raises:
         FileNotFoundError: If no fixture by that name exists.
     """
-    path = fixtures_dir / f"{name}.json"
+    root = datasets_dir(fixtures_dir)
+    path = root / f"{name}.json"
     if not path.is_file():
-        available = sorted(p.stem for p in fixtures_dir.glob("*.json"))
+        available = sorted(p.stem for p in root.glob("*.json"))
         raise FileNotFoundError(f"no benchmark dataset {name!r}; available: {available}")
     data = json.loads(path.read_text())
     return BenchmarkDataset.model_validate(data)
 
 
-def available_datasets(*, fixtures_dir: Path = FIXTURES_DIR) -> tuple[str, ...]:
-    """Return the names of every bundled dataset fixture, sorted."""
-    return tuple(sorted(p.stem for p in fixtures_dir.glob("*.json")))
+def available_datasets(*, fixtures_dir: Path | None = None) -> tuple[str, ...]:
+    """Return the names of every available dataset corpus, sorted."""
+    return tuple(sorted(p.stem for p in datasets_dir(fixtures_dir).glob("*.json")))

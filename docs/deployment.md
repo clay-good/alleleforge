@@ -243,6 +243,8 @@ look up.
 | Cache directory | `ALLELEFORGE_CACHE_DIR`, else `XDG_CACHE_HOME` | `~/.cache/alleleforge` |
 | Config-file directory | `XDG_CONFIG_HOME` | `~/.config` (so `~/.config/alleleforge/config.toml`) |
 | Lindel checkout (opt-in trained Cas9 outcome) | `ALLELEFORGE_LINDEL_REPO` | _none — the heuristic baseline is used_ |
+| Benchmark corpora directory | `ALLELEFORGE_BENCH_DATASETS` | _none — the bundled synthetic stand-ins_ |
+| Frozen splits directory | `ALLELEFORGE_BENCH_SPLITS` | _none — the bundled splits_ |
 | BE-DICT checkout (opt-in trained base-edit outcome) | `ALLELEFORGE_BEDICT_REPO` | _none — the heuristic baseline is used_ |
 
 ## Optional native acceleration

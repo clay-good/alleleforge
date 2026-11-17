@@ -23176,3 +23176,53 @@ this repository" was true and it hid a distinction that changes the plan: one gr
 waiting on a download, the other on a decision nobody here can make. The measurement was
 honest about being unmet and vague about why, and vagueness in the one document that
 answers "what is left" is a defect in that document.
+
+## Round 680 — the criterion that could not stop being blocked
+
+`scripts/release_readiness.py` opens by saying why measuring a blocked criterion is worth
+it: *"it distinguishes blocked from forgotten, and it will notice the day one of them
+stops being blocked."* For R1+R5 — *0/5 benchmark datasets are real corpora* — it could
+not have noticed. The report reads the bundled fixtures unconditionally, and there was no
+way to supply anything else.
+
+`load_dataset` took a `fixtures_dir` argument whose docstring read "(tests)". Nothing in
+`src/` ever passed it; `aforge bench` had no option for it. So a maintainer holding the
+real PRIDICT2 library had one route to running the benchmark on it: edit JSON files
+inside the installed package. Same for `load_split`. This is the recurring shape this log
+names more than any other — **a capability the library has that no shell can reach** —
+arriving in the one place whose job is to report how far the project is from shipping.
+
+Two directories are supplied now, `ALLELEFORGE_BENCH_DATASETS` and
+`ALLELEFORGE_BENCH_SPLITS`, resolved by one function each so the library, both shells and
+the readiness report follow together. Absent, everything behaves exactly as before: the
+bundled synthetic stand-ins, which is what every existing test asserts.
+
+**The second variable is not a convenience.** A frozen split pins its dataset's content
+hash and `verify` refuses a mismatch, so a bundled split over replaced data fails its
+integrity check — correctly, and as a dead end. Supplying corpora without a way to supply
+their splits would have produced a path that always fails.
+
+Writing the test found two facts worth keeping, both of which contradicted my first
+draft. `content_hash` covers the *examples* and not the `synthetic` flag, so a corpus
+that differs only in the flag is hash-identical and the bundled split still verifies —
+the first fixture proved nothing and had to change a measured label. And
+`membership_hash` covers `dataset_sha256`, so rebinding a split to new data invalidates
+its own self-integrity hash too: both have to be recomputed, which is what minting a
+split *is*, and why `verify`'s message tells an editor to mint a new version rather than
+edit one.
+
+The env-var guard then refused the two new names, correctly: it credits a variable only
+when the literal reaches `os.environ`, and these are read through module constants. It
+already had a precedent for exactly this — it imports `conftest._OPT_IN_MARKERS` because
+that lookup is variable-indexed — so the constants are imported the same way. Naming an
+environment variable is better than a magic string, and the guard should not punish it.
+
+R1+R5 is still unmet and still blocked on data nobody here has. What changed is that it
+is now blocked on *only* that: the day a real corpus is dropped in, the report says so.
+A test asserts exactly that, and asserts that with nothing supplied it still reports the
+bundled truth.
+
+**Lesson: "blocked externally" deserves the same scrutiny as a failing test.** Two rounds
+running, reading a blocked criterion as a work list has found in-repo defects behind it —
+R0's blocker naming the wrong obstacle, R1's measurement structurally unable to change.
+Neither was visible from the verdict, and the verdict was correct both times.
