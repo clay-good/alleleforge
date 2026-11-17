@@ -22485,3 +22485,66 @@ The conjunct operator was built in Round 657 because this log had written the sa
 diagnosis four times. Nine rounds later it is exhausted, and the thing it leaves behind is
 not the forty-one fixes but the table of which modules its narrow list could and could not
 measure — which is the input to whatever operator comes next.
+
+## Round 666 — a new operator: delete the statement and see who notices
+
+The conjunct operator finished last round with nothing left to find, which this log
+treats as a measurement rather than an ending. The blind spot it names next is the one
+this project's defect history names most often: **a value computed, recorded, and read by
+nobody.** No operator here reaches that — swapping an operand or a constant changes what a
+statement *says*, never whether anything observes that it ran.
+
+So: **statement deletion**, restricted to statements whose effect is the point rather
+than their value. A bare call (`notes.append(...)`, `warnings.warn(...)`), a write into a
+collection (`provenance["seed"] = seed`), an augmented assignment to an attribute. An
+ordinary assignment is excluded on purpose: its deletion is a `NameError` on the next
+line, which measures the interpreter rather than the suite. Across the project that is
+950 mutants where unrestricted deletion would be 7,154 — and the 950 are the interesting
+ones.
+
+Its first results read like a calibration curve. `types/offtarget.py` **11 of 11** and
+`offtarget/engine.py` **21 of 21**: every caveat those two emit has a test that notices
+its absence, which is what a project that has repeatedly found safety numbers failing
+should hope to see. `report/html.py` left nine alive, `design/designer.py` four, and all
+thirteen survived the full suite.
+
+**The headline: nine `parts.append(...)` calls could be deleted from the on-screen report
+one at a time, each with the whole suite green.** The bystander-burden paragraph. Both
+P(intended) paragraphs. The outcome-allele table. The oligo-prep instruction. The line
+saying a reagent needs no cloning oligos. The ranking rationale. The closing `</div>`.
+The note telling a reader how to see their loci in a genome browser.
+
+This project already has the guard for exactly this — `test_every_report_field_is_
+rendered`, built because "the recurring defect in this codebase is not a wrong number, it
+is a correct one that no surface shows". It is **static**: it greps the renderer's source
+for each field name. That catches a field no renderer mentions, and it cannot catch a
+field a renderer mentions *twice* and renders *once*. `_candidate_html` writes
+`p_intended` from two branches, one derived and one calibrated; delete either and the
+name is still in the file. The static check passes while half of all reports lose the
+number a reader is most likely to act on. **A test that proves a name is present cannot
+prove a value arrives.** The pair to it now renders a candidate carrying every optional
+value and asserts each one reaches the screen.
+
+The four in `designer.py` are the same shape in the provenance block. `_run_chemistry`
+catches an altered store, an expected design failure, and anything else, and each arm
+does two things: write a note, and add the chemistry to the `failed` set that the model
+block subtracts. Only the middle arm had a test, so a run whose prime vertical died on a
+tampered cache entry — or on an outright bug — still recorded `pridict2-baseline` as a
+model that scored it, in the block `aforge verify` reads to decide whether a result is
+reproducible. And `_cas9_empty_reason` builds two lists from the same two flags, the PAMs
+it searched and the PAMs it did not; every test in the file that exists for it is about
+the second. Delete the first and the sentence reads "no actionable protospacer with a NGG
+PAM near the edit" for a run that searched three — telling the reader the fallback they
+turned on was not used.
+
+The harness lost a second index-mapping defect of its own, the same shape as Round 659's:
+returning early from a function skipped every closure, while the collector descended into
+them, so for a module with nested defs an index named a statement that was never deleted.
+`design/cohort.py` has six and reported ten unapplied mutants, which is what exposed it.
+Fixed and re-verified on a toy; the modules swept here have none.
+
+**Lesson: the operator you need next is the one that asks a different question, not a
+sharper version of the last one.** Conjunct removal asks *is this condition's other arm
+tested*. Deletion asks *does anything observe that this ran at all* — and in a codebase
+whose stated recurring defect is a correct value no surface shows, that was always the
+question with the most to find.

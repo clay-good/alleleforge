@@ -9,6 +9,27 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **Every value an on-screen report is given is now checked to reach the screen.** A
+  statement-deletion sweep removed nine `parts.append(...)` calls from the HTML renderer
+  one at a time, and the suite stayed green for all nine: the bystander-burden paragraph,
+  both P(intended) paragraphs, the outcome-allele table, the oligo-prep instruction, the
+  "no synthesized reagent" line, the ranking rationale, the closing `</div>`, and the
+  note saying how to view the loci in a genome browser. The existing guard against "a
+  field nothing reads" is *static* — it greps the renderer for each field name — so it
+  cannot see a field that is mentioned twice and rendered once, which is exactly how
+  `p_intended` is written (one branch derived, one calibrated). The new guard renders a
+  candidate carrying every optional value and asserts each one appears.
+- **A chemistry that raised stamps no model in the provenance, whichever way it raised.**
+  `_run_chemistry` catches an altered store, an expected design failure, and anything
+  else, and each arm adds the chemistry to the set the model block subtracts — but only
+  the middle arm had a test. A run whose vertical died on a tampered cache entry or an
+  outright bug still recorded the trained model as one that scored it, in the block
+  `aforge verify` reads to decide whether a result is reproducible.
+- **A "no actionable protospacer" message names every PAM it searched.** The reason
+  builds two lists from the same two flags — the PAMs tried and the PAMs not enabled —
+  and every existing test is about the second. Without the first the sentence names only
+  `NGG` for a run that searched three, telling the reader the fallback they turned on was
+  not used.
 - **Every module in the project has now been swept for conjunct removal** — dropping each
   operand of an `and`/`or` chain in turn, the mutation that asks whether a two-part
   condition has a fixture on *each* arm. Twenty-one modules, 540 mutants, forty-one real

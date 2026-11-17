@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from alleleforge.design.designer import design
+from alleleforge.design.designer import _cas9_empty_reason, design
 from alleleforge.genome.reference import ReferenceGenome
 from alleleforge.types.edit import Chemistry, EditIntent
 
@@ -108,3 +108,33 @@ def test_every_shell_that_describes_the_flag_states_its_scope() -> None:
         description = model.model_fields["allow_ng"].description or ""
         assert scope in description, (model.__name__, description)
     assert re.search(r"\S", scope)
+
+
+@pytest.mark.parametrize(
+    ("enabled", "named"),
+    [("allow_ng", "NG (SpCas9-NG)"), ("allow_spry", "NRN/NYN (SpRY)")],
+)
+def test_the_decline_reason_names_every_pam_it_actually_tried(enabled: str, named: str) -> None:
+    """Every check above is about the PAMs that were *not* enabled.
+
+    `_cas9_empty_reason` builds two lists from the same two flags: the PAMs it searched
+    and the PAMs it did not. The second is what the file above is about, and the first
+    had no assertion at all — both `tried.append(...)` calls could be deleted with the
+    suite green. The sentence then reads "no actionable protospacer with a NGG PAM near
+    the edit" for a run that searched three, which tells the reader the opposite of what
+    happened: that the fallback they turned on was not used.
+
+    Both clauses live in one string, so the assertion has to say *which* clause the name
+    is in — a name in the "not enabled" half is the failure, not the proof.
+    """
+    reason = _cas9_empty_reason(**{"allow_ng": False, "allow_spry": False, enabled: True})
+    searched = reason.split(";")[0]
+    assert "NGG" in searched, reason
+    assert named in searched, reason
+
+
+def test_the_reason_claims_only_the_pam_it_searched() -> None:
+    """The negative case: with no fallback enabled, only NGG was tried."""
+    searched = _cas9_empty_reason(allow_ng=False, allow_spry=False).split(";")[0]
+    assert "NGG" in searched
+    assert "SpCas9-NG" not in searched and "SpRY" not in searched, searched
