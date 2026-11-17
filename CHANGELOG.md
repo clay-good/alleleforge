@@ -3384,6 +3384,16 @@ acceptance.
   pinned.
 
 ### Fixed
+- **A partly-real calibration corpus still says which rows are stand-ins.** The
+  synthetic-data caveat on the calibration report and on the committed figures fired only
+  when *every* row was a stand-in, so the first real corpus deleted it from a table whose
+  other rows were still fabricated at single-digit `n` — and because each dataset is
+  blocked on a different upstream release, corpora arrive one task at a time, making that
+  mixed table the first one a reader will see. Both notes now name the stand-in tasks
+  instead of counting them; the all-synthetic wording is unchanged and the committed
+  figures regenerate byte-identically. The cross-cell-type generalization table also
+  gained the `Data` column for the provenance flag it had been computing and discarding,
+  so the number most easily mistaken for a model measurement states its corpus too.
 - **The documentation site failed WCAG AA contrast on its own primary colour.**
   `mkdocs.yml` selected `primary: teal`, which mkdocs-material renders as `#009688` with
   white text on the header, buttons and active navigation: 3.67:1 against the 4.5:1 AA

@@ -82,8 +82,23 @@ SYNTHETIC_DATA_NOTE = (
 
 
 def _benchmark_data_note(rows: list[dict[str, object]]) -> str:
-    """Return the synthetic-data caveat when every row came from a stand-in."""
-    return SYNTHETIC_DATA_NOTE if rows and all(r.get("synthetic") for r in rows) else ""
+    """Return the synthetic-data caveat naming the rows that are stand-ins.
+
+    All-or-nothing was the defect: one real corpus among several removed the caveat
+    from the whole chart, including from the bars still drawn on stand-ins. Real
+    corpora arrive one task at a time -- each is blocked on a different upstream
+    release -- so the mixed state is the *expected* first state, and it was the only
+    one of the three that carried no warning at all.
+    """
+    stand_ins = sorted(str(r.get("task", "?")) for r in rows if r.get("synthetic"))
+    if not stand_ins:
+        return ""
+    if len(stand_ins) == len(rows):
+        return SYNTHETIC_DATA_NOTE
+    return (
+        f" Data: {', '.join(stand_ins)} on bundled SYNTHETIC fixtures (single-digit n) "
+        "-- those bars show the machinery, not a model; the rest are real corpora."
+    )
 
 
 def reference_bias_figure() -> str:

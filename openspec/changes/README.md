@@ -23226,3 +23226,61 @@ bundled truth.
 running, reading a blocked criterion as a work list has found in-repo defects behind it —
 R0's blocker naming the wrong obstacle, R1's measurement structurally unable to change.
 Neither was visible from the verdict, and the verdict was correct both times.
+
+## Round 681 — the caveat that the first real corpus would delete
+
+R680 made a real corpus *supplyable*. This round asked the next question — what the
+calibration report would then **say** — and found that the answer got worse, not better,
+at the moment the first real data arrived.
+
+Both honesty labels on the project's calibration evidence were all-or-nothing:
+
+```python
+scripts/calibration_study.py:76   if all(r["synthetic"] for r in tasks):      # the banner
+src/alleleforge/viz/figures.py:86 if rows and all(r.get("synthetic") ...)     # the figures
+```
+
+Three states exist, and only two were handled. All-synthetic: a blanket warning that the
+numbers "are not measurements of any model, and must not be cited as such". All-real: no
+warning, correctly. **Mixed: no warning either** — a single real row deleted the caveat
+from a table whose other rows were still fabricated at single-digit `n`.
+
+That is the expected first state, not a corner. Each benchmark dataset is blocked on a
+*different* upstream release, so corpora arrive one task at a time. The table a reader
+first sees with real data in it is precisely the one that had lost its warning — and it
+had lost it in the one direction that matters, a mostly-fabricated table reading as a
+model's performance.
+
+`tests/viz/test_figures.py` **pinned** it:
+
+```python
+assert not _benchmark_data_note([{"synthetic": True}, {"synthetic": False}])
+```
+
+The test's own docstring says a caveat must not "survive real data", which is right; it
+had been implemented as "any real data kills the caveat", which is not the same claim.
+One real bar does not make a synthetic bar real.
+
+Both notes now name the stand-ins rather than counting them: `cas9-efficiency on bundled
+SYNTHETIC fixtures … the rest are real corpora`. The all-synthetic wording is untouched,
+and regenerating the committed figures produced a zero-byte diff — which is the evidence
+that the state the repo actually ships in is unchanged.
+
+A third gap surfaced on the way. `generalization_table()` has computed a `synthetic` flag
+per row since it was written, and `render_markdown` never rendered it: the gap table had
+no corpus column at all. A cross-cell-type generalization gap is the number in that
+document most easily mistaken for a measurement of a model, and it was the one section
+whose provenance a reader could not read off. It now carries the same `Data` column as
+the per-task table, including on the `undefined` rows.
+
+Also recorded: R5's *machinery* needs nothing further. `task_calibration_table` and
+`generalization_table` both reach data through `load_split`/`load_dataset` with no
+override, so R680's two environment variables already steer the whole study. The hardcoded
+"(synthetic, seeded)" in the conformal section is accurate and stays — that demo builds
+its own data from the seeded RNG and has no corpus to follow.
+
+**Lesson: an all-or-nothing honesty label fails in the state you are building toward.**
+The banner was correct in the repo's present (all stand-ins) and correct in its imagined
+future (all real), and wrong in the only state the project will actually pass through.
+A warning worth having is one that survives partial progress — so check a conditional
+caveat against the mixed case, which is usually the first case that will really occur.
