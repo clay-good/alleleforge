@@ -22928,3 +22928,53 @@ the synthetic stand-ins (R1/R5), calibration measured on that real data (R5), an
 minted on the first tagged release. The bundled corpora are labelled synthetic in every
 artifact that reports over them, and the consent gate refuses a null-hash fetch, so no
 open criterion is a silent one. No amount of in-repo work closes them.
+
+## Round 675 — the audit was right about one thing, and I had dismissed all of it
+
+A design audit reported findings across the rendered documentation site. I triaged them
+as a category — *generated output from a third-party theme, in a gitignored directory,
+nothing traceable to project source* — and left every one standing. The category was
+right about most of them and **wrong about the one that mattered**, which is the failure
+mode a category answer always has.
+
+`mkdocs.yml` picks `primary: teal`, and mkdocs-material renders that as `#009688` with
+white text on the header, the buttons and the active navigation: **3.67:1, against the
+4.5:1 WCAG AA needs for body-sized text.** The hover accent was worse, at 2.38:1. That is
+not the theme's choice, it is this project's — one line of its own configuration — and it
+is a measurable accessibility failure on the pages a reader uses to decide whether to
+trust the tool. A project that reports calibrated intervals and labels every synthetic
+number should not ship a site that fails its own audit.
+
+The palette is now a custom one, and every pair in it is measured rather than eyeballed:
+white on `#00796b` is 5.32:1 for the primary, white on `#00675b` is 6.79:1 for the accent,
+and the dark scheme takes a *lighter* accent — `#4db6ac` at 5.35:1 — because its text sits
+on the opposite ground. The ratios are written into the stylesheet beside the values, so
+the next person to change a colour can see what the change has to hold. Teal 700 keeps the
+identity; it is the same colour, dark enough to read on.
+
+**`low-contrast` is now zero across the whole site**, from 1,024-odd findings in the
+report's sample.
+
+What remains, triaged by rule rather than by category:
+
+| rule | n | disposition |
+|---|---|---|
+| `undersized-ui-text` | 3,570 | mkdocs-material's type scale (footer, nav source, skip link, search status) — left standing |
+| `tiny-text` | 2,976 | the same scale, body text at 10.88px — left standing |
+| `cramped-padding` | 50 | theme internals (`md-search__scrollwrap`, `md-nav__source`) — left standing |
+| `overused-font` | 25 | Roboto, the theme default — left standing |
+| `em-dash-overuse` | 4 | this project's own prose voice, used deliberately throughout — kept as designed |
+| `low-contrast` | **0** | **fixed** |
+
+Nothing is suppressed. The type-scale findings are real — 10.88px body text is small, and
+the rule's case for an 11px floor on functional text is a good one — but fixing them means
+overriding a third-party theme's whole type scale from a stylesheet, sitewide, which can
+regress layout and wants to be seen rendered before it ships. That is a design change with
+a reviewer, not a line a sweep should guess at. Recording it as a known, named limitation
+is the honest alternative to either a silent ignore or a blind override.
+
+**Lesson: a category answer is a hypothesis about every item in it.** "All generated,
+nothing to fix" was true of 99.6% of these findings and false of the ones that were a
+one-line configuration failure in the project's own file. The cost of checking was one
+`detect` run on a single page; the cost of not checking was shipping an inaccessible site
+and saying, twice, that there was nothing to do.

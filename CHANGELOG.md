@@ -3312,6 +3312,14 @@ acceptance.
   model cards, benchmark splits, and web frontend — against silent removal.
 
 ### Fixed
+- **The documentation site failed WCAG AA contrast on its own primary colour.**
+  `mkdocs.yml` selected `primary: teal`, which mkdocs-material renders as `#009688` with
+  white text on the header, buttons and active navigation: 3.67:1 against the 4.5:1 AA
+  needs for body-sized text, and 2.38:1 on the hover accent. The palette is now a custom
+  teal 700 with every pair measured — white on `#00796b` at 5.32:1, white on `#00675b` at
+  6.79:1, and a *lighter* `#4db6ac` accent at 5.35:1 for the dark scheme, whose text sits
+  on the opposite ground. The ratios are recorded in the stylesheet beside the values.
+  `low-contrast` findings across the rendered site went from the hundreds to zero.
 - **A served run records the data it was given.** The web API loads two caller-supplied
   sources from the environment — `ALLELEFORGE_GNOMAD_TSV` and `ALLELEFORGE_HAPLOTYPES` —
   and attached no provenance descriptor to either, so a served result could be
