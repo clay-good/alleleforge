@@ -9,6 +9,22 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The cache sweep reports what it could not read.** `aforge cache verify` promises one
+  row per artifact, and two of its `checks.append(...)` calls could be deleted with the
+  suite green: the branch for an FM-index that fails to load for a reason that is not an
+  integrity error (a truncated file, a `meta.json` from an older build, a permissions
+  problem), and the row for a bundled checkpoint. In both cases the entry simply vanished
+  from the report — a sweep run to find a broken index saying nothing about it, with
+  nothing marking the omission.
+- **A verified download leaks no file descriptor.** `tempfile.mkstemp` returns an open
+  descriptor as well as a path, and `download_verified` wants only the path. Removing the
+  `os.close(fd)` leaves every assertion in the suite passing — the file still lands and
+  still verifies — while leaking one descriptor per call, which a long-running server
+  resolving artifacts on demand eventually feels as an unrelated `OSError` elsewhere.
+- **The rejection tally reads most-common-first on a shuffled tally.** `summarize`
+  documents the order and every fixture handed it one reason, or an already-sorted one.
+  Unsorted, a reader takes whichever rejection the enumerator counted first as the main
+  obstacle.
 - **The split integrity check is checked to actually run.** `Split.verify` is thoroughly
   tested — tampered membership, drifted dataset, overlapping folds, an absent id — by
   calling it directly. Nothing checked that `load_split` and `run_benchmark` call it: a

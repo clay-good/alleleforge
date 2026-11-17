@@ -22793,3 +22793,45 @@ removed.
 form.** Sorted input, a well-formed scheme, a split loaded by the loader that verifies it
 — each is the shape the code is trying to produce, handed to it as a premise. The test
 that measures such a line has to start from the mess the code exists to tidy.
+
+## Round 672 — a finding that is never appended is an artifact that is fine
+
+The last substantial cluster of the statement-deletion pass, and the clearest statement
+yet of what this operator is for: **four lines that cost a user something real, none of
+which changes an answer any test reads.**
+
+**The sweep's own findings.** `verify_stores` is what `aforge cache verify` runs, and
+its contract is one row per artifact. Two of its `checks.append(...)` calls could be
+deleted with the suite green. The **UNREADABLE** branch catches an FM-index that fails to
+load for a reason that is not an integrity error at all — a truncated file, a `meta.json`
+from an older build, a permissions problem — and the suite covers the neighbouring
+CORRUPT branch so thoroughly that the `except` beside it was taken on trust. Without the
+append the entry simply vanishes: a sweep run specifically to find a broken index says
+nothing about it, and nothing in the output marks the omission. The **bundled** checkpoint
+row goes the same way, and every packaged model disappears from a report that promises
+one row per artifact. *A finding that is never appended is indistinguishable from an
+artifact that is fine.*
+
+**A descriptor per download.** `tempfile.mkstemp` returns an open descriptor as well as a
+path, and `download_verified` wants only the path, so it closes the descriptor on the
+next line. Remove that line: the download still works, the checksum still verifies, the
+file still lands, and every assertion in the suite is about those. One descriptor leaks
+per call — fine for a design run, fatal for a long-running server resolving datasets on
+demand, and the failure surfaces somewhere else entirely as an unrelated `OSError` from
+whatever next tries to open a file. **That is the third resource line this pass has found
+in as many rounds**: a FASTA handle, a reference opened once per item, and now this.
+
+**The order of a sentence.** `summarize` renders a rejection tally as *"the PAM is not in
+range (41); the edit is too large for a synthesizable RTT (3)"* and documents the order:
+most common first, ties broken by key. Every tally the suite builds holds one reason, or
+arrives already in that order — a `dict` keeps insertion order and an enumerator counting
+in a fixed sequence produces a sorted tally often enough. Unsorted, the reader takes
+whichever rejection was counted first as the main obstacle, which is the only reason the
+sentence is ordered at all.
+
+**Lesson: the operator finds what the test suite is not shaped to ask about.** Every
+previous pass here mutated something a test already read — a comparison, a constant, an
+arm of a condition — so a gap meant a missing case. Deletion mutates whether a line
+*happened*, and the gaps it finds are whole categories a response-shaped suite has no
+vocabulary for: resources, report completeness, output order, liveness. Those are not
+harder to test. They were never asked.
