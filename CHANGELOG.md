@@ -9,6 +9,28 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **A sequence run is no longer split across a page break when the sheet continues below
+  it.** `_paginate`'s run scan stops at the end of its input *and* at the first
+  non-sequence line, and every fixture puts the donor block at the tail of the page
+  content, so the two stop in the same place — the file that parametrizes sixty offsets
+  could not see it, because all sixty share that tail. With real content after the
+  oligos (further candidates, caveats, the footer) the scan swallows it; once the total
+  exceeds a page the move-the-whole-run branch stops firing and the donor is divided
+  across the break, which is the failure that branch exists to prevent. Also pinned: a
+  run too long for any page fills the page already in hand instead of abandoning it.
+- **A "scoring basis" line is printed only when there is a basis to name.** The sheet
+  guards it on a recorded scorer *or* matrix, and every fixture carried both; a search
+  can report a count with neither, and the line would have read `scoring basis:` with
+  nothing after the colon — in the field a reader uses to decide what produced a
+  specificity number.
+- **Two calibration metrics answer a mismatched pair instead of raising.**
+  `expected_calibration_error` and `interval_calibration_error` each guard a
+  `zip(..., strict=True)` with a length read and an empty read; only the empty read had
+  a case. Predictions and outcomes assembled from different filters now return `None` —
+  what the board renders as "undefined" — rather than a `ValueError` from inside a
+  metric.
+- **`enumerate/base_editor.py`, `enumerate/prime.py` and `design/prime.py` were swept for
+  conjunct removal and are clean** (16/16, 18/18, 16/16).
 - **The downloader a real model fetch uses is now exercised.** `ModelRegistry.checkpoint`
   passes `downloader or _default_downloader`, and every fetch test injects a fake —
   correctly, since CI does not go to the network — so the left side always won and

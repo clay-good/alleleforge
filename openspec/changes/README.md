@@ -22374,3 +22374,59 @@ it is renamed.
 default exists for the input the author could imagine and had no example of; the fixture
 is an example. Six modules in, the `or` fallback is the single most productive thing this
 operator finds, and the reason is structural rather than careless.
+
+## Round 664 — five guards that were already redundant, and five that were not
+
+Five modules under conjunct removal. `enumerate/base_editor.py` (16), `enumerate/prime.py`
+(18) and `design/prime.py` (16) are **clean**; the prime pair is worth noting, because
+`enumerate/prime.py` killed only 4 of 18 against `tests/enumerate/` and all fourteen
+survivors died against the full suite. Prime enumeration is driven from `tests/design/`,
+where the vertical is exercised end to end.
+
+`benchmark/metrics.py` and `report/pdf.py` left eleven between them, and the useful half
+of this round is the split: **five of the eleven were guards that nothing could ever
+observe, and proving that took as much work as fixing the other five.**
+
+The redundant ones, each proved by running both branches rather than read:
+
+* Pearson's `len(x) < 2`: `_mean` returns `0.0` for an empty sequence, and both the
+  empty and single-point cases reach the `sxx <= 0.0 or syy <= 0.0` guard below, which
+  already answers `None`.
+* Spearman's two length reads: it delegates to `pearson(_rank(x), _rank(y))`, which
+  checks both again.
+* `topk_accuracy`'s `not predicted`: an empty prediction yields an empty top-k, and the
+  observed mode is not in it, so the fall-through answers `0.0` — the same value the
+  guard returns.
+* `_wrap`'s `started`: 18,000 random texts produced no difference, because the over-long
+  token loop above leaves a remainder that always fits.
+* `_paginate`'s `page`: the move-the-run branch needs `run > room and run <= _LINES_PER_
+  PAGE`, and `room` equals `_LINES_PER_PAGE` exactly when the page is empty, so the two
+  reads are contradictory there. Unsatisfiable rather than untested.
+
+The five that were not redundant:
+
+* `expected_calibration_error` and `interval_calibration_error` both open with a length
+  read **and** an empty read guarding the same `zip(..., strict=True)` two lines down.
+  The empty read is pinned; the length read is not, and without it a mismatched pair —
+  what a caller gets when predictions and outcomes come from different filters — comes
+  back as a `ValueError` from inside a metric rather than the `None` every other
+  undefined input returns and the board renders as "undefined".
+* `_paginate`'s run scan stops at the end of the input **and** at the first non-sequence
+  line, and every fixture puts the donor block at the tail, so the two stop in the same
+  place. Give the sheet content after the oligos — further candidates, caveats, the
+  footer — and the scan swallows it; once the total exceeds a page the move-the-run
+  branch stops firing and **the run is split across the break**, which is the one thing
+  that function exists to prevent. The file testing it parametrizes 60 offsets and
+  could not see it, because all 60 share the same tail.
+* `run <= _LINES_PER_PAGE`: a run too long for any page must fill the page already in
+  hand rather than abandoning it. Without the read the sheet grows a short page.
+* `n_offtarget_sites is not None and (offtarget_scorer or offtarget_matrix)`: a search
+  can report a count with neither recorded, and without the second read the sheet prints
+  `scoring basis:` with nothing after the colon — in the field whose job is to say what
+  produced a specificity number.
+
+**Lesson: a guard that cannot be observed is a finding too, and it costs the same to
+establish.** Half of this round's survivors were defensive reads made unreachable by a
+check below them, a delegation, or an arithmetic identity — and in each case the only way
+to know was to run both branches. Reporting "five fixed" and quietly dropping the rest
+would have left the next sweep to re-derive them; they are recorded here by name.
