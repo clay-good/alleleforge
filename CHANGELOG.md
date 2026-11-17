@@ -9,6 +9,24 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The nuclease vertical can say a candidate is out of distribution, and now proves it.**
+  `ood` says the efficiency point estimate should not be trusted and the candidate was
+  ranked on its lower interval bound instead. An earlier round found the base editor
+  unable to raise it at all; prime has two tests. Cas9 writes the flag from the same
+  field and had none — two of three chemistries pinned and the third taken on trust.
+- **A capped chemistry returns its best candidates, not its first.** `design_cas9` sorts
+  before truncating to `max_candidates`, and the composite ranker downstream re-orders
+  whatever it is handed — so every ordering assertion in the suite passes with the sort
+  removed. What the ranker cannot restore is a candidate never returned: without the
+  sort, a run asking for the best three guides gets the three nearest the start of the
+  window, correctly ranked.
+- **`_left_align` refuses a wrong-build anchor on its own.** The re-anchor step re-reads
+  the anchor base from the reference, so an insertion whose asserted anchor disagrees
+  would have its assertion overwritten rather than refused. `resolve` validates first,
+  which is why nothing noticed — but the guarantee is the function's, and it has direct
+  callers. (The third validation, after normalization, is inert: 185,640 inputs produced
+  no difference with it removed, because left alignment builds its ref from reference
+  bases.)
 - **A `ReferenceGenome` is checked to release the handle it opened.** `close()`'s entire
   body is `self._fasta.close()` and `__exit__`'s entire body is `self.close()`, and a
   statement-deletion sweep removed each with the whole suite green — a reference that

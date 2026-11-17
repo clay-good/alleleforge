@@ -22700,3 +22700,49 @@ is reachable-and-untested, unobservable, or unexecutable in this environment, an
 the first is work. This pass has now produced all three in quantity, and every one of the
 latter two is written down by name — because the cost of re-deriving them next time is
 the same as the cost of finding them was.
+
+## Round 670 — a guarantee that holds because of its caller is not the function's
+
+The statement-deletion sweep finished across the remaining fifty-two modules. 287
+mutants, about 130 alive against their own test directories, **80 against the full
+suite** — and triaging those eighty is the work this round and the next are made of.
+Three findings are worth the round on their own, and all three are the same shape: a
+line whose protection is real, whose removal changes nothing a test looks at, and whose
+loss would be invisible in production.
+
+**`_validate_ref` inside `_left_align`.** `resolve` validates the asserted reference
+span three times — the raw assertion, once inside left-alignment, once on the result —
+and the sweep removed each in turn. Two survived. The one inside `_left_align` is a real
+gap: the re-anchor step re-reads the anchor base *from the reference*, so an insertion
+whose asserted anchor disagrees would have its assertion overwritten rather than
+refused, inverting the fail-closed promise precisely for insertions. In `resolve` the
+raw check above already stops that, which is why nothing noticed — **but a guarantee
+that holds only because of what one caller happens to do first is not the function's
+guarantee**, and `_left_align` has direct callers in this suite. Pinned at the function.
+
+The third call, after normalization, is **inert**, and that was measured: 185,640 inputs
+— every position of the fixture contig crossed with every ref/alt pair up to three
+bases, empty alleles included — produced no difference with it removed. Left alignment
+builds its new ref out of reference bases, so the result matches by construction.
+
+**`flags.append("ood")` in the nuclease vertical.** The OOD label is the honesty
+machinery's sharpest: it says the point estimate should not be trusted and the candidate
+was ranked on its lower bound instead. An earlier round found `design/base_editor.py`
+*unable to raise it at all* and gave that chemistry a test; prime has two. Cas9 writes it
+from the same field and had none — two of three chemistries pinned and the third taken on
+trust, which is exactly how the base-editor gap survived long enough to be found by a
+sweep rather than by a reader.
+
+**`candidates.sort(...)` before the per-chemistry cap.** The composite ranker downstream
+re-orders whatever it is handed, so every ordering assertion in the suite passes with the
+sort gone — the order of an *uncapped* menu is restored either way. What the ranker
+cannot restore is a candidate that was never returned. Without the sort the cap keeps the
+first N in enumeration order, which is genomic position: a run asking for the best three
+guides gets the three nearest the start of the window, correctly ranked. Correct about
+everything except which guides it is about.
+
+**Lesson: redundancy is not coverage, and the sweep is what tells them apart.** Each of
+these three is protected in practice by something else — a caller that validates first, a
+downstream ranker that re-sorts, two sibling chemistries that are tested. That is why
+they survived, and it is also exactly the condition under which a refactor removes them
+safely and a release ships without them.
