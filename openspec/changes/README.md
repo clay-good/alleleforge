@@ -22548,3 +22548,60 @@ sharper version of the last one.** Conjunct removal asks *is this condition's ot
 tested*. Deletion asks *does anything observe that this ran at all* — and in a codebase
 whose stated recurring defect is a correct value no surface shows, that was always the
 question with the most to find.
+
+## Round 667 — the structure of a document is content
+
+The statement-deletion operator, pointed at the two renderers that produce published
+artifacts. `report/pdf.py` left eleven alive against the full suite and
+`benchmark/leaderboard.py` thirteen, and between them they are almost entirely one
+thing: **the lines that make a pile of strings into a document.**
+
+The markdown board lost `| ---: | :--- | ... |`, the row that makes the lines above and
+below it a *table*. Delete it and GitHub, the docs site and an issue comment all render
+the ranked leaderboard as a run of pipe-separated prose. Every number is still there,
+and the artifact most likely of any this tool produces to be published, linked and
+screenshotted is no longer a table. It lost `### <group label>`, the heading that says
+which comparison group a table belongs to — on a board that prints a note explaining
+*why* its groups cannot be compared with one another, leaving the reader consecutive
+unlabelled tables directly under a sentence insisting they are different. And it lost
+`</body></html>`.
+
+The printable sheet lost the `=` rule under the title, both `-` rules around the
+candidate list, six of the blank lines separating its blocks, the blank line ending each
+candidate, and `ET` — the operator closing a page's text object. A content stream that
+opens `BT` and never closes it is not a valid PDF text object; the extractor this suite
+uses reads it anyway, which is precisely why nothing noticed.
+
+Both modules already have thorough tests. The board's check that it states what it is;
+the sheet's checks that a line fits the column and a sequence run is not divided; a dozen
+assertions on both that this field is present and that disclaimer is there. **Every one
+of them passes on a document whose structure has collapsed, because the strings they look
+for are all still in it.** A test that reads a render for facts is reading it as a bag of
+substrings, and a reader does not.
+
+Two things worth recording beyond the fixes.
+
+**A failing test manufactures kills.** Mid-round a premise assertion of mine was wrong,
+and while it failed every mutant in that file came back "killed" — the run exits non-zero
+whatever the mutation did. Two of them were nothing of the kind. The harness protocol
+already says a passing test is not evidence that it kills what you aimed at; the converse
+is sharper: **run the suite green before you trust a single kill.**
+
+**Four survivors were unreachable with the fixture, not untested.** The sheet's
+conditional blocks — the missing-chemistry list, the run-level notes, the assembly
+rationale, the withheld-candidates note — never run for a report that has none, and the
+menu fixture has none of them. The board's incomparable-groups note and contested-group
+warning need a task holding more than one group and a group whose rows disagree about
+their split. Both now have a fixture shaped like a real artifact rather than like the
+smallest one that renders.
+
+One real defect, found sideways: `MODEL LIMITATIONS` was emitted with no blank line
+above it, so on every sheet it read as a continuation of the provenance sentence — a list
+of versions — when it is the block naming what the models cannot do. It is its own block
+now.
+
+**Lesson: a render test that looks for facts cannot see the document fall apart around
+them.** Check the shape as well as the strings: that a header row is followed by its
+separator, a heading by a blank line, a `BT` by its `ET`. Those lines carry no
+information of their own, which is exactly why nothing was asserting them, and why
+deleting one costs a reader the whole artifact.

@@ -9,6 +9,18 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The published artifacts are checked for their structure, not only their facts.** A
+  statement-deletion sweep removed eleven `lines.append(...)` calls from the printable
+  sheet and thirteen from the leaderboard one at a time, with the whole suite green for
+  every one. The markdown board could lose `| ---: | :--- | ... |` — the row that makes
+  the lines around it a *table* — and render on GitHub as pipe-separated prose with every
+  number intact; it could lose the `###` heading naming each comparison group, on a board
+  that prints a note explaining why its groups cannot be compared; and it could lose
+  `</body></html>`. The sheet could lose the rule under its title, both rules around the
+  candidate list, the blank lines separating its blocks, and `ET`, the operator that
+  closes a page's text object (an unclosed `BT` is not a valid PDF text object; the
+  extractor read it anyway). Both renders now have a guard on their shape, with fixtures
+  carrying the conditional blocks a minimal report never produces.
 - **Every value an on-screen report is given is now checked to reach the screen.** A
   statement-deletion sweep removed nine `parts.append(...)` calls from the HTML renderer
   one at a time, and the suite stayed green for all nine: the bystander-burden paragraph,
@@ -3215,6 +3227,10 @@ acceptance.
   model cards, benchmark splits, and web frontend — against silent removal.
 
 ### Fixed
+- **`MODEL LIMITATIONS` ran on from the provenance line above it.** The printable sheet
+  emitted the heading with no blank line, so the block naming what the models cannot do
+  read as a continuation of the sentence listing their versions. It is its own block now.
+
 - **AlleleForge refused its own printed indels.** `Variant.__str__` prints an absent
   allele as a dash — `chr1:999:C>-` for a deletion, `chr1:999:->CA` for an insertion —
   and the coordinate parser read `[ACGTN]*` on both sides and nothing else, so every one
