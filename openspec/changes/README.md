@@ -22218,3 +22218,52 @@ awkward fixture for an easier one inside the test body, the other wrapped its as
 in an `if` whose condition is the very string under test. Both read as thorough. Grep for
 an `assert` nested under a condition computed from the subject, and for a parametrize
 table whose body branches on which case it was handed.
+
+## Round 661 — two modules that had nothing to say, and one that did
+
+Three modules swept for conjunct removal, and the useful result is as much about where
+the operator found *nothing* as about where it found something.
+
+`enumerate/cas9.py`: **29 of 29 killed** against its own test directory, before the broad
+list was even consulted. `scoring/uncertainty.py`: 12 of 21 alive against `tests/scoring/`
+and **every one of them killed by the full suite** — a 100% phantom rate, the highest
+recorded here. The twelve were the `or not x` arms of six validators and the bin-edge
+disjunction of the ECE loop, and they are all pinned, just not where they live: the
+calibration and coverage functions are consumed by `benchmark/metrics.py` and the report,
+which exercise the empty and single-bin cases that the scorer's own tests never bother
+with. **The phantom rate is turning out to be the most informative number this operator
+produces.** A pure type (Round 660's `types/variant.py`) is pinned by its own unit tests
+and scores zero phantoms; a runner or shell is pinned by everything downstream and scores
+50–64%; a numeric library sits at the far end, pinned almost entirely by its consumers.
+The narrow list is not a cheap approximation of the broad one — it measures a different
+thing, and which one is right depends on who the module's audience is.
+
+`offtarget/scoring.py` left 5 alive, and all 5 survived the full suite.
+
+The one that scores: `pam_ok = len(pam) >= 4 and pam[:3] == "TTT" and pam[3] in "ACG"`,
+the Cas12a `TTTV` gate. The suite's only non-canonical fixture is `AAAA`, which fails on
+the `TTT` arm alone, so the arm that reads the *fourth* base had no case at all. `TTTT` is
+precisely the PAM a Cas12a scan turns up beside a real one, and without that arm it takes
+full weight rather than the 0.05 residual — a site that is not canonically targetable,
+scored as though it were. The length arm had no case either: a PAM shorter than four bases
+makes the two reads below it raise `IndexError`.
+
+The other three are the matrix label, which this project has already found reading exactly
+backwards once. Each of the three constructor branches writes `matrix or <its default>`,
+and only the published branch had a fixture for the override while only the other two had
+fixtures for their defaults — so in every branch the `or` was decided by whichever side
+the test happened to supply. Drop the override from the custom-weights or approximate
+branch and a caller who named their matrix has that name silently replaced by a generic
+one, in the one field a reader uses to tell a published score from a fallback. And
+`_uses_fallback` asks for a fixed table **and** an alignment it cannot cover, where every
+fixture binds a fixed table: drop the first arm and an approximate scorer's own label is
+replaced by the generic approximation id for exactly the bulged and off-length alignments
+a bulge search produces.
+
+`offtarget/scoring.py` now kills 15 of 15.
+
+**Lesson: a negative arm needs a fixture that fails on that arm alone.** `AAAA` is a
+non-canonical PAM and proves nothing about the three-base prefix test, because it fails
+one step earlier. For a conjunction of N reads, the fixture that measures read *i* is the
+one where the other N−1 all pass — which is the same sentence this log has written about
+guards, now about the characters inside one.

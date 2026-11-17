@@ -180,6 +180,35 @@ def test_valid_injected_weight_still_scores() -> None:
 # -- scorer matrix identity (honest labeling) ---------------------------------
 
 
+def test_every_branch_honours_an_explicit_matrix_label() -> None:
+    """`matrix=` is an override, and each branch wrote `matrix or <its default>`.
+
+    Only the published branch had a fixture for the override, and only the other two
+    had fixtures for their defaults — so in each of the three the `or` was decided by
+    whichever side the test supplied. Drop the override from the custom-weights or the
+    approximate branch and a caller who named their matrix has that name silently
+    replaced by a generic one, in the field a reader uses to tell a published score
+    from a fallback.
+    """
+    assert CfdScorer({("A", "C", 5): 0.5}, matrix="my-lab-2026").matrix == "my-lab-2026"
+    assert CfdScorer(approximate=True, matrix="my-approx").matrix == "my-approx"
+    assert CfdScorer(matrix="doench-2016-published").matrix == "doench-2016-published"
+
+
+def test_the_approximation_never_falls_back_off_itself() -> None:
+    """`_uses_fallback` asks for a fixed table **and** an alignment it cannot cover.
+
+    Every fixture binds a fixed table, so the first arm never decided anything. The
+    approximation is length-agnostic and has no fixed matrix to fall off — which is
+    what the arm says — but drop it and an off-length or bulged call under an
+    approximate scorer is relabelled, replacing a caller's own matrix name with the
+    generic approximation id for exactly the alignments a bulge search produces.
+    """
+    scorer = CfdScorer(approximate=True, matrix="my-approx")
+    for spacer, bulged in (("A" * 20, False), ("A" * 19, False), ("A" * 20, True)):
+        assert scorer.matrix_for(spacer, spacer, bulged=bulged) == "my-approx"
+
+
 def test_cfd_scorer_reports_matrix_identity() -> None:
     # The default is now the published Doench 2016 matrix; the approximation is opt-in.
     assert CfdScorer().matrix == "doench-2016-cfd"
@@ -187,6 +216,25 @@ def test_cfd_scorer_reports_matrix_identity() -> None:
     # injecting a custom table changes the recorded identity
     assert CfdScorer({("A", "C", 5): 0.5}).matrix == "custom-mismatch-matrix"
     assert CfdScorer(matrix="doench-2016-published").matrix == "doench-2016-published"
+
+
+@pytest.mark.parametrize("pam", ["TTTT", "TTTN", "TTT-"])
+def test_a_near_miss_cas12a_pam_is_not_canonical(pam: str) -> None:
+    """`TTTV` means the fourth base is A, C or G — and only `T` is the near miss.
+
+    The only non-canonical fixture was `AAAA`, which fails the `TTT` arm on its own,
+    so the arm that reads the fourth base had no case. `TTTT` is the PAM a Cas12a
+    search actually turns up next to a real one, and without that arm it takes full
+    weight instead of the 0.05 residual: a site that is not canonically targetable,
+    scored as though it were.
+    """
+    assert cas12a_cfd_score(_SP, _SP, pam) == pytest.approx(0.05)
+
+
+@pytest.mark.parametrize("pam", ["", "T", "TTT"])
+def test_a_pam_too_short_to_be_ttTV_is_not_canonical(pam: str) -> None:
+    """The length arm is what lets the two reads below it be written at all."""
+    assert cas12a_cfd_score(_SP, _SP, pam) == pytest.approx(0.05)
 
 
 def test_cas12a_scorer_matrix_is_flagged_unvalidated() -> None:

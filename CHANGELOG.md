@@ -9,6 +9,25 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **A near-miss Cas12a PAM is no longer scored as a canonical one.** `TTTV` means the
+  fourth base is A, C or G, and the only non-canonical fixture was `AAAA` — which fails
+  on the `TTT` prefix alone, so the arm that reads the fourth base had no case. `TTTT`
+  is the PAM a Cas12a scan turns up beside a real one, and without that arm it took full
+  weight instead of the 0.05 residual: a site that is not canonically targetable, scored
+  as though it were. A PAM shorter than four bases had no case either (the two reads
+  below the length check would raise). Both are pinned.
+- **An explicit `matrix=` label is honoured on every CFD branch.** All three constructor
+  branches write `matrix or <their default>`, and only the published branch had a fixture
+  for the override while only the other two had fixtures for their defaults — so the `or`
+  was always decided by whichever side the test supplied. A caller who named their matrix
+  under custom weights or the approximation could have had that name replaced by a generic
+  one, in the field a reader uses to tell a published score from a fallback. Also pinned:
+  the approximation never "falls back off itself", so an off-length or bulged call under
+  an approximate scorer keeps the caller's own label.
+- **`enumerate/cas9.py` and `scoring/uncertainty.py` were swept for conjunct removal and
+  are clean** (29/29 and 21/21). Every one of `uncertainty`'s twelve survivors against its
+  own test directory died against the full suite: its validators are pinned by
+  `benchmark/metrics.py` and the report, which exercise the empty and single-bin cases.
 - **The anchored indel — the form the library actually handles — is now classified as
   one.** `Variant.variant_class` asks `len(ref) == 1 and len(alt) == 1` for a
   substitution, and the only ref of length one in its test table was the SNV: the table
