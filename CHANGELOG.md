@@ -9,6 +9,20 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The split integrity check is checked to actually run.** `Split.verify` is thoroughly
+  tested — tampered membership, drifted dataset, overlapping folds, an absent id — by
+  calling it directly. Nothing checked that `load_split` and `run_benchmark` call it: a
+  statement-deletion sweep removed both call sites with the suite green, and a benchmark
+  whose whole claim is "this board ranks on the split it says it does" would have loaded
+  an edited split file and scored against drifted data without a word.
+- **Three loaders return their records in coordinate order, now checked on shuffled
+  input.** `genes_in`, `frequencies` and `rsids_at` all document or rely on position
+  order, and every fixture in the suite handed them records already sorted — so the sorts
+  could be removed unnoticed. A gnomAD TSV concatenated from two shards, a re-joined VCF
+  and a GENCODE GTF with interleaved genes all arrive out of order, and the output then
+  follows the input file's order rather than the genome's. (`EncodeTracks`' two segment
+  sorts are inert: `signal` is an overlap-weighted sum, and its order-independence is now
+  pinned.)
 - **The nuclease vertical can say a candidate is out of distribution, and now proves it.**
   `ood` says the efficiency point estimate should not be trusted and the candidate was
   ranked on its lower interval bound instead. An earlier round found the base editor

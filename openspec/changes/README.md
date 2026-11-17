@@ -22746,3 +22746,50 @@ these three is protected in practice by something else — a caller that validat
 downstream ranker that re-sorts, two sibling chemistries that are tested. That is why
 they survived, and it is also exactly the condition under which a refactor removes them
 safely and a release ships without them.
+
+## Round 671 — the check nobody called, and the order nobody shuffled
+
+Two clusters out of the eighty confirmed statement-deletion survivors, and they fail in
+opposite directions.
+
+**`Split.verify` is thoroughly tested and nothing checked that anybody calls it.**
+`tests/benchmark/test_splits.py` exercises every way the check can fail — a tampered
+membership hash, a drifted dataset, overlapping folds, an id absent from the data — by
+invoking `split.verify(dataset)` directly. It is a good test of the function. The sweep
+removed the two statements that *call* it, in `load_split` and in `run_benchmark`, and
+the suite stayed green for both. Every one of those failure cases would still have raised
+if asked; nothing was asking. A benchmark whose entire claim is *this board ranks on the
+split it says it does* would have loaded an edited split file and scored against drifted
+data without a word.
+
+That is the mirror of last round's finding. There a function's guarantee held only
+because its caller happened to provide it; here the function provides it and the callers
+were the only thing between a user and the check. **A tested function and a tested
+behaviour are different things, and the gap between them is a call.**
+
+**Five loaders promise coordinate order, and every fixture handed them sorted input.**
+`genes_in` is documented "sorted by start", `frequencies` "sorted by position",
+`rsids_at` reads an index the loader sorts. Sorted input stays sorted whether or not
+anything sorts it, so all five `sort(...)` calls could go unnoticed. Real sources are not
+sorted: a gnomAD sites TSV concatenated from two shards, a VCF a user filtered and
+re-joined, a GENCODE GTF where one gene's records interleave with its neighbour's. The
+output then follows the input file's order, and this project treats a byte-reproducible
+artifact as a contract.
+
+Three of the five are real and pinned with deliberately shuffled fixtures. The other two
+— `EncodeTracks`' segment sorts — are **inert**: `signal` is an overlap-weighted sum over
+every overlapping segment, so its value does not depend on their order, and nothing else
+reads the segment list. That order-independence is now itself pinned, so the claim is
+checked rather than asserted.
+
+Also settled, and recorded rather than carried: both `oligos.reconstruct()` calls, the
+"fail fast on a malformed scheme" guards at the end of the two oligo builders. The method
+is tested directly and well; the calls are unobservable, because each builder constructs
+its top and bottom strands so the round trip holds by construction. 392 sgRNA inputs
+across 98 constructible schemes and 54 pegRNA inputs produced no difference with them
+removed.
+
+**Lesson: a fixture in canonical form cannot test the code that puts things in canonical
+form.** Sorted input, a well-formed scheme, a split loaded by the loader that verifies it
+— each is the shape the code is trying to produce, handed to it as a premise. The test
+that measures such a line has to start from the mess the code exists to tidy.
