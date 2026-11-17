@@ -9,6 +9,23 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The job store's liveness and memory bounds are tested, not only its answers.** A
+  statement-deletion sweep removed ten statements from `web/api/jobs.py` one at a time
+  with the suite green. Four were real: the strong reference that stops asyncio
+  collecting a running job mid-flight (the source says so in a comment and nothing
+  observed it), its twin on the timeout path, the task that waits for a worker which
+  outlived its deadline so its in-flight slot comes back, and the eviction in that
+  cleanup path — without which three timed-out jobs against a cap of two retain three
+  records for as long as nobody submits another. The other six are inert and were proved
+  so by running both branches over twenty scripted scenarios; the misleading comment on
+  the one in `submit` has been corrected.
+- **A parallel cohort opens one reference per worker, and says so.** `tl.ref = ref` is
+  what makes the injected factory "once per worker" rather than once per item — without
+  it a five-hundred-variant cohort opens, indexes and closes the genome five hundred
+  times and every answer is still correct. The extra handle opened to describe the run
+  is checked closed too.
+- **`genome/index.py` was swept for statement deletion and is clean** (39/39); all eight
+  of its survivors against its own test directory died against the full suite.
 - **The published artifacts are checked for their structure, not only their facts.** A
   statement-deletion sweep removed eleven `lines.append(...)` calls from the printable
   sheet and thirteen from the leaderboard one at a time, with the whole suite green for

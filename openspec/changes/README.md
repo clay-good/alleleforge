@@ -22605,3 +22605,56 @@ them.** Check the shape as well as the strings: that a header row is followed by
 separator, a heading by a blank line, a `BT` by its `ET`. Those lines carry no
 information of their own, which is exactly why nothing was asserting them, and why
 deleting one costs a reader the whole artifact.
+
+## Round 668 — the lines that decide what a server holds, not what it answers
+
+Statement deletion, pointed at the runtime rather than the renders. `genome/index.py`
+came back **39 of 39** — every one of its eight survivors against `tests/genome/` died
+against the full suite. `web/api/jobs.py` left ten alive and `design/cohort.py` two, and
+all twelve survived the full suite.
+
+Not one of them changes an answer the API returns. They decide what a long-running
+server keeps in memory, how many file handles a cohort opens, and whether a running job
+can be collected out from under itself — and a suite built on responses is blind to the
+lot.
+
+Four were real.
+
+**The strong reference that stops asyncio collecting a running job.** The source says it
+outright: *"asyncio holds only a weak reference to a bare create_task() result, so
+without this a job could be garbage-collected mid-flight; the job record in the store
+does not keep the running task alive."* A documented, load-bearing invariant, and
+nothing observed it. Its twin on the timeout path — the task that waits for a worker
+which outlived its deadline, releases its in-flight slot and evicts — was equally
+unobserved, and that one holds the slot a capacity-limited server hands out.
+
+**The eviction in the worker-cleanup path.** A soft timeout returns before its worker
+does, so the record goes terminal while the thread runs on. By the time the next
+timed-out job pushes the store over its cap, the only code still running is the cleanup
+task's own eviction. Without it, three timed-out jobs against a cap of two retain three
+records — for as long as nobody submits another, which on an idle deployment is
+indefinitely.
+
+**The thread-local reference cache, and the probe handle.** `design_many` takes a
+factory rather than a `ReferenceGenome` because a pyfaidx handle is not thread-safe, and
+`tl.ref = ref` is what makes that "once per worker" instead of **once per item**: a
+cohort of five hundred variants would open, index and close the reference five hundred
+times, and every answer would still be right. Beside it, the extra handle opened to read
+the build label for the run header was closed by a line nothing checked.
+
+Six are inert, and this round spent more effort proving that than fixing the four. The
+budget counts *terminal* records and a submission adds a running one, so the `_evict()`
+in `submit` cannot reclaim anything — 45 scripted submit/finish sequences across three
+count caps and three byte caps produced no difference. The result-clearing assignments
+on both failure paths overwrite a field that is already `None`, and `record.progress =
+1.0` is set again in the `finally`. Four of those six first appeared to differ, and the
+difference was **timing noise in an asynchronous fixture**: re-running each disagreement
+and keeping only the reproducible ones left exactly one real finding. The comment on the
+`submit`-time call claimed a mechanism that does not exist — *"reclaim old terminal
+records this submission may push over the cap"* — and now says what it is.
+
+**Lesson: a suite built on answers cannot see the cost of producing them.** Everything
+real this round governs memory, handles or liveness, and every one of those lines is
+invisible to a test that checks what came back. Deletion is the operator that reaches
+them, and when it reports a survivor in that territory the next question is not "is this
+tested" but "is this observable at all" — four times out of ten here, it was not.
