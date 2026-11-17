@@ -176,3 +176,75 @@ def test_the_report_says_its_tracks_are_not_the_roadmap_phases() -> None:
 
     rendered = readiness._render(readiness.criteria())
     assert "not the roadmap phase statuses" in rendered, rendered.splitlines()[:3]
+
+
+def test_a_project_page_is_not_a_pinnable_artifact() -> None:
+    """`source_url` carries two different things and only one of them can be hashed.
+
+    `rule-set-3` names a release asset: one file, a stable URL, a hash. Eleven other
+    cards name a GitHub repository or a Hugging Face model page, where there is no
+    single artifact to hash — and recording the landing page's digest would report R0
+    met while pinning an HTML document.
+    """
+    artifact = [
+        "https://github.com/o/r/releases/download/v1/weights.txt",
+        "https://huggingface.co/org/model/resolve/main/pytorch_model.bin",
+        "https://github.com/o/r/raw/main/model.pkl",
+        "https://example.invalid/data/matrix.json",
+    ]
+    reference = [
+        "https://github.com/hkimlab/DeepPrime",
+        "https://huggingface.co/arcinstitute/evo2_7b",
+        "https://www.crisprbehive.design",
+        "https://github.com/shendurelab/Lindel/",
+    ]
+    for url in artifact:
+        assert release_readiness._names_an_artifact(url), url
+    for url in reference:
+        assert not release_readiness._names_an_artifact(url), url
+
+
+def test_the_unpinned_cards_are_split_by_what_blocks_them() -> None:
+    """R0's evidence must say which of the two things stands in the way, and for how many.
+
+    Counting them together made the criterion read as eleven downloads away. It is not:
+    eleven of them first need an upstream to publish a pinnable file, which is a
+    different kind of waiting and may never happen for some of them.
+    """
+    r0 = next(c for c in release_readiness.criteria() if c.track == "R0")
+    fetchable = next(line for line in r0.evidence if "name a downloadable artifact" in line)
+    referenced = next(line for line in r0.evidence if "not a single artifact" in line)
+
+    import re
+
+    counts = [int(re.match(r"(\d+)", line).group(1)) for line in (fetchable, referenced)]  # type: ignore[union-attr]
+    assert sum(counts) > 0, (fetchable, referenced)
+
+    from alleleforge.model_zoo.registry import default_registry
+
+    zoo = default_registry()
+    cards = [zoo.get(name) for name in zoo.names]
+    unpinned = [c for c in cards if c.source_url and not c.checkpoint_sha256]
+    assert sum(counts) == len(unpinned), (counts, len(unpinned))
+
+
+def test_splitting_the_unpinned_does_not_change_the_verdict() -> None:
+    """The report got more honest, not more flattering.
+
+    R0 is met only when every card naming a source pins a hash, whichever kind of URL
+    it names. A split that quietly excused the unpinnable ones would close the criterion
+    by reclassifying it, which is the failure this whole file exists to prevent.
+    """
+    from alleleforge.data.registry import DEFAULT_REGISTRY
+    from alleleforge.model_zoo.registry import default_registry
+
+    zoo = default_registry()
+    cards = [zoo.get(name) for name in zoo.names]
+    downloadable = [c for c in cards if c.source_url]
+    datasets = [DEFAULT_REGISTRY.get(n) for n in DEFAULT_REGISTRY.names]
+
+    expected = all(c.checkpoint_sha256 for c in downloadable) and all(
+        getattr(d, "sha256", None) for d in datasets
+    )
+    r0 = next(c for c in release_readiness.criteria() if c.track == "R0")
+    assert r0.met is expected

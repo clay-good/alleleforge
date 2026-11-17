@@ -42,6 +42,30 @@ class Criterion:
     evidence: list[str] = field(default_factory=list)
 
 
+#: URL path shapes that name a *downloadable artifact* rather than a project. A release
+#: asset, a model-hub blob, or any path whose last segment carries a file extension can
+#: be fetched and hashed; a repository or model-card landing page cannot.
+_ARTIFACT_PATH = re.compile(r"(/releases/download/|/resolve/|/raw/|/blob/|\.[A-Za-z0-9]{1,5}$)")
+
+
+def _names_an_artifact(url: str) -> bool:
+    """Whether ``url`` points at bytes that can be fetched and checksummed.
+
+    `source_url` carries two different things today and the distinction decides what
+    pinning a card would even mean. `rule-set-3` names a release asset — one file, a
+    stable URL, a hash. Most of the others name a GitHub repository or a Hugging Face
+    model page: there is no single artifact there to hash, and recording the hash of the
+    landing page would pin an HTML document while reporting the criterion as met.
+
+    So the two are counted separately. Treating them as one made R0 read as eleven
+    downloads away, when eleven of them first need somebody to decide *which file* the
+    weights are — and for several upstreams no such stable file is published.
+    """
+    without_scheme = url.split("://", 1)[-1]
+    path = without_scheme[without_scheme.find("/") :] if "/" in without_scheme else ""
+    return bool(path) and bool(_ARTIFACT_PATH.search(path))
+
+
 def _artifact_pinning() -> Criterion:
     """R0: every shipped card/descriptor pins a real, verified artifact hash."""
     from alleleforge.data.registry import DEFAULT_REGISTRY
@@ -54,6 +78,12 @@ def _artifact_pinning() -> Criterion:
     downloadable = [c for c in cards if c.source_url]
     pinned = [c for c in downloadable if c.checkpoint_sha256]
     baselines = [c for c in cards if not c.source_url]
+    # Split the unpinned by what is actually in the way: a fetch, or a decision about
+    # which file to fetch. The criterion is unmet either way — this changes nothing
+    # about the verdict and everything about what the verdict means.
+    unpinned = [c for c in downloadable if not c.checkpoint_sha256]
+    fetchable = [c for c in unpinned if _names_an_artifact(c.source_url or "")]
+    referenced = [c for c in unpinned if not _names_an_artifact(c.source_url or "")]
 
     datasets = [DEFAULT_REGISTRY.get(name) for name in DEFAULT_REGISTRY.names]
     ds_pinned = [d for d in datasets if getattr(d, "sha256", None)]
@@ -67,12 +97,25 @@ def _artifact_pinning() -> Criterion:
             f"{len(pinned)}/{len(downloadable)} model cards with a source URL pin a "
             f"checkpoint hash; {len(ds_pinned)}/{len(datasets)} datasets pin one"
         ),
-        blocked_by="" if met else "requires freezing the published upstream artifacts",
+        blocked_by=(
+            ""
+            if met
+            else (
+                "requires freezing the published upstream artifacts — and for "
+                f"{len(referenced)} of them, first deciding which file that is"
+            )
+        ),
         evidence=[
             f"{len(baselines)} card(s) are heuristic baselines with no artifact to pin: "
             + ", ".join(sorted(c.name for c in baselines)),
-            "unpinned: "
-            + ", ".join(sorted(c.name for c in downloadable if not c.checkpoint_sha256)),
+            f"{len(fetchable)} unpinned card(s) name a downloadable artifact, so a "
+            "fetch-and-hash would pin them"
+            + (": " + ", ".join(sorted(c.name for c in fetchable)) if fetchable else ""),
+            f"{len(referenced)} unpinned card(s) name a repository or model page, not a "
+            "single artifact — there is nothing there to hash until an upstream release "
+            "pins one, and hashing the landing page would report this criterion met "
+            "while pinning an HTML document"
+            + (": " + ", ".join(sorted(c.name for c in referenced)) if referenced else ""),
             "the consent gate refuses a null-hash fetch, so an unpinned artifact "
             "cannot be loaded rather than being loaded unverified",
         ],

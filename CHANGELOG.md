@@ -360,6 +360,14 @@ acceptance.
   plausible AFM range).
 
 ### Changed
+- **The readiness report distinguishes an artifact URL from a project reference.** R0 read
+  as "eleven downloads away": *1/12 model cards with a source URL pin a checkpoint hash.*
+  Of the eleven unpinned, zero name a downloadable artifact — they name GitHub
+  repositories and Hugging Face model pages, where there is no single file to hash, and
+  hashing the landing page would report the criterion met while pinning an HTML document.
+  The verdict is unchanged; the blocker now says *"and for 11 of them, first deciding
+  which file that is"*, and the evidence names both groups. Guarded three ways, including
+  a test that the split does not change `met`.
 
 - **Where SpCas9 cuts is computed once.** Four call sites did the arithmetic by hand — the pegRNA's nick, the PE3 nicking guide's nick, and the nuclease guide's cut site on each strand — and two of them took the base on the far side of the cut for a guide reading against the frame, which is the pair of defects above. `enumerate._cut.cut_index` is the rule: the first base 3' of the cut along the strand that reads the protospacer, `hi - cut_offset` reading with the frame and `lo + cut_offset - 1` against it. A guard fails if either module does that arithmetic outside the shared call, because a test that four copies agree is a test that has to be maintained alongside a fifth.
 - **A query that is not a guide length says so.** `aforge offtarget ACGT` answered with 151,093 sites and specificity 0.000 over a 2 Mb contig — arithmetically correct for a 4-mer, and a statement about nothing: every number an off-target report carries is about a *guide*. The report's search description now says when the query falls outside published guide lengths (17-24 nt: 20 for every chemistry this tool designs, 17-18 for truncated SpCas9 guides, 20-24 for Cas12a), so it reaches the CLI, the API and every render at once. Labelled, not refused — screening a seed sequence is a legitimate thing to do, and what is not legitimate is a specificity presented as if it described a reagent.

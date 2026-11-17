@@ -23137,3 +23137,42 @@ have.** Nine rounds of findings came out of a file that would have vanished with
 scratch directory, and the first thing the next session would have done is rebuild it and
 re-earn its three bugs. The fix is unglamorous and it is the difference between a
 technique and a tool.
+
+## Round 679 — "eleven downloads away" was the wrong number
+
+The readiness report has said the same thing about R0 for several rounds: *1/12 model
+cards with a source URL pin a checkpoint hash — blocked: requires freezing the published
+upstream artifacts.* Read in order to find the next chunk of work, that sentence says
+eleven downloads and eleven hashes stand between here and the criterion.
+
+It does not. Of the eleven unpinned cards, **zero name a downloadable artifact.** They
+name GitHub repositories and Hugging Face model pages:
+`github.com/hkimlab/DeepPrime`, `huggingface.co/arcinstitute/evo2_7b`,
+`github.com/shendurelab/Lindel`, `www.crisprbehive.design`. `rule-set-3`, the one that is
+pinned, names a release asset — one file, one stable URL, one hash.
+
+So `source_url` carries two different things, and the criterion counted them as one. The
+distinction decides what pinning a card would even *mean*: there is no single artifact at
+a repository root to hash, and recording the landing page's digest would report R0 met
+while pinning an HTML document — a status reading as something it is not, which is the
+failure mode this project has corrected more times than any other.
+
+The report now separates them. R0 is unmet either way and its verdict is untouched; what
+changed is what the verdict means. The blocker line reads *"requires freezing the
+published upstream artifacts — and for 11 of them, first deciding which file that is"*,
+and the evidence names both groups. Eleven upstreams publishing a pinnable release is a
+different kind of waiting from eleven downloads, and for several of them it may never
+happen.
+
+Three guards hold it: the classifier is pinned against both shapes (a release asset, a
+`/resolve/` blob, a `/raw/` path and a plain file extension on one side; a repository
+root, a model page and a bare domain on the other); the two counts must sum to the
+unpinned total, so a card cannot fall out of the accounting; and **the split must not
+change `met`** — a reclassification that quietly excused the unpinnable cards would close
+the criterion by redefining it, which is exactly what the readiness tests exist to stop.
+
+**Lesson: a blocked criterion still has to say what it is blocked on.** "Blocked outside
+this repository" was true and it hid a distinction that changes the plan: one group is
+waiting on a download, the other on a decision nobody here can make. The measurement was
+honest about being unmet and vague about why, and vagueness in the one document that
+answers "what is left" is a defect in that document.
