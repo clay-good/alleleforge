@@ -183,3 +183,29 @@ def test_reads_gzipped_vcf(clinvar_vcf: Path, tmp_path: Path) -> None:
     gz.write_bytes(gzip.compress(clinvar_vcf.read_bytes()))
     db = ClinVarDB.from_vcf(gz)
     assert len(db) == 4
+
+
+def test_a_flag_style_info_key_is_kept() -> None:
+    """A VCF INFO field mixes `KEY=VALUE` pairs and bare flags, and both are data.
+
+    `_parse_info` stores a bare flag with an empty value; a statement-deletion sweep
+    removed that line with the suite green, because every consumer in this module reads
+    a `KEY=VALUE` entry (`RS`, `GENEINFO`, `CLNSIG`) and a dropped flag is falsy exactly
+    like an absent one. The function's contract is the VCF INFO format, not the three
+    keys its current callers happen to want — the same shape as `_left_align`, whose
+    guarantee was held up by one caller's habits.
+    """
+    from alleleforge.data.clinvar import _parse_info
+
+    parsed = _parse_info("RS=334;PATHOGENIC;GENEINFO=HBB:3043;COMMON")
+    assert parsed["RS"] == "334"
+    assert parsed["GENEINFO"] == "HBB:3043"
+    assert "PATHOGENIC" in parsed and parsed["PATHOGENIC"] == ""
+    assert "COMMON" in parsed and parsed["COMMON"] == ""
+
+
+def test_an_empty_info_field_parses_to_nothing() -> None:
+    """The documented sentinel, beside the case above."""
+    from alleleforge.data.clinvar import _parse_info
+
+    assert _parse_info(".") == {}

@@ -9,6 +9,17 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **Every module has now been swept for statement deletion** — removing one side-effect
+  statement at a time and asking whether anything observes that it ran. 950 mutants
+  across 72 files over rounds 666–673; seventy-two modules clean, every survivor fixed,
+  proved unobservable, or recorded as unexecutable in CI. It is the operator that found
+  the resource and report-completeness defects the earlier passes had no vocabulary for.
+- **Three loaders are checked to record where they came from** — `HaplotypePanel.source`
+  and `Liftover.source_build` / `target_build`, the documented attributes answering which
+  panel made a run haplotype-aware and between which builds coordinates were moved — and
+  `_parse_info` keeps a bare VCF INFO flag, whose contract is the format rather than the
+  three `KEY=VALUE` entries its current callers read.
+
 - **The cache sweep reports what it could not read.** `aforge cache verify` promises one
   row per artifact, and two of its `checks.append(...)` calls could be deleted with the
   suite green: the branch for an FM-index that fails to load for a reason that is not an

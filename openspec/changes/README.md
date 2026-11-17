@@ -22835,3 +22835,45 @@ arm of a condition — so a gap meant a missing case. Deletion mutates whether a
 *happened*, and the gaps it finds are whole categories a response-shaped suite has no
 vocabulary for: resources, report completeness, output order, liveness. Those are not
 harder to test. They were never asked.
+
+## Round 673 — the pass is complete, and one gap is left standing on purpose
+
+The last four survivors, and with them the statement-deletion pass closes. Every module
+in this project has now been swept by it: **950 side-effect mutants across 72 files,
+seventy-two modules clean, and every survivor either fixed, proved unobservable, or
+recorded as unexecutable in this environment.**
+
+The four: `HaplotypePanel.source`, `Liftover.source_build` and `Liftover.target_build` —
+documented public attributes answering *which panel made this haplotype-aware* and
+*between which two builds were these coordinates moved* — and `_parse_info`'s handling of
+a bare VCF flag. The last is the same shape as Round 670's `_left_align`: every consumer
+in the module reads a `KEY=VALUE` entry, so a dropped flag is falsy exactly like an
+absent one, and the function's contract is the VCF INFO format rather than the three keys
+its current callers happen to want.
+
+**One finding is deliberately not fixed.** `HaplotypePanel.source` has no reader anywhere
+in this project. The provenance collector reads `dataset_version`, which the CLI attaches
+separately through `_attach_source`; `source` is set on every construction and consumed
+by nothing. On the command line that is redundant. On the **web** path it is not:
+`app.py` builds the panel with `from_tsv(path, source=path)` and nothing attaches a
+`dataset_version`, so **a run made haplotype-aware over HTTP records no descriptor for
+the panel that made it so**, while the identical run from the command line records one.
+That is this project's oldest recurring shape — two surfaces, one capability, one of them
+honest about it — and it is a real gap.
+
+It is left standing because closing it means deciding what descriptor the web surface
+should write into the provenance block, and that is a change to a published artifact
+format. A sweep is entitled to find the gap; it is not entitled to pick the format. The
+finding is recorded here and in the CHANGELOG so the decision is taken deliberately
+rather than inside a test.
+
+Unexecutable here, and recorded rather than carried: `raise_for_status` inside
+`_default_fetch`, two `urllib.request.urlretrieve` calls and the `typer`-missing message
+in `cli/__init__.py` all sit under `pragma: no cover` for network or for a dependency CI
+does not install; three more in `variant/hgvs_adapter.py` need the optional `hgvs` stack.
+
+**Lesson: a sweep's authority ends where a design decision begins.** Thirty-odd findings
+this pass were unambiguous — a line whose absence is a defect, and a test that says so.
+This one is not: the line is fine, the reader is missing, and what should read it is a
+question about what the artifact promises. Writing a test that invented an answer would
+have buried that question under a green check.
