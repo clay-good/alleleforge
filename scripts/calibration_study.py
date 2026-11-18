@@ -59,6 +59,16 @@ def _cell(value: Any) -> str:
     return "undefined" if value is None else str(value)
 
 
+def _provenance(row: dict[str, Any]) -> str:
+    """Return the corpus label for ``row``.
+
+    The generalization rows have carried a ``synthetic`` flag all along and the table
+    never printed it, so a generalization gap -- the claim most easily mistaken for a
+    measurement of a model -- was the one section a reader could not read a corpus off.
+    """
+    return "synthetic" if row["synthetic"] else "real"
+
+
 def render_markdown(
     tasks: list[dict[str, Any]], generalization: list[dict[str, Any]], demo: list[dict[str, Any]]
 ) -> str:
@@ -73,13 +83,27 @@ def render_markdown(
     # and every number in it comes from the bundled synthetic stand-ins shipped so the
     # harness runs without the real corpora. Saying so once, in prose, at the top —
     # before any table — is the difference between a demonstration and a claim.
-    if all(r["synthetic"] for r in tasks):
+    stand_ins = sorted(str(r["task"]) for r in tasks if r["synthetic"])
+    if stand_ins and len(stand_ins) == len(tasks):
         lines += [
             "> **Every number below is computed on the bundled SYNTHETIC stand-in",
             "> datasets**, shipped so the harness runs in CI without the real corpora,",
             "> at the sample sizes shown in the `n` column (single digits). They",
             "> demonstrate that the measurement machinery works end to end. They are",
             "> not measurements of any model, and must not be cited as such.",
+            "",
+        ]
+    elif stand_ins:
+        # The banner used to be all-or-nothing. One real corpus deleted it, warning and
+        # all, from a table whose other rows were still stand-ins -- and corpora arrive
+        # one task at a time, so that mixed table is the first one a reader will see.
+        lines += [
+            f"> **{len(stand_ins)} of {len(tasks)} rows below are computed on bundled",
+            "> SYNTHETIC stand-in datasets** at single-digit `n`: "
+            + ", ".join(f"`{name}`" for name in stand_ins)
+            + ".",
+            "> Those rows demonstrate the measurement machinery, not a model, and must",
+            "> not be cited as measurements. The `Data` column marks every row.",
             "",
         ]
     lines += [
@@ -96,7 +120,7 @@ def render_markdown(
         lines.append(
             f"| {r['task']} | {r['kind']} | {r['primary_metric']} | "
             f"{_cell(r['primary_value'])} | {_cell(r['ece'])} | {r['n_test']} | "
-            f"{'synthetic' if r['synthetic'] else 'real'} |"
+            f"{_provenance(r)} |"
         )
     unmeasured = [r for r in tasks if r["primary_value"] is None]
     if unmeasured:
@@ -113,8 +137,8 @@ def render_markdown(
         "held-out cell type. A positive gap means the model generalizes *worse* to",
         "the unseen context — a field-wide reality, reported, not hidden.",
         "",
-        "| Task | Metric | In-context | Held-out | Gap | Held-out context |",
-        "|---|---|---:|---:|---:|---|",
+        "| Task | Metric | In-context | Held-out | Gap | Held-out context | Data |",
+        "|---|---|---:|---:|---:|---|---|",
     ]
     for r in generalization:
         # A gap can be absent: the baseline predicts one constant, so its rank
@@ -122,12 +146,13 @@ def render_markdown(
         # table says so and names the reason rather than printing `+0.0`.
         if r["gap"] is None:
             lines.append(
-                f"| {r['task']} | {r['metric']} | — | — | undefined | {r['held_out_context']} |"
+                f"| {r['task']} | {r['metric']} | — | — | undefined | "
+                f"{r['held_out_context']} | {_provenance(r)} |"
             )
             continue
         lines.append(
             f"| {r['task']} | {r['metric']} | {r['in_context']} | "
-            f"{r['held_out']} | {r['gap']:+} | {r['held_out_context']} |"
+            f"{r['held_out']} | {r['gap']:+} | {r['held_out_context']} | {_provenance(r)} |"
         )
     undefined = [r for r in generalization if r["gap"] is None]
     if undefined:

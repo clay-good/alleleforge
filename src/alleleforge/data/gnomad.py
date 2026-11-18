@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 from alleleforge.config import get_settings
 from alleleforge.data._io import is_sequence_allele, open_text
+from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import GenomicInterval, canonical_contig
 
 #: gnomAD v4.1 genetic-ancestry group labels.
@@ -108,6 +109,9 @@ class GnomadDB:
         # vs "1") still resolves — otherwise a reference-vs-gnomAD naming mismatch
         # silently returns no records and population off-target augmentation is
         # empty (the reference-bias blind spot this module exists to catch).
+        #: The provenance descriptor pinning the bytes these records came from, set
+        #: by whichever shell loaded them (see `HaplotypePanel.dataset_version`).
+        self.dataset_version: DatasetVersion | None = None
         self._by_chrom: dict[str, list[PopulationFrequency]] = {}
         for rec in records:
             self._by_chrom.setdefault(canonical_contig(rec.chrom), []).append(rec)

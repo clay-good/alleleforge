@@ -22042,3 +22042,1337 @@ at it.** Four rounds of notes said a conjunction's unexercised arm is invisible;
 afternoon's operator found nine of them in the first safety-relevant type it was pointed
 at, and confirmed a second module was clean. A method that only re-runs the mutations it
 already has will keep finding the same class of thing.
+
+## Round 658 — the renderer the refusal depends on
+
+The conjunct-removal operator built last round was pointed at `design/cohort.py`, the
+module that runs a whole cohort and decides what a resume may skip. Fifty-two conjunction
+mutants; against the module's own mirror directory, eleven lived.
+
+**Seven of those eleven were not there.** Against the full suite they died — a 64% phantom
+rate, the second-worst on record after `cli/main.py`'s eighty-four, and for the same
+reason: a cohort runner is pinned by the surfaces it must agree with (the CLI, the
+artifact guards, the provenance tests) far more than by `tests/design/`. Three of the
+seven are worth naming, because I had read all three as *provably equivalent* before the
+broad list spoke. `manifest is not None and resume` guarding the mismatched-resume
+refusal, and the same pair guarding the done-ids read, both looked unreachable to me:
+the rerun guard above them refuses a non-empty manifest under `--no-resume`, so the only
+way to arrive with `resume=False` is a manifest that is absent or empty, and both
+consumers return trivially on those. That argument is wrong somewhere, because tests
+killed both mutants. **Reading is not proof — this log has now recorded that four times,
+and I made the mistake again in the same session that quotes it.**
+
+What was genuinely unmeasured was all in one place: `_render`, the four-line function
+that turns a header field into the sentence a human reads when a resume is refused. It
+exists because `repr` once buried the two ClinVar hashes that differed under three lines
+of `None`s — it is an honesty mechanism, and this project has found more defects inside
+honesty mechanisms than inside the arithmetic they describe.
+
+`_render` asks two conjunctions: *is this the `inputs` key* **and** *is the value a
+list*; *is this the `reference` key* **and** *is the value a dict*. The suite's only case
+was a `reference` dict differing from another `reference` dict, which satisfies both arms
+at once and so measures neither. Drop the key arm and any list is announced as datasets
+it does not hold. Drop the type arm and the renderer **crashes on the value a real run
+hands it**: a manifest written against a run-wide reference, resumed by a run that builds
+one per worker, carries `reference: None` on this side, and `None.get("contigs")` raises
+— the exception replacing the refusal says nothing about the mismatch it was raised to
+report. The `or "nothing"` fallback had no case either, so a run with no dataset inputs
+rendered as the empty string: `inputs: manifest has , this run has ...`, which reads as a
+truncated message rather than as "no inputs".
+
+The fourth was in `_read_done_ids`: `"item_id" in record and record.get("status") == "ok"`.
+Every manifest the suite builds is one the runner wrote, where a status line always
+carries an item id, so the arms always agreed. The reader's own docstring is about
+manifests that are *not* pristine — truncated, hand-edited, corrupt — and a status
+without an item is exactly that case. Drop the arm and it raises a bare `KeyError`, where
+every other damage it finds raises a `ValueError` naming the file, the line and why
+skipping it would silently recompute or silently drop an item.
+
+`design/cohort.py` now kills 52 of 52.
+
+**Lesson: a conjunction's phantom rate is a property of the module's audience, not of the
+operator.** The same sweep that found nine real arms in a type found four in a runner and
+seven ghosts, because a runner is held in place by everything downstream of it. Build the
+list from what the module must agree with, measure the survivors there, and when a
+survivor looks equivalent, run both branches — the three I argued away by reading were
+all killed by tests I had not thought to look for.
+
+## Round 659 — the remedy it printed could not be run
+
+`variant/resolver.py`, swept for conjunct removal: 33 mutants, 12 alive against
+`tests/variant/`, **6 against the full suite** — the same phantom ratio Round 658 found,
+and for the same reason. Among the ghosts was the whole five-armed `or` of
+`parses_as_variant`: every input form *is* pinned, in `tests/cli/`, because the question
+that function answers is a CLI routing question.
+
+**The instrument was wrong first.** Of the six that lived, two sat on the module's one
+*nested* boolean, `pos > 0 and (ref == "" or alt == "")`. The harness collects sites in
+pre-order — a node's own sites before its children's — and the mutator was numbering them
+the other way round, so for a nested `BoolOp` the index handed in named one mutation and
+the mutator applied another. The log line said "Or drop#1" and the code it ran had dropped
+the outer `and`'s second operand. I spent a while reasoning about why a deletion could
+lose its anchor base with the suite green; it cannot, and no such mutant had ever run.
+Fixed, verified against a toy module whose six sites now map one-to-one, and re-checked:
+`design/cohort.py` has no nested boolean, so Round 658's numbers stand unchanged.
+
+With the mapping right, both of those two are **provably equivalent**, and proved rather
+than argued: `_left_align` was run against the original and against each mutant over
+71,400 constructed inputs — every position of the fixture contig crossed with every
+ref/alt pair up to three bases — and they agreed on all of them. `indel` is never empty
+where it is tested (the function returns early unless the alleles differ in length, so
+exactly one side is empty and rolling preserves length), and `(ref == "" or alt == "")` is
+true wherever it is asked. The other four sites of the same nesting *do* differ, on 101 to
+4,265 of those inputs, and the suite kills all four.
+
+**The real defect was in a remedy.** `_off_by_one_remedy` ends both of its branches on
+`{variant.alt or '-'}`, and the fallback had no fixture: every case in the file asserts
+`>A`, where the alt is present and the dash never appears. Writing the deletion case
+produced a failure I did not expect — not in the assertion about the dash, but in the line
+below it, which runs the remedy. The suggestion `chr1:1000:C>-` came back
+**`unrecognized variant input`**.
+
+`Variant.__str__` renders `f"{ref or '-'}>{alt or '-'}"`. The coordinate pattern read
+`[ACGTN]*` on both sides and nothing else. So this tool printed every deletion as
+`chr1:999:C>-` and every insertion as `chr1:999:->CA`, and refused both on the way back
+in — the identical sin to the 0-based/1-based mismatch that `_off_by_one_remedy` was
+written to explain, sitting inside the explanation. The file's own docstring says *a
+remedy that does not resolve is worse than no remedy*, and
+`test_the_remedy_it_names_actually_resolves` had been running every remedy it was handed
+— for substitutions only, the one shape where the fallback cannot fire. The pattern now
+reads a dash as the empty allele on both sides, `C>` and `C>-` resolve identically, and a
+dash beside real bases (`A->GG`) is still refused.
+
+Two smaller arms: `_ref_matches_at` asks `not result.padded` **and** that the bases match,
+and every fixture sits mid-contig where nothing is padded — a fetch past a contig end
+comes back padded with `N`, so an assembly-gap record (`N` in the ref, which this project
+accepts and documents) at the last base matches its own padding and would be offered a
+remedy at `chr2:32` of a thirty-base contig. And `_a_file_in_a_variant_slot` asks whether
+the text holds a separator **or** ends in a data suffix, where every fixture did both — so
+an extensionless cohort file, or `runs/2026-03/batch`, got "unrecognized variant input"
+instead of the sentence naming the command that takes files.
+
+`variant/resolver.py` now kills 31 of 33, with both survivors proven equivalent.
+
+**Lesson: a tool that prints a form it cannot read has two defects, and the second one is
+in the message offering to help.** The round-trip gap had been there since the dash was
+introduced; what exposed it was writing the *shape* no fixture had — a deletion — into a
+test that did not merely inspect the message but ran what the message told a user to run.
+And before trusting any of it: check that the instrument applied the mutation it named.
+
+## Round 660 — the assertion the test declined to make
+
+Two modules swept for conjunct removal. `types/variant.py`: 20 mutants, 3 alive, and the
+broad list killed none of them — the first module in this pass with a zero phantom rate,
+because a type is pinned by its own unit tests and nothing else. `design/designer.py`: 26
+mutants, 9 alive against `tests/design/`, 7 against the full suite.
+
+Of the ten survivors, three are equivalent and were proved so rather than argued.
+`variant_class`'s last two guards, `if ref and alt`, cannot be reached with one allele
+empty — the insertion and deletion branches above have already returned — so either
+operand decides alone; lifted out of the class and run against every ref/alt pair up to
+three bases, 7,225 cases, the mutants agreed with the original on all of them. The third,
+`cell_context is not None and candidates`, is suppressed by its own inner
+`if unconsidered:` for an empty menu. Its neighbour four lines up, written identically,
+is not: `chromatin_track is not None and candidates` guards a note that fires when the
+adjusted count is zero, and zero is what an empty menu gives. Two guards of the same
+shape, one dead and one load-bearing, and only a sweep tells them apart.
+
+**The headline is a test that swapped its own fixture out.** `variant_class` asks
+`len(ref) == 1 and len(alt) == 1` for a substitution, and the table in
+`test_variant_class` holds `("A", "ACGT", INSERTION)` — the anchored form, which is
+exactly what `normalized()` and `_left_align` emit and therefore what the rest of the
+library handles. The body then reads: *if the expected class is an insertion or a
+deletion, build the pure anchor-free variant instead and classify that*. So the anchored
+shape was carried into the test and never classified. The table's only other ref of
+length one is the SNV, so the `alt` arm had no case at all: drop it and `A>ACGT`, a
+four-base insert, is classified `SNV` — 324 of those 7,225 pairs change class, including
+every anchored insertion there is.
+
+The rationale heading had the same shape in a different disguise.
+`"Eligible and run: " + (", ".join(...) or "none")` — and the one test that touches the
+empty case reads `if "Eligible and run: none" in rationale:` and asserts *inside* that
+branch. Drop the fallback, the line becomes `Eligible and run: .`, the condition goes
+false, and the test passes having checked nothing. The same `or <fallback>` shape as
+Round 658's `or "nothing"`, two modules away.
+
+The rest are notes attached to runs they are not about. `_clinical_notes` writes three
+sentences that each name an intent, and each is guarded by *this intent* **and** *this
+fact*, with every fixture satisfying both at once. Without its intent arm, an `install`
+— deliberately writing a variant in — is told to "confirm this is the change you mean to
+make" about a modifier consequence. The disease-model sentence sits in an `elif` that
+**knock-out** also reaches, so without its intent arm a knock-out, which writes no allele
+at all, is told it is installing one; and without its significance arm the same sentence
+is printed over a **benign** classification, which is the opposite claim. Finally,
+`_agreed_build` refuses when the reference has a label **and** the label disagrees, and
+no fixture separated those: the unlabelled test passes no `build`, so it returns on the
+`build is None` branch before the comparison. Drop the label arm and the one caller an
+unlabelled genome has — someone supplying the assembly themselves, which is what the
+argument is for — is refused by a message quoting a label that does not exist.
+
+`types/variant.py` kills 18 of 20 and `design/designer.py` 25 of 26, with every survivor
+proved equivalent or redundant.
+
+**Lesson: an assertion a test can decline to make is not an assertion.** Two of this
+round's findings are the same defect in the test, not in the code: one swapped its
+awkward fixture for an easier one inside the test body, the other wrapped its assertion
+in an `if` whose condition is the very string under test. Both read as thorough. Grep for
+an `assert` nested under a condition computed from the subject, and for a parametrize
+table whose body branches on which case it was handed.
+
+## Round 661 — two modules that had nothing to say, and one that did
+
+Three modules swept for conjunct removal, and the useful result is as much about where
+the operator found *nothing* as about where it found something.
+
+`enumerate/cas9.py`: **29 of 29 killed** against its own test directory, before the broad
+list was even consulted. `scoring/uncertainty.py`: 12 of 21 alive against `tests/scoring/`
+and **every one of them killed by the full suite** — a 100% phantom rate, the highest
+recorded here. The twelve were the `or not x` arms of six validators and the bin-edge
+disjunction of the ECE loop, and they are all pinned, just not where they live: the
+calibration and coverage functions are consumed by `benchmark/metrics.py` and the report,
+which exercise the empty and single-bin cases that the scorer's own tests never bother
+with. **The phantom rate is turning out to be the most informative number this operator
+produces.** A pure type (Round 660's `types/variant.py`) is pinned by its own unit tests
+and scores zero phantoms; a runner or shell is pinned by everything downstream and scores
+50–64%; a numeric library sits at the far end, pinned almost entirely by its consumers.
+The narrow list is not a cheap approximation of the broad one — it measures a different
+thing, and which one is right depends on who the module's audience is.
+
+`offtarget/scoring.py` left 5 alive, and all 5 survived the full suite.
+
+The one that scores: `pam_ok = len(pam) >= 4 and pam[:3] == "TTT" and pam[3] in "ACG"`,
+the Cas12a `TTTV` gate. The suite's only non-canonical fixture is `AAAA`, which fails on
+the `TTT` arm alone, so the arm that reads the *fourth* base had no case at all. `TTTT` is
+precisely the PAM a Cas12a scan turns up beside a real one, and without that arm it takes
+full weight rather than the 0.05 residual — a site that is not canonically targetable,
+scored as though it were. The length arm had no case either: a PAM shorter than four bases
+makes the two reads below it raise `IndexError`.
+
+The other three are the matrix label, which this project has already found reading exactly
+backwards once. Each of the three constructor branches writes `matrix or <its default>`,
+and only the published branch had a fixture for the override while only the other two had
+fixtures for their defaults — so in every branch the `or` was decided by whichever side
+the test happened to supply. Drop the override from the custom-weights or approximate
+branch and a caller who named their matrix has that name silently replaced by a generic
+one, in the one field a reader uses to tell a published score from a fallback. And
+`_uses_fallback` asks for a fixed table **and** an alignment it cannot cover, where every
+fixture binds a fixed table: drop the first arm and an approximate scorer's own label is
+replaced by the generic approximation id for exactly the bulged and off-length alignments
+a bulge search produces.
+
+`offtarget/scoring.py` now kills 15 of 15.
+
+**Lesson: a negative arm needs a fixture that fails on that arm alone.** `AAAA` is a
+non-canonical PAM and proves nothing about the three-base prefix test, because it fails
+one step earlier. For a conjunction of N reads, the fixture that measures read *i* is the
+one where the other N−1 all pass — which is the same sentence this log has written about
+guards, now about the characters inside one.
+
+## Round 662 — three modules, two of them already right
+
+`web/api/app.py` (28 mutants), `design/cohort_summary.py` (22) and `data/registry.py`
+(20), swept for conjunct removal. The first two came back **completely clean against the
+full suite** — 28 of 28 and 22 of 22 — after showing five and ten survivors respectively
+against their own test directories. Every one was a phantom.
+
+That is now the third and fourth module whose own directory is the wrong list, and the
+pattern has stopped being a surprise and started being a rule. The web app is pinned by
+the cross-surface agreement tests (`test_shells_expose_the_library`,
+`test_every_registry_surface_answers_the_same_question`) far more than by `tests/web/`;
+the cohort summary is pinned by the artifact and disclosure guards at the root. Both are
+*renderers of other modules' answers*, and a renderer is held in place by whatever insists
+its answer matches someone else's.
+
+`data/registry.py` left five, and three are real — all in the two places that ask whether
+a bundled dataset is actually there.
+
+`resolve` asks `bundled is not None and bundled.is_file()`, and `dataset_status` writes
+the same pair. Every fixture runs against the real registry, where the one bundled row's
+file is present, so the second read never decided anything. `dataset_reason` already
+carries a sentence for the case neither was tested on — *"bundled file is missing or
+failed checksum verification; reinstall AlleleForge"* — which is reachable only through
+it. Drop the `is_file()` read and a partial install stops being a degradation and becomes
+a wall: `resolve` raises `FileNotFoundError` out of the checksum read instead of falling
+through to the cache, and `dataset_status` reports a present, verified cache entry as
+unavailable, while the bytes that would answer the question sit in the cache directory
+the whole time. Pinned now with a registry of one deliberately-missing bundled row, plus
+the no-cache case so the reinstall sentence has a test.
+
+The third is `fetchable`, a flag this project has already had to repair once for meaning
+"the two fields a fetch needs are set" rather than "a fetch would work". It reads
+`bool(sha256 and source_url) and not bundled`, and the file that guards it runs `resolve`
+for every registered row — but every registered row that carries a digest also carries a
+URL, so that comparison cannot separate the two reads. A pinned row with no source gets
+`MissingDependencyError` from `resolve`, saying a source is what is missing rather than
+consent; without the `source_url` read the status beside it says `fetchable: True`.
+
+The remaining two are equivalent, and proved so rather than read: the original and each
+mutant were run over all 72 combinations of bundled/path-present/cached/digest/source,
+and both agreed everywhere. `if artifact is None and cached` without `cached` hands
+`_verify_sha256` a path that does not exist, and `FileNotFoundError` is an `OSError`,
+which the surrounding `except` already swallows; `if artifact is not None and
+descriptor.sha256 is not None` without the digest read hands it `None` as the expected
+value, and no real digest equals `None`, so `ChecksumError` lands in the same `except`.
+Two guards that look load-bearing and are merely polite.
+
+`data/registry.py` now kills 18 of 20.
+
+**Lesson: a renderer is pinned by whatever insists its answer matches someone else's.**
+Four modules into this pass, the phantom rate predicts the module's kind better than any
+reading of it does — near zero for a type, near total for a shell, a renderer or a numeric
+library consumed elsewhere. Sweep the mirror directory as a cheap filter, never as
+evidence, and read the rate itself as the finding when it is high.
+
+## Round 663 — the `or` that nothing ever reached
+
+Three more modules under conjunct removal. `genome/index.py`: 19 of 19, clean — all
+twelve of its survivors against `tests/genome/` died against the full suite.
+`variant/effect.py` left five and `model_zoo/registry.py` three, and between them they
+are almost entirely one shape: **`x or <default>`, where every fixture supplies `x`**.
+
+That shape has now produced a finding in six modules this pass — the cohort refusal's
+`or "nothing"`, the menu heading's `or "none"`, the chromatin track's `or 'none'`, the
+registry's `matrix or <label>`, and now four more. It is worth stating plainly why it
+hides so well: a defensive default is written for the case the author could imagine but
+had no example of, and a test is written from an example. The two are disjoint by
+construction. **For every `or` in the codebase, the fixture that measures it is the one
+the author did not have.**
+
+The real ones:
+
+* `_assembly_of` ends `return variant.build or "GRCh38"`. `build` is a `str` that may be
+  empty, matches neither GRCh38 nor GRCh37, and falls to the default — without which the
+  request URL becomes `.../vep//region/...`, naming no assembly at all.
+* `parse_vep_response` reads `chosen.get("consequence_terms") or [most_severe]`. VEP
+  returns transcript blocks with no terms; without the fallback the severity `max()` is
+  handed `None`.
+* `is_canonical` reads `canonical` **or** `mane_select`, and every canonical fixture here
+  sets both. VEP's MANE Select blocks do not always carry `canonical`, and that flag is
+  what a reader uses to decide whether the consequence shown is the one that matters.
+* `ModelRegistry.checkpoint` passes `downloader or _default_downloader`. Every fetch test
+  injects a fake — correctly; CI does not go to the network — so the left side always won
+  and **nothing established that the production path has a downloader at all**. Drop the
+  fallback and a user running `aforge models fetch`, who supplies no downloader because
+  the API does not ask for one, calls `None(url, dest)`. The dataset registry writes the
+  identical line and is covered, which is what makes this a hole rather than a limit: the
+  two gated fetchers are meant to behave alike, and one of them did not. Pinned by
+  replacing the default with a recorder, so the network is still never touched.
+
+Three survivors are equivalent and were proved, not argued. `(variant.build or "")` one
+line above the real finding is dead: `build` is typed `str` and cannot be `None`.
+`record.get("transcript_consequences") or []` is dead: the `if not cons:` immediately
+below returns on every falsy value, checked against nine payload shapes including
+`None`, `[]`, `""` and `{}`. And `fetchable`'s fourth term, `not card.bundled`, is
+unreachable because a `ModelCard` validator refuses a bundled card that defines
+`checkpoint_sha256` or `source_url`, so such a card fails the first two terms first —
+the term rests entirely on that validator, and the file whose whole job is to give each
+term a case now says so and names the test that holds it up. That file was called
+`test_fetchable_names_all_three_of_its_conditions.py` while the expression had four;
+it is renamed.
+
+**Lesson: a defensive default and a test fixture come from opposite directions.** The
+default exists for the input the author could imagine and had no example of; the fixture
+is an example. Six modules in, the `or` fallback is the single most productive thing this
+operator finds, and the reason is structural rather than careless.
+
+## Round 664 — five guards that were already redundant, and five that were not
+
+Five modules under conjunct removal. `enumerate/base_editor.py` (16), `enumerate/prime.py`
+(18) and `design/prime.py` (16) are **clean**; the prime pair is worth noting, because
+`enumerate/prime.py` killed only 4 of 18 against `tests/enumerate/` and all fourteen
+survivors died against the full suite. Prime enumeration is driven from `tests/design/`,
+where the vertical is exercised end to end.
+
+`benchmark/metrics.py` and `report/pdf.py` left eleven between them, and the useful half
+of this round is the split: **five of the eleven were guards that nothing could ever
+observe, and proving that took as much work as fixing the other five.**
+
+The redundant ones, each proved by running both branches rather than read:
+
+* Pearson's `len(x) < 2`: `_mean` returns `0.0` for an empty sequence, and both the
+  empty and single-point cases reach the `sxx <= 0.0 or syy <= 0.0` guard below, which
+  already answers `None`.
+* Spearman's two length reads: it delegates to `pearson(_rank(x), _rank(y))`, which
+  checks both again.
+* `topk_accuracy`'s `not predicted`: an empty prediction yields an empty top-k, and the
+  observed mode is not in it, so the fall-through answers `0.0` — the same value the
+  guard returns.
+* `_wrap`'s `started`: 18,000 random texts produced no difference, because the over-long
+  token loop above leaves a remainder that always fits.
+* `_paginate`'s `page`: the move-the-run branch needs `run > room and run <= _LINES_PER_
+  PAGE`, and `room` equals `_LINES_PER_PAGE` exactly when the page is empty, so the two
+  reads are contradictory there. Unsatisfiable rather than untested.
+
+The five that were not redundant:
+
+* `expected_calibration_error` and `interval_calibration_error` both open with a length
+  read **and** an empty read guarding the same `zip(..., strict=True)` two lines down.
+  The empty read is pinned; the length read is not, and without it a mismatched pair —
+  what a caller gets when predictions and outcomes come from different filters — comes
+  back as a `ValueError` from inside a metric rather than the `None` every other
+  undefined input returns and the board renders as "undefined".
+* `_paginate`'s run scan stops at the end of the input **and** at the first non-sequence
+  line, and every fixture puts the donor block at the tail, so the two stop in the same
+  place. Give the sheet content after the oligos — further candidates, caveats, the
+  footer — and the scan swallows it; once the total exceeds a page the move-the-run
+  branch stops firing and **the run is split across the break**, which is the one thing
+  that function exists to prevent. The file testing it parametrizes 60 offsets and
+  could not see it, because all 60 share the same tail.
+* `run <= _LINES_PER_PAGE`: a run too long for any page must fill the page already in
+  hand rather than abandoning it. Without the read the sheet grows a short page.
+* `n_offtarget_sites is not None and (offtarget_scorer or offtarget_matrix)`: a search
+  can report a count with neither recorded, and without the second read the sheet prints
+  `scoring basis:` with nothing after the colon — in the field whose job is to say what
+  produced a specificity number.
+
+**Lesson: a guard that cannot be observed is a finding too, and it costs the same to
+establish.** Half of this round's survivors were defensive reads made unreachable by a
+check below them, a delegation, or an arithmetic identity — and in each case the only way
+to know was to run both branches. Reporting "five fixed" and quietly dropping the rest
+would have left the next sweep to re-derive them; they are recorded here by name.
+
+## Round 665 — the shell was already right, and the pass is complete
+
+`cli/main.py` was the last module on the conjunct-removal backlog and the largest: 104
+conjunction mutants, against a list of `tests/cli/` plus the root guards. **104 of 104
+killed.** Not one survivor to triage.
+
+That is the opposite of what this log predicted. The constant pass through the same file
+(Round 654) reported 84 survivors against its mirror directory and killed every one of
+them against a broader list — the largest phantom count on record — and the lesson taken
+from it was that a shell is the hardest kind of module to measure. It is; the list used
+here was built from that lesson, `tests/cli/` plus the documents and sibling surfaces the
+shell must agree with, and it runs in thirty seconds. Given the right list the answer came
+back immediately and unambiguously: **every two-part condition in this project's largest
+shell has a fixture on each arm.** The expensive thing was never the module. It was
+knowing what to compare it against.
+
+### The pass, end to end
+
+Twenty-one modules, 540 conjunction mutants, nine rounds (657–665). Forty-one real
+findings, one of which was a defect in shipped behaviour rather than a gap in a test:
+`_COORD_RE` could not read the dash this tool prints for an absent allele, so AlleleForge
+refused every indel it printed, and the off-by-one remedy — the message whose entire job
+is to hand back a string that works — ended `; try chr1:1000:C>-`, which did not.
+
+Eleven modules came back clean. What the clean ones have in common is not simplicity:
+`offtarget/engine.py`, `scoring/uncertainty.py`, `enumerate/cas9.py` and `cli/main.py` are
+among the most intricate files here. They are the ones with a consumer that insists on
+their answers.
+
+Three results are worth carrying forward more than any individual fix:
+
+**The phantom rate measures the module's audience, not the sweep.** Zero for a pure type,
+which its own unit tests pin completely. Near total for a shell, a renderer, or a numeric
+library, which are pinned by whatever compares their answer to someone else's. Fifty to
+sixty-five percent for a runner. A survivor against a mirror directory is not evidence of
+anything, and the rate itself says what kind of module you are looking at.
+
+**`x or <default>` was the single most productive shape.** Six modules, nine findings.
+The reason is structural rather than careless: a defensive default is written for the
+input the author could imagine and had no example of, and a fixture is an example. The
+two are disjoint by construction.
+
+**Half of what survives is unobservable, and proving that is the work.** Guards made
+unreachable by a check below them, a delegation, or an arithmetic identity. Every one in
+this pass was settled by running both branches over an exhaustive or near-exhaustive
+space — 71,400 inputs for `_left_align`, 18,000 texts for `_wrap`, 7,225 allele pairs for
+`variant_class`, 72 states for `dataset_status` — and in three separate rounds a reading
+that looked airtight was wrong.
+
+**Lesson: when an operator stops finding things, that is a measurement, not an ending.**
+The conjunct operator was built in Round 657 because this log had written the same
+diagnosis four times. Nine rounds later it is exhausted, and the thing it leaves behind is
+not the forty-one fixes but the table of which modules its narrow list could and could not
+measure — which is the input to whatever operator comes next.
+
+## Round 666 — a new operator: delete the statement and see who notices
+
+The conjunct operator finished last round with nothing left to find, which this log
+treats as a measurement rather than an ending. The blind spot it names next is the one
+this project's defect history names most often: **a value computed, recorded, and read by
+nobody.** No operator here reaches that — swapping an operand or a constant changes what a
+statement *says*, never whether anything observes that it ran.
+
+So: **statement deletion**, restricted to statements whose effect is the point rather
+than their value. A bare call (`notes.append(...)`, `warnings.warn(...)`), a write into a
+collection (`provenance["seed"] = seed`), an augmented assignment to an attribute. An
+ordinary assignment is excluded on purpose: its deletion is a `NameError` on the next
+line, which measures the interpreter rather than the suite. Across the project that is
+950 mutants where unrestricted deletion would be 7,154 — and the 950 are the interesting
+ones.
+
+Its first results read like a calibration curve. `types/offtarget.py` **11 of 11** and
+`offtarget/engine.py` **21 of 21**: every caveat those two emit has a test that notices
+its absence, which is what a project that has repeatedly found safety numbers failing
+should hope to see. `report/html.py` left nine alive, `design/designer.py` four, and all
+thirteen survived the full suite.
+
+**The headline: nine `parts.append(...)` calls could be deleted from the on-screen report
+one at a time, each with the whole suite green.** The bystander-burden paragraph. Both
+P(intended) paragraphs. The outcome-allele table. The oligo-prep instruction. The line
+saying a reagent needs no cloning oligos. The ranking rationale. The closing `</div>`.
+The note telling a reader how to see their loci in a genome browser.
+
+This project already has the guard for exactly this — `test_every_report_field_is_
+rendered`, built because "the recurring defect in this codebase is not a wrong number, it
+is a correct one that no surface shows". It is **static**: it greps the renderer's source
+for each field name. That catches a field no renderer mentions, and it cannot catch a
+field a renderer mentions *twice* and renders *once*. `_candidate_html` writes
+`p_intended` from two branches, one derived and one calibrated; delete either and the
+name is still in the file. The static check passes while half of all reports lose the
+number a reader is most likely to act on. **A test that proves a name is present cannot
+prove a value arrives.** The pair to it now renders a candidate carrying every optional
+value and asserts each one reaches the screen.
+
+The four in `designer.py` are the same shape in the provenance block. `_run_chemistry`
+catches an altered store, an expected design failure, and anything else, and each arm
+does two things: write a note, and add the chemistry to the `failed` set that the model
+block subtracts. Only the middle arm had a test, so a run whose prime vertical died on a
+tampered cache entry — or on an outright bug — still recorded `pridict2-baseline` as a
+model that scored it, in the block `aforge verify` reads to decide whether a result is
+reproducible. And `_cas9_empty_reason` builds two lists from the same two flags, the PAMs
+it searched and the PAMs it did not; every test in the file that exists for it is about
+the second. Delete the first and the sentence reads "no actionable protospacer with a NGG
+PAM near the edit" for a run that searched three — telling the reader the fallback they
+turned on was not used.
+
+The harness lost a second index-mapping defect of its own, the same shape as Round 659's:
+returning early from a function skipped every closure, while the collector descended into
+them, so for a module with nested defs an index named a statement that was never deleted.
+`design/cohort.py` has six and reported ten unapplied mutants, which is what exposed it.
+Fixed and re-verified on a toy; the modules swept here have none.
+
+**Lesson: the operator you need next is the one that asks a different question, not a
+sharper version of the last one.** Conjunct removal asks *is this condition's other arm
+tested*. Deletion asks *does anything observe that this ran at all* — and in a codebase
+whose stated recurring defect is a correct value no surface shows, that was always the
+question with the most to find.
+
+## Round 667 — the structure of a document is content
+
+The statement-deletion operator, pointed at the two renderers that produce published
+artifacts. `report/pdf.py` left eleven alive against the full suite and
+`benchmark/leaderboard.py` thirteen, and between them they are almost entirely one
+thing: **the lines that make a pile of strings into a document.**
+
+The markdown board lost `| ---: | :--- | ... |`, the row that makes the lines above and
+below it a *table*. Delete it and GitHub, the docs site and an issue comment all render
+the ranked leaderboard as a run of pipe-separated prose. Every number is still there,
+and the artifact most likely of any this tool produces to be published, linked and
+screenshotted is no longer a table. It lost `### <group label>`, the heading that says
+which comparison group a table belongs to — on a board that prints a note explaining
+*why* its groups cannot be compared with one another, leaving the reader consecutive
+unlabelled tables directly under a sentence insisting they are different. And it lost
+`</body></html>`.
+
+The printable sheet lost the `=` rule under the title, both `-` rules around the
+candidate list, six of the blank lines separating its blocks, the blank line ending each
+candidate, and `ET` — the operator closing a page's text object. A content stream that
+opens `BT` and never closes it is not a valid PDF text object; the extractor this suite
+uses reads it anyway, which is precisely why nothing noticed.
+
+Both modules already have thorough tests. The board's check that it states what it is;
+the sheet's checks that a line fits the column and a sequence run is not divided; a dozen
+assertions on both that this field is present and that disclaimer is there. **Every one
+of them passes on a document whose structure has collapsed, because the strings they look
+for are all still in it.** A test that reads a render for facts is reading it as a bag of
+substrings, and a reader does not.
+
+Two things worth recording beyond the fixes.
+
+**A failing test manufactures kills.** Mid-round a premise assertion of mine was wrong,
+and while it failed every mutant in that file came back "killed" — the run exits non-zero
+whatever the mutation did. Two of them were nothing of the kind. The harness protocol
+already says a passing test is not evidence that it kills what you aimed at; the converse
+is sharper: **run the suite green before you trust a single kill.**
+
+**Four survivors were unreachable with the fixture, not untested.** The sheet's
+conditional blocks — the missing-chemistry list, the run-level notes, the assembly
+rationale, the withheld-candidates note — never run for a report that has none, and the
+menu fixture has none of them. The board's incomparable-groups note and contested-group
+warning need a task holding more than one group and a group whose rows disagree about
+their split. Both now have a fixture shaped like a real artifact rather than like the
+smallest one that renders.
+
+One real defect, found sideways: `MODEL LIMITATIONS` was emitted with no blank line
+above it, so on every sheet it read as a continuation of the provenance sentence — a list
+of versions — when it is the block naming what the models cannot do. It is its own block
+now.
+
+**Lesson: a render test that looks for facts cannot see the document fall apart around
+them.** Check the shape as well as the strings: that a header row is followed by its
+separator, a heading by a blank line, a `BT` by its `ET`. Those lines carry no
+information of their own, which is exactly why nothing was asserting them, and why
+deleting one costs a reader the whole artifact.
+
+## Round 668 — the lines that decide what a server holds, not what it answers
+
+Statement deletion, pointed at the runtime rather than the renders. `genome/index.py`
+came back **39 of 39** — every one of its eight survivors against `tests/genome/` died
+against the full suite. `web/api/jobs.py` left ten alive and `design/cohort.py` two, and
+all twelve survived the full suite.
+
+Not one of them changes an answer the API returns. They decide what a long-running
+server keeps in memory, how many file handles a cohort opens, and whether a running job
+can be collected out from under itself — and a suite built on responses is blind to the
+lot.
+
+Four were real.
+
+**The strong reference that stops asyncio collecting a running job.** The source says it
+outright: *"asyncio holds only a weak reference to a bare create_task() result, so
+without this a job could be garbage-collected mid-flight; the job record in the store
+does not keep the running task alive."* A documented, load-bearing invariant, and
+nothing observed it. Its twin on the timeout path — the task that waits for a worker
+which outlived its deadline, releases its in-flight slot and evicts — was equally
+unobserved, and that one holds the slot a capacity-limited server hands out.
+
+**The eviction in the worker-cleanup path.** A soft timeout returns before its worker
+does, so the record goes terminal while the thread runs on. By the time the next
+timed-out job pushes the store over its cap, the only code still running is the cleanup
+task's own eviction. Without it, three timed-out jobs against a cap of two retain three
+records — for as long as nobody submits another, which on an idle deployment is
+indefinitely.
+
+**The thread-local reference cache, and the probe handle.** `design_many` takes a
+factory rather than a `ReferenceGenome` because a pyfaidx handle is not thread-safe, and
+`tl.ref = ref` is what makes that "once per worker" instead of **once per item**: a
+cohort of five hundred variants would open, index and close the reference five hundred
+times, and every answer would still be right. Beside it, the extra handle opened to read
+the build label for the run header was closed by a line nothing checked.
+
+Six are inert, and this round spent more effort proving that than fixing the four. The
+budget counts *terminal* records and a submission adds a running one, so the `_evict()`
+in `submit` cannot reclaim anything — 45 scripted submit/finish sequences across three
+count caps and three byte caps produced no difference. The result-clearing assignments
+on both failure paths overwrite a field that is already `None`, and `record.progress =
+1.0` is set again in the `finally`. Four of those six first appeared to differ, and the
+difference was **timing noise in an asynchronous fixture**: re-running each disagreement
+and keeping only the reproducible ones left exactly one real finding. The comment on the
+`submit`-time call claimed a mechanism that does not exist — *"reclaim old terminal
+records this submission may push over the cap"* — and now says what it is.
+
+**Lesson: a suite built on answers cannot see the cost of producing them.** Everything
+real this round governs memory, handles or liveness, and every one of those lines is
+invisible to a test that checks what came back. Deletion is the operator that reaches
+them, and when it reports a survivor in that territory the next question is not "is this
+tested" but "is this observable at all" — four times out of ten here, it was not.
+
+## Round 669 — the context manager that did not close
+
+Statement deletion across the rest of the project's substantial modules. Eight came back
+clean against the full suite, including the two largest: **`cli/main.py` at 233 of 233**
+and `web/api/app.py` at 21 of 21, with `viz/svg.py`, `offtarget/_search.py`,
+`design/cohort_summary.py`, `report/export.py`, `scoring/uncertainty.py` and
+`scoring/cas9_outcome.py` beside them. The shell is now the only module in this project to
+have been swept by every operator built here and survived all of them intact.
+
+Ten survivors looked promising and were all phantom — among them `found.append(...)` in
+the off-target scan, which would have been the most alarming finding of the pass had it
+held, and the capability list the deployment advertises. The narrow list is a filter and
+nothing else; this round is the clearest demonstration yet, at ten for ten.
+
+`genome/reference.py` left three, and they are the same kind of thing Round 668 found:
+
+* ``self._fasta.close()`` is **the entire body of `close()`**, whose docstring is *"Close
+  the underlying FASTA handle"*;
+* ``self.close()`` is **the entire body of `__exit__`**, so `with ReferenceGenome(...)`
+  would leave the handle open on the way out;
+* ``root.mkdir(parents=True, exist_ok=True)`` precedes a consented download, without
+  which the fetch writes into a directory that is not there.
+
+A reference that never closes returns exactly the same bases, so a suite that reads bases
+cannot tell. That is how a cohort could open the genome once per item for as long as it
+did — and both findings are the same sentence from different ends: *correctness is not
+the only property, and it is the only one the tests were checking.*
+
+Fourteen more survivors are **unexecutable here**, not untested, and are recorded rather
+than carried: nine in `scoring/backbone.py` and two in `scoring/cas9_efficiency.py` are
+inside `pragma: no cover` bodies that need torch, LightGBM or real weights; the trained
+Rule Set 3 scorer's `self.tracr` *is* covered — by `test_rs3_parity_against_upstream`,
+which is opt-in behind `ALLELEFORGE_REAL_WEIGHTS` and skipped in CI. Triaging those apart
+from real gaps is the difference between a backlog you can act on and a list of items
+nobody can close.
+
+**Lesson: the third triage category is the one that keeps a backlog honest.** A survivor
+is reachable-and-untested, unobservable, or unexecutable in this environment, and only
+the first is work. This pass has now produced all three in quantity, and every one of the
+latter two is written down by name — because the cost of re-deriving them next time is
+the same as the cost of finding them was.
+
+## Round 670 — a guarantee that holds because of its caller is not the function's
+
+The statement-deletion sweep finished across the remaining fifty-two modules. 287
+mutants, about 130 alive against their own test directories, **80 against the full
+suite** — and triaging those eighty is the work this round and the next are made of.
+Three findings are worth the round on their own, and all three are the same shape: a
+line whose protection is real, whose removal changes nothing a test looks at, and whose
+loss would be invisible in production.
+
+**`_validate_ref` inside `_left_align`.** `resolve` validates the asserted reference
+span three times — the raw assertion, once inside left-alignment, once on the result —
+and the sweep removed each in turn. Two survived. The one inside `_left_align` is a real
+gap: the re-anchor step re-reads the anchor base *from the reference*, so an insertion
+whose asserted anchor disagrees would have its assertion overwritten rather than
+refused, inverting the fail-closed promise precisely for insertions. In `resolve` the
+raw check above already stops that, which is why nothing noticed — **but a guarantee
+that holds only because of what one caller happens to do first is not the function's
+guarantee**, and `_left_align` has direct callers in this suite. Pinned at the function.
+
+The third call, after normalization, is **inert**, and that was measured: 185,640 inputs
+— every position of the fixture contig crossed with every ref/alt pair up to three
+bases, empty alleles included — produced no difference with it removed. Left alignment
+builds its new ref out of reference bases, so the result matches by construction.
+
+**`flags.append("ood")` in the nuclease vertical.** The OOD label is the honesty
+machinery's sharpest: it says the point estimate should not be trusted and the candidate
+was ranked on its lower bound instead. An earlier round found `design/base_editor.py`
+*unable to raise it at all* and gave that chemistry a test; prime has two. Cas9 writes it
+from the same field and had none — two of three chemistries pinned and the third taken on
+trust, which is exactly how the base-editor gap survived long enough to be found by a
+sweep rather than by a reader.
+
+**`candidates.sort(...)` before the per-chemistry cap.** The composite ranker downstream
+re-orders whatever it is handed, so every ordering assertion in the suite passes with the
+sort gone — the order of an *uncapped* menu is restored either way. What the ranker
+cannot restore is a candidate that was never returned. Without the sort the cap keeps the
+first N in enumeration order, which is genomic position: a run asking for the best three
+guides gets the three nearest the start of the window, correctly ranked. Correct about
+everything except which guides it is about.
+
+**Lesson: redundancy is not coverage, and the sweep is what tells them apart.** Each of
+these three is protected in practice by something else — a caller that validates first, a
+downstream ranker that re-sorts, two sibling chemistries that are tested. That is why
+they survived, and it is also exactly the condition under which a refactor removes them
+safely and a release ships without them.
+
+## Round 671 — the check nobody called, and the order nobody shuffled
+
+Two clusters out of the eighty confirmed statement-deletion survivors, and they fail in
+opposite directions.
+
+**`Split.verify` is thoroughly tested and nothing checked that anybody calls it.**
+`tests/benchmark/test_splits.py` exercises every way the check can fail — a tampered
+membership hash, a drifted dataset, overlapping folds, an id absent from the data — by
+invoking `split.verify(dataset)` directly. It is a good test of the function. The sweep
+removed the two statements that *call* it, in `load_split` and in `run_benchmark`, and
+the suite stayed green for both. Every one of those failure cases would still have raised
+if asked; nothing was asking. A benchmark whose entire claim is *this board ranks on the
+split it says it does* would have loaded an edited split file and scored against drifted
+data without a word.
+
+That is the mirror of last round's finding. There a function's guarantee held only
+because its caller happened to provide it; here the function provides it and the callers
+were the only thing between a user and the check. **A tested function and a tested
+behaviour are different things, and the gap between them is a call.**
+
+**Five loaders promise coordinate order, and every fixture handed them sorted input.**
+`genes_in` is documented "sorted by start", `frequencies` "sorted by position",
+`rsids_at` reads an index the loader sorts. Sorted input stays sorted whether or not
+anything sorts it, so all five `sort(...)` calls could go unnoticed. Real sources are not
+sorted: a gnomAD sites TSV concatenated from two shards, a VCF a user filtered and
+re-joined, a GENCODE GTF where one gene's records interleave with its neighbour's. The
+output then follows the input file's order, and this project treats a byte-reproducible
+artifact as a contract.
+
+Three of the five are real and pinned with deliberately shuffled fixtures. The other two
+— `EncodeTracks`' segment sorts — are **inert**: `signal` is an overlap-weighted sum over
+every overlapping segment, so its value does not depend on their order, and nothing else
+reads the segment list. That order-independence is now itself pinned, so the claim is
+checked rather than asserted.
+
+Also settled, and recorded rather than carried: both `oligos.reconstruct()` calls, the
+"fail fast on a malformed scheme" guards at the end of the two oligo builders. The method
+is tested directly and well; the calls are unobservable, because each builder constructs
+its top and bottom strands so the round trip holds by construction. 392 sgRNA inputs
+across 98 constructible schemes and 54 pegRNA inputs produced no difference with them
+removed.
+
+**Lesson: a fixture in canonical form cannot test the code that puts things in canonical
+form.** Sorted input, a well-formed scheme, a split loaded by the loader that verifies it
+— each is the shape the code is trying to produce, handed to it as a premise. The test
+that measures such a line has to start from the mess the code exists to tidy.
+
+## Round 672 — a finding that is never appended is an artifact that is fine
+
+The last substantial cluster of the statement-deletion pass, and the clearest statement
+yet of what this operator is for: **four lines that cost a user something real, none of
+which changes an answer any test reads.**
+
+**The sweep's own findings.** `verify_stores` is what `aforge cache verify` runs, and
+its contract is one row per artifact. Two of its `checks.append(...)` calls could be
+deleted with the suite green. The **UNREADABLE** branch catches an FM-index that fails to
+load for a reason that is not an integrity error at all — a truncated file, a `meta.json`
+from an older build, a permissions problem — and the suite covers the neighbouring
+CORRUPT branch so thoroughly that the `except` beside it was taken on trust. Without the
+append the entry simply vanishes: a sweep run specifically to find a broken index says
+nothing about it, and nothing in the output marks the omission. The **bundled** checkpoint
+row goes the same way, and every packaged model disappears from a report that promises
+one row per artifact. *A finding that is never appended is indistinguishable from an
+artifact that is fine.*
+
+**A descriptor per download.** `tempfile.mkstemp` returns an open descriptor as well as a
+path, and `download_verified` wants only the path, so it closes the descriptor on the
+next line. Remove that line: the download still works, the checksum still verifies, the
+file still lands, and every assertion in the suite is about those. One descriptor leaks
+per call — fine for a design run, fatal for a long-running server resolving datasets on
+demand, and the failure surfaces somewhere else entirely as an unrelated `OSError` from
+whatever next tries to open a file. **That is the third resource line this pass has found
+in as many rounds**: a FASTA handle, a reference opened once per item, and now this.
+
+**The order of a sentence.** `summarize` renders a rejection tally as *"the PAM is not in
+range (41); the edit is too large for a synthesizable RTT (3)"* and documents the order:
+most common first, ties broken by key. Every tally the suite builds holds one reason, or
+arrives already in that order — a `dict` keeps insertion order and an enumerator counting
+in a fixed sequence produces a sorted tally often enough. Unsorted, the reader takes
+whichever rejection was counted first as the main obstacle, which is the only reason the
+sentence is ordered at all.
+
+**Lesson: the operator finds what the test suite is not shaped to ask about.** Every
+previous pass here mutated something a test already read — a comparison, a constant, an
+arm of a condition — so a gap meant a missing case. Deletion mutates whether a line
+*happened*, and the gaps it finds are whole categories a response-shaped suite has no
+vocabulary for: resources, report completeness, output order, liveness. Those are not
+harder to test. They were never asked.
+
+## Round 673 — the pass is complete, and one gap is left standing on purpose
+
+The last four survivors, and with them the statement-deletion pass closes. Every module
+in this project has now been swept by it: **950 side-effect mutants across 72 files,
+seventy-two modules clean, and every survivor either fixed, proved unobservable, or
+recorded as unexecutable in this environment.**
+
+The four: `HaplotypePanel.source`, `Liftover.source_build` and `Liftover.target_build` —
+documented public attributes answering *which panel made this haplotype-aware* and
+*between which two builds were these coordinates moved* — and `_parse_info`'s handling of
+a bare VCF flag. The last is the same shape as Round 670's `_left_align`: every consumer
+in the module reads a `KEY=VALUE` entry, so a dropped flag is falsy exactly like an
+absent one, and the function's contract is the VCF INFO format rather than the three keys
+its current callers happen to want.
+
+**One finding is deliberately not fixed.** `HaplotypePanel.source` has no reader anywhere
+in this project. The provenance collector reads `dataset_version`, which the CLI attaches
+separately through `_attach_source`; `source` is set on every construction and consumed
+by nothing. On the command line that is redundant. On the **web** path it is not:
+`app.py` builds the panel with `from_tsv(path, source=path)` and nothing attaches a
+`dataset_version`, so **a run made haplotype-aware over HTTP records no descriptor for
+the panel that made it so**, while the identical run from the command line records one.
+That is this project's oldest recurring shape — two surfaces, one capability, one of them
+honest about it — and it is a real gap.
+
+It is left standing because closing it means deciding what descriptor the web surface
+should write into the provenance block, and that is a change to a published artifact
+format. A sweep is entitled to find the gap; it is not entitled to pick the format. The
+finding is recorded here and in the CHANGELOG so the decision is taken deliberately
+rather than inside a test.
+
+Unexecutable here, and recorded rather than carried: `raise_for_status` inside
+`_default_fetch`, two `urllib.request.urlretrieve` calls and the `typer`-missing message
+in `cli/__init__.py` all sit under `pragma: no cover` for network or for a dependency CI
+does not install; three more in `variant/hgvs_adapter.py` need the optional `hgvs` stack.
+
+**Lesson: a sweep's authority ends where a design decision begins.** Thirty-odd findings
+this pass were unambiguous — a line whose absence is a defect, and a test that says so.
+This one is not: the line is fine, the reader is missing, and what should read it is a
+question about what the artifact promises. Writing a test that invented an answer would
+have buried that question under a green check.
+
+## Round 674 — the gap the last round declined to close
+
+Round 673 found that `HaplotypePanel.source` has no reader, traced it to the web API
+recording no provenance descriptor for a caller-supplied panel, and left it standing on
+the grounds that closing it meant choosing what the web surface writes into a published
+artifact. **That reasoning was wrong, and the check that exposed it was the readiness
+report, not another sweep.**
+
+The format was never open. `_describe_source` in `cli/main.py` already defines the
+descriptor for exactly this case — a file a user points at, which has no upstream version
+string, pinned by what it *contained* on this run and marked `caller_supplied` so `verify`
+does not report it as something a reader could go and fetch. There was nothing to decide;
+there was one implementation, in one shell, and the other shell loaded the same files and
+recorded nothing.
+
+It is also wider than reported. The web API loads **two** caller-supplied sources from the
+environment — `ALLELEFORGE_GNOMAD_TSV` and `ALLELEFORGE_HAPLOTYPES` — and neither carried
+a descriptor. A served run could be population-aware *and* haplotype-aware, say so in its
+rationale, and pin neither of the files that made it so, while the identical run from the
+command line pinned both.
+
+Three changes, and the third is the one that stops it recurring:
+
+* `describe_file_source` moves to `types/provenance.py`, beside `DatasetVersion`. The
+  CLI's `_describe_source` delegates to it, so the two surfaces cannot drift — a test
+  asserts they return the same descriptor for the same file, because two copies is how
+  this started.
+* Both web loaders attach it.
+* **`dataset_version` is now a declared attribute on `HaplotypePanel` and `GnomadDB`**
+  rather than one bolted on from outside by whichever caller remembered.
+  `_collect_datasets` reads it with `getattr(source, "dataset_version", None)` and the
+  CLI attached it through a `contextlib.suppress(AttributeError)` — a contract held up
+  entirely by duck typing, which is why a surface could simply not participate and
+  nothing said so. `mypy --strict` rejected the first version of this fix for precisely
+  that reason, and was right to.
+
+**Lesson: "this needs a decision" is a conclusion, and it has to be checked like one.**
+The decision had already been taken, in a helper one import away, and a round's worth of
+careful prose went into declining to look. Before deferring on design grounds, find out
+whether the design exists.
+
+### On the release criteria
+
+Also settled this round, by running `scripts/release_readiness.py` rather than reasoning
+about it: **1 of 5 v1.0 criteria is met, and every open one is blocked outside this
+repository** — upstream artifacts to pin hashes against (R0), real corpora in place of
+the synthetic stand-ins (R1/R5), calibration measured on that real data (R5), and a DOI
+minted on the first tagged release. The bundled corpora are labelled synthetic in every
+artifact that reports over them, and the consent gate refuses a null-hash fetch, so no
+open criterion is a silent one. No amount of in-repo work closes them.
+
+## Round 675 — the audit was right about one thing, and I had dismissed all of it
+
+A design audit reported findings across the rendered documentation site. I triaged them
+as a category — *generated output from a third-party theme, in a gitignored directory,
+nothing traceable to project source* — and left every one standing. The category was
+right about most of them and **wrong about the one that mattered**, which is the failure
+mode a category answer always has.
+
+`mkdocs.yml` picks `primary: teal`, and mkdocs-material renders that as `#009688` with
+white text on the header, the buttons and the active navigation: **3.67:1, against the
+4.5:1 WCAG AA needs for body-sized text.** The hover accent was worse, at 2.38:1. That is
+not the theme's choice, it is this project's — one line of its own configuration — and it
+is a measurable accessibility failure on the pages a reader uses to decide whether to
+trust the tool. A project that reports calibrated intervals and labels every synthetic
+number should not ship a site that fails its own audit.
+
+The palette is now a custom one, and every pair in it is measured rather than eyeballed:
+white on `#00796b` is 5.32:1 for the primary, white on `#00675b` is 6.79:1 for the accent,
+and the dark scheme takes a *lighter* accent — `#4db6ac` at 5.35:1 — because its text sits
+on the opposite ground. The ratios are written into the stylesheet beside the values, so
+the next person to change a colour can see what the change has to hold. Teal 700 keeps the
+identity; it is the same colour, dark enough to read on.
+
+**`low-contrast` is now zero across the whole site**, from 1,024-odd findings in the
+report's sample.
+
+What remains, triaged by rule rather than by category:
+
+| rule | n | disposition |
+|---|---|---|
+| `undersized-ui-text` | 3,570 | mkdocs-material's type scale (footer, nav source, skip link, search status) — left standing |
+| `tiny-text` | 2,976 | the same scale, body text at 10.88px — left standing |
+| `cramped-padding` | 50 | theme internals (`md-search__scrollwrap`, `md-nav__source`) — left standing |
+| `overused-font` | 25 | Roboto, the theme default — left standing |
+| `em-dash-overuse` | 4 | this project's own prose voice, used deliberately throughout — kept as designed |
+| `low-contrast` | **0** | **fixed** |
+
+Nothing is suppressed. The type-scale findings are real — 10.88px body text is small, and
+the rule's case for an 11px floor on functional text is a good one — but fixing them means
+overriding a third-party theme's whole type scale from a stylesheet, sitewide, which can
+regress layout and wants to be seen rendered before it ships. That is a design change with
+a reviewer, not a line a sweep should guess at. Recording it as a known, named limitation
+is the honest alternative to either a silent ignore or a blind override.
+
+**Lesson: a category answer is a hypothesis about every item in it.** "All generated,
+nothing to fix" was true of 99.6% of these findings and false of the ones that were a
+one-line configuration failure in the project's own file. The cost of checking was one
+`detect` run on a single page; the cost of not checking was shipping an inaccessible site
+and saying, twice, that there was nothing to do.
+
+## Round 676 — both answers survived, which means the question was never asked
+
+A third operator, built because this log has named the blind spot since Round 643 and
+never aimed at it: **forced type guards.** Every `isinstance(x, T)` call is replaced in
+turn by `True` and by `False`, which asks the two halves of one question — does any
+fixture supply a value of the *wrong* type here, and does any supply the *right* one. 148
+mutants across 22 files, which makes it the cheapest operator built here by a wide margin.
+
+**The result is mostly a negative one, and it is worth stating as a number.** Twenty-nine
+survived their own package's tests; **three survived the full suite.** Twenty-six of
+twenty-nine were phantoms. The type guards in this project are, with two exceptions,
+exercised on both sides — including every one of the sixteen in the cohort summary's cell
+dispatch and the bool-before-int guards in `report/precision.py` and
+`types/prediction.py`, which are the classic trap (`isinstance(True, int)` is `True`, so a
+bool checked second formats as a number) and are properly pinned.
+
+**The one real finding is not a missing test. It is dead code, and the signature that
+found it is new.** Both directions of the guard in `DNASequence.__getitem__` survived:
+
+```python
+if isinstance(key, slice):
+    return DNASequence(self.sequence[key])
+return DNASequence(self.sequence[key])
+```
+
+The two arms are byte-identical. `str.__getitem__` already handles an `int` and a `slice`,
+and both branches wrap the result the same way, so the branch decided nothing and **no
+test could ever have distinguished its answers.** It read as though integer indexing were
+handled specially — the docstring says integer indexing returns a single-base sequence
+rather than a raw character, which is true and is what the *wrap* does, not the branch.
+Removed, with the contract it hinted at finally pinned: an `int` key and a `slice` key
+both come back as a `DNASequence`, because every caller goes on to call sequence methods
+on the result and a bare `str` would fail somewhere else entirely.
+
+**When both forced answers of a predicate survive, the predicate is not untested — it is
+inert.** One answer surviving is a missing fixture; both surviving is a branch with
+nothing behind it. No operator here could say that before, because every previous one
+produced a single mutant per site.
+
+The third survivor is unobservable and recorded rather than given an invented test:
+`isinstance(data, Mapping)` opening `Prediction`'s before-validator. No constructible
+public path reaches it with a non-mapping — `42`, `"nope"`, `[1, 2]`, `None` and a tuple
+all raise before validation, with the guard and without it. The documented contract next
+to it (a certified prediction is not downgraded by being revalidated inside a
+`RankedMenu`) *was* untested and now has one, described for what it is: pydantic
+short-circuits a correctly-typed instance today, so the test guards against a future
+`revalidate_instances` config change rather than against an edit to the validator.
+
+**Lesson: a mutation that can be forced both ways tells you something a single mutant
+cannot.** Three operators in, the pattern is that each new one earns its keep not by
+finding more of the same but by making a different question askable — "is the other arm
+tested", "does anything observe this ran", and now "does this predicate decide anything
+at all".
+
+## Round 677 — the two ends of one span
+
+The fourth operator, and the last blind spot this log had named and never aimed at:
+**ordered-opposite swaps.** For every member read off an object, substitute its opposite
+where the opposite is read off the same object in the same function — `start` for `end`,
+`low` for `high`, `ref` for `alt`, `top` for `bottom`, subscript `0` for `1`.
+
+The first version was useless and the reason is worth recording. Swapping *any* member
+for *any other* on the same receiver produced **11,380 mutants**, almost all of which
+confuse two unrelated fields and die on the first assertion. Restricting to ordered
+opposites — a token-wise match so `start`/`end` pairs `interval_start` with
+`interval_end` and leaves `restart` alone — cut it to **272**, and those 272 are the
+defect class this project has already shipped twice: an interval printed low-for-high,
+and a coordinate lift reporting a haplotype off-target three bases from where it is.
+**Confusing two unrelated fields explodes; confusing the two ends of one span stays
+plausible and silent, and that is precisely what makes it worth a mutant.**
+
+Forty survived their own package's tests, twelve the full suite. The alarming ones were
+all phantoms, which is the reassuring half of the result: `_plus` for `_minus` in the
+FM-index, `var.alt` for `var.ref` in the pegRNA enumerator, `best_efficiency_high` for
+`best_efficiency_low` on a cohort row, `nicking.top` for `nicking.bottom` on an oligo
+sheet, and `interval[0]` for `interval[1]` in both the HTML and the flat exports are all
+genuinely pinned.
+
+The twelve that held are four findings.
+
+**The off-target cache key.** `search_signature` folds in `on_target` and the scanned
+`regions`, and its docstring says why: *"otherwise a bare scan and an
+on-target-excluding scan collide on one key and one is served the other's report."* Swap
+one span's `start` for its `end` and the key is built from `(end, end)`. It still changes
+when the span moves as a whole; it stops distinguishing two spans that share one end. A
+guide whose self-match was dropped at `chr1:100-120` and another at `chr1:95-120` hash
+alike, and the second is served the first's off-target report. Both searches return a
+report, promptly, and the wrong one is indistinguishable from the right one.
+
+**The haplotype dedup, and this is the serious one.** The population pass asks whether
+each alt hit is created or strengthened relative to the reference:
+`ref_best.get((h.strand, h.start, h.end))`. `_reference_best` builds that dictionary with
+the same key, and `_strengthens(hit, None, ...)` returns `True` — *no reference hit here,
+so this one is created.* Reverse the lookup key and every lookup misses, so **every**
+haplotype hit is reported as newly created. On a contig that already carries the site the
+count goes from **0 to 2**: the reference pass finds it, the haplotype pass finds it
+again, and the report presents one locus twice with a copy attributed to a population.
+This is the module whose whole purpose is saying honestly which off-targets a population
+carries and which the reference already had.
+
+**Two printed spans**, in the locus line (`chrom:start-end`) and the base-editor reagent
+line (`window N-M`). `chr2:117-97` is a locus a reader pastes into a browser; an inverted
+window is the range a bench scientist takes for the bases the editor acts on. The
+report's existing checks ask whether the contig is present and the cut position printed —
+questions an inverted span answers correctly.
+
+**One quoted coordinate**, in the ambiguous-region verdict's negative branch: *"no
+hg38-ambiguous region overlaps chr1:144000000"*. Naming the far end of the window makes
+the reassurance about a different position, wrong by exactly the margin.
+
+**Lesson: narrow the operator until its survivors are worth reading.** The unrestricted
+version would have buried four real findings under eleven thousand mutants, and the
+restriction that made it useful came from this log — from knowing which confusions this
+codebase has actually shipped. An operator is a hypothesis about where defects live, and
+a hypothesis with no prior is just a cost.
+
+## Round 678 — the method was in a scratch directory
+
+Four operators have been built here and all four are exhausted, so this round asked a
+different question: where does the method live? The answer was a temporary directory. The
+harness was rebuilt from scratch at the start of this arc, and rebuilding it produced
+**three wrong answers before it produced a right one** — each a case where the index a
+mutant was logged under named a different mutation than the one applied:
+
+* the collector recorded a node's own sites before descending and the mutator descended
+  first, so for `a and (b or c)` every index past the first nesting was misattributed;
+* in statement-deletion mode the mutator returned early from a function and never visited
+  nested `def`s, so a module with a closure ran out of sites and reported them invalid;
+* the two-mutants-per-site operators need their pair in a fixed order for an index to
+  mean anything at all.
+
+None of those is a subtle bug. Each is the kind that a single toy module would have
+caught, and each cost a round's worth of careful reasoning about a defect that did not
+exist. The log recorded them as lessons; a lesson in a log does not prevent the next
+rebuild from reintroducing them.
+
+So `scripts/mutate.py` is now a project script beside `release_readiness.py` and
+`round_index.py`, with the pattern those established: a script with a guarding test.
+`tests/test_the_mutation_harness_applies_what_it_reports.py` pins the one property every
+conclusion in nine rounds of this log rests on — **for every mode, applying index *i*
+produces exactly the change the collector described at index *i*** — on fixtures that are
+deliberately the shapes that broke it: a nested boolean, a closure, a two-ended span, a
+type guard. It also checks that no two indices produce the same mutant (numbering
+collapsing somewhere), that an out-of-range index applies nothing rather than something,
+and that the default log path stays out of the repository root, which a root-contents
+guard failed on twice.
+
+`CONTRIBUTING.md` gains the method rather than the mechanics: what a survivor is, and the
+three things that make a result untrustworthy — a failing test in the chosen list turns
+every mutant into a "kill"; a module's own directory is a filter and its survivors are
+routinely 50–100% phantom; and a survivor is reachable-and-untested, unobservable, or
+unexecutable here, of which only the first is work.
+
+**Lesson: a method that lives in one session's memory is a method the project does not
+have.** Nine rounds of findings came out of a file that would have vanished with the
+scratch directory, and the first thing the next session would have done is rebuild it and
+re-earn its three bugs. The fix is unglamorous and it is the difference between a
+technique and a tool.
+
+## Round 679 — "eleven downloads away" was the wrong number
+
+The readiness report has said the same thing about R0 for several rounds: *1/12 model
+cards with a source URL pin a checkpoint hash — blocked: requires freezing the published
+upstream artifacts.* Read in order to find the next chunk of work, that sentence says
+eleven downloads and eleven hashes stand between here and the criterion.
+
+It does not. Of the eleven unpinned cards, **zero name a downloadable artifact.** They
+name GitHub repositories and Hugging Face model pages:
+`github.com/hkimlab/DeepPrime`, `huggingface.co/arcinstitute/evo2_7b`,
+`github.com/shendurelab/Lindel`, `www.crisprbehive.design`. `rule-set-3`, the one that is
+pinned, names a release asset — one file, one stable URL, one hash.
+
+So `source_url` carries two different things, and the criterion counted them as one. The
+distinction decides what pinning a card would even *mean*: there is no single artifact at
+a repository root to hash, and recording the landing page's digest would report R0 met
+while pinning an HTML document — a status reading as something it is not, which is the
+failure mode this project has corrected more times than any other.
+
+The report now separates them. R0 is unmet either way and its verdict is untouched; what
+changed is what the verdict means. The blocker line reads *"requires freezing the
+published upstream artifacts — and for 11 of them, first deciding which file that is"*,
+and the evidence names both groups. Eleven upstreams publishing a pinnable release is a
+different kind of waiting from eleven downloads, and for several of them it may never
+happen.
+
+Three guards hold it: the classifier is pinned against both shapes (a release asset, a
+`/resolve/` blob, a `/raw/` path and a plain file extension on one side; a repository
+root, a model page and a bare domain on the other); the two counts must sum to the
+unpinned total, so a card cannot fall out of the accounting; and **the split must not
+change `met`** — a reclassification that quietly excused the unpinnable cards would close
+the criterion by redefining it, which is exactly what the readiness tests exist to stop.
+
+**Lesson: a blocked criterion still has to say what it is blocked on.** "Blocked outside
+this repository" was true and it hid a distinction that changes the plan: one group is
+waiting on a download, the other on a decision nobody here can make. The measurement was
+honest about being unmet and vague about why, and vagueness in the one document that
+answers "what is left" is a defect in that document.
+
+## Round 680 — the criterion that could not stop being blocked
+
+`scripts/release_readiness.py` opens by saying why measuring a blocked criterion is worth
+it: *"it distinguishes blocked from forgotten, and it will notice the day one of them
+stops being blocked."* For R1+R5 — *0/5 benchmark datasets are real corpora* — it could
+not have noticed. The report reads the bundled fixtures unconditionally, and there was no
+way to supply anything else.
+
+`load_dataset` took a `fixtures_dir` argument whose docstring read "(tests)". Nothing in
+`src/` ever passed it; `aforge bench` had no option for it. So a maintainer holding the
+real PRIDICT2 library had one route to running the benchmark on it: edit JSON files
+inside the installed package. Same for `load_split`. This is the recurring shape this log
+names more than any other — **a capability the library has that no shell can reach** —
+arriving in the one place whose job is to report how far the project is from shipping.
+
+Two directories are supplied now, `ALLELEFORGE_BENCH_DATASETS` and
+`ALLELEFORGE_BENCH_SPLITS`, resolved by one function each so the library, both shells and
+the readiness report follow together. Absent, everything behaves exactly as before: the
+bundled synthetic stand-ins, which is what every existing test asserts.
+
+**The second variable is not a convenience.** A frozen split pins its dataset's content
+hash and `verify` refuses a mismatch, so a bundled split over replaced data fails its
+integrity check — correctly, and as a dead end. Supplying corpora without a way to supply
+their splits would have produced a path that always fails.
+
+Writing the test found two facts worth keeping, both of which contradicted my first
+draft. `content_hash` covers the *examples* and not the `synthetic` flag, so a corpus
+that differs only in the flag is hash-identical and the bundled split still verifies —
+the first fixture proved nothing and had to change a measured label. And
+`membership_hash` covers `dataset_sha256`, so rebinding a split to new data invalidates
+its own self-integrity hash too: both have to be recomputed, which is what minting a
+split *is*, and why `verify`'s message tells an editor to mint a new version rather than
+edit one.
+
+The env-var guard then refused the two new names, correctly: it credits a variable only
+when the literal reaches `os.environ`, and these are read through module constants. It
+already had a precedent for exactly this — it imports `conftest._OPT_IN_MARKERS` because
+that lookup is variable-indexed — so the constants are imported the same way. Naming an
+environment variable is better than a magic string, and the guard should not punish it.
+
+R1+R5 is still unmet and still blocked on data nobody here has. What changed is that it
+is now blocked on *only* that: the day a real corpus is dropped in, the report says so.
+A test asserts exactly that, and asserts that with nothing supplied it still reports the
+bundled truth.
+
+**Lesson: "blocked externally" deserves the same scrutiny as a failing test.** Two rounds
+running, reading a blocked criterion as a work list has found in-repo defects behind it —
+R0's blocker naming the wrong obstacle, R1's measurement structurally unable to change.
+Neither was visible from the verdict, and the verdict was correct both times.
+
+## Round 681 — the caveat that the first real corpus would delete
+
+R680 made a real corpus *supplyable*. This round asked the next question — what the
+calibration report would then **say** — and found that the answer got worse, not better,
+at the moment the first real data arrived.
+
+Both honesty labels on the project's calibration evidence were all-or-nothing:
+
+```python
+scripts/calibration_study.py:76   if all(r["synthetic"] for r in tasks):      # the banner
+src/alleleforge/viz/figures.py:86 if rows and all(r.get("synthetic") ...)     # the figures
+```
+
+Three states exist, and only two were handled. All-synthetic: a blanket warning that the
+numbers "are not measurements of any model, and must not be cited as such". All-real: no
+warning, correctly. **Mixed: no warning either** — a single real row deleted the caveat
+from a table whose other rows were still fabricated at single-digit `n`.
+
+That is the expected first state, not a corner. Each benchmark dataset is blocked on a
+*different* upstream release, so corpora arrive one task at a time. The table a reader
+first sees with real data in it is precisely the one that had lost its warning — and it
+had lost it in the one direction that matters, a mostly-fabricated table reading as a
+model's performance.
+
+`tests/viz/test_figures.py` **pinned** it:
+
+```python
+assert not _benchmark_data_note([{"synthetic": True}, {"synthetic": False}])
+```
+
+The test's own docstring says a caveat must not "survive real data", which is right; it
+had been implemented as "any real data kills the caveat", which is not the same claim.
+One real bar does not make a synthetic bar real.
+
+Both notes now name the stand-ins rather than counting them: `cas9-efficiency on bundled
+SYNTHETIC fixtures … the rest are real corpora`. The all-synthetic wording is untouched,
+and regenerating the committed figures produced a zero-byte diff — which is the evidence
+that the state the repo actually ships in is unchanged.
+
+A third gap surfaced on the way. `generalization_table()` has computed a `synthetic` flag
+per row since it was written, and `render_markdown` never rendered it: the gap table had
+no corpus column at all. A cross-cell-type generalization gap is the number in that
+document most easily mistaken for a measurement of a model, and it was the one section
+whose provenance a reader could not read off. It now carries the same `Data` column as
+the per-task table, including on the `undefined` rows.
+
+Also recorded: R5's *machinery* needs nothing further. `task_calibration_table` and
+`generalization_table` both reach data through `load_split`/`load_dataset` with no
+override, so R680's two environment variables already steer the whole study. The hardcoded
+"(synthetic, seeded)" in the conformal section is accurate and stays — that demo builds
+its own data from the seeded RNG and has no corpus to follow.
+
+**Lesson: an all-or-nothing honesty label fails in the state you are building toward.**
+The banner was correct in the repo's present (all stand-ins) and correct in its imagined
+future (all real), and wrong in the only state the project will actually pass through.
+A warning worth having is one that survives partial progress — so check a conditional
+caveat against the mixed case, which is usually the first case that will really occur.
+
+## Round 682 — the default nobody chose
+
+The eighth mutation operator, and the first finding it produced.
+
+### `--mode dflt`
+
+`scripts/mutate.py` gained an operator that flips every `True`/`False` **default in a
+function signature**. `const` mode already reaches those nodes, but it fires on every
+int and float in the module too and buries the ~110 signature defaults under thousands
+of literals — which is why `const` has never been run repo-wide. Asking only the one
+question makes the class tractable: 47 sites in `cli/main.py` and at most six in any
+other module.
+
+The question is worth asking on its own because a boolean default is *a decision the
+caller did not make*. `verify=`, `consent=`, `pass_only=`, `in_distribution=`,
+`bulged=` — each is a safety posture that every call site inherits in silence, and
+nothing fails when it is wrong. That is this project's recurring defect shape stated as
+a syntax.
+
+The harness's contract test grew the shape that would have broken it: **`args.defaults`
+right-aligns** against the parameter list. `outer(a, b, c, iv, d, strict=True, *,
+verify=True, quiet=False)` has five parameters without a default and three with one;
+zipping from the left pairs `strict`'s default with `a`, and the index then names a
+parameter the mutator never touched — the same class as the three index-mapping bugs
+this file already pins.
+
+### What the sweep said, and what actually found the bug
+
+`in_distribution=True` looked like the finding: six declarations, the optimistic
+direction, on the flag that decides whether an interval is widened for being out of
+distribution *and* whether `calibrated=True` is allowed. All four mutants in
+`scoring/uncertainty.py` were **killed**, and an AST query for production call sites
+that omit the keyword returned exactly one — inside the conformal demo, whose data is
+synthetic by construction. The default is never silently relied upon. `bulged=False`
+read the same way and came back the same: every off-target call passes it explicitly,
+and the two survivors in `offtarget/scoring.py` are the `OffTargetScorer` **Protocol**
+stub (body `...`, nothing to observe) and the Cas12a analog, whose docstring already
+says the parameter is "accepted for interface parity" because the score is
+length-relative. Every hardcoded `consent=True` in `src/` sits in a shell behind an
+explicit user flag or an operator environment variable.
+
+The bug was in the one default whose *rationale was written for a different caller*.
+`iter_vcf(pass_only=True)` documents itself: "a cohort run should not design against
+soft-filtered calls." True, and the cohort path proves it takes the consequence
+seriously — `aforge batch` passes a `VcfIngestCounts` and prints `ingest: …`, because a
+cohort was once found to be silently smaller than the file it came from.
+
+`cli/main._load_patient_variants` calls `list(iter_vcf(path))`. No counter.
+
+The asymmetry runs the wrong way:
+
+| | a dropped row is | how it shows |
+|---|---|---|
+| `aforge batch` (cohort) | one guide fewer | a shorter output, and a counted `ingest:` line |
+| `--patient-vcf` (safety) | **a check never performed** | nothing |
+
+`--patient-vcf` exists to find off-targets a *person's own genome* creates. A
+soft-filtered call — low depth, strand bias, routine in real patient VCFs — can still
+create a de-novo PAM in the person who carries it. Dropped, it is never scanned, and the
+run then prints the most reassuring thing this tool can say: no patient-origin sites.
+That output is byte-identical to a scan of someone who carries nothing risky.
+
+The test makes exactly that run: one allele, soft-filtered, that would otherwise
+nominate a site. `n_sites == 0` either way — what changed is that stderr now names the
+allele that was not looked at. Only the file opening is stubbed (cyvcf2 is not installed
+here), so the drop counting under test is the shipped reader.
+
+### What this round actually swept
+
+Four modules, 13 mutants, all triaged — not a repo-wide pass. `scoring/uncertainty.py`
+4/4 killed. `offtarget/_search.py` 2/2 killed (`seed=True`, `use_fm_index=False`).
+`offtarget/scoring.py` 4 killed, 2 unobservable-by-construction (the Protocol stub and
+the length-relative Cas12a analog). `offtarget/_haplotype.py` 1 survivor,
+`apply_variants(prefer_native=True -> False)`, which is **unexecutable here**: the Rust
+kernel is not built in this worktree, so both settings take the Python path. That is the
+third triage category, not a finding.
+
+Left for a later round, named so it is a backlog and not a silence: the ~95 remaining
+`dflt` sites — `scoring/base_outcome.py` (5), `cas9_outcome.py` (4), `genome/index.py`
+(5), `design/designer.py` (4), `design/cas9.py` (4), `types/prediction.py` (2), the
+`consent=`/`__init__` defaults across the adapters, and the 47 in `cli/main.py`. The CLI
+set was read without mutating: every flag there defaults to the opt-in `False` direction
+(`no_offtarget=False` means off-target runs), so none of them is a safety posture facing
+the wrong way.
+
+**Lesson: a default's rationale is written for the caller its author had in mind.**
+`pass_only=True` was argued, documented and correct for designing guides. A second
+caller arrived whose question was the opposite — not *should I design against this?* but
+*could this hurt the person?* — and inherited the argument without re-reading it. When
+the same flag serves two callers, check whether the justification survives the second
+one; a default is the one parameter no call site has to defend.

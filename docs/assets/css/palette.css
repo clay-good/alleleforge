@@ -1,0 +1,41 @@
+/* Accessible teal palette.
+ *
+ * mkdocs-material's stock `teal` primary is #009688, and the header, buttons and
+ * active navigation all put white text on it: 3.67:1, under the 4.5:1 WCAG AA needs
+ * for body-sized text. The hover accent (#00bda4) is worse at 2.38:1. The docs are
+ * how a reader decides whether to trust this tool, and a research project that
+ * reports calibrated intervals should not ship a site its own audit fails.
+ *
+ * Teal 700 keeps the identity and clears AA with room to spare. Every pair below is
+ * measured, not chosen by eye:
+ *
+ *   light scheme   white on #00796b   5.32:1   (primary: header, buttons, nav)
+ *                  white on #00675b   6.79:1   (accent: hover/active)
+ *   dark scheme    #4db6ac on slate   5.35:1   (accent: links on a dark ground)
+ *
+ * The dark scheme needs a *lighter* accent for the same reason the light one needs a
+ * darker one — the text sits on the opposite ground.
+ */
+
+:root,
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #00796b;
+  --md-primary-fg-color--light: #48a999;
+  --md-primary-fg-color--dark: #004c40;
+  --md-primary-bg-color: #ffffff;
+  --md-primary-bg-color--light: #ffffffb3;
+
+  --md-accent-fg-color: #00675b;
+  --md-accent-fg-color--transparent: #00675b1a;
+  --md-accent-bg-color: #ffffff;
+  --md-accent-bg-color--light: #ffffffb3;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #00796b;
+  --md-primary-fg-color--light: #4db6ac;
+  --md-primary-fg-color--dark: #004c40;
+
+  --md-accent-fg-color: #4db6ac;
+  --md-accent-fg-color--transparent: #4db6ac1a;
+}

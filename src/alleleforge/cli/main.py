@@ -61,7 +61,7 @@ from alleleforge.types.offtarget import (
     ANCESTRY_BURDEN_PRECISION,
     headline_notes,
 )
-from alleleforge.types.provenance import DatasetVersion
+from alleleforge.types.provenance import DatasetVersion, describe_file_source
 from alleleforge.types.sequence import GenomicInterval
 from alleleforge.types.variant import Variant
 
@@ -1131,8 +1131,27 @@ def _load_patient_variants(path: Path | None, reference: Any) -> list[Variant] |
     try:
         if path.name.endswith((".vcf", ".vcf.gz", ".bcf")):
             from alleleforge.variant import iter_vcf
+            from alleleforge.variant.vcf import VcfIngestCounts
 
-            records: list[Any] = list(iter_vcf(path))
+            # `aforge batch` has counted these drops since the cohort was found to be
+            # silently smaller than its file. This path never did, and the asymmetry
+            # runs the wrong way: for a cohort a dropped row is one guide fewer, which
+            # shows up as a shorter output. Here a dropped row is a safety check that
+            # was never performed, and "no patient off-targets" reads exactly like
+            # "this person carries nothing risky". `pass_only` defaults to True with a
+            # rationale written for the cohort use -- a run should not *design against*
+            # a soft-filtered call -- which the safety use inherited unexamined: a
+            # low-confidence call can still create a de-novo PAM in the person who
+            # carries it.
+            ingest = VcfIngestCounts()
+            records: list[Any] = list(iter_vcf(path, counts=ingest))
+            if ingest.skipped:
+                detail = ", ".join(f"{n} {why}" for why, n in sorted(ingest.skipped.items()))
+                _echo_err(
+                    f"note: --patient-vcf {path}: {ingest.total_skipped} of {ingest.rows} "
+                    f"row(s) dropped ({detail}). Those alleles were NOT scanned for "
+                    "off-targets; a site one of them creates will not appear below."
+                )
         else:
             records = _read_variant_list(path)
         variants = _PatientVariants(
@@ -1182,22 +1201,11 @@ class _PatientVariants(list[Variant]):
 def _describe_source(path: Path, name: str) -> DatasetVersion:
     """Return a provenance descriptor pinning ``path`` by its content hash.
 
-    A file a user supplies has no upstream version string, so the honest pin is
-    what it *contained* on this run: two runs agree iff the bytes did. Without
-    this a population- or haplotype-aware result records neither which data made
-    it so nor whether any was supplied at all — and the whole point of the
-    provenance block is that a result can be re-derived from it.
+    Delegates to :func:`~alleleforge.types.provenance.describe_file_source`, which both
+    shells now share: this logic lived here alone, so the web API loaded the same
+    caller-supplied files and recorded nothing about them.
     """
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    return DatasetVersion(
-        name=name,
-        version=f"sha256:{digest[:12]}",
-        sha256=digest,
-        # Marked, because the pin means something different for a reader: nothing in a
-        # cache or a bundle holds these bytes, so `verify` cannot re-hash them and must
-        # not report them as an artifact the reader could go and fetch.
-        caller_supplied=True,
-    )
+    return describe_file_source(path, name)
 
 
 _T = TypeVar("_T")

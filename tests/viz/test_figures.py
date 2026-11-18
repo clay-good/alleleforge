@@ -112,6 +112,26 @@ def test_the_note_tracks_the_data_rather_than_being_decoration() -> None:
     from alleleforge.viz.figures import _benchmark_data_note
 
     assert _benchmark_data_note([{"synthetic": True}, {"synthetic": True}])
-    assert not _benchmark_data_note([{"synthetic": True}, {"synthetic": False}])
     assert not _benchmark_data_note([{"synthetic": False}])
     assert not _benchmark_data_note([])
+
+
+def test_a_chart_mixing_real_and_stand_in_bars_still_says_which_are_stand_ins() -> None:
+    """The mixed state is the expected first state, and it used to carry no caveat.
+
+    Real corpora arrive one task at a time, each blocked on a different upstream
+    release. An all-or-nothing caveat meant the first real corpus deleted the warning
+    from the bars that were still fabricated, which is the one direction that matters:
+    a chart of mostly stand-ins reading as a measurement of a model.
+    """
+    from alleleforge.viz.figures import _benchmark_data_note
+
+    note = _benchmark_data_note(
+        [
+            {"task": "cas9-efficiency", "synthetic": True},
+            {"task": "offtarget-ranking", "synthetic": False},
+        ]
+    )
+    assert "SYNTHETIC" in note
+    assert "cas9-efficiency" in note, "the caveat must name the bar it applies to"
+    assert "offtarget-ranking" not in note, "a real bar must not be called a stand-in"

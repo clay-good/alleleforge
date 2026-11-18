@@ -84,3 +84,39 @@ def test_the_pattern_matches_a_sequence_and_not_prose() -> None:
     # A spacer inside a reagent line is prose around a sequence, not a sequence line.
     assert not _SEQUENCE_LINE.match("    SpCas9 sgRNA ACGTACGTACGTACGTACGT (NGG PAM)")
     assert not re.match(r"^\s*$", "x")
+
+
+_SEQ_LINE = "ACGTACGTACGTACGT"
+
+
+def test_the_run_ends_where_the_sequence_ends() -> None:
+    """The run scan reads two things, and every fixture here satisfied both at once.
+
+    `while index + run < len(lines) and _SEQUENCE_LINE.match(lines[index + run])` stops
+    at the end of the input **and** at the first non-sequence line. In every case above
+    the donor block is the tail of the page content, so the two stop at the same place
+    and either read could be dropped unnoticed.
+
+    A real sheet has content after the oligos — further candidates, the caveats, the
+    footer. With the sequence read dropped, the run swallows all of it; once that total
+    exceeds a page the "move the whole run" branch stops firing, and the run is split
+    across the break, which is the one thing this function exists to prevent.
+    """
+    lines = ["filler"] * (_LINES_PER_PAGE - 1) + [_SEQ_LINE] * 2 + ["after"] * (2 * _LINES_PER_PAGE)
+    pages = _paginate(lines)
+    on = sorted({index for index, page in enumerate(pages) if _SEQ_LINE in page})
+    assert len(on) == 1, f"the two sequence lines landed on pages {on}"
+
+
+def test_a_run_too_long_for_any_page_does_not_waste_the_page_it_shares() -> None:
+    """The branch is guarded by `run <= _LINES_PER_PAGE`, and nothing tested the `>` side.
+
+    Moving a run whole is only possible when the run *fits* on a page. For one longer
+    than any page the docstring says it is "emitted as it comes, because breaking it
+    somewhere is unavoidable" — so it must fill the page already in hand rather than
+    abandoning it. Without that read, a half-finished page is closed early and the
+    sheet grows a short page for no reason a reader can see.
+    """
+    lines = ["filler"] * (_LINES_PER_PAGE - 1) + [_SEQ_LINE] * (_LINES_PER_PAGE + 5)
+    pages = _paginate(lines)
+    assert all(len(page) == _LINES_PER_PAGE for page in pages[:-1]), [len(p) for p in pages]

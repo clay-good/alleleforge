@@ -71,6 +71,22 @@ def test_an_unlabelled_reference_still_defaults_to_hg38(
     assert menu.provenance.reference_build == "hg38"
 
 
+def test_an_unlabelled_reference_takes_the_build_it_is_given(
+    make_labelled: Callable[[str | None], ReferenceGenome],
+) -> None:
+    """There is nothing to contradict, so there is nothing to refuse.
+
+    The refusal is a conjunction — the reference *has* a label **and** that label
+    disagrees — and no fixture separated the arms: the unlabelled case above passes no
+    `build` at all, so it returns on the `build is None` branch before the comparison is
+    reached. Drop the label arm and the only remaining caller of an unlabelled genome —
+    one who supplies the assembly themselves, which is exactly what the argument is for
+    — has their run refused by a message quoting a label that does not exist.
+    """
+    menu = design("chr2:71:A>C", reference=make_labelled(None), build="mm39", run_offtarget=False)
+    assert menu.provenance.reference_build == "mm39"
+
+
 def test_an_agreeing_build_in_another_spelling_is_accepted(
     make_labelled: Callable[[str | None], ReferenceGenome],
 ) -> None:

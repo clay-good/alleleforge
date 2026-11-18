@@ -9,6 +9,323 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The mutation harness flips boolean defaults (`--mode dflt`).** A boolean default is
+  a decision no call site has to make, which is where this project's safety postures live
+  (`verify=`, `consent=`, `pass_only=`, `in_distribution=`). `const` mode reaches the same
+  nodes but buries them under every int and float in the module, so the class had never
+  been swept; asking only the one question leaves ~110 sites across the library. The
+  harness's contract test gained the right-aligned-defaults shape that would otherwise let
+  an index name a parameter the mutator never touched.
+- **A real benchmark corpus can be supplied, so the readiness report can notice one.**
+  `ALLELEFORGE_BENCH_DATASETS` and `ALLELEFORGE_BENCH_SPLITS` point the benchmark at
+  corpora and frozen splits outside the package. Until now `load_dataset`'s
+  `fixtures_dir` argument was documented "(tests)", nothing in `src/` ever passed it and
+  `aforge bench` had no option for it — so a maintainer holding real data could only run
+  the benchmark by editing JSON inside the installed package, and R1+R5 (*0/5 datasets
+  are real corpora*) could not change however much data arrived. Both directories are
+  resolved by one function each, so the library, both shells and the readiness report
+  follow together; absent, the bundled synthetic stand-ins are used exactly as before.
+  The splits variable is required rather than convenient: a frozen split pins its
+  dataset's content hash, so a bundled split over replaced data correctly fails its
+  integrity check.
+- **The mutation-testing harness is a project script.** `scripts/mutate.py` was a file in
+  a temporary directory, rebuilt from scratch each time and producing three wrong answers
+  in the process — each one an index that named a different mutation than it applied
+  (nested booleans, closures in deletion mode, the ordering of two-mutants-per-site
+  operators). It now sits beside `release_readiness.py` with a guarding test,
+  `tests/test_the_mutation_harness_applies_what_it_reports.py`, pinning the property every
+  result rests on: for each mode, applying index *i* produces the change the collector
+  described at index *i*. `CONTRIBUTING.md` documents what a survivor means and the three
+  ways a sweep's result can be untrustworthy.
+- **An off-target cache key is checked to distinguish two spans that share one end.**
+  `search_signature` folds the on-target locus and the scanned regions into the key
+  precisely so one search is not served another's report, and nothing checked that each
+  span's *ends* separate it: built from `(end, end)` instead of `(start, end)` the key
+  still changes when a span moves as a whole, but a self-match dropped at `chr1:100-120`
+  and one at `chr1:95-120` hash alike.
+- **A haplotype hit the reference already carries is not reported as new.** The
+  population pass dedups each alt hit against the reference by `(strand, start, end)`,
+  and `_strengthens(hit, None, …)` means "created". With the lookup key's two ends
+  reversed every lookup misses, so on a contig that already carries the site the count
+  goes from 0 to 2 — one locus reported twice, one copy attributed to a population, in
+  the module whose purpose is saying which off-targets a population actually carries.
+- **Printed spans are checked to read low-to-high**, in the locus line
+  (`chrom:start-end`) and the base-editor reagent line (`window N-M`), and the
+  ambiguous-region verdict is checked to quote the position it was asked about rather
+  than the far end of the window.
+- **Every ordered-opposite member access has been swept** — `start`/`end`, `low`/`high`,
+  `ref`/`alt`, `top`/`bottom`, subscript `0`/`1` — 272 mutants across 45 files. The
+  alarming candidates are all genuinely pinned: `_plus`/`_minus` in the FM-index,
+  `var.alt`/`var.ref` in the pegRNA enumerator, `best_efficiency_high`/`low` on a cohort
+  row, `nicking.top`/`bottom` on an oligo sheet, and `interval[0]`/`[1]` in both renders.
+- **Every `isinstance` type guard has been swept by forcing it both ways** — 148 mutants
+  across 22 files, asking in turn whether any fixture supplies a value of the wrong type
+  and whether any supplies the right one. 26 of 29 narrow survivors were phantoms: the
+  guards are exercised on both sides, including the bool-before-int checks in
+  `report/precision.py` and `types/prediction.py` where `isinstance(True, int)` being
+  `True` is the classic trap.
+- **A certified prediction is checked to survive revalidation.** The validator promises a
+  calibrated prediction is not downgraded "just because it was placed inside a
+  `RankedMenu` or revalidated", and nothing asserted it. Pydantic short-circuits a
+  correctly-typed instance today, so the test guards against a future
+  `revalidate_instances` change rather than an edit to the validator — stated that way in
+  the test.
+- **Every module has now been swept for statement deletion** — removing one side-effect
+  statement at a time and asking whether anything observes that it ran. 950 mutants
+  across 72 files over rounds 666–673; seventy-two modules clean, every survivor fixed,
+  proved unobservable, or recorded as unexecutable in CI. It is the operator that found
+  the resource and report-completeness defects the earlier passes had no vocabulary for.
+- **Three loaders are checked to record where they came from** — `HaplotypePanel.source`
+  and `Liftover.source_build` / `target_build`, the documented attributes answering which
+  panel made a run haplotype-aware and between which builds coordinates were moved — and
+  `_parse_info` keeps a bare VCF INFO flag, whose contract is the format rather than the
+  three `KEY=VALUE` entries its current callers read.
+
+- **The cache sweep reports what it could not read.** `aforge cache verify` promises one
+  row per artifact, and two of its `checks.append(...)` calls could be deleted with the
+  suite green: the branch for an FM-index that fails to load for a reason that is not an
+  integrity error (a truncated file, a `meta.json` from an older build, a permissions
+  problem), and the row for a bundled checkpoint. In both cases the entry simply vanished
+  from the report — a sweep run to find a broken index saying nothing about it, with
+  nothing marking the omission.
+- **A verified download leaks no file descriptor.** `tempfile.mkstemp` returns an open
+  descriptor as well as a path, and `download_verified` wants only the path. Removing the
+  `os.close(fd)` leaves every assertion in the suite passing — the file still lands and
+  still verifies — while leaking one descriptor per call, which a long-running server
+  resolving artifacts on demand eventually feels as an unrelated `OSError` elsewhere.
+- **The rejection tally reads most-common-first on a shuffled tally.** `summarize`
+  documents the order and every fixture handed it one reason, or an already-sorted one.
+  Unsorted, a reader takes whichever rejection the enumerator counted first as the main
+  obstacle.
+- **The split integrity check is checked to actually run.** `Split.verify` is thoroughly
+  tested — tampered membership, drifted dataset, overlapping folds, an absent id — by
+  calling it directly. Nothing checked that `load_split` and `run_benchmark` call it: a
+  statement-deletion sweep removed both call sites with the suite green, and a benchmark
+  whose whole claim is "this board ranks on the split it says it does" would have loaded
+  an edited split file and scored against drifted data without a word.
+- **Three loaders return their records in coordinate order, now checked on shuffled
+  input.** `genes_in`, `frequencies` and `rsids_at` all document or rely on position
+  order, and every fixture in the suite handed them records already sorted — so the sorts
+  could be removed unnoticed. A gnomAD TSV concatenated from two shards, a re-joined VCF
+  and a GENCODE GTF with interleaved genes all arrive out of order, and the output then
+  follows the input file's order rather than the genome's. (`EncodeTracks`' two segment
+  sorts are inert: `signal` is an overlap-weighted sum, and its order-independence is now
+  pinned.)
+- **The nuclease vertical can say a candidate is out of distribution, and now proves it.**
+  `ood` says the efficiency point estimate should not be trusted and the candidate was
+  ranked on its lower interval bound instead. An earlier round found the base editor
+  unable to raise it at all; prime has two tests. Cas9 writes the flag from the same
+  field and had none — two of three chemistries pinned and the third taken on trust.
+- **A capped chemistry returns its best candidates, not its first.** `design_cas9` sorts
+  before truncating to `max_candidates`, and the composite ranker downstream re-orders
+  whatever it is handed — so every ordering assertion in the suite passes with the sort
+  removed. What the ranker cannot restore is a candidate never returned: without the
+  sort, a run asking for the best three guides gets the three nearest the start of the
+  window, correctly ranked.
+- **`_left_align` refuses a wrong-build anchor on its own.** The re-anchor step re-reads
+  the anchor base from the reference, so an insertion whose asserted anchor disagrees
+  would have its assertion overwritten rather than refused. `resolve` validates first,
+  which is why nothing noticed — but the guarantee is the function's, and it has direct
+  callers. (The third validation, after normalization, is inert: 185,640 inputs produced
+  no difference with it removed, because left alignment builds its ref from reference
+  bases.)
+- **A `ReferenceGenome` is checked to release the handle it opened.** `close()`'s entire
+  body is `self._fasta.close()` and `__exit__`'s entire body is `self.close()`, and a
+  statement-deletion sweep removed each with the whole suite green — a reference that
+  never closes returns exactly the same bases, so a suite that reads bases cannot tell.
+  Also pinned: a consented download creates the cache directory it writes into.
+- **Eight more modules were swept for statement deletion and are clean**, including
+  `cli/main.py` at 233 of 233 and `web/api/app.py` at 21 of 21, alongside `viz/svg.py`,
+  `offtarget/_search.py`, `design/cohort_summary.py`, `report/export.py`,
+  `scoring/uncertainty.py` and `scoring/cas9_outcome.py`.
+- **The job store's liveness and memory bounds are tested, not only its answers.** A
+  statement-deletion sweep removed ten statements from `web/api/jobs.py` one at a time
+  with the suite green. Four were real: the strong reference that stops asyncio
+  collecting a running job mid-flight (the source says so in a comment and nothing
+  observed it), its twin on the timeout path, the task that waits for a worker which
+  outlived its deadline so its in-flight slot comes back, and the eviction in that
+  cleanup path — without which three timed-out jobs against a cap of two retain three
+  records for as long as nobody submits another. The other six are inert and were proved
+  so by running both branches over twenty scripted scenarios; the misleading comment on
+  the one in `submit` has been corrected.
+- **A parallel cohort opens one reference per worker, and says so.** `tl.ref = ref` is
+  what makes the injected factory "once per worker" rather than once per item — without
+  it a five-hundred-variant cohort opens, indexes and closes the genome five hundred
+  times and every answer is still correct. The extra handle opened to describe the run
+  is checked closed too.
+- **`genome/index.py` was swept for statement deletion and is clean** (39/39); all eight
+  of its survivors against its own test directory died against the full suite.
+- **The published artifacts are checked for their structure, not only their facts.** A
+  statement-deletion sweep removed eleven `lines.append(...)` calls from the printable
+  sheet and thirteen from the leaderboard one at a time, with the whole suite green for
+  every one. The markdown board could lose `| ---: | :--- | ... |` — the row that makes
+  the lines around it a *table* — and render on GitHub as pipe-separated prose with every
+  number intact; it could lose the `###` heading naming each comparison group, on a board
+  that prints a note explaining why its groups cannot be compared; and it could lose
+  `</body></html>`. The sheet could lose the rule under its title, both rules around the
+  candidate list, the blank lines separating its blocks, and `ET`, the operator that
+  closes a page's text object (an unclosed `BT` is not a valid PDF text object; the
+  extractor read it anyway). Both renders now have a guard on their shape, with fixtures
+  carrying the conditional blocks a minimal report never produces.
+- **Every value an on-screen report is given is now checked to reach the screen.** A
+  statement-deletion sweep removed nine `parts.append(...)` calls from the HTML renderer
+  one at a time, and the suite stayed green for all nine: the bystander-burden paragraph,
+  both P(intended) paragraphs, the outcome-allele table, the oligo-prep instruction, the
+  "no synthesized reagent" line, the ranking rationale, the closing `</div>`, and the
+  note saying how to view the loci in a genome browser. The existing guard against "a
+  field nothing reads" is *static* — it greps the renderer for each field name — so it
+  cannot see a field that is mentioned twice and rendered once, which is exactly how
+  `p_intended` is written (one branch derived, one calibrated). The new guard renders a
+  candidate carrying every optional value and asserts each one appears.
+- **A chemistry that raised stamps no model in the provenance, whichever way it raised.**
+  `_run_chemistry` catches an altered store, an expected design failure, and anything
+  else, and each arm adds the chemistry to the set the model block subtracts — but only
+  the middle arm had a test. A run whose vertical died on a tampered cache entry or an
+  outright bug still recorded the trained model as one that scored it, in the block
+  `aforge verify` reads to decide whether a result is reproducible.
+- **A "no actionable protospacer" message names every PAM it searched.** The reason
+  builds two lists from the same two flags — the PAMs tried and the PAMs not enabled —
+  and every existing test is about the second. Without the first the sentence names only
+  `NGG` for a run that searched three, telling the reader the fallback they turned on was
+  not used.
+- **Every module in the project has now been swept for conjunct removal** — dropping each
+  operand of an `and`/`or` chain in turn, the mutation that asks whether a two-part
+  condition has a fixture on *each* arm. Twenty-one modules, 540 mutants, forty-one real
+  findings over rounds 657–665, all now pinned. Eleven modules came back clean, including
+  `cli/main.py`, the largest shell here, at 104 of 104. The one defect in shipped
+  behaviour the pass found (the resolver refusing the dash it prints for an absent
+  allele) is recorded under **Fixed**.
+- **A sequence run is no longer split across a page break when the sheet continues below
+  it.** `_paginate`'s run scan stops at the end of its input *and* at the first
+  non-sequence line, and every fixture puts the donor block at the tail of the page
+  content, so the two stop in the same place — the file that parametrizes sixty offsets
+  could not see it, because all sixty share that tail. With real content after the
+  oligos (further candidates, caveats, the footer) the scan swallows it; once the total
+  exceeds a page the move-the-whole-run branch stops firing and the donor is divided
+  across the break, which is the failure that branch exists to prevent. Also pinned: a
+  run too long for any page fills the page already in hand instead of abandoning it.
+- **A "scoring basis" line is printed only when there is a basis to name.** The sheet
+  guards it on a recorded scorer *or* matrix, and every fixture carried both; a search
+  can report a count with neither, and the line would have read `scoring basis:` with
+  nothing after the colon — in the field a reader uses to decide what produced a
+  specificity number.
+- **Two calibration metrics answer a mismatched pair instead of raising.**
+  `expected_calibration_error` and `interval_calibration_error` each guard a
+  `zip(..., strict=True)` with a length read and an empty read; only the empty read had
+  a case. Predictions and outcomes assembled from different filters now return `None` —
+  what the board renders as "undefined" — rather than a `ValueError` from inside a
+  metric.
+- **`enumerate/base_editor.py`, `enumerate/prime.py` and `design/prime.py` were swept for
+  conjunct removal and are clean** (16/16, 18/18, 16/16).
+- **The downloader a real model fetch uses is now exercised.** `ModelRegistry.checkpoint`
+  passes `downloader or _default_downloader`, and every fetch test injects a fake —
+  correctly, since CI does not go to the network — so the left side always won and
+  nothing established that the production path has a downloader at all. Without the
+  fallback, a user running `aforge models fetch` and supplying no downloader (the API
+  does not ask for one) calls `None(url, dest)`. The dataset registry writes the
+  identical line and was already covered. Pinned by replacing the default with a
+  recorder, so the network is still never touched.
+- **A MANE Select transcript is canonical without a `canonical` flag.** `is_canonical`
+  reads `canonical` **or** `mane_select` and every canonical fixture set both; VEP's MANE
+  blocks do not always carry `canonical`, and that flag is what a reader uses to decide
+  whether the consequence shown is the one that matters. Also pinned on the VEP path: a
+  transcript block with no `consequence_terms` falls back to the record's
+  `most_severe_consequence` (without it the severity `max()` is handed `None`), and an
+  empty `build` is looked up against GRCh38 rather than producing a request URL that
+  names no assembly.
+- **`genome/index.py` was swept for conjunct removal and is clean** (19/19); all twelve
+  of its survivors against its own test directory died against the full suite.
+- **A broken install falls back to the cache instead of raising.** `resolve` and
+  `dataset_status` both ask whether a descriptor *names* a bundled path **and** whether
+  that path is a file, and every fixture runs against the real registry where the one
+  bundled row is present — so the second read never decided anything.
+  `dataset_reason` already carried the sentence for the untested case ("bundled file is
+  missing or failed checksum verification; reinstall AlleleForge"), reachable only
+  through it. Without that read, a partial install turns a degradation into a wall:
+  `resolve` raises `FileNotFoundError` out of the checksum read rather than using a
+  valid cached copy, and the status reports a present, verified cache entry as
+  unavailable. Both halves are now pinned against a registry whose bundled file is
+  deliberately absent.
+- **`fetchable` needs a source, not just a digest.** The flag reads
+  `sha256 and source_url`, and the guard that checks it against `resolve`'s real
+  behaviour runs over the registered rows — every one of which carries both, so the two
+  reads could not be separated. A pinned row with no `source_url` gets
+  `MissingDependencyError` from `resolve` while the status beside it would have said
+  `fetchable: True`.
+- **`web/api/app.py` and `design/cohort_summary.py` were swept for conjunct removal and
+  are clean** (28/28 and 22/22). All fifteen of their survivors against their own test
+  directories died against the full suite: both are renderers of other modules' answers,
+  and are pinned by the cross-surface agreement and artifact-disclosure guards.
+- **A near-miss Cas12a PAM is no longer scored as a canonical one.** `TTTV` means the
+  fourth base is A, C or G, and the only non-canonical fixture was `AAAA` — which fails
+  on the `TTT` prefix alone, so the arm that reads the fourth base had no case. `TTTT`
+  is the PAM a Cas12a scan turns up beside a real one, and without that arm it took full
+  weight instead of the 0.05 residual: a site that is not canonically targetable, scored
+  as though it were. A PAM shorter than four bases had no case either (the two reads
+  below the length check would raise). Both are pinned.
+- **An explicit `matrix=` label is honoured on every CFD branch.** All three constructor
+  branches write `matrix or <their default>`, and only the published branch had a fixture
+  for the override while only the other two had fixtures for their defaults — so the `or`
+  was always decided by whichever side the test supplied. A caller who named their matrix
+  under custom weights or the approximation could have had that name replaced by a generic
+  one, in the field a reader uses to tell a published score from a fallback. Also pinned:
+  the approximation never "falls back off itself", so an off-length or bulged call under
+  an approximate scorer keeps the caller's own label.
+- **`enumerate/cas9.py` and `scoring/uncertainty.py` were swept for conjunct removal and
+  are clean** (29/29 and 21/21). Every one of `uncertainty`'s twelve survivors against its
+  own test directory died against the full suite: its validators are pinned by
+  `benchmark/metrics.py` and the report, which exercise the empty and single-bin cases.
+- **The anchored indel — the form the library actually handles — is now classified as
+  one.** `Variant.variant_class` asks `len(ref) == 1 and len(alt) == 1` for a
+  substitution, and the only ref of length one in its test table was the SNV: the table
+  carried `("A", "ACGT", INSERTION)` and the test body then *swapped it out*, building
+  the pure anchor-free variant and classifying that instead. So the anchored shape that
+  `normalized()` and `_left_align` emit never reached the property. With the `alt` arm
+  dropped, `A>ACGT` — a four-base insert — classifies as `SNV`, and 324 of 7,225 allele
+  pairs change class. Both directions are now pinned on the anchored form.
+- **Three clinical notes are pinned to the intent each one names.** `_clinical_notes`
+  writes sentences that put the requested intent beside what ClinVar or the effect
+  predictor asserts, each guarded by *this intent* **and** *this fact*, with every
+  fixture satisfying both arms at once. An `install` could be told to "confirm this is
+  the change you mean to make" about a modifier consequence, which is advice for a
+  correction; a **knock-out**, which reaches the same `elif` and writes no allele, could
+  be told it is installing a disease model; and the disease-model sentence could be
+  printed over a **benign** classification. Each now has its negative case beside it.
+- **An empty menu no longer blames the chromatin track.** The note saying a track
+  "covers none of the candidate loci — every efficiency here is the unadjusted estimate"
+  counts adjusted candidates and speaks when the count is zero, which is what no
+  candidates gives. Its `and candidates` arm had no fixture, and a reader with an empty
+  menu would have been pointed at their track instead of at the routing rationale above
+  it. (Its neighbour for `cell_context` is suppressed by an inner guard and is recorded
+  as redundant rather than removed.)
+- **A reference with no build label accepts the build it is given.** The refusal fires
+  when the reference *has* a label **and** that label disagrees, and no fixture separated
+  the arms — the unlabelled test passes no `build` at all, returning before the
+  comparison. Dropping the label arm refused the one caller an unlabelled genome has:
+  someone supplying the assembly themselves.
+- **`Eligible and run: none`** — the `or "none"` fallback on the menu rationale had no
+  case, and the one test that touched the empty menu asserted *inside*
+  `if "Eligible and run: none" in rationale:`, so dropping the fallback turned the line
+  into `Eligible and run: .` and the test passed having checked nothing.
+- **The resume refusal's renderer is tested one arm at a time.** `design/cohort.py` was
+  swept for conjunct removal: 52 mutants, 11 alive against the module's own test
+  directory and **only 4 against the full suite** — a cohort runner is pinned by the
+  surfaces it must agree with far more than by `tests/design/`. All four real ones were
+  in the machinery that *describes* a refusal rather than in the refusal itself.
+  `_render` turns a manifest header field into the sentence a human reads when a resume
+  is refused, and asks two conjunctions — the right key *and* the right type. The suite's
+  only case was a `reference` dict differing from another `reference` dict, satisfying
+  both arms at once. Without the key arm, any list is announced as datasets it does not
+  hold; without the type arm, the renderer **crashes on a value a real run produces** — a
+  manifest written against a run-wide reference, resumed by a run that builds one per
+  worker, carries `reference: None`, and `None.get("contigs")` raises, so the exception
+  replacing the refusal says nothing about the mismatch it was raised to report. The
+  `or "nothing"` fallback had no case either, so a run with no dataset inputs rendered as
+  `inputs: manifest has , this run has ...`. Fourth: `_read_done_ids` asks for an
+  `item_id` *and* a status of `ok`, and every manifest the suite builds is one the runner
+  wrote, so the arms always agreed — a hand-edited line recording a status without an
+  item raised a bare `KeyError` instead of the `ValueError` naming the file and line that
+  every other damage it finds raises. `design/cohort.py` now kills 52 of 52.
 - **The off-target report's two-part guards are tested one arm at a time.** A new
   conjunct-removal mutation — drop each operand of an `and`/`or` chain in turn — aims at
   the gap this project kept recording: for N guards, a fixture where the other N-1 still
@@ -62,6 +379,14 @@ acceptance.
   plausible AFM range).
 
 ### Changed
+- **The readiness report distinguishes an artifact URL from a project reference.** R0 read
+  as "eleven downloads away": *1/12 model cards with a source URL pin a checkpoint hash.*
+  Of the eleven unpinned, zero name a downloadable artifact — they name GitHub
+  repositories and Hugging Face model pages, where there is no single file to hash, and
+  hashing the landing page would report the criterion met while pinning an HTML document.
+  The verdict is unchanged; the blocker now says *"and for 11 of them, first deciding
+  which file that is"*, and the evidence names both groups. Guarded three ways, including
+  a test that the split does not change `met`.
 
 - **Where SpCas9 cuts is computed once.** Four call sites did the arithmetic by hand — the pegRNA's nick, the PE3 nicking guide's nick, and the nuclease guide's cut site on each strand — and two of them took the base on the far side of the cut for a guide reading against the frame, which is the pair of defects above. `enumerate._cut.cut_index` is the rule: the first base 3' of the cut along the strand that reads the protospacer, `hi - cut_offset` reading with the frame and `lo + cut_offset - 1` against it. A guard fails if either module does that arithmetic outside the shared call, because a test that four copies agree is a test that has to be maintained alongside a fifth.
 - **A query that is not a guide length says so.** `aforge offtarget ACGT` answered with 151,093 sites and specificity 0.000 over a 2 Mb contig — arithmetically correct for a 4-mer, and a statement about nothing: every number an off-target report carries is about a *guide*. The report's search description now says when the query falls outside published guide lengths (17-24 nt: 20 for every chemistry this tool designs, 17-18 for truncated SpCas9 guides, 20-24 for Cas12a), so it reaches the CLI, the API and every render at once. Labelled, not refused — screening a seed sequence is a legitimate thing to do, and what is not legitimate is a specificity presented as if it described a reagent.
@@ -3055,7 +3380,85 @@ acceptance.
   automatically) and a packaging test that guards the marker — plus the bundled
   model cards, benchmark splits, and web frontend — against silent removal.
 
+### Removed
+- **A branch in `DNASequence.__getitem__` whose two arms were byte-identical.** A
+  type-guard sweep forced `isinstance(key, slice)` to both answers and the suite stayed
+  green for both — the signature of a predicate that decides nothing. `str.__getitem__`
+  already handles an `int` and a `slice`, and both arms wrapped the result identically, so
+  no test could have distinguished them. The branch read as though integer indexing were
+  special; the contract it hinted at (an `int` key and a `slice` key both return a
+  `DNASequence`, so callers can call sequence methods on the result) is real and is now
+  pinned.
+
 ### Fixed
+- **`--patient-vcf` says which of a person's alleles it did not scan.** `iter_vcf`
+  drops soft-filtered calls by default and `aforge batch` has counted those drops since
+  a cohort was found to be silently smaller than its file; the patient off-target path
+  called `list(iter_vcf(path))` and counted nothing. The asymmetry ran the wrong way —
+  for a cohort a dropped row is one guide fewer and the output visibly shortens, while
+  for `--patient-vcf` it is a safety check that was never performed, after which the run
+  reports no patient-origin sites, which reads exactly like a person who carries nothing
+  risky. A low-confidence call can still create a de-novo PAM in the person who carries
+  it. The drops are now counted and named on stderr; `pass_only`'s rationale, written for
+  designing against a cohort, is unchanged for that caller.
+- **A partly-real calibration corpus still says which rows are stand-ins.** The
+  synthetic-data caveat on the calibration report and on the committed figures fired only
+  when *every* row was a stand-in, so the first real corpus deleted it from a table whose
+  other rows were still fabricated at single-digit `n` — and because each dataset is
+  blocked on a different upstream release, corpora arrive one task at a time, making that
+  mixed table the first one a reader will see. Both notes now name the stand-in tasks
+  instead of counting them; the all-synthetic wording is unchanged and the committed
+  figures regenerate byte-identically. The cross-cell-type generalization table also
+  gained the `Data` column for the provenance flag it had been computing and discarding,
+  so the number most easily mistaken for a model measurement states its corpus too.
+- **The documentation site failed WCAG AA contrast on its own primary colour.**
+  `mkdocs.yml` selected `primary: teal`, which mkdocs-material renders as `#009688` with
+  white text on the header, buttons and active navigation: 3.67:1 against the 4.5:1 AA
+  needs for body-sized text, and 2.38:1 on the hover accent. The palette is now a custom
+  teal 700 with every pair measured — white on `#00796b` at 5.32:1, white on `#00675b` at
+  6.79:1, and a *lighter* `#4db6ac` accent at 5.35:1 for the dark scheme, whose text sits
+  on the opposite ground. The ratios are recorded in the stylesheet beside the values.
+  `low-contrast` findings across the rendered site went from the hundreds to zero.
+- **A served run records the data it was given.** The web API loads two caller-supplied
+  sources from the environment — `ALLELEFORGE_GNOMAD_TSV` and `ALLELEFORGE_HAPLOTYPES` —
+  and attached no provenance descriptor to either, so a served result could be
+  population-aware *and* haplotype-aware, say so in its rationale, and pin neither of the
+  files that made it so, while the identical run from the command line pinned both. The
+  descriptor the CLI already wrote (content hash, marked `caller_supplied`) now lives in
+  `types/provenance.py` as `describe_file_source`, both shells call it, and a test asserts
+  they agree for the same file. `dataset_version` is also now a declared attribute on
+  `HaplotypePanel` and `GnomadDB` rather than one attached from outside through a
+  suppressed `AttributeError` — the duck-typed contract is what let a surface silently
+  not participate.
+- **`MODEL LIMITATIONS` ran on from the provenance line above it.** The printable sheet
+  emitted the heading with no blank line, so the block naming what the models cannot do
+  read as a continuation of the sentence listing their versions. It is its own block now.
+
+- **AlleleForge refused its own printed indels.** `Variant.__str__` prints an absent
+  allele as a dash — `chr1:999:C>-` for a deletion, `chr1:999:->CA` for an insertion —
+  and the coordinate parser read `[ACGTN]*` on both sides and nothing else, so every one
+  of those strings came back `unrecognized variant input`. It was not only a round-trip
+  nicety: `_off_by_one_remedy`, the refusal that exists to hand a caller a string that
+  works when they have pasted a 0-based position into a 1-based input, builds its
+  suggestion from the same fallback — so for a **deletion** it ended `; try
+  chr1:1000:C>-`, a remedy that could not be run, inside the one message whose whole job
+  is to be runnable. The guard that runs every remedy had only ever been given
+  substitutions, where both alleles are present and the dash never appears. Both
+  spellings now resolve identically, and a dash beside real bases (`A->GG`) is still
+  refused.
+- **An off-by-one remedy could name a locus past the end of the contig.** `_ref_matches_at`
+  asks that the fetch was not padded *and* that the bases match, and every fixture sat
+  mid-contig where nothing is padded. A fetch past a contig end returns `N` padding, so an
+  assembly-gap record (`N` in the ref, which this project accepts) at the last base matched
+  its own padding one place right and would be told to try `chr2:32` of a thirty-base
+  contig. Pinned, with the in-contig case beside it so the guard cannot pass by refusing
+  everything.
+- **A cohort file with no extension was told to check its variant syntax.** The
+  wrong-argument sentence asks whether the text holds a path separator *or* ends in a data
+  suffix, and every fixture did both, so the separator arm had no case of its own.
+  `runs/2026-03/batch` and `/data/patients/cohort` now get the sentence naming the commands
+  that take files.
+
 - **Em dashes ran the printable report off the page.** `_escape` encodes the page to CP1252,
   so a character WinAnsiEncoding cannot represent is drawn as `?` and measuring it at 556
   (Helvetica's `?`) is correct. An em dash is not such a character: it is CP1252 0x97, it

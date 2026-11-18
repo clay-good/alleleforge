@@ -16,6 +16,7 @@ requires minting a new split *version*; you never edit a published one.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
@@ -26,6 +27,31 @@ from alleleforge.benchmark.tasks import Example
 
 #: Directory of bundled frozen split files.
 SPLITS_DIR = Path(__file__).parent
+
+#: Where to read frozen splits from instead of the bundled ones.
+#:
+#: A real corpus needs its own frozen split: the split records the dataset's content
+#: hash and `verify` refuses a mismatch, so a bundled split cannot be reused over
+#: replaced data — correctly. Supplying corpora through
+#: :data:`~alleleforge.benchmark.datasets.DATASETS_DIR_ENV` without this would make
+#: every load fail its integrity check, which is the right failure and a dead end.
+SPLITS_DIR_ENV = "ALLELEFORGE_BENCH_SPLITS"
+
+
+def splits_root(splits_dir: Path | None = None) -> Path:
+    """Return the directory frozen splits are read from.
+
+    Args:
+        splits_dir: An explicit directory, which always wins.
+
+    Returns:
+        ``splits_dir`` if given, else the directory named by :data:`SPLITS_DIR_ENV`,
+        else the bundled splits.
+    """
+    if splits_dir is not None:
+        return splits_dir
+    supplied = os.environ.get(SPLITS_DIR_ENV)
+    return Path(supplied) if supplied else SPLITS_DIR
 
 
 class SplitIntegrityError(RuntimeError):
@@ -140,7 +166,7 @@ def load_split(
     task: str,
     *,
     version: str = "v1",
-    splits_dir: Path = SPLITS_DIR,
+    splits_dir: Path | None = None,
     dataset: BenchmarkDataset | None = None,
 ) -> tuple[Split, BenchmarkDataset]:
     """Load and integrity-check the frozen split for ``task``.
@@ -148,9 +174,10 @@ def load_split(
     Args:
         task: The task name (matches ``splits/<task>.<version>.json``).
         version: The split version to load.
-        splits_dir: Override for the splits directory (tests).
-        dataset: A pre-loaded dataset to verify against; loaded from the bundled
-            fixtures if omitted.
+        splits_dir: Read from this directory instead of the one :func:`splits_root`
+            resolves.
+        dataset: A pre-loaded dataset to verify against; loaded through
+            :func:`~alleleforge.benchmark.datasets.load_dataset` if omitted.
 
     Returns:
         ``(split, dataset)`` with both integrity checks passed.
@@ -159,9 +186,10 @@ def load_split(
         FileNotFoundError: If the split file is missing.
         SplitIntegrityError: If either hash check fails.
     """
-    path = splits_dir / f"{task}.{version}.json"
+    root = splits_root(splits_dir)
+    path = root / f"{task}.{version}.json"
     if not path.is_file():
-        available = sorted(p.name for p in splits_dir.glob("*.json"))
+        available = sorted(p.name for p in root.glob("*.json"))
         raise FileNotFoundError(f"no split {task!r}@{version!r}; available: {available}")
     split = Split.model_validate_json(path.read_text())
     ds = dataset if dataset is not None else load_dataset(split.dataset)

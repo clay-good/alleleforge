@@ -59,8 +59,14 @@ _REFSEQ_CHROM: dict[str, str] = {
 # ("the first base of a contig is position 1") rather than as an unparseable input: the
 # string is obviously a coordinate, and saying "unrecognized variant input" of it sends
 # the reader to check their syntax, which is fine.
+#: ``chrom:pos:ref>alt``. An absent allele may be written as the empty string or as a
+#: dash, because :meth:`Variant.__str__` *prints* it as a dash — ``chr1:999:C>-`` for a
+#: deletion, ``chr1:999:->CA`` for an insertion. Reading only the empty form made this
+#: tool refuse its own printed variant for every indel, with "unrecognized variant
+#: input": the same sin as the 0-based/1-based mismatch the off-by-one remedy below
+#: exists to explain, and the remedy itself printed a dash it could not read back.
 _COORD_RE = re.compile(
-    r"^(?P<chrom>[\w.]+):(?P<pos>-?\d+):(?P<ref>[ACGTN]*)>(?P<alt>[ACGTN]*)$",
+    r"^(?P<chrom>[\w.]+):(?P<pos>-?\d+):(?P<ref>-|[ACGTN]*)>(?P<alt>-|[ACGTN]*)$",
     re.IGNORECASE,
 )
 _RSID_RE = re.compile(r"^rs\d+$", re.IGNORECASE)
@@ -328,8 +334,8 @@ def _from_string(
         Variant(
             chrom=m.group("chrom"),
             pos=_zero_based(m.group("chrom"), int(m.group("pos"))),
-            ref=m.group("ref").upper(),
-            alt=m.group("alt").upper(),
+            ref=_allele(m.group("ref")),
+            alt=_allele(m.group("alt")),
         ),
         "coordinates",
         None,
@@ -352,6 +358,11 @@ _VCF_LINE_RE = re.compile(
     r"^(?P<chrom>[\w.]+)\s+(?P<pos>\d+)\s+(?P<id>\S+)\s+"
     r"(?P<ref>[ACGTNacgtn]+)\s+(?P<alt>[ACGTNacgtn]+)(?:\s+\S+)*$"
 )
+
+
+def _allele(text: str) -> str:
+    """Return the allele a coordinate match carries, reading ``-`` as absent."""
+    return "" if text == "-" else text.upper()
 
 
 def _vcf_line(text: str) -> VcfRecord | None:

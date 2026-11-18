@@ -67,6 +67,15 @@ def _honored() -> set[str]:
     import conftest
 
     names |= set(conftest._OPT_IN_MARKERS.values())
+    # Same reason, one layer along: the benchmark corpora and splits directories are
+    # read through module constants rather than inline literals, so the regex above
+    # sees `os.environ.get(DATASETS_DIR_ENV)` and no name. A constant assigned a
+    # literal and handed to `os.environ` is read; naming it is better style than a
+    # magic string, and the guard should not punish that.
+    from alleleforge.benchmark.datasets import DATASETS_DIR_ENV
+    from alleleforge.benchmark.splits import SPLITS_DIR_ENV
+
+    names |= {DATASETS_DIR_ENV, SPLITS_DIR_ENV}
     return names
 
 

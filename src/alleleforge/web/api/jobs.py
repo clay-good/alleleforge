@@ -211,7 +211,11 @@ class JobManager:
         record = JobRecord(id=uuid.uuid4().hex)
         self._jobs[record.id] = record
         self._in_flight += 1
-        self._evict()  # reclaim old terminal records this submission may push over the cap
+        # Belt and braces: the budget counts *terminal* records and a submission adds a
+        # running one, so this cannot be the call that reclaims anything — the one in the
+        # completion path is. Kept because a future bound that counts all records would
+        # need it, and proved inert rather than assumed (R668).
+        self._evict()
 
         async def _run() -> None:
             record.state = JobState.RUNNING

@@ -95,6 +95,22 @@ def test_the_pinned_digest_is_the_shipped_file_and_not_the_source_url() -> None:
     )
 
 
+def test_a_row_with_no_source_is_not_fetchable_either(tmp_path: Path) -> None:
+    """The flag reads `sha256 and source_url`, and only the `sha256` half had a case.
+
+    Every registered row that carries a digest also carries a URL, so the test above —
+    which runs `resolve` for each one — cannot separate the two reads. `resolve` answers
+    a pinned row with no source with `MissingDependencyError`, saying a source is what is
+    missing rather than consent; without the `source_url` read the status beside it says
+    `fetchable: True`, and `aforge data fetch` offers a fetch that cannot be attempted.
+    """
+    descriptor = DEFAULT_REGISTRY.get(_BUNDLED).model_copy(
+        update={"name": "gnomad", "bundled": False, "bundled_path": None, "source_url": None}
+    )
+    assert descriptor.sha256, "the premise: this row is pinned"
+    assert dataset_status("gnomad", descriptor, cache_dir=tmp_path)["fetchable"] is False
+
+
 def test_a_row_with_no_checksum_is_still_not_fetchable() -> None:
     """The guarantee this must not weaken: nothing unverifiable is downloadable."""
     for name in _names():

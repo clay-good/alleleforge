@@ -74,3 +74,34 @@ def test_the_end_bins_are_their_own_bins(
 def test_a_truth_on_an_interval_endpoint_is_covered() -> None:
     intervals = [(0.2, 0.5), (0.2, 0.5)]
     assert interval_calibration_error(intervals, [0.2, 0.5], nominal=0.8) == pytest.approx(0.2)
+
+
+@pytest.mark.parametrize(
+    ("confidences", "correct"),
+    [([0.5], []), ([0.5], [0, 1]), ([], [1]), ([0.2, 0.8], [1])],
+)
+def test_ece_answers_a_mismatched_pair_rather_than_raising(
+    confidences: list[float], correct: list[int]
+) -> None:
+    """Two length reads guard the same `strict=True` zip, and only one had a case.
+
+    `expected_calibration_error` opens with `len(confidences) != len(correct) or not
+    confidences or _has_nonfinite(...)`. The empty read and the non-finite read are
+    pinned above; the *length* read is the one that stops `zip(..., strict=True)` two
+    lines later from raising. Without it a mismatched pair — the shape a caller gets
+    when predictions and outcomes are assembled from different filters — comes back as
+    a `ValueError` out of the middle of a metric, instead of the `None` this module
+    returns for every other undefined input and the board renders as "undefined".
+    """
+    assert expected_calibration_error(confidences, correct) is None
+
+
+@pytest.mark.parametrize(
+    ("intervals", "truths"),
+    [([(0.0, 1.0)], []), ([(0.0, 1.0)], [0.5, 0.9]), ([], [0.5])],
+)
+def test_interval_coverage_answers_a_mismatched_pair_rather_than_raising(
+    intervals: list[tuple[float, float]], truths: list[float]
+) -> None:
+    """The same pair of reads, the same `strict=True` zip, the same missing case."""
+    assert interval_calibration_error(intervals, truths, nominal=0.9) is None

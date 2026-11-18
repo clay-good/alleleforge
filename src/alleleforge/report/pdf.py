@@ -501,6 +501,10 @@ def _report_lines(report: DesignReport, max_candidates: int | None) -> list[str]
         lines += _wrap("; ".join(provenance))
     limits = model_limitation_lines(report.provenance)
     if limits:
+        # Its own block. Without the separator it reads as a continuation of the
+        # provenance sentence above, which is a list of versions — and these are the
+        # sentences saying what the models cannot do.
+        lines.append("")
         lines += _wrap("MODEL LIMITATIONS")
         for line in limits:
             lines += _wrap(line, indent="  ")

@@ -46,3 +46,8 @@ site/
 
 # openlore analysis artifacts
 .openlore/
+
+# The mutation harness writes its sweep log beside itself (scripts/mutate.py).
+# A sweep result is evidence for a round, not a tracked artifact: the round that
+# used it records what it said.
+scripts/mutants.log

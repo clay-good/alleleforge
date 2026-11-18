@@ -8,8 +8,10 @@ reference build, the config snapshot, the seed, and a UTC timestamp.
 
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime
 from enum import StrEnum
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -79,6 +81,38 @@ class DatasetVersion(BaseModel):
     redistributable: bool = False
     caller_supplied: bool = False
     bundled: bool = False
+
+
+def describe_file_source(path: str | Path, name: str) -> DatasetVersion:
+    """Return a provenance descriptor pinning a caller-supplied file by its contents.
+
+    A file a user points at has no upstream version string, so the honest pin is what
+    it *contained* on this run: two runs agree iff the bytes did. Without it a
+    population- or haplotype-aware result records neither which data made it so nor
+    whether any was supplied at all, and the whole point of the provenance block is that
+    a result can be re-derived from it.
+
+    It lives here rather than in one shell because **both** shells load these files. The
+    CLI attached a descriptor and the web API did not, so the same panel produced a
+    provenance block naming it from the command line and a silent one over HTTP — the
+    two-surfaces-one-capability shape this project has repaired several times.
+
+    Args:
+        path: The file whose bytes are pinned.
+        name: The source name recorded in the descriptor (e.g. ``"haplotype-panel"``).
+
+    Returns:
+        A :class:`DatasetVersion` carrying the content hash, marked ``caller_supplied``
+        — nothing in a cache or a bundle holds these bytes, so ``verify`` must not
+        report them as an artifact a reader could go and fetch.
+    """
+    digest = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    return DatasetVersion(
+        name=name,
+        version=f"sha256:{digest[:12]}",
+        sha256=digest,
+        caller_supplied=True,
+    )
 
 
 class ModelCheckpoint(BaseModel):

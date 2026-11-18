@@ -22,6 +22,7 @@ from typing import Any
 
 import pytest
 
+from alleleforge.cache import CacheIntegrityError
 from alleleforge.design.designer import design
 from alleleforge.design.prime import PrimeEfficiencyScorer
 from alleleforge.errors import MissingDependencyError
@@ -91,3 +92,42 @@ def test_the_rationale_still_says_what_happened(reference: ReferenceGenome) -> N
     )
     assert "MissingDependencyError" in menu.rationale
     assert "not installed here" in menu.rationale
+
+
+@pytest.mark.parametrize(
+    ("failure", "marker"),
+    [
+        (CacheIntegrityError("the entry is not the bytes that were written"), "integrity"),
+        (RuntimeError("an outright defect"), "defect"),
+    ],
+)
+def test_a_chemistry_that_raised_stamps_no_model_whichever_way_it_raised(
+    reference: ReferenceGenome,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: Exception,
+    marker: str,
+) -> None:
+    """Three `except` arms each drop the chemistry from the models block; one was tested.
+
+    `_run_chemistry` catches an altered store, an expected design failure, and anything
+    else, and every arm does the same two things: write a note, and add the chemistry to
+    the `failed` set that `_collect_model_checkpoints` subtracts. Only the middle arm —
+    the expected failure, exercised by the refusing scorer above — had a test, so the
+    `failed.update(...)` in the other two could be deleted and the suite stayed green.
+
+    The consequence is the one this whole file is about, arriving by two other doors: a
+    run whose prime vertical died on a tampered cache entry, or on a genuine bug, still
+    records `pridict2-baseline` as a model that scored it. `aforge verify` reads that
+    block to decide whether a result is reproducible, and nothing scored anything.
+    """
+    from alleleforge.design import designer as designer_module
+
+    def explode(*args: object, **kwargs: object) -> object:
+        raise failure
+
+    monkeypatch.setattr(designer_module, "design_prime", explode)
+    menu = design("chr2:71:A>C", reference=reference, run_offtarget=False)
+
+    assert not menu.candidates, "prime was supposed to be the only eligible chemistry"
+    assert _names(menu) == [], f"a {marker} failure left a model in the provenance: {_names(menu)}"
+    assert "prime" in menu.rationale, menu.rationale
