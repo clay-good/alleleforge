@@ -23,10 +23,10 @@ from typing import Any
 
 import pytest
 import typer
-from typer._click.types import StringParamType
 from typer.testing import CliRunner
 
 from alleleforge.cli.main import ExitCode, app
+from tests.cli_options import string_flags
 
 #: How to reach each command's body. The *commands* are derived below; this only says
 #: what each one needs to get past its own required arguments.
@@ -59,10 +59,7 @@ def _string_option_commands() -> list[str]:
             for name, sub in subcommands.items():
                 walk(sub, [*path, name])
             return
-        if any(
-            isinstance(p.type, StringParamType) and p.opts[0].startswith("-")
-            for p in command.params
-        ):
+        if string_flags(command):
             found.append(" ".join(path))
 
     root = typer.main.get_command(app)
@@ -84,11 +81,7 @@ def _string_flags(command: str) -> list[str]:
     cmd: Any = typer.main.get_command(app)
     for part in command.split():
         cmd = cmd.commands[part]
-    return sorted(
-        p.opts[0]
-        for p in cmd.params
-        if isinstance(p.type, StringParamType) and p.opts[0].startswith("-")
-    )
+    return sorted(string_flags(cmd))
 
 
 def _cases() -> list[tuple[str, str, str]]:

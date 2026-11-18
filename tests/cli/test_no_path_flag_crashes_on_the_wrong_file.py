@@ -27,10 +27,10 @@ from typing import Any
 
 import pytest
 import typer
-from typer.models import TyperPath
 from typer.testing import CliRunner
 
 from alleleforge.cli.main import ExitCode, app
+from tests.cli_options import path_flags
 
 #: The commands that take a genome and a variant, with the arguments each needs to get
 #: past its own required options. Every path *flag* on each is then derived from the
@@ -65,7 +65,7 @@ def _path_option_commands() -> list[str]:
             for name, sub in subcommands.items():
                 walk(sub, [*path, name])
             return
-        if any(isinstance(p.type, TyperPath) and p.opts[0].startswith("-") for p in command.params):
+        if path_flags(command):
             found.append(" ".join(path))
 
     root = typer.main.get_command(app)
@@ -93,9 +93,7 @@ def _path_flags(command: str) -> list[str]:
     cmd: Any = typer.main.get_command(app)
     for part in command.split():
         cmd = cmd.commands[part]
-    return sorted(
-        p.opts[0] for p in cmd.params if isinstance(p.type, TyperPath) and p.opts[0].startswith("-")
-    )
+    return sorted(path_flags(cmd))
 
 
 def _cases() -> list[tuple[str, str, str]]:
