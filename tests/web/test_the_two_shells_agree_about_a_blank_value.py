@@ -118,17 +118,13 @@ def test_each_pair_names_an_option_both_shells_have() -> None:
     pydantic, and "both refused" is agreement.
     """
     import typer
-    from typer._click.types import StringParamType
 
     from alleleforge.web.api.models import DesignRequest
+    from tests.cli_options import string_flags
 
     root = typer.main.get_command(cli_app)
     design = root.commands["design"]  # type: ignore[attr-defined]
-    flags = {
-        p.opts[0]
-        for p in design.params
-        if isinstance(p.type, StringParamType) and p.opts and p.opts[0].startswith("-")
-    }
+    flags = set(string_flags(design))
     for flag, field in _SHARED:
         assert flag in flags, f"{flag} is no longer a string option of `aforge design`"
         assert field in DesignRequest.model_fields, f"{field} is no longer a request field"
