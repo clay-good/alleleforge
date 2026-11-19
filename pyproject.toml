@@ -56,7 +56,8 @@ variant = [
     "hgvs>=1.5",
 ]
 cli = [
-    "typer>=0.12",
+    # 0.26 is the first release with `typer._click.globals`, which the CLI imports.
+    "typer>=0.26",
 ]
 ml = [
     "torch>=2.3",

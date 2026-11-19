@@ -42,7 +42,7 @@ requirements:
     # it the recipe's own test fails at build with ModuleNotFoundError. It is pure
     # Python and small — the "heavy optional stacks" the comment above defers to pip are
     # genome/ml/web, not this.
-    - typer >=0.12
+    - typer >=0.26
 
 test:
   imports:
