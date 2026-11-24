@@ -23647,3 +23647,65 @@ failing baselines took another twenty minutes, and without that step the number 
 been indistinguishable from the most embarrassing failure mode this harness has. Record
 the clean result so nobody rebuilds the operator — and record what it covered, because
 "clean" is a claim about a list as much as about the code.
+
+## Round 686 — the half of R0 that was counted but never explained
+
+`scripts/release_readiness.py` is this project's release authority, and the one thing it
+exists to do is **separate blocked from forgotten**. Its own test file says so. On the
+model-card side it does that carefully: R679 split the unpinned cards into *needs a fetch*
+and *needs somebody to decide which file*, because counting them together made R0 read as
+eleven downloads away when eleven of them were waiting on an upstream that publishes no
+single file.
+
+The dataset side of the same criterion got none of it. R0 reported `3/8 datasets pin one`
+and then accounted for **zero** of the other five. A reader could not tell whether those
+five were blocked upstream or simply undone — the exact distinction the report is for —
+and the five were never named, so nobody could check.
+
+**And the number underneath was wrong.** `blocked_by` reads "for N of them, first deciding
+which file that is", and `N` counted the referenced *cards* only. With the datasets
+triaged it is **16**, not 11. R679's lesson was that this number is read as the distance to
+v1.0; omitting a whole category is that defect in a second place. **The sibling that
+learned the lesson and the sibling that did not were in the same function, forty lines
+apart** — the shape this log keeps recording, now inside the mechanism that reports on
+everything else.
+
+### The third category, which the cards do not need
+
+Triaging the datasets with the card-side predicate alone produces a *false* claim.
+`dbsnp` names `/snp/latest_release/VCF/GCF_000001405.40.gz` — that is a file, so
+`_names_an_artifact` is satisfied and it would be reported as one fetch-and-hash away.
+
+It is not. The hash would be of whatever `latest_release` meant on the day it was taken,
+and the next NCBI release invalidates it. That is worse than a stale number: **the consent
+gate refuses an artifact whose digest does not match, so pinning this URL would break the
+dataset** rather than secure it. The two datasets that *are* pinned both name immutable
+paths — a dated ClinVar archive, a numbered GENCODE release — which is exactly what makes
+their hashes worth having.
+
+So R0 has three ways to be blocked, not two: go fetch it; upstream publishes no single
+file; **upstream publishes the file only at a floating address, and a versioned one has to
+be found first.** Bundled descriptors never reach this — their hash is of the bytes
+shipped in the package, so the URL is provenance rather than a fetch target, which is why
+`doench-2016-cfd` can sit pinned behind a `master` URL without contradiction.
+
+### What the report says now
+
+Unchanged verdict — still open, still 1/5. The report got more honest, not more
+flattering, which is the property `test_splitting_the_unpinned_does_not_change_the_verdict`
+has asserted since R679 and which still holds. What changed is that all five unpinned
+datasets are now named and attributed: 0 fetchable, 1 at a moving path (`dbsnp`), 4 naming
+a portal or directory (`1000g`, `encode`, `gnomad`, `hgdp`).
+
+Three guards, each checked against a deliberate regression (reverting the count, deleting
+the moving-path category, dropping the names): every unpinned dataset appears in exactly
+one dataset line **by name**; the predicate separates a moving path from an immutable one,
+with the two real pinned URLs as the negative cases; and the blocked count equals cards
+plus datasets, with an assertion that the dataset side contributes to it — otherwise the
+regression it guards could not be observed.
+
+**Lesson: a report that states a count and explains none of it has not measured that
+half.** `3/8` looked like measurement and was closer to a placeholder: the number was
+real, the triage behind it did not exist, and the one sentence that aggregated both halves
+silently dropped one. When a function treats two collections as one criterion, check that
+both got the same reasoning — the lesson learned for the first does not propagate itself.

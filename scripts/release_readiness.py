@@ -66,6 +66,39 @@ def _names_an_artifact(url: str) -> bool:
     return bool(path) and bool(_ARTIFACT_PATH.search(path))
 
 
+#: Path segments that mean "whatever is newest", not a particular release.
+_MOVING_SEGMENTS = frozenset(
+    {"latest", "latest_release", "master", "main", "current", "head", "dev", "nightly"}
+)
+
+
+def _names_a_moving_target(url: str) -> bool:
+    """Whether ``url`` names a file whose bytes upstream may replace in place.
+
+    `dbsnp` points at `/snp/latest_release/VCF/GCF_000001405.40.gz`. That names a file,
+    so :func:`_names_an_artifact` is satisfied and the card-side triage would report it
+    as one fetch-and-hash away — which is wrong. The hash would be of whatever
+    `latest_release` meant on the day it was taken, and the next upstream release
+    silently invalidates it. Worse than a stale number: the consent gate refuses an
+    artifact whose digest does not match, so pinning this URL would *break* the dataset
+    the first time NCBI publishes again.
+
+    The two datasets that *are* pinned both name an immutable path — a dated ClinVar
+    archive and a numbered GENCODE release — which is what makes their hashes mean
+    something. So this is a third thing that can stand in the way of R0, alongside "go
+    fetch it" and "upstream publishes no single file": *upstream publishes the file only
+    at a floating address, and a versioned one has to be found first.*
+
+    A bundled descriptor is exempt by construction and never reaches this: its hash is
+    of the bytes shipped inside the package, so the URL is provenance rather than a
+    fetch target.
+    """
+    without_scheme = url.split("://", 1)[-1]
+    path = without_scheme[without_scheme.find("/") :] if "/" in without_scheme else ""
+    segments = {segment.lower() for segment in path.split("/") if segment}
+    return bool(segments & _MOVING_SEGMENTS)
+
+
 def _artifact_pinning() -> Criterion:
     """R0: every shipped card/descriptor pins a real, verified artifact hash."""
     from alleleforge.data.registry import DEFAULT_REGISTRY
@@ -87,6 +120,22 @@ def _artifact_pinning() -> Criterion:
 
     datasets = [DEFAULT_REGISTRY.get(name) for name in DEFAULT_REGISTRY.names]
     ds_pinned = [d for d in datasets if getattr(d, "sha256", None)]
+    # The same split the cards get, for the same reason. Without it the report stated a
+    # dataset count and then accounted for none of it, so a reader could not tell the
+    # unpinned five from forgotten work — which is the one distinction this report
+    # exists to draw.
+    ds_unpinned = [d for d in datasets if not getattr(d, "sha256", None)]
+    ds_named = [(d, getattr(d, "source_url", None) or "") for d in ds_unpinned]
+    ds_fetchable = [
+        d for d, u in ds_named if _names_an_artifact(u) and not _names_a_moving_target(u)
+    ]
+    ds_moving = [d for d, u in ds_named if _names_an_artifact(u) and _names_a_moving_target(u)]
+    ds_referenced = [d for d, u in ds_named if not _names_an_artifact(u)]
+
+    # What needs somebody to decide *which file*: the cards that name a page, plus the
+    # datasets that name a portal, plus the ones that name a file at a floating address.
+    # Counting only the cards understated this by the whole dataset side.
+    undecided = len(referenced) + len(ds_referenced) + len(ds_moving)
 
     met = len(pinned) == len(downloadable) and len(ds_pinned) == len(datasets)
     return Criterion(
@@ -102,7 +151,7 @@ def _artifact_pinning() -> Criterion:
             if met
             else (
                 "requires freezing the published upstream artifacts — and for "
-                f"{len(referenced)} of them, first deciding which file that is"
+                f"{undecided} of them, first deciding which file that is"
             )
         ),
         evidence=[
@@ -116,6 +165,17 @@ def _artifact_pinning() -> Criterion:
             "pins one, and hashing the landing page would report this criterion met "
             "while pinning an HTML document"
             + (": " + ", ".join(sorted(c.name for c in referenced)) if referenced else ""),
+            f"{len(ds_fetchable)} unpinned dataset(s) name a fixed single artifact, so a "
+            "fetch-and-hash would pin them"
+            + (": " + ", ".join(sorted(d.name for d in ds_fetchable)) if ds_fetchable else ""),
+            f"{len(ds_moving)} unpinned dataset(s) name a file at a moving path, so the "
+            "hash would be of whatever that address meant on the day it was taken and the "
+            "next upstream release would invalidate it — the consent gate would then refuse "
+            "the dataset, so a versioned URL has to be found first"
+            + (": " + ", ".join(sorted(d.name for d in ds_moving)) if ds_moving else ""),
+            f"{len(ds_referenced)} unpinned dataset(s) name a portal or a directory, not a "
+            "single artifact, so there is nothing there to hash"
+            + (": " + ", ".join(sorted(d.name for d in ds_referenced)) if ds_referenced else ""),
             "the consent gate refuses a null-hash fetch, so an unpinned artifact "
             "cannot be loaded rather than being loaded unverified",
         ],

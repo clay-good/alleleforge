@@ -3400,6 +3400,19 @@ acceptance.
   pinned.
 
 ### Fixed
+- **The readiness report explains the dataset half of R0, and its blocked count includes
+  it.** `scripts/release_readiness.py` exists to separate *blocked* from *forgotten*, and on
+  the model-card side it triages the unpinned cards into "needs a fetch" and "needs somebody
+  to decide which file". The dataset side of the same criterion reported `3/8 datasets pin
+  one` and then accounted for none of the other five, so a reader could not tell upstream
+  blockage from undone work, and the five were never named. The sentence "for N of them,
+  first deciding which file that is" also counted the cards only: with the datasets triaged
+  it is 16, not 11. All five unpinned datasets are now named and attributed, and a third
+  blocking category is reported that the cards do not need — a dataset naming a file at a
+  *moving* path (`dbsnp` at `latest_release/`), where a pinned hash would be of whatever
+  that address meant that day and the next upstream release would invalidate it, at which
+  point the consent gate refuses the dataset rather than merely reporting a stale number.
+  The verdict is unchanged at 1/5: the report got more honest, not more flattering.
 - **Conformal recalibration no longer erases a trained point estimate's provenance.**
   `Prediction.point_from_trained_model` exists so that a trained point shipped with an
   uncalibrated heuristic interval is distinguishable from a fully heuristic prediction, and

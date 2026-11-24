@@ -248,3 +248,108 @@ def test_splitting_the_unpinned_does_not_change_the_verdict() -> None:
     )
     r0 = next(c for c in release_readiness.criteria() if c.track == "R0")
     assert r0.met is expected
+
+
+def test_a_moving_path_is_not_a_pinnable_artifact() -> None:
+    """A URL can name a file and still not be pinnable.
+
+    `dbsnp` points at `/snp/latest_release/VCF/GCF_000001405.40.gz`, which names a file,
+    so the card-side predicate alone would report it one fetch-and-hash away. Pinning it
+    would record the digest of whatever `latest_release` meant that day, and the next
+    upstream release would invalidate it — at which point the consent gate refuses the
+    dataset, so the pin would *break* it rather than merely go stale.
+
+    The two datasets that are pinned name immutable paths, which is what makes their
+    hashes mean anything. That contrast is the point of the predicate.
+    """
+    moving = [
+        "https://ftp.ncbi.nlm.nih.gov/snp/latest_release/VCF/GCF_000001405.40.gz",
+        "https://example.invalid/downloads/latest/weights.bin",
+        "https://github.com/o/r/raw/main/model.pkl",
+        "https://example.invalid/nightly/data.vcf.gz",
+    ]
+    fixed = [
+        "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/archive_2.0/2024/clinvar_20240528.vcf.gz",
+        "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/gencode.v47.annotation.gtf.gz",
+        "https://github.com/o/r/releases/download/v1/weights.txt",
+    ]
+    for url in moving:
+        assert release_readiness._names_a_moving_target(url), url
+    for url in fixed:
+        assert not release_readiness._names_a_moving_target(url), url
+
+
+def test_every_unpinned_dataset_is_accounted_for_by_name() -> None:
+    """R0 stated a dataset count and then explained none of it.
+
+    The card side has been split by what blocks it since R679; the dataset side was
+    counted into the same verdict and never triaged, so `3/8 datasets pin one` left a
+    reader unable to tell the other five from forgotten work. Separating *blocked* from
+    *forgotten* is the one thing this report exists to do.
+
+    Every unpinned dataset must appear in exactly one of the three dataset lines, by
+    name — a count with no names is how the gap survived.
+    """
+    from alleleforge.data.registry import DEFAULT_REGISTRY
+
+    r0 = next(c for c in release_readiness.criteria() if c.track == "R0")
+    lines = {
+        "fetchable": next(line for line in r0.evidence if "fixed single artifact" in line),
+        "moving": next(line for line in r0.evidence if "moving path" in line),
+        "referenced": next(line for line in r0.evidence if "portal or a directory" in line),
+    }
+
+    unpinned = [
+        DEFAULT_REGISTRY.get(n)
+        for n in DEFAULT_REGISTRY.names
+        if not getattr(DEFAULT_REGISTRY.get(n), "sha256", None)
+    ]
+    assert unpinned, "no unpinned datasets left; this check would be vacuous"
+
+    for descriptor in unpinned:
+        hits = [key for key, line in lines.items() if descriptor.name in line]
+        assert len(hits) == 1, f"{descriptor.name} appears in {hits}, want exactly one"
+
+    import re
+
+    counts = [int(re.match(r"(\d+)", line).group(1)) for line in lines.values()]  # type: ignore[union-attr]
+    assert sum(counts) == len(unpinned), (counts, len(unpinned))
+
+
+def test_the_blocked_count_covers_datasets_as_well_as_cards() -> None:
+    """ "for N of them, first deciding which file that is" must count every N.
+
+    It counted the referenced *cards* only, so the sentence understated the work by the
+    whole dataset side. R679's lesson was that this number is read as the distance to
+    v1.0; a number that omits a category is the same defect in a different place.
+    """
+    from alleleforge.data.registry import DEFAULT_REGISTRY
+    from alleleforge.model_zoo.registry import default_registry
+
+    zoo = default_registry()
+    cards = [zoo.get(name) for name in zoo.names]
+    card_referenced = [
+        c
+        for c in cards
+        if c.source_url
+        and not c.checkpoint_sha256
+        and not release_readiness._names_an_artifact(c.source_url)
+    ]
+    datasets = [DEFAULT_REGISTRY.get(n) for n in DEFAULT_REGISTRY.names]
+    needs_a_decision = [
+        d
+        for d in datasets
+        if not getattr(d, "sha256", None)
+        and (
+            not release_readiness._names_an_artifact(getattr(d, "source_url", None) or "")
+            or release_readiness._names_a_moving_target(getattr(d, "source_url", None) or "")
+        )
+    ]
+
+    r0 = next(c for c in release_readiness.criteria() if c.track == "R0")
+    expected = len(card_referenced) + len(needs_a_decision)
+    assert f"for {expected} of them" in r0.blocked_by, (r0.blocked_by, expected)
+    assert expected > len(card_referenced), (
+        "the dataset side contributes nothing to this count, so the regression it "
+        "guards against could not be observed"
+    )
