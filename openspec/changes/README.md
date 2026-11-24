@@ -24575,3 +24575,78 @@ deliberately, and this was not the round to do it in passing.
 descriptors carried the same shape for opposite reasons: one was drifting silently and
 needed fixing, the other is load-bearing and needed leaving alone. The difference was
 invisible from the URL and obvious from the tests.
+
+## Round 699 — the four "portals" were never a pinning chore, and I had said they were
+
+R0's last dataset group. `specs/r0-artifact-pinning.md` claimed, in my own words two
+rounds ago, that the four portals were "the one group this repository could finish
+unilaterally: the work is choosing them and hashing". Reading how they are actually
+consumed says otherwise, and the correction is the round.
+
+Every one of their `filename` values is a **derived** table —
+`gnomad.v4.1.sites.tsv.gz`, `1000g.phase3.haplotypes.tsv.gz`,
+`hgdp.haplotypes.tsv.gz`, `encode.tracks.bedgraph.gz`. The project neither ships nor
+fetches them, and no conversion script in the repository produces them: the caller builds
+the table and points at it (`--gnomad`, `--haplotypes`, `$ALLELEFORGE_GNOMAD_TSV`), and
+`GnomadDB.from_sites_tsv` reads it. **No upstream file's hash would describe what gets
+loaded** — pinning a gnomAD release VCF verifies an input to a conversion whose output is
+the thing actually read.
+
+The honesty mechanism for these already exists, and I confirmed it by running the product
+rather than reading the docstring: `describe_file_source` hashes the supplied bytes and
+records them in the result's provenance.
+
+```
+{"name": "gnomad-sites", "version": "sha256:9f1d35dcee1f",
+ "sha256": "9f1d35dcee1f93…", "caller_supplied": true}
+```
+
+For reproducing a *result*, that is stronger than a pin on a file the project never
+opens.
+
+### What I deliberately did not do
+
+The obvious move was to drop the four from R0's denominator, taking datasets from `3/8` to
+`3/4`. I did not, and the reason is R695: a criterion is a proxy, and the round that
+pinned blob hashes to move R0 from `1/12` to `4/12` broke the load path while the number
+improved. R0's wording — "every shipped card/descriptor pins a verified artifact hash" —
+is the user's to change; whether a descriptor the project never ships belongs in that
+ratio is a question about the criterion, not a gap for me to close by editing the
+denominator. **Rewriting the measure to fit the thing measured is the same mistake wearing
+a tidier hat.**
+
+So the report's wording changed and its arithmetic did not. The evidence line used to read
+"there is nothing there to hash", which was true of a portal and misleading about why; it
+now says the data is caller-supplied by design, names the mechanism that covers it, and
+says plainly that the remaining question is about the criterion's scope.
+
+### Reusing a lesson from two rounds ago
+
+The test that selects that evidence line failed with `StopIteration` when the wording
+changed — a broken-looking test for a working report. R696 hit the mirror image of this,
+where a selector matched *two* lines and silently counted the wrong one. Both are now
+served by one helper that asserts exactly one match and says how many it found. **A test
+that locates its subject by substring needs to fail loudly on zero and on two.**
+
+### The root guard diagnosed my own shell mistake
+
+The full suite failed on `test_no_unexpected_file_is_lying_around_in_the_root`, over a
+file named `C`. I had run the verification design as `... design chr2:71:A>C ...`
+unquoted, so the shell read `>C` as a redirect and wrote the command's stderr to a file
+called `C` in the repository root. The guard's message names the cause before a reader can
+wonder: "A single upper-case letter is almost certainly an unquoted `>` in a shell command
+— the ALT allele of a variant, written to a file. Delete it; `.gitignore` is the wrong
+answer, because the next one has a different name."
+
+It also closed a loop on the evidence above. The stray contained
+`No module named alleleforge.cli.__main__`, which is to say my *first* invocation failed
+and the fallback is what produced the provenance block quoted earlier — worth confirming,
+because a finding resting on output I had not traced to a working command would not have
+been a finding.
+
+### R0, finally stated correctly
+
+Unchanged at 1/12 cards and 3/8 datasets, and no longer blocked on any decision this
+repository can make: 6 cards pin a revision because their loader consumes a set of files,
+5 need an upstream release, 4 datasets are caller-supplied by design, 1 needs a 26 GB
+fetch-and-hash, and the criterion's own scope is the open question.

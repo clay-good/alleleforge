@@ -129,12 +129,35 @@ pinned cards is a deliberate edit rather than a side effect.
 | `deepprime`, `genet`, `indelphi`, `x-crisp` | repositories with no weight asset | a release **asset** rather than a source tag |
 | 5 heuristic baselines | no artifact exists — they are code | nothing; correctly unpinnable |
 | `dbsnp` | **address fixed** — `/snp/archive/b156/`; `sha256` needs a 26 GB fetch | a deliberate fetch-and-hash (upstream publishes md5 only) |
-| `1000g`, `encode`, `gnomad`, `hgdp` | portals, not files | choosing per-release files, then fetch-and-hash |
+| `1000g`, `encode`, `gnomad`, `hgdp` | **caller-supplied by design** — see below | a decision about R0's wording, not work here |
 
-The four dataset portals are the one group this repository could finish unilaterally:
-each has per-release files behind the portal, so the work is choosing them and hashing.
-That is its own change — the files are large enough that fetch-and-hash is a deliberate
-operation.
+**The four portals are not a pinning chore, and I was wrong to call them one.** I said
+earlier in this document that they were "the one group this repository could finish
+unilaterally: the work is choosing them and hashing". Reading how they are consumed says
+otherwise.
+
+Every one of their `filename` values is a *derived* table — `gnomad.v4.1.sites.tsv.gz`,
+`1000g.phase3.haplotypes.tsv.gz`, `hgdp.haplotypes.tsv.gz`, `encode.tracks.bedgraph.gz`.
+The project neither ships nor fetches them, and no conversion script produces them: the
+caller makes the table and points at it (`--gnomad`, `--haplotypes`,
+`$ALLELEFORGE_GNOMAD_TSV`). `GnomadDB.from_sites_tsv` reads it. So **no upstream file's
+hash would describe what gets loaded** — pinning a gnomAD release VCF would verify an
+input to a conversion whose output is the thing actually read.
+
+The mechanism that does cover them already exists and works. `describe_file_source`
+hashes the bytes the caller supplied and records them in the result's provenance marked
+`caller_supplied`. Verified by running a design against a sites TSV:
+
+```
+{"name": "gnomad-sites", "version": "sha256:9f1d35dcee1f",
+ "sha256": "9f1d35dcee1f93…", "caller_supplied": true}
+```
+
+That is a stronger guarantee for reproducing a *result* than a pin on an upstream file
+the project never opens. What is left is a question about R0's wording — whether a
+descriptor the project never ships belongs in a ratio about pinning shipped artifacts —
+and that is the user's call, not a gap to close. The report now says so in place of
+"there is nothing there to hash", which was true of the portal and misleading about why.
 
 ## The dbsnp defect, which was not a pinning problem
 

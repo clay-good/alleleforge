@@ -317,10 +317,28 @@ def test_every_unpinned_dataset_is_accounted_for_by_name() -> None:
     from alleleforge.data.registry import DEFAULT_REGISTRY
 
     r0 = next(c for c in release_readiness.criteria() if c.track == "R0")
+
+    def only(fragment: str) -> str:
+        """The one evidence line containing `fragment`, or fail saying how many matched.
+
+        `next(... if fragment in line)` raised `StopIteration` when the wording of a
+        line changed, which reads as a broken test rather than as "the line this test
+        describes no longer exists". It also silently accepted a fragment that matched
+        two lines — how an earlier card-side check ended up counting a dataset line.
+        """
+        matches = [line for line in r0.evidence if fragment in line]
+        assert len(matches) == 1, (
+            f"{fragment!r} matched {len(matches)} evidence lines, want exactly 1. If the "
+            "report's wording changed, update this selector; if the line was removed, "
+            "this triage is no longer being reported.",
+            matches,
+        )
+        return matches[0]
+
     lines = {
-        "fetchable": next(line for line in r0.evidence if "fixed single artifact" in line),
-        "moving": next(line for line in r0.evidence if "moving path" in line),
-        "referenced": next(line for line in r0.evidence if "portal or a directory" in line),
+        "fetchable": only("fixed single artifact"),
+        "moving": only("moving path"),
+        "referenced": only("name a portal"),
     }
 
     unpinned = [

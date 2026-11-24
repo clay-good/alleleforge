@@ -9,6 +9,18 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **R0's four "unpinnable portals" are caller-supplied by design, and the report now says
+  so.** `gnomad`, `1000g`, `hgdp` and `encode` each name a *derived* table
+  (`gnomad.v4.1.sites.tsv.gz`) that this project neither ships, fetches, nor generates —
+  the caller builds it and points at it with `--gnomad` / `--haplotypes` /
+  `$ALLELEFORGE_*`. No upstream file's hash would describe what gets loaded, so the
+  mechanism that covers them is `describe_file_source`, which hashes the supplied bytes
+  into the result's provenance as `caller_supplied` (confirmed by running a design, not by
+  reading the docstring). The evidence line used to say "there is nothing there to hash",
+  which was true of a portal and misleading about why. **R0's arithmetic is deliberately
+  unchanged**: dropping these from the denominator would take datasets from 3/8 to 3/4 by
+  rewriting the measure to fit what is measured, and the criterion's wording is the user's
+  to change.
 - **`dbsnp` would have fetched one build and recorded it as another.** Its descriptor
   declared `version="b156"` and cached as `dbsnp.b156.tsv.gz` while its `source_url`
   pointed at `/snp/latest_release/`, which upstream has since moved to b157 — 29.5 GB

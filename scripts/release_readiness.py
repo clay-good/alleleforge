@@ -215,8 +215,16 @@ def _artifact_pinning() -> Criterion:
             "next upstream release would invalidate it — the consent gate would then refuse "
             "the dataset, so a versioned URL has to be found first"
             + (": " + ", ".join(sorted(d.name for d in ds_moving)) if ds_moving else ""),
-            f"{len(ds_referenced)} unpinned dataset(s) name a portal or a directory, not a "
-            "single artifact, so there is nothing there to hash"
+            f"{len(ds_referenced)} unpinned dataset(s) name a portal rather than one "
+            "artifact, which is by design and not an unmade decision: this project neither "
+            "ships nor fetches them. Each `filename` is a *derived* table "
+            "(`gnomad.v4.1.sites.tsv.gz`, `1000g.phase3.haplotypes.tsv.gz`) that the caller "
+            "produces and points at with --gnomad / --haplotypes / $ALLELEFORGE_*, so no "
+            "upstream file's hash would describe what actually gets loaded. The mechanism "
+            "that does cover them is `describe_file_source`, which hashes the bytes the "
+            "caller supplied and records them in the result's provenance marked "
+            "`caller_supplied`. Whether they belong in this criterion's denominator is a "
+            "question about its wording, not work being withheld"
             + (": " + ", ".join(sorted(d.name for d in ds_referenced)) if ds_referenced else ""),
             "the consent gate refuses a null-hash fetch, so an unpinned artifact "
             "cannot be loaded rather than being loaded unverified",
