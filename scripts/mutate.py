@@ -68,6 +68,17 @@ Three traps, each of which cost a wrong answer and each of which
    reading it as a gap. The phantom rate tracks the module's audience — near zero for a
    pure type, near total for a shell or a renderer.
 
+One triage rule that is not a harness trap but has cost two wrong classifications:
+**a dispatch flag guarded by a parity test is unkillable by construction, not untested.**
+``prefer_native`` picks the Rust kernel or the Python fallback, and
+``tests/offtarget/test_kmer.py`` *asserts the two agree byte-identically*, so no mutation
+of that flag can change a result and nothing can ever kill it. Both times such a survivor
+was recorded as "unexecutable here, the kernel is not built" — wrong (``aforge_native``
+installs into the venv and ``alleleforge._native.NATIVE_AVAILABLE`` is True) and
+misleading, because it invites a later round to re-run it once the kernel is built. Check
+``NATIVE_AVAILABLE`` before calling a native path unreachable, and record these as
+*equivalent by design*.
+
 Usage::
 
     python scripts/mutate.py --target src/alleleforge/x.py --tests "tests/x" --mode conj

@@ -23577,9 +23577,10 @@ is what stops it going vacuous if the gates are renamed.
 * `scoring/backbone.py` `__init__(torch_compile=)` — read only at
   `torch.compile(model) if self.torch_compile else model`, inside the weights load that
   needs the `ml` extra and real weights. **Unexecutable here.**
-* `offtarget/_kmer.py` `seed_positions(prefer_native=)` — the native branch is
-  `pragma: no cover - native not built in CI`; both settings take the Python path in this
-  worktree. **Unexecutable here**, as R682's `apply_variants` was.
+* `offtarget/_kmer.py` `seed_positions(prefer_native=)` — **equivalent by design**
+  (this classification was wrong when first written and is corrected in R687: the native
+  kernel *is* built here, and a parity test asserts the two paths agree byte-identically,
+  so nothing can ever kill this mutant).
 
 **Lesson: a default is a decision taken on behalf of whoever says nothing, and a suite
 that always speaks cannot audit it.** The three categories hold — nine reachable and
@@ -23709,3 +23710,51 @@ half.** `3/8` looked like measurement and was closer to a placeholder: the numbe
 real, the triage behind it did not exist, and the one sentence that aggregated both halves
 silently dropped one. When a function treats two collections as one criterion, check that
 both got the same reasoning — the lesson learned for the first does not propagate itself.
+
+## Round 687 — "unexecutable here" was not true, and it was the wrong shape of wrong
+
+A correction, found by reading the readiness report against my own triage from two rounds
+earlier.
+
+R2 reports *"the compiled extension is importable and current here"*. R684 and R682 both
+classified a `prefer_native` survivor as **"unexecutable here — the Rust kernel is not
+built in this worktree"**. Those cannot both be true, and the report is the one that is:
+
+```
+NATIVE_AVAILABLE: True
+ext: aforge_native from .venv/lib/python3.11/site-packages/aforge_native/
+native seeds: [0, 4]    python seeds: [0, 4]
+```
+
+The extension is `aforge_native`, not `alleleforge_native` — which is how a quick
+`import alleleforge_native` fails and appears to confirm the wrong story. I took the claim
+from a stale note rather than checking, which is the same mistake R683 corrected in the
+docs-site figures, in the same session.
+
+### Why the category matters more than the fact
+
+Both survivors are real survivors; what was wrong is *why*. They are not unexecutable —
+they are **unkillable by construction**. `prefer_native` selects the Rust kernel or the
+Python fallback, and `tests/offtarget/test_kmer.py` *asserts the two agree
+byte-identically* (`test_native_seed_positions_match_python`,
+`test_seed_positions_dispatch_matches_python`). R2 states the same property as a design
+guarantee: "the Python fallback is pinned byte-identical, so an unbuilt kernel changes
+speed and not results". So no mutation of that flag can change any result, and **no test
+could ever kill it without contradicting the parity guarantee.**
+
+The three triage categories this log uses are *reachable-and-untested*, *unobservable*, and
+*unexecutable here*. The first is work; the second is closed forever; the third says **come
+back when the environment changes**. Filing an unkillable-by-design survivor under the
+third is a standing invitation to re-run it every time someone builds the kernel — which is
+every session, since it is already built. The wrong label does not just misdescribe, it
+schedules waste.
+
+Corrected: R684's bullet in place, `scripts/mutate.py`'s triage notes (where a sweeper will
+actually read it, as a rule separate from the three index-mapping traps, since the contract
+test does not pin it), and the sweep memory. Native haplotype dispatch is available here
+too, so R682's `apply_variants(prefer_native=)` is the same category.
+
+**Lesson: check the environment claim before recording an environmental excuse.** "Not
+built here" is the most convenient triage available — it closes a survivor without
+requiring a test or a proof — which is exactly why it needs the one command that would
+refute it. `NATIVE_AVAILABLE` is a one-liner and settles it.
