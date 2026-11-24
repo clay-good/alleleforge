@@ -77,6 +77,26 @@ def test_a_lookalike_errors_attribute_is_not_interpreted() -> None:
     assert reason(Odd("odd")) == "odd"
 
 
+def test_a_lookalike_errors_that_raises_still_renders_the_sentence() -> None:
+    """The sibling case: `errors()` exists, is callable, and blows up when called.
+
+    `reason` is used at every boundary that reports a refusal to a person, so it is the
+    one helper that must not raise — a crash here replaces an error message with a
+    traceback, which is strictly worse than the pydantic report it exists to suppress.
+    The duck-typed check cannot tell a real `ValidationError` from a class that merely
+    has the attribute, so calling it is a guess, and the guess is wrapped.
+
+    The existing look-alike test covers an `errors()` that *returns* the wrong shape.
+    This is the other way it can go wrong, and it was the uncovered one.
+    """
+
+    class Hostile(ValueError):
+        def errors(self) -> list[dict[str, str]]:
+            raise RuntimeError("not ours to interpret")
+
+    assert reason(Hostile("the sentence")) == "the sentence"
+
+
 @pytest.mark.parametrize("source", _REPORTING_SOURCES, ids=lambda p: p.name)
 def test_no_reporting_surface_interpolates_the_exception_raw(source: Path) -> None:
     lines = source.read_text(encoding="utf-8").splitlines()

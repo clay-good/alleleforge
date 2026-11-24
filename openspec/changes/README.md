@@ -23758,3 +23758,56 @@ too, so R682's `apply_variants(prefer_native=)` is the same category.
 built here" is the most convenient triage available — it closes a survivor without
 requiring a test or a proof — which is exactly why it needs the one command that would
 refute it. `NATIVE_AVAILABLE` is a one-liner and settles it.
+
+## Round 688 — two uncovered branches, one worth a test for a reason it does not yet have
+
+With every mutation operator exhausted, the remaining measurable gap is coverage: 162
+unexecuted lines at 97.86%. Most are `pragma: no cover` torch/weights bodies. Two were
+not, and both sat in error-handling paths.
+
+### The calibration gate's unreadable input
+
+`Prediction.calibrated` is the one flag here that cannot be self-declared. Its
+before-validator requires an authorized token **and** an in-distribution input, and reads
+`in_distribution` through a `TypeAdapter(bool)`. On failure it treats the input as
+out-of-distribution, so calibration is not preserved on a value it could not interpret.
+That `except` arm was uncovered.
+
+**It is also inert, and the comment beside it already says why**: the field validator
+rejects every non-bool-coercible value, so validation fails whatever the gate decided and
+no object is produced to inspect. Probed with seven junk shapes — `"junk"`, `[]`, `{}`,
+`3.7`, `None`, a bare `object()`, `(True,)` — every one raises `ValidationError` either
+way.
+
+So this is deliberate belt-and-braces with a documented rationale, and it was left alone.
+Removing documented defense-in-depth is the kind of "improvement" that is really a
+refactor of something that is not broken. What *was* missing is a test of the
+**guarantee** rather than the branch: whatever the shape of the junk, the result is never
+a calibrated prediction. Written as a disjunction — it refuses, or it loads uncalibrated,
+never calibrated — because which of the two happens is an implementation detail of where
+the junk is caught. That phrasing survives the branch being inert today **and** survives
+the field validator being relaxed later, which is the moment the branch would start
+carrying weight alone. With it, the arm is covered incidentally and for the right reason.
+
+Pinned alongside: the well-formed in-distribution case (the premise, so the junk cases
+cannot pass on a payload rejected for an unrelated reason), the documented
+`in_distribution=False` arm, and the junk cases with no token at all — a gate with two
+conditions needs the case where each fails by itself.
+
+### A look-alike that fights back
+
+`errors.reason` strips pydantic's report down to the sentence a person needs. It
+duck-types on `errors()`, so calling it is a guess, and the guess is wrapped in
+`except Exception`. The existing test covers an `errors()` that *returns* the wrong shape;
+the uncovered arm is one that **raises**. That matters more than it looks: `reason` is
+used at every boundary that reports a refusal to a person, so a crash there replaces an
+error message with a traceback — strictly worse than the pydantic report it exists to
+suppress. Now covered, and `errors.py` goes 89% → 100%.
+
+Coverage 97.86% → 97.89%, 162 unexecuted lines → 158, suite 5156 → 5173.
+
+**Lesson: an uncovered branch is a question, not a verdict.** One of these two deserved a
+test and the other deserved to be understood and left alone — and telling them apart took
+probing seven inputs, not reading the diff. The test that came out of it asserts something
+the branch does not currently do anything about, which is the only version of it worth
+having.
