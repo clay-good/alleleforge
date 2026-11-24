@@ -24650,3 +24650,57 @@ Unchanged at 1/12 cards and 3/8 datasets, and no longer blocked on any decision 
 repository can make: 6 cards pin a revision because their loader consumes a set of files,
 5 need an upstream release, 4 datasets are caller-supplied by design, 1 needs a 26 GB
 fetch-and-hash, and the criterion's own scope is the open question.
+
+## Round 700 — the fetch I started, and the reason I stopped it 4% in
+
+R0 had listed `dbsnp` as one fetch-and-hash from pinned, and nothing was left that this
+repository could decide. So I started the fetch: 26.6 GB streaming from NCBI's archive,
+md5 and sha256 computed in one pass, specifically so the md5 could be checked against the
+digest NCBI publishes beside the file before anything trusted mine. A sha256 taken from a
+truncated stream would be pinned forever and the consent gate would then refuse the
+dataset.
+
+It was 4.3% in — about 1.1 GB — when the reason to stop appeared.
+
+`dataset_status` computes `fetchable` as `bool(sha256 and source_url) and not bundled`.
+Pinning a hash does not merely record provenance: **it switches the fetch path on**, and
+the fetch saves whatever `source_url` serves under the descriptor's `filename`. NCBI
+publishes `GCF_000001405.40.gz`, a VCF. `DbSnpDB` has one reader, `from_tsv`, wanting
+`rsid chrom pos ref alt`. The pin would have made the tool download 26.6 GB, save it as
+`dbsnp.b156.tsv.gz`, and fail on the header — the refusal pinned two rounds ago in
+`test_a_dbsnp_header_missing_its_core_columns_is_refused.py`.
+
+**R0 would have read 4/8 instead of 3/8 while the dataset became less usable than when it
+was unpinned.** Stopped the stream, and `dbsnp` joins the four portals: caller-supplied
+after a conversion this project does not perform.
+
+### The rule, read off the descriptors that already work
+
+Not invented. `clinvar` and `gencode` are the two genuinely fetchable datasets, and in
+both the `filename` **is** the basename of the `source_url` — the fetch saves exactly what
+upstream published and the loader reads that form. Every descriptor whose `filename`
+differs names a *derived* table, which is precisely why it is correctly not fetchable.
+
+So: **a fetchable descriptor's `filename` must equal its upstream basename**, now
+enforced, with the five caller-supplied datasets named individually so pinning one is a
+deliberate act with a failing test to read.
+
+### Two accounting corrections that follow
+
+The report had counted the whole dataset side under "first deciding which file that is".
+For all five there is no file to decide on, so that sentence described them wrongly for
+several rounds. `blocked_by` now states the two sides separately — five model cards
+awaiting an upstream release, five datasets caller-supplied and hashed at load. **The
+ratios are untouched**; this is the explanation beside them, not the measure.
+
+`test_the_blocked_count_covers_datasets_as_well_as_cards` existed to stop the count
+understating the work by omitting datasets. Its premise is now deliberately false, so it
+was rewritten rather than deleted: it asserts both statements survive — a card count
+matching the cards actually in that state, and the dataset side named as caller-supplied
+rather than folded into the cards' number.
+
+**Lesson: a criterion can be moved by making the product worse, and the diff looks like
+one line.** Adding `sha256="…"` to a descriptor reads as pure provenance improvement. It
+is also a behavioural switch, and the thing it switches on had never been checked against
+what the loader can read. Three rounds ago the same shape broke a model load path. The
+tell both times was the same: **ask what else becomes true when the number moves.**

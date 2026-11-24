@@ -339,6 +339,7 @@ def test_every_unpinned_dataset_is_accounted_for_by_name() -> None:
         "fetchable": only("fixed single artifact"),
         "moving": only("moving path"),
         "referenced": only("name a portal"),
+        "derived": only("different form from the derived table"),
     }
 
     unpinned = [
@@ -359,11 +360,22 @@ def test_every_unpinned_dataset_is_accounted_for_by_name() -> None:
 
 
 def test_the_blocked_count_covers_datasets_as_well_as_cards() -> None:
-    """ "for N of them, first deciding which file that is" must count every N.
+    """R0's `blocked_by` must account for both sides, each in its own terms.
 
-    It counted the referenced *cards* only, so the sentence understated the work by the
-    whole dataset side. R679's lesson was that this number is read as the distance to
-    v1.0; a number that omits a category is the same defect in a different place.
+    It used to state one "first deciding which file that is" count covering cards and
+    datasets together, and this test asserted the dataset side contributed to it —
+    because counting only the cards understated the work by the whole dataset side.
+
+    That framing was wrong about the datasets, and the correction is what this guards
+    now. The five unpinned datasets are caller-supplied *derived* tables: `dbsnp`'s
+    loader reads an `rsid chrom pos ref alt` TSV where NCBI publishes a VCF, and the four
+    portals name no single file at all. There is no file to decide on, so they cannot be
+    "undecided" — they are decided and recorded. The cards are what still waits on an
+    upstream release.
+
+    The contract is therefore two statements rather than one number, and neither may
+    disappear: a model-card count matching the cards actually in that state, and the
+    dataset side named as caller-supplied rather than folded into the cards' count.
     """
     from alleleforge.data.registry import DEFAULT_REGISTRY
     from alleleforge.model_zoo.registry import default_registry
@@ -376,26 +388,22 @@ def test_the_blocked_count_covers_datasets_as_well_as_cards() -> None:
         if c.source_url
         and not c.checkpoint_sha256
         and not release_readiness._names_an_artifact(c.source_url)
-        # A card pinning an upstream revision is no longer waiting on "which file":
-        # that decision was made, and the answer was "none of them, pin the snapshot".
-        # It still does not count as pinned for R0 — see the report's own caveat.
         and c.source_snapshot is None
     ]
     datasets = [DEFAULT_REGISTRY.get(n) for n in DEFAULT_REGISTRY.names]
-    needs_a_decision = [
-        d
-        for d in datasets
-        if not getattr(d, "sha256", None)
-        and (
-            not release_readiness._names_an_artifact(getattr(d, "source_url", None) or "")
-            or release_readiness._names_a_moving_target(getattr(d, "source_url", None) or "")
-        )
-    ]
+    unpinned_datasets = [d for d in datasets if not getattr(d, "sha256", None)]
 
     r0 = next(c for c in release_readiness.criteria() if c.track == "R0")
-    expected = len(card_referenced) + len(needs_a_decision)
-    assert f"for {expected} of them" in r0.blocked_by, (r0.blocked_by, expected)
-    assert expected > len(card_referenced), (
-        "the dataset side contributes nothing to this count, so the regression it "
-        "guards against could not be observed"
+
+    assert card_referenced, "no cards are in this state; the count below is vacuous"
+    assert unpinned_datasets, "no unpinned datasets; the dataset clause is vacuous"
+    assert f"{len(card_referenced)} model card(s)" in r0.blocked_by, (
+        r0.blocked_by,
+        len(card_referenced),
     )
+    assert f"{len(unpinned_datasets)} unpinned dataset(s)" in r0.blocked_by, (
+        "the dataset side is no longer named in `blocked_by`, so a reader cannot tell "
+        "whether those are blocked, forgotten, or deliberately caller-supplied",
+        r0.blocked_by,
+    )
+    assert "caller-supplied" in r0.blocked_by, r0.blocked_by

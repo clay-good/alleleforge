@@ -9,6 +9,17 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **`dbsnp` must not pin a hash either, and a guard now says why.** Pinning `sha256`
+  does not only record provenance — `dataset_status` computes `fetchable` from it, so the
+  pin switches the fetch path on, and the fetch saves whatever `source_url` serves under
+  the descriptor's `filename`. NCBI publishes a VCF; `DbSnpDB` reads only an
+  `rsid chrom pos ref alt` TSV. The pin would have downloaded 26.6 GB, saved it as
+  `dbsnp.b156.tsv.gz`, and failed on the header — taking R0 from 3/8 to 4/8 while the
+  dataset became *less* usable than unpinned. New rule, read off the two datasets that
+  genuinely fetch (`clinvar`, `gencode`, whose `filename` is their upstream basename): a
+  fetchable descriptor must save the file upstream actually publishes. R0's explanation
+  now states the card and dataset sides separately instead of counting five
+  caller-supplied tables as decisions nobody had made; the ratios are unchanged.
 - **R0's four "unpinnable portals" are caller-supplied by design, and the report now says
   so.** `gnomad`, `1000g`, `hgdp` and `encode` each name a *derived* table
   (`gnomad.v4.1.sites.tsv.gz`) that this project neither ships, fetches, nor generates —

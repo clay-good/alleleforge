@@ -137,10 +137,27 @@ def _artifact_pinning() -> Criterion:
     # exists to draw.
     ds_unpinned = [d for d in datasets if not getattr(d, "sha256", None)]
     ds_named = [(d, getattr(d, "source_url", None) or "") for d in ds_unpinned]
+    # A descriptor whose `filename` is not the basename of its `source_url` names a
+    # *derived* table the caller produces, not the artifact upstream publishes — so a
+    # fetch-and-hash would not pin what gets loaded. `dbsnp` is the case: NCBI publishes
+    # a VCF (`GCF_000001405.40.gz`) and `DbSnpDB` reads only an `rsid chrom pos ref alt`
+    # TSV. Pinning it would have switched the fetch on and downloaded 26.6 GB that the
+    # loader then rejects. Counting it as "one fetch-and-hash away" was wrong.
+    def _is_derived(d: object) -> bool:
+        upstream = (getattr(d, "source_url", None) or "").rsplit("/", 1)[-1]
+        return getattr(d, "filename", None) != upstream
+
     ds_fetchable = [
-        d for d, u in ds_named if _names_an_artifact(u) and not _names_a_moving_target(u)
+        d
+        for d, u in ds_named
+        if _names_an_artifact(u) and not _names_a_moving_target(u) and not _is_derived(d)
     ]
-    ds_moving = [d for d, u in ds_named if _names_an_artifact(u) and _names_a_moving_target(u)]
+    ds_derived = [d for d, u in ds_named if _names_an_artifact(u) and _is_derived(d)]
+    ds_moving = [
+        d
+        for d, u in ds_named
+        if _names_an_artifact(u) and _names_a_moving_target(u) and not _is_derived(d)
+    ]
     ds_referenced = [d for d, u in ds_named if not _names_an_artifact(u)]
     # Applied to the *pinned* descriptors too, which it never was. A hash beside a moving
     # address is a pin with an expiry date: the next upstream release invalidates it and
@@ -160,7 +177,13 @@ def _artifact_pinning() -> Criterion:
     # What needs somebody to decide *which file*: the cards that name a page, plus the
     # datasets that name a portal, plus the ones that name a file at a floating address.
     # Counting only the cards understated this by the whole dataset side.
-    undecided = len(referenced) + len(ds_referenced) + len(ds_moving)
+    # Only the items whose *answer* is still open. The dataset side no longer belongs
+    # here: the four portals and `dbsnp` are caller-supplied derived tables, which is a
+    # decision that has been made and recorded, not one being withheld. Counting them as
+    # "first deciding which file that is" described them for several rounds and was
+    # wrong — there is no file to decide on. The criterion's own ratio is untouched; this
+    # is the explanation beside it.
+    undecided = len(referenced)
 
     met = len(pinned) == len(downloadable) and len(ds_pinned) == len(datasets)
     return Criterion(
@@ -176,7 +199,9 @@ def _artifact_pinning() -> Criterion:
             if met
             else (
                 "requires freezing the published upstream artifacts — and for "
-                f"{undecided} of them, first deciding which file that is"
+                f"{undecided} model card(s), an upstream release that publishes one. "
+                f"The {len(ds_unpinned)} unpinned dataset(s) are caller-supplied derived "
+                "tables, hashed at load rather than pinned here"
                 + (
                     f" ({len(snapshotted)} now pin an upstream revision instead, which "
                     "makes the load reproducible but is not a hash this project verified)"
@@ -207,6 +232,14 @@ def _artifact_pinning() -> Criterion:
             "so their hash expires at the next upstream release and the consent gate then "
             "refuses a dataset that used to load"
             + (": " + ", ".join(sorted(d.name for d in ds_drifting)) if ds_drifting else ""),
+            f"{len(ds_derived)} unpinned dataset(s) name an upstream artifact in a "
+            "different form from the derived table their `filename` names, so a "
+            "fetch-and-hash would pin the wrong thing: the fetch saves what `source_url` "
+            "serves under `filename`, and the loader then rejects it. dbsnp is the case — "
+            "NCBI publishes a VCF, `DbSnpDB` reads only an `rsid chrom pos ref alt` TSV, "
+            "so pinning it downloads 26.6 GB the loader cannot parse. Caller-supplied "
+            "after a conversion, like the portals below"
+            + (": " + ", ".join(sorted(d.name for d in ds_derived)) if ds_derived else ""),
             f"{len(ds_fetchable)} unpinned dataset(s) name a fixed single artifact, so a "
             "fetch-and-hash would pin them"
             + (": " + ", ".join(sorted(d.name for d in ds_fetchable)) if ds_fetchable else ""),

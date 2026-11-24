@@ -128,7 +128,7 @@ pinned cards is a deliberate edit rather than a side effect.
 | `be-hive` | a web service, no artifact | upstream publishing a checkpoint |
 | `deepprime`, `genet`, `indelphi`, `x-crisp` | repositories with no weight asset | a release **asset** rather than a source tag |
 | 5 heuristic baselines | no artifact exists — they are code | nothing; correctly unpinnable |
-| `dbsnp` | **address fixed** — `/snp/archive/b156/`; `sha256` needs a 26 GB fetch | a deliberate fetch-and-hash (upstream publishes md5 only) |
+| `dbsnp` | **caller-supplied after a conversion** — upstream publishes a VCF, the loader reads a TSV | a converter, then pin the *converted* artifact |
 | `1000g`, `encode`, `gnomad`, `hgdp` | **caller-supplied by design** — see below | a decision about R0's wording, not work here |
 
 **The four portals are not a pinning chore, and I was wrong to call them one.** I said
@@ -193,6 +193,32 @@ authentication trail. The content is verified identical at `master` and at that 
 (6,965 bytes, sha256 `c58e9c1a85f0…`), so nothing is wrong today; the exposure is that
 the citation could later name bytes nobody checked. Worth doing deliberately, not in
 passing.
+
+## dbsnp is not "one fetch-and-hash away" either
+
+I started that fetch. 26.6 GB streaming from NCBI's archive, md5 and sha256 computed in
+one pass so the md5 could be checked against the value NCBI publishes beside the file
+before anything trusted my digest. It was 4.3% in when the reason to stop became clear.
+
+`dataset_status` computes `fetchable` as `bool(sha256 and source_url) and not bundled`.
+So pinning a hash does not only record provenance — **it switches the fetch path on**, and
+the fetch saves whatever `source_url` serves under the descriptor's `filename`. Upstream
+publishes `GCF_000001405.40.gz`, a VCF. `DbSnpDB` has exactly one reader, `from_tsv`,
+which wants `rsid chrom pos ref alt`. Pinning the hash would have made the tool download
+26.6 GB, save it as `dbsnp.b156.tsv.gz`, and fail on the header — the refusal pinned in
+`test_a_dbsnp_header_missing_its_core_columns_is_refused.py`.
+
+**R0 would have gone from 3/8 to 4/8 while the dataset became less usable than when it
+was unpinned.** So `dbsnp` is the same category as the four portals: caller-supplied after
+a conversion this project does not perform.
+
+The rule is now enforced, and it was read off the descriptors that already work rather
+than invented. Both genuinely fetchable datasets — `clinvar` and `gencode` — have a
+`filename` that **is** the basename of their `source_url`: the fetch saves exactly what
+upstream published and the loader reads that form. Every descriptor whose `filename`
+differs names a derived table, and must not carry a `sha256`.
+`tests/data/test_a_fetchable_dataset_fetches_what_its_loader_reads.py` holds that line,
+and names the five so pinning one is a deliberate act with a failing test to read.
 
 ## Status
 
