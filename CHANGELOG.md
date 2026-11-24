@@ -9,9 +9,9 @@ acceptance.
 ## [Unreleased]
 
 ### Added
-- **No library behaviour changed in this round.** All twelve guards below were already
+- **No library behaviour changed in these rounds.** All thirteen guards below were already
   correct; what was missing was any test that would notice their removal.
-- **Twelve refusals that nothing observed are now pinned, found by deleting them.** The
+- **Thirteen refusals that nothing observed are now pinned, found by deleting them.** The
   four sharpest were in modules whose kill rate had been a meaningless 100%, because a
   test reading the module's own source text dies on `ast.unparse` reformatting whatever
   the mutation was. R689's no-op control refused to report those scores and named the
@@ -34,6 +34,16 @@ acceptance.
   Kernel/Python parity is established between *matched* versions, so a mismatched kernel
   is an unverified implementation of a scan that decides specificity — and it loads fine
   and returns numbers.
+- **A corrupt FM-index whose LF walk cannot terminate is refused, and the test cannot
+  hang the suite.** `_locate_row` carries two integrity guards and the existing
+  corrupt-index test only ever reached the first: rewriting BWT bytes puts a character in
+  the index that its rank tables do not count, which fires the cheaper guard before the
+  walk can run long enough to trip the step counter. Reaching the second needs a
+  corruption that is deliberately valid everywhere else — an intact BWT with its sample
+  table emptied, so LF is still a permutation but nothing is sampled and the walk cycles
+  forever. Without the guard that query does not raise and does not return a wrong
+  answer, it spins, so the test runs it on a worker with a 30-second deadline and asserts
+  the refusal arrived inside it; a regression now fails legibly instead of wedging CI.
 - **A CLI refusal is now checked to exit non-zero, not just to print.** 42 of 93
   `raise typer.Exit(...)` sites in `cli/main.py` survived deletion, and the shape is why:
   the `_echo_err` line above the raise still runs, so the error message is printed,

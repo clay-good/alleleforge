@@ -30,6 +30,7 @@ same-length tampering, and is now the documented way to get it.
 from __future__ import annotations
 
 import json
+import threading
 from pathlib import Path
 
 import pytest
@@ -37,6 +38,11 @@ import pytest
 from alleleforge.genome.index import FMIndex, FMIndexIntegrityError
 
 SEQ = "ACGTACGTTTAGGCCATTACGATCGATTACAGGCATCAGCATCAGCATT" * 6
+
+#: A correct refusal is immediate (the counter trips after `length` steps over a 294-base
+#: index). Generous enough that a loaded machine does not fail this spuriously, short
+#: enough that a regression reports rather than stalls the suite.
+_WALK_DEADLINE_SECONDS = 30.0
 
 
 @pytest.fixture
@@ -153,3 +159,103 @@ def test_the_corruption_message_names_the_remedy(cache: Path) -> None:
     message = str(caught.value)
     assert "rebuild" in message.lower(), message
     assert "aforge cache verify" in message, message
+
+
+def test_an_lf_walk_that_never_reaches_a_sampled_suffix_is_refused(cache: Path) -> None:
+    """The second integrity guard, and the only failure here whose shape is a *hang*.
+
+    `_locate_row` walks the LF-mapping until it lands on a sampled suffix. Two things
+    can stop that walk being finite, and they are guarded separately: a BWT character
+    the rank tables do not count (above), and a walk that closes into a cycle. Emptying
+    `sa.json` produces the second without the first — the BWT is byte-for-byte the one
+    this module built, so every character is in `c_table` and the sibling guard cannot
+    fire, and LF on a valid BWT is a permutation. A permutation with nothing sampled
+    walks the whole cycle and arrives back where it started, forever.
+
+    This is why the step counter exists rather than trusting `sa_rate`: without it, a
+    `locate` on this cache does not return a wrong answer or raise, it **does not
+    return**. The guard's own comment is that "a hang is a worse failure than a wrong
+    answer", and in a tool whose scans run inside a web request and a CLI a user is
+    watching, a wedged process with no error is the one failure mode nothing downstream
+    can report.
+
+    Emptied rather than scrambled on purpose: an `sa.json` holding plausible-but-wrong
+    positions would make `locate` return confidently wrong loci, which is the *other*
+    guard's territory (`verify()` catches it by reconstructing and re-hashing). This
+    pins the termination property alone.
+    """
+    samples = cache / "sa.json"
+    assert json.loads(samples.read_text()), "the fixture index has no samples to remove"
+    samples.write_bytes(b"{}")
+
+    fm = FMIndex.load(cache)  # loads: length, c_table and the BWT bytes are all intact
+
+    # Run the query on a worker with a deadline, rather than calling it directly. Without
+    # the guard this walk does not raise, it spins — so a direct call would wedge the
+    # whole suite instead of reporting, and the regression would look like CI hanging
+    # rather than like a failed test. The deadline turns the exact failure this guard
+    # exists to prevent into a legible assertion. (`pytest-timeout` would do this too and
+    # is not a dependency of this project; `threading` is in the standard library, and a
+    # daemon thread lets the interpreter exit even while the spin continues.)
+    outcome: list[object] = []
+
+    def _query() -> None:
+        try:
+            outcome.append(fm.locate("ACGTACGT"))
+        except BaseException as exc:  # noqa: BLE001 - recorded, re-raised on the main thread
+            outcome.append(exc)
+
+    worker = threading.Thread(target=_query, daemon=True)
+    worker.start()
+    worker.join(_WALK_DEADLINE_SECONDS)
+
+    assert not worker.is_alive(), (
+        f"`locate` on an index with no sampled suffix did not return within "
+        f"{_WALK_DEADLINE_SECONDS}s: the LF walk is spinning. This is the failure the "
+        "step counter exists to convert into an error — a wedged process reports "
+        "nothing, which is why the guard's comment calls a hang worse than a wrong answer"
+    )
+    assert outcome, "the worker finished without recording a result"
+    raised = outcome[0]
+    assert isinstance(raised, FMIndexIntegrityError), (
+        f"expected an integrity refusal, got {raised!r}"
+    )
+    assert "never reached a sampled suffix" in str(raised), str(raised)
+
+
+def test_the_cycle_guard_is_not_the_unknown_character_guard(cache: Path) -> None:
+    """Pin that the two guards are reached by different corruptions.
+
+    A single test that both scrambled the BWT *and* dropped the samples would pass with
+    either guard deleted, since the unknown-character check comes first and would catch
+    it. These two assert the distinct messages, so removing one does not hide behind the
+    other.
+    """
+    (cache / "sa.json").write_bytes(b"{}")
+    with pytest.raises(FMIndexIntegrityError) as caught:
+        FMIndex.load(cache).locate("ACGTACGT")
+    message = str(caught.value)
+
+    assert "never reached a sampled suffix" in message, message
+    assert "rank tables do not count" not in message, (
+        "an intact BWT took the unknown-character path, so the cycle guard is "
+        "unreachable and the termination property is unpinned",
+        message,
+    )
+    # Same remedy obligation as its sibling: the caller holds a broken cache.
+    assert "rebuild" in message.lower(), message
+
+
+def test_a_valid_index_locates_without_exhausting_the_step_budget(cache: Path) -> None:
+    """The premise the guard must not fire on, stated as the bound it relies on.
+
+    The step counter trips at `steps > length`, which is far looser than the `sa_rate`
+    steps a correct walk needs. This pins that a healthy index stays well inside it, so
+    a future change to `sa_rate` or the sampling scheme that made walks long enough to
+    trip the guard fails here rather than turning every `locate` into a corruption
+    report.
+    """
+    fm = FMIndex.load(cache)
+    positions = sorted(fm.locate("ACGTACGT"))
+    assert positions[:4] == [0, 49, 98, 147]
+    assert len(positions) == 6

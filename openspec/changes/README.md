@@ -24115,3 +24115,50 @@ correct, and what was missing was any test that would notice its removal.
 difference was four real defects.** R689 added the control to stop a false trophy. Its
 actual value turned out to be the opposite of defensive — the three modules it refused to
 score were hiding more real gaps per module than anything the sweep measured cleanly.
+
+## Round 692 — the open item R691 named, closed
+
+R691 left one real, reachable, untested refusal and said so with its line number rather
+than burying it: `genome/index.py:488`, the `FMIndexIntegrityError` for an LF walk that
+never reaches a sampled suffix. This round closes it, and the reason it had survived two
+sweeps is worth the entry.
+
+**Why the sibling guard hid it.** `_locate_row` has two integrity guards, and the
+existing corrupt-index test reaches the *other* one. `_sprinkle_unknown_bases` rewrites
+every 11th BWT byte as `Z`, so the walk dies on a character the rank tables do not count
+— at `:476`, before it can ever run long enough to trip the step counter at `:488`. Any
+corruption violent enough to make the walk misbehave also puts an unknown character in
+the BWT, so the first guard fires first. **A test that corrupts bytes at random cannot
+reach the second guard at all**, which is why "write a corrupt-index test" had already
+been done and had not covered this.
+
+**The corruption that reaches it.** Leave `bwt.bin` byte-for-byte as built — so every
+character is in `c_table` and `:476` cannot fire — and empty `sa.json` instead. LF on a
+valid BWT is a permutation, and a permutation with nothing sampled walks its whole cycle
+and returns to where it started, forever. That is precisely the condition the step
+counter exists for, reached with no other guard in the way.
+
+**The failure mode is a hang, so the test is written against a deadline.** Without the
+guard, `locate` on that cache does not raise and does not return a wrong answer — it
+spins. A test calling it directly would wedge the suite, and the regression would look
+like CI hanging rather than like a failing test. The query therefore runs on a daemon
+thread with a 30-second join, and the assertion is that a refusal arrived inside it.
+`pytest-timeout` would do the same and is not a dependency of this project; `threading`
+is in the standard library. The guard's own comment is that "a hang is a worse failure
+than a wrong answer", and this makes that sentence the thing the test checks.
+
+Measured: `genome/index.py` 6→7 killed, 1→0 alive. The two guards are killed by
+different tests and at different speeds — `:476` in 4s by an assertion, `:488` in 35s
+when the deadline expires — and a third test pins that they are not interchangeable, so
+deleting one cannot hide behind the other.
+
+**Lesson: a guard can be unreachable by every corruption that looks like corruption.**
+The reason this one was untested is not that nobody tried; it is that the obvious way to
+corrupt an index trips a cheaper guard first. Reaching the expensive guard needed a
+corruption that is *deliberately valid everywhere else* — an intact BWT with its sample
+table removed. When two guards sit on one path, the cheap one shadows the expensive one,
+and only a corruption shaped to pass the cheap one measures the other.
+
+With this closed, `--mode raise` has no known reachable, untested refusal left. The one
+remaining recorded limit is `config.py`, which stays unmeasurable behind a second
+source-reading guard whose audience is the 123-file root suite.
