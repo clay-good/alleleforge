@@ -25053,3 +25053,42 @@ be enrolled in an existing sweep.
 **Lesson: finishing a capability is not shipping the function.** I have now found this
 class six times in other people's code and twice in my own from the round before. The
 reflex worth keeping: after adding a reader, grep both shells for the *old* one.
+
+## Round 706 — the docs still described the constraint five rounds removed it
+
+R701-705 made every dataset readable from the artifact its upstream publishes, and
+reachable from both shells. The documentation still described the old product. A user
+reading it would do the hand-conversion the code no longer needs.
+
+The one that matters most is not in `docs/` at all. `variant/resolver.py`'s dbSNP remedy
+— the message a *blocked* user actually reads — still said:
+
+> Supply one with `--dbsnp <dbsnp.tsv>` … or `DbSnpDB.from_tsv(path)` — an
+> `rsid chrom pos ref alt` tab-separated file
+
+R701 quoted that very sentence as the evidence that the product was asking its users to
+do its work, and shipped `from_vcf`/`load` to remove the need. Then left the sentence
+standing. Five rounds later it was still instructing the conversion, which is the exact
+failure R701 named — **an error message is a specification** — surviving the round that
+diagnosed it.
+
+Four other places understated the product:
+
+* `docs/api/cli.md`'s input table listed `--dbsnp` as taking only the TSV;
+* `docs/deployment.md` called `ALLELEFORGE_GNOMAD_TSV` a "Population sites TSV" and
+  `ALLELEFORGE_ENCODE_TRACKS` an unqualified "Accessibility tracks";
+* `docs/data.md`'s coordinate table named only "ENCODE bedGraph" — the format ENCODE does
+  not publish;
+* nothing anywhere told a reader that the *form is sniffed from content*, which matters
+  because two of these releases are named in ways that say nothing about their format
+  (`GCF_000001405.40.gz` is a VCF; gnomAD's `.vcf.bgz` is bgzip, not `.gz`).
+
+`docs/data.md` now carries a table of what each flag accepts, with the two behaviours
+that change results rather than convenience: a gnomAD VCF's non-`PASS` rows are skipped
+(1,976 of 11,291 at the head of a real chr22 file pass), and only the ten genetic ancestry
+groups are read from the 34 `AF_*` keys a real row carries.
+
+**Lesson: a capability lands in three places and I shipped one.** The function, the shell
+that reaches it (R705), and the sentence that tells somebody it exists. Each of the last
+three rounds found the previous round had stopped one short — and the last place is the
+one a user meets first, because they only read it when something has already gone wrong.

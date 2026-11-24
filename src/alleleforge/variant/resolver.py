@@ -112,14 +112,20 @@ _DATABASE_REMEDIES: dict[str, str] = {
         "not consented to: send coordinates (chrom:pos:ref>alt, 1-based as in a VCF), "
         "or a genomic `g.` expression, which every surface accepts."
     ),
+    # This remedy used to say "an `rsid chrom pos ref alt` tab-separated file" and
+    # `DbSnpDB.from_tsv(path)` — a conversion the reader had to perform, from the VCF
+    # NCBI publishes, with nothing in the project to do it. R701 made that reader exist,
+    # and the message is the place a blocked user actually looks, so it says so.
     "dbsnp": (
-        "Supply one with `--dbsnp <dbsnp.tsv>` on the command line, or "
-        "`DbSnpDB.from_tsv(path)` from Python — an `rsid chrom pos ref alt` "
-        "tab-separated file (plain or .gz), with 1-based pos as in a VCF. AlleleForge "
-        "never downloads a dbSNP release; the file is yours to provide. Over HTTP "
-        "there is no such option, because a client-supplied server path reads the "
-        "server's files: send coordinates (chrom:pos:ref>alt, 1-based as in a VCF), "
-        "which every surface accepts."
+        "Supply one with `--dbsnp <file>` on the command line, or `DbSnpDB.load(path)` "
+        "from Python. Either form is accepted and the form is detected from the file's "
+        "first line, not its name: dbSNP's own VCF release (NCBI publishes it as "
+        "`GCF_000001405.40.gz`, whose name says nothing about the format), or an "
+        "`rsid chrom pos ref alt` tab-separated file with 1-based pos. Plain or "
+        "gzipped either way. AlleleForge never downloads a dbSNP release; the file is "
+        "yours to provide. Over HTTP there is no such option, because a "
+        "client-supplied server path reads the server's files: send coordinates "
+        "(chrom:pos:ref>alt, 1-based as in a VCF), which every surface accepts."
     ),
 }
 

@@ -99,7 +99,7 @@ coordinates at the boundary:
 |---|---|---|
 | ClinVar VCF, gnomAD sites, dbSNP VCF | 1-based | `pos − 1` |
 | GENCODE GTF | 1-based inclusive | `[start − 1, end)` |
-| ENCODE bedGraph | 0-based half-open | unchanged |
+| ENCODE `bed narrowPeak`, or the five-column bedGraph | 0-based half-open | unchanged |
 
 The two **human** boundaries follow the same convention, and it is worth stating
 plainly because the tool is uniformly BED-style while most genomics interfaces are not:
@@ -167,3 +167,26 @@ sample. Samples absent from the table are skipped rather than pooled, since a de
 including samples of no stated ancestry is not a per-population frequency. An **unphased**
 genotype is refused: it cannot be assigned to a haplotype, and reading `0/1` as `0|1`
 would invent phase that was never measured.
+
+## What each flag accepts
+
+Every dataset is readable from the artifact its upstream actually publishes, which was
+not true before rounds 701-705 — each reader took a derived table the caller had to
+produce by hand. The form is decided by **content**, not by filename, because several of
+these releases are named in ways that say nothing about their format
+(`GCF_000001405.40.gz` is a VCF; `gnomad...sites.chr22.vcf.bgz` is bgzip, not `.gz`).
+
+| Flag / variable | Published form it now reads | Also still reads |
+|---|---|---|
+| `--dbsnp` | dbSNP VCF (`GCF_*.gz`) | `rsid chrom pos ref alt` TSV |
+| `--gnomad`, `ALLELEFORGE_GNOMAD_TSV` | gnomAD sites VCF (`.vcf.bgz`) | `chrom pos ref alt af <pop>...` TSV |
+| `--haplotypes`, `ALLELEFORGE_HAPLOTYPES` | — build one first with `aforge data haplotypes` | panel TSV |
+| `--encode-tracks`, `ALLELEFORGE_ENCODE_TRACKS` | ENCODE `bed narrowPeak` | five-column `track chrom start end value` |
+| `--clinvar` | ClinVar VCF release | — |
+
+Two notes that change results rather than convenience. A gnomAD VCF's non-`PASS` rows are
+skipped, because `AC0`/`AS_VQSR` is gnomAD's own verdict that a call is unreliable — of
+11,291 rows at the head of a real chr22 file, 1,976 pass. And only gnomAD's ten genetic
+ancestry groups are read from `AF_*` INFO keys: a real row carries 34 of them, the rest
+being sex strata (`AF_XX`), ancestry crossed with sex (`AF_nfe_XY`), a maximum across
+groups (`AF_grpmax`) and the pre-filter frequency (`AF_raw`).

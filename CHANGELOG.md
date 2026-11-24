@@ -9,6 +9,17 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The docs and refusals now describe the formats the tool actually accepts.** The
+  readers landed in R701-705 and the documentation still described the old product, so a
+  reader would perform the hand-conversion the code no longer needs. The sharpest case
+  was not in `docs/`: `variant/resolver.py`'s dbSNP remedy — the message a *blocked* user
+  reads — still said "an `rsid chrom pos ref alt` tab-separated file … `DbSnpDB.from_tsv`",
+  the very sentence R701 cited as evidence the product asked users to do its work. Also
+  corrected: `--dbsnp`'s entry in the CLI input table, the two web variables in the
+  deployment table, and a coordinate table naming only "ENCODE bedGraph" — a format
+  ENCODE does not publish. `docs/data.md` gained a table of what each flag accepts, and
+  all of them now say the form is detected from the file's **first line, not its name**,
+  because `GCF_000001405.40.gz` is a VCF and gnomAD's `.vcf.bgz` is bgzip.
 - **`aforge data haplotypes` builds a panel from a phased VCF, and the web API reads
   ENCODE's real format.** The readers added in the previous rounds left two reachability
   gaps: `HaplotypePanel.from_phased_vcf` was callable from neither shell (both loaded

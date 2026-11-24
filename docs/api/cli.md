@@ -150,7 +150,7 @@ has no pinned checksum:
 | Input form | Flag | File |
 |---|---|---|
 | ClinVar accession (`VCV000012345`) | `--clinvar` | the ClinVar VCF release, plain or `.gz` |
-| dbSNP rsID (`rs334`) | `--dbsnp` | an `rsid chrom pos ref alt` TSV, 1-based pos, plain or `.gz` |
+| dbSNP rsID (`rs334`) | `--dbsnp` | dbSNP's published VCF (`GCF_000001405.40.gz`), or an `rsid chrom pos ref alt` TSV; 1-based pos, plain or gzipped. The form is sniffed from the first line, not the extension — NCBI's filename contains no `.vcf` |
 
 Both are accepted by `resolve`, `design` and `batch`. Without the flag the input is
 refused, and the refusal names the flag.

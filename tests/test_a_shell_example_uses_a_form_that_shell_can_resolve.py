@@ -113,7 +113,11 @@ def test_the_refusal_names_a_remedy_this_caller_has() -> None:
     """Not `clinvar=`: a keyword argument is not something a command line can pass."""
     for kind, flag, factory in (
         ("clinvar", "--clinvar", "ClinVarDB.from_vcf"),
-        ("dbsnp", "--dbsnp", "DbSnpDB.from_tsv"),
+        # `load`, not `from_tsv`: the remedy should name the entry point that accepts
+        # the VCF NCBI publishes as well as the TSV. Pointing a blocked reader at the
+        # narrower factory is how this message came to describe a hand-conversion the
+        # project had since made unnecessary (R701, corrected in R706).
+        ("dbsnp", "--dbsnp", "DbSnpDB.load"),
     ):
         remedy = database_remedy(kind)
         assert "clinvar=" not in remedy and "dbsnp=" not in remedy
