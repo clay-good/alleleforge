@@ -9,6 +9,20 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **A pinned checkpoint hash now requires an immutable URL, enforced.** A digest beside a
+  branch or a landing page is not a pin: upstream's next push changes the bytes, the
+  checksum fails, and the consent gate refuses a model that used to load, reporting "hash
+  mismatch" when the truth is "upstream moved". Also guards that two source-URL owners
+  found dead cannot return, and that the set of hash-pinned cards changes only by a
+  deliberate edit.
+- **`specs/r0-artifact-pinning.md` resolves what R0 was blocked on.** The blocker read
+  "first deciding which file that is" for 16 artifacts; the answer for 6 of them is that
+  there is no single file. Three Hugging Face backbones are loaded with
+  `from_pretrained`, which needs a snapshot (config + tokenizer + weights), and
+  `lindel`/`be-dict`/`pridict2` are loaded from a whole checkout. Pinning a blob hash was
+  tried, moved R0 from 1/12 to 4/12, and **broke the real-weights load path** — caught by
+  an existing backbone test two modules away, and reverted. The document specifies the
+  `source_snapshot` pin that would close all six honestly.
 - **No library behaviour changed in these rounds.** All forty guards below were already
   correct; what was missing was any test that would notice their removal.
 - **Forty refusals that nothing observed are now pinned, found by deleting them.** The
@@ -3471,6 +3485,15 @@ acceptance.
   pinned.
 
 ### Fixed
+- **`x-crisp`'s model card cited work that does not exist** — "Zhang et al., 2023". There
+  is one X-CRISP, by Seale C & Gonçalves JP (*Bioinformatics Advances* 2025). A model card
+  that misattributes the work it wraps is a provenance defect, not a typo, and these are
+  the fields the project asks researchers to trust.
+- **Two model cards cited source URLs that returned 404** (`Liam-Chen/PRIDICT2`,
+  `AhmedjBaqer/X-CRISP`), which is worse than being unpinned because the claim looks
+  checkable and is not. Repointed to `uzh-dqbm-cmi/PRIDICT2` and
+  `joanagoncalveslab/XCRISP`, each cross-checked against the card's own citation, with a
+  regression guard so the dead owners cannot return.
 - **Eleven untested refusals across the library are now pinned.** Each was found by
   deleting the `raise` and confirming nothing failed. The ones that guard a published
   number: a negative 5' homology arm on a pegRNA, which *inflates* the

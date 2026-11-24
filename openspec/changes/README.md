@@ -24302,3 +24302,78 @@ equivalents and 10 unreachables, and the shape only became visible by comparing 
 against mutant output rather than by reading the code. A survivor count is a question.
 This round the answer was mostly "no", and the three rounds spent finding that out were
 still worth it for the five defects in the "mostly".
+
+## Round 695 — R0's blocker was misstated in both directions
+
+R0 has been "blocked, externally" for many rounds: "requires freezing the published
+upstream artifacts — and for 16 of them, first deciding which file that is". Four rounds
+of this session ended by repeating that. Resolving it gave an answer neither the blocker
+nor I expected, and the round's value is a pin I **did not** ship.
+
+### What I tried, and what the suite caught
+
+`caduceus`, `evo2` and `nucleotide-transformer-v2-500m` are Hugging Face repositories.
+HF publishes an immutable `resolve/<commit-sha>/<file>` URL *and* the SHA256 of each blob
+at that revision, so the readiness report's "there is nothing there to hash" is false for
+them. I verified it rather than trusting it: `caduceus`'s `model.safetensors`
+(30,937,760 bytes) downloaded and rehashed to exactly HF's published digest.
+
+So I pinned all three. R0 went 1/12 → 4/12. Then the full suite failed one test:
+
+```
+tests/scoring/test_backbone_consent.py::test_nt_backbone_research_consent_records_checkpoint
+  assert target is None  # no pinned artifact -> load by model id after the gate
+  AssertionError: assert '…/nucleotide-transformer-v2-500m.2.0.ckpt' is None
+```
+
+`backbone.py` does `target = self.resolve_weights() or self.model_id` and then
+`auto_model.from_pretrained(target)`. A pinned card makes `target` a single cached
+`.ckpt`, and `from_pretrained` needs a repo id or a **snapshot directory** — config,
+tokenizer and weights together. **The pin would have moved R0 to 4/12 while breaking the
+real-weights load path for anyone with the `ml` extra.** CI never runs that path (it is
+behind the `real_weights` marker), so the only thing standing between that number and a
+broken product was a two-year-old assertion with a comment explaining itself. Reverted.
+
+### The actual answer
+
+The blocker is wrong in both directions. Not "upstream published nothing hashable" — HF
+did. The real constraint is **"the card schema pins one file, and six of these loaders
+consume a set of files"**: three HF backbones need a snapshot, and `lindel`, `be-dict`
+and `pridict2` need a whole checkout (`ALLELEFORGE_*_REPO`, several files plus importable
+Python). "Which file?" has no answer for any of the six.
+
+That is a schema question and it is answerable here. `specs/r0-artifact-pinning.md`
+specifies a `source_snapshot` pin — repository plus immutable revision — which for the HF
+backbones is one keyword at the call site (`from_pretrained(repo, revision=sha)`) and is
+*stronger* than a blob hash, because it covers the tokenizer and config the model is
+actually loaded with. It is not in this round because it touches the schema, the consent
+gate's "pinned" predicate, the readiness report's definition, and two loaders.
+
+### Two defects found by resolving URLs instead of reading them
+
+* **`x-crisp` cited work that does not exist** — "Zhang et al., 2023". There is one
+  X-CRISP, by Seale C & Gonçalves JP (*Bioinformatics Advances* 2025,
+  doi:10.1101/2025.02.06.636858), and its repository had moved. A model card that
+  misattributes the work it wraps is a provenance defect, not a typo.
+* **Two source URLs 404'd** (`Liam-Chen/PRIDICT2`, `AhmedjBaqer/X-CRISP`) — worse than
+  unpinned, because the claim looks checkable and is not. Repointed and guarded.
+
+Flagged, not guessed: upstream X-CRISP is GPL-3.0 while the card says `research-only`,
+which drives the license gate. `research-only` is stricter, the weights' terms are not
+stated upstream, and loosening a gate on an inference is the unsafe direction.
+
+### Two lessons
+
+**"Blocked externally" is a claim about the outside world, and it decays.** This one was
+true when written, carried forward unexamined by every later round including four of
+mine, and upstream had meanwhile published exactly the artifacts it said did not exist. A
+blocker is evidence with a date on it; re-resolve it before repeating it.
+
+**A criterion is a proxy, and I nearly optimised the proxy.** Everything about the pin was
+correct in isolation — immutable URL, upstream-published digest, one verified by download,
+a new invariant test to keep the pairing honest. It was still wrong, because the number it
+moved is a stand-in for "a user can verify what they load", and the change made that
+false. The test that caught it was not testing pinning; it was testing the load path, two
+modules away. **Run the whole suite before believing a criterion moved** — and when a
+release number improves, ask what else had to be true.
+

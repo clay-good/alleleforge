@@ -15,9 +15,21 @@ out_of_scope_use: >-
   Clinical decision-making; chemistries other than SpCas9 nuclease; targets far
   from the training distribution.
 license: research-only
-citation: "Zhang et al., 2023 (X-CRISP repair-outcome prediction)"
+# Corrected: the card named "Zhang et al., 2023", which does not exist. The only
+# X-CRISP is Seale & Goncalves, and upstream's own repository description states the
+# authorship and venue. A model card that misattributes the work it wraps is a
+# provenance defect, not a typo.
+citation: >-
+  Seale C & Goncalves JP, Bioinformatics Advances 2025 (X-CRISP:
+  domain-adaptable and interpretable CRISPR repair outcome prediction);
+  doi:10.1101/2025.02.06.636858
 known_failure_modes:
   - "Outcome priors transfer imperfectly across cell types and chromatin states."
   - "Rare large deletions and complex indels are under-represented."
 checkpoint_sha256: null  # pinned when the model zoo freezes the release artifact
-source_url: "https://github.com/AhmedjBaqer/X-CRISP"
+# The previous URL (AhmedjBaqer/X-CRISP) returned 404: a card citing an address that
+# does not resolve is worse than one that is merely unpinned, because the claim looks
+# checkable and is not. Upstream is GPL-3.0; `license` below stays `research-only`
+# because that is the stricter reading and the weights' terms are not stated in the
+# repository — narrowing the gate on a guess would be the unsafe direction.
+source_url: "https://github.com/joanagoncalveslab/XCRISP"

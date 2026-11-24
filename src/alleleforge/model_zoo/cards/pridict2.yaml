@@ -20,4 +20,7 @@ known_failure_modes:
   - "Trained on HEK293T/K562; cross-cell-type generalization is limited (OOD-flagged)."
   - "Chromatin context not modeled without ePRIDICT + a cell-type ENCODE track."
 checkpoint_sha256: null
-source_url: "https://github.com/Liam-Chen/PRIDICT2"
+# The previous URL (Liam-Chen/PRIDICT2) returned 404. PRIDICT2 is published by the
+# same group as be-dict (uzh-dqbm-cmi), whose repository is MIT-licensed as this card
+# already records.
+source_url: "https://github.com/uzh-dqbm-cmi/PRIDICT2"
