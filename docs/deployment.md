@@ -231,6 +231,7 @@ look up.
 | Population sites TSV (web) | `ALLELEFORGE_GNOMAD_TSV` | _none (every scan reference-only)_ |
 | Haplotype panel TSV (web) | `ALLELEFORGE_HAPLOTYPES` | _none (no haplotype-aware pass)_ |
 | Accessibility tracks (web) | `ALLELEFORGE_ENCODE_TRACKS` | _none (no chromatin adjustment)_ |
+| Track name for a narrowPeak file | `ALLELEFORGE_CHROMATIN_TRACK` | `accessibility` |
 | Consequence annotation (web) | `ALLELEFORGE_VEP` | _none (requests asking for it get a 422)_ |
 | Trained models offered (web) | `ALLELEFORGE_TRAINED_MODELS` | _none (requests asking for one get a 422)_ |
 | Reuse off-target scans (web) | `ALLELEFORGE_OFFTARGET_CACHE` | _none (every scan recomputed)_ |

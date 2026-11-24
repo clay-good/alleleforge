@@ -9,6 +9,17 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **`aforge data haplotypes` builds a panel from a phased VCF, and the web API reads
+  ENCODE's real format.** The readers added in the previous rounds left two reachability
+  gaps: `HaplotypePanel.from_phased_vcf` was callable from neither shell (both loaded
+  panels with `from_tsv`), and the web API still used `EncodeTracks.from_bedgraph` while
+  the CLI had moved to `load`. The haplotype capability needs a VCF, a sample table *and*
+  a window — more than a design-time flag carries — so it is exposed as a converter that
+  writes the panel TSV both surfaces already load, with `HaplotypePanel.to_tsv` making the
+  round trip exact. A window with no variants and a sample table that yields no samples
+  are both refused rather than written as an empty panel, which would read as "no
+  population risk". The web API gained `ALLELEFORGE_CHROMATIN_TRACK` to name a narrowPeak
+  file's track, mirroring the CLI's required `--chromatin-track`.
 - **`EncodeTracks` can now read the `bed narrowPeak` ENCODE actually serves, completing
   the loader audit.** The previous round recorded this as blocked on adding a binary
   bigWig/bigBed dependency; that was measured from five sampled records. ENCODE's own

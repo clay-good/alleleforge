@@ -40,6 +40,17 @@ _INVOCATIONS: dict[str, list[str]] = {
     "bench run": ["cas9-efficiency"],
     "bench gap": ["cas9-efficiency"],
     "bench leaderboard": ["RESULTS"],
+    # Three inputs and an output, because a panel is built over a window from a
+    # phased VCF plus the sample table published beside it.
+    "data haplotypes": [
+        "PHASED_VCF",
+        "--samples",
+        "SAMPLES",
+        "--region",
+        "chr22:0-1000",
+        "--out",
+        "OUT",
+    ],
 }
 
 
@@ -112,11 +123,25 @@ def test_a_blank_value_is_refused(
     chain.write_text("")
     results = tmp_path / "results.json"
     results.write_text("{}")
+    phased = tmp_path / "phased.vcf"
+    phased.write_text(
+        "##fileformat=VCFv4.2\n"
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tHG00096\n"
+        "chr22\t101\t.\tG\tC\t.\tPASS\t.\tGT\t0|1\n"
+    )
+    samples = tmp_path / "samples.txt"
+    samples.write_text(
+        "FamilyID SampleID FatherID MotherID Sex Population Superpopulation\n"
+        "HG00096 HG00096 0 0 1 GBR EUR\n"
+    )
     substitutions = {
         "GENOME": str(genome),
         "COHORT": str(cohort),
         "CHAIN": str(chain),
         "RESULTS": str(results),
+        "PHASED_VCF": str(phased),
+        "SAMPLES": str(samples),
+        "OUT": str(tmp_path / "panel.tsv"),
     }
     args = [*command.split()]
     args += [substitutions.get(a, a) for a in _INVOCATIONS[command]]

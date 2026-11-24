@@ -137,3 +137,33 @@ Every parser reads plain-text (optionally gzipped) input, so the test suite runs
 against small synthetic fixtures and never downloads a multi-gigabyte release.
 The heavier tabix/VCF backends (`pysam`, `cyvcf2`) are imported lazily on the
 production path only; CI needs neither.
+
+## Building a haplotype panel from a phased VCF
+
+1000G and HGDP publish phased VCFs, and a haplotype panel is defined over a *window*
+rather than a whole chromosome — so building one takes three inputs that no design-time
+flag can carry: the VCF, the sample-to-population table published beside it, and the
+region.
+
+`aforge data haplotypes` does the conversion and writes the panel TSV that
+`aforge design --haplotypes` and the web API's `ALLELEFORGE_HAPLOTYPES` already load:
+
+```bash
+aforge data haplotypes CCDG_14151_B01_GRM_WGS_2020-08-05_chr22.filtered.shapeit2-duohmm-phased.vcf.gz \
+  --samples 20130606_g1k_3202_samples_ped_population.txt \
+  --region chr22:10519200-10521000 \
+  --out panel.chr22.tsv
+```
+
+Two things about the sample table are worth knowing because they change the answer
+rather than producing an error: it is **space**-separated (a tab-split reader finds no
+samples at all), and it carries two different population columns. `Superpopulation` is
+the continental group (`EUR`, `AFR`) and is the default, because that is how the `1000g`
+dataset descriptor names its populations; `--population-column Population` keys
+frequencies by cohort (`GBR`, `YRI`) instead.
+
+Frequencies are per population over the window, counting two haplotypes per diploid
+sample. Samples absent from the table are skipped rather than pooled, since a denominator
+including samples of no stated ancestry is not a per-population frequency. An **unphased**
+genotype is refused: it cannot be assigned to a haplotype, and reading `0/1` as `0|1`
+would invent phase that was never measured.

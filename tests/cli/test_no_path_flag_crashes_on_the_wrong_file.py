@@ -46,6 +46,17 @@ _INVOCATIONS: dict[str, list[str]] = {
     "bench leaderboard": ["RESULTS"],
     "lift": ["chr2:0-20(+)", "--from", "hg38", "--to", "hg19"],
     "verify": ["DESIGN_JSON"],
+    # Three inputs and an output, because a panel is built over a window from a phased
+    # VCF plus the sample table published beside it.
+    "data haplotypes": [
+        "PHASED_VCF",
+        "--samples",
+        "SAMPLES",
+        "--region",
+        "chr22:0-1000",
+        "--out",
+        "OUT",
+    ],
 }
 
 
@@ -183,11 +194,25 @@ def test_a_wrong_file_is_refused_not_crashed_on(
     else:
         probe = wrong_file
 
+    phased = tmp_path / "phased.vcf"
+    phased.write_text(
+        "##fileformat=VCFv4.2\n"
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tHG00096\n"
+        "chr22\t101\t.\tG\tC\t.\tPASS\t.\tGT\t0|1\n"
+    )
+    samples = tmp_path / "samples.txt"
+    samples.write_text(
+        "FamilyID SampleID FatherID MotherID Sex Population Superpopulation\n"
+        "HG00096 HG00096 0 0 1 GBR EUR\n"
+    )
     substitutions = {
         "COHORT": str(cohort),
         "GENOME": str(genome),
         "RESULTS": str(bench_result),
         "DESIGN_JSON": str(design_json),
+        "PHASED_VCF": str(phased),
+        "SAMPLES": str(samples),
+        "OUT": str(tmp_path / "panel.tsv"),
     }
     args = [*command.split()]
     args += [substitutions.get(a, a) for a in _INVOCATIONS[command]]

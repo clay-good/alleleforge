@@ -24974,3 +24974,82 @@ check cost one request.
 `gnomad`→`from_vcf` (R702), `1000g`/`hgdp`→`from_phased_vcf` (R703),
 `encode`→`from_narrowpeak` (R704). **Every dataset this project describes can now be read
 from the artifact its upstream actually publishes.**
+
+## Round 705 — I closed six reachability gaps and opened two
+
+R701-704 gave every dataset a reader for the artifact its upstream publishes. That
+created the gap this project has found more often than any other — **a capability the
+library has that no shell can reach** — and having just spent four rounds on its mirror
+image, I left two behind.
+
+* **`HaplotypePanel.from_phased_vcf` was reachable from neither shell.** The CLI's
+  `--haplotypes` and the web API's `ALLELEFORGE_HAPLOTYPES` both called `from_tsv`, so
+  R703's feature could only be used by importing the library.
+* **The web API still called `EncodeTracks.from_bedgraph`**, so it could read only a
+  format ENCODE does not serve, while the CLI had been moved to `load` in the same round.
+
+### Why the haplotype fix is a command and not a flag
+
+`from_phased_vcf` needs a phased VCF, a sample-to-population table **and** a window.
+That is more than a design-time flag can carry, and the CLI loads its panel before any
+window exists — `_load_haplotypes` takes a path and nothing else.
+
+So `aforge data haplotypes` converts instead, writing the panel TSV that *both* surfaces
+already load. One command reaches every shell, rather than a new pair of flags on each,
+and `HaplotypePanel.to_tsv` makes the round trip exact — verified against the real 1000G
+slice, where 22 haplotypes over `chr22:10519200-10521000` reload with identical
+frequencies and variant counts.
+
+The window is a required option rather than a default. "The haplotypes of chromosome 22"
+is not a thing, and choosing a span silently would answer a question the caller did not
+ask.
+
+### Two refusals that exist for the same reason
+
+An empty panel is the quiet failure this project guards against everywhere: a file that
+parses, carries nothing, and makes a scan look clean. Two inputs produce one, and both are
+refused rather than written:
+
+* a window with no variant sites — reported with the likely cause (contig naming,
+  coordinates);
+* a sample table that yields no samples, which is what a **tab**-split reader finds in a
+  **space**-separated file. Without the refusal the command would build over zero samples,
+  write an empty file, and report success — from a one-character format difference.
+
+### The guard is read off the source, deliberately
+
+`test_a_shell_calls_the_reader_that_accepts_the_published_artifact` asserts each shell
+calls the sniffing reader and not the single-format one. These are one-line call sites and
+the failure mode is *regression to the narrower reader*, which no behavioural test over
+project-format fixtures would notice — every such test passes either way. The web API's
+ENCODE loader was exactly that: left on `from_bedgraph` while the CLI moved on, in a round
+whose own summary claimed the format was now readable.
+
+### Four of the project's own guards audited the new command
+
+None of them was looking for this feature; all four demand that a *new* command or writer
+be enrolled in an existing sweep.
+
+* The **help-text** check refused a docstring naming `--haplotypes` on a command with no
+  such flag, and told me to qualify it with the command that owns it.
+* The **CLI-reference** check refused a command missing from the table "a reader opens to
+  learn what the tool does".
+* The **blank-value sweep** found a **real defect**: `--region ""`, `--source ""` and
+  `--population-column ""` were all accepted. Every string option here is load-bearing —
+  a blank region reaches `GenomicInterval.parse` as `""`, a blank source labels every
+  haplotype with the empty string in provenance — and the command now goes through
+  `_refuse_blank_options` like its siblings. The sweep derives its command list from the
+  app rather than from a list someone maintains, which is why it caught a command added
+  the same round.
+* The **artifact registry** refused `to_tsv` as a writer nobody had said what it produces.
+  The honest answer turned out to be an improvement rather than a registry line: a panel
+  TSV left on disk was a table of per-population frequencies with no record of its
+  window, source or ancestries. It now writes those as `#` comment lines above the column
+  header — placed before it deliberately, since `from_tsv` keeps the last `#` line as the
+  header, so the real one still wins. The input VCF and sample table stay unnamed in the
+  file because the object never saw their paths; what pins them is the content hash a
+  shell records on load.
+
+**Lesson: finishing a capability is not shipping the function.** I have now found this
+class six times in other people's code and twice in my own from the round before. The
+reflex worth keeping: after adding a reader, grep both shells for the *old* one.

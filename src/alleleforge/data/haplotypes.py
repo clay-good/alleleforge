@@ -339,6 +339,62 @@ class HaplotypePanel:
         ]
         return cls(haplotypes, source=source)
 
+    def to_tsv(self, path: str | Path) -> Path:
+        """Write this panel in the ``#hap_id ...`` form :meth:`from_tsv` reads.
+
+        The round trip is what makes :meth:`from_phased_vcf` usable from a shell. A panel
+        is built over one window from a phased VCF and a sample table, which is more
+        inputs than a design-time flag can take — but the TSV it writes is the format
+        both the CLI's ``--haplotypes`` and the web API's ``ALLELEFORGE_HAPLOTYPES``
+        already load. So one conversion step reaches every surface, instead of a new
+        pair of flags on each.
+
+        One row per ``(haplotype, population)`` observation, which is the shape
+        :meth:`from_tsv` merges back.
+
+        Args:
+            path: Destination; a ``.gz`` suffix is *not* special-cased, so write plain.
+
+        Returns:
+            The path written.
+        """
+        out = Path(path)
+        haplotypes = list(self)
+        populations = sorted({p for hap in haplotypes for p in hap.frequencies})
+        window = (
+            f"{haplotypes[0].interval.chrom}:{haplotypes[0].interval.start}-"
+            f"{haplotypes[0].interval.end}"
+            if haplotypes
+            else "(empty)"
+        )
+        # The file says what it is. A panel TSV left on disk is otherwise a table of
+        # frequencies with no record of the window, source or ancestries that produced
+        # it — and `tests/test_every_artifact_says_what_it_is.py` is right that a
+        # document carrying numbers somebody acts on should not be anonymous. The input
+        # VCF and sample table are not named here because this object never saw their
+        # paths; what pins them is the content hash a shell records when it loads this
+        # file (`_attach_source`).
+        #
+        # Written *before* the column header on purpose: `from_tsv` treats each `#` line
+        # as the header and keeps the last, so the real header still wins.
+        lines = [
+            f"# AlleleForge haplotype panel — source {self.source!r}, window {window}\n",
+            f"# {len(haplotypes)} haplotype(s) over {len(populations)} population(s): "
+            f"{', '.join(populations) or '(none)'}\n",
+            "# Frequencies are per population over the whole window, counting two "
+            "haplotypes per diploid sample.\n",
+            "#hap_id\tchrom\tstart\tend\tpopulation\tfrequency\tvariants\n",
+        ]
+        for hap in haplotypes:
+            variants = ",".join(f"{v.chrom}:{v.pos}:{v.ref}>{v.alt}" for v in hap.variants)
+            for population, frequency in sorted(hap.frequencies.items()):
+                lines.append(
+                    f"{hap.hap_id}\t{hap.interval.chrom}\t{hap.interval.start}\t"
+                    f"{hap.interval.end}\t{population}\t{frequency!r}\t{variants}\n"
+                )
+        out.write_text("".join(lines))
+        return out
+
     def __iter__(self) -> Iterator[Haplotype]:
         """Iterate every haplotype in the panel, in contig-bucket order.
 

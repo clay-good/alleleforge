@@ -314,7 +314,15 @@ def _load_encode_tracks_from_env() -> Any | None:
     try:
         from alleleforge.data.annotations import EncodeTracks
 
-        return EncodeTracks.from_bedgraph(Path(path))
+        # `load`, not `from_bedgraph`: ENCODE publishes `bed narrowPeak` and no bedGraph
+        # at all, so this surface could read only a format the portal does not serve.
+        # narrowPeak carries no track column, so the name comes from
+        # ALLELEFORGE_CHROMATIN_TRACK — the deployment-side counterpart of the CLI's
+        # required `--chromatin-track`. The five-column format names its own tracks and
+        # ignores it.
+        return EncodeTracks.load(
+            Path(path), track=os.environ.get("ALLELEFORGE_CHROMATIN_TRACK", "accessibility")
+        )
     except (OSError, ValueError, ImportError) as exc:
         _ENCODE_TRACKS_LOAD_ERROR = reason(exc)
         return None

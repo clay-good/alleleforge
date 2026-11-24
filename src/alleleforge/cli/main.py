@@ -3653,6 +3653,98 @@ def data_fetch(
     _acquire_dataset(ctx, name, refresh=False, as_json=as_json)
 
 
+@data_app.command("haplotypes")
+def data_haplotypes(
+    vcf: Annotated[Path, typer.Argument(help="A phased VCF (1000G/HGDP release or your own).")],
+    samples: Annotated[
+        Path,
+        typer.Option(
+            "--samples",
+            help=(
+                "Sample-to-population table. 1000G publishes "
+                "20130606_g1k_3202_samples_ped_population.txt beside the VCFs."
+            ),
+        ),
+    ],
+    region: Annotated[
+        str,
+        typer.Option("--region", help="Window to build over, 'chrom:start-end' (0-based)."),
+    ],
+    out: Annotated[Path, typer.Option("--out", help="Write the panel TSV here.")],
+    source: Annotated[
+        str, typer.Option("--source", help="Panel name recorded on each haplotype.")
+    ] = "1000g",
+    population_column: Annotated[
+        str,
+        typer.Option(
+            "--population-column",
+            help="Which column of the sample table to key frequencies by.",
+        ),
+    ] = "Superpopulation",
+) -> None:
+    """Build a haplotype panel TSV from a phased VCF.
+
+    `HaplotypePanel.from_phased_vcf` needs three things a design-time flag cannot carry:
+    a phased VCF, a sample-to-population table, and the window to build over. So the
+    capability shipped library-only and no shell could reach it — the exact shape of gap
+    this project keeps finding, this time one I had just created.
+
+    The conversion writes the panel TSV that **both** surfaces already read:
+    `aforge design --haplotypes` and the web API's `ALLELEFORGE_HAPLOTYPES`. One command
+    therefore reaches every shell, rather than a new pair of flags on each.
+
+    A window is required rather than inferred: "the haplotypes of chromosome 22" is not a
+    thing, and choosing a span silently would answer a question the caller did not ask.
+    """
+    from alleleforge.data.haplotypes import HaplotypePanel, read_sample_populations
+
+    # Every string option here is load-bearing: a blank --region would reach
+    # GenomicInterval.parse as "", a blank --source would label every haplotype with
+    # the empty string in provenance, and a blank --population-column would ask the
+    # sample table for a column named "". The blank-value sweep in
+    # tests/cli/test_an_empty_flag_value_is_not_a_default.py caught all three on this
+    # command the round it was added.
+    _refuse_blank_options(region=region, source=source, population_column=population_column)
+    _check_output_paths(dirs={}, files={"--out": out})
+    # `_parsed_loci` validates and returns the *strings*; this needs the parsed value.
+    # Routed through it anyway so a bad --region gets the same USAGE refusal, with the
+    # same message, as every other locus a shell accepts.
+    interval = GenomicInterval.parse(_parsed_loci([region])[0])
+    try:
+        populations = read_sample_populations(samples, column=population_column)
+    except (OSError, ValueError) as exc:
+        _echo_err(f"error: could not read --samples {samples}: {reason(exc)}")
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
+    if not populations:
+        _echo_err(
+            f"error: --samples {samples} names no samples. 1000G's table is "
+            "space-separated with a 'SampleID' column; a tab-split reader finds none."
+        )
+        raise typer.Exit(ExitCode.USAGE)
+
+    try:
+        panel = HaplotypePanel.from_phased_vcf(
+            vcf, interval=interval, sample_populations=populations, source=source
+        )
+    except (OSError, ValueError) as exc:
+        _echo_err(f"error: could not build a panel from {vcf}: {reason(exc)}")
+        raise typer.Exit(ExitCode.MISSING_DATA) from exc
+
+    haplotypes = list(panel)
+    if not haplotypes:
+        _echo_err(
+            f"error: no haplotypes in {region} — the VCF has no variant sites there, so "
+            "the panel would be empty. Check the region's contig naming and coordinates."
+        )
+        raise typer.Exit(ExitCode.MISSING_DATA)
+
+    _guarded_write(out, lambda: panel.to_tsv(out), flag="--out")
+    typer.echo(
+        f"wrote {len(haplotypes)} haplotype(s) over {region} "
+        f"for {len(set(populations.values()))} population(s) to {out}"
+    )
+
+
 @data_app.command("refresh")
 def data_refresh(
     ctx: typer.Context,
