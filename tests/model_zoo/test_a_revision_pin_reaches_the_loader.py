@@ -33,7 +33,16 @@ from alleleforge.scoring.backbone import (
     _revision_kwargs,
 )
 
+#: The Hugging Face backbones, whose loader takes `from_pretrained` and whose revision
+#: this file follows all the way to that call.
 _SNAPSHOT_CARDS = ("caduceus", "evo2", "nucleotide-transformer-v2-500m")
+
+#: The checkout adapters, pinned for the same reason but checked at a different seam —
+#: `check_checkout_revision` against the directory on disk. Listed here only so the
+#: "deliberate edit" assertion below covers every pinned card rather than three of six;
+#: their behaviour is pinned in
+#: `test_a_pinned_checkout_is_checked_against_the_pin.py`.
+_CHECKOUT_SNAPSHOT_CARDS = ("be-dict", "lindel", "pridict2")
 
 _EMBEDDERS = {
     "caduceus": CaduceusEmbedder,
@@ -185,4 +194,4 @@ def test_the_snapshot_pinned_set_is_a_deliberate_edit() -> None:
     """
     registry = default_registry()
     pinned = {name for name in registry.names if registry.get(name).source_snapshot is not None}
-    assert pinned == set(_SNAPSHOT_CARDS), sorted(pinned)
+    assert pinned == set(_SNAPSHOT_CARDS) | set(_CHECKOUT_SNAPSHOT_CARDS), sorted(pinned)

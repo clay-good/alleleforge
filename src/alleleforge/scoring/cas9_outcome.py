@@ -404,6 +404,11 @@ class LindelAdapter(_ModelZooAdapter):
         """
         window = _lindel_window(context, cut)
         self.resolve_weights()  # consent + license gate; records provenance
+        # The card pins an upstream revision; this is the only place it can be
+        # compared with the directory actually on disk. Warns, never refuses: a
+        # newer checkout is legitimate work and a tarball cannot report a revision
+        # at all -- what must not happen is a run quietly using something else.
+        self.check_checkout_revision(self._repo)
         return self._predict_with_model(
             window, mark_frameshift
         )  # pragma: no cover - needs checkout

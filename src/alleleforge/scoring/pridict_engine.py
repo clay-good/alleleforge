@@ -214,6 +214,11 @@ class PridictEngineAdapter(WeightGate):
         if cell_line not in PRIDICT2_CELL_LINES:
             raise ValueError(f"cell_line must be one of {PRIDICT2_CELL_LINES}; got {cell_line!r}")
         self.resolve_weights()  # consent + license gate; records provenance
+        # The card pins an upstream revision; this is the only place it can be
+        # compared with the directory actually on disk. Warns, never refuses: a
+        # newer checkout is legitimate work and a tarball cannot report a revision
+        # at all -- what must not happen is a run quietly using something else.
+        self.check_checkout_revision(self._repo)
         script = self._repo / "pridict2_pegRNA_design.py"
         if not script.exists():
             raise FileNotFoundError(

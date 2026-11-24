@@ -327,3 +327,5 @@ zoo, genome reference, data registry, VEP — raises these same classes, so one
 ## Model checkpoint loading
 
 ::: alleleforge.model_zoo.loader
+
+::: alleleforge.model_zoo.checkout

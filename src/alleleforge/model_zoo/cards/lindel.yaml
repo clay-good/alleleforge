@@ -21,3 +21,11 @@ known_failure_modes:
   - "Long or templated insertions are under-modeled relative to MMEJ deletions."
 checkpoint_sha256: null  # pinned when the model zoo freezes the release artifact
 source_url: "https://github.com/shendurelab/Lindel"
+# This adapter reads a CHECKOUT (several files plus importable Python), not a
+# checkpoint file, so there is no single artifact to hash. The revision pins all of
+# them at once, and `check_checkout_revision` compares it with the directory the
+# adapter is actually pointed at -- warning, not refusing, because a newer checkout
+# is legitimate work. Default-branch head as of 2026-03-07.
+source_snapshot:
+  repo: "shendurelab/Lindel"
+  revision: "fdcad580ba76bcfb7a98f58c3769b76f31693d63"

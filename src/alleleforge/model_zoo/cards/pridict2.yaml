@@ -24,3 +24,11 @@ checkpoint_sha256: null
 # same group as be-dict (uzh-dqbm-cmi), whose repository is MIT-licensed as this card
 # already records.
 source_url: "https://github.com/uzh-dqbm-cmi/PRIDICT2"
+# This adapter reads a CHECKOUT (several files plus importable Python), not a
+# checkpoint file, so there is no single artifact to hash. The revision pins all of
+# them at once, and `check_checkout_revision` compares it with the directory the
+# adapter is actually pointed at -- warning, not refusing, because a newer checkout
+# is legitimate work. Default-branch head as of 2026-02-02.
+source_snapshot:
+  repo: "uzh-dqbm-cmi/PRIDICT2"
+  revision: "c133c35e205062e766bf515d1766169167e993b9"

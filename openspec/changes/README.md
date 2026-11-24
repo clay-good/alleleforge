@@ -24450,3 +24450,72 @@ still not a safe substitute: GitHub's generated tarballs are not guaranteed byte
 **Lesson: when a criterion cannot be met honestly, add the fact beside it, not into it.**
 The useful output of this round is a reproducibility guarantee the project did not have,
 reported in a way that leaves the release gate still asking for what it actually wants.
+
+## Round 697 — the checkout pin, and a reader that answered for the wrong repository
+
+R696 pinned the three Hugging Face backbones and left the three checkout adapters owed:
+`lindel`, `be-dict` and `pridict2` read a *directory* (`ALLELEFORGE_*_REPO`), several
+files plus importable Python, and nothing connected a card's `source_snapshot` to the
+directory actually on disk. All six are now pinned and checked.
+
+`check_checkout_revision` compares the pin with the checkout's own HEAD and **warns
+rather than refuses**, in three cases kept deliberately distinct:
+
+* on the pinned revision — silent, because a warning nobody needs is how a useful warning
+  gets switched off project-wide;
+* on another revision — names both, since scoring against upstream's latest is real work
+  and refusing would block it;
+* unreadable — says so, because an unpacked tarball is a supported way to supply these
+  models and "cannot tell" is not "wrong".
+
+The revision is read from git's own plumbing rather than by shelling out: `git` need not
+be installed where a directory was handed over, and a subprocess per prediction is a cost
+on a scoring path.
+
+### Two defects in the reader, both caught by writing its tests
+
+**It returned `None` for this repository.** The first draft understood `.git` as a
+directory and as a `gitdir:` file, but not that a linked worktree keeps `HEAD` private
+while **refs are shared** — they live where `commondir` points, not under
+`worktrees/<name>/`. Since this session works in a worktree, the reader reported "cannot
+tell" for a checkout `git rev-parse` reads fine. There is now a test that compares the
+reader against `git rev-parse` on this repository, because the fixture tests only prove
+the parser handles layouts the test file wrote; a real repository is the only thing that
+proves those layouts are the ones git writes.
+
+**It answered for the user's own project.** An unset `ALLELEFORGE_LINDEL_REPO` reaches the
+adapters as `Path("")`, and pathlib normalizes that to `Path(".")` *on construction* — so
+by the time the reader sees it, it is indistinguishable from "the current directory".
+Running a prediction from inside any git repository therefore returned **the caller's HEAD**
+and the comparison warned that their project was on the wrong revision of Lindel.
+Reporting somebody's working directory as a model's provenance is worse than reporting
+nothing. An unconfigured checkout now reads as unknown; the adapter refuses it in its own
+terms a moment later.
+
+That second one is the more interesting failure. Every piece was correct in isolation —
+the adapters' `Path(repo_dir or os.environ.get(..., ""))` predates this round and is fine,
+and a reader that answers for a directory it is given is fine — and the defect lived in
+the *composition*, where an empty string silently became a meaningful path. It was found
+by writing a test for the case I expected to be boring.
+
+### Where R0 stands
+
+Still `1/12`, for the third round running and still deliberately: six cards pin a
+revision, which is reproducibility, not the verified artifact hash the criterion asks for.
+The report's evidence now reads 6 snapshot-pinned, 5 unpinned with no snapshot either,
+and the partition still accounts for all 11.
+
+### Two more surfaces a new module touches
+
+The full suite also caught `alleleforge.model_zoo.checkout` missing from the API
+reference, and `specs/readiness-assessment.md` claiming 108 source files when there are
+now 109. Both are derived facts with guards over them, and both named their own remedy.
+Adding one module to this repository is a change to a published reference and to a
+readiness claim — the fifth and sixth guards in three rounds to catch a consequence away
+from the edit (the load path, the report's partition, a committed JSON schema, and now
+these two).
+
+**Lesson: a value that is legal everywhere is not therefore safe anywhere.** `Path("")`
+raises nothing, compares equal to `Path(".")`, and reads as a perfectly good directory.
+Nothing in the type system or the test suite objected; only asking "what does this return
+when nobody configured anything?" did.

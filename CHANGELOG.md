@@ -9,6 +9,15 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **All six cards whose loader consumes a set of files now pin an upstream revision, and
+  the three checkout adapters are checked against the directory on disk.** `lindel`,
+  `be-dict` and `pridict2` read a checkout (`ALLELEFORGE_*_REPO`), so
+  `check_checkout_revision` compares the pin with that checkout's HEAD — warning, never
+  refusing: it is silent on the pinned revision, names both on a mismatch (scoring
+  against upstream's latest is legitimate work), and says so when the revision cannot be
+  read at all (an unpacked tarball is a supported way to supply these). The revision is
+  parsed from git's own plumbing, including the linked-worktree case, rather than by
+  shelling out.
 - **Model cards can pin an immutable upstream revision (`source_snapshot`), and three
   do.** The Hugging Face backbones are loaded with `from_pretrained`, which consumes a
   snapshot — config, tokenizer and weights together — so a single blob hash cannot pin

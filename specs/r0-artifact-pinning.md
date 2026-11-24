@@ -4,8 +4,8 @@ _Written 2026-11-24. R0 read "1/12 model cards with a source URL pin a checkpoin
 3/8 datasets pin one", blocked on "first deciding which file that is" for 16 of them.
 This resolves that decision. The answer is not the one the blocker implied: for **6 of
 the 11 unpinned model cards there is no single file to name**, and the reason is in this
-repository's own loaders, not upstream. A `source_snapshot` revision pin now covers three
-of the six. Two cards were also found citing dead URLs, and
+repository's own loaders, not upstream. A `source_snapshot` revision pin now covers all
+six. Two cards were also found citing dead URLs, and
 one misattributing its authorship._
 
 ## The decision, resolved
@@ -66,11 +66,19 @@ carrying *both* pin kinds (`resolve_weights()` takes the single-file path whenev
 `checkpoint_sha256` is set and never consults the snapshot, so the revision would be
 silently ignored).
 
-Still to do for the three checkout adapters (`lindel`, `be-dict`, `pridict2`): the field
-is the right one for them too, but nothing yet checks `ALLELEFORGE_*_REPO` against a
-pinned revision, so adding it there needs a check at the checkout boundary rather than a
-card edit. A content hash of `archive/<sha>.tar.gz` remains unsafe: GitHub's generated
-tarballs are not guaranteed byte-stable.
+**Done for the checkout adapters too.** `lindel`, `be-dict` and `pridict2` now pin a
+revision, and `check_checkout_revision` compares it against the directory
+`ALLELEFORGE_*_REPO` points at. It **warns rather than refuses**, in three distinct
+cases: on the pinned revision it is silent; on another revision it names both, because
+scoring against upstream's latest is legitimate work; and when the revision cannot be
+read — an unpacked tarball is a supported way to supply these — it says so, since "cannot
+tell" is a different statement from "wrong". What must not happen is a run quietly using
+something other than the pin while its provenance names the pin.
+
+The revision is read from git's own plumbing rather than by shelling out: `git` need not
+be installed, and a subprocess per prediction is a cost on a scoring path. A content hash
+of `archive/<sha>.tar.gz` remains unsafe: GitHub's generated tarballs are not guaranteed
+byte-stable.
 
 Provenance of the three revisions, so they are auditable rather than plausible:
 
@@ -79,6 +87,9 @@ Provenance of the three revisions, so they are auditable rather than plausible:
 | `caduceus` | `kuleshov-group/caduceus-ps_seqlen-131k_d_model-256_n_layer-16` | `d89eeb85…` | HF model API; blob also downloaded and rehashed to upstream's digest |
 | `nucleotide-transformer-v2-500m` | `InstaDeepAI/nucleotide-transformer-v2-500m-multi-species` | `06615c16…` | HF model API |
 | `evo2` | `arcinstitute/evo2_7b` | `bda0089f…` | HF model API |
+| `lindel` | `shendurelab/Lindel` | `fdcad580…` | GitHub API, `master` head 2026-03-07 |
+| `be-dict` | `uzh-dqbm-cmi/crispr` | `9d7f8bb2…` | GitHub API, `master` head 2026-10-30 |
+| `pridict2` | `uzh-dqbm-cmi/PRIDICT2` | `c133c35e…` | GitHub API, `main` head 2026-02-02 |
 
 ## Two defects found by resolving the URLs rather than reading them
 
@@ -113,7 +124,7 @@ pinned cards is a deliberate edit rather than a side effect.
 | artifact | why unpinned | what would unblock it |
 | --- | --- | --- |
 | 3 HF backbones | loader needs a snapshot | **done** — `source_snapshot`, reported separately from R0 |
-| `lindel`, `be-dict`, `pridict2` | loader needs a checkout | `source_snapshot` plus a revision check at the `ALLELEFORGE_*_REPO` boundary |
+| `lindel`, `be-dict`, `pridict2` | loader needs a checkout | **done** — `source_snapshot` + `check_checkout_revision` |
 | `be-hive` | a web service, no artifact | upstream publishing a checkpoint |
 | `deepprime`, `genet`, `indelphi`, `x-crisp` | repositories with no weight asset | a release **asset** rather than a source tag |
 | 5 heuristic baselines | no artifact exists — they are code | nothing; correctly unpinnable |
@@ -128,7 +139,7 @@ operation.
 ## Status
 
 R0 stays **open at 1/12 cards and 3/8 datasets** — unchanged, deliberately, because a
-revision pin is not the hash the criterion asks for. What changed: three cards are now
-reproducibly pinned and the mechanism exists for the other three, five need an upstream
+revision pin is not the hash the criterion asks for. What changed: all six cards whose loader
+consumes a set of files are now reproducibly pinned and checked, five need an upstream
 release, the datasets need file choices, and two cards stopped misstating where they came
 from.

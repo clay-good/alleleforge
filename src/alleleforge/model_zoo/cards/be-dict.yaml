@@ -21,3 +21,11 @@ known_failure_modes:
   - "Treats editable positions as independent; correlated edits are approximate."
 checkpoint_sha256: null
 source_url: "https://github.com/uzh-dqbm-cmi/crispr"
+# This adapter reads a CHECKOUT (several files plus importable Python), not a
+# checkpoint file, so there is no single artifact to hash. The revision pins all of
+# them at once, and `check_checkout_revision` compares it with the directory the
+# adapter is actually pointed at -- warning, not refusing, because a newer checkout
+# is legitimate work. Default-branch head as of 2026-10-30.
+source_snapshot:
+  repo: "uzh-dqbm-cmi/crispr"
+  revision: "9d7f8bb24de21e6c4bb5fc56609d995c9cb1fd9a"
