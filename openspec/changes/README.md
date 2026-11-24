@@ -24832,3 +24832,74 @@ reader; re-asking it across every loader found a worse one, and chasing that fou
 more defects underneath — an incomplete ancestry list and a decompressor that could not
 open the release. None would have surfaced from reading the code, because all three
 needed the real file to be visible.
+
+## Round 703 — the module said it had this reader, and did not
+
+`haplotypes.py` opened with "Production builds these from phased VCFs; the test path
+parses a small plain-text TSV." `from_tsv` was the only reader. So the sentence described
+a pipeline no caller could run, and 1000G and HGDP — which publish exactly those phased
+VCFs — were usable only after the caller wrote the conversion.
+
+That makes it the sharpest case of the query R701 and R702 ran. Usually the mismatch is
+silent and has to be inferred by comparing a registry URL against a reader. Here **the
+module asserted the capability in its first sentence.**
+
+`HaplotypePanel.from_phased_vcf` and `read_sample_populations` now exist, and the
+docstring describes what the module does.
+
+### Validated against the real release, not a fixture
+
+Over `chr22:10519200-10521000` of
+`CCDG_14151_B01_GRM_WGS_2020-08-05_chr22.filtered.shapeit2-duohmm-phased.vcf.gz`, with
+all 3,202 samples mapped to the five superpopulations, it finds a three-variant haplotype
+at **11.7% in AFR** and under 0.6% in every other superpopulation.
+
+That asymmetry is the whole reason this panel exists — an off-target created only on a
+haplotype common in one population — so it is the right *shape* of answer, not merely a
+parse that did not crash.
+
+### Three details of the published files, each of which changes the answer
+
+* The sample table is **space**-separated, not tab. A TSV reader yields one column, no
+  samples, and then an empty panel — reported as "no haplotypes" rather than as a parse
+  failure.
+* **`SampleID` is the second column**; the first is `FamilyID`. They coincide for most
+  unrelated samples and not for the trios, so keying on the first column passes a casual
+  test and mis-keys exactly the related samples.
+* There are **two** population columns and they are different questions. `Population` is
+  the cohort (`GBR`, `YRI`); `Superpopulation` is the continental group (`EUR`, `AFR`).
+  The registry describes `1000g` with the five superpopulations, so that is the default —
+  a panel keyed by cohort would advertise ancestries no descriptor mentions and would not
+  answer `--populations EUR` at all.
+
+### The refusal that matters
+
+An unphased genotype is refused, naming the sample and locus. `0/1` cannot be assigned to
+a haplotype, and reading it as `0|1` would **invent phase that was never measured** — on
+the strength of which the engine reports an off-target as carried by a named population.
+It is the one error this panel must not make.
+
+### A measurement that corrected my own test
+
+My first grouping assertion expected two records where the code produced one. It was
+wrong: over a single site, `0|1` in a EUR sample and `1|0` in an AFR sample are *the same
+haplotype*, so it is one record carrying `{AFR: 0.25, EUR: 0.25}`. A haplotype is defined
+by the alleles it carries; who carries it is the frequency map. The code was right and the
+test taught me the semantics.
+
+### `encode`: the answer is different, and it is a dependency decision
+
+Same query, evidenced against ENCODE's own API rather than assumed. For DNase-seq it
+serves **816 bigWig** signal files and **45,422 bigBed** peak files — and **zero
+bedGraph**. `EncodeTracks.from_bedgraph` wants a project-specific five-column
+`track chrom start end value` text format, so **ENCODE publishes nothing this reader can
+open**, which is a stronger statement than "the formats differ".
+
+Closing it needs a bigWig or bigBed parser — a new binary-format dependency (pyBigWig is
+a C extension) in a project that keeps CI weight-free. That is a scope call for the owner,
+not one to make in passing, so it is recorded rather than taken.
+
+**Lesson: a docstring is a claim, and the first sentence is the one most likely to be
+stale.** This one had been read many times, including by me in earlier rounds, because it
+describes what the module is *for*. "Production builds these from phased VCFs" was
+aspiration written in the present tense, and nothing checks prose.

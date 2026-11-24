@@ -9,6 +9,21 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **`HaplotypePanel` can now build from the phased VCFs 1000G and HGDP publish — which
+  the module's own first sentence already claimed it did.** "Production builds these from
+  phased VCFs" was written in the present tense while `from_tsv` was the only reader, so
+  the documented pipeline did not exist. `from_phased_vcf` builds a panel over a
+  caller-chosen window, and `read_sample_populations` reads the sample table 1000G
+  publishes beside the VCFs. Validated on a real chr22 slice with all 3,202 samples: it
+  finds a three-variant haplotype at 11.7% in AFR and under 0.6% elsewhere — the
+  population-specific haplotype this panel exists to catch. Three details of the
+  published files are handled and pinned: the sample table is space-separated (a TSV
+  reader yields an empty panel, not an error), `SampleID` is the *second* column, and
+  `Population` (cohort) and `Superpopulation` (continental) are different questions — the
+  registry describes `1000g` by superpopulation, so that is the default. An **unphased**
+  genotype is refused, naming the sample and locus: reading `0/1` as `0|1` would invent
+  phase that was never measured, and the engine reports off-targets as carried by named
+  populations on the strength of it.
 - **`GnomadDB` can now read the VCF gnomAD publishes, and three defects were found
   doing it.** It had only `from_sites_tsv`, so the input behind population-aware
   off-target search — the capability this project is built around — required a

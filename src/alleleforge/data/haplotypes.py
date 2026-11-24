@@ -6,8 +6,13 @@ engine walks these haplotypes (in the Rust ``haplotype.rs`` kernel) so that an
 off-target created only on a common non-reference haplotype is still nominated,
 and is reported with the populations that carry it.
 
-Production builds these from phased VCFs; the test path parses a small plain-text
-TSV. Each row is one ``(haplotype, population)`` observation:
+Two readers, and until R703 only the second existed — while this sentence already
+claimed the first. :meth:`HaplotypePanel.from_phased_vcf` builds a panel from the phased
+VCFs that 1000G and HGDP actually publish, over a caller-chosen window and with a
+sample-to-population mapping (:func:`read_sample_populations` reads the one 1000G
+publishes beside them). :meth:`HaplotypePanel.from_tsv` parses a small plain-text panel,
+which is what the tests use and what a hand-assembled panel looks like. Each TSV row is
+one ``(haplotype, population)`` observation:
 
 ``hap_id  chrom  start  end  population  frequency  variants``
 
@@ -19,7 +24,7 @@ haplotype.
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
@@ -28,6 +33,59 @@ from alleleforge.data._io import open_text
 from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import GenomicInterval, Strand, canonical_contig
 from alleleforge.types.variant import Variant
+
+
+def read_sample_populations(path: str | Path, *, column: str = "Superpopulation") -> dict[str, str]:
+    """Read 1000G's sample-to-population table into a mapping.
+
+    1000G publishes this beside the phased VCFs as
+    ``20130606_g1k_3202_samples_ped_population.txt``, and it is **space**-separated with
+    the columns ``FamilyID SampleID FatherID MotherID Sex Population Superpopulation``.
+    Three things about it are easy to get wrong and all three change the answer:
+
+    * it is not a TSV, so splitting on tabs yields one column;
+    * ``SampleID`` is the second field, not the first — the first is the family;
+    * there are **two** population columns, and they are different questions.
+      ``Population`` is the cohort (``GBR``, ``YRI``); ``Superpopulation`` is the
+      continental group (``EUR``, ``AFR``). The dataset registry describes ``1000g``
+      with the five superpopulations, so that is the default — a panel keyed by cohort
+      would advertise ancestries no descriptor mentions and would not match a
+      ``--populations EUR`` request.
+
+    Args:
+        path: The published population table.
+        column: Which population column to key frequencies by.
+
+    Returns:
+        Sample ID -> population label.
+
+    Raises:
+        ValueError: If the header does not name ``SampleID`` and ``column``.
+    """
+    mapping: dict[str, str] = {}
+    header: list[str] | None = None
+    for line in open_text(path):
+        fields = line.split()
+        if not fields:
+            continue
+        if header is None:
+            header = fields
+            for needed in ("SampleID", column):
+                if needed not in header:
+                    raise ValueError(
+                        f"{path} does not name a {needed!r} column; found "
+                        f"{'  '.join(header)}. Expected 1000G's "
+                        "'FamilyID SampleID FatherID MotherID Sex Population "
+                        "Superpopulation' table."
+                    )
+            continue
+        if len(fields) < len(header):
+            continue
+        row = dict(zip(header, fields, strict=False))
+        mapping[row["SampleID"]] = row[column]
+    if header is None:
+        raise ValueError(f"{path} is empty")
+    return mapping
 
 
 class Haplotype(BaseModel):
@@ -141,6 +199,143 @@ class HaplotypePanel:
                 source=source,
             )
             for key in intervals
+        ]
+        return cls(haplotypes, source=source)
+
+    @classmethod
+    def from_phased_vcf(
+        cls,
+        path: str | Path,
+        *,
+        interval: GenomicInterval,
+        sample_populations: Mapping[str, str],
+        source: str,
+    ) -> HaplotypePanel:
+        """Build a panel from a phased VCF — the path this module said it already had.
+
+        This module's own docstring opened with "Production builds these from phased
+        VCFs; the test path parses a small plain-text TSV". Only the test path existed.
+        `from_tsv` was the sole reader, so the sentence described a pipeline no caller
+        could run, and 1000G and HGDP — which publish exactly these phased VCFs — were
+        usable only after the caller wrote the conversion themselves.
+
+        A haplotype is defined *over a window*, so ``interval`` is required rather than
+        inferred: "the haplotypes of chromosome 22" is not a thing, and a reader that
+        silently chose a span would decide the question the caller is asking.
+
+        Frequencies are per population and need a sample-to-population mapping, which
+        1000G publishes beside the VCFs (``20130606_g1k_3202_samples_ped_population.txt``);
+        :func:`read_sample_populations` reads it. Samples absent from the mapping are
+        skipped entirely rather than pooled into an "unknown" group — a frequency
+        denominator that includes samples of no stated ancestry is not a per-population
+        frequency.
+
+        No build-time frequency cut is applied: :meth:`common_haplotypes` already filters
+        on ``min_freq`` at query time, and doing it twice would mean a panel whose
+        contents depend on a threshold nobody recorded.
+
+        Args:
+            path: A phased VCF (plain or gzip-compressed).
+            interval: The window to build haplotypes over (0-based half-open).
+            sample_populations: Sample ID -> population label.
+            source: Panel name recorded on each haplotype (e.g. ``"1000g"``).
+
+        Returns:
+            A panel of every haplotype observed in the window.
+
+        Raises:
+            ValueError: If the VCF has no ``#CHROM`` header, or carries an **unphased**
+                genotype. Unphased calls cannot be assigned to a haplotype, and treating
+                ``0/1`` as ``0|1`` would invent phase that was never measured — which is
+                the one error this panel must not make, since the engine reports an
+                off-target as carried by a named population on the strength of it.
+        """
+        per_haplotype: dict[tuple[str, int], list[Variant]] = {}
+        samples: list[str] = []
+        totals: dict[str, int] = defaultdict(int)
+        seen_a_site = False
+
+        for line in open_text(path):
+            if line.startswith("##") or not line.strip():
+                continue
+            cols = line.rstrip("\n").split("\t")
+            if line.startswith("#CHROM"):
+                samples = cols[9:]
+                continue
+            if not samples:
+                raise ValueError(
+                    "phased VCF is missing its '#CHROM ... FORMAT <sample>...' header "
+                    "line, so genotype columns cannot be attributed to samples"
+                )
+            if len(cols) < 10:
+                continue
+            chrom, pos, ref, alts = cols[0], cols[1], cols[3], cols[4]
+            if canonical_contig(chrom) != canonical_contig(interval.chrom):
+                continue
+            zero_based = int(pos) - 1
+            if not interval.start <= zero_based < interval.end:
+                continue
+            alt_list = alts.split(",")
+
+            if not seen_a_site:
+                # Two haplotypes per diploid sample, counted once for the window rather
+                # than per site: a per-site denominator would make the frequency depend
+                # on how many variants the window happens to contain.
+                for name in samples:
+                    population = sample_populations.get(name)
+                    if population is not None:
+                        totals[population] += 2
+                seen_a_site = True
+
+            for index, name in enumerate(samples):
+                if sample_populations.get(name) is None:
+                    continue
+                genotype = cols[9 + index].split(":", 1)[0]
+                if "/" in genotype:
+                    raise ValueError(
+                        f"phased VCF carries an unphased genotype {genotype!r} for sample "
+                        f"{name!r} at {chrom}:{pos}. A haplotype panel cannot be built "
+                        "from unphased calls, and reading '/' as '|' would invent phase "
+                        "that was never measured."
+                    )
+                for which, allele in enumerate(genotype.split("|")):
+                    carried = per_haplotype.setdefault((name, which), [])
+                    if allele in ("", "."):
+                        continue  # missing call: this haplotype carries nothing here
+                    try:
+                        allele_index = int(allele)
+                    except ValueError:
+                        continue
+                    if allele_index == 0 or allele_index > len(alt_list):
+                        continue  # reference, or an index the ALT column cannot supply
+                    carried.append(
+                        Variant(
+                            chrom=chrom,
+                            pos=zero_based,
+                            ref=ref,
+                            alt=alt_list[allele_index - 1],
+                        )
+                    )
+
+        counts: dict[tuple[Variant, ...], dict[str, int]] = {}
+        for (name, _which), carried in per_haplotype.items():
+            population = sample_populations[name]
+            counts.setdefault(tuple(carried), defaultdict(int))[population] += 1
+
+        ordered = sorted(counts.items(), key=lambda kv: -sum(kv[1].values()))
+        haplotypes = [
+            Haplotype(
+                hap_id=f"{source}-{number}",
+                interval=interval,
+                variants=key,
+                frequencies={
+                    population: observed / totals[population]
+                    for population, observed in group.items()
+                    if totals.get(population)
+                },
+                source=source,
+            )
+            for number, (key, group) in enumerate(ordered)
         ]
         return cls(haplotypes, source=source)
 

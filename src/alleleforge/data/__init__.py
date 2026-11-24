@@ -24,7 +24,7 @@ from alleleforge.data.clinvar import (
 )
 from alleleforge.data.dbsnp import DbSnpDB
 from alleleforge.data.gnomad import GNOMAD_POPULATIONS, GnomadDB, PopulationFrequency
-from alleleforge.data.haplotypes import Haplotype, HaplotypePanel
+from alleleforge.data.haplotypes import Haplotype, HaplotypePanel, read_sample_populations
 from alleleforge.data.hgdp import HGDP
 from alleleforge.data.registry import (
     DEFAULT_REGISTRY,
@@ -37,6 +37,7 @@ from alleleforge.errors import ChecksumError, ConsentError
 __all__ = [
     "DEFAULT_REGISTRY",
     "GNOMAD_POPULATIONS",
+    "read_sample_populations",
     "HGDP",
     "ChecksumError",
     "ClinVarDB",
