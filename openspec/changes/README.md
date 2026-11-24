@@ -24221,3 +24221,84 @@ round, and the list above is generated from that rather than transcribed.
 A list of line numbers is the one artifact in a round log that a reader cannot sanity-
 check by reading — it is exactly as trustworthy as the arithmetic behind it, and mine was
 not. Derive it; do not type it.
+
+## Round 694 — the `typer.Exit` class, resolved; and a measurement that measured nothing
+
+The last of the class R691 opened. Of the 28 sites that remained after R693, **16 are now
+killed, 2 are proved equivalent, and 10 are unreachable in this environment with the
+reason recorded**. `config.py`, carried for three rounds as "unmeasurable", is measured:
+1 killed / 0 alive. Nothing in `--mode raise` is now both reachable and unobserved.
+
+### The headline is a mistake I nearly shipped
+
+The first draft of this round's tests asserted what the earlier two files asserted — the
+exit code and the message — and 7 of 18 mutants survived it. So I compared clean against
+mutated source directly, and the comparison said all seven were **equivalent**: identical
+exit code, identical stderr, identical exception. A tidy result, and a reason to stop.
+
+It was wrong. The probe wrote the mutated file and re-ran a subprocess without clearing
+`__pycache__`, so Python loaded the *previous* bytecode and the "mutant" runs were
+unmutated code. Clearing the cache moved **five of the seven from "equivalent" to
+"distinguishable"**, and this is R685's error wearing different clothes: a measurement
+that did not measure, reported as a clean finding. R689's controls catch that inside the
+harness. They cannot catch it in an ad-hoc probe I write beside the harness, and that is
+where it happened.
+
+What the five actually do under deletion is worth more than the exit code:
+
+```
+clean   : rc=2, 1 error line   --out nodir/x.json: no such directory nodir.
+mutant  : rc=2, 2 error lines  ... no such directory nodir.
+                               ... nodir is not a directory.
+```
+
+**The exit code does not move; the number of error lines does.** These guards sit
+immediately above a sibling whose condition is also true — `parent.exists()` then
+`parent.is_dir()`, a missing config then the read that fails, a missing reference then
+the construction that uses it. Delete the raise and the next guard fires as well, so the
+caller still gets a non-zero exit and still gets the right first sentence, followed by a
+second one contradicting it in detail. The assertion that catches this is that **one
+mistake produces one message**, which is a better contract than the one I started with:
+a cascade means the guard that should have stopped the run did not.
+
+### The two that are genuinely equivalent
+
+* `366` (`_load_settings`) is masked by `121`. Both map a malformed setting to `USAGE`
+  with the same sentence and `design` reaches both, so deleting one leaves the other to
+  report identically — the duplicate-message trap from R689, this time as a pair of call
+  sites rather than a pair of functions.
+* `677` (`_parse_weights`'s type branch) still ends in `SystemExit(ExitCode.USAGE)` with
+  byte-identical stderr when deleted. A later consumer of the same config refuses in the
+  same terms. The mechanism is not pinned down; the equivalence is, by direct comparison.
+
+### The ten that are unreachable, and why that is a finding
+
+`1766`, `2455` (`polars` installed), `3459` (`pyliftover` installed), `1188` (shadowed by
+the missing-`cyvcf2` arm above it), `476`/`1716`/`1719`/`1722` (need a live Ensembl
+failure or an absent dependency), and two that are structurally interesting:
+
+* `783` — `--config`'s `OSError`. **Typer applies `readable=True` to `Path` options by
+  default**, so an unreadable file is rejected with Typer's own usage error before the
+  command body runs, and a directory takes the `is_file()` branch at `766` instead. What
+  is left for this arm is a real I/O error or a check-then-read race. That default is
+  also why the three *other* `OSError` arms (`1035`, `1086`, `1271`) are testable only by
+  passing a **directory**: a directory is readable, so the option validates and `open()`
+  then raises `IsADirectoryError`.
+* `825` — `_guarded_write`'s `OSError`, unreachable **by design**: the writability
+  precheck in `_check_output_paths` fires first, and this site's own comment says it is
+  the backstop for when `os.access` is wrong under ACLs or as root.
+
+### `config.py`, finally measured
+
+Unmeasurable for three rounds because the no-op control kept failing. Excluding the first
+source-reading test exposed a second — the control named it,
+`test_a_judgement_number_says_what_kind_of_number_it_is[config.py-DEFAULT_MAF_THRESHOLD]`
+— and with both excluded the module measures 1 killed / 0 alive. Two rounds of calling it
+"unmeasurable" were two rounds of not re-running the control after narrowing. **The
+control names the test; narrowing is one `find` away; do it the first time.**
+
+**Lesson: the class was never 42 gaps.** 42 survivors resolved to 14 real tests, 2
+equivalents and 10 unreachables, and the shape only became visible by comparing clean
+against mutant output rather than by reading the code. A survivor count is a question.
+This round the answer was mostly "no", and the three rounds spent finding that out were
+still worth it for the five defects in the "mostly".

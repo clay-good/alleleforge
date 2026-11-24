@@ -9,9 +9,9 @@ acceptance.
 ## [Unreleased]
 
 ### Added
-- **No library behaviour changed in these rounds.** All twenty-four guards below were already
+- **No library behaviour changed in these rounds.** All forty guards below were already
   correct; what was missing was any test that would notice their removal.
-- **Twenty-four refusals that nothing observed are now pinned, found by deleting them.** The
+- **Forty refusals that nothing observed are now pinned, found by deleting them.** The
   four sharpest were in modules whose kill rate had been a meaningless 100%, because a
   test reading the module's own source text dies on `ast.unparse` reformatting whatever
   the mutation was. R689's no-op control refused to report those scores and named the
@@ -60,7 +60,12 @@ acceptance.
   stale file, and the leaderboard publishes a figure for a run that never happened.
   `bench leaderboard` takes a *list*, so without its guard a missing path is announced
   and skipped and the board renders from whatever remained, with nothing in the artifact
-  saying so. 28 sites remain, listed by line in the round log.
+  saying so. The remaining 28 followed, and the class is now resolved: 16 killed, 2
+  proved equivalent by comparing clean against mutated output, and 10 unreachable in this
+  environment with the reason recorded for each. Five of those 16 needed a different
+  assertion than the exit code — deleting those guards leaves the code untouched and adds
+  a *second*, contradicting error line, because each sits above a sibling whose condition
+  is also true, so what the tests pin is that **one mistake produces one message**.
 
 - **The mutation harness runs its test list unmutated and aborts unless it passes.**
   "Run the chosen list green first" had been documented advice for many rounds, and advice
