@@ -110,10 +110,13 @@ the two ends of a span are interchangeable, and `dflt` whether a boolean default
 signature is a posture anyone has checked. The script's own docstring says what each
 finds and why.
 
-Every mode has been run repo-wide and each is exhausted, so a new one needs a new
-hypothesis rather than a longer list. `raise` is the only mode that came back **clean**
-(370/370 killed): every refusal in the library is pinned by a test that asserts the
-refusal, not merely the happy path. Keep that result in mind before re-running it.
+Every mode except `raise` has been run repo-wide and each is exhausted, so a new one
+needs a new hypothesis rather than a longer list. **`raise` has no trustworthy result
+yet**: its first sweep reported 370/370 killed and that number was an artifact — the
+driver quoted a shell glob, pytest exited 4 without running anything, and the harness
+scored every non-zero exit as a kill. R689 has the full account. The harness now runs
+the chosen list unmutated and aborts unless it passes clean, so that particular lie
+cannot be told again.
 
 Three things to know before trusting a result, each of which has produced a confidently
 wrong answer here:

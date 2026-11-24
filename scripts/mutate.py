@@ -62,7 +62,12 @@ Three traps, each of which cost a wrong answer and each of which
    mutation and applied another — once for nested ``BoolOp`` (``a and (b or c)``), once
    for closures in ``del``/``side`` mode.
 2. **A failing test manufactures kills.** The run exits non-zero whatever the mutation
-   did, so every mutant in that file reports "killed". Run the chosen list green first.
+   did, so every mutant in that file reports "killed". **Now enforced, not advised:** the
+   chosen list is run once unmutated and anything but a clean pass aborts, because the
+   advice was followed and still missed it — the list verified by hand was the
+   shell-expanded one, while the sweep ran a quoted glob that pytest refused (exit 4,
+   nothing collected) and the harness scored all 370 mutants as killed. `--no-baseline`
+   opts out.
 3. **A narrow test list is a filter, not evidence.** Survivors against a module's own
    directory are routinely 50-100% phantom; confirm each against the whole suite before
    reading it as a gap. The phantom rate tracks the module's audience — near zero for a
@@ -613,6 +618,11 @@ def main() -> int:
     ap.add_argument("--log", default=str(HERE / "mutants.log"))
     ap.add_argument("--index", default="", help="comma-separated mutant indices to run")
     ap.add_argument("--root", default=os.getcwd())
+    ap.add_argument(
+        "--no-baseline",
+        action="store_true",
+        help="skip the unmutated baseline run (only if you just verified the list)",
+    )
     args = ap.parse_args()
     root = str(pathlib.Path(args.root).resolve())
 
@@ -639,6 +649,107 @@ def main() -> int:
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     log = pathlib.Path(args.log)
     log.write_text("")
+
+    # The baseline, enforced rather than advised. "Run the chosen list green first" has
+    # been trap 2 in this docstring for many rounds, and it still cost a whole pass: a
+    # driver passed `--tests "tests/x tests/*.py"` with the glob quoted, so pytest got a
+    # literal `tests/*.py`, exited 4 ("file or directory not found") without running a
+    # single test, and every mutant was recorded "killed". 370 of them. The sweep read as
+    # the cleanest result in the project's history.
+    #
+    # The exit code is the whole problem: rc != 0 means "something objected", and the
+    # harness cannot tell a test that caught the mutation from pytest refusing to start.
+    # So the list is run once, unmutated, and anything but a clean pass aborts. rc 4 (usage
+    # error) and rc 5 (no tests collected) are called out by name because they mean *no
+    # test ran*, which is the failure that masquerades as a perfect score.
+    if not args.no_baseline:
+        probe = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "-x",
+                "-q",
+                "-p",
+                "no:randomly",
+                "--no-header",
+                "-o",
+                "addopts=",
+                *tests,
+            ],
+            capture_output=True,
+            env=env,
+            cwd=root,
+        )
+        if probe.returncode != 0:
+            why = {
+                4: "pytest usage error — a path in --tests does not exist (an unexpanded "
+                "shell glob does this, and no test ran)",
+                5: "pytest collected no tests from --tests (no test ran)",
+            }.get(probe.returncode, "the chosen test list does not pass unmutated")
+            print(
+                f"BASELINE FAILED (pytest rc={probe.returncode}): {why}.\n"
+                f"  --tests {args.tests!r} -> {tests}\n"
+                "Every mutant would be reported 'killed' whatever the mutation did. "
+                "Fix the list (or pass --no-baseline if you have just verified it).\n"
+                + probe.stdout.decode(errors="replace")[-2000:],
+                file=sys.stderr,
+                flush=True,
+            )
+            return 2
+
+        # The second control, which the first cannot stand in for. Every mutant is run
+        # from `ast.unparse` output, and **unparse drops comments and normalises
+        # formatting**. So a test that reads this module's *source text* — and this
+        # project has several, counting `warnings.append` branches, checking a constant's
+        # comment still names its source, grepping for raw exception interpolation — fails
+        # on the rewrite no matter what the mutation did. Every mutant in that module then
+        # reports "killed" and the module looks perfectly covered.
+        #
+        # The baseline above cannot see this: it runs the *original* file, which passes.
+        # Only the unmutated *rewrite* exposes it. A module that fails here is not
+        # measurable with this list, and the honest move is to narrow the list rather than
+        # read the kill rate.
+        rewritten = ast.unparse(ast.fix_missing_locations(ast.parse(original)))
+        target.write_text(rewritten)
+        try:
+            noop = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pytest",
+                    "-x",
+                    "-q",
+                    "-p",
+                    "no:randomly",
+                    "--no-header",
+                    "-o",
+                    "addopts=",
+                    *tests,
+                ],
+                capture_output=True,
+                env=env,
+                cwd=root,
+            )
+        finally:
+            # `restore()` is defined further down; write it back directly so this
+            # control cannot depend on declaration order.
+            target.write_text(original)
+        if noop.returncode != 0:
+            out = noop.stdout.decode(errors="replace")
+            culprit = next((line for line in out.splitlines() if line.startswith("FAILED")), "")
+            print(
+                "NO-OP MUTANT FAILED: an unmutated `ast.unparse` rewrite of "
+                f"{target.name} does not pass this list (pytest rc={noop.returncode}).\n"
+                f"  {culprit}\n"
+                "`ast.unparse` drops comments and reformats, so a test that reads this "
+                "module's source text fails on every mutant regardless of the mutation — "
+                "the kill rate would be 100% and meaningless. Narrow --tests to exclude "
+                "that test, or pass --no-baseline to accept an unmeasurable run.",
+                file=sys.stderr,
+                flush=True,
+            )
+            return 3
 
     def restore() -> None:
         target.write_text(original)

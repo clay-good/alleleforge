@@ -23590,6 +23590,12 @@ next caller.
 
 ## Round 685 — the operator that found nothing, and why that is the result
 
+> **RETRACTED by R689.** The 370/370 in this round is an artifact: the driver quoted
+> a shell glob, pytest exited 4 without running a single test, and the harness scored
+> every non-zero exit as a kill. The "all 13 baselines green" check below used the
+> shell-expanded list, which is *not* the list the sweep ran. Read R689 instead; the
+> operator itself is sound and now has an enforced baseline.
+
 Built the eighth operator, `--mode raise`: delete one `raise` statement at a time.
 **370 mutants across 58 files. 370 killed, 0 alive, 0 invalid.** The first operator in
 this whole arc to come back completely clean.
@@ -23811,3 +23817,87 @@ test and the other deserved to be understood and left alone — and telling them
 probing seven inputs, not reading the diff. The test that came out of it asserts something
 the branch does not currently do anything about, which is the only version of it worth
 having.
+
+## Round 689 — the cleanest result in the project's history was pytest refusing to start
+
+R685 reported `raise` mode as **370/370 killed, zero survivors** — the first operator here
+to come back clean — and said so in the round log, the CHANGELOG and CONTRIBUTING. It
+measured nothing. Both halves of that sentence are now retracted, and the two flaws behind
+it are enforced controls rather than advice.
+
+### Flaw 1: the glob was quoted, so no test ever ran
+
+The driver built `tests="tests/$pkg tests/*.py"` and passed `--tests "$tests"`. Quoted, so
+the **shell never expanded it**. `mutate.py` split the string and handed pytest a literal
+`tests/*.py`; pytest exited **4** — `ERROR: file or directory not found` — having run
+nothing at all. The harness's only signal is a non-zero exit code, and it cannot tell a
+test catching the mutation from pytest declining to start. Every mutant: "killed".
+
+**The baseline check written to prevent exactly this did not catch it, because I verified a
+different command.** Trap 2 in the harness docstring says *run the chosen list green
+first*, and I did — `pytest tests/$pkg tests/*.py` typed into a shell, where the glob
+expands. Green, 854–1,421 passing per package. That is not the argv the sweep passed.
+**Verifying "the list" proves nothing unless it is the exact argv.**
+
+### Flaw 2: `ast.unparse` drops comments, so source-reading guards auto-kill everything
+
+Mutants are written from unparsed AST, which discards comments and reformats. Any test
+that reads a module's *source text* therefore fails on the rewrite whatever the mutation
+did — and this repository has several: one checks a constant's comment still names both its
+sources, one counts `warnings.append` branches, one greps for raw exception interpolation.
+
+The trail in was an impossibility. `types/guide.py:275` is a `raise` that **never
+executes** (coverage confirms the line), so deleting it cannot be detected — yet it
+reported "killed". The killer was
+`test_the_constants_comment_still_names_both_sources`. This flaw is independent of flaw 1
+and survives fixing it.
+
+### Both are now controls in the harness
+
+* **Baseline control** — runs `--tests` unmutated, aborts rc=2 unless it passes clean. rc 4
+  (usage error) and rc 5 (nothing collected) are named explicitly, because they mean *no
+  test ran*, which is the failure that masquerades as a perfect score.
+* **No-op mutant control** — runs an `ast.unparse` rewrite with **no mutation**, aborts rc=3
+  and **names the offending test**. The baseline cannot stand in for this: it runs the
+  original file, which passes by construction. Only the unmutated rewrite exposes it.
+
+Both pinned (contract tests 30 → 32), including that the word "killed" never appears in a
+run that aborts. `--no-baseline` opts out. The exact R685 invocation now aborts with a
+diagnosis instead of producing a flawless sweep.
+
+### What `raise` actually finds, on a bounded scope
+
+Re-measured with both controls live. Narrow lists, so these are a filter, not evidence:
+
+| module | result |
+|---|---|
+| `types/guide.py` | **UNMEASURABLE** against `tests/types` (the comment guard); 12/1 with it deselected |
+| `types/prediction.py` | 9/9 |
+| `types/sequence.py` | 8/8 |
+| `types/variant.py` | 4/4 |
+| `types/edit.py` | 4/4 |
+| `types/offtarget.py` | 4 killed / 1 alive |
+| `model_zoo/registry.py` | 12/3 |
+| `genome/reference.py` | 9/2 |
+| `variant/resolver.py` | 15/0 |
+| `scoring/uncertainty.py` | 9/5 |
+| `report/oligos.py` | 10/3 |
+| `data/registry.py` | 5/1 |
+
+**~16 narrow survivors where R685 claimed zero.** Broad confirmation got through three
+before it stalled: `types/guide.py:275` (the unreached validator — survives, matching its
+uncovered line), `types/offtarget.py:97` (survives this list; dies against the whole
+suite, so it is pinned by its consumers, not its own package), and one of
+`model_zoo/registry.py`'s three.
+
+**Explicitly unfinished, so it is a backlog and not a silence:** the rest of the broad
+confirmation, the ~40 other modules, and triage of the survivors above — including a
+`LicenseError` and a `ConsentError` in `model_zoo/registry.py` and three oligo
+reconstruction validators in `report/oligos.py`, which are the ones worth reading first.
+
+**Lesson: a 100% kill rate is a red flag, not a trophy.** Both flaws produce exactly 100%,
+and the number is most believable in the module where it is least earned. The sweep cost an
+hour; believing it cost a round, a CHANGELOG entry and a line in CONTRIBUTING. What caught
+it was not re-reading the driver but noticing an *impossible* result — a line coverage
+proves never runs, reported as observed. **Keep one fact that the result must be consistent
+with, and check the result against the fact rather than against your expectation of it.**

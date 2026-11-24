@@ -9,15 +9,25 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The mutation harness runs its test list unmutated and aborts unless it passes.**
+  "Run the chosen list green first" had been documented advice for many rounds, and advice
+  is not a control: a sweep whose list pytest refused to start (exit 4, an unexpanded shell
+  glob) recorded all 370 of its mutants as "killed", because a non-zero exit code is the
+  harness's only signal and it cannot tell a test catching the mutation from pytest never
+  running. The baseline is now enforced in `scripts/mutate.py`, with exit 4 (usage error)
+  and exit 5 (nothing collected) named explicitly, since those mean no test ran at all —
+  the failure that masquerades as a perfect score. `--no-baseline` opts out.
 - **The mutation harness deletes refusals (`--mode raise`).** `side` mode deliberately
   excludes `raise` statements and `--mode del` buries them under thousands of unrestricted
   deletions, so for a library whose identity is honest refusals — consent gates, checksum
   verification, field validators, the `calibrated=True` coercion — nothing had ever asked
   whether a test observes that a guard *fires* rather than that the happy path works. The
-  answer is that they all do: 370 mutants across 58 files, 370 killed, the first operator
-  here to come back clean. Every package list was re-run at baseline afterwards to rule out
-  the failure mode where a red suite reports every mutant as killed. The harness's contract
-  test gained the closure-and-handler shapes for the new mode.
+  The harness's contract test gained the closure-and-handler shapes for the new mode. Its
+  first sweep reported 370/370 killed; **that number was an artifact and is retracted** —
+  the driver passed a quoted shell glob, so pytest exited 4 without running a single test
+  and the harness scored every non-zero exit as a kill. The baseline re-run that was meant
+  to rule exactly this out used the shell-expanded list, which is not the list the sweep
+  ran. `raise` therefore has no measured result yet.
 - **The mutation harness flips boolean defaults (`--mode dflt`).** A boolean default is
   a decision no call site has to make, which is where this project's safety postures live
   (`verify=`, `consent=`, `pass_only=`, `in_distribution=`). `const` mode reaches the same

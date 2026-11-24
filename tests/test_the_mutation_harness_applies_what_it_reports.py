@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -203,6 +204,111 @@ def test_an_index_past_the_last_site_applies_nothing(harness: ModuleType) -> Non
     mutator = harness.Mutator("conj", len(sites) + 5)
     mutator.visit(ast.parse(_SOURCE))
     assert not mutator.applied
+
+
+def test_a_test_list_that_runs_nothing_aborts_instead_of_reporting_kills(
+    tmp_path: Path,
+) -> None:
+    """The harness must refuse a list pytest will not run, rather than score it.
+
+    This is the failure mode that voided a whole pass. A driver passed
+    `--tests "tests/x tests/*.py"` with the glob quoted, so pytest received a literal
+    `tests/*.py`, exited 4 — "file or directory not found" — without running a single
+    test, and the harness recorded every mutant as "killed" because its only signal is
+    a non-zero exit code. 370 mutants came back clean and the result read as the best
+    in the project's history.
+
+    "Run the chosen list green first" had been written in the docstring for many rounds
+    as advice. Advice is not a control: the baseline I did run was the shell-expanded
+    list, which is not the list the sweep ran. So the harness now runs the list itself,
+    unmutated, and aborts on anything but a clean pass.
+    """
+    module = tmp_path / "subject.py"
+    module.write_text("def f(x):\n    if x < 0:\n        raise ValueError('neg')\n    return x\n")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(_HARNESS),
+            "--target",
+            str(module),
+            "--tests",
+            "tests/this_path_does_not_exist_*.py",
+            "--mode",
+            "raise",
+            "--log",
+            str(tmp_path / "mutants.log"),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=_HARNESS.parents[1],
+    )
+    assert result.returncode == 2, (result.returncode, result.stdout, result.stderr)
+    assert "BASELINE FAILED" in result.stderr, result.stderr
+    assert "no test ran" in result.stderr, result.stderr
+    assert "killed" not in result.stdout, (
+        "the harness scored mutants against a list that ran nothing: " + result.stdout
+    )
+
+
+def test_a_source_reading_guard_makes_a_module_unmeasurable_and_says_so(
+    tmp_path: Path,
+) -> None:
+    """A no-op rewrite must be checked, because every mutant runs from one.
+
+    Mutants are produced with `ast.unparse`, which **drops comments** and reformats. A
+    test that reads a module's *source text* therefore fails on every mutant whatever
+    the mutation did, and the module reports a 100% kill rate that means nothing. This
+    project has several such guards — one counts `warnings.append` branches, one checks
+    that a constant's comment still names its source, one greps for raw exception
+    interpolation — and the second of those is what made an unreachable `raise` report
+    as killed, which is how the artifact was found.
+
+    The unmutated-source baseline cannot catch this: it runs the original file, which
+    passes by construction. Only the unmutated *rewrite* exposes it.
+    """
+    module = tmp_path / "subject.py"
+    module.write_text(
+        "# the magic number comes from the published table\n"
+        "LIMIT = 7\n\n\n"
+        "def f(x):\n"
+        "    if x > LIMIT:\n"
+        "        raise ValueError('too big')\n"
+        "    return x\n"
+    )
+    guard = tmp_path / "test_guard.py"
+    guard.write_text(
+        "from pathlib import Path\n\n"
+        "def test_the_comment_still_names_the_table() -> None:\n"
+        f"    text = Path({str(module)!r}).read_text()\n"
+        "    assert 'published table' in text\n"
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(_HARNESS),
+            "--target",
+            str(module),
+            "--tests",
+            str(guard),
+            "--mode",
+            "raise",
+            "--log",
+            str(tmp_path / "mutants.log"),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=_HARNESS.parents[1],
+    )
+    assert result.returncode == 3, (result.returncode, result.stdout, result.stderr)
+    assert "NO-OP MUTANT FAILED" in result.stderr, result.stderr
+    assert "test_the_comment_still_names_the_table" in result.stderr, (
+        "the harness must name the test that makes the module unmeasurable: " + result.stderr
+    )
+    assert "killed" not in result.stdout, result.stdout
+    # And the file it rewrote for the control must be put back.
+    assert "published table" in module.read_text()
 
 
 def test_the_default_log_stays_out_of_the_repository_root(harness: ModuleType) -> None:
