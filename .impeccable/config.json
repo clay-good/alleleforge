@@ -1,0 +1,35 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "undersized-ui-text",
+        "value": "*",
+        "files": [
+          "site/**"
+        ],
+        "createdAt": "2026-11-24T02:50:29.496Z",
+        "reason": "false positive: the detector computes rem against a 16px root, but mkdocs-material sets html{font-size:125%} (20px), so its 10.24/10.4/10.88px are .64/.65/.68rem that RENDER at 12.8/13/16px. Browser-measured on the built site across 24 pages x 5 viewport widths: 0 nodes below 11px (R683, commit 02dfa35). site/ is gitignored build output of a vendored theme; the authored stylesheet is guarded by tests/test_the_docs_site_text_clears_a_legibility_floor.py, which measures at the real root scale"
+      },
+      {
+        "rule": "tiny-text",
+        "value": "*",
+        "files": [
+          "site/**"
+        ],
+        "createdAt": "2026-11-24T02:50:29.531Z",
+        "reason": "false positive: the detector computes rem against a 16px root, but mkdocs-material sets html{font-size:125%} (20px), so its 10.24/10.4/10.88px are .64/.65/.68rem that RENDER at 12.8/13/16px. Browser-measured on the built site across 24 pages x 5 viewport widths: 0 nodes below 11px (R683, commit 02dfa35). site/ is gitignored build output of a vendored theme; the authored stylesheet is guarded by tests/test_the_docs_site_text_clears_a_legibility_floor.py, which measures at the real root scale"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "site/**"
+        ],
+        "createdAt": "2026-11-24T02:52:02.279Z",
+        "reason": "false positive: measures the intermediate flex wrapper's box, not the rendered text. On .md-nav__source the band is 48px tall and the text (.md-source__repository, 17.6px) sits with 15.2px of clear space above and below - browser-measured at 375px, R683. The wrapper is a full-height flex container that centers its text, so only its box is flush. site/ is gitignored build output of a vendored theme"
+      }
+    ]
+  }
+}
