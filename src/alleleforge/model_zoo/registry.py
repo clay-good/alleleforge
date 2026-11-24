@@ -24,6 +24,7 @@ without any real weights.
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Callable
 from functools import cache
 from pathlib import Path
@@ -78,6 +79,78 @@ def license_permits(license_id: str, use: ModelUse) -> bool:
     return True
 
 
+#: An upstream repository name, ``owner/name``. Deliberately not a URL: the host is
+#: implied by the loader that consumes it, and a URL invites the branch-shaped values
+#: this type exists to exclude.
+_REPO = re.compile(r"^[A-Za-z0-9][\w.-]*/[A-Za-z0-9][\w.-]*$")
+
+#: A git commit, full length and lower case. A tag or a branch is not accepted: both can
+#: be moved to point somewhere else, which is the whole failure this pin prevents.
+_REVISION = re.compile(r"^[0-9a-f]{40}$")
+
+
+class SourceSnapshot(BaseModel):
+    """An immutable upstream revision, for a model whose artifact is not one file.
+
+    ``checkpoint_sha256``/``source_url`` pin a *single file* that
+    :meth:`ModelRegistry.checkpoint` downloads and hash-verifies. Several models cannot
+    be pinned that way, because the thing their loader consumes is a set of files:
+
+    * the Hugging Face backbones are loaded with ``from_pretrained``, which needs a
+      snapshot -- config, tokenizer and weights together -- not a blob;
+    * the checkout adapters (Lindel, BE-DICT, PRIDICT2) read several files *plus*
+      importable Python from a repository.
+
+    For those, "which file do we hash?" has no answer, and pinning any one of them would
+    report the artifact verified while the load still read unpinned files beside it. A
+    revision pins all of them at once.
+
+    This is a *different* guarantee from a content hash, not a substitute for it, and the
+    release report counts the two separately. What it gives: the bytes behind a 40-hex
+    commit cannot change, so two runs naming the same revision load the same model. What
+    it does not give: a digest this project computed itself -- verification of the
+    individual blobs is the hub client's, against the metadata upstream published for
+    that revision.
+
+    Args:
+        repo: Upstream repository, ``owner/name``.
+        revision: A full 40-character lower-case commit sha.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    repo: str
+    revision: str
+
+    @field_validator("repo")
+    @classmethod
+    def _check_repo(cls, value: str) -> str:
+        """Reject a URL or a bare name: the consumer supplies the host."""
+        if not _REPO.match(value):
+            raise ValueError(
+                f"source_snapshot.repo must be 'owner/name'; got {value!r}. A URL does "
+                "not belong here -- the loader that reads this knows its own host."
+            )
+        return value
+
+    @field_validator("revision")
+    @classmethod
+    def _check_revision(cls, value: str) -> str:
+        """Reject a tag, a branch, or a short sha.
+
+        A short sha is ambiguous across a repository's lifetime and a tag can be moved,
+        so neither pins anything. Accepting them would make this type look like a pin
+        while leaving the bytes free to change -- exactly what it exists to prevent.
+        """
+        if not _REVISION.match(value):
+            raise ValueError(
+                f"source_snapshot.revision must be a full 40-character lower-case commit "
+                f"sha; got {value!r}. A tag or branch can be moved and a short sha is "
+                "ambiguous, so neither is a pin."
+            )
+        return value
+
+
 class ModelCard(BaseModel):
     """A required, validated model card (mirrors ``cards/*.yaml``).
 
@@ -94,6 +167,8 @@ class ModelCard(BaseModel):
         known_failure_modes: Documented ways the model fails.
         checkpoint_sha256: Expected checkpoint hash (``None`` blocks download).
         source_url: Where the checkpoint is fetched from.
+        source_snapshot: An immutable upstream revision, for a model whose loader
+            consumes a set of files rather than one (see :class:`SourceSnapshot`).
         bundled: Whether the model ships *inside the installed package* and needs no
             checkpoint at all -- a weight-free baseline, which is code rather than
             weights. Distinct from an unpinned trained card, which also has no hash
@@ -114,6 +189,7 @@ class ModelCard(BaseModel):
     known_failure_modes: tuple[str, ...]
     checkpoint_sha256: str | None = None
     source_url: str | None = None
+    source_snapshot: SourceSnapshot | None = None
     bundled: bool = False
 
     @field_validator("known_failure_modes")
@@ -142,6 +218,25 @@ class ModelCard(BaseModel):
         if self.bundled and (self.checkpoint_sha256 is not None or self.source_url is not None):
             raise ValueError(
                 "a bundled model is weight-free and cannot define checkpoint_sha256 or source_url"
+            )
+        if self.bundled and self.source_snapshot is not None:
+            raise ValueError("a bundled model is weight-free and cannot define source_snapshot")
+        return self
+
+    @model_validator(mode="after")
+    def _one_kind_of_pin(self) -> Self:
+        """Reject a card carrying both pin kinds, because one of them would be ignored.
+
+        :meth:`WeightGate.resolve_weights` takes the single-file path whenever
+        ``checkpoint_sha256`` is set and never looks at the snapshot, so a card with both
+        would advertise a revision that nothing reads -- a pin that exists only in the
+        audit trail. Choose the one the loader actually consumes.
+        """
+        if self.checkpoint_sha256 is not None and self.source_snapshot is not None:
+            raise ValueError(
+                "a card pins either a single artifact (checkpoint_sha256 + source_url) or "
+                "an upstream revision (source_snapshot), not both: the single-file path "
+                "wins in resolve_weights(), so the revision would never be read"
             )
         return self
 

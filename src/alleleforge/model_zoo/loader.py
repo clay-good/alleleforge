@@ -101,6 +101,20 @@ class WeightGate:
         )
         return None
 
+    def snapshot_revision(self) -> str | None:
+        """Return the card's pinned upstream revision, or ``None`` if it pins none.
+
+        Only meaningful on the "load by the model's own source" path — the one
+        :meth:`resolve_weights` signals by returning ``None``. When a card pins a single
+        artifact instead, that file *is* the pin and there is no revision to apply; the
+        card schema refuses both at once so the two cannot disagree.
+
+        Returns:
+            A full 40-character commit sha, or ``None``.
+        """
+        snapshot = self._registry.get(self.card_name).source_snapshot
+        return None if snapshot is None else snapshot.revision
+
     def model_checkpoint(self) -> ModelCheckpoint | None:
         """Return the resolved checkpoint provenance, or ``None`` if not yet loaded."""
         return self._checkpoint

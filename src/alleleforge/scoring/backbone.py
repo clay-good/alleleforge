@@ -236,6 +236,17 @@ class CachedEmbedder:
         return [self._cache[sequence_hash(s)] for s in sequences]
 
 
+def _revision_kwargs(revision: str | None) -> dict[str, str]:
+    """Return the ``from_pretrained`` kwargs that pin an upstream revision.
+
+    Separated so the mapping is testable without `transformers` installed: the load
+    itself needs the ``ml`` extra, and the thing worth checking — that a pinned card
+    reaches the hub call as ``revision=<sha>`` and an unpinned one adds nothing — does
+    not.
+    """
+    return {} if revision is None else {"revision": revision}
+
+
 def _require_transformers() -> Any:  # pragma: no cover - requires the ml extra
     """Import torch + transformers, or raise a helpful error if missing."""
     try:
@@ -303,9 +314,14 @@ class _HuggingFaceEmbedder(WeightGate):
     def _load(self) -> None:  # pragma: no cover - requires weights
         """Lazily resolve weights (consent-gated) and load the tokenizer + model."""
         torch, auto_model, auto_tokenizer = _require_transformers()
-        target = self.resolve_weights() or self.model_id
-        self._tokenizer = auto_tokenizer.from_pretrained(target)
-        model = auto_model.from_pretrained(target).to(self.device).eval()
+        pinned = self.resolve_weights()
+        target = pinned or self.model_id
+        # A revision applies only when loading by model id. On the pinned-artifact path
+        # `target` is a local file that was already hash-verified, and `revision=` would
+        # be meaningless there (and rejected by `from_pretrained`).
+        kwargs = {} if pinned is not None else _revision_kwargs(self.snapshot_revision())
+        self._tokenizer = auto_tokenizer.from_pretrained(target, **kwargs)
+        model = auto_model.from_pretrained(target, **kwargs).to(self.device).eval()
         self._model = torch.compile(model) if self.torch_compile else model
 
     def embed(self, sequences: Sequence[str]) -> list[Embedding]:  # pragma: no cover - needs ml

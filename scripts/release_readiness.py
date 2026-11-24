@@ -116,7 +116,18 @@ def _artifact_pinning() -> Criterion:
     # about the verdict and everything about what the verdict means.
     unpinned = [c for c in downloadable if not c.checkpoint_sha256]
     fetchable = [c for c in unpinned if _names_an_artifact(c.source_url or "")]
-    referenced = [c for c in unpinned if not _names_an_artifact(c.source_url or "")]
+    referenced = [
+        c
+        for c in unpinned
+        if not _names_an_artifact(c.source_url or "") and c.source_snapshot is None
+    ]
+    # Counted separately and deliberately NOT folded into `pinned`. A revision pin makes
+    # a load reproducible — the bytes behind a 40-hex commit cannot change — but it is
+    # not "a verified artifact hash", which is what this criterion asks for: the blob
+    # digests are checked by the hub client against upstream's metadata, not recomputed
+    # here. Folding these in would move the number without meeting the criterion, which
+    # is how a release gate turns into a formality.
+    snapshotted = [c for c in unpinned if c.source_snapshot is not None]
 
     datasets = [DEFAULT_REGISTRY.get(name) for name in DEFAULT_REGISTRY.names]
     ds_pinned = [d for d in datasets if getattr(d, "sha256", None)]
@@ -152,6 +163,12 @@ def _artifact_pinning() -> Criterion:
             else (
                 "requires freezing the published upstream artifacts — and for "
                 f"{undecided} of them, first deciding which file that is"
+                + (
+                    f" ({len(snapshotted)} now pin an upstream revision instead, which "
+                    "makes the load reproducible but is not a hash this project verified)"
+                    if snapshotted
+                    else ""
+                )
             )
         ),
         evidence=[
@@ -160,10 +177,17 @@ def _artifact_pinning() -> Criterion:
             f"{len(fetchable)} unpinned card(s) name a downloadable artifact, so a "
             "fetch-and-hash would pin them"
             + (": " + ", ".join(sorted(c.name for c in fetchable)) if fetchable else ""),
-            f"{len(referenced)} unpinned card(s) name a repository or model page, not a "
-            "single artifact — there is nothing there to hash until an upstream release "
-            "pins one, and hashing the landing page would report this criterion met "
-            "while pinning an HTML document"
+            f"{len(snapshotted)} card(s) pin an immutable upstream revision "
+            "(`source_snapshot`) because their loader consumes a snapshot or a checkout "
+            "rather than one file — reproducible, but the blob digests are the hub "
+            "client's to check, so they do not count toward this criterion"
+            + (": " + ", ".join(sorted(c.name for c in snapshotted)) if snapshotted else ""),
+            f"{len(referenced)} unpinned card(s) name a repository or model page with no "
+            "snapshot pin either, and hashing a landing page would report this criterion "
+            "met while pinning an HTML document. (Not 'nothing to hash': Hugging Face does "
+            "publish a digest per blob at a revision. The obstacle is that these loaders "
+            "consume a set of files, so one blob's hash would leave the rest unpinned — "
+            "see specs/r0-artifact-pinning.md)"
             + (": " + ", ".join(sorted(c.name for c in referenced)) if referenced else ""),
             f"{len(ds_fetchable)} unpinned dataset(s) name a fixed single artifact, so a "
             "fetch-and-hash would pin them"

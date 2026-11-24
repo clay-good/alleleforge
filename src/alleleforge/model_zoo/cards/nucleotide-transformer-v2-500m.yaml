@@ -22,3 +22,11 @@ known_failure_modes:
   - "Non-commercial license: cannot be loaded for commercial use."
 checkpoint_sha256: null  # pinned when the data layer freezes the release artifact
 source_url: "https://huggingface.co/InstaDeepAI/nucleotide-transformer-v2-500m-multi-species"
+# Pinned to an immutable upstream revision rather than a single blob: this model is
+# loaded with `from_pretrained`, which needs the snapshot (config + tokenizer +
+# weights) and not one file. Hashing just the weights blob was tried and reverted --
+# it made `resolve_weights()` hand `from_pretrained` a file path, breaking the load.
+# See specs/r0-artifact-pinning.md.
+source_snapshot:
+  repo: "InstaDeepAI/nucleotide-transformer-v2-500m-multi-species"
+  revision: "06615c1660c892fc199840c18123f8385b3542a8"

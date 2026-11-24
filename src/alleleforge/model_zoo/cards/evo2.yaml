@@ -21,3 +21,11 @@ known_failure_modes:
   - "Foundation-scale priors do not guarantee calibrated point efficiency."
 checkpoint_sha256: null  # pinned when the model zoo freezes the release artifact
 source_url: "https://huggingface.co/arcinstitute/evo2_7b"
+# Pinned to an immutable upstream revision rather than a single blob: this model is
+# loaded with `from_pretrained`, which needs the snapshot (config + tokenizer +
+# weights) and not one file. Hashing just the weights blob was tried and reverted --
+# it made `resolve_weights()` hand `from_pretrained` a file path, breaking the load.
+# See specs/r0-artifact-pinning.md.
+source_snapshot:
+  repo: "arcinstitute/evo2_7b"
+  revision: "bda0089f92582d5baabf0f22d9fc85f3588f6b58"

@@ -9,6 +9,18 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **Model cards can pin an immutable upstream revision (`source_snapshot`), and three
+  do.** The Hugging Face backbones are loaded with `from_pretrained`, which consumes a
+  snapshot — config, tokenizer and weights together — so a single blob hash cannot pin
+  them; `backbone.py` now passes the pinned revision through as
+  `from_pretrained(target, revision=sha)`. Two runs naming the same revision load the
+  same model, which is *stronger* than hashing the weights file alone. **R0's count does
+  not move:** a revision pin is not "a verified artifact hash" (the blob digests are the
+  hub client's to check against upstream's metadata, not recomputed here), so the
+  readiness report gains an evidence line with that caveat instead of three entries in
+  the pinned column. The schema refuses a branch, a tag, a short sha, and a card carrying
+  both pin kinds — the last because `resolve_weights()` would take the single-file path
+  and never read the revision.
 - **A pinned checkpoint hash now requires an immutable URL, enforced.** A digest beside a
   branch or a landing page is not a pin: upstream's next push changes the bytes, the
   checksum fails, and the consent gate refuses a model that used to load, reporting "hash

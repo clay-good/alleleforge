@@ -24377,3 +24377,76 @@ false. The test that caught it was not testing pinning; it was testing the load 
 modules away. **Run the whole suite before believing a criterion moved** — and when a
 release number improves, ask what else had to be true.
 
+
+## Round 696 — the schema pin R695 specified, implemented without moving the number
+
+R695 found that six model cards cannot be pinned by a file hash because their loaders
+consume a *set* of files, specified a `source_snapshot` pin, and stopped. This implements
+it for the three Hugging Face backbones.
+
+`source_snapshot` pins a repository plus an immutable 40-hex revision. `backbone.py` now
+passes it through as `from_pretrained(target, revision=sha)`. For these models that is
+**stronger** than the blob hash R695 tried and reverted: it covers the tokenizer and
+config the model is actually loaded with, not only the weights file, so two runs naming
+the same revision load the same model.
+
+### The number did not move, deliberately
+
+R0 still reads `1/12`. A revision pin is not "a verified artifact hash", which is what
+the criterion asks for — the per-blob digests are checked by the hub client against
+upstream's published metadata, not recomputed here. So the report gained an evidence line
+of its own, with that caveat, rather than three more in the pinned column.
+
+This is the correction R695 earned the hard way. That round pinned blob hashes, moved R0
+to `4/12`, and broke the real-weights load path; the number improved while the product
+got worse. **Folding a weaker guarantee into a criterion's count is the same mistake with
+the failure moved out of reach of the test suite** — nothing would have caught it, because
+nothing would have been wrong except the meaning of the number.
+
+### Three things the schema refuses
+
+Each would make the field *look* like a pin while leaving the bytes free to move, which is
+worse than no pin because a reader stops asking:
+
+* a branch or tag — both can be repointed;
+* a short sha — ambiguous over a repository's lifetime;
+* **both pin kinds on one card** — `resolve_weights()` takes the single-file path whenever
+  `checkpoint_sha256` is set and never consults the snapshot, so the revision would be
+  advertised and never read.
+
+### Two guards that caught this round's mistakes
+
+* `test_the_unpinned_cards_are_split_by_what_blocks_them` failed because the partition
+  went from two buckets to three. Fixing it exposed a second defect in the test itself: it
+  selected its evidence line by matching `"not a single artifact"`, a phrase the *dataset*
+  evidence also contains. When the card wording changed, it silently counted a dataset
+  line and still passed its own sum check against a different total — a test that moved
+  from measuring one thing to measuring another without failing. It now selects on
+  card-only phrases and asserts exhaustiveness rather than two specific numbers.
+* `test_backbone_consent.py` (R695's catch) stays satisfied: `resolve_weights()` still
+  returns `None` for these cards, so the load-by-model-id path is intact. That is the
+  property that distinguishes this pin from the reverted one, and it is now asserted
+  directly rather than relied on.
+
+### A third guard, and the blast radius I was watching for
+
+`tests/test_schemas.py` failed: `docs/schemas/ModelCard.schema.json` is committed and had
+gone stale against the model. Adding a field to a pydantic class is a published-contract
+change here — those schemas "are consumed by people who never read the Python" — and the
+test names its own remedy (`python scripts/export_schemas.py`). Regenerated; the diff is
+exactly the new field and its `$defs` entry.
+
+Worth recording because it is the third guard in two rounds to catch a consequence two
+modules from the edit: the load path (R695), the report's accounting partition, and now a
+published schema. None of them was the thing being changed.
+
+### Still owed
+
+`lindel`, `be-dict` and `pridict2` need the same pin, but their artifact is a checkout
+reached through `ALLELEFORGE_*_REPO`, so enforcing a revision there is a check at the
+checkout boundary rather than a card edit. A content hash of `archive/<sha>.tar.gz` is
+still not a safe substitute: GitHub's generated tarballs are not guaranteed byte-stable.
+
+**Lesson: when a criterion cannot be met honestly, add the fact beside it, not into it.**
+The useful output of this round is a reproducibility guarantee the project did not have,
+reported in a way that leaves the release gate still asking for what it actually wants.

@@ -4,7 +4,8 @@ _Written 2026-11-24. R0 read "1/12 model cards with a source URL pin a checkpoin
 3/8 datasets pin one", blocked on "first deciding which file that is" for 16 of them.
 This resolves that decision. The answer is not the one the blocker implied: for **6 of
 the 11 unpinned model cards there is no single file to name**, and the reason is in this
-repository's own loaders, not upstream. Two cards were also found citing dead URLs, and
+repository's own loaders, not upstream. A `source_snapshot` revision pin now covers three
+of the six. Two cards were also found citing dead URLs, and
 one misattributing its authorship._
 
 ## The decision, resolved
@@ -40,24 +41,44 @@ So the blocker was misstated in both directions. It is not "upstream has publish
 nothing hashable" (HF has). It is **"the card schema pins one file and six of these
 loaders consume a set of files."** That is a schema question, and it is answerable here.
 
-### Recommendation
+### Implemented: the `source_snapshot` pin
 
-Add a `source_snapshot` pin — a repository plus an immutable revision — alongside the
-existing single-file `source_url`/`checkpoint_sha256` pair:
+A `source_snapshot` field now pins a repository plus an immutable 40-hex revision,
+alongside the existing single-file `source_url`/`checkpoint_sha256` pair. The three
+Hugging Face backbones use it, and `backbone.py` passes the revision through to
+`from_pretrained(target, revision=sha)`.
 
-- For the HF backbones: repo id + the 40-hex commit sha. `from_pretrained(repo,
-  revision=sha)` already accepts exactly this, so the loader change is one keyword, and
-  the pin becomes *stronger* than a blob hash because it covers the tokenizer and config
-  the model is actually loaded with.
-- For the checkout adapters: repository + commit sha, which is what
-  `ALLELEFORGE_*_REPO` ought to be checked against. A content hash of
-  `archive/<sha>.tar.gz` is **not** a safe substitute: GitHub's generated tarballs are
-  not guaranteed byte-stable.
+Why this is the right shape, and in one respect **stronger** than a blob hash: it covers
+the tokenizer and config the model is actually loaded with, not just the weights file.
+Two runs naming the same revision load the same model.
 
-That change closes 6 of the 11 honestly. It is not in this round because it touches the
-card schema, the consent gate's "pinned" predicate, the readiness report's definition of
-pinned, and two loaders — and R0's wording ("pins a verified artifact hash") would need
-to admit a revision pin as verification.
+What it is *not*, and why R0's count does not move: it is not "a verified artifact hash".
+The per-blob digests are checked by the hub client against the metadata upstream
+published for that revision — this project does not recompute them. R0 asks for a hash
+this project verified, so `scripts/release_readiness.py` reports snapshot pins as their
+own evidence line, with that caveat, and leaves the criterion at 1/12. **Folding them in
+would have moved the number without meeting the criterion, which is how a release gate
+becomes a formality** — and is the mistake this round already made once with blob hashes.
+
+Three things the schema refuses, each because accepting it would make the field look like
+a pin while leaving the bytes free to move: a branch or tag, a short sha, and a card
+carrying *both* pin kinds (`resolve_weights()` takes the single-file path whenever
+`checkpoint_sha256` is set and never consults the snapshot, so the revision would be
+silently ignored).
+
+Still to do for the three checkout adapters (`lindel`, `be-dict`, `pridict2`): the field
+is the right one for them too, but nothing yet checks `ALLELEFORGE_*_REPO` against a
+pinned revision, so adding it there needs a check at the checkout boundary rather than a
+card edit. A content hash of `archive/<sha>.tar.gz` remains unsafe: GitHub's generated
+tarballs are not guaranteed byte-stable.
+
+Provenance of the three revisions, so they are auditable rather than plausible:
+
+| card | repo | revision | how obtained |
+| --- | --- | --- | --- |
+| `caduceus` | `kuleshov-group/caduceus-ps_seqlen-131k_d_model-256_n_layer-16` | `d89eeb85…` | HF model API; blob also downloaded and rehashed to upstream's digest |
+| `nucleotide-transformer-v2-500m` | `InstaDeepAI/nucleotide-transformer-v2-500m-multi-species` | `06615c16…` | HF model API |
+| `evo2` | `arcinstitute/evo2_7b` | `bda0089f…` | HF model API |
 
 ## Two defects found by resolving the URLs rather than reading them
 
@@ -91,8 +112,8 @@ pinned cards is a deliberate edit rather than a side effect.
 
 | artifact | why unpinned | what would unblock it |
 | --- | --- | --- |
-| 3 HF backbones | loader needs a snapshot | the `source_snapshot` pin above |
-| `lindel`, `be-dict`, `pridict2` | loader needs a checkout | the `source_snapshot` pin above |
+| 3 HF backbones | loader needs a snapshot | **done** — `source_snapshot`, reported separately from R0 |
+| `lindel`, `be-dict`, `pridict2` | loader needs a checkout | `source_snapshot` plus a revision check at the `ALLELEFORGE_*_REPO` boundary |
 | `be-hive` | a web service, no artifact | upstream publishing a checkpoint |
 | `deepprime`, `genet`, `indelphi`, `x-crisp` | repositories with no weight asset | a release **asset** rather than a source tag |
 | 5 heuristic baselines | no artifact exists — they are code | nothing; correctly unpinnable |
@@ -106,7 +127,8 @@ operation.
 
 ## Status
 
-R0 stays **open at 1/12 cards and 3/8 datasets** — unchanged by this round, deliberately.
-What changed is that it is no longer blocked on an unmade decision: 6 cards need a schema
-pin that is specified above, 5 need an upstream release, the datasets need file choices,
-and two cards stopped lying about where they came from.
+R0 stays **open at 1/12 cards and 3/8 datasets** — unchanged, deliberately, because a
+revision pin is not the hash the criterion asks for. What changed: three cards are now
+reproducibly pinned and the mechanism exists for the other three, five need an upstream
+release, the datasets need file choices, and two cards stopped misstating where they came
+from.

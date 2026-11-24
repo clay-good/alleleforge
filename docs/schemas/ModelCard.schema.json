@@ -1,5 +1,26 @@
 {
-  "description": "A required, validated model card (mirrors ``cards/*.yaml``).\n\nAttributes:\n    name: Model identifier.\n    version: Model version.\n    chemistry: The chemistry it scores, or ``None`` for a generic backbone.\n    training_data: A description of the training data.\n    metrics: Reported metrics (name -> value).\n    intended_use: What the model is for.\n    out_of_scope_use: What it must not be used for.\n    license: SPDX-style license identifier.\n    citation: Literature citation.\n    known_failure_modes: Documented ways the model fails.\n    checkpoint_sha256: Expected checkpoint hash (``None`` blocks download).\n    source_url: Where the checkpoint is fetched from.\n    bundled: Whether the model ships *inside the installed package* and needs no\n        checkpoint at all -- a weight-free baseline, which is code rather than\n        weights. Distinct from an unpinned trained card, which also has no hash\n        but is unusable because of it; see :func:`model_status`.",
+  "$defs": {
+    "SourceSnapshot": {
+      "description": "An immutable upstream revision, for a model whose artifact is not one file.\n\n``checkpoint_sha256``/``source_url`` pin a *single file* that\n:meth:`ModelRegistry.checkpoint` downloads and hash-verifies. Several models cannot\nbe pinned that way, because the thing their loader consumes is a set of files:\n\n* the Hugging Face backbones are loaded with ``from_pretrained``, which needs a\n  snapshot -- config, tokenizer and weights together -- not a blob;\n* the checkout adapters (Lindel, BE-DICT, PRIDICT2) read several files *plus*\n  importable Python from a repository.\n\nFor those, \"which file do we hash?\" has no answer, and pinning any one of them would\nreport the artifact verified while the load still read unpinned files beside it. A\nrevision pins all of them at once.\n\nThis is a *different* guarantee from a content hash, not a substitute for it, and the\nrelease report counts the two separately. What it gives: the bytes behind a 40-hex\ncommit cannot change, so two runs naming the same revision load the same model. What\nit does not give: a digest this project computed itself -- verification of the\nindividual blobs is the hub client's, against the metadata upstream published for\nthat revision.\n\nArgs:\n    repo: Upstream repository, ``owner/name``.\n    revision: A full 40-character lower-case commit sha.",
+      "properties": {
+        "repo": {
+          "title": "Repo",
+          "type": "string"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repo",
+        "revision"
+      ],
+      "title": "SourceSnapshot",
+      "type": "object"
+    }
+  },
+  "description": "A required, validated model card (mirrors ``cards/*.yaml``).\n\nAttributes:\n    name: Model identifier.\n    version: Model version.\n    chemistry: The chemistry it scores, or ``None`` for a generic backbone.\n    training_data: A description of the training data.\n    metrics: Reported metrics (name -> value).\n    intended_use: What the model is for.\n    out_of_scope_use: What it must not be used for.\n    license: SPDX-style license identifier.\n    citation: Literature citation.\n    known_failure_modes: Documented ways the model fails.\n    checkpoint_sha256: Expected checkpoint hash (``None`` blocks download).\n    source_url: Where the checkpoint is fetched from.\n    source_snapshot: An immutable upstream revision, for a model whose loader\n        consumes a set of files rather than one (see :class:`SourceSnapshot`).\n    bundled: Whether the model ships *inside the installed package* and needs no\n        checkpoint at all -- a weight-free baseline, which is code rather than\n        weights. Distinct from an unpinned trained card, which also has no hash\n        but is unusable because of it; see :func:`model_status`.",
   "properties": {
     "bundled": {
       "default": false,
@@ -63,6 +84,17 @@
     "out_of_scope_use": {
       "title": "Out Of Scope Use",
       "type": "string"
+    },
+    "source_snapshot": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SourceSnapshot"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "source_url": {
       "anyOf": [

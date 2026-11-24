@@ -205,27 +205,51 @@ def test_a_project_page_is_not_a_pinnable_artifact() -> None:
 
 
 def test_the_unpinned_cards_are_split_by_what_blocks_them() -> None:
-    """R0's evidence must say which of the two things stands in the way, and for how many.
+    """R0's evidence must account for every unpinned card, and say what blocks each.
 
     Counting them together made the criterion read as eleven downloads away. It is not:
-    eleven of them first need an upstream to publish a pinnable file, which is a
-    different kind of waiting and may never happen for some of them.
-    """
-    r0 = next(c for c in release_readiness.criteria() if c.track == "R0")
-    fetchable = next(line for line in r0.evidence if "name a downloadable artifact" in line)
-    referenced = next(line for line in r0.evidence if "not a single artifact" in line)
+    some first need an upstream to publish a pinnable file, which is a different kind of
+    waiting and may never happen; and three have since been pinned to an upstream
+    *revision*, which is a decision already made rather than work still owed.
 
+    The assertion is exhaustiveness, not the individual numbers. An unpinned card in
+    none of the buckets is the failure this guards: the report would state a total and
+    then account for less than all of it, and a reader could not tell the remainder from
+    forgotten work.
+
+    Each line is selected by a phrase unique to the *card* lines. An earlier version
+    matched "not a single artifact", which the dataset evidence also contains — so when
+    the card wording changed, the test silently counted a dataset line and still passed
+    its own sum check against a different total.
+    """
     import re
 
-    counts = [int(re.match(r"(\d+)", line).group(1)) for line in (fetchable, referenced)]  # type: ignore[union-attr]
-    assert sum(counts) > 0, (fetchable, referenced)
+    r0 = next(c for c in release_readiness.criteria() if c.track == "R0")
+
+    def card_line(fragment: str) -> int:
+        matches = [line for line in r0.evidence if fragment in line]
+        assert len(matches) == 1, (f"{fragment!r} matched {len(matches)} lines", matches)
+        return int(re.match(r"(\d+)", matches[0]).group(1))  # type: ignore[union-attr]
+
+    fetchable = card_line("unpinned card(s) name a downloadable artifact")
+    referenced = card_line("unpinned card(s) name a repository or model page")
+    snapshotted = card_line("card(s) pin an immutable upstream revision")
 
     from alleleforge.model_zoo.registry import default_registry
 
     zoo = default_registry()
     cards = [zoo.get(name) for name in zoo.names]
     unpinned = [c for c in cards if c.source_url and not c.checkpoint_sha256]
-    assert sum(counts) == len(unpinned), (counts, len(unpinned))
+
+    assert fetchable + referenced + snapshotted == len(unpinned), (
+        "R0's card evidence does not account for every unpinned card",
+        {"fetchable": fetchable, "referenced": referenced, "snapshotted": snapshotted},
+        len(unpinned),
+    )
+    assert snapshotted > 0, (
+        "no card pins an upstream revision, so the bucket that keeps a revision pin from "
+        "being counted as a verified hash is not being exercised"
+    )
 
 
 def test_splitting_the_unpinned_does_not_change_the_verdict() -> None:
@@ -334,6 +358,10 @@ def test_the_blocked_count_covers_datasets_as_well_as_cards() -> None:
         if c.source_url
         and not c.checkpoint_sha256
         and not release_readiness._names_an_artifact(c.source_url)
+        # A card pinning an upstream revision is no longer waiting on "which file":
+        # that decision was made, and the answer was "none of them, pin the snapshot".
+        # It still does not count as pinned for R0 — see the report's own caveat.
+        and c.source_snapshot is None
     ]
     datasets = [DEFAULT_REGISTRY.get(n) for n in DEFAULT_REGISTRY.names]
     needs_a_decision = [

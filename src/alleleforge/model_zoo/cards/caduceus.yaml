@@ -20,3 +20,11 @@ known_failure_modes:
   - "Long-context strength is on regulatory/structural signal, not point efficiency."
 checkpoint_sha256: null  # pinned when the model zoo freezes the release artifact
 source_url: "https://huggingface.co/kuleshov-group/caduceus-ps_seqlen-131k_d_model-256_n_layer-16"
+# Pinned to an immutable upstream revision rather than a single blob: this model is
+# loaded with `from_pretrained`, which needs the snapshot (config + tokenizer +
+# weights) and not one file. Hashing just the weights blob was tried and reverted --
+# it made `resolve_weights()` hand `from_pretrained` a file path, breaking the load.
+# See specs/r0-artifact-pinning.md.
+source_snapshot:
+  repo: "kuleshov-group/caduceus-ps_seqlen-131k_d_model-256_n_layer-16"
+  revision: "d89eeb853136ea64da7feb3d0c8e909771b17ae6"
