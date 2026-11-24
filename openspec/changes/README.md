@@ -23981,3 +23981,137 @@ were four distinct things: a number that gets ordered from, a refusal that would
 with nothing behind it, one guard written twice and pinned neither time, and one branch that
 genuinely cannot run here. Only the last needed no test, and only reading each one in its
 own context said which was which.
+
+## Round 691 — the control stopped a false clean score, then found what was under it
+
+The 46-module `--mode raise` sweep R689's controls made safe to run. Zero baseline
+failures, three modules self-reported **unmeasurable**, and the survivor list was 64 long.
+The result worth keeping is not the count: it is that the no-op control did two jobs, and
+only the first was the one it was built for.
+
+### The control's second job
+
+`offtarget/engine.py`, `enumerate/cas9.py` and `config.py` each failed the no-op control,
+naming the test responsible. In every case it was a guard that reads the module's own
+source text, so `ast.unparse` reformatting killed every mutant and the module scored a
+meaningless 100%. That is the trap R689 enforced against, and it held.
+
+What was not anticipated: **narrowing the list past the offending test did not reveal a
+clean module — it revealed four real survivors that the false 100% had been hiding.**
+
+* **`offtarget/engine.py:149` — the empty spacer.** Every position of the genome matches
+  an empty query, so a blank form field or an unset `$SPACER` produced thousands of
+  "off-target sites", worst score 1.000, specificity 0.000 — the most alarming report
+  this tool can emit, from no input at all. R523 chose deliberately to *label* a
+  too-short query rather than refuse it; empty is not that case.
+* **`offtarget/engine.py:599` and `:609` — an index that is not this genome.** One
+  compares build labels, the other compares contig lengths. They are not redundant: the
+  label check **fails open whenever either side is unlabelled**, which is exactly the
+  index nobody wrote the genome down for, and the length check is the fallback for it.
+  Only the label path had any coverage. Delete either and the search anchors PAMs over
+  one genome's sequence while reading coordinates from another — real-looking hits at
+  the wrong loci.
+* **`enumerate/cas9.py:378` — the guide absent from its window.** The sharpest finding
+  of the round. `guide_context` anchors by *content* precisely so a length-changing overlay
+  cannot hand a scorer a frame-shifted window; its docstring says so. `plus.find(anchor)`
+  returns `-1` on a miss, and **`-1` is a legal slice index**, so deleting the raise
+  returns a window of plausible length starting in the wrong place. The anchoring exists
+  to prevent exactly that, and the one line reporting the anchoring had failed was the
+  only thing standing between `find` and the shifted slice. An efficiency model given a
+  shifted 30-mer returns a number, not an error, and that number reaches the menu.
+
+`config.py` remains unmeasurable: excluding the first source-reading test exposed a
+second one, and its audience is the 123-file root suite, which is thick with such guards.
+One `raise` site, recorded rather than chased.
+
+### The rest of the survivors, triaged
+
+The 64 sorted as below. 42 are one module's single class; of the other 22, only 8 were
+work. The four from the unmeasurable modules are *additional* to the 64 — they were never
+in the sweep's survivor list, because the sweep could not measure those modules at all.
+
+| class | count | what was done |
+| --- | --- | --- |
+| `typer.Exit` in `cli/main.py` | 42 | 3 pinned + the class documented; 39 listed below |
+| real, reachable, untested | 8 | pinned |
+| unreachable in this environment | 8 | recorded with the reason |
+| `pragma: no cover`, reachable (torch/numpy absent) | 3 | left; the opt-out is the record |
+| `NotImplementedError` out-of-scope placeholders | 2 | by design |
+| **real, reachable, left** | **1** | `genome/index.py:488` — see below |
+
+Pinned this round: 12 refusals across seven new files (8 from the 64, 4 from the
+unmeasurable modules).
+
+**The one real gap left, named rather than buried.** `genome/index.py:488` is the second
+`FMIndexIntegrityError` — the one that fires when the LF walk never reaches a sampled
+suffix. Its sibling at `:476` (a BWT character the rank tables do not count) is covered,
+and the existing corrupt-index test trips *that* one, which is why this survived. Writing
+a test means corrupting a cached index so the LF walk closes into a *cycle* rather than
+hitting an uncounted character — a different and more deliberate corruption than flipping
+bytes. The guard's own comment says why it matters: "a hang is a worse failure than a
+wrong answer." Left with its line number because an honest open item beats a test that
+corrupts bytes at random and claims to have reached this branch.
+
+**The `cli/main.py` class is the headline.** 42 of 93 `raise typer.Exit(...)` sites
+survived their own package list, and the shape is why:
+
+```python
+_echo_err(f"error: {reason(exc)}")
+raise typer.Exit(ExitCode.USAGE) from exc
+```
+
+Delete the second line and the first still runs. **The message is printed, correctly
+worded, on stderr — and the process exits 0.** Every test asserting on error text keeps
+passing; before this round `tests/cli` had 918 assertions, 116 of them `exit_code == 0`
+and only 66 on a specific non-zero code. A CLI that prints `error:` and exits 0 is worse than one that
+crashes: `set -e` does not trip, a `&&` chain continues, a Snakemake rule marks the job
+successful and the next rule consumes a file that was never written. In a tool built to
+be driven from a pipeline, **the exit code is the louder half of the refusal.**
+
+Pinned the three where believing a failed run succeeded costs most — `design`'s
+vector-scheme refusal, and both in `verify`, whose *only* output is a verdict, so exit 0
+is an affirmative false claim about an artifact's provenance. The remaining 39 are the
+same shape, at `main.py` lines 121, 366, 381, 476, 617, 677, 766, 783, 825, 1013, 1025,
+1035, 1058, 1086, 1188, 1271, 1716, 1719, 1722, 1766, 1885, 1888, 2283, 2455, 3090,
+3450, 3459, 3487, 3752, 3846, 3851, 3854, 3947, 3952, 3955, 3974, 4045, 4048, 4158, 4163.
+`tests/cli/test_a_refused_run_does_not_exit_zero.py` is the pattern for closing them.
+
+### Three corrections to my own account
+
+**The environment decides what "untested" means, and I checked it the wrong way first.**
+My first dependency probe reported `typer` and the Rust kernel absent — because it fell
+back to homebrew `python3` when `.venv` was not where I looked. The venv lives in the
+*main* checkout, not the worktree. Re-run against the real interpreter: `polars`,
+`requests`, `typer` and `aforge_native` present; `numpy` and `torch` absent. That single
+fact reclassified ten survivors from "untested" to "unreachable here" — including both
+`501` sites in `web/api/app.py` and `cli/main.py:1766`, which only fire when `polars` is
+missing.
+
+**One test here closes nothing, and says so.** The parquet case was written against the
+survivor at `main.py:1766` and lands at `1761`, two lines short — a guard already
+covered. Kept, with the miss recorded in its own docstring, because a test deleted for
+being redundant is a test nobody can check that claim against.
+
+**Three tests passed for the wrong reason before they passed for the right one.** I
+invoked `design --variant chr2:71:A>C`; the variant is positional. Typer rejected the
+invocation with *its own* usage error — exit code 2, which is `ExitCode.USAGE`. The
+assertion passed while testing nothing. Caught only because a fourth assertion in the
+same test looked for `--out` in the output and found a Typer help banner instead.
+**A test asserting an exit code can be satisfied by the framework refusing to run the
+command at all**, and `ExitCode.USAGE = 2` collides with Typer's own usage code, so the
+CLI's most common refusal is the one where this is invisible.
+
+### Measured
+
+`web/api/app.py` 24→27 killed, 5→2 alive (both `polars`-gated). `offtarget/engine.py`
+3→6 killed, 3→0 alive. `enumerate/cas9.py` 0→1 killed. `offtarget/scoring.py`,
+`data/dbsnp.py`, `benchmark/datasets`, `benchmark/splits` each 1 survivor → 0.
+`_native.py` 1→2 killed, 1→0 alive. Three of four `cli/main.py` targets killed; the
+fourth is `polars`-gated. Full suite afterwards: **5,257 passed, 36 skipped, 98.16%
+coverage**, and no `src/` change in the round — every one of the twelve guards was already
+correct, and what was missing was any test that would notice its removal.
+
+**Lesson: a 100% kill rate and an unmeasurable module look identical in the log, and the
+difference was four real defects.** R689 added the control to stop a false trophy. Its
+actual value turned out to be the opposite of defensive — the three modules it refused to
+score were hiding more real gaps per module than anything the sweep measured cleanly.

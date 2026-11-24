@@ -110,13 +110,22 @@ the two ends of a span are interchangeable, and `dflt` whether a boolean default
 signature is a posture anyone has checked. The script's own docstring says what each
 finds and why.
 
-Every mode except `raise` has been run repo-wide and each is exhausted, so a new one
-needs a new hypothesis rather than a longer list. **`raise` has no trustworthy result
-yet**: its first sweep reported 370/370 killed and that number was an artifact — the
-driver quoted a shell glob, pytest exited 4 without running anything, and the harness
-scored every non-zero exit as a kill. R689 has the full account. The harness now runs
-the chosen list unmutated and aborts unless it passes clean, so that particular lie
-cannot be told again.
+All eight modes have now been run repo-wide and each is exhausted, so a new one needs a
+new hypothesis rather than a longer list. `raise`'s first sweep reported 370/370 killed
+and that number was an artifact — the driver quoted a shell glob, pytest exited 4 without
+running anything, and the harness scored every non-zero exit as a kill. R689 has the full
+account and added the two controls that make that lie untellable: the chosen list is run
+unmutated, and so is an unmutated `ast.unparse` rewrite. The real 46-module sweep (R691)
+then found eleven untested refusals.
+
+**Both controls earn their cost, and the second one earns it twice.** Three modules
+failed the no-op control, each because a test reads the module's own source text, so
+`ast.unparse` reformatting kills every mutant and the module scores a meaningless 100%.
+Narrowing the list past the offending test did not reveal clean modules — it revealed four
+real defects the false score had been hiding, including the sharpest finding of the round.
+**An unmeasurable module and a perfect one are indistinguishable in the log.** When a run
+reports `UNMEASURABLE`, narrowing the list and re-running is not bookkeeping; it is where
+the findings were.
 
 Three things to know before trusting a result, each of which has produced a confidently
 wrong answer here:
@@ -126,6 +135,18 @@ wrong answer here:
 - **A module's own test directory is a filter, not evidence.** Survivors against it are
   routinely 50–100% phantom; re-run each against the whole suite before reading it as a
   gap. Confirm with `--index`.
+- **Check what is actually installed before calling a survivor untested.** The venv
+  lives in the *main* checkout, not in a worktree, so a probe that falls back to the
+  system interpreter reports the opposite of the truth. In R691 one such mistake
+  misclassified ten survivors; `polars`, `requests`, `typer` and `aforge_native` are
+  present here and `numpy` and `torch` are not, which is what decides whether an optional
+  dependency's refusal is reachable at all.
+- **An exit-code assertion can be satisfied by the framework refusing to run the
+  command.** `ExitCode.USAGE` is 2, which is also Typer's own usage-error code, so a
+  malformed `runner.invoke` — a flag that does not exist, a positional passed as an
+  option — produces exit 2 and a passing test that exercised nothing. Assert on the
+  message as well as the code, or the CLI's commonest refusal is the one where this is
+  invisible.
 - **A survivor is one of three things**: reachable and untested (write the test),
   unobservable (prove it by running both branches over an exhaustive space, and record
   it), or unexecutable here (an optional dependency, a network path). Only the first is

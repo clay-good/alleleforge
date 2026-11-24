@@ -9,6 +9,41 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **No library behaviour changed in this round.** All twelve guards below were already
+  correct; what was missing was any test that would notice their removal.
+- **Twelve refusals that nothing observed are now pinned, found by deleting them.** The
+  four sharpest were in modules whose kill rate had been a meaningless 100%, because a
+  test reading the module's own source text dies on `ast.unparse` reformatting whatever
+  the mutation was. R689's no-op control refused to report those scores and named the
+  test; excluding it did not reveal a clean module but four real gaps underneath the false
+  one. An **empty spacer** matched every position of the genome, so a blank field or an
+  unset shell variable produced thousands of "off-target sites" at specificity 0.000 — now
+  refused. A **genome index built for another assembly** is refused two ways, by build
+  label and by contig length, because the label check fails open whenever either side is
+  unlabelled, which is exactly the index nobody recorded a genome for. And
+  `guide_context` **refuses a guide absent from the window it is scored in**: it anchors
+  by content so a length-changing overlay cannot produce a frame-shifted window, and
+  because `-1` is a legal slice index, the one line reporting a missed anchor was all that
+  stood between `find` and a window of plausible length starting in the wrong place.
+  Also: an unknown `--scorer` name, a dbSNP header missing a core column, a missing
+  benchmark corpus naming what is available, the API's `429` at the job cap and `409` on
+  an unrenderable result, and a **compiled native kernel whose version disagrees with the
+  Python package** — the staleness half of that handshake was tested and the version half
+  was not, and they catch different users: staleness needs the Rust sources, while a
+  version mismatch is what reaches someone who upgraded a wheel over an existing build.
+  Kernel/Python parity is established between *matched* versions, so a mismatched kernel
+  is an unverified implementation of a scan that decides specificity — and it loads fine
+  and returns numbers.
+- **A CLI refusal is now checked to exit non-zero, not just to print.** 42 of 93
+  `raise typer.Exit(...)` sites in `cli/main.py` survived deletion, and the shape is why:
+  the `_echo_err` line above the raise still runs, so the error message is printed,
+  correctly worded, and the process exits **0**. Every test asserting on error text keeps
+  passing. `set -e` does not trip, a `&&` chain continues, and a workflow rule marks the
+  job successful and feeds the next step a file that was never written. Pinned the three
+  where that costs most — `design`'s vector-scheme refusal and both in `verify`, whose
+  only output is a verdict, so exit 0 is an affirmative false claim about an artifact's
+  provenance. The remaining 39 are listed by line in the round log.
+
 - **The mutation harness runs its test list unmutated and aborts unless it passes.**
   "Run the chosen list green first" had been documented advice for many rounds, and advice
   is not a control: a sweep whose list pytest refused to start (exit 4, an unexpanded shell
@@ -27,7 +62,10 @@ acceptance.
   the driver passed a quoted shell glob, so pytest exited 4 without running a single test
   and the harness scored every non-zero exit as a kill. The baseline re-run that was meant
   to rule exactly this out used the shell-expanded list, which is not the list the sweep
-  ran. `raise` therefore has no measured result yet.
+  ran. `raise` therefore has no measured result yet. **Since measured:** the full 46-module
+  sweep ran with both controls live — zero baseline failures, three modules self-reported
+  unmeasurable rather than scoring 100% on a reformatting artifact, and the survivors held
+  eleven real untested refusals.
 - **The mutation harness flips boolean defaults (`--mode dflt`).** A boolean default is
   a decision no call site has to make, which is where this project's safety postures live
   (`verify=`, `consent=`, `pass_only=`, `in_distribution=`). `const` mode reaches the same

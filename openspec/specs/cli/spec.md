@@ -643,3 +643,18 @@ or `--json`, which are the lossless ranked-menu outputs.
 #### Scenario: One displayed outcome
 - **WHEN** a caller passes `--top-alleles 1`
 - **THEN** the report shows 1 outcome per candidate and the menu still carries the full spectrum
+
+## Decisions
+
+### Pin 3 of 42 CLI exit-code refusals and document the rest as a named class
+
+**Status:** Auto-accepted (unreviewed)
+**Date:** 2026-11-24
+**ID:** 765db4c4
+
+R691's raise sweep found 42 of 93 'raise typer.Exit(...)' sites in cli/main.py survive deletion: the _echo_err line above still prints, so the message is correct and the process exits 0, invisible to any test asserting on stderr text. Pinning all 42 would be 42 near-identical tests and a round spent on one module. Pinned instead the three where a false success costs most (design's vector-scheme guard; both in verify, whose only output is a verdict, so exit 0 is an affirmative false claim about provenance), added one weak 'no refusal exits zero' invariant test that would catch any of them on the paths it covers, and listed the remaining 39 by line number in the round log so the backlog is closeable rather than rediscovered.
+
+**Consequences:** `tests/cli/test_a_refused_run_does_not_exit_zero.py` is the pattern for
+the remaining 39 sites, which R691's round log lists by line. Until they are closed, a
+`raise typer.Exit(...)` deleted from one of those paths prints its error and exits 0, and
+nothing in the suite would notice.

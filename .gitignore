@@ -47,6 +47,14 @@ site/
 # openlore analysis artifacts
 .openlore/
 
+# openlore syncs each recorded decision to a generated ADR here. The decision itself
+# lives in the (ignored) `.openlore/decisions` store, so `openlore decisions review`
+# works without this; and this repository's committed decision record is the round log
+# (`openspec/changes/README.md`), which carries the reasoning in full. Tracking a thin
+# generated duplicate would add an unread document — which
+# `test_every_document_is_read_by_something` is right to refuse.
+openspec/decisions/
+
 # The mutation harness writes its sweep log beside itself (scripts/mutate.py).
 # A sweep result is evidence for a round, not a tracked artifact: the round that
 # used it records what it said.
