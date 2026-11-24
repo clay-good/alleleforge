@@ -24770,3 +24770,65 @@ my own code: I had written a worse specification over a better one.
 should have done.** "Produce an `rsid chrom pos ref alt` TSV from the VCF" had sat in a
 refusal for rounds, read as guidance, and was really a missing feature written down. Worth
 re-reading the refusals that tell a user to go and prepare something.
+
+## Round 702 — the same query, the dataset that matters most, and three defects
+
+R701 ended with a query worth reusing: *does the artifact the registry points at match
+what the reader accepts?* Applied to every loader, it answers cleanly — `clinvar` has
+`from_vcf`, `gencode` has `from_gtf`, `dbsnp` now has one — and then stops at **gnomAD**,
+which had only `from_sites_tsv`. Population-aware off-target search is what this project
+is built around, and its input required a VCF-to-TSV conversion the caller had to write.
+
+`GnomadDB.from_vcf` and `GnomadDB.load` now read what gnomAD publishes, wired into both
+the CLI and the web API. Every fixture is a real row from
+`gnomad.genomes.v4.1.sites.chr22.vcf.bgz`, which is where the three defects came from.
+
+### 1. Most `AF_*` keys are not ancestries
+
+A real v4.1 row carries **34** of them. Ten are ancestry groups; the rest are
+`AF_XX`/`AF_XY` (sex strata), every ancestry crossed with sex (`AF_nfe_XY`), `AF_grpmax`
+(a maximum *across* groups) and `AF_raw` (pre-filter).
+
+Matching `AF_*` would have put `XX` into `available_populations` — which this project
+reads as *"an ancestry that was examined"* and reports in provenance. That is a false
+coverage claim about ancestry, in the feature the tool exists for, not a cosmetic slip.
+Only the named groups are read.
+
+### 2. The declared ancestry list was missing two real ancestries
+
+`GNOMAD_POPULATIONS` was seven long. The real file carries ten: it omitted `ami`
+(Amish), `mid` (Middle Eastern) and `remaining`. So even the correct-by-design filter
+would have **dropped two named ancestries** from the dataset whose purpose is population
+awareness.
+
+Worse, there were *two* copies — the module's constant and a hand-written tuple in the
+registry descriptor — and they agreed. **Agreement between two copies is not evidence
+that either is right**, and it is why neither looked wrong. Corrected once, imported in
+the other place, and pinned against the ancestry keys of a real row so the list cannot
+fall behind a release silently.
+
+### 3. `open_text` could not open the file gnomAD publishes
+
+Compression was chosen by `p.suffix == ".gz"`. gnomAD releases **`.bgz`**. So the reader
+could not open the artifact the dataset is released as — and the failure was not a clear
+refusal: the gzip bytes reached the UTF-8 decoder and surfaced as
+`UnicodeDecodeError: invalid start byte`, which reads as a corrupt file rather than an
+unrecognised name. Found by writing the test with the published filename.
+
+Now detected by gzip's magic bytes, which fixes it for **every** loader at once and also
+covers an extract a caller saved with no suffix. An extension is a naming convention; the
+bytes are the fact — the same lesson as sniffing a file's format, one layer down.
+
+### A judgment call, stated
+
+Non-PASS rows are skipped. `AC0` and `AS_VQSR` are gnomAD's own verdict that a call is
+unreliable, and a frequency this tool puts in front of somebody should be one upstream
+stands behind. It is not a small filter: of 11,291 rows in the slice checked, **1,976
+pass**, so including them would multiply the record count by five with calls gnomAD
+itself rejects.
+
+**Lesson: a query is worth more than the bug it found.** R701's finding was one missing
+reader; re-asking it across every loader found a worse one, and chasing that found two
+more defects underneath — an incomplete ancestry list and a decompressor that could not
+open the release. None would have surfaced from reading the code, because all three
+needed the real file to be visible.

@@ -1244,7 +1244,9 @@ def _load_gnomad(path: Path | None) -> GnomadDB | None:
     if path is None:
         return None
     try:
-        return _attach_source(GnomadDB.from_sites_tsv(path), path, "gnomad-sites")
+        # `load`, not `from_sites_tsv`: gnomAD publishes VCFs, and this flag used to
+        # accept only a sites table the caller had to derive from one.
+        return _attach_source(GnomadDB.load(path), path, "gnomad-sites")
     except (OSError, ValueError) as exc:
         _echo_err(f"error: could not read --gnomad {path}: {reason(exc)}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc

@@ -24,8 +24,33 @@ from alleleforge.data._io import is_sequence_allele, open_text
 from alleleforge.types.provenance import DatasetVersion
 from alleleforge.types.sequence import GenomicInterval, canonical_contig
 
-#: gnomAD v4.1 genetic-ancestry group labels.
-GNOMAD_POPULATIONS = ("afr", "amr", "asj", "eas", "fin", "nfe", "sas")
+#: gnomAD v4.1 genetic-ancestry group labels, as they appear in ``AF_<group>`` INFO keys.
+#:
+#: Corrected from a seven-element list that omitted ``ami`` (Amish), ``mid`` (Middle
+#: Eastern) and ``remaining``. A real v4.1 row carries all ten, so a reader filtering on
+#: the shorter list silently dropped two *named ancestries* — in the dataset that makes
+#: this tool population-aware, which is the opposite of the point.
+#:
+#: Explicitly listed rather than matched as ``AF_*``, because the pattern is wrong in a
+#: way that matters. The same row also carries ``AF_XX``/``AF_XY`` (sex strata), every
+#: ancestry crossed with sex (``AF_nfe_XY``), ``AF_grpmax`` (a maximum *across* groups)
+#: and ``AF_raw`` (pre-filter) — 34 ``AF_*`` keys in total. Admitting those would put
+#: ``XX`` into :attr:`GnomadDB.available_populations`, which this project reads as "an
+#: ancestry that was examined", making it a false claim about coverage. A group gnomAD
+#: adds later is skipped until it is named here: a missing ancestry is visibly missing,
+#: an invented one is not.
+GNOMAD_POPULATIONS = (
+    "afr",
+    "ami",
+    "amr",
+    "asj",
+    "eas",
+    "fin",
+    "mid",
+    "nfe",
+    "remaining",
+    "sas",
+)
 
 
 class PopulationFrequency(BaseModel):
@@ -100,6 +125,27 @@ class PopulationFrequency(BaseModel):
 _CORE_COLUMNS = ("chrom", "pos", "ref", "alt", "af")
 
 
+def _af_list(raw: str | None) -> list[str]:
+    """Split a VCF ``Number=A`` frequency field, or return ``[]`` when absent."""
+    return [] if raw in (None, "", ".") else str(raw).split(",")
+
+
+def _per_allele(values: list[str], index: int) -> float | None:
+    """Return ``values[index]`` as a float, or ``None`` when absent or unparseable.
+
+    ``Number=A`` means one value per ALT, so a multi-allelic row's frequencies line up
+    with its alleles by position. A single value with several ALTs, or a ``.`` placeholder,
+    means this allele has no frequency — which is absence, not zero, and the record omits
+    the group rather than claiming it was measured at 0.
+    """
+    if index >= len(values):
+        return None
+    try:
+        return float(values[index])
+    except ValueError:
+        return None
+
+
 class GnomadDB:
     """Indexed access to gnomAD per-population allele frequencies."""
 
@@ -122,6 +168,104 @@ class GnomadDB:
     def from_sites_tsv(cls, path: str | Path) -> GnomadDB:
         """Parse a ``chrom pos ref alt af <pop>...`` TSV (plain or ``.gz``)."""
         return cls(cls._parse(path))
+
+    @classmethod
+    def load(cls, path: str | Path) -> GnomadDB:
+        """Read either form gnomAD data arrives in, deciding by content not by name.
+
+        Sniffed for the same reason dbSNP's loader is: gnomAD's released files are named
+        ``gnomad.genomes.v4.1.sites.chr22.vcf.bgz``, and a caller's own extract may be
+        named anything. Dispatch is on the *positive* VCF signal — a first line of
+        ``##fileformat=VCF`` — and everything else falls through to
+        :meth:`from_sites_tsv`, whose header check already produces the column-by-column
+        diagnosis a nearly-right file needs. Adding a second "neither format" error here
+        would replace that better message with a worse one.
+        """
+        for line in open_text(path):
+            if not line.strip():
+                continue
+            if line.startswith("##fileformat=VCF"):
+                return cls.from_vcf(path)
+            break
+        return cls.from_sites_tsv(path)
+
+    @classmethod
+    def from_vcf(cls, path: str | Path) -> GnomadDB:
+        """Parse a gnomAD sites VCF (plain, ``.gz`` or ``.bgz``) into a :class:`GnomadDB`.
+
+        This is the artifact gnomAD actually publishes. Until now the only reader was
+        :meth:`from_sites_tsv`, which wants a ``chrom pos ref alt af <pop>...`` table
+        nothing in this project produces — so the input that makes a scan
+        population-aware, the capability this tool is built around, required a conversion
+        the caller had to write. The same gap as dbSNP's, in the dataset that matters
+        most.
+
+        Three things about gnomAD's INFO field that a reader has to get right, and the
+        first is the dangerous one:
+
+        * **Most ``AF_*`` keys are not ancestries.** A real v4.1 row carries 34 of them:
+          ``AF_XX``/``AF_XY`` (sex strata), ``AF_<grp>_XX``/``_XY`` (ancestry x sex),
+          ``AF_grpmax`` (a maximum across groups) and ``AF_raw`` (pre-filter) alongside
+          the ten real ancestry groups. Taking every ``AF_*`` would make
+          :attr:`available_populations` advertise ``XX`` as an ancestry a caller can
+          stratify by — and this project reports which ancestries it *examined*, so that
+          is a false claim about coverage rather than a cosmetic error. Only the ten
+          named groups are read.
+        * **A group's key is absent when it has no data** for that site, so the keys
+          present vary row to row; the record carries what the row carries.
+        * **A non-PASS ``FILTER`` is gnomAD's own verdict** that the call is unreliable
+          (``AC0`` = no high-quality genotype, ``AS_VQSR`` = failed the site filter).
+          Those rows are skipped: a frequency this tool puts in front of somebody should
+          be one upstream stands behind.
+
+        Returns:
+            A queryable :class:`GnomadDB`.
+        """
+        return cls(cls._parse_vcf(path))
+
+    @staticmethod
+    def _parse_vcf(path: str | Path) -> Iterator[PopulationFrequency]:
+        """Yield one :class:`PopulationFrequency` per usable (row, ALT) pair."""
+        for line in open_text(path):
+            if line.startswith("#") or not line.strip():
+                continue
+            cols = line.rstrip("\n").split("\t")
+            if len(cols) < 8:
+                continue
+            chrom, pos, _id, ref, alts, _qual, filt, info = cols[:8]
+            if filt not in ("PASS", ".", ""):
+                continue  # gnomAD's own quality verdict
+            # `partition`, not `split("=", 1)`: a VCF INFO field may be a bare flag with
+            # no value, and the mixed list/tuple that a conditional split produces is not
+            # a mapping item — mypy caught it before a flag-only row could.
+            fields: dict[str, str] = {}
+            for entry in info.split(";"):
+                if entry:
+                    key, _, raw_value = entry.partition("=")
+                    fields[key] = raw_value
+            overall = _af_list(fields.get("AF"))
+            if not overall:
+                continue
+            alt_list = alts.split(",")
+            for index, alt in enumerate(alt_list):
+                if not is_sequence_allele(ref, alt):
+                    continue
+                af = _per_allele(overall, index)
+                if af is None:
+                    continue
+                pops = {
+                    group: freq
+                    for group in GNOMAD_POPULATIONS
+                    if (freq := _per_allele(_af_list(fields.get(f"AF_{group}")), index)) is not None
+                }
+                yield PopulationFrequency(
+                    chrom=chrom,
+                    pos=int(pos) - 1,  # VCF is 1-based; store 0-based
+                    ref=ref,
+                    alt=alt,
+                    overall_af=af,
+                    populations=pops,
+                )
 
     @staticmethod
     def _parse(path: str | Path) -> Iterator[PopulationFrequency]:

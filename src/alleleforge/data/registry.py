@@ -27,6 +27,11 @@ from pathlib import Path
 
 from alleleforge._fetch import download_verified
 from alleleforge.config import DOWNLOAD_REMEDY, artifact_download_permitted, get_settings
+
+# Module-level is safe in this direction: `gnomad` imports this module only inside a
+# function, so there is no cycle. Imported rather than re-listed because the two copies
+# of the ancestry list had already drifted — both omitted `ami`, `mid` and `remaining`.
+from alleleforge.data.gnomad import GNOMAD_POPULATIONS
 from alleleforge.errors import ChecksumError, ConsentError, MissingDependencyError
 from alleleforge.types.provenance import DatasetVersion
 
@@ -266,7 +271,10 @@ DEFAULT_REGISTRY = DatasetRegistry(
             citation="Chen et al., Nature 2024 (gnomAD v4)",
             redistributable=True,
             filename="gnomad.v4.1.sites.tsv.gz",
-            populations=("afr", "amr", "asj", "eas", "fin", "nfe", "sas"),
+            # The module's own list, not a second copy of it: the two had drifted
+            # already — both omitted `ami`, `mid` and `remaining`, which a real v4.1 row
+            # carries.
+            populations=GNOMAD_POPULATIONS,
         ),
         "1000g": DatasetDescriptor(
             name="1000g",

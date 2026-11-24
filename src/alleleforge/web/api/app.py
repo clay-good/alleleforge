@@ -251,7 +251,7 @@ def _load_gnomad_from_env() -> Any | None:
     try:
         from alleleforge.data.gnomad import GnomadDB
 
-        db = GnomadDB.from_sites_tsv(Path(path))
+        db = GnomadDB.load(Path(path))  # VCF or sites TSV; see GnomadDB.load
         # As for the haplotype panel below: the CLI pins a caller-supplied frequency
         # file by its contents and this surface recorded nothing.
         db.dataset_version = describe_file_source(Path(path), "gnomad")

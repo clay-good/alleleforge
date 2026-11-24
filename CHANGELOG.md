@@ -9,6 +9,21 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **`GnomadDB` can now read the VCF gnomAD publishes, and three defects were found
+  doing it.** It had only `from_sites_tsv`, so the input behind population-aware
+  off-target search — the capability this project is built around — required a
+  conversion the caller had to write. `from_vcf`/`load` read the release, wired into the
+  CLI and the web API. (1) Most `AF_*` INFO keys are **not** ancestries: a real row
+  carries 34, including sex strata (`AF_XX`), ancestry×sex (`AF_nfe_XY`), `AF_grpmax` and
+  `AF_raw`. Matching the pattern would have advertised `XX` as an ancestry in
+  `available_populations`, which this project reports as "examined" — a false coverage
+  claim. (2) `GNOMAD_POPULATIONS` was missing `ami`, `mid` and `remaining`, so two named
+  ancestries were dropped; it existed in two agreeing copies, and agreement between
+  copies is not evidence either is right. (3) `open_text` keyed compression off `.gz` and
+  so could not open gnomAD's `.bgz` at all, failing as `UnicodeDecodeError` rather than a
+  refusal — now detected by gzip magic bytes, for every loader at once. Non-PASS rows are
+  skipped: `AC0`/`AS_VQSR` is gnomAD's own verdict, and only 1,976 of 11,291 rows in the
+  slice checked pass.
 - **`DbSnpDB` can now read the VCF NCBI actually publishes.** It had one reader,
   `from_tsv`, wanting an `rsid chrom pos ref alt` table — while the registry pointed at
   `GCF_000001405.40.gz` and the resolver's own refusal told callers to produce that table
