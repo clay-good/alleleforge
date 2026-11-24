@@ -14,6 +14,7 @@ from alleleforge.data.registry import (
     DatasetDescriptor,
     DatasetRegistry,
 )
+from alleleforge.errors import MissingDependencyError
 
 
 def _descriptor(**kw: object) -> DatasetDescriptor:
@@ -85,6 +86,29 @@ def test_resolve_without_checksum_refuses(tmp_path: Path) -> None:
     reg = DatasetRegistry({"demo": _descriptor(sha256=None)})
     with pytest.raises(ChecksumError, match="no pinned checksum"):
         reg.resolve("demo", cache_dir=tmp_path, consent=True)
+
+
+def test_a_pinned_dataset_with_no_source_says_where_to_put_the_file(
+    tmp_path: Path,
+) -> None:
+    """A descriptor can pin a checksum and name nowhere to fetch from, and must say so.
+
+    The exact sibling of `ModelRegistry.checkpoint`'s guard, which had the same gap: the
+    comment in the source even says "as in the model zoo". Both reach a
+    `download_verified(None, ...)` without the refusal, replacing an authored sentence
+    that names the one fix — put the file in the cache directory — with whatever a `None`
+    URL does inside the downloader.
+
+    **When two modules write the same line, check both; one having a test is not
+    evidence.** This project has recorded that query several times, and here the two
+    guards were written in the same round, as the comment shows, and neither was pinned.
+
+    Found by deleting the refusal (`scripts/mutate.py --mode raise`).
+    """
+    reg = DatasetRegistry({"demo": _descriptor(sha256="00", source_url=None)})
+    with pytest.raises(MissingDependencyError, match="names no source_url") as refused:
+        reg.resolve("demo", cache_dir=tmp_path, consent=True)
+    assert "cache directory" in str(refused.value)
 
 
 def test_cached_unpinned_dataset_fails_closed(tmp_path: Path) -> None:

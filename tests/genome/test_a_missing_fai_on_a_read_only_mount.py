@@ -100,3 +100,44 @@ def test_the_web_app_starts_and_reports_503(read_only_fasta: Path, monkeypatch) 
     response = client.post("/api/design", json={"variant": "chr2:71:A>C"})
     assert response.status_code == 503
     assert "samtools faidx" in response.text
+
+
+def test_an_unreadable_error_with_an_index_present_is_not_relabelled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When the index exists, the "no index" diagnosis is a lie and must not be told.
+
+    The `except OSError` arm serves two different situations and tells them apart by
+    whether the `.fai` is on disk. With no index, the helpful `ReferenceIndexError`
+    naming `samtools faidx` is right. With an index present, the failure is something
+    else — a corrupt index, an unreadable FASTA, an I/O error — and the original error
+    is the only honest thing to show; a bare `raise` re-raises it.
+
+    Delete that `raise` and such a failure is reported as "has no index at
+    reference.fa.fai, and one cannot be created because ... is not writable", pointing
+    at a file sitting right there and prescribing a command that would not help. A
+    wrong diagnosis costs more than a raw error, because the reader acts on it.
+
+    Found by deleting the re-raise (`scripts/mutate.py --mode raise`): the suite had the
+    missing-index case covered in both directions and nothing for this one.
+    """
+    import alleleforge.genome.reference as reference_module
+
+    fasta = tmp_path / "reference.fa"
+    fasta.write_text(">chr2\n" + "AT" * 70 + "\n")
+    index = tmp_path / "reference.fa.fai"
+    index.write_text("chr2\t140\t7\t140\t141\n")
+
+    def exploding_reader(*_args: object, **_kwargs: object) -> object:
+        raise OSError("simulated unreadable FASTA")
+
+    monkeypatch.setattr(reference_module, "_fasta_reader", lambda: exploding_reader)
+
+    with pytest.raises(OSError) as excinfo:
+        ReferenceGenome(fasta)
+
+    assert not isinstance(excinfo.value, ReferenceIndexError), (
+        "the original failure was relabelled as a missing index, but the index exists"
+    )
+    assert "simulated unreadable FASTA" in str(excinfo.value)
+    assert "samtools faidx" not in str(excinfo.value)

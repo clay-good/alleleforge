@@ -471,3 +471,82 @@ def test_every_shipped_scheme_can_actually_be_screened() -> None:
 
     for scheme in (LENTIGUIDE_BSMBI, PX330_BBSI, PEGRNA_GG_BSAI):
         assert scheme.enzyme in TYPE_IIS_SITES, scheme.name
+
+
+# -- the three reconstruct() arms that nothing exercised -----------------------
+#
+# `reconstruct()` is the ordering sheet's self-check: it re-derives the reagent from the
+# oligos a person will actually order and refuses if they do not agree. Most of its arms
+# were pinned; these three were not, and a deleted arm is invisible precisely because the
+# builder above it is correct — the check exists for a *hand-built or edited* duplex,
+# which is also the case no fixture produced. Found with `--mode raise`.
+
+
+def test_sgrna_oligo_that_encodes_another_spacer_is_rejected() -> None:
+    """A self-consistent duplex for the *wrong* spacer must still be refused.
+
+    The nastiest of the three: every other arm passes. The top carries the scheme's
+    overhang, the bottom *is* the exact reverse complement of the top, so the duplex
+    anneals and looks right on the sheet — it just encodes a different guide than the
+    candidate it is printed under. Only the final `core != self.spacer` comparison
+    catches it, and ordering those oligos would run the wrong experiment.
+    """
+    other = revcomp(SPACER)
+    assert other != SPACER, "the fixture spacer is its own reverse complement"
+    bad = SgRnaOligos(
+        kind="sgrna",
+        spacer=SPACER,
+        top=LENTIGUIDE_BSMBI.top_overhang + other,
+        bottom=LENTIGUIDE_BSMBI.bottom_overhang + revcomp(other),
+        scheme=LENTIGUIDE_BSMBI,
+    )
+    with pytest.raises(ValueError, match="does not reconstruct its declared spacer"):
+        bad.reconstruct()
+
+
+def _pegrna_ext(ext_top: str, ext_bottom: str) -> PegRNAOligos:
+    """A pegRNA duplex whose spacer half is valid, so only the extension is at issue."""
+    from alleleforge.enumerate.prime import SCAFFOLD
+
+    scheme = PEGRNA_GG_BSAI
+    return PegRNAOligos(
+        spacer=SPACER,
+        rtt="AAAA",
+        pbs="CCCC",
+        motif=ThreePrimeMotif.NONE,
+        scaffold=SCAFFOLD,
+        spacer_top=scheme.top_overhang + "G" + SPACER,
+        spacer_bottom=scheme.bottom_overhang + revcomp("G" + SPACER),
+        ext_top=ext_top,
+        ext_bottom=ext_bottom,
+        nicking=None,
+        scheme=scheme,
+        g_added=True,
+    )
+
+
+def test_extension_oligo_without_its_overhang_is_rejected() -> None:
+    """No overhang means it cannot be cloned, however correct the body is."""
+    from alleleforge.report.oligos import _ext_overhangs
+
+    _, ext_bottom_overhang = _ext_overhangs(PEGRNA_GG_BSAI)
+    body = "AAAA" + "CCCC"  # exactly rtt + pbs, so the boundary check would pass
+    with pytest.raises(ValueError, match="missing its 5' overhang"):
+        _pegrna_ext(body, ext_bottom_overhang + revcomp(body)).reconstruct()
+
+
+def test_extension_antisense_that_is_not_the_reverse_complement_is_rejected() -> None:
+    """The extension's bottom strand gets the same check the spacer's already had.
+
+    A duplex whose strands do not anneal is two oligos a person pays for and cannot
+    clone. The sgRNA half of this check was pinned; the extension half was not.
+    """
+    from alleleforge.report.oligos import _ext_overhangs
+
+    ext_top_overhang, ext_bottom_overhang = _ext_overhangs(PEGRNA_GG_BSAI)
+    body = "AAAA" + "CCCC"
+    with pytest.raises(ValueError, match="extension antisense"):
+        _pegrna_ext(
+            ext_top_overhang + body,
+            ext_bottom_overhang + "TTTTTTTT",  # not the reverse complement of the body
+        ).reconstruct()

@@ -3410,6 +3410,23 @@ acceptance.
   pinned.
 
 ### Fixed
+- **Eleven untested refusals across the library are now pinned.** Each was found by
+  deleting the `raise` and confirming nothing failed. The ones that guard a published
+  number: a negative 5' homology arm on a pegRNA, which *inflates* the
+  `templated-edit:Nnt` figure the menu prints (the field is a plain `int`, the arms-sum
+  check below cannot catch a negative, and the scoring path already clamped with
+  `max(0, ...)` while the ordering figure had nothing); and three `reconstruct()` arms in
+  the oligo sheet, including the one that catches a duplex which anneals correctly and
+  still encodes a different guide than the candidate it is printed under. The ones that
+  keep a refusal honest: both "calibrator is not fitted" guards, without which a
+  calibrator that has learned nothing answers from a `None` scale and the result is
+  presented as calibrated; the ragged-input and `interval_level` refusals; the
+  pin-a-hash-but-name-no-source guard in **both** the model zoo and the dataset registry,
+  written in the same round and pinned in neither; and the bare re-raise in
+  `ReferenceGenome`, without which an unreadable FASTA whose `.fai` exists is reported as
+  "has no index ... and one cannot be created", pointing at a file that is sitting right
+  there. `scoring/uncertainty.py` is now 14/14. One survivor is recorded as unexecutable
+  here rather than fixed: the `pyfaidx` import guard, with `pyfaidx 0.9.0.4` installed.
 - **The readiness report explains the dataset half of R0, and its blocked count includes
   it.** `scripts/release_readiness.py` exists to separate *blocked* from *forgotten*, and on
   the model-card side it triages the unpinned cards into "needs a fetch" and "needs somebody

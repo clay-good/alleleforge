@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from alleleforge.errors import MissingDependencyError
 from alleleforge.model_zoo.registry import (
     CardError,
     ChecksumError,
@@ -144,6 +145,34 @@ def test_checkpoint_requires_pinned_hash(tmp_path: Path) -> None:
     reg = ModelRegistry({"demo": _card(checkpoint_sha256=None, source_url="https://x")})
     with pytest.raises(ChecksumError, match="pins no checkpoint hash"):
         reg.checkpoint("demo", cache_dir=tmp_path, consent=True)
+
+
+def test_a_pinned_card_with_no_source_says_where_to_put_the_file(
+    tmp_path: Path,
+) -> None:
+    """A card can pin a hash and name nowhere to fetch it from, and must say so.
+
+    Nothing forbids the combination: the only cross-field validator here rejects a
+    *bundled* card carrying a hash or a URL, so `checkpoint_sha256` set with
+    `source_url=None` is constructible and reaches the download branch.
+
+    Without the refusal, execution falls through to `download_verified(None, ...)` and
+    the caller gets whatever that does to a `None` URL instead of the authored sentence
+    naming the one thing that would fix it — put the file in the cache directory. This
+    project has already shipped that exact shape once, where an authored
+    `NotImplementedError` was unreachable and callers got a bare `TypeError`: **a good
+    error message is a feature, and it has to be checked against the path the library
+    itself takes.**
+
+    Found by deleting the refusal (`scripts/mutate.py --mode raise`); it survived both
+    its package list and a broad confirmation, while the `LicenseError` and
+    `ConsentError` beside it were killed.
+    """
+    reg = ModelRegistry({"demo": _card(checkpoint_sha256="00", source_url=None)})
+    with pytest.raises(MissingDependencyError, match="pins no source_url") as refused:
+        reg.checkpoint("demo", cache_dir=tmp_path, consent=True)
+    # The remedy is the point: a refusal naming no action is the failure mode above.
+    assert "cache directory" in str(refused.value)
 
 
 def test_cached_unpinned_checkpoint_fails_closed(tmp_path: Path) -> None:

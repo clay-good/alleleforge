@@ -23901,3 +23901,83 @@ hour; believing it cost a round, a CHANGELOG entry and a line in CONTRIBUTING. W
 it was not re-reading the driver but noticing an *impossible* result — a line coverage
 proves never runs, reported as observed. **Keep one fact that the result must be consistent
 with, and check the result against the fact rather than against your expectation of it.**
+
+## Round 690 — the backlog R689 named, closed
+
+R689 ended with survivors written down and untriaged, which is a backlog and not a
+finding. This triages every one of them. **Eleven refusals had no test; ten are now
+pinned and one is recorded as unexecutable here, verified rather than assumed.**
+
+Each was found by deleting the `raise` and confirmed with both of R689's controls live,
+so none of these kills is an artifact of a list that never ran or a comment-stripped
+rewrite.
+
+### The ones that guard a number somebody acts on
+
+* **`types/guide.py` — a negative 5' homology arm.** `templated_edit_length` is
+  `len(rtt) - 5' - 3'`, so a negative arm *adds* to it, and that figure is printed on the
+  menu as `templated-edit:Nnt` — the flag that distinguishes installing one base from
+  installing a long insertion, which is a different reagent at the bench. The field is a
+  plain `int` with no `ge=0`, so a negative is constructible by any library caller, and
+  the arms-sum check two lines below cannot catch it because a negative makes the sum
+  *smaller*. The asymmetry is the tell: `scoring/prime_efficiency.py` already writes
+  `max(0, pegrna.rtt_homology_5prime)`, so a negative was anticipated on the scoring path
+  and clamped; the number a person orders from had nothing.
+* **`report/oligos.py` — three `reconstruct()` arms.** This is the ordering sheet's
+  self-check: it re-derives the reagent from the oligos a person will actually buy.
+  The nastiest arm is `core != self.spacer`: a duplex can carry the scheme's overhang and
+  be the exact reverse complement of itself — annealing correctly, looking right on the
+  sheet — and still encode a *different guide* than the candidate it is printed under.
+  Its siblings were pinned; these three were not.
+
+### The ones that keep a refusal honest
+
+* **`scoring/uncertainty.py` — five, now 14/14.** Both *unfitted* guards
+  (`IsotonicCalibrator.predict_one`, `ConformalCalibrator.scale`/`achieved_level`): without
+  them a calibrator that has learned nothing answers anyway, from a `None` scale or an
+  empty table, and the number is presented as calibrated. Plus the ragged-input guard
+  (tested with each half of its condition failing alone) and the design-path
+  `interval_level` refusal, whose remedy must name `config.toml` and
+  `ALLELEFORGE_INTERVAL_LEVEL` because the caller set it there.
+* **`model_zoo/registry.py` and `data/registry.py` — the same guard, twice.** A card or
+  descriptor can pin a hash and name nowhere to fetch from; nothing forbids it, since the
+  only cross-field validator rejects a *bundled* entry carrying a hash or URL. Without the
+  refusal both fall into `download_verified(None, ...)`. The source comment on the dataset
+  one reads "as in the model zoo" — **the two were written in the same round, from the same
+  thought, and neither was pinned.** One having a test would not have been evidence about
+  the other.
+* **`genome/reference.py` — the bare re-raise.** The `except OSError` arm serves two
+  situations and tells them apart by whether the `.fai` exists. With no index, the helpful
+  `samtools faidx` message is right. With an index present, the failure is something else
+  and the original error is the only honest thing to show. Delete the `raise` and such a
+  failure is reported as "has no index at reference.fa.fai, and one cannot be created
+  because … is not writable" — pointing at a file sitting right there, prescribing a
+  command that would not help. The suite had the missing-index case covered **in both
+  directions** and nothing for this one.
+
+### Two notes on method
+
+**A duplicated message hides a deletion.** `ConformalCalibrator.__init__` and
+`min_calibration_size` raise a byte-identical "level must be in (0, 1)". My first test
+exercised the calibrator, every bad-level assertion passed, and the mutant stayed alive —
+because the one I deleted was the *other* one. The harness label (`L427`) was right and I
+read it as the function I had in mind. **When two sites raise the same sentence, a test
+through one proves nothing about the other.**
+
+**`types/offtarget.py:97` is not a gap.** The `mit_score` range validator survives
+`tests/types` and dies against the whole suite: it is pinned by its consumers — the
+engine, the scorers, all three report surfaces — rather than by its own package. Recorded
+so nobody re-chases it.
+
+**Recorded as unexecutable here, checked this time:** `genome/reference.py:187`, the
+`except ImportError` raising `MissingDependencyError` for a missing `pyfaidx`. `pyfaidx
+0.9.0.4` is installed in this environment, so the branch cannot run, and it is marked
+`pragma: no cover - exercised only without the extra`. R687 is why that sentence now comes
+with a version number instead of an assumption.
+
+**Lesson: a survivor list is not a finding list, and the difference is a day's work.**
+R689's eleven looked alike in the log — all deleted refusals nothing noticed. Triaged, they
+were four distinct things: a number that gets ordered from, a refusal that would answer
+with nothing behind it, one guard written twice and pinned neither time, and one branch that
+genuinely cannot run here. Only the last needed no test, and only reading each one in its
+own context said which was which.
