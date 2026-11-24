@@ -9,6 +9,17 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **`DbSnpDB` can now read the VCF NCBI actually publishes.** It had one reader,
+  `from_tsv`, wanting an `rsid chrom pos ref alt` table — while the registry pointed at
+  `GCF_000001405.40.gz` and the resolver's own refusal told callers to produce that table
+  by hand. `from_vcf` reads the release, and `load` accepts either form by sniffing the
+  first line, because the published filename contains no `.vcf` and extension dispatch
+  would reject the only artifact upstream serves. Three things a generic reader gets
+  wrong are handled and pinned against real b156 rows: contigs are versioned RefSeq
+  accessions (`NC_000001.11`), ALT is multi-allelic (537 alleles from 363 rsIDs in a
+  400-row slice), and unplaced scaffolds and symbolic alleles are skipped rather than
+  refused. The RefSeq accession map was promoted out of `variant/resolver.py` and shared
+  rather than copied. `aforge … --dbsnp` now accepts either file.
 - **`dbsnp` must not pin a hash either, and a guard now says why.** Pinning `sha256`
   does not only record provenance — `dataset_status` computes `fetchable` from it, so the
   pin switches the fetch path on, and the fetch saves whatever `source_url` serves under

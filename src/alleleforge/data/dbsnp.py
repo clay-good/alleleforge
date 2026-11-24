@@ -13,7 +13,11 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 from alleleforge.data._io import is_sequence_allele, open_text
-from alleleforge.types.sequence import GenomicInterval, canonical_contig
+from alleleforge.types.sequence import (
+    GenomicInterval,
+    canonical_contig,
+    contig_from_refseq,
+)
 from alleleforge.types.variant import DbSnpId, Variant
 
 #: The columns every data row is read through. Checked at the header rather than at the
@@ -54,6 +58,103 @@ class DbSnpDB:
         assuming the default build.
         """
         return cls(cls._parse(path, add_chr_prefix=add_chr_prefix, assembly=assembly))
+
+    @classmethod
+    def load(cls, path: str | Path, *, assembly: str | None = None) -> DbSnpDB:
+        """Read either form dbSNP comes in, deciding by content rather than by name.
+
+        Sniffed, not switched on the extension, because **the file NCBI publishes is
+        called ``GCF_000001405.40.gz``** — nothing in that name says VCF. A reader that
+        dispatched on ``.vcf`` would reject the only artifact upstream actually serves,
+        which is how the project came to tell callers to convert it by hand.
+
+        Dispatch is on the *positive* VCF signal only: a first line of
+        ``##fileformat=VCF`` goes to :meth:`from_vcf`, and **everything else goes to**
+        :meth:`from_tsv`. That asymmetry is deliberate. An earlier draft raised its own
+        "neither a VCF nor a TSV" error, which intercepted a TSV with the wrong columns
+        and replaced `from_tsv`'s diagnosis — "Expected a tab-separated header of: … —
+        found: …" — with a vaguer one. Two tests caught it. A reader whose file is nearly
+        right needs the column-by-column comparison, not a restatement of the two
+        formats, so the detailed refusal is left where it already lived.
+        """
+        for line in open_text(path):
+            if not line.strip():
+                continue
+            if line.startswith("##fileformat=VCF"):
+                return cls.from_vcf(path, assembly=assembly)
+            break
+        return cls.from_tsv(path, assembly=assembly)
+
+    @classmethod
+    def from_vcf(cls, path: str | Path, *, assembly: str | None = None) -> DbSnpDB:
+        """Parse dbSNP's own VCF release (plain or ``.gz``) into a :class:`DbSnpDB`.
+
+        This exists because the artifact NCBI publishes and the artifact this class could
+        read were different files. `from_tsv` wants an ``rsid chrom pos ref alt`` table,
+        and the resolver's own error message told callers to produce one — from a VCF
+        nothing here could open. So the one dataset the registry describes as fetchable-
+        in-principle was unusable without a conversion the project neither performed nor
+        documented.
+
+        Two things about dbSNP's VCF that a generic reader gets wrong:
+
+        * **every contig is a versioned RefSeq accession** (``NC_000001.11``), not
+          ``chr1``, so a reader that only strips a ``chr`` prefix produces contigs no
+          reference has. Unplaced scaffolds and patches (``NT_``/``NW_``) are skipped
+          rather than refused — a whole-genome release carries thousands and none of them
+          is an error;
+        * **ALT is multi-allelic** (``A,C``). One VCF row is several variants, so each
+          allele is yielded separately — in a 400-row slice of b156, 537 alleles come
+          from 363 rsIDs, so a reader that kept one per row would drop a quarter of them.
+
+        One pre-existing limitation this reader is the first to make reachable:
+        :meth:`locus` indexes by rsID in a plain dict, so for a multi-allelic site it
+        answers with the *last* allele read, while :meth:`rsids_at` sees all of them. The
+        TSV path could always hit this by listing an rsID twice; nothing produced such
+        input before. Pinned in
+        ``tests/data/test_dbsnp_reads_the_vcf_that_ncbi_publishes.py`` so it is a known
+        shape rather than a surprise, and left alone here because widening `locus` to
+        return every allele changes a public return type.
+
+        Args:
+            path: Path to a dbSNP VCF release.
+            assembly: The release's native assembly, recorded on each variant's
+                ``source_assembly``. Left unknown when not stated rather than assuming
+                the default build.
+
+        Returns:
+            A queryable :class:`DbSnpDB`.
+        """
+        return cls(cls._parse_vcf(path, assembly=assembly))
+
+    @staticmethod
+    def _parse_vcf(path: str | Path, *, assembly: str | None = None) -> Iterator[Variant]:
+        """Yield one :class:`Variant` per usable (row, ALT) pair of a dbSNP VCF."""
+        for line in open_text(path):
+            if line.startswith("#") or not line.strip():
+                continue
+            cols = line.rstrip("\n").split("\t")
+            if len(cols) < 5:
+                continue
+            accession, pos, rsid, ref, alts = cols[0], cols[1], cols[2], cols[3], cols[4]
+            # No rs number means no dbSNP identity, which is the only key this class
+            # indexes by; such a row belongs to a different database.
+            if not rsid.startswith("rs"):
+                continue
+            chrom = contig_from_refseq(accession)
+            if chrom is None:
+                continue  # unplaced scaffold or patch contig
+            for alt in alts.split(","):
+                if not is_sequence_allele(ref, alt):
+                    continue  # symbolic or spanning-deletion allele
+                yield Variant(
+                    chrom=chrom,
+                    pos=int(pos) - 1,  # dbSNP VCF is 1-based; store 0-based
+                    ref=ref,
+                    alt=alt,
+                    source_assembly=assembly,
+                    rsid=DbSnpId(value=rsid),
+                ).normalized()
 
     @staticmethod
     def _parse(

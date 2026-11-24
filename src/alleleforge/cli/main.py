@@ -1278,7 +1278,10 @@ def _load_dbsnp(path: Path | None) -> Any:
     from alleleforge.data.dbsnp import DbSnpDB
 
     try:
-        return _attach_source(DbSnpDB.from_tsv(path), path, "dbsnp")
+        # `load`, not `from_tsv`: dbSNP's published release is a VCF named
+        # `GCF_000001405.40.gz`, and this flag used to accept only a TSV the caller had
+        # to produce by hand from it.
+        return _attach_source(DbSnpDB.load(path), path, "dbsnp")
     except (OSError, ValueError, KeyError) as exc:
         _echo_err(f"error: could not read --dbsnp {path}: {reason(exc)}")
         raise typer.Exit(ExitCode.MISSING_DATA) from exc

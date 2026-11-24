@@ -24704,3 +24704,69 @@ one line.** Adding `sha256="…"` to a descriptor reads as pure provenance impro
 is also a behavioural switch, and the thing it switches on had never been checked against
 what the loader can read. Three rounds ago the same shape broke a model load path. The
 tell both times was the same: **ask what else becomes true when the number moves.**
+
+## Round 701 — dbSNP's published release is a VCF, and this project could only read a TSV
+
+R700 established that pinning `dbsnp`'s hash would download 26.6 GB the loader rejects,
+and that the honest classification is "caller-supplied after a conversion this project
+does not perform". That last clause was the actual defect, and this round removes it.
+
+The gap was visible from three places, and none had been followed:
+
+* `DbSnpDB` had one reader, `from_tsv`, wanting `rsid chrom pos ref alt`;
+* `variant/resolver.py`'s own refusal told callers to use "`DbSnpDB.from_tsv(path)` — an
+  `rsid chrom pos ref alt`" file;
+* the registry's `dbsnp.source_url` points at `GCF_000001405.40.gz`, NCBI's VCF.
+
+So the product **named an artifact it could not open and told the reader to convert it by
+hand**, with nothing to do it with. This is the inverse of the class that has been most
+productive here — usually it is a capability the library has that no shell can reach;
+this is a format the library *requires* that nothing can produce.
+
+`DbSnpDB.from_vcf` now reads what upstream publishes, and `DbSnpDB.load` takes either
+form. Verified against rows from the real b156 release, not a tidy fixture.
+
+### Three details a generic VCF reader gets wrong
+
+* **Contigs are versioned RefSeq accessions** — `NC_000001.11`, not `chr1`. A reader that
+  strips a `chr` prefix emits contigs no reference has. The map for this already existed,
+  privately, in `variant/resolver.py`, because genomic HGVS arrives the same way; it was
+  promoted to `types/sequence.py` and shared rather than copied. Two copies of a lookup
+  table are two things that drift, and this project has already been bitten by a guard
+  written twice and pinned neither time.
+* **ALT is multi-allelic.** In a 400-row slice of b156, **537 alleles come from 363
+  rsIDs** — one variant per row would silently drop a quarter of them, from a database
+  whose only job is to say which alleles exist at a site.
+* **The published filename contains no `.vcf`.** `GCF_000001405.40.gz` says nothing about
+  its format, so `load` sniffs the first line (`##fileformat=VCF` against `#rsid`). A
+  reader dispatching on extension rejects the only artifact upstream serves — which is
+  plausibly how the hand-conversion instruction came to be written in the first place.
+
+### A limitation found by measuring, and recorded rather than fixed
+
+`locus()` indexes by rsID in a plain dict, so for a multi-allelic site it answers with
+the *last* allele read while `rsids_at` sees all of them. The TSV path could always reach
+this by listing an rsID twice; nothing produced such input until this reader existed. It
+is pinned in the tests so the shape is known rather than discovered, and left alone
+because widening `locus` to return every allele changes a public return type — not a
+change to make in passing in a round about reading a file.
+
+### The same lesson, applied to me, by two existing tests
+
+My first `load` raised its own "neither a dbSNP VCF nor an AlleleForge dbSNP TSV" error
+for anything unrecognized. That intercepted a TSV *with the wrong columns* and replaced
+`from_tsv`'s diagnosis — which names the expected header and the one it found, column by
+column — with a restatement of the two formats.
+`test_a_refusal_names_a_remedy_that_works` and `test_the_dbsnp_schema_is_named_both_ways`
+both failed, and both were right: a reader whose file is nearly right needs the
+comparison, not a description of the formats.
+
+So `load` now dispatches on the **positive** VCF signal only and everything else falls
+through to `from_tsv`, which already had the better message. The fix removed an error path
+rather than adding one — and it is the same point as the round's main finding, turned on
+my own code: I had written a worse specification over a better one.
+
+**Lesson: an error message is a specification, and this one described work the product
+should have done.** "Produce an `rsid chrom pos ref alt` TSV from the VCF" had sat in a
+refusal for rounds, read as guidance, and was really a missing feature written down. Worth
+re-reading the refusals that tell a user to go and prepare something.

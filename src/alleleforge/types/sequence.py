@@ -211,6 +211,33 @@ def canonical_contig(chrom: str) -> str:
     return "MT" if base.upper() in {"M", "MT"} else base.upper()
 
 
+#: GRCh38 RefSeq chromosome accessions -> UCSC-style contig names. Lives here rather
+#: than in one consumer because two now need it: genomic HGVS arrives as
+#: ``NC_000002.12:g.…`` and dbSNP's own VCF spells every contig this way. Two copies of a
+#: lookup table are two things that drift.
+REFSEQ_CONTIGS: dict[str, str] = {
+    **{f"NC_0000{n:02d}": f"chr{n}" for n in range(1, 23)},
+    "NC_000023": "chrX",
+    "NC_000024": "chrY",
+    "NC_012920": "chrM",
+}
+
+
+def contig_from_refseq(accession: str) -> str | None:
+    """Return the contig ``accession`` names, or ``None`` if it is not a known one.
+
+    The version suffix is dropped before lookup (``NC_000001.11`` and ``NC_000001.10``
+    are the same chromosome in different assemblies), because the caller has already
+    decided which assembly it is reading — a dbSNP release states its build, and an HGVS
+    string is resolved against a named reference.
+
+    Returns ``None`` rather than raising: dbSNP's VCF carries unplaced scaffolds and
+    patch contigs (``NT_``/``NW_`` accessions) that a reader skips rather than fails on,
+    and the HGVS path wants its own error message.
+    """
+    return REFSEQ_CONTIGS.get(accession.split(".")[0])
+
+
 #: The ``chrom:start-end(strand)`` locus form :meth:`GenomicInterval.__str__` emits.
 _LOCUS_RE = re.compile(r"(?P<chrom>[^:\s]+):(?P<start>\d+)-(?P<end>\d+)(?:\((?P<strand>[+-])\))?")
 

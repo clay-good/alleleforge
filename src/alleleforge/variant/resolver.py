@@ -36,6 +36,7 @@ from alleleforge.types.sequence import (
     GenomicInterval,
     Strand,
     canonical_contig,
+    contig_from_refseq,
 )
 from alleleforge.types.variant import (
     ClinicalAssertion,
@@ -46,14 +47,6 @@ from alleleforge.types.variant import (
 )
 from alleleforge.variant.effect import EffectPredictor, VariantEffect
 from alleleforge.variant.hgvs_adapter import HgvsAdapter
-
-#: RefSeq chromosome accessions (GRCh38) -> UCSC-style contig names.
-_REFSEQ_CHROM: dict[str, str] = {
-    **{f"NC_0000{n:02d}": f"chr{n}" for n in range(1, 23)},
-    "NC_000023": "chrX",
-    "NC_000024": "chrY",
-    "NC_012920": "chrM",
-}
 
 # The position accepts a leading `-` so a negative coordinate is refused as a *position*
 # ("the first base of a contig is position 1") rather than as an unparseable input: the
@@ -269,9 +262,9 @@ def _chrom_from_hgvs(reference: str | None) -> str:
         raise ValueError("genomic HGVS needs a contig prefix (e.g. 'chr2:g...')")
     if reference.lower().startswith("chr"):
         return reference
-    key = reference.split(".")[0]
-    if key in _REFSEQ_CHROM:
-        return _REFSEQ_CHROM[key]
+    contig = contig_from_refseq(reference)
+    if contig is not None:
+        return contig
     raise ValueError(f"cannot map HGVS reference {reference!r} to a contig")
 
 
