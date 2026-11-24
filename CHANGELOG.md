@@ -9,6 +9,18 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **`EncodeTracks` can now read the `bed narrowPeak` ENCODE actually serves, completing
+  the loader audit.** The previous round recorded this as blocked on adding a binary
+  bigWig/bigBed dependency; that was measured from five sampled records. ENCODE's own
+  facets over all 513,214 DNase-seq files give `bed` 415,734, `bigBed` 27,365, `bigWig`
+  19,092 and `bedGraph` **zero** — so the dominant format is gzipped text and no
+  dependency is needed. `from_narrowpeak`/`load` read it, wired into `--encode-tracks`,
+  verified against a real GRCh38 file. narrowPeak is already 0-based half-open (no shift),
+  `signalValue` is the seventh column, ENCODE's `-1` "no value" sentinel is skipped rather
+  than recorded as negative accessibility, and a `bed bed3+` row — 401,965 of ENCODE's
+  DNase files, carrying no signal column — is refused rather than read as a track of
+  zeros. **Every dataset this project describes can now be read from the artifact its
+  upstream publishes.**
 - **`HaplotypePanel` can now build from the phased VCFs 1000G and HGDP publish — which
   the module's own first sentence already claimed it did.** "Production builds these from
   phased VCFs" was written in the present tense while `from_tsv` was the only reader, so

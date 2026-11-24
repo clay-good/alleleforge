@@ -24903,3 +24903,74 @@ not one to make in passing, so it is recorded rather than taken.
 stale.** This one had been read many times, including by me in earlier rounds, because it
 describes what the module is *for*. "Production builds these from phased VCFs" was
 aspiration written in the present tense, and nothing checks prose.
+
+## Round 704 — encode was not blocked on a dependency, and I had measured it wrong
+
+R703 closed with `encode` "blocked on a dependency decision": ENCODE serves binary
+bigWig/bigBed, so reading it would need a C-extension parser in a project that keeps CI
+weight-free, and that was the owner's call to make. **The measurement behind that was
+wrong**, and the correction closes the last entry in the loader-versus-upstream audit.
+
+### What I did
+
+Counted file formats in **five sampled records** of a narrow `output_type` query, and
+reported the result as the format distribution. "816 bigWig, 45,422 bigBed, zero
+bedGraph" — the totals were real, the format attribution was five records wide.
+
+### What is actually there
+
+ENCODE's own facets over all 513,214 DNase-seq files:
+
+| file_format | files |
+| --- | --- |
+| `bed` | **415,734** |
+| `bigBed` | 27,365 |
+| `bigWig` | 19,092 |
+| `bedGraph` | 0 |
+
+The dominant published format is **gzipped BED text**, including 6,552 `bed narrowPeak`
+(4,431 on GRCh38). **No dependency is needed.** The real obstacle was never binary
+formats — it was that `from_bedgraph` wants a five-column `track chrom start end value`
+file ENCODE does not publish in any form, which is the same finding as every other round
+in this run, and I nearly filed it as someone else's decision instead.
+
+`EncodeTracks.from_narrowpeak` and `EncodeTracks.load` now read it, wired into
+`--encode-tracks`. Verified against `ENCFF762IIH.bed.gz`, a real GRCh38 DNase file: the
+first peak's `signalValue` of `0.502928` arrives through the query path unchanged.
+
+### Details that matter in this format
+
+* narrowPeak is BED-derived and **already 0-based half-open**, so no coordinate shift
+  applies. An off-by-one would attribute a peak's accessibility to the wrong window and
+  move an efficiency score with it.
+* **`signalValue` is the seventh column**, and ENCODE writes **`-1` for "no value"** — a
+  real file's pValue and qValue columns are full of them. A negative accessibility would
+  travel into the open-chromatin efficiency adjustment as though measured, so those rows
+  are skipped.
+* A **`bed bed3+`** row is refused rather than read as signal-less. That format is
+  401,965 of ENCODE's DNase files — the one a caller is likeliest to reach for by
+  mistake — and it carries no signal column, so a silent track of zeros would report
+  "no accessibility anywhere" as a measurement.
+* The caller names the track, because narrowPeak has no column for it and
+  `--chromatin-track` already supplies one. Naming it from the filename would put
+  `ENCFF762IIH` in a provenance block describing an assay.
+
+### A test that corrected itself
+
+My sentinel test asserted a `-1`-only file yields a zero signal; it raises `KeyError`,
+because a file whose every peak is a sentinel defines no track at all. Both behaviours
+are right for different inputs, and the test had conflated them. Split in two: one file
+with a real peak *and* a sentinel (the realistic case), one with only sentinels (an empty
+track, which the CLI already refuses by name).
+
+**Lesson: a sample is not a distribution, and an API that offers facets will tell you the
+real one.** Five records were enough to make a confident claim about 513,214 files, and
+confident enough that I handed the conclusion back as a decision for someone else. The
+check cost one request.
+
+### The audit is complete
+
+`clinvar`→`from_vcf`, `gencode`→`from_gtf`, `dbsnp`→`from_vcf` (R701),
+`gnomad`→`from_vcf` (R702), `1000g`/`hgdp`→`from_phased_vcf` (R703),
+`encode`→`from_narrowpeak` (R704). **Every dataset this project describes can now be read
+from the artifact its upstream actually publishes.**

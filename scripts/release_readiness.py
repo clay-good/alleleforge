@@ -137,6 +137,7 @@ def _artifact_pinning() -> Criterion:
     # exists to draw.
     ds_unpinned = [d for d in datasets if not getattr(d, "sha256", None)]
     ds_named = [(d, getattr(d, "source_url", None) or "") for d in ds_unpinned]
+
     # A descriptor whose `filename` is not the basename of its `source_url` names a
     # *derived* table the caller produces, not the artifact upstream publishes — so a
     # fetch-and-hash would not pin what gets loaded. `dbsnp` is the case: NCBI publishes

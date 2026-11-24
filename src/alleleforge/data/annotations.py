@@ -169,6 +169,82 @@ class EncodeTracks:
             segs.sort(key=lambda s: s.start)
         return cls(dict(grouped))
 
+    @classmethod
+    def from_narrowpeak(cls, path: str | Path, *, track: str) -> EncodeTracks:
+        """Parse an ENCODE ``bed narrowPeak`` file (plain or gzip) as one track.
+
+        This is the format ENCODE actually serves. :meth:`from_bedgraph` wants a
+        five-column ``track chrom start end value`` text file, and a facet count over
+        ENCODE's own API says DNase-seq offers **415,734 `bed` files** against 27,365
+        bigBed and 19,092 bigWig — and **zero bedGraph**. So the reader this project had
+        could open nothing the portal publishes, while the dominant published format is
+        gzipped text needing no new dependency.
+
+        narrowPeak is BED-derived: ten columns, already 0-based half-open, with
+        **``signalValue`` in column seven**. The name is supplied by the caller because
+        the format has no track column — which is what ``--chromatin-track`` already
+        names on the command line.
+
+        A ``signalValue`` of ``-1`` is skipped. ENCODE writes ``-1`` for a field it has
+        no value for (the ``pValue``/``qValue`` columns of a real file are full of them),
+        and a negative accessibility would travel into the open-chromatin efficiency
+        adjustment as if it were a measurement.
+
+        Args:
+            path: An ENCODE narrowPeak file.
+            track: The track name to record these segments under.
+
+        Returns:
+            Tracks holding one named track.
+
+        Raises:
+            ValueError: If a data row has fewer than seven columns, so no signal value
+                can be read — narrowPeak has ten, and a shorter row means this is some
+                other BED flavour rather than a file with a missing field.
+        """
+        grouped: dict[tuple[str, str], list[_Segment]] = defaultdict(list)
+        for lineno, line in enumerate(open_text(path), start=1):
+            if line.startswith(("#", "track", "browser")) or not line.strip():
+                continue
+            cols = line.rstrip("\n").split("\t")
+            if len(cols) < 7:
+                raise ValueError(
+                    f"{path} line {lineno} has {len(cols)} column(s); narrowPeak has ten, "
+                    "with signalValue in the seventh. A shorter row means this is a "
+                    "different BED flavour (bed3+ footprint calls carry no signal), not a "
+                    "narrowPeak with a field missing."
+                )
+            value = float(cols[6])
+            if value < 0:
+                continue  # ENCODE's "no value" sentinel
+            grouped[(track, cols[0])].append(
+                _Segment(start=int(cols[1]), end=int(cols[2]), value=value)
+            )
+        for segs in grouped.values():
+            segs.sort(key=lambda s: s.start)
+        return cls(dict(grouped))
+
+    @classmethod
+    def load(cls, path: str | Path, *, track: str) -> EncodeTracks:
+        """Read either form, deciding by the shape of the first data row.
+
+        The two are distinguishable without a flag: this project's five-column format
+        begins with a track *name*, so its second field is a contig; narrowPeak begins
+        with the contig, so its second field is a start coordinate. An integer in the
+        second field therefore means narrowPeak.
+
+        ``track`` is accepted for both and used only by the narrowPeak path, which has no
+        track column of its own.
+        """
+        for line in open_text(path):
+            if line.startswith(("#", "track", "browser")) or not line.strip():
+                continue
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) > 1 and fields[1].isdigit():
+                return cls.from_narrowpeak(path, track=track)
+            break
+        return cls.from_bedgraph(path)
+
     @property
     def tracks(self) -> tuple[str, ...]:
         """Return the distinct track names, sorted."""

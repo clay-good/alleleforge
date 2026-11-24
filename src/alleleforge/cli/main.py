@@ -1014,7 +1014,10 @@ def _load_encode_tracks(path: Path | None, track: str | None) -> tuple[Any | Non
     from alleleforge.data.annotations import EncodeTracks
 
     try:
-        tracks = EncodeTracks.from_bedgraph(path)
+        # `load`, not `from_bedgraph`: ENCODE publishes `bed narrowPeak` (and no
+        # bedGraph at all), so this flag used to accept only a format the portal
+        # does not serve. The narrowPeak path records segments under --chromatin-track.
+        tracks = EncodeTracks.load(path, track=track)
         available = tracks.tracks
         if not available:
             _echo_err(
