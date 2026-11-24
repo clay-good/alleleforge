@@ -24162,3 +24162,62 @@ and only a corruption shaped to pass the cheap one measures the other.
 With this closed, `--mode raise` has no known reachable, untested refusal left. The one
 remaining recorded limit is `config.py`, which stays unmeasurable behind a second
 source-reading guard whose audience is the 123-file root suite.
+
+## Round 693 — the `bench` family's eleven exit codes
+
+R691 found that 42 of 93 `raise typer.Exit(...)` sites in `cli/main.py` survive deletion,
+pinned three, and listed the other 39 by line. This closes the eleven in `bench run`,
+`bench gap`, `bench compare` and `bench leaderboard`. All eleven die against the new file
+alone; the class drops from 42 survivors to 28.
+
+**Why this cluster first, out of the 39.** The repository's release criteria turn on these
+numbers, and two existing tests
+(`test_a_synthetic_benchmark_number_says_so_everywhere.py`,
+`test_an_edited_benchmark_number_is_refused.py`) exist because a benchmark figure
+travelling without its provenance is this project's central honesty risk. These commands
+are also the ones most likely to be run from a script, in a loop, over several tasks —
+exactly where nobody reads stderr and the exit code is the only signal. `bench run`
+printing "unknown task" and exiting 0 writes no result file and reports success, so the
+aggregation step after it either skips a model in silence or re-reads a stale file from a
+previous run; the leaderboard then publishes a number attributed to a run that never
+happened. `bench leaderboard` is worse in kind: it takes a *list* of results, so without
+the guard a missing path is announced and skipped and the board renders from whatever
+remained — fewer models than the caller passed, with nothing in the artifact saying so.
+
+**Nine of eleven are reachable from the shell; two are not, and are injected.** The
+`SplitIntegrityError` arms in `bench run` and `bench gap` fire when a frozen split fails
+its hash check, and neither command takes a `--splits-dir`, so reaching them from outside
+would mean corrupting a split inside the installed package. They are pinned by injecting
+the exception at the seam the command imports it from. That is the honest test of what is
+actually in question here: not whether `load_split` detects tampering (`tests/benchmark`
+covers that) but whether this CLI maps that detection onto a non-zero exit rather than
+printing it and scoring on.
+
+**Two codes, two different user mistakes, pinned apart.** `MISSING_DATA` for a well-formed
+command whose corpus is absent, `USAGE` for a command whose arguments are wrong — a
+script can act on the difference (fetch data, or fix its arguments), and a test asserting
+only "non-zero" would let the two be swapped. Both are asserted per-command, with one
+deliberately weaker `!= 0` invariant test that would catch any of the eleven deletions on
+the paths it covers.
+
+`bench gap`'s fold guard is pinned only for a fold name that is not a fold. The source
+comment records that this arm once also caught a *degenerate* fold and exited 2 for it,
+which called a well-formed question a usage error and disagreed with `bench run` on the
+same fold of the same task. That behaviour was corrected in an earlier round, so pinning
+it here would re-assert something the comment says was wrong.
+
+**Remaining in the class: 28 sites**, at `main.py` lines 121, 366, 381, 476, 617, 677,
+766, 783, 825, 1013, 1025, 1035, 1058, 1086, 1188, 1271, 1716, 1719, 1722, 1766, 1885,
+1888, 2283, 2455, 3450, 3459, 3487, 3752. Of these, 1766 is `polars`-gated and
+unreachable wherever the writer is installed, so 27 are real work.
+
+**Correcting R691's own list.** R691 said it was leaving 39 sites and then printed 40,
+including `3090` — a site R691 itself had just pinned (`verify`'s sidecar redirect). The
+count was right and the list was wrong: I wrote the prose figure by arithmetic (42 minus
+3) and the line numbers by hand from the survivor log, and did not check one against the
+other. Recomputing both from the survivor list gives 42 → 39 after R691 → 28 after this
+round, and the list above is generated from that rather than transcribed.
+
+A list of line numbers is the one artifact in a round log that a reader cannot sanity-
+check by reading — it is exactly as trustworthy as the arithmetic behind it, and mine was
+not. Derive it; do not type it.

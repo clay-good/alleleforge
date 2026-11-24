@@ -9,9 +9,9 @@ acceptance.
 ## [Unreleased]
 
 ### Added
-- **No library behaviour changed in these rounds.** All thirteen guards below were already
+- **No library behaviour changed in these rounds.** All twenty-four guards below were already
   correct; what was missing was any test that would notice their removal.
-- **Thirteen refusals that nothing observed are now pinned, found by deleting them.** The
+- **Twenty-four refusals that nothing observed are now pinned, found by deleting them.** The
   four sharpest were in modules whose kill rate had been a meaningless 100%, because a
   test reading the module's own source text dies on `ast.unparse` reformatting whatever
   the mutation was. R689's no-op control refused to report those scores and named the
@@ -52,7 +52,15 @@ acceptance.
   job successful and feeds the next step a file that was never written. Pinned the three
   where that costs most — `design`'s vector-scheme refusal and both in `verify`, whose
   only output is a verdict, so exit 0 is an affirmative false claim about an artifact's
-  provenance. The remaining 39 are listed by line in the round log.
+  provenance. The `bench` family's eleven followed — `bench run`, `bench gap`, `bench
+  compare` and `bench leaderboard` — chosen next because this repository's release
+  criteria turn on those numbers and the commands are the ones most often driven from a
+  script: `bench run` printing "unknown task" and exiting 0 writes no result file and
+  reports success, so the aggregation after it skips a model in silence or re-reads a
+  stale file, and the leaderboard publishes a figure for a run that never happened.
+  `bench leaderboard` takes a *list*, so without its guard a missing path is announced
+  and skipped and the board renders from whatever remained, with nothing in the artifact
+  saying so. 28 sites remain, listed by line in the round log.
 
 - **The mutation harness runs its test list unmutated and aborts unless it passes.**
   "Run the chosen list green first" had been documented advice for many rounds, and advice
