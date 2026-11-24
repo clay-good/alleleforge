@@ -39,3 +39,28 @@
   --md-accent-fg-color: #4db6ac;
   --md-accent-fg-color--transparent: #4db6ac1a;
 }
+
+/* An 11px floor for inline code.
+ *
+ * The theme sizes `.md-typeset code` at `.85em` — a *relative* reduction, so it
+ * compounds with whatever already reduced its container. In running prose the
+ * container is 16px and code lands at 13.6px, which is fine. Inside a table or an
+ * admonition the theme has already dropped the container to `.64rem` (12.8px at its
+ * 125% root), and .85 of that is 10.88px. Neither rule is wrong on its own; the
+ * product is, and nothing in this repository authors either one.
+ *
+ * Measured on the built site before this override: 3,937 text nodes across 21 of the
+ * 24 pages rendered at 10.88px, every one of them inline code or a link/highlight
+ * span inheriting from it. Nothing else on the site is under 11px — nav 16px, tables
+ * and admonitions 12.8px, copyright 12.8px, repository facts 13px. On an API
+ * reference the sub-11px text is the identifiers, which are the most load-bearing
+ * words on the page.
+ *
+ * `max()` keeps the theme's intent — code stays slightly smaller than its context —
+ * and lifts only what falls under the floor. Prose code is untouched at 13.6px, and
+ * at the >=100em breakpoint (a 137.5% root) table code already computes to 11.97px,
+ * so the floor does not fire there either.
+ */
+.md-typeset code {
+  font-size: max(0.85em, 11px);
+}

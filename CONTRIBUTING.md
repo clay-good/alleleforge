@@ -105,7 +105,8 @@ python scripts/mutate.py --target src/alleleforge/x.py --tests tests --mode conj
 Each `--mode` asks a different question — `ops` and `const` whether a computation or a
 threshold is pinned, `conj` whether a condition's other arm is tested, `side` whether
 anything observes that a statement ran at all, `isinst` which side of a type guard a
-fixture supplies, `pair` whether the two ends of a span are interchangeable. The script's
+fixture supplies, `pair` whether the two ends of a span are interchangeable, and `dflt`
+whether a boolean default in a signature is a posture anyone has checked. The script's
 own docstring says what each finds and why.
 
 Three things to know before trusting a result, each of which has produced a confidently
@@ -125,6 +126,28 @@ Never commit while a sweep may be live, and check `git diff --stat src/` afterwa
 harness restores the file it mutated, but a killed process can leave it rewritten.
 `tests/test_the_mutation_harness_applies_what_it_reports.py` guards the harness's own
 index mapping — the property every conclusion above rests on.
+
+### The documentation site
+
+`docs/assets/css/palette.css` is the only stylesheet this project authors, and everything
+in it is an accessibility override of the `mkdocs-material` theme, not styling: a WCAG AA
+contrast fix and an 11px floor for inline code. Both are measured, and
+`tests/test_the_docs_site_text_clears_a_legibility_floor.py` pins them.
+
+Two things to know before changing it:
+
+- **`mkdocs build --strict` does not measure the rendered page.** It checks links and
+  references. Every accessibility defect found on this site so far was only visible by
+  loading the built pages and reading computed styles in a browser; no gate does that, so
+  the guards pin the *inputs* the fix reasons about instead.
+- **A failure of the theme-bound half may mean the override is now redundant.** The theme
+  is depended on as `>=9.5` and may raise its own sizes. The test says so when it fails:
+  remove the override rather than keep it as decoration. That half skips wherever the
+  `docs` extra is not installed, which is every job but `gate`.
+
+Relative units compound, so check a size in the smallest container that can hold it — a
+`.85em` that is comfortable in prose is 10.88px inside a table the theme has already
+reduced.
 
 ## Commit &amp; PR conventions
 

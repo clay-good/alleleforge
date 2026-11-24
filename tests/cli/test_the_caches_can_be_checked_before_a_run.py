@@ -290,3 +290,44 @@ def test_the_sizes_are_the_stores_that_exist(warm: Path) -> None:
     _, payload = _verify()
     for store in payload["held_bytes"]:  # type: ignore[union-attr]
         assert (warm / store).is_dir(), store
+
+
+def test_the_library_sweep_is_shallow_unless_asked(warm: Path) -> None:
+    """`verify_stores` must default to the cheap check, and say that it did.
+
+    The CLI passes `deep=deep` from its flag, so the *library* default is reached only by
+    a caller who omits the keyword — and flipping it to `True` left the whole suite green.
+    What that mutation costs is not a wrong answer but a silent one: `deep` is documented
+    as "a full pass over the index — minutes on a whole-genome one", so a caller asking
+    for a quick pre-flight check would block for minutes with no indication why.
+
+    Asserted against a tampered index, so the two settings cannot agree by accident: the
+    shallow pass must still say `ok (structure only)` on bytes that only the deep pass can
+    catch. That is the case where the expensive check must *not* run, which the existing
+    `--deep` test covers from the CLI side only.
+
+    Found by flipping the default (`scripts/mutate.py --mode dflt`).
+    """
+    from alleleforge.cache_sweep import verify_stores
+
+    bwt = sorted((warm / "fm_index").glob("*/bwt.bin"))[0]
+    data = bytearray(bwt.read_bytes())
+    for position in range(0, len(data), 11):
+        if data[position] in b"ACGT":
+            data[position] = ord("A") if data[position] != ord("A") else ord("C")
+    bwt.write_bytes(bytes(data))
+
+    shallow = [c for c in verify_stores(warm) if c.kind == "fm-index"]
+    assert shallow, "premise: the warm cache holds an FM index to check"
+    assert all(c.status == "ok (structure only)" for c in shallow), (
+        f"verify_stores reconstructed the index for a caller who did not ask for it: {shallow}"
+    )
+
+    # Only the entry tampered above should turn up corrupt; the warm cache holds more
+    # than one index and the others are genuinely intact.
+    tampered = bwt.parent.name
+    deep = {c.artifact: c.status for c in verify_stores(warm, deep=True) if c.kind == "fm-index"}
+    assert deep.get(tampered) == "CORRUPT", (
+        f"premise: the deep pass is what catches this tamper, so the shallow result "
+        f"above is a real distinction rather than two names for one check: {deep}"
+    )

@@ -3391,6 +3391,56 @@ acceptance.
   pinned.
 
 ### Fixed
+- **Conformal recalibration no longer erases a trained point estimate's provenance.**
+  `Prediction.point_from_trained_model` exists so that a trained point shipped with an
+  uncalibrated heuristic interval is distinguishable from a fully heuristic prediction, and
+  both report surfaces read it — the HTML report prints "(… point estimate — not from a
+  trained model)" when it is False. `ConformalCalibrator.calibrate` rebuilt its result
+  through `Prediction.calibrated_by` forwarding `value`, `in_distribution` and `notes` from
+  the incoming prediction, but not this flag, which therefore fell back to its `False`
+  default: recalibrating a genuine Rule Set 3 or PRIDICT2 point produced a prediction that
+  denied being trained, and a report built from it disclaimed it as a heuristic baseline.
+  `Prediction.combine` already propagated the same flag through the same constructor. The
+  flag now travels with the prediction, and the authorized constructor's default is pinned
+  so a caller who omits it still gets the under-claiming answer rather than the
+  over-claiming one.
+- **Every consent gate is now pinned to refuse a caller who says nothing.** `consent: bool
+  = False` guards the model registry, the data registry, the reference genome, the gnomad
+  loader and each trained scorer, and it is `False` so that forgetting it is safe — but
+  every call site in the suite passed `consent=` explicitly, so the default itself was
+  never read. Flipping it to `True` left the suite green on `ModelRegistry.authorize`,
+  `ReferenceGenome.from_build` and `gnomad.load_default`. A static sweep now asserts no
+  `consent` parameter anywhere in the library defaults to `True` (the only way to reach
+  `gnomad.load_default`, which sits behind a `pragma: no cover`), paired with behavioural
+  tests that call the gates with the keyword omitted.
+- **Four opt-in defaults are pinned so an omitted keyword stays opt-out.**
+  `design_cas9`'s `allow_ng`/`allow_spry` PAM-flexible fallbacks (a specificity cost, now
+  tested on a reference that carries an `NG` but no `NGG` PAM, the only state in which the
+  flags do anything), `HGDP.common_haplotypes`'s `include_reference` (whose sibling wrapper
+  was covered and which would otherwise enter the reference sequence into the
+  population-aware scan as a population site), `OffTargetResponse.from_report`'s
+  `on_target_excluded` (a published response claiming an exclusion nobody performed), and
+  `verify_stores`'s `deep` (documented as minutes on a whole-genome index, now pinned
+  against a tampered index so the shallow and deep passes cannot agree by accident).
+- **The docs site no longer renders its identifiers below an 11px legibility floor.**
+  3,937 pieces of text across 21 of the site's 24 pages rendered at 10.88px, every one of
+  them inline `code` — on an API reference, the identifiers. No theme rule is wrong on its
+  own: `.md-typeset code` is `.85em`, which gives a fine 13.6px in running prose, but
+  inside a table or an admonition the container is already reduced to `.64rem` and .85 of
+  12.8px is 10.88px. A relative unit compounds, so a size that passes in its own rule
+  fails inside a reduced container. `docs/assets/css/palette.css` now floors inline code
+  with `max(0.85em, 11px)`, which lifts only the sub-floor cases: prose code and code
+  blocks stay at 13.6px, and at the `>=100em` breakpoint table code already measures
+  11.97px so the floor does not fire at all. Verified by measuring computed styles on every
+  built page at five viewport widths — 3,937 nodes under 11px before, zero after.
+- **The docs site's WCAG contrast override is now guarded.** The teal palette that fixed a
+  4.5:1 contrast failure had been load-bearing since it was added and was pinned by
+  nothing, so any edit to its four hex values would have been silent. The light scheme's
+  white-on-primary and white-on-accent pairings are re-measured from the stylesheet, the
+  slate accent is measured against the ground resolved from the installed theme rather than
+  a ratio recorded in a comment, and both the WCAG luminance formula and the HSL conversion
+  are pinned against published values — a guard that shares its arithmetic with its subject
+  cannot see an error in the arithmetic.
 - **`--patient-vcf` says which of a person's alleles it did not scan.** `iter_vcf`
   drops soft-filtered calls by default and `aforge batch` has counted those drops since
   a cohort was found to be silently smaller than its file; the patient off-target path

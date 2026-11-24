@@ -2,8 +2,8 @@
 """Mutation-testing harness: change the source, run the suite, see what notices.
 
 This is the method `openspec/changes/README.md` records from Round 578 onward. Reading
-code went dry; mutating it found a defect almost every round. Four operators have been
-built here and each is exhausted repo-wide, so a fifth needs a new hypothesis rather
+code went dry; mutating it found a defect almost every round. Five operators have been
+built here and each is exhausted repo-wide, so a sixth needs a new hypothesis rather
 than a longer list — but the harness is kept because every pass needs it again, and
 because rebuilding it from scratch has three times produced a *wrong answer* rather than
 no answer.
@@ -35,6 +35,15 @@ Operators (``--mode``), each asking a different question:
     receiver in the same function. Confusing two *unrelated* fields explodes on the
     first assertion; confusing the two ends of one span stays plausible and silent,
     which is the class this project has shipped more than once.
+``dflt``
+    Flip a ``True``/``False`` **default in a function signature**. *Is this posture one
+    anybody checked?* A boolean default is the one parameter no call site has to defend,
+    and every safety gate here has one (``consent=``, ``verify=``, ``pass_only=``,
+    ``allow_ng=``). ``const`` reaches the same nodes but buries ~110 signature defaults
+    under thousands of literals. The survivors are rarely shipped behaviour — every
+    production caller usually passes the flag — so read them as *what the next caller
+    who omits it gets*, which is also why the suite cannot see them. Note that fixing a
+    caller makes the default unreachable, so pin the default itself as well.
 
 Three traps, each of which cost a wrong answer and each of which
 ``tests/test_the_mutation_harness_applies_what_it_reports.py`` now pins:

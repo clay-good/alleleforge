@@ -563,6 +563,13 @@ class ConformalCalibrator:
             # time, which the calibration ECE would then score against the wrong nominal.
             interval_level=achieved,
             in_distribution=prediction.in_distribution,
+            # Recalibration corrects the *interval*; it says nothing about where the
+            # point estimate came from, so the provenance travels with it. Dropped,
+            # this fell back to the parameter's `False` default and a recalibrated
+            # Rule Set 3 / PRIDICT2 point came back denying it was trained — which the
+            # report then disclaims as a heuristic baseline. `Prediction.combine`
+            # propagates the same flag through the same constructor.
+            point_from_trained_model=prediction.point_from_trained_model,
             notes=notes,
         )
 
