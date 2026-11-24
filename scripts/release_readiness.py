@@ -142,6 +142,20 @@ def _artifact_pinning() -> Criterion:
     ]
     ds_moving = [d for d, u in ds_named if _names_an_artifact(u) and _names_a_moving_target(u)]
     ds_referenced = [d for d, u in ds_named if not _names_an_artifact(u)]
+    # Applied to the *pinned* descriptors too, which it never was. A hash beside a moving
+    # address is a pin with an expiry date: the next upstream release invalidates it and
+    # the consent gate then refuses a dataset that loaded yesterday. `dbsnp` showed the
+    # cheaper version of the same defect while unpinned — `latest_release` had moved to
+    # b157 while the descriptor still declared b156, so a run would have fetched one
+    # build and recorded another. Both addresses are now archived or commit-pinned, so
+    # this reports zero; it is here to keep it that way.
+    ds_drifting = [
+        d
+        for d in datasets
+        if getattr(d, "sha256", None)
+        and not getattr(d, "bundled", False)
+        and _names_a_moving_target(getattr(d, "source_url", None) or "")
+    ]
 
     # What needs somebody to decide *which file*: the cards that name a page, plus the
     # datasets that name a portal, plus the ones that name a file at a floating address.
@@ -189,6 +203,10 @@ def _artifact_pinning() -> Criterion:
             "consume a set of files, so one blob's hash would leave the rest unpinned — "
             "see specs/r0-artifact-pinning.md)"
             + (": " + ", ".join(sorted(c.name for c in referenced)) if referenced else ""),
+            f"{len(ds_drifting)} pinned dataset(s) name an address upstream can replace, "
+            "so their hash expires at the next upstream release and the consent gate then "
+            "refuses a dataset that used to load"
+            + (": " + ", ".join(sorted(d.name for d in ds_drifting)) if ds_drifting else ""),
             f"{len(ds_fetchable)} unpinned dataset(s) name a fixed single artifact, so a "
             "fetch-and-hash would pin them"
             + (": " + ", ".join(sorted(d.name for d in ds_fetchable)) if ds_fetchable else ""),

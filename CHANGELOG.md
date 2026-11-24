@@ -9,6 +9,15 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **`dbsnp` would have fetched one build and recorded it as another.** Its descriptor
+  declared `version="b156"` and cached as `dbsnp.b156.tsv.gz` while its `source_url`
+  pointed at `/snp/latest_release/`, which upstream has since moved to b157 — 29.5 GB
+  where the descriptor meant 26.6 GB. That is a false claim in the one field whose job is
+  to say which data a result came from. Repointed at the archived `/snp/archive/b156/`
+  path, which cannot move; moving to b157 stays a separate deliberate decision. Guarded
+  offline two ways: no descriptor may name a moving address, and a descriptor whose
+  upstream versions its paths must name its version in it — which catches this
+  contradiction from the source, with no network access.
 - **All six cards whose loader consumes a set of files now pin an upstream revision, and
   the three checkout adapters are checked against the directory on disk.** `lindel`,
   `be-dict` and `pridict2` read a checkout (`ALLELEFORGE_*_REPO`), so

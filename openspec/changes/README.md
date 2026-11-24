@@ -24519,3 +24519,59 @@ these two).
 raises nothing, compares equal to `Path(".")`, and reads as a perfectly good directory.
 Nothing in the type system or the test suite objected; only asking "what does this return
 when nobody configured anything?" did.
+
+## Round 698 — a floating address had already drifted a build ahead of its version
+
+R0's dataset side was the group I said this repository could finish unilaterally. Looking
+properly found something better than a pinning chore: **a provenance defect that had
+already happened.**
+
+`dbsnp` declared `version="b156"` and cached as `dbsnp.b156.tsv.gz`, while its
+`source_url` pointed at `/snp/latest_release/`. Upstream has since published b157, so the
+address served 29,552,227,779 bytes where the descriptor meant 26,611,209,012. **A run
+would have fetched one build of dbSNP and recorded it as another** — not a stale number
+but a false claim in the one field whose job is to say which data a result came from. The
+report's own comment predicted this failure shape rounds ago; nothing checked whether it
+had occurred.
+
+Repointed at `/snp/archive/b156/`, which cannot move and matches the declared version.
+Moving to b157 is a separate deliberate decision — new version, new cached filename — and
+not something an address fix should do silently. A `sha256` still needs a 26 GB
+fetch-and-hash (NCBI publishes md5 only), but it is now a hash that stays true instead of
+one the next upstream release invalidates.
+
+### The check existed and was pointed the wrong way
+
+`_names_a_moving_target` has been in `release_readiness.py` for several rounds, applied
+**only to unpinned datasets**, where it changes how the triage reads. It was never applied
+to the descriptors themselves, so the one case it was written to describe went unexamined.
+Now guarded two ways, both offline and neither needing the network:
+
+* no descriptor may name a moving address;
+* the three descriptors whose upstream versions its paths must contain their version in
+  it — which would have caught `dbsnp` from the source alone, since `version="b156"`
+  beside `latest_release` is a readable contradiction.
+
+The report also gained a line for pinned descriptors at moving addresses. It reads zero,
+and it is there to keep it that way: a hash beside a mutable address expires at the next
+upstream release, and the consent gate then refuses a dataset that loaded yesterday.
+
+### A guard I nearly broke, and a deferral
+
+`doench-2016-cfd` also names a `master` URL, so I pinned it to the commit that last
+touched the file — verified byte-identical, 6,965 bytes, same digest. Two existing tests
+then failed, and they were right: that URL is **not a fetch target**. It is a *key* into
+the `sources` map inside the shipped `cfd_matrix.json`, which records each upstream the
+matrix was cross-verified against. Changing the key here means changing it there, which
+changes that file's digest, which is the hash this registry pins.
+
+So making that citation immutable means re-cutting the authentication trail of the default
+off-target scorer. Reverted, exempted with the reason in both the descriptor and the
+guard, and recorded in `specs/r0-artifact-pinning.md`. Nothing is wrong today; the
+exposure is that the citation could later name bytes nobody checked. That is worth doing
+deliberately, and this was not the round to do it in passing.
+
+**Lesson: a `/master/` URL is not automatically a defect — ask what reads it.** Two
+descriptors carried the same shape for opposite reasons: one was drifting silently and
+needed fixing, the other is load-bearing and needed leaving alone. The difference was
+invisible from the URL and obvious from the tests.

@@ -128,13 +128,48 @@ pinned cards is a deliberate edit rather than a side effect.
 | `be-hive` | a web service, no artifact | upstream publishing a checkpoint |
 | `deepprime`, `genet`, `indelphi`, `x-crisp` | repositories with no weight asset | a release **asset** rather than a source tag |
 | 5 heuristic baselines | no artifact exists — they are code | nothing; correctly unpinnable |
-| `dbsnp` | only a floating `latest_release/` path | a versioned URL from NCBI |
+| `dbsnp` | **address fixed** — `/snp/archive/b156/`; `sha256` needs a 26 GB fetch | a deliberate fetch-and-hash (upstream publishes md5 only) |
 | `1000g`, `encode`, `gnomad`, `hgdp` | portals, not files | choosing per-release files, then fetch-and-hash |
 
 The four dataset portals are the one group this repository could finish unilaterally:
 each has per-release files behind the portal, so the work is choosing them and hashing.
 That is its own change — the files are large enough that fetch-and-hash is a deliberate
 operation.
+
+## The dbsnp defect, which was not a pinning problem
+
+`dbsnp` declared `version="b156"` and cached as `dbsnp.b156.tsv.gz` while its
+`source_url` pointed at `/snp/latest_release/`. Upstream had published b157, so the
+address served 29,552,227,779 bytes where the descriptor meant 26,611,209,012. **A run
+would have fetched one build of dbSNP and recorded it as another** — a false provenance
+claim in a field whose only job is to say which data a result came from. The floating
+address had already drifted a build ahead of the version beside it.
+
+Repointed at `/snp/archive/b156/`, which cannot move and matches the declared version.
+Upgrading to b157 is a separate, deliberate decision — new version, new cached filename —
+and not something an address fix should do silently. A `sha256` still needs a 26 GB
+fetch-and-hash (NCBI publishes md5 only: `a1082ca70e15eb63301dfc33b19d0ae7`), but it is
+now a hash that stays true rather than one the next release invalidates.
+
+Guarded two ways, both offline: no descriptor may name a moving address, and the three
+descriptors whose upstream versions its paths must contain their version in it — which is
+what would have caught this with no network at all.
+
+## Deferred: the CFD matrix's citation
+
+`doench-2016-cfd`'s `source_url` is a `master` URL, which the moving-target rule flags,
+and it is exempt. It is not a fetch target: it is a *key* into the `sources` map inside
+the shipped `cfd_matrix.json`, which records each upstream the matrix was cross-verified
+against with that upstream's digest. Two existing tests hold the descriptor and that
+record to the same key.
+
+Pinning it to the commit that last touched the file was tried and reverted. The key would
+have to change inside `cfd_matrix.json` too, which changes that file's digest, which is
+the hash this registry pins — so making a citation immutable means re-cutting the matrix's
+authentication trail. The content is verified identical at `master` and at that commit
+(6,965 bytes, sha256 `c58e9c1a85f0…`), so nothing is wrong today; the exposure is that
+the citation could later name bytes nobody checked. Worth doing deliberately, not in
+passing.
 
 ## Status
 

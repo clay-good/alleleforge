@@ -300,7 +300,16 @@ DEFAULT_REGISTRY = DatasetRegistry(
         "dbsnp": DatasetDescriptor(
             name="dbsnp",
             version="b156",
-            source_url="https://ftp.ncbi.nlm.nih.gov/snp/latest_release/VCF/GCF_000001405.40.gz",
+            # The archived build, not `latest_release`, and this descriptor is why that
+            # distinction is not theoretical: `latest_release` had already moved on to
+            # b157 (29,552,227,779 bytes) while this descriptor still declared b156
+            # (26,611,209,012) and cached under `dbsnp.b156.tsv.gz`. A run would have
+            # downloaded one build and recorded it as another. The archive path cannot
+            # move. Upstream publishes md5 only (`.gz.md5` =
+            # a1082ca70e15eb63301dfc33b19d0ae7), so `sha256` still needs a deliberate
+            # 26 GB fetch-and-hash — but it is now a hash that stays true, rather than
+            # one the next upstream release invalidates.
+            source_url=("https://ftp.ncbi.nlm.nih.gov/snp/archive/b156/VCF/GCF_000001405.40.gz"),
             license="public-domain (NCBI)",
             citation="Sherry et al., Nucleic Acids Res 2001 (dbSNP)",
             redistributable=True,
@@ -341,6 +350,20 @@ DEFAULT_REGISTRY = DatasetRegistry(
         "doench-2016-cfd": DatasetDescriptor(
             name="doench-2016-cfd",
             version="2016",
+            # Deliberately a `master` URL, which `_names_a_moving_target` flags and which
+            # this descriptor is exempt from: it is not a fetch target but a *key* into
+            # the authentication record inside the shipped `cfd_matrix.json`, whose
+            # `sources` map records each upstream it was cross-verified against with that
+            # upstream's own digest. Two tests hold the descriptor and that record to the
+            # same key.
+            #
+            # Pinning it to the commit that last touched the file
+            # (d254fb38fe482aeb43e3c888a42e385b4013f72f — verified byte-identical to
+            # `master` today, 6,965 bytes, sha256 c58e9c1a85f0…) was tried and reverted:
+            # the key would then have to change inside `cfd_matrix.json` too, which
+            # changes that file's digest, which is the pin this registry carries. Re-cutting
+            # the matrix's authentication trail to make a citation immutable is not a
+            # change to make in passing. Recorded in specs/r0-artifact-pinning.md.
             source_url=(
                 "https://raw.githubusercontent.com/maximilianh/crisporWebsite/master/"
                 "CFD_Scoring/mismatch_score.pkl"
