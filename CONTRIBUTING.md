@@ -104,10 +104,16 @@ python scripts/mutate.py --target src/alleleforge/x.py --tests tests --mode conj
 
 Each `--mode` asks a different question — `ops` and `const` whether a computation or a
 threshold is pinned, `conj` whether a condition's other arm is tested, `side` whether
-anything observes that a statement ran at all, `isinst` which side of a type guard a
-fixture supplies, `pair` whether the two ends of a span are interchangeable, and `dflt`
-whether a boolean default in a signature is a posture anyone has checked. The script's
-own docstring says what each finds and why.
+anything observes that a statement ran at all, `raise` whether anything observes that a
+refusal *fires*, `isinst` which side of a type guard a fixture supplies, `pair` whether
+the two ends of a span are interchangeable, and `dflt` whether a boolean default in a
+signature is a posture anyone has checked. The script's own docstring says what each
+finds and why.
+
+Every mode has been run repo-wide and each is exhausted, so a new one needs a new
+hypothesis rather than a longer list. `raise` is the only mode that came back **clean**
+(370/370 killed): every refusal in the library is pinned by a test that asserts the
+refusal, not merely the happy path. Keep that result in mind before re-running it.
 
 Three things to know before trusting a result, each of which has produced a confidently
 wrong answer here:

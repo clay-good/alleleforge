@@ -25,6 +25,15 @@ Operators (``--mode``), each asking a different question:
     a ``NameError`` on the next line, which measures the interpreter. *Does anything
     observe that this ran?* This is the operator that reaches resources, report
     completeness, output order and liveness.
+``raise``
+    Delete one ``raise`` statement at a time. *Does anything observe that this refusal
+    fires?* ``side`` deliberately excludes ``raise`` (it keeps to bare calls and
+    collection writes) and ``del`` buries it under every other statement, so for a
+    library whose identity is honest refusals — consent gates, checksum verification,
+    field validators, the ``calibrated=True`` coercion — the question had never been
+    asked. A surviving deletion means a guard whose *firing* nothing asserts: the
+    message may be pinned while the refusal itself is not, and a test asserting the
+    happy path cannot tell a guard that passed from a guard that is gone.
 ``isinst``
     Force an ``isinstance`` call to ``True`` and to ``False`` in turn. *Which side of
     this type guard does a fixture supply?* **When both answers survive, the predicate
@@ -173,7 +182,7 @@ class Collector(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        if self.mode in ("del", "side"):
+        if self.mode in ("del", "side", "raise"):
             self._body_sites(node)
         elif self.mode == "pair":
             self._pair_body(node)
@@ -182,7 +191,7 @@ class Collector(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        if self.mode in ("del", "side"):
+        if self.mode in ("del", "side", "raise"):
             self._body_sites(node)
         elif self.mode == "pair":
             self._pair_body(node)
@@ -196,7 +205,7 @@ class Collector(ast.NodeVisitor):
         Only statements whose removal leaves valid, non-trivial code: a docstring is
         not a statement anyone observes, and a lone `pass` deletes to nothing.
         """
-        for stmt in _deletable(fn, side_only=self.mode == "side"):
+        for stmt in _deletable(fn, side_only=self.mode == "side", raise_only=self.mode == "raise"):
             self.sites.append((self.mode, stmt.lineno, _describe(stmt)))
 
     def _default_body(self, fn: ast.AST) -> None:
@@ -284,7 +293,7 @@ class Mutator(ast.NodeTransformer):
     # one the Mutator's numbering ran ahead of the Collector's and an index named a
     # statement that was never deleted. Count ours, then descend.
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
-        if self.mode in ("del", "side"):
+        if self.mode in ("del", "side", "raise"):
             self._delete_in(node)
             if not self.applied:
                 self.generic_visit(node)
@@ -321,7 +330,7 @@ class Mutator(ast.NodeTransformer):
                 return
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> ast.AST:
-        if self.mode in ("del", "side"):
+        if self.mode in ("del", "side", "raise"):
             self._delete_in(node)
             if not self.applied:
                 self.generic_visit(node)
@@ -335,7 +344,7 @@ class Mutator(ast.NodeTransformer):
         return node
 
     def _delete_in(self, fn: ast.AST) -> None:
-        for stmt in _deletable(fn, side_only=self.mode == "side"):
+        for stmt in _deletable(fn, side_only=self.mode == "side", raise_only=self.mode == "raise"):
             if self._hit():
                 _remove(fn, stmt)
                 self.applied = True
@@ -436,7 +445,7 @@ def _is_side_effect(stmt: ast.stmt) -> bool:
     )
 
 
-def _deletable(fn: ast.AST, *, side_only: bool = False) -> list[ast.stmt]:
+def _deletable(fn: ast.AST, *, side_only: bool = False, raise_only: bool = False) -> list[ast.stmt]:
     """Statements in ``fn`` whose deletion is a meaningful mutant, in source order."""
     out: list[ast.stmt] = []
     for block in _bodies(fn):
@@ -452,6 +461,8 @@ def _deletable(fn: ast.AST, *, side_only: bool = False) -> list[ast.stmt]:
             ):
                 continue  # the docstring
             if side_only and not _is_side_effect(stmt):
+                continue
+            if raise_only and not isinstance(stmt, ast.Raise):
                 continue
             out.append(stmt)
     out.sort(key=lambda s: (s.lineno, s.col_offset))
@@ -584,7 +595,7 @@ def main() -> int:
     ap.add_argument(
         "--mode",
         default="conj",
-        choices=["ops", "const", "conj", "del", "side", "isinst", "pair", "dflt"],
+        choices=["ops", "const", "conj", "del", "side", "raise", "isinst", "pair", "dflt"],
     )
     ap.add_argument("--only", type=int, default=-1)
     ap.add_argument("--timeout", type=int, default=300)

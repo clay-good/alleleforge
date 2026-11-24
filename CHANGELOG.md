@@ -9,6 +9,15 @@ acceptance.
 ## [Unreleased]
 
 ### Added
+- **The mutation harness deletes refusals (`--mode raise`).** `side` mode deliberately
+  excludes `raise` statements and `--mode del` buries them under thousands of unrestricted
+  deletions, so for a library whose identity is honest refusals — consent gates, checksum
+  verification, field validators, the `calibrated=True` coercion — nothing had ever asked
+  whether a test observes that a guard *fires* rather than that the happy path works. The
+  answer is that they all do: 370 mutants across 58 files, 370 killed, the first operator
+  here to come back clean. Every package list was re-run at baseline afterwards to rule out
+  the failure mode where a red suite reports every mutant as killed. The harness's contract
+  test gained the closure-and-handler shapes for the new mode.
 - **The mutation harness flips boolean defaults (`--mode dflt`).** A boolean default is
   a decision no call site has to make, which is where this project's safety postures live
   (`verify=`, `consent=`, `pass_only=`, `in_distribution=`). `const` mode reaches the same

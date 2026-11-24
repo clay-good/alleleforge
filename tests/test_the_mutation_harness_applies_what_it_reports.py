@@ -58,13 +58,23 @@ def outer(a, b, c, iv, d, strict=True, *, verify=True, quiet=False):
         out.append("x")
     if isinstance(a, str):
         out.append("y")
+    if not verify:
+        raise ValueError("unverified")
 
     def inner(y, loud=False):
         out.append("z")
+        if loud:
+            raise KeyError("loud")
         return y
 
     return f"{d.low}-{d.high} {iv[0]}..{iv[1]} {len(out)} {inner(1)}"
 '''
+
+
+#: Every operator the harness implements. `del` is kept out of the sweeps in practice
+#: (unrestricted deletion is mostly interpreter noise) but its index mapping is still a
+#: property worth holding, so it is checked here like the rest.
+_MODES = ["ops", "const", "conj", "del", "side", "raise", "isinst", "pair", "dflt"]
 
 
 def _sites(harness: ModuleType, mode: str) -> list[tuple[str, int, str]]:
@@ -81,7 +91,7 @@ def _applied(harness: ModuleType, mode: str, index: int) -> str:
     return ast.unparse(tree)
 
 
-@pytest.mark.parametrize("mode", ["ops", "const", "conj", "del", "side", "isinst", "pair", "dflt"])
+@pytest.mark.parametrize("mode", _MODES)
 def test_every_site_the_collector_reports_can_be_applied(harness: ModuleType, mode: str) -> None:
     """The floor: an index that applies nothing is an index that measured nothing."""
     sites = _sites(harness, mode)
@@ -91,7 +101,7 @@ def test_every_site_the_collector_reports_can_be_applied(harness: ModuleType, mo
         assert mutant != _SOURCE.strip(), f"{mode}[{index}] changed nothing"
 
 
-@pytest.mark.parametrize("mode", ["ops", "const", "conj", "del", "side", "isinst", "pair", "dflt"])
+@pytest.mark.parametrize("mode", _MODES)
 def test_each_index_changes_the_source_differently(harness: ModuleType, mode: str) -> None:
     """Two indices producing one mutant means the numbering collapsed somewhere."""
     sites = _sites(harness, mode)
@@ -127,6 +137,48 @@ def test_a_closure_is_reached_in_deletion_mode(harness: ModuleType) -> None:
     mutant = _applied(harness, "side", inner[0])
     assert "'z'" not in mutant and '"z"' not in mutant, mutant
     assert "'x'" in mutant and "'y'" in mutant, "it deleted the wrong append"
+
+
+def test_a_raise_deletion_removes_exactly_one_guard(harness: ModuleType) -> None:
+    """`raise` mode must drop one refusal per index, and only `raise` statements.
+
+    The operator exists because `side` deliberately excludes `raise` and `del` buries it,
+    so this is the only mode whose whole subject is whether a guard firing is observed.
+    An index that removed two guards, or removed something that was not a guard, would
+    make every survivor unreadable.
+    """
+    sites = _sites(harness, "raise")
+    assert len(sites) == 2, f"expected the two fixture guards, got {sites}"
+    base = ast.unparse(ast.parse(_SOURCE))
+    for index in range(len(sites)):
+        mutant = _applied(harness, "raise", index)
+        assert base.count("raise ") - mutant.count("raise ") == 1, (
+            f"raise[{index}] did not remove exactly one raise"
+        )
+        # Nothing but the guard moved: the side-effecting calls are all still there.
+        assert mutant.count("out.append") == base.count("out.append")
+
+
+def test_a_raise_deletion_names_the_guard_it_removes(harness: ModuleType) -> None:
+    """The logged label must identify the guard that actually went."""
+    for index, (_kind, _lineno, detail) in enumerate(_sites(harness, "raise")):
+        mutant = _applied(harness, "raise", index)
+        assert detail not in mutant, f"raise[{index}] logged {detail!r}, still present"
+
+
+def test_a_closure_guard_is_reached_and_ordered_after_the_outer_one(
+    harness: ModuleType,
+) -> None:
+    """The closure trap, in the new mode.
+
+    The mutator must descend into nested `def`s in the same order the collector does —
+    this is the bug that once reported a whole module's deletions "invalid".
+    """
+    details = [detail for _kind, _lineno, detail in _sites(harness, "raise")]
+    assert "raise ValueError('unverified')" in details[0]
+    assert "raise KeyError('loud')" in details[1], (
+        f"the closure's guard must be numbered after the outer body's: {details}"
+    )
 
 
 def test_a_type_guard_is_forced_both_ways_in_a_fixed_order(harness: ModuleType) -> None:

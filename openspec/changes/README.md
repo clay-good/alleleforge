@@ -23586,3 +23586,64 @@ that always speaks cannot audit it.** The three categories hold — nine reachab
 untested, three unexecutable or inert — but the reachable ones share a shape worth naming:
 not one of them was a bug in shipped behaviour, and all nine were a bug waiting for the
 next caller.
+
+## Round 685 — the operator that found nothing, and why that is the result
+
+Built the eighth operator, `--mode raise`: delete one `raise` statement at a time.
+**370 mutants across 58 files. 370 killed, 0 alive, 0 invalid.** The first operator in
+this whole arc to come back completely clean.
+
+### Why it was worth building
+
+`side` mode deliberately excludes `raise` — it keeps to bare calls and collection
+writes, because deleting an ordinary assignment measures the interpreter — and `--mode
+del` buries raises under 7,154 unrestricted deletions and has never been run. So for a
+library whose identity is *honest refusals* — consent gates, checksum verification, field
+validators, the `calibrated=True` coercion — the question "does anything observe that
+this refusal fires?" had never been asked by any operator.
+
+The prior came from R684 immediately before it: the consent class showed that the
+*defaults* around these gates were unmeasured, which made it reasonable to suspect the
+gates themselves were pinned only by their messages. They are not. A deleted `raise` is
+caught every time, which means these tests assert the refusal and not merely the happy
+path.
+
+### Why the result is trustworthy
+
+A clean sweep is exactly what a **failing baseline** looks like — trap 2 in the harness
+docstring: the run exits non-zero whatever the mutation did, so every mutant reports
+"killed". So each of the 13 package lists was then run at baseline and confirmed green
+(854–1,421 passing, 27–57s each). The 370/370 is real.
+
+Two qualifications on the number, stated rather than implied:
+
+* Each list was `tests/<pkg>` **plus all 122 root test files**, which hold the
+  cross-surface agreement guards. That is ~1,000 tests per run — far closer to a full
+  sweep than to a mirror directory, which is also why **zero** survivors appeared even
+  narrowly, where this log normally expects 50–100% phantoms.
+* The operator covers `raise` inside function bodies, which is where guards live. A
+  `raise` at module or class scope is not collected.
+
+The one apparent finding was a phantom: `types/offtarget.py`'s `mit_score` range
+validator survived against `tests/types` and died against the whole suite. **That is
+R661's rule holding again — the phantom rate is a property of the module's audience.**
+`types/offtarget.py` looks like a pure type, where R660 measured a 0% phantom rate, but
+it is consumed by the engine, the scorers and all three report surfaces, so its mirror
+directory is the wrong list for it.
+
+### The harness
+
+`--mode raise` reuses the deletion machinery, including the `_remove` that leaves `pass`
+behind when a guard was the only statement in its block. Index→mutant mapping was
+verified one-to-one on a toy carrying every shape that has broken this harness — a nested
+`BoolOp`, a closure, an `except` handler, `raise ... from None`, a lone raise in a body —
+and is now pinned in `tests/test_the_mutation_harness_applies_what_it_reports.py`, whose
+fixture gained two guards (one inside the closure, so the mutator must descend in the
+collector's order). 25 contract tests became 30.
+
+**Lesson: a negative result is only worth having if it is trustworthy, and that costs
+more than the sweep.** The sweep took an hour; verifying that its 370/370 was not thirteen
+failing baselines took another twenty minutes, and without that step the number would have
+been indistinguishable from the most embarrassing failure mode this harness has. Record
+the clean result so nobody rebuilds the operator — and record what it covered, because
+"clean" is a claim about a list as much as about the code.
